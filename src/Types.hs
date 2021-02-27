@@ -1,6 +1,6 @@
 {- |
-Module      :  ProcessCommands.hs
-Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
+Module      :  Types.hs
+Description :  Module specifying data types
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -34,37 +34,21 @@ Portability :  portable (I hope)
 
 -}
 
-module ProcessCommands where
+module Types where
 
-import           Control.Exception
-import           Data.Typeable
-import           Control.Monad.Catch
-import           Data.Char
---import           Debug.Trace
+-- | Types for timed searches
+type Days = Int
+type Hours = Int
+type Minutes = Int
+type Seconds = Int 
+data Time = (Days, Hours, Minutes, Seconds)
+  	deriving (Show, Eq)
 
-import           Types
+-- | Command types
+data Argument = String | Double | Int | Bool | Time
+  	deriving (Show, Eq)
 
+data Instruction = Read | Report | Build | Swap | Refine | Run
+ 	deriving (Show, Eq)
 
--- | Exception machinery for bad intial command line
-data BadCommandLine = BadCommandLine
-    deriving Typeable
-instance Show BadCommandLine where
-    show BadCommandLine = "Error: Program requires a single argument--the name of command script file.\n"
-instance Exception BadCommandLine
-
--- | Exception machinery for empty command file
-data EmptyCommandFile = EmptyCommandFile
-    deriving Typeable
-instance Show EmptyCommandFile where
-    show EmptyCommandFile = "Error: Empty command script file.\n"
-instance Exception EmptyCommandFile
-
-
-
-
--- | commandList takes a String from a file and returns a list of commands and their arguments
--- these are syntactically verified, but any input files are not checked
-commandList :: String -> [Command]
-commandList rawContents =
-	if null rawContents then throwM EmptyCommandFile
-	else [(Read,[])]
+type Command = (Instruction, [Argument])

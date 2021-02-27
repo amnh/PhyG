@@ -1,4 +1,4 @@
- {- |
+{- |
 Module      :  phygraph.hs
 Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
@@ -34,13 +34,17 @@ Portability :  portable (I hope)
 
 -}
 
-
 module Main where
 
-import           Data.List
 import           System.IO
 import           System.Environment
-import           Debug.Trace
+import           Control.Monad.Catch (throwM)
+
+import           ProcessCommands
+import           Types
+
+--import           Debug.Trace
+
 
 -- | main driver
 main :: IO ()
@@ -51,13 +55,19 @@ main =
     let splash3 = "under the 3-Clause BSD License.\n"
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
     
-    -- Process arguments
+    -- Process arguments--a single file containing commands
     args <- getArgs
-    
-    hPutStrLn stderr "\nProgram arguments:"
-    mapM_ (hPutStr stderr) (fmap (++ " ") args)
+
+    if length args /= 1 then throwM BadCommandLine -- error "Program requires a single argument--the name of command script file.\n\n"
+    else hPutStr stderr "\nCommand script file: "
+    hPutStrLn stderr $ head args
     hPutStrLn stderr "\n"
 
+    -- Process commands to get list of actions
+    commandContents <- readFile $ head args
+    let thingsToDo =  commandList commandContents
+
+    mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     hPutStrLn stderr "\nDone"
 
