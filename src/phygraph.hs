@@ -39,6 +39,7 @@ module Main where
 import           System.IO
 import           System.Environment
 import           Control.Monad.Catch (throwM)
+import           Data.Maybe
 
 import           ProcessCommands
 import           Types
@@ -51,7 +52,7 @@ main :: IO ()
 main =
   do
     let splash = "\nPhyGraph version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
-    let splash2 = "nPhyGraph comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
+    let splash2 = "PhyGraph comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "under the 3-Clause BSD License.\n"
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
     
@@ -64,9 +65,7 @@ main =
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
-    if null commandContents then throwM EmptyCommandFile
-    else hPutStr stderr ""
-    let thingsToDo =  commandList commandContents
+    let thingsToDo =  if commandList commandContents == Nothing then throwM BadCommandFile else fromJust $ commandList commandContents
 
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 

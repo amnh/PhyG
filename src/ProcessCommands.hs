@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module ProcessCommands where
+module ProcessCommands  where
 
 import           Control.Exception
 import           Data.Typeable
@@ -42,6 +42,7 @@ import           Control.Monad.Catch
 import           Data.Char
 import           Debug.Trace
 import           Data.List.Split
+import           Data.Maybe
 
 import           Types
 
@@ -54,11 +55,11 @@ instance Show BadCommandLine where
 instance Exception BadCommandLine
 
 -- | Exception machinery for empty command file
-data EmptyCommandFile = EmptyCommandFile
+data BadCommandFile = BadCommandFile
     deriving Typeable
-instance Show EmptyCommandFile where
-    show EmptyCommandFile = "Error: Empty command script file.\n"
-instance Exception EmptyCommandFile
+instance Show BadCommandFile where
+    show BadCommandFile = "Error: Error in processing command file.\n"
+instance Exception BadCommandFile
 
 
 -- | removeComments deletes anyhting on line (including line) 
@@ -80,15 +81,26 @@ removeComments inLineList =
 
 -- | commandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
-commandList :: String -> [Command]
+commandList :: String -> Maybe [Command]
 commandList rawContents =
-    if null rawContents then error "Empty command file"
+    if null rawContents then trace ("Error: Empty command file") Nothing
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
+            processedCommands = fmap parseCommand rawList
         in
         trace (show rawList)
-        [(Read,[])]
+        Just (fmap fromJust processedCommands)
 
+
+-- | parseCommand takes a command file line and processes the String into a command and its arguemnts
+parseCommand :: String -> Maybe Command
+parseCommand inLine =
+    if null inLine then error "Null command line"
+    else 
+        let instructionString = takeWhile (/= '(') inLine
+            argList = splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
+        in
+        Just (Read,[])
 
 
 
