@@ -41,8 +41,7 @@ type Days = Int
 type Hours = Int
 type Minutes = Int
 type Seconds = Int 
-data Time = (Days, Hours, Minutes, Seconds)
-  	deriving (Show, Eq)
+type Time = (Days, Hours, Minutes, Seconds)
 
 -- | Command types
 data Argument = String | Double | Int | Bool | Time

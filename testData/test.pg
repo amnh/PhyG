@@ -1,0 +1,2 @@
+-- Test command file
+read (blah) -- readfile

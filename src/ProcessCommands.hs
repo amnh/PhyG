@@ -40,7 +40,8 @@ import           Control.Exception
 import           Data.Typeable
 import           Control.Monad.Catch
 import           Data.Char
---import           Debug.Trace
+import           Debug.Trace
+import           Data.List.Split
 
 import           Types
 
@@ -60,11 +61,34 @@ instance Show EmptyCommandFile where
 instance Exception EmptyCommandFile
 
 
+-- | removeComments deletes anyhting on line (including line) 
+-- after double dash "--"
+removeComments :: [String] -> [String]
+removeComments inLineList =
+    if null inLineList then []
+    else 
+        let firstLine = head inLineList
+            firstTwo  = take 2 firstLine
+        in
+        if firstTwo == "--" then removeComments $ tail inLineList
+        else 
+            let nonComment = head $ splitOn "--" firstLine
+            in
+            nonComment : (removeComments $ tail inLineList)
+
 
 
 -- | commandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
 commandList :: String -> [Command]
 commandList rawContents =
-	if null rawContents then throwM EmptyCommandFile
-	else [(Read,[])]
+    if null rawContents then throwM EmptyCommandFile
+    else 
+        let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
+        in
+        trace (show rawList)
+        [(Read,[])]
+
+
+
+
