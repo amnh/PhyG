@@ -82,7 +82,7 @@ removeComments inLineList =
 -- these are syntactically verified, but any input files are not checked
 commandList :: String -> [Command]
 commandList rawContents =
-    if null rawContents then throwM EmptyCommandFile
+    if null rawContents then error "Empty command file"
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
         in
