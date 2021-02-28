@@ -61,6 +61,9 @@ instance Show BadCommandFile where
     show BadCommandFile = "Error: Error in processing command file.\n"
 instance Exception BadCommandFile
 
+-- | allowedCommandList is teh permitted command string list
+allowedCommandList :: [String]
+allowedCommandList = ["read", "build", "swap", "refine", "run", "report"]
 
 -- | removeComments deletes anyhting on line (including line) 
 -- after double dash "--"
@@ -76,8 +79,6 @@ removeComments inLineList =
             let nonComment = head $ splitOn "--" firstLine
             in
             nonComment : (removeComments $ tail inLineList)
-
-
 
 -- | commandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
