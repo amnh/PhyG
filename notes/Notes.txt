@@ -1,0 +1,91 @@
+Use lens for record-like types
+	https://www.fpcomplete.com/haskell/tutorial/lens/
+Probably TempleHaskell with lens
+	https://wiki.haskell.org/Template_Haskell 
+Us FGL for Graph functinoality
+Perhpas Pair for Phylogenetic Graph with fgl Gr and a type inclusing char info
+(weights, types etc).
+	Something like PhyloGraph = (Gr a b, CharInfo c)
+	where Charinfo hass charcater info on blocks, weights etc.
+Output Graphviz LR ans splines=ortho or line, polyline for more cladofgram look
+	{rank=same; A B C D;}   for line up taxa
+	can use Bool isGraphVizInstalled for automatic pdf/ps2
+
+Look at hash-graph  library https://github.com/patrickdoc/hash-graph
+	some faster and some slower than FGL but strict
+	
+
+Can use Data hash to get unique bit vector for leaves that is label (and datafile order) invarianty.
+	1) sort data
+	2) hash data
+	3) sort hash, leafe number pairs and assign bits on hash order
+
+Can use graph hash to compare trees or nodes, collpased for multiple graphs etc
+
+Data flow
+	1) input data to meta format tuples (name, data, info) 
+	2) reconciled data 
+		adds in missing etc
+		check input graphs leaves agree
+	3) reconciled data -> naive data
+		naive data all bitvectors (or whatever) 
+		naive data can be consumed by all graph etc functions
+	4) Naive data -> optimized data
+		bit packed, block sorted etc
+		used for reporting of graph decorations later
+	5) optimized data -> transformed data
+		implied alignment
+		any other data transform heuristics 
+		remove some data and add others
+
+
+Task groups:
+	1) Inputs
+		1) Parse input data files
+		2) Parse input graphs
+		3) Reconcile data and graphs (including laderization)
+			Including converting sankoff inputs to additive or non-additive
+			Blocks
+		4) Convert data to analytical format
+
+	2) Optimization regemes for two children 
+		0) Includes optimality criteria
+			1) Parsimony
+			2) PhyMDL
+		1) Non-additive
+			word sizes 2,4,8,16,32,64, big
+		2) Additive
+		3) Continuous 	
+			1) Can create type issues--maybe do some smart stuff to integerize
+				find smallest delta between states and normalize on that value
+				round states to Int and weight character by normaliation factor
+		4) Sankoff
+			word sizes 2,4,8,16,32,64, big
+			5 for DNA (+gap)? to get 50% more packing versus 8 bits
+			21 for aa (+gap)? to get 50% more packing versus 32 bits
+		5) Sequence
+			alphabet word sizes 2,4,8,16,32,64, big
+		6) Distance character?
+			for nitial dWag etc on blocks or all
+
+	3) Graph structure
+		Vertex and edge types (lenses)
+
+	4) Graph search routines
+		Naive
+		Incremental
+		Amortized constant
+			regular stuff--even if apporximate
+			Sankoff shortcuts (Where--in cahracter or graph?)
+		Compound 
+			Search-like
+			Thompson's algorithm
+
+	5) Outputs
+		Graphs
+			including graph reconciliation
+			can can graphviz if installed (there is a call for that)
+		Data
+			csv of assignments etc
+		Append to non-graphical files b y default, overwrite option
+

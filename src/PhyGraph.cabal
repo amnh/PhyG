@@ -1,0 +1,64 @@
+cabal-version:  2.2
+build-type:     Simple
+
+name:           phygraph
+version:        0.1.0.0
+--description:    Please see the README on GitHub at <https://github.com/githubuser/PhyGraph#readme>
+--homepage:       https://github.com/githubuser/PhyGraph#readme
+--bug-reports:    https://github.com/githubuser/PhyGraph/issues
+--author:         Ward Wheeler
+--maintainer:     wheeler@amnh.org
+--copyright:      2021 Ward Wheeler
+--license:        BSD3
+--license-file:   LICENSE
+
+-- for static linking add options -static -optl-static -optl-pthread
+
+executable phygraph
+
+  main-is: phygraph.hs
+
+  ghc-options:  -Wall
+                -Wincomplete-patterns
+                -threaded 
+                -O2
+                -- for weeder
+--                -fwrite-ide-info 
+                -- linux static binaries
+--		            -optl-static -optl-pthread
+                -static
+
+-- delete these for OSX for linux static binaries
+--  cc-options: -static
+--  ld-options: -static -pthread
+
+  build-depends:  base >=4.10
+                , containers >=0.6
+                , graphviz
+                , fgl
+                , text
+                , parallel
+                , deepseq
+                , bv
+                , exceptions
+                
+                
+  default-extensions : BangPatterns                
+
+  default-language: Haskell2010
+
+  -- include the source files needed in src for github library
+  -- this for local library files
+  hs-source-dirs: . /Users/ward/home/PhyloLibs
+
+  other-modules:  GraphFormatUtilities
+                  ParallelUtilities
+                  GeneralUtilities
+                  ProcessCommands
+                  Types
+                  
+                  
+  
+
+
+ 
