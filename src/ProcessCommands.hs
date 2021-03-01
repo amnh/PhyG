@@ -120,12 +120,63 @@ parseCommand inLine =
             -- this doesn not allow recursive multi-option arguments
             -- NEED TO FIX 
             -- make in to a more sophisticated split outside of parens
-            argList = splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
+            argList = argumentSplitter inLine -- splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
             instruction = getInstruction instructionString allowedCommandList
             processedArg = parseCommandArg instruction argList
         in
         trace (show argList)
         (instruction, processedArg)
+
+-- | getSubCommand takes a string ans extracts the first occurrence of the 
+-- structure bleh(...), and splits the string on that, th esub command can contain 
+-- parens and commas
+getSubCommand :: String -> (String, String)
+getSubCommand inString = 
+	if null then ([],[])
+	else 
+		let firstPart = takeWhile (/= '(') inString
+			secondPart = '(' : dropWhile (/= '(') inString
+			parenPart = getBalancedParenPart secondPart [] 0 0
+			remainderPart = drop ((length parenPart) + 1) inString -- to remove ','
+		in
+		(firstPart ++ parenPart, remainderPart)
+
+-- | getBalancedParenPart stakes a string starting with '(' and takes all
+-- characters until (and including) the balancing ')'
+getBalancedParenPart :: String -> String
+getBalancedParenPart inString curString countLeft countRight =
+	if null inString then reverse curString
+	else 
+		let firstChar = head inString
+		in
+		if firstChar == '(' then getBalancedParenPart ('(' : curString) (tail inString) (countLeft + 1) countRight
+		else if firstChar == ')' then 
+			if countLeft == countRight + 1 then reverse (')' : curString)
+			else getBalancedParenPart  (')' : curString) (tail inString) countLeft (countRight + 1)
+
+-- | argumentSplitter takes argument string and returns individual strings of arguments
+-- which can include null, single, multiple or sub-command arguments
+argumentSplitter :: String -> [String] 
+argumentSplitter inString =
+	if null inString then []
+	else 
+		let commaIndex = elemIndex ',' inString
+			semiIndex = elemIndex ':' inString
+			leftParenIndex = elemIndex '(' inString
+			firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
+		in
+		if commaIndex == firstDivider then 
+			-- no arg
+			(take firstDivider inString) : argumentSplitter (drop (firstDivider + 1) inString)
+		else if semiIndex == firstDivider then
+			-- has arg after ':'
+			if inString !! (semiIndex + 1) == '(' then 
+				((takeWhile (/= ')') inString) ++ [")"]) : argumentSplitter (drop 2 $ dropWhile /= ')' inString)
+			else (takeWhile (/= ',') inString) : argumentSplitter (tail $ dropWhile /= ',' inString)
+		else -- arg is sub-commnd
+			let (subCommand, remainderString) = getSubCommand inString
+			in
+			subCommand : argumentSplitter remainderString
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
