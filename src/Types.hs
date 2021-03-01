@@ -44,10 +44,11 @@ type Seconds = Int
 type Time = (Days, Hours, Minutes, Seconds)
 
 -- | Command types
-data Argument = String | Double | Int | Bool | Time
-  	deriving (Show, Eq)
+-- data Argument = String | Double | Int | Bool | Time
+--    deriving (Show, Eq)
+type Argument = String
 
-data Instruction = Read | Report | Build | Swap | Refine | Run
- 	deriving (Show, Eq)
+data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run
+    deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])

@@ -38,13 +38,14 @@ module ProcessCommands  where
 
 import           Control.Exception
 import           Data.Typeable
-import           Control.Monad.Catch
+import           Control.Monad.Catch (throwM)
 import           Data.Char
 import           Debug.Trace
 import           Data.List.Split
 import           Data.Maybe
 
 import           Types
+import           GeneralUtilities
 
 
 -- | Exception machinery for bad intial command line
@@ -61,7 +62,14 @@ instance Show BadCommandFile where
     show BadCommandFile = "Error: Error in processing command file.\n"
 instance Exception BadCommandFile
 
--- | allowedCommandList is teh permitted command string list
+-- | Exception machinery for bad command
+data BadCommand = BadCommand
+    deriving Typeable
+instance Show BadCommand where
+    show BadCommand = "Error: Unrecognized command entered.\n"
+instance Exception BadCommand
+
+-- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
 allowedCommandList = ["read", "build", "swap", "refine", "run", "report"]
 
@@ -74,8 +82,12 @@ removeComments inLineList =
         let firstLine = head inLineList
             firstTwo  = take 2 firstLine
         in
+        -- Comment line 
         if firstTwo == "--" then removeComments $ tail inLineList
+        -- Empty line
+        else if null firstLine then removeComments $ tail inLineList
         else 
+            -- Remove commments from line to end
             let nonComment = head $ splitOn "--" firstLine
             in
             nonComment : (removeComments $ tail inLineList)
@@ -90,18 +102,35 @@ commandList rawContents =
             processedCommands = fmap parseCommand rawList
         in
         trace (show rawList)
-        Just (fmap fromJust processedCommands)
+        Just processedCommands
 
+-- | getInstruction returns teh command type forom an input String
+-- all operations on lower case
+getInstruction :: String -> [String] -> Instruction 
+getInstruction inString possibleCommands 
+    | null inString = error "Empty command String"
+    | (fmap toLower inString) == "read" = Read
+    | (fmap toLower inString) == "run" = Run
+    | (fmap toLower inString) == "build" = Build
+    | (fmap toLower inString) == "swap" = Swap
+    | (fmap toLower inString) == "refine" = Refine
+    | (fmap toLower inString) == "report" = Report
+    | otherwise = 
+        let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
+        in
+        trace ("\nError: Unrecognized command. By \'" ++ inString ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") NotACommand
 
+   
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
-parseCommand :: String -> Maybe Command
+parseCommand :: String -> Command
 parseCommand inLine =
     if null inLine then error "Null command line"
     else 
         let instructionString = takeWhile (/= '(') inLine
             argList = splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
+            instruction = getInstruction instructionString allowedCommandList
         in
-        Just (Read,[])
-
+        (instruction, argList)
+        
 
 

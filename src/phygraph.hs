@@ -65,7 +65,9 @@ main =
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
-    let thingsToDo =  if commandList commandContents == Nothing then throwM BadCommandFile else fromJust $ commandList commandContents
+    let !thingsToDo =  if commandList commandContents == Nothing then throwM BadCommandFile
+                      else if (NotACommand, [])  `elem`  (fromJust $ commandList commandContents) then throwM BadCommand
+                      else fromJust $ commandList commandContents
 
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
