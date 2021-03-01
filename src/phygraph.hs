@@ -38,8 +38,6 @@ module Main where
 
 import           System.IO
 import           System.Environment
-import           Control.Monad.Catch (throwM)
-import           Data.Maybe
 
 import           ProcessCommands
 import           Types
@@ -59,15 +57,13 @@ main =
     -- Process arguments--a single file containing commands
     args <- getArgs
 
-    if length args /= 1 then throwM BadCommandLine -- error "Program requires a single argument--the name of command script file.\n\n"
+    if length args /= 1 then errorWithoutStackTrace "\nProgram requires a single argument--the name of command script file.\n\n"
     else hPutStr stderr "\nCommand script file: "
     hPutStrLn stderr $ head args
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
-    let !thingsToDo =  if commandList commandContents == Nothing then throwM BadCommandFile
-                      else if (NotACommand, [])  `elem`  (fromJust $ commandList commandContents) then throwM BadCommand
-                      else fromJust $ commandList commandContents
+    let thingsToDo = commandList commandContents
 
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 

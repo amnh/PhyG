@@ -34,44 +34,28 @@ Portability :  portable (I hope)
 
 -}
 
+
+{-  To add commands:
+    1) add new command in Types.hs
+    2) add string name of command to allowedCommandList
+    3) add instruction processing to getInstruction
+    4) add argument processing to parseCommandArg
+    5) add argument processing function
+    6) Add amchinery of command in general code
+-}
+
+
 module ProcessCommands  where
 
 import           Control.Exception
 import           Data.Typeable
-import           Control.Monad.Catch (throwM)
 import           Data.Char
 import           Debug.Trace
 import           Data.List.Split
-import           Data.Maybe
 
 import           Types
 import           GeneralUtilities
 
-
--- | Exception machinery for bad intial command line
-data BadCommandLine = BadCommandLine
-    deriving Typeable
-instance Show BadCommandLine where
-    show BadCommandLine = "Error: Program requires a single argument--the name of command script file.\n"
-instance Exception BadCommandLine
-
--- | Exception machinery for empty command file
-data BadCommandFile = BadCommandFile
-    deriving Typeable
-instance Show BadCommandFile where
-    show BadCommandFile = "Error: Error in processing command file.\n"
-instance Exception BadCommandFile
-
--- | Exception machinery for bad command
-data BadCommand = BadCommand
-    deriving Typeable
-instance Show BadCommand where
-    show BadCommand = "Error: Unrecognized command entered.\n"
-instance Exception BadCommand
-
--- | allowedCommandList is the permitted command string list
-allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report"]
 
 -- | removeComments deletes anyhting on line (including line) 
 -- after double dash "--"
@@ -94,15 +78,19 @@ removeComments inLineList =
 
 -- | commandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
-commandList :: String -> Maybe [Command]
+commandList :: String -> [Command]
 commandList rawContents =
-    if null rawContents then trace ("Error: Empty command file") Nothing
+    if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
             processedCommands = fmap parseCommand rawList
         in
         trace (show rawList)
-        Just processedCommands
+        processedCommands
+
+-- | allowedCommandList is the permitted command string list
+allowedCommandList :: [String]
+allowedCommandList = ["read", "build", "swap", "refine", "run", "report"]
 
 -- | getInstruction returns teh command type forom an input String
 -- all operations on lower case
@@ -118,7 +106,7 @@ getInstruction inString possibleCommands
     | otherwise = 
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in
-        trace ("\nError: Unrecognized command. By \'" ++ inString ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") NotACommand
+        errorWithoutStackTrace ("\nError: Unrecognized command. By \'" ++ inString ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
 
    
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
@@ -127,10 +115,35 @@ parseCommand inLine =
     if null inLine then error "Null command line"
     else 
         let instructionString = takeWhile (/= '(') inLine
+            -- this doesn not allow recursive multi-option arguments
+            -- NEED TO FIX 
+            -- make in to a more sophisticated split outside of parens
             argList = splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
             instruction = getInstruction instructionString allowedCommandList
+            processedArg = parseCommandArg instruction argList
         in
-        (instruction, argList)
-        
+        trace (show argList)
+        (instruction, processedArg)
+
+-- | parseCommandArg takes an Instruction and arg list of Strings and returns list
+-- of parsed srguments for that instruction
+parseCommandArg :: Instruction -> [String] -> [Argument]
+parseCommandArg instruction argList 
+    | instruction == Read = getReadArgs argList
+    | otherwise = argList
+
+-- | getReadArgs processes arguments ofr the 'read' command
+-- should allow mulitp0le files and gracefully error check
+getReadArgs :: [String] -> [Argument]
+getReadArgs argList = 
+    if null argList then []
+    else 
+        let firstArg = filter (/= ' ') $ head argList 
+        in
+        if (length firstArg) == 0 then errorWithoutStackTrace ("\n'Read' command error: Need to specify at least one filename in double quotes") 
+        else 
+            if (head firstArg /= '"') || (last firstArg /= '"') then errorWithoutStackTrace ("\n'Read' command error '" ++ (firstArg) ++"' : Need to specify filename in double quotes") 
+            else (init $ tail firstArg) : getReadArgs (tail argList)
+
 
 
