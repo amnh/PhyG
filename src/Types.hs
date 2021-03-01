@@ -48,7 +48,7 @@ type Time = (Days, Hours, Minutes, Seconds)
 --    deriving (Show, Eq)
 type Argument = String
 
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run
+data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform
     deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])

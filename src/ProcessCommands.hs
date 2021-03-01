@@ -90,7 +90,7 @@ commandList rawContents =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report"]
+allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform"]
 
 -- | getInstruction returns teh command type forom an input String
 -- all operations on lower case
@@ -103,6 +103,8 @@ getInstruction inString possibleCommands
     | (fmap toLower inString) == "swap" = Swap
     | (fmap toLower inString) == "refine" = Refine
     | (fmap toLower inString) == "report" = Report
+    | (fmap toLower inString) == "set" = Set
+    | (fmap toLower inString) == "transform" = Transform
     | otherwise = 
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in
