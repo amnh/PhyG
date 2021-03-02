@@ -127,7 +127,7 @@ parseCommand inLine =
             -- make in to a more sophisticated split outside of parens
             argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') firstString
             instruction = getInstruction instructionString allowedCommandList
-            processedArg = parseCommandArg firstString instruction argList
+            processedArg = fmap (filter (/= ' ')) $ parseCommandArg firstString instruction argList
         in
         --trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg) : parseCommand restString
@@ -209,17 +209,24 @@ getReadArgs :: String -> [String] -> [Argument]
 getReadArgs fullCommand argList = 
     if null argList then []
     else 
-        let firstArg = filter (/= ' ') $ head argList 
+        let firstArg = head argList 
         in
-        if null firstArg then errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tNull argument--perhaps due to extraneous commas ','.")
+        if null firstArg then 
+            errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tNull argument--perhaps due to extraneous commas ','.")
+        else if isSequentialSubsequence  ['"','"'] firstArg then 
+            errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tPossibly missing comma ',' between filenames.")
+        else if isSequentialSubsequence ['"','t'] firstArg then 
+            errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tPossibly missing comma ',' between filename and tcm specification.")
         -- check for TCM file
         else if (elem ':' firstArg) then
-            if (length firstArg) < 7 then errorWithoutStackTrace ("\n\n'Read' command error: 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'")
+            if (length firstArg) < 7 then errorWithoutStackTrace ("\n\n'Read' command error:" ++ fullCommand ++ " 'tcm' specification requires 'tcm:\"bleh\"' "
+                    ++ "(one filename in double quotes) after 'tcm:'")
             else 
                 let firstPart = fmap toLower (take 4 firstArg)
                     secondPart = drop 4 firstArg
                 in
-                if firstPart /= "tcm:" then errorWithoutStackTrace ("\n\n'Read' command error: 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'")
+                if firstPart /= "tcm:" then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'" 
+                     ++ "\n\tPossibly missing comma ',' between filename and tcm specification.")
                 else if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
                 else (firstPart ++ (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
         else if (length firstArg) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
