@@ -92,7 +92,7 @@ commandList rawContents =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform"]
+allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support"]
 
 -- | getInstruction returns teh command type forom an input String
 -- all operations on lower case
@@ -107,6 +107,7 @@ getInstruction inString possibleCommands
     | (fmap toLower inString) == "report" = Report
     | (fmap toLower inString) == "set" = Set
     | (fmap toLower inString) == "transform" = Transform
+    | (fmap toLower inString) == "support" = Support
     | otherwise = 
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in
@@ -126,7 +127,7 @@ parseCommand inLine =
             instruction = getInstruction instructionString allowedCommandList
             processedArg = parseCommandArg instruction argList
         in
-        trace (instructionString ++ " " ++  show argList)
+        --trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg)
     
 
@@ -138,16 +139,17 @@ getSubCommand inString =
     if null inString then ([],[])
     else 
         let firstPart = takeWhile (/= '(') inString
-            secondPart = '(' : dropWhile (/= '(') inString
-            parenPart = getBalancedParenPart secondPart "" 0 0
-            remainderPart = drop ((length parenPart) + 1) inString -- to remove ','
+            secondPart = dropWhile (/= '(') inString
+            parenPart = getBalancedParenPart "" secondPart 0 0
+            remainderPart = drop ((length (firstPart ++ parenPart)) + 1) inString -- to remove ','
         in
         (firstPart ++ parenPart, remainderPart)
+        
 
 -- | getBalancedParenPart stakes a string starting with '(' and takes all
 -- characters until (and including) the balancing ')'
 getBalancedParenPart :: String -> String -> Int -> Int -> String
-getBalancedParenPart inString curString countLeft countRight =
+getBalancedParenPart curString inString countLeft countRight =
     if null inString then reverse curString
     else 
         let firstChar = head inString
@@ -157,6 +159,7 @@ getBalancedParenPart inString curString countLeft countRight =
             if countLeft == countRight + 1 then reverse (firstChar : curString)
             else getBalancedParenPart  (firstChar : curString) (tail inString) countLeft (countRight + 1)
         else getBalancedParenPart (firstChar : curString) (tail inString) countLeft countRight
+        
 
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
@@ -178,11 +181,16 @@ argumentSplitter inString =
             -- has arg after ':'
             if inString !! (semiIndex + 1) == '(' then 
                 ((takeWhile (/= ')') inString) ++ ")") : argumentSplitter (drop 2 $ dropWhile (/= ')') inString)
-            else (takeWhile (/= ',') inString) : argumentSplitter (tail $ dropWhile (/= ',') inString)
+            else 
+                let nextStuff =  dropWhile (/= ',') inString
+                    remainder = if null nextStuff then [] else tail nextStuff
+                in
+                (takeWhile (/= ',') inString) : argumentSplitter remainder
         else -- arg is sub-commnd
             let (subCommand, remainderString) = getSubCommand inString
             in
             subCommand : argumentSplitter remainderString
+            
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
