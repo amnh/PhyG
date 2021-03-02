@@ -127,7 +127,7 @@ parseCommand inLine =
             -- make in to a more sophisticated split outside of parens
             argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') firstString
             instruction = getInstruction instructionString allowedCommandList
-            processedArg = parseCommandArg instruction argList
+            processedArg = parseCommandArg firstString instruction argList
         in
         --trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg) : parseCommand restString
@@ -196,24 +196,37 @@ argumentSplitter inString =
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
-parseCommandArg :: Instruction -> [String] -> [Argument]
-parseCommandArg instruction argList 
-    | instruction == Read = if (not $ null argList) then getReadArgs argList 
+parseCommandArg :: String -> Instruction -> [String] -> [Argument]
+parseCommandArg fullCommand instruction argList 
+    | instruction == Read = if (not $ null argList) then getReadArgs fullCommand argList 
                             else errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
     | otherwise = argList
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitp0le files and gracefully error check
-getReadArgs :: [String] -> [Argument]
-getReadArgs argList = 
+-- also needs to allow tcm fikles specification (limit 1 tcm per command?)
+getReadArgs :: String -> [String] -> [Argument]
+getReadArgs fullCommand argList = 
     if null argList then []
     else 
         let firstArg = filter (/= ' ') $ head argList 
         in
-        if (length firstArg) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
+        if null firstArg then errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tNull argument--perhaps due to extraneous commas ','.")
+        -- check for TCM file
+        else if (elem ':' firstArg) then
+            if (length firstArg) < 7 then errorWithoutStackTrace ("\n\n'Read' command error: 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'")
+            else 
+                let firstPart = fmap toLower (take 4 firstArg)
+                    secondPart = drop 4 firstArg
+                in
+                if firstPart /= "tcm:" then errorWithoutStackTrace ("\n\n'Read' command error: 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'")
+                else if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+                else (firstPart ++ (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+        else if (length firstArg) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
         else 
+            -- Change to allow TCMs to be read with files.
             if (head firstArg /= '"') || (last firstArg /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (firstArg) ++"' : Need to specify filename in double quotes") 
-            else (init $ tail firstArg) : getReadArgs (tail argList)
+            else (init $ tail firstArg) : getReadArgs fullCommand (tail argList)
 
 
 
