@@ -85,7 +85,7 @@ commandList rawContents =
     if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
-            processedCommands = fmap parseCommand rawList
+            processedCommands = concat $ fmap parseCommand rawList
         in
         trace (show rawList)
         processedCommands
@@ -115,33 +115,35 @@ getInstruction inString possibleCommands
 
    
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
-parseCommand :: String -> Command
+-- asumes single command per line
+parseCommand :: String -> [Command]
 parseCommand inLine =
-    if null inLine then error "Null command line"
+    if null inLine then []
     else 
-        let instructionString = takeWhile (/= '(') inLine
+        let (firstString, restString) =  getSubCommand inLine False
+            instructionString = takeWhile (/= '(') firstString --inLine
             -- this doesn not allow recursive multi-option arguments
             -- NEED TO FIX 
             -- make in to a more sophisticated split outside of parens
-            argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') inLine
+            argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') firstString
             instruction = getInstruction instructionString allowedCommandList
             processedArg = parseCommandArg instruction argList
         in
         --trace (instructionString ++ " " ++  show argList)
-        (instruction, processedArg)
-    
+        (instruction, processedArg) : parseCommand restString
 
 -- | getSubCommand takes a string ans extracts the first occurrence of the 
 -- structure bleh(...), and splits the string on that, th esub command can contain 
 -- parens and commas
-getSubCommand :: String -> (String, String)
-getSubCommand inString = 
+getSubCommand :: String -> Bool -> (String, String)
+getSubCommand inString hasComma = 
     if null inString then ([],[])
     else 
         let firstPart = takeWhile (/= '(') inString
             secondPart = dropWhile (/= '(') inString
             parenPart = getBalancedParenPart "" secondPart 0 0
-            remainderPart = drop ((length (firstPart ++ parenPart)) + 1) inString -- to remove ','
+            incrCounter = if hasComma then 1 else 0
+            remainderPart = drop ((length (firstPart ++ parenPart)) + incrCounter) inString -- to remove ','
         in
         (firstPart ++ parenPart, remainderPart)
         
@@ -187,7 +189,7 @@ argumentSplitter inString =
                 in
                 (takeWhile (/= ',') inString) : argumentSplitter remainder
         else -- arg is sub-commnd
-            let (subCommand, remainderString) = getSubCommand inString
+            let (subCommand, remainderString) = getSubCommand inString True
             in
             subCommand : argumentSplitter remainderString
             
