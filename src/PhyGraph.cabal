@@ -41,7 +41,9 @@ executable phygraph
                 , deepseq
                 , bv
                 , exceptions
-                
+                , array
+                , split
+ 
                 
   default-extensions : BangPatterns                
 
