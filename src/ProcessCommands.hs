@@ -122,12 +122,13 @@ parseCommand inLine =
             -- this doesn not allow recursive multi-option arguments
             -- NEED TO FIX 
             -- make in to a more sophisticated split outside of parens
-            argList = argumentSplitter inLine -- splitOn "," $ init $ tail $ dropWhile (/= '(') inLine
+            argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') inLine
             instruction = getInstruction instructionString allowedCommandList
             processedArg = parseCommandArg instruction argList
         in
-        trace (show argList)
+        trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg)
+    
 
 -- | getSubCommand takes a string ans extracts the first occurrence of the 
 -- structure bleh(...), and splits the string on that, th esub command can contain 
@@ -168,7 +169,9 @@ argumentSplitter inString =
             leftParenIndex = if (elemIndex '(' inString) == Nothing then (maxBound :: Int) else fromJust (elemIndex '(' inString) 
             firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
         in
-        if commaIndex == firstDivider then 
+        -- simple no argument arg
+        if firstDivider == (maxBound :: Int) then [inString]
+        else if commaIndex == firstDivider then 
             -- no arg
             (take firstDivider inString) : argumentSplitter (drop (firstDivider + 1) inString)
         else if semiIndex == firstDivider then
@@ -185,7 +188,8 @@ argumentSplitter inString =
 -- of parsed srguments for that instruction
 parseCommandArg :: Instruction -> [String] -> [Argument]
 parseCommandArg instruction argList 
-    | instruction == Read = getReadArgs argList
+    | instruction == Read = if (not $ null argList) then getReadArgs argList 
+                            else errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
     | otherwise = argList
 
 -- | getReadArgs processes arguments ofr the 'read' command
@@ -196,9 +200,9 @@ getReadArgs argList =
     else 
         let firstArg = filter (/= ' ') $ head argList 
         in
-        if (length firstArg) == 0 then errorWithoutStackTrace ("\n'Read' command error: Need to specify at least one filename in double quotes") 
+        if (length firstArg) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
         else 
-            if (head firstArg /= '"') || (last firstArg /= '"') then errorWithoutStackTrace ("\n'Read' command error '" ++ (firstArg) ++"' : Need to specify filename in double quotes") 
+            if (head firstArg /= '"') || (last firstArg /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (firstArg) ++"' : Need to specify filename in double quotes") 
             else (init $ tail firstArg) : getReadArgs (tail argList)
 
 

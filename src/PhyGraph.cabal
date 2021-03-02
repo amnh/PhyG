@@ -51,7 +51,7 @@ executable phygraph
 
   -- include the source files needed in src for github library
   -- this for local library files
-  hs-source-dirs: . /Users/ward/home/PhyloLibs
+  hs-source-dirs: . ../../PhyloLibs
 
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
