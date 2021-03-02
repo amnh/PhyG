@@ -11,6 +11,10 @@ Output Graphviz LR ans splines=ortho or line, polyline for more cladofgram look
 	{rank=same; A B C D;}   for line up taxa
 	can use Bool isGraphVizInstalled for automatic pdf/ps2
 
+For documentation:
+	Script files '--' for comment to end of line
+	one command per line (maybe add ';') for multiple later
+
 Look at hash-graph  library https://github.com/patrickdoc/hash-graph
 	some faster and some slower than FGL but strict
 	
