@@ -11,6 +11,9 @@ Output Graphviz LR ans splines=ortho or line, polyline for more cladofgram look
 	{rank=same; A B C D;}   for line up taxa
 	can use Bool isGraphVizInstalled for automatic pdf/ps2
 
+https://hackage.haskell.org/package/fgl-visualize-0.1.0.1/docs/Data-Graph-Inductive-Dot.html
+	Perhaps better fgl 2 dot functionality
+
 For documentation:
 	Script files '--' for comment to end of line
 	one command per line (maybe add ';') for multiple later
