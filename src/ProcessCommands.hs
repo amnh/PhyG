@@ -214,20 +214,27 @@ getReadArgs fullCommand argList =
             errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tNull argument--perhaps due to extraneous commas ','.")
         else if isSequentialSubsequence  ['"','"'] firstArg then 
             errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tPossibly missing comma ',' between filenames.")
-        else if isSequentialSubsequence ['"','t'] firstArg then 
+        else if isSequentialSubsequence ['"','t'] (fmap toLower firstArg) then 
             errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tPossibly missing comma ',' between filename and tcm specification.")
-        -- check for TCM file
+        else if isSequentialSubsequence ['"','p'] (fmap toLower firstArg) then 
+            errorWithoutStackTrace ("\n\n'Read' command format error: " ++ fullCommand ++ "\n\tPossibly missing comma ',' between filename and tcm specification.")
+        -- check for TCM/prealigned file
         else if (elem ':' firstArg) then
             if (length firstArg) < 7 then errorWithoutStackTrace ("\n\n'Read' command error:" ++ fullCommand ++ " 'tcm' specification requires 'tcm:\"bleh\"' "
                     ++ "(one filename in double quotes) after 'tcm:'")
             else 
                 let firstPart = fmap toLower (take 4 firstArg)
                     secondPart = drop 4 firstArg
+                    firstPart' = fmap toLower (take 11 firstArg)
+                    secondPart' = drop 11 firstArg
                 in
-                if firstPart /= "tcm:" then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' specification requires 'tcm:\"bleh\"' (one filename in double quotes) after 'tcm:'" 
+                if (firstPart /= "tcm:") && (firstPart' /= "prealigned:") then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' or 'prealigned' specification requires " 
+                     ++ "'tcm:\"bleh\"' or 'prealigned:\"bleh\"' (one filename in double quotes) after 'tcm:' or 'prealigned:' " 
                      ++ "\n\tPossibly missing comma ',' between filename and tcm specification.")
                 else if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-                else (firstPart ++ (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+                else if (firstPart == "tcm:")  then (firstPart ++ (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+                else if (firstPart' == "prealigned:")  then (firstPart' ++ (init $ tail secondPart')) : getReadArgs fullCommand (tail argList)
+                else error "This can't happen in getReadArgs"
         else if (length firstArg) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
         else 
             -- Change to allow TCMs to be read with files.
