@@ -65,6 +65,16 @@ main =
     commandContents <- readFile $ head args
     let thingsToDo = commandList commandContents
 
+    -- Prcess Read, rename commands
+
+    -- Reconcile Data
+
+    -- Optimize Data
+
+    -- Searchs Actions (wit intermeduate reports)
+
+    -- Final Report actions
+
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     hPutStrLn stderr "\nDone"
