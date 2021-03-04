@@ -41,6 +41,7 @@ Portability :  portable (I hope)
     3) add instruction processing to getInstruction
     4) add argument processing to parseCommandArg
     5) add argument processing function
+        with meaningful errors
     6) Add amchinery of command in general code
 -}
 
@@ -58,6 +59,18 @@ import           Data.Maybe
 import           Types
 import           GeneralUtilities
 
+
+-- | commandList takes a String from a file and returns a list of commands and their arguments
+-- these are syntactically verified, but any input files are not checked
+commandList :: String -> [Command]
+commandList rawContents =
+    if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
+    else 
+        let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
+            processedCommands = concat $ fmap parseCommand rawList
+        in
+        trace (show rawList)
+        processedCommands
 
 -- | removeComments deletes anyhting on line (including line) 
 -- after double dash "--"
@@ -77,18 +90,6 @@ removeComments inLineList =
             let nonComment = head $ splitOn "--" firstLine
             in
             nonComment : (removeComments $ tail inLineList)
-
--- | commandList takes a String from a file and returns a list of commands and their arguments
--- these are syntactically verified, but any input files are not checked
-commandList :: String -> [Command]
-commandList rawContents =
-    if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
-    else 
-        let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
-            processedCommands = concat $ fmap parseCommand rawList
-        in
-        trace (show rawList)
-        processedCommands
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
@@ -146,7 +147,6 @@ getSubCommand inString hasComma =
             remainderPart = drop ((length (firstPart ++ parenPart)) + incrCounter) inString -- to remove ','
         in
         (firstPart ++ parenPart, remainderPart)
-        
 
 -- | getBalancedParenPart stakes a string starting with '(' and takes all
 -- characters until (and including) the balancing ')'
@@ -162,7 +162,6 @@ getBalancedParenPart curString inString countLeft countRight =
             else getBalancedParenPart  (firstChar : curString) (tail inString) countLeft (countRight + 1)
         else getBalancedParenPart (firstChar : curString) (tail inString) countLeft countRight
         
-
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
 argumentSplitter :: String -> [String] 
@@ -203,8 +202,8 @@ parseCommandArg fullCommand instruction argList
     | otherwise = argList
 
 -- | getReadArgs processes arguments ofr the 'read' command
--- should allow mulitp0le files and gracefully error check
--- also needs to allow tcm fikles specification (limit 1 tcm per command?)
+-- should allow mulitple files and gracefully error check
+-- also allows tcm file specification (limit 1 tcm per command?)
 getReadArgs :: String -> [String] -> [Argument]
 getReadArgs fullCommand argList = 
     if null argList then []
