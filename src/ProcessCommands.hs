@@ -204,6 +204,11 @@ parseCommandArg fullCommand instruction argList
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
 -- also allows tcm file specification (limit 1 tcm per command?)
+
+-- Redo conditoins 
+    --   1) if head == '"' then take till '"' check next (if any)==',' or error.
+    --   2) takeWhile /= ':' then, drop $ take '"' and check for ',' or end
+    
 getReadArgs :: String -> [String] -> [Argument]
 getReadArgs fullCommand argList = 
     if null argList then []
