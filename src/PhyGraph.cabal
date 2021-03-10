@@ -14,7 +14,7 @@ version:        0.1.0.0
 
 -- for static linking add options -static -optl-static -optl-pthread
 
-executable phygraph
+executable phyg
 
   main-is: phygraph.hs
 
