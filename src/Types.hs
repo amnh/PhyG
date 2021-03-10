@@ -46,7 +46,7 @@ type Time = (Days, Hours, Minutes, Seconds)
 -- | Command types
 -- data Argument = String | Double | Int | Bool | Time
 --    deriving (Show, Eq)
-type Argument = String
+type Argument = (String, String)
 
 data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support
     deriving (Show, Eq)

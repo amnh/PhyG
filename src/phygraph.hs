@@ -49,8 +49,8 @@ import           Types
 main :: IO ()
 main =
   do
-    let splash = "\nPhyGraph version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
-    let splash2 = "PhyGraph comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
+    let splash = "\nPhyG version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
+    let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "under the 3-Clause BSD License.\n"
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
     
