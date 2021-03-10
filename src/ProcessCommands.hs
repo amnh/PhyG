@@ -229,10 +229,11 @@ getReadArgs' fullCommand argList = argList
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
 -- also allows tcm file specification (limit 1 tcm per command?)
+-- as fasta, fastc, tnt, tcm, prealigned
 
--- Redo conditoins 
-    --   1) if head == '"' then take till '"' check next (if any)==',' or error.
-    --   2) takeWhile /= ':' then, drop $ take '"' and check for ',' or end
+-- | Read arg list allowable modifiers in read
+readArgList :: [String]
+readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt"]
 
 getReadArgs :: String -> [(String, String)] -> [(String, String)] -- [Argument]
 getReadArgs fullCommand argList = 
@@ -240,7 +241,8 @@ getReadArgs fullCommand argList =
     else 
         let firstArg@(firstPart, secondPart) = head argList 
         in
-        if (firstPart /= "tcm:") && (firstPart /= "prealigned:") then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' or 'prealigned' specification requires " 
+        -- Change to allowed modifiers
+        if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' or 'prealigned' specification requires " 
                      ++ "'tcm:\"bleh\"' or 'prealigned:\"bleh\"' (one filename in double quotes) after 'tcm:' or 'prealigned:' " 
                      ++ "\n\tPossibly missing comma ',' between filename and tcm specification or missing double quotes in input file specification.")
         else if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
