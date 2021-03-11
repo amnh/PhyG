@@ -48,8 +48,8 @@ Portability :  portable (I hope)
 
 module ProcessCommands  where
 
-import           Control.Exception
-import           Data.Typeable
+-- import           Control.Exception
+-- import           Data.Typeable
 import           Data.Char
 import           Data.List
 import           Debug.Trace
@@ -176,10 +176,13 @@ argumentSplitter inString =
             firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
         in
         -- simple no argument arg
-        if firstDivider == (maxBound :: Int) then [(inString, [])]
+        if firstDivider == (maxBound :: Int) then 
+            if head inString == '"' then [([], inString)] 
+            else [(inString, [])]
         else if commaIndex == firstDivider then 
             -- no arg
-            (take firstDivider inString, []) : argumentSplitter (drop (firstDivider + 1) inString)
+            if head (take firstDivider inString) == '"' then ([], (take firstDivider inString)) : argumentSplitter (drop (firstDivider + 1) inString)
+            else ((take firstDivider inString), []) : argumentSplitter (drop (firstDivider + 1) inString)
         else if semiIndex == firstDivider then
             -- has arg after ':'
             if inString !! (semiIndex + 1) == '(' then 
@@ -201,30 +204,24 @@ freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString =
     if null commandString then  errorWithoutStackTrace ("\n\nError in command string--empty")
     else if isSequentialSubsequence  ['"','"'] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments.")
-    else if isSequentialSubsequence  [',',')'] commandString  then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
-    else if isSequentialSubsequence  [',',')'] commandString  then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
-    else if isSequentialSubsequence  [',','('] commandString  then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
-    else if isSequentialSubsequence  ['(',','] commandString  then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
+    else if isSequentialSubsequence  [',',')'] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
+    else if isSequentialSubsequence  [',',')'] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
+    else if isSequentialSubsequence  [',','('] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
+    else if isSequentialSubsequence  ['(',','] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
     --else if (last commandString) /= ')' then errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tMissing final ')'.")
     else 
         let beforeDoubleQuotes = dropWhile (/= '"') commandString
         in
         if null beforeDoubleQuotes then True
-        else 
-            if (head $ tail beforeDoubleQuotes) `notElem` [',',')','('] then errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' after double quotes between arguments.")
-            else True
+        else True
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
 parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
 parseCommandArg fullCommand instruction argList 
     | instruction == Read = if (not $ null argList) then getReadArgs fullCommand argList 
-                            else errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
+                            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes") 
     | otherwise = argList
-
--- | getReadArgs' is a place holder
-getReadArgs' :: String -> [(String, String)] -> [Argument]
-getReadArgs' fullCommand argList = argList
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -239,20 +236,16 @@ getReadArgs :: String -> [(String, String)] -> [(String, String)] -- [Argument]
 getReadArgs fullCommand argList = 
     if null argList then []
     else 
-        let firstArg@(firstPart, secondPart) = head argList 
+        let (firstPart, secondPart) = head argList 
         in
+        -- plain file name with no modifier
+        if (null firstPart) then
+            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
         -- Change to allowed modifiers
-        if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " 'tcm' or 'prealigned' specification requires " 
-                     ++ "'tcm:\"bleh\"' or 'prealigned:\"bleh\"' (one filename in double quotes) after 'tcm:' or 'prealigned:' " 
-                     ++ "\n\tPossibly missing comma ',' between filename and tcm specification or missing double quotes in input file specification.")
-        else if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-        else if (firstPart == "tcm:")  then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-        else if (firstPart == "prealigned:")  then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-        else if (length secondPart) == 0 then errorWithoutStackTrace ("\n\n'Read' command error: Need to specify at least one filename in double quotes") 
-        else 
-            -- Change to allow TCMs to be read with files.
-            if (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-            else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+        else if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
+        else if (null secondPart) || (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
 
 
 
