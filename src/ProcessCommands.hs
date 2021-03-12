@@ -60,10 +60,10 @@ import           Types
 import           GeneralUtilities
 
 
--- | commandList takes a String from a file and returns a list of commands and their arguments
+-- | getCommandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
-commandList :: String -> [Command]
-commandList rawContents =
+getCommandList  :: String -> [Command]
+getCommandList  rawContents =
     if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
@@ -213,6 +213,7 @@ freeOfSimpleErrors commandString =
         let beforeDoubleQuotes = dropWhile (/= '"') commandString
         in
         if null beforeDoubleQuotes then True
+            -- likely more conditions to develop
         else True
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
@@ -230,9 +231,10 @@ parseCommandArg fullCommand instruction argList
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt"]
+readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
 
-getReadArgs :: String -> [(String, String)] -> [(String, String)] -- [Argument]
+-- | getReadArgs processes Read arguments 
+getReadArgs :: String -> [(String, String)] -> [Argument]
 getReadArgs fullCommand argList = 
     if null argList then []
     else 
@@ -248,4 +250,12 @@ getReadArgs fullCommand argList =
         else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
 
 
-
+-- | executeReadCommands
+executeReadCommands :: [RawData] -> [RawGraph] -> [Command] -> ([RawData], [RawGraph])
+executeReadCommands curData curGraphs commandList = 
+    if null commandList then (curData, curGraphs)
+    else 
+        let firstCommand = snd $ head commandList
+        in 
+        if firstCommand == "fasta" = 
+        executeReadCommands curData curGraphs (tail commandList)

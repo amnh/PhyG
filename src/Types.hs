@@ -36,6 +36,12 @@ Portability :  portable (I hope)
 
 module Types where
 
+import qualified Data.Text.Lazy  as T
+import qualified Data.Text.Short as ST
+import qualified Data.Graph.Inductive.PatriciaTree as P
+
+
+
 -- | Types for timed searches
 type Days = Int
 type Hours = Int
@@ -48,7 +54,35 @@ type Time = (Days, Hours, Minutes, Seconds)
 --    deriving (Show, Eq)
 type Argument = (String, String)
 
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support
+--For rename format rename:(a,b,c,...,y,z) => a-y renamed to z 
+
+data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename
     deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])
+
+-- | CharType data type for input characters
+data CharType = Add | NonAdd | Matrix | NucSeq | AminoSeq | GenSeq 
+    deriving (Read, Show, Eq)
+
+-- | CharInfo information about characters
+data CharInfo = CharInfo { charType :: CharType
+                         , activity :: Bool
+                         , weight :: Double
+                         , costMatrix :: [Int]
+                         , name :: T.Text
+                         , numStates :: Int
+                         , alphabet :: [ST.ShortText]
+                         } deriving (Show, Eq)
+
+-- | RawData type processed from input to be passed to characterData
+--to recode into usable form
+--the format is tuple of a list of taxon-data list tuples and charinfo list.
+--the data list and charinfo list must have the same length
+type RawData = ([TermData], [CharInfo])
+
+-- | type TermData type contians termnal name and list of characters
+type TermData = (T.Text, [ST.ShortText])
+
+-- | type RawGraph is input grap[hs with leaf and edge labels
+type RawGraph = P.Gr T.Text Double

@@ -1,6 +1,6 @@
 {- |
-Module      :  phygraph.hs
-Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
+Module      :  ReadInputFiles.hs
+Description :  Module to read input files for phylogenetic analysis
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -34,50 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-module Main where
-
-import           System.IO
-import           System.Environment
-
-import           ProcessCommands
-import           Types
-
---import           Debug.Trace
 
 
--- | main driver
-main :: IO ()
-main =
-  do
-    let splash = "\nPhyG version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
-    let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "under the 3-Clause BSD License.\n"
-    hPutStrLn stderr (splash ++ splash2 ++ splash3)
-    
-    -- Process arguments--a single file containing commands
-    args <- getArgs
-
-    if length args /= 1 then errorWithoutStackTrace "\nProgram requires a single argument--the name of command script file.\n\n"
-    else hPutStr stderr "\nCommand script file: "
-    hPutStrLn stderr $ head args
-
-    -- Process commands to get list of actions
-    commandContents <- readFile $ head args
-    let thingsToDo = getCommandList  commandContents
-    mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
-
-    -- Process Read, rename commands
-    let (rawData, rawGraphs) = executeReadCommands [] [] $ filter ((== Read) . fst) thingsToDo
-
-    -- Reconcile Data
-
-    -- Optimize Data
-
-    -- Searchs Actions (with intermediate reports)
-
-    -- Final Report actions
-
-    
-    hPutStrLn stderr "\nDone"
-
-
+module ReadInputFiles  where
