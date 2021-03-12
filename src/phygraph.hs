@@ -68,7 +68,7 @@ main =
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read, rename commands
-    let (rawData, rawGraphs) = executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    (rawData, rawGraphs) <- executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
 
     -- Reconcile Data
 

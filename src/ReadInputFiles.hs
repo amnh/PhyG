@@ -68,9 +68,9 @@ getReadArgs fullCommand argList =
 
 
 -- | executeReadCommands
-executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> ([RawData], [RawGraph])
+executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> IO ([RawData], [RawGraph])
 executeReadCommands curData curGraphs argList = 
-    if null argList then (curData, curGraphs)
+    if null argList then return (curData, curGraphs)
     else 
         let (firstOption, firstFile) = head argList
         in 
