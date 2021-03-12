@@ -41,6 +41,7 @@ import           System.Environment
 
 import           ProcessCommands
 import           Types
+import           ReadInputFiles
 
 --import           Debug.Trace
 
@@ -67,7 +68,7 @@ main =
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read, rename commands
-    let (rawData, rawGraphs) = executeReadCommands [] [] $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs) = executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
 
     -- Reconcile Data
 

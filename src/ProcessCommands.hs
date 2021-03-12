@@ -48,8 +48,6 @@ Portability :  portable (I hope)
 
 module ProcessCommands  where
 
--- import           Control.Exception
--- import           Data.Typeable
 import           Data.Char
 import           Data.List
 import           Debug.Trace
@@ -58,6 +56,7 @@ import           Data.Maybe
 
 import           Types
 import           GeneralUtilities
+import           ReadInputFiles
 
 
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
@@ -224,38 +223,4 @@ parseCommandArg fullCommand instruction argList
                             else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes") 
     | otherwise = argList
 
--- | getReadArgs processes arguments ofr the 'read' command
--- should allow mulitple files and gracefully error check
--- also allows tcm file specification (limit 1 tcm per command?)
--- as fasta, fastc, tnt, tcm, prealigned
 
--- | Read arg list allowable modifiers in read
-readArgList :: [String]
-readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
-
--- | getReadArgs processes Read arguments 
-getReadArgs :: String -> [(String, String)] -> [Argument]
-getReadArgs fullCommand argList = 
-    if null argList then []
-    else 
-        let (firstPart, secondPart) = head argList 
-        in
-        -- plain file name with no modifier
-        if (null firstPart) then
-            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-        -- Change to allowed modifiers
-        else if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
-        else if (null secondPart) || (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-
-
--- | executeReadCommands
-executeReadCommands :: [RawData] -> [RawGraph] -> [Command] -> ([RawData], [RawGraph])
-executeReadCommands curData curGraphs commandList = 
-    if null commandList then (curData, curGraphs)
-    else 
-        let firstCommand = snd $ head commandList
-        in 
-        if firstCommand == "fasta" = 
-        executeReadCommands curData curGraphs (tail commandList)

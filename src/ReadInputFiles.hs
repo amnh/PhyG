@@ -37,3 +37,52 @@ Portability :  portable (I hope)
 
 
 module ReadInputFiles  where
+
+import           Types
+import           Debug.Trace
+import           Data.Char
+
+
+-- | Read arg list allowable modifiers in read
+readArgList :: [String]
+readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
+
+-- | getReadArgs processes arguments ofr the 'read' command
+-- should allow mulitple files and gracefully error check
+-- also allows tcm file specification (limit 1 tcm per command?)
+-- as fasta, fastc, tnt, tcm, prealigned
+getReadArgs :: String -> [(String, String)] -> [Argument]
+getReadArgs fullCommand argList = 
+    if null argList then []
+    else 
+        let (firstPart, secondPart) = head argList 
+        in
+        -- plain file name with no modifier
+        if (null firstPart) then
+            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+        -- Change to allowed modifiers
+        else if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
+        else if (null secondPart) || (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+
+
+-- | executeReadCommands
+executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> ([RawData], [RawGraph])
+executeReadCommands curData curGraphs argList = 
+    if null argList then (curData, curGraphs)
+    else 
+        let (firstOption, firstFile) = head argList
+        in 
+        -- try to figure out file type
+        if null firstOption then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "fasta" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "fastc" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "dot" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
+        else if (reverse $ take 3 (reverse firstOption)) == "ick" then executeReadCommands curData curGraphs (tail argList)
+        else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
+        
