@@ -43,6 +43,7 @@ executable phyg
                 , exceptions
                 , array
                 , split
+                , text-short
  
                 
   default-extensions : BangPatterns                
@@ -58,6 +59,8 @@ executable phyg
                   GeneralUtilities
                   ProcessCommands
                   Types
+                  ReadInputFiles
+
                   
                   
   
