@@ -36,9 +36,42 @@ Portability :  portable (I hope)
 
 -}
 
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module LocalGraph  where
 
+
 import qualified Data.Graph.Inductive.PatriciaTree as P
+import GraphFormatUtilities
+import qualified Data.Text as T
+import           Data.GraphViz                     as GV
+import           Data.GraphViz.Attributes.Complete (Attribute (Label),
+                                                    Label (..))
+import           Data.GraphViz.Commands.IO         as GVIO
+import qualified Data.Graph.Inductive.Graph        as G
+
 
 -- | Gr local graph definition using FGL
 type Gr a b = P.Gr a b
+type Node = G.Node
+type DotGraph = GV.DotGraph
+
+-- | getFENLocal maps to forestEnhancedNewickStringList2FGLList in GraphFormatUtilities
+-- to allow for potnetial swapping FGL graph backend
+-- requires leading and trailing space and newlines to be removed
+getFENLocal :: T.Text -> [Gr T.Text Double] 
+getFENLocal inText = forestEnhancedNewickStringList2FGLList inText
+
+
+readDotLocal :: String -> IO [DotGraph G.Node]
+readDotLocal fileName = do
+	(dotGraph :: [DotGraph G.Node]) <- GVIO.readDotFile fileName
+    return dotGraph
+
+-- let (inputGraphListDot :: [P.Gr Attributes Attributes]) = fmap dotToGraph  dotGraphList
+
+-- | dotToGraph local mapo dor 
+dotToGraph ::  [LocalGraph.DotGraph Node] -> [LocalGraph.Gr Attributes Attributes]
+dotToGraph dotGraphList = 
+	let (outGraph :: [P.Gr Attributes Attributes]) = GV.dotToGraph dotGraphList
+	in outGraph

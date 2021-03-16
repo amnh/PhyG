@@ -47,11 +47,14 @@ import           System.IO
 import           Data.List
 import qualified Data.Text  as T
 import qualified Data.Text.Short as ST
+import qualified LocalGraph as LG
+
 
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
+readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", 
+    "dot", "newick" , "enewick", "fenewick", "rename"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -84,6 +87,8 @@ executeReadCommands curData curGraphs argList = do
         if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
         else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
         fileContents <- hGetContents fileHandle
+        if firstOption == "dot" then hClose fileHandle
+        else hPutStrLn stderr ""
         -- try to figure out file type
         if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
             let fastaData = getFastA firstOption fileContents
@@ -96,11 +101,17 @@ executeReadCommands curData curGraphs argList = do
             in
             executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
         else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "dot" then executeReadCommands curData curGraphs (tail argList)
+        else if firstOption == "dot" then 
+        	(dotGraph :: [LG.DotGraph LG.Node]) <- LG.readDotLocal fileName
+        	let inputDot :: [LG.Gr Attributes Attributes]) = LG.dotToGraph dotGraph
+        	executeReadCommands curData (inputDot : curGraphs) (tail argList)
         else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
-        else if (reverse $ take 3 (reverse firstOption)) == "ick" then executeReadCommands curData curGraphs (tail argList)
+        else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
+            let thisGraphList = getFENewickGraph fileContents
+            in 
+            executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
         else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
         
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -203,3 +214,9 @@ getRawDataPairsFastC modifier inTextList =
         else (firstName, fmap ST.fromText firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
         )
         
+-- | getFENewickGraph takes graph contents and returns local graph format
+-- could be mulitple input graphs
+getFENewickGraph :: String -> [LG.Gr T.Text Double] 
+getFENewickGraph fileString = 
+    -- trace (fileString)
+    LG.getFENLocal (T.filter (/= '\n') $ T.strip $ T.pack fileString) 
