@@ -1,0 +1,21 @@
+digraph {
+    0 [label=A];
+    1 [label=B];
+    2 [label=C];
+    3 [label=D];
+    4 [label=E];
+    5 [label=HTU5];
+    6 [label=HTU6];
+    7 [label=HTU7];
+    8 [label=HTU8];
+    9 [label=HTU9];
+    5 -> 1 [label=""];
+    5 -> 8 [label=""];
+    6 -> 0 [label=""];
+    6 -> 5 [label=""];
+    7 -> 4 [label=""];
+    7 -> 6 [label=""];
+    8 -> 2 [label=""];
+    8 -> 3 [label=""];
+    9 -> 7 [label=""];
+}

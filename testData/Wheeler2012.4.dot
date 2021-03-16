@@ -1,0 +1,18 @@
+digraph {
+    0 [label=A];
+    1 [label=B];
+    2 [label=C];
+    3 [label=D];
+    4 [label=HTU4];
+    5 [label=HTU5];
+    6 [label=HTU6];
+    7 [label=HTU7];
+    4 -> 1 [label=0.6999999999999993];
+    4 -> 6 [label=3.6000000000000005];
+    5 -> 0 [label=-2.3];
+    5 -> 4 [label=4.000000000000001];
+    6 -> 2 [label=3.3];
+    6 -> 7 [label=4.8];
+    7 -> 3 [label=0.0];
+    5 -> 7 [label=0.0];
+}
