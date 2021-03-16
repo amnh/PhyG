@@ -96,3 +96,10 @@ Task groups:
 			csv of assignments etc
 		Append to non-graphical files b y default, overwrite option
 
+
+
+Test:
+	1) Aligned and unaligned amino acid and nucletide (with RNA) data
+	2) TNT inputs
+
+	

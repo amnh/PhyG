@@ -71,6 +71,9 @@ main =
       -- bury this si raw data/reconciled data not in scope and can be gc-ed?
     (rawData, rawGraphs) <- executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
 
+    hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
+    hPutStrLn stderr ("\tData for " ++ (show $ length $ fst $ head rawData))
+    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ snd $ head rawData))
     -- Reconcile Data
 
     -- Optimize Data

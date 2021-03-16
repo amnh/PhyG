@@ -1,5 +1,5 @@
 -- Test command file
-read ("blah") -- readfile
--- Next line
-build (bleh, blog, bleg)
-read (fasta:"test.fas")
+read (fasta:"IE.MT.fasta")
+read (fasta:"IE.Y.fasta")
+read ("IE.X.fasta")
+read (fastc:"louse.fastc")

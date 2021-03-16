@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 module Types where
 
-import qualified Data.Text.Lazy  as T
+import qualified Data.Text  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
 
@@ -62,7 +62,7 @@ data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | S
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
-data CharType = Add | NonAdd | Matrix | NucSeq | AminoSeq | GenSeq 
+data CharType = Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq 
     deriving (Read, Show, Eq)
 
 -- | CharInfo information about characters
@@ -71,7 +71,6 @@ data CharInfo = CharInfo { charType :: CharType
                          , weight :: Double
                          , costMatrix :: [Int]
                          , name :: T.Text
-                         , numStates :: Int
                          , alphabet :: [ST.ShortText]
                          } deriving (Show, Eq)
 

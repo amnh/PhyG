@@ -2,7 +2,7 @@
 Module      :  LocalGraph.hs
 Description :  Module specifying graph types and functionality
 				This is for indirection so can change underlying graph library
-				witout  polutting th erest of the code
+				without  polutting the rest of the code
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 

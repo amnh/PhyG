@@ -34,18 +34,24 @@ Portability :  portable (I hope)
 
 -}
 
-
+{-
+Functions to peform the input file reading for PhyG
+-}
 
 module ReadInputFiles  where
 
 import           Types
 import           Debug.Trace
 import           Data.Char
+import           System.IO
+import           Data.List
+import qualified Data.Text  as T
+import qualified Data.Text.Short as ST
 
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["tcm", "prealigned", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
+readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", "dot", "newick" , "enewick", "fenewick", "rename"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -69,15 +75,26 @@ getReadArgs fullCommand argList =
 
 -- | executeReadCommands
 executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> IO ([RawData], [RawGraph])
-executeReadCommands curData curGraphs argList = 
+executeReadCommands curData curGraphs argList = do
     if null argList then return (curData, curGraphs)
-    else 
+    else do
         let (firstOption, firstFile) = head argList
-        in 
+        fileHandle <- openFile  firstFile ReadMode
+        canBeReadFrom <- hIsReadable fileHandle
+        if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
+        else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
+        fileContents <- hGetContents fileHandle
         -- try to figure out file type
-        if null firstOption then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "fasta" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "fastc" then executeReadCommands curData curGraphs (tail argList)
+        if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
+            let fastaData = getFastA firstOption fileContents
+                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+            in
+            executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+        else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
+            let fastaData = getFastC firstOption fileContents
+                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+            in
+            executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
         else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "dot" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
@@ -85,4 +102,104 @@ executeReadCommands curData curGraphs argList =
         else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
         else if (reverse $ take 3 (reverse firstOption)) == "ick" then executeReadCommands curData curGraphs (tail argList)
         else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
+        
+-- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
+getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
+getAlphabet curList inList =
+    if null inList then fmap ST.fromString $ (sort curList) `union` ["-"]
+    else 
+        let firstChars = fmap (:[]) $ nub $ ST.toString $ head inList 
+        in
+        getAlphabet (firstChars `union` curList) (tail inList)
+
+
+-- | getFastaCharInfo get alphabet , names etc from processed fasta data
+getFastaCharInfo :: [TermData] -> String -> String -> CharInfo
+getFastaCharInfo inData dataName dataType = 
+    if null inData then error "Empty inData in getFastaCharInfo"
+    else 
+        let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
+            aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z","Y", "-","?"]
+            --onlyInNucleotides = [ST.fromString "U"]
+            --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
+            sequenceData = getAlphabet [] $ concat $ fmap snd inData
+            seqType = if dataType == "nucleotide" then NucSeq
+                      else if dataType == "aminoacid" then AminoSeq
+                      else if dataType == "custom_alphabet" then GenSeq
+                      else if (sequenceData `intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
+                          ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
+                      else if (sequenceData `intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
+                          ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
+                      -- can fit in byte with reasonable pre-calculation costs
+                      else if (length sequenceData) < 9 then SmallAlphSeq
+                      else GenSeq
+            defaultGenSeqCharInfo = CharInfo {
+                                       charType = seqType
+                                     , activity = True
+                                     , weight = 1.0
+                                     , costMatrix = []
+                                     , name = T.pack dataName
+                                     , alphabet = sequenceData
+                                     }
+        in
+        trace (show sequenceData)
+        defaultGenSeqCharInfo
+
+-- | getFastA processes fasta file 
+-- assumes single character alphabet
+-- deletes '-' (unless "prealigned"), and spaces
+getFastA :: String -> String -> [TermData] 
+getFastA modifier fileContents  =
+    if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
+    else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+    else 
+        let terminalSplits = T.split (=='>') $ T.pack fileContents 
+        in
+        -- tail because initial split will an empty text
+        getRawDataPairsFastA modifier (tail terminalSplits)
+        
+
+-- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+getRawDataPairsFastA :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getRawDataPairsFastA modifier inTextList =
+    if null inTextList then []
+    else 
+        let firstText = head inTextList
+            firstName = T.takeWhile (/= '$') $ head $ T.lines firstText
+            firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
+            firstDataNoGaps = T.filter (/= '-') firstData
+        in
+        trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
+        if modifier == "prealigned" then (firstName, [ST.fromText firstData]) : getRawDataPairsFastA modifier (tail inTextList)
+        else (firstName, [ST.fromText firstDataNoGaps]) : getRawDataPairsFastA modifier (tail inTextList)
+        )
+        
+-- | getFastC processes fasta file 
+-- assumes spaces between alphabet elements
+-- deletes '-' (unless "prealigned")
+getFastC :: String -> String -> [TermData] 
+getFastC modifier fileContents  =
+    if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
+    else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+    else 
+        let terminalSplits = T.split (=='>') $ T.pack fileContents 
+        in
+        -- tail because initial split will an empty text
+        getRawDataPairsFastC modifier (tail terminalSplits)
+
+-- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+-- this splits on spaces in sequences
+getRawDataPairsFastC :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getRawDataPairsFastC modifier inTextList =
+    if null inTextList then []
+    else 
+        let firstText = head inTextList
+            firstName = T.takeWhile (/= '$') $ head $ T.lines firstText
+            firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
+            firstDataNoGaps = fmap (T.filter (/= '-')) firstData
+        in
+        trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
+        if modifier == "prealigned" then (firstName, fmap ST.fromText firstData) : getRawDataPairsFastC modifier (tail inTextList)
+        else (firstName, fmap ST.fromText firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        )
         
