@@ -60,6 +60,7 @@ executable phyg
                   ProcessCommands
                   Types
                   ReadInputFiles
+                  LocalGraph
 
                   
                   

@@ -1,6 +1,8 @@
 {- |
-Module      :  phygraph.hs
-Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
+Module      :  LocalGraph.hs
+Description :  Module specifying graph types and functionality
+				This is for indirection so can change underlying graph library
+				witout  polutting th erest of the code
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -34,52 +36,9 @@ Portability :  portable (I hope)
 
 -}
 
-module Main where
+module LocalGraph  where
 
-import           System.IO
-import           System.Environment
+import qualified Data.Graph.Inductive.PatriciaTree as P
 
-import           ProcessCommands
-import           Types
-import           ReadInputFiles
-
---import           Debug.Trace
-
-
--- | main driver
-main :: IO ()
-main =
-  do
-    let splash = "\nPhyG version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
-    let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "under the 3-Clause BSD License.\n"
-    hPutStrLn stderr (splash ++ splash2 ++ splash3)
-    
-    -- Process arguments--a single file containing commands
-    args <- getArgs
-
-    if length args /= 1 then errorWithoutStackTrace "\nProgram requires a single argument--the name of command script file.\n\n"
-    else hPutStr stderr "\nCommand script file: "
-    hPutStrLn stderr $ head args
-
-    -- Process commands to get list of actions
-    commandContents <- readFile $ head args
-    let thingsToDo = getCommandList  commandContents
-    mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
-
-    -- Process Read, rename commands
-      -- bury this si raw data/reconciled data not in scope and can be gc-ed?
-    (rawData, rawGraphs) <- executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
-
-    -- Reconcile Data
-
-    -- Optimize Data
-
-    -- Searchs Actions (with intermediate reports)
-
-    -- Final Report actions
-
-    
-    hPutStrLn stderr "\nDone"
-
-
+-- | Gr local graph definition using FGL
+type Gr a b = P.Gr a b

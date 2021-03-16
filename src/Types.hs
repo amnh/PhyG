@@ -38,7 +38,7 @@ module Types where
 
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified Data.Graph.Inductive.PatriciaTree as P
+import qualified LocalGraph as LG
 
 
 
@@ -85,4 +85,4 @@ type RawData = ([TermData], [CharInfo])
 type TermData = (T.Text, [ST.ShortText])
 
 -- | type RawGraph is input grap[hs with leaf and edge labels
-type RawGraph = P.Gr T.Text Double
+type RawGraph = LG.Gr T.Text Double
