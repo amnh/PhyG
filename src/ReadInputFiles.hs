@@ -45,9 +45,10 @@ import           Debug.Trace
 import           Data.Char
 import           System.IO
 import           Data.List
-import qualified Data.Text  as T
+import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
+import           GraphFormatUtilities 
 
 
 
@@ -77,6 +78,7 @@ getReadArgs fullCommand argList =
 
 
 -- | executeReadCommands
+-- need to close files after read
 executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> IO ([RawData], [RawGraph])
 executeReadCommands curData curGraphs argList = do
     if null argList then return (curData, curGraphs)
@@ -87,8 +89,6 @@ executeReadCommands curData curGraphs argList = do
         if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
         else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
         fileContents <- hGetContents fileHandle
-        if firstOption == "dot" then hClose fileHandle
-        else hPutStrLn stderr ""
         -- try to figure out file type
         if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
             let fastaData = getFastA firstOption fileContents
@@ -101,10 +101,10 @@ executeReadCommands curData curGraphs argList = do
             in
             executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
         else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "dot" then 
-        	(dotGraph :: [LG.DotGraph LG.Node]) <- LG.readDotLocal fileName
-        	let inputDot :: [LG.Gr Attributes Attributes]) = LG.dotToGraph dotGraph
-        	executeReadCommands curData (inputDot : curGraphs) (tail argList)
+        else if firstOption == "dot" then do
+            dotGraph <- LG.hGetDotLocal fileHandle
+            let inputDot = relabelFGL $ LG.dotToGraph dotGraph
+            executeReadCommands curData (inputDot : curGraphs) (tail argList)
         else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
         else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
@@ -181,8 +181,8 @@ getRawDataPairsFastA modifier inTextList =
             firstDataNoGaps = T.filter (/= '-') firstData
         in
         trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        if modifier == "prealigned" then (firstName, [ST.fromText firstData]) : getRawDataPairsFastA modifier (tail inTextList)
-        else (firstName, [ST.fromText firstDataNoGaps]) : getRawDataPairsFastA modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, [ST.fromText $ T.toStrict firstData]) : getRawDataPairsFastA modifier (tail inTextList)
+        else (firstName, [ST.fromText  $ T.toStrict firstDataNoGaps]) : getRawDataPairsFastA modifier (tail inTextList)
         )
         
 -- | getFastC processes fasta file 
@@ -210,8 +210,8 @@ getRawDataPairsFastC modifier inTextList =
             firstDataNoGaps = fmap (T.filter (/= '-')) firstData
         in
         trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap ST.fromText firstData) : getRawDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap ST.fromText firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
+        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
         )
         
 -- | getFENewickGraph takes graph contents and returns local graph format
@@ -220,3 +220,4 @@ getFENewickGraph :: String -> [LG.Gr T.Text Double]
 getFENewickGraph fileString = 
     -- trace (fileString)
     LG.getFENLocal (T.filter (/= '\n') $ T.strip $ T.pack fileString) 
+

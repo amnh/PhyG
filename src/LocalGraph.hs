@@ -1,8 +1,8 @@
 {- |
 Module      :  LocalGraph.hs
 Description :  Module specifying graph types and functionality
-				This is for indirection so can change underlying graph library
-				without  polutting the rest of the code
+                This is for indirection so can change underlying graph library
+                without  polutting the rest of the code
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -42,13 +42,15 @@ module LocalGraph  where
 
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
-import GraphFormatUtilities
-import qualified Data.Text as T
+import           GraphFormatUtilities
+--import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import           Data.GraphViz                     as GV
 import           Data.GraphViz.Attributes.Complete (Attribute (Label),
                                                     Label (..))
 import           Data.GraphViz.Commands.IO         as GVIO
 import qualified Data.Graph.Inductive.Graph        as G
+import           System.IO
 
 
 -- | Gr local graph definition using FGL
@@ -59,19 +61,23 @@ type DotGraph = GV.DotGraph
 -- | getFENLocal maps to forestEnhancedNewickStringList2FGLList in GraphFormatUtilities
 -- to allow for potnetial swapping FGL graph backend
 -- requires leading and trailing space and newlines to be removed
-getFENLocal :: T.Text -> [Gr T.Text Double] 
+getFENLocal :: T.Text -> [LocalGraph.Gr T.Text Double] 
 getFENLocal inText = forestEnhancedNewickStringList2FGLList inText
 
 
-readDotLocal :: String -> IO [DotGraph G.Node]
-readDotLocal fileName = do
-	(dotGraph :: [DotGraph G.Node]) <- GVIO.readDotFile fileName
-    return dotGraph
-
--- let (inputGraphListDot :: [P.Gr Attributes Attributes]) = fmap dotToGraph  dotGraphList
+-- | readDotLocal calls GrapvViz function to allow for substitution later
+readDotLocal :: String -> IO (LocalGraph.DotGraph LocalGraph.Node)
+readDotLocal fileName = GVIO.readDotFile fileName
 
 -- | dotToGraph local mapo dor 
-dotToGraph ::  [LocalGraph.DotGraph Node] -> [LocalGraph.Gr Attributes Attributes]
-dotToGraph dotGraphList = 
-	let (outGraph :: [P.Gr Attributes Attributes]) = GV.dotToGraph dotGraphList
-	in outGraph
+dotToGraph ::  (LocalGraph.DotGraph LocalGraph.Node) -> (LocalGraph.Gr Attributes Attributes)
+dotToGraph dotGraphList = GV.dotToGraph dotGraphList
+
+-- | hGetDotLocal calls hGetDot from GraphVoz
+hGetDotLocal :: Handle -> IO (LocalGraph.DotGraph LocalGraph.Node)
+hGetDotLocal inFileHandle = GVIO.hGetDot inFileHandle
+
+
+
+
+

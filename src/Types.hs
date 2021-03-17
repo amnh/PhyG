@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 module Types where
 
-import qualified Data.Text  as T
+import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
 
