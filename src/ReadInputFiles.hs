@@ -88,31 +88,33 @@ executeReadCommands curData curGraphs argList = do
         canBeReadFrom <- hIsReadable fileHandle
         if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
         else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
-        fileContents <- hGetContents fileHandle
-        -- try to figure out file type
-        if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
-            let fastaData = getFastA firstOption fileContents
-                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
-            in
-            executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
-        else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
-            let fastaData = getFastC firstOption fileContents
-                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
-            in
-            executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
-        else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "dot" then do
+        -- this is awkward but need to use dot utilities
+        if firstOption == "dot" then do
             dotGraph <- LG.hGetDotLocal fileHandle
             let inputDot = relabelFGL $ LG.dotToGraph dotGraph
             executeReadCommands curData (inputDot : curGraphs) (tail argList)
-        else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
-        else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
-        else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
-            let thisGraphList = getFENewickGraph fileContents
-            in 
-            executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
-        else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
+        else do
+            fileContents <- hGetContents fileHandle
+            -- try to figure out file type
+            if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
+                let fastaData = getFastA firstOption fileContents
+                    fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                in
+                executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+            else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
+                let fastaData = getFastC firstOption fileContents
+                    fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                in
+                executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+            else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
+            else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
+            else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
+            else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
+            else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
+                let thisGraphList = getFENewickGraph fileContents
+                in 
+                executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
+            else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
         
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
