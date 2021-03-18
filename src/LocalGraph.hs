@@ -42,7 +42,7 @@ module LocalGraph  where
 
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
-import           GraphFormatUtilities
+import qualified GraphFormatUtilities              as GFU
 --import qualified Data.Text as T
 import qualified Data.Text.Lazy as T
 import           Data.GraphViz                     as GV
@@ -62,7 +62,7 @@ type DotGraph = GV.DotGraph
 -- to allow for potnetial swapping FGL graph backend
 -- requires leading and trailing space and newlines to be removed
 getFENLocal :: T.Text -> [LocalGraph.Gr T.Text Double] 
-getFENLocal inText = forestEnhancedNewickStringList2FGLList inText
+getFENLocal inText = GFU.forestEnhancedNewickStringList2FGLList inText
 
 
 -- | readDotLocal calls GrapvViz function to allow for substitution later

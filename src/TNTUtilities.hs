@@ -1,6 +1,6 @@
 {- |
-Module      :  Types.hs
-Description :  Module specifying data types
+Module      :  TNTUtilities.hs
+Description :  Module to read tnt input files for phylogenetic analysis
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -34,54 +34,15 @@ Portability :  portable (I hope)
 
 -}
 
-module Types where
+{-
+Functions to peform the input file reading for PhyG
+-}
 
+module TNTUtilities  where
+
+import           Types
+import           Debug.Trace
+import           Data.Char
+import           Data.List
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified LocalGraph as LG
-
-
-
--- | Types for timed searches
-type Days = Int
-type Hours = Int
-type Minutes = Int
-type Seconds = Int 
-type Time = (Days, Hours, Minutes, Seconds)
-
--- | Command types
--- data Argument = String | Double | Int | Bool | Time
---    deriving (Show, Eq)
-type Argument = (String, String)
-
---For rename format rename:(a,b,c,...,y,z) => a-y renamed to z 
-
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename
-    deriving (Show, Eq)
-
-type Command = (Instruction, [Argument])
-
--- | CharType data type for input characters
-data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq 
-    deriving (Read, Show, Eq)
-
--- | CharInfo information about characters
-data CharInfo = CharInfo { charType :: CharType
-                         , activity :: Bool
-                         , weight :: Double
-                         , costMatrix :: [Int]
-                         , name :: T.Text
-                         , alphabet :: [ST.ShortText]
-                         } deriving (Show, Eq)
-
--- | RawData type processed from input to be passed to characterData
---to recode into usable form
---the format is tuple of a list of taxon-data list tuples and charinfo list.
---the data list and charinfo list must have the same length
-type RawData = ([TermData], [CharInfo])
-
--- | type TermData type contians termnal name and list of characters
-type TermData = (T.Text, [ST.ShortText])
-
--- | type RawGraph is input grap[hs with leaf and edge labels
-type RawGraph = LG.Gr T.Text Double

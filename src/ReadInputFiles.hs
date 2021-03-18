@@ -48,14 +48,15 @@ import           Data.List
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
-import           GraphFormatUtilities 
+import qualified GraphFormatUtilities as GFU
+import qualified TNTUtilities as TNT
 
 
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
 readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", 
-    "dot", "newick" , "enewick", "fenewick", "rename"]
+    "dot", "newick" , "enewick", "fenewick"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -88,28 +89,38 @@ executeReadCommands curData curGraphs argList = do
         canBeReadFrom <- hIsReadable fileHandle
         if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
         else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
+
         -- this is awkward but need to use dot utilities
         if firstOption == "dot" then do
             dotGraph <- LG.hGetDotLocal fileHandle
-            let inputDot = relabelFGL $ LG.dotToGraph dotGraph
+            let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
             executeReadCommands curData (inputDot : curGraphs) (tail argList)
+        -- not "dot" files
         else do
             fileContents <- hGetContents fileHandle
             -- try to figure out file type
-            if (firstOption `elem` ["fasta", "nucleotide", "aminoacid", ""]) then 
+            if null firstOption then 
+            	-- first cahr == 'x' then tnt
+            	-- first cahr '>' fasta/c if lots of spaces/length then fastc else fasta
+            	executeReadCommands curData curGraphs (tail argList)
+            -- fasta
+            else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
                 let fastaData = getFastA firstOption fileContents
                     fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
                 in
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+            -- fastc
             else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
                 let fastaData = getFastC firstOption fileContents
                     fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
                 in
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
-            else if firstOption == "tnt" then executeReadCommands curData curGraphs (tail argList)
+            -- tnt
+            else if firstOption == "tnt" then 
+            	executeReadCommands curData curGraphs (tail argList)
             else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
             else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
-            else if firstOption == "rename" then executeReadCommands curData curGraphs (tail argList)
+            -- FENEwick
             else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
                 let thisGraphList = getFENewickGraph fileContents
                 in 
@@ -127,6 +138,7 @@ getAlphabet curList inList =
 
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
+-- this doesn't separate ambiguities from elements--processed later
 getFastaCharInfo :: [TermData] -> String -> String -> CharInfo
 getFastaCharInfo inData dataName dataType = 
     if null inData then error "Empty inData in getFastaCharInfo"
