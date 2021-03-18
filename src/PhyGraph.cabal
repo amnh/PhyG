@@ -61,7 +61,7 @@ executable phyg
                   Types
                   ReadInputFiles
                   LocalGraph
-
+                  TNTUtilities
                   
                   
   

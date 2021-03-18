@@ -100,9 +100,9 @@ executeReadCommands curData curGraphs argList = do
             fileContents <- hGetContents fileHandle
             -- try to figure out file type
             if null firstOption then 
-            	-- first cahr == 'x' then tnt
-            	-- first cahr '>' fasta/c if lots of spaces/length then fastc else fasta
-            	executeReadCommands curData curGraphs (tail argList)
+                -- first cahr == 'x' then tnt
+                -- first cahr '>' fasta/c if lots of spaces/length then fastc else fasta
+                executeReadCommands curData curGraphs (tail argList)
             -- fasta
             else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
                 let fastaData = getFastA firstOption fileContents
@@ -116,8 +116,10 @@ executeReadCommands curData curGraphs argList = do
                 in
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
             -- tnt
-            else if firstOption == "tnt" then 
-            	executeReadCommands curData curGraphs (tail argList)
+            else if firstOption == "tnt" then
+                let tntData = TNT.getTNTData fileContents
+                in
+                executeReadCommands (tntData : curData) curGraphs (tail argList)
             else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
             else if firstOption == "prealigned" then executeReadCommands curData curGraphs (tail argList)
             -- FENEwick
