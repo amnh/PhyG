@@ -72,8 +72,8 @@ main =
     (rawData, rawGraphs) <- executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
 
     hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
-    hPutStrLn stderr ("\tData for " ++ (show $ length $ fst $ head rawData))
-    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ snd $ head rawData))
+    hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))
+    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ fmap snd rawData))
     -- Reconcile Data
 
     -- Optimize Data
