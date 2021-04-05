@@ -42,7 +42,7 @@ import           System.Environment
 import           ProcessCommands
 import           Types
 import           ReadInputFiles
-
+import           GeneralUtilities
 --import           Debug.Trace
 
 
@@ -61,6 +61,10 @@ main =
     if length args /= 1 then errorWithoutStackTrace "\nProgram requires a single argument--the name of command script file.\n\n"
     else hPutStr stderr "\nCommand script file: "
     hPutStrLn stderr $ head args
+
+    -- System time for Random seed
+    timeD <- getSystemTimeSeconds 
+    hPutStrLn stderr ("Cur time is " ++ show timeD)
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
