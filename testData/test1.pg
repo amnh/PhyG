@@ -1,0 +1,6 @@
+-- Test command file
+read (fasta:"IE.MT.fasta")
+read(newick:"test-1.tre")
+report("test.txt",data)
+report(data)
+report(data, "test.txt", append)
