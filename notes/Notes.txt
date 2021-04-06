@@ -54,6 +54,10 @@ Task groups:
 			Including converting sankoff inputs to additive or non-additive
 			Blocks
 		4) Convert data to analytical format
+           Optimized
+        5) Make allowance for recoded data 
+            Implied alignment
+            GPU
 
 	2) Optimization regemes for two children 
 		0) Includes optimality criteria
