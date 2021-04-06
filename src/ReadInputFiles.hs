@@ -38,7 +38,10 @@ Portability :  portable (I hope)
 Functions to peform the input file reading for PhyG
 -}
 
-module ReadInputFiles  where
+module ReadInputFiles  
+( executeReadCommands
+ ,getReadArgs
+) where
 
 import           Types
 import           Debug.Trace
@@ -52,35 +55,9 @@ import qualified GraphFormatUtilities as GFU
 import qualified TNTUtilities as TNT
 
 
-
--- | Read arg list allowable modifiers in read
-readArgList :: [String]
-readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", 
-    "dot", "newick" , "enewick", "fenewick"]
-
--- | getReadArgs processes arguments ofr the 'read' command
--- should allow mulitple files and gracefully error check
--- also allows tcm file specification (limit 1 tcm per command?)
--- as fasta, fastc, tnt, tcm, prealigned
-getReadArgs :: String -> [(String, String)] -> [Argument]
-getReadArgs fullCommand argList = 
-    if null argList then []
-    else 
-        let (firstPart, secondPart) = head argList 
-        in
-        -- plain file name with no modifier
-        if (null firstPart) then
-            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-        -- Change to allowed modifiers
-        else if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
-        else if (null secondPart) || (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
-        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-
-
--- | executeReadCommands
+-- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeReadCommands :: [RawData] -> [RawGraph] -> [Argument] -> IO ([RawData], [RawGraph])
+executeReadCommands :: [PhyloData] -> [SimpleGraph] -> [Argument] -> IO ([PhyloData], [SimpleGraph])
 executeReadCommands curData curGraphs argList = do
     if null argList then return (curData, curGraphs)
     else do
@@ -128,7 +105,31 @@ executeReadCommands curData curGraphs argList = do
                 in 
                 executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
             else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
-        
+
+-- | Read arg list allowable modifiers in read
+readArgList :: [String]
+readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv", 
+    "dot", "newick" , "enewick", "fenewick"]
+
+-- | getReadArgs processes arguments ofr the 'read' command
+-- should allow mulitple files and gracefully error check
+-- also allows tcm file specification (limit 1 tcm per command?)
+-- as fasta, fastc, tnt, tcm, prealigned
+getReadArgs :: String -> [(String, String)] -> [Argument]
+getReadArgs fullCommand argList = 
+    if null argList then []
+    else 
+        let (firstPart, secondPart) = head argList 
+        in
+        -- plain file name with no modifier
+        if (null firstPart) then
+            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+        -- Change to allowed modifiers
+        else if ((fmap toLower firstPart) `notElem` readArgList)  then errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
+        else if (null secondPart) || (head secondPart /= '"') || (last secondPart /= '"') then errorWithoutStackTrace ("\n\n'Read' command error '" ++ (secondPart) ++"' : Need to specify filename in double quotes") 
+        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
@@ -183,12 +184,12 @@ getFastA modifier fileContents  =
         let terminalSplits = T.split (=='>') $ T.pack fileContents 
         in
         -- tail because initial split will an empty text
-        getRawDataPairsFastA modifier (tail terminalSplits)
+        getPhyloDataPairsFastA modifier (tail terminalSplits)
         
 
--- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
-getRawDataPairsFastA :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
-getRawDataPairsFastA modifier inTextList =
+-- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+getPhyloDataPairsFastA :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getPhyloDataPairsFastA modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
@@ -197,8 +198,8 @@ getRawDataPairsFastA modifier inTextList =
             firstDataNoGaps = T.filter (/= '-') firstData
         in
         trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        if modifier == "prealigned" then (firstName, [ST.fromText $ T.toStrict firstData]) : getRawDataPairsFastA modifier (tail inTextList)
-        else (firstName, [ST.fromText  $ T.toStrict firstDataNoGaps]) : getRawDataPairsFastA modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, [ST.fromText $ T.toStrict firstData]) : getPhyloDataPairsFastA modifier (tail inTextList)
+        else (firstName, [ST.fromText  $ T.toStrict firstDataNoGaps]) : getPhyloDataPairsFastA modifier (tail inTextList)
         )
         
 -- | getFastC processes fasta file 
@@ -212,12 +213,12 @@ getFastC modifier fileContents  =
         let terminalSplits = T.split (=='>') $ T.pack fileContents 
         in
         -- tail because initial split will an empty text
-        getRawDataPairsFastC modifier (tail terminalSplits)
+        getPhyloDataPairsFastC modifier (tail terminalSplits)
 
--- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+-- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
-getRawDataPairsFastC :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
-getRawDataPairsFastC modifier inTextList =
+getPhyloDataPairsFastC :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getPhyloDataPairsFastC modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
@@ -226,8 +227,8 @@ getRawDataPairsFastC modifier inTextList =
             firstDataNoGaps = fmap (T.filter (/= '-')) firstData
         in
         trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getPhyloDataPairsFastC modifier (tail inTextList)
+        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getPhyloDataPairsFastC modifier (tail inTextList)
         )
         
 -- | getFENewickGraph takes graph contents and returns local graph format

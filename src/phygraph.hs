@@ -41,8 +41,9 @@ import           System.Environment
 
 import           ProcessCommands
 import           Types
-import           ReadInputFiles
+import qualified ReadInputFiles as RIF
 import           GeneralUtilities
+import qualified CommandExecution as CE
 --import           Debug.Trace
 
 
@@ -50,7 +51,7 @@ import           GeneralUtilities
 main :: IO ()
 main =
   do
-    let splash = "\nPhyG version 0.1\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
+    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "under the 3-Clause BSD License.\n"
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
@@ -64,7 +65,8 @@ main =
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds 
-    hPutStrLn stderr ("Cur time is " ++ show timeD)
+    hPutStrLn stderr ("Current time is " ++ show timeD)
+    
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
@@ -72,21 +74,26 @@ main =
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read, rename commands
-      -- bury this si raw data/reconciled data not in scope and can be gc-ed?
-    (rawData, rawGraphs) <- executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
-
+    (rawData, rawGraphs) <- RIF.executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
     hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
-    hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))
-    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ fmap snd rawData))
-    -- Reconcile Data
+
+    -- Reconcile Data and Graphs (if input)
+    let (reconciledData, reconciledGraphs) = (rawData, rawGraphs) -- place holder
 
     -- Optimize Data
+    let optimizedData = reconciledData --  place holder
 
-    -- Searchs Actions (with intermediate reports)
-
-    -- Final Report actions
+    -- Execute Following Commands (searches, reports etc)
+    finalGraphList <- CE.executeCommands optimizedData reconciledGraphs thingsToDo
 
     
+    -- Final Stderr report
+    hPutStrLn stderr ("Search returned " ++ (show $ length finalGraphList) ++ " phylogenetic graphs")
     hPutStrLn stderr "\nDone"
 
 
+{-
+    hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))
+    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ fmap snd rawData))
+
+-}

@@ -50,7 +50,7 @@ import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 
 -- getTNTData tkae file contents and returns raw data and char info form TNT file
-getTNTData :: String -> RawData
+getTNTData :: String -> PhyloData
 getTNTData inString =
     if null inString then errorWithoutStackTrace ("\n\nTNT input processing error--empty file")
     else 

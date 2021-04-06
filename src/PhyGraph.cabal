@@ -44,6 +44,9 @@ executable phyg
                 , array
                 , split
                 , text-short
+                , random
+                , hashable
+                , time
  
                 
   default-extensions : BangPatterns                
@@ -62,6 +65,7 @@ executable phyg
                   ReadInputFiles
                   LocalGraph
                   TNTUtilities
+                  CommandExecution
                   
                   
   

@@ -77,7 +77,7 @@ dotToGraph dotGraphList = GV.dotToGraph dotGraphList
 hGetDotLocal :: Handle -> IO (LocalGraph.DotGraph LocalGraph.Node)
 hGetDotLocal inFileHandle = GVIO.hGetDot inFileHandle
 
-
-
-
+-- | fglToPrettyString calls prettify from FGL
+fglToPrettyString :: (Show a, Show b) => P.Gr a b -> String
+fglToPrettyString inGraph = G.prettify inGraph
 

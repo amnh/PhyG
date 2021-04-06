@@ -40,7 +40,9 @@ import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
 
-
+-- | Program Version
+pgVersion :: String
+pgVersion = "0.1"
 
 -- | Types for timed searches
 type Days = Int
@@ -78,10 +80,16 @@ data CharInfo = CharInfo { charType :: CharType
 --to recode into usable form
 --the format is tuple of a list of taxon-data list tuples and charinfo list.
 --the data list and charinfo list must have the same length
-type RawData = ([TermData], [CharInfo])
+type PhyloData = ([TermData], [CharInfo])
 
 -- | type TermData type contians termnal name and list of characters
 type TermData = (T.Text, [ST.ShortText])
 
--- | type RawGraph is input grap[hs with leaf and edge labels
-type RawGraph = LG.Gr T.Text Double
+-- | type RawGraph is input graphs with leaf and edge labels
+type SimpleGraph = LG.Gr T.Text Double
+
+-- | type RawGraph is input graphs with leaf and edge labels
+-- need to establish this later
+-- type LabelledGraph =  LG.Gr a b
+
+

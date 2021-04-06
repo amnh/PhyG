@@ -56,7 +56,7 @@ import           Data.Maybe
 
 import           Types
 import           GeneralUtilities
-import           ReadInputFiles
+import qualified ReadInputFiles as RIF
 
 
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
@@ -219,7 +219,7 @@ freeOfSimpleErrors commandString =
 -- of parsed srguments for that instruction
 parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
 parseCommandArg fullCommand instruction argList 
-    | instruction == Read = if (not $ null argList) then getReadArgs fullCommand argList 
+    | instruction == Read = if (not $ null argList) then RIF.getReadArgs fullCommand argList 
                             else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes") 
     | otherwise = argList
 
