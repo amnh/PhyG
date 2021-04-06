@@ -1,0 +1,141 @@
+{- |
+Module      :  CommandExecution.hs
+Description :  Module to coordinate command execution
+Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+License     :
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those
+of the authors and should not be interpreted as representing official policies,
+either expressed or implied, of the FreeBSD Project.
+
+Maintainer  :  Ward Wheeler <wheeler@amnh.org>
+Stability   :  unstable
+Portability :  portable (I hope)
+
+-}
+
+{-
+Functions to manage command execution after data have been read and processed
+-}
+
+module CommandExecution (executeCommands) where
+
+import           Types
+import           Debug.Trace
+import           GeneralUtilities
+import           System.IO
+import           GraphFormatUtilities
+import qualified LocalGraph as LG
+import           Data.List
+
+
+-- | executeReadCommands reads iput files and returns raw data 
+-- need to close files after read
+executeCommands :: [PhyloData] -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
+executeCommands curData curGraphs commandList = do
+    if null commandList then return curGraphs
+    else do
+        let (firstOption, firstArgs) = head commandList
+
+        -- skip "Read" commands already processed
+        if firstOption == Read then executeCommands curData curGraphs (tail commandList)
+
+        -- report command    
+        else if firstOption == Report then do
+            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs curData curGraphs
+            hPutStrLn stderr ("Writing to " ++ outFile)
+            if outFile == "stderr" then hPutStr stderr reportString
+            else if outFile == "stdout" then hPutStr stdout reportString
+            else if writeMode == "overwrite" then writeFile outFile reportString
+            else if writeMode == "append" then appendFile outFile reportString
+            else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
+            executeCommands curData curGraphs (tail commandList)
+        else 
+            executeCommands curData curGraphs (tail commandList)
+            
+-- | reportArgList contains valid report arguments
+reportArgList :: [String]
+reportArgList = ["all", "data","graphs", "overwrite", "append", "dot", reverse "newick", "ascii"]
+
+-- | checkReportCommands takes commands and verifies that they are in list
+checkReportCommands :: [String] -> [String] -> Bool
+checkReportCommands commandList permittedList =
+    if null commandList then True
+    else 
+        let firstCommand = head commandList
+            foundCommand = firstCommand `elem` permittedList
+        in
+        if foundCommand then checkReportCommands (tail commandList) permittedList
+        else 
+            let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
+            in
+            errorWithoutStackTrace ("\nError: Unrecognized 'report' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
+
+-- | reportCommand takes report options, current data and graphs and returns a 
+-- (potentially large) String to print and the channel to print it to 
+-- and write mode overwrite/append
+reportCommand :: [Argument] -> [PhyloData] -> [SimpleGraph] -> (String, String, String)
+reportCommand argList curData curGraphs =
+    let outFileNameList = filter (/= "") $ fmap snd argList
+        commandList = filter (/= "") $ fmap fst argList
+    in
+    if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ show outFileNameList)
+    else 
+        let checkCommandList = checkReportCommands commandList reportArgList
+            outfileName = if null outFileNameList then "stderr" 
+                          else tail $ init $ head outFileNameList
+            writeMode = if "overwrite" `elem` commandList then "overwrite"
+                        else "append"
+            
+        in
+        if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in report: " ++ (show argList))
+        else 
+            -- This for reconciled data
+            if "data" `elem` commandList then 
+                let baseData = ("There were " ++ (show $ length curData) ++ " input data files and " ++ (show $ length curGraphs) ++ " graphs\n")
+                    dataString = phyloDataToString curData
+                in
+                (baseData ++ dataString, outfileName, writeMode)
+            else if "graphs" `elem` commandList then 
+            	-- need to specify -O option for multiple graphs
+                if "dot" `elem` commandList then
+                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString curGraphs
+                    in 
+                    (graphString, outfileName, writeMode)
+                else if (reverse "newick") `elem` (take 6 $ fmap reverse commandList) then
+                    let graphString = fglList2ForestEnhancedNewickString curGraphs  True True
+                    in 
+                    (graphString, outfileName, writeMode)
+                else if "ascii" `elem` commandList then
+                    let graphString = concat $ fmap LG.fglToPrettyString curGraphs
+                    in 
+                    (graphString, outfileName, writeMode)
+                else -- "dot" as default
+					let graphString = concat $ fmap fgl2DotString curGraphs
+                    in 
+                    (graphString, outfileName, writeMode)
+            else ("Blah", outfileName, writeMode)
+            
+-- | phyloDataToString converts PhyloData type to String
+phyloDataToString :: [PhyloData] -> String
+phyloDataToString inData = "Bleh Data"
