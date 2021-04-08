@@ -1,6 +1,8 @@
 -- Test command file
 read (fasta:"IE.MT.fasta")
 read(newick:"test-1.tre")
+run ("rename.txt", "readsome.txt")
+rename ("Aromanian-renamed", "Aromanian", "Baromanian")
 report("test.txt",data)
 report(data)
 report(data, "test.txt", append)
