@@ -1,0 +1,2 @@
+rename ("Atong-renames", "Atong", "Bhojpuri")
+rename ("Brabantish-renamed", "Brabantish")
