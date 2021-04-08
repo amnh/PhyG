@@ -58,14 +58,45 @@ import           Types
 import           GeneralUtilities
 import qualified ReadInputFiles as RIF
 
+-- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
+-- and adds those commands in place 
+-- assumes one command per line
+expandRunCommands :: [String] -> [String] -> IO [String]
+expandRunCommands curLines inLines =
+    trace ("EXP " ++ (show curLines) ++ show inLines) (
+    if null inLines then return curLines
+    else 
+        let firstLine = removeComments [filter (/= ' ') $ head inLines]
+        in
+        trace ("FL " ++ show firstLine) (
+        -- only deal with run lines
+        if null firstLine then expandRunCommands curLines (tail inLines)
+        else if (take 3 $ fmap toLower $ head $ firstLine) /= "run" then expandRunCommands ((head firstLine) : curLines) (tail inLines)
+        else do -- is a "run command"
+             let (_, runFileList) = head $ parseCommand $ head firstLine
+             let runFileNames = fmap checkFileNames $ fmap snd runFileList
+             fileListContents <- mapM readFile runFileNames
+             let newLines = concat $ fmap lines fileListContents
+             expandRunCommands (curLines ++ newLines)   (tail inLines)
+             )
+        )
+
+-- | checkFileNames checks if forst and last element of String are double quotes and remomves them
+checkFileNames :: String -> String
+checkFileNames inName =
+    if null inName then errorWithoutStackTrace "Error: Null file name"
+    else if head inName /= '"' then errorWithoutStackTrace ("Error: File name must be in double quotes (b): " ++ inName)
+    else if last inName /= '"' then errorWithoutStackTrace ("Error: File name must be in double quotes (e): " ++ inName)
+    else init $ tail inName
 
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
-getCommandList  :: String -> [Command]
+-- commands in lines one to a line
+getCommandList  :: [String] -> [Command]
 getCommandList  rawContents =
     if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
     else 
-        let rawList = removeComments $ fmap (filter (/= ' ')) $ lines rawContents
+        let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
             processedCommands = concat $ fmap parseCommand rawList
         in
         trace (show rawList)
@@ -92,7 +123,7 @@ removeComments inLineList =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support"]
+allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support", "rename"]
 
 -- | getInstruction returns teh command type forom an input String
 -- all operations on lower case
@@ -108,6 +139,7 @@ getInstruction inString possibleCommands
     | (fmap toLower inString) == "set" = Set
     | (fmap toLower inString) == "transform" = Transform
     | (fmap toLower inString) == "support" = Support
+    | (fmap toLower inString) == "rename" = Rename
     | otherwise = 
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in

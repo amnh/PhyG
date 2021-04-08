@@ -39,11 +39,14 @@ module Main where
 import           System.IO
 import           System.Environment
 
-import           ProcessCommands
+import qualified ProcessCommands as PC
 import           Types
 import qualified ReadInputFiles as RIF
 import           GeneralUtilities
 import qualified CommandExecution as CE
+import qualified GraphFormatUtilities as GFU
+import qualified DataTransformation as DT
+import           Data.List
 --import           Debug.Trace
 
 
@@ -70,25 +73,41 @@ main =
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
-    let thingsToDo = getCommandList  commandContents
+
+      -- Process so one command per line?
+
+    commandContents' <- PC.expandRunCommands [] (lines commandContents) 
+    let thingsToDo = PC.getCommandList  commandContents'
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
-    -- Process Read, rename commands
+    -- Process Read commands
     (rawData, rawGraphs) <- RIF.executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
     hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
+    -- Process Rename Commands
+    newNamePairList <- CE.executeRenameCommands [] thingsToDo
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals")
+    else hPutStrLn stderr ("No terminals to be renamed")
+
+    let renamedData = fmap (DT.renameData newNamePairList) rawData
+    let renamedGraphs =  fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
+
     -- Reconcile Data and Graphs (if input)
-    let (reconciledData, reconciledGraphs) = (rawData, rawGraphs) -- place holder
+    let dataLeafNames = sort $ DT.getDataTerminalNames renamedData
+    hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
+
+    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
+    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.ladderizeGraph $ 
 
     -- Optimize Data
     let optimizedData = reconciledData --  place holder
 
     -- Execute Following Commands (searches, reports etc)
-    finalGraphList <- CE.executeCommands optimizedData reconciledGraphs thingsToDo
+    finalGraphList <- CE.executeCommands optimizedData reconciledGraphs (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     
     -- Final Stderr report
-    hPutStrLn stderr ("Search returned " ++ (show $ length finalGraphList) ++ " phylogenetic graphs")
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " phylogenetic graphs")
     hPutStrLn stderr "\nDone"
 
 

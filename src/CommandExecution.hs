@@ -38,7 +38,8 @@ Portability :  portable (I hope)
 Functions to manage command execution after data have been read and processed
 -}
 
-module CommandExecution (executeCommands) where
+module CommandExecution ( executeCommands
+                        , executeRenameCommands) where
 
 import           Types
 import           Debug.Trace
@@ -47,6 +48,7 @@ import           System.IO
 import           GraphFormatUtilities
 import qualified LocalGraph as LG
 import           Data.List
+import qualified Data.Text.Lazy as T
 
 
 -- | executeReadCommands reads iput files and returns raw data 
@@ -57,13 +59,13 @@ executeCommands curData curGraphs commandList = do
     else do
         let (firstOption, firstArgs) = head commandList
 
-        -- skip "Read" commands already processed
-        if firstOption == Read then executeCommands curData curGraphs (tail commandList)
-
+        -- skip "Read" and "Rename "commands already processed
+        if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
+        else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
         -- report command    
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs curData curGraphs
-            hPutStrLn stderr ("Writing to " ++ outFile)
+            hPutStrLn stderr ("Report writing to " ++ outFile)
             if outFile == "stderr" then hPutStr stderr reportString
             else if outFile == "stdout" then hPutStr stdout reportString
             else if writeMode == "overwrite" then writeFile outFile reportString
@@ -75,7 +77,7 @@ executeCommands curData curGraphs commandList = do
             
 -- | reportArgList contains valid report arguments
 reportArgList :: [String]
-reportArgList = ["all", "data","graphs", "overwrite", "append", "dot", reverse "newick", "ascii"]
+reportArgList = ["all", "data","graphs", "overwrite", "append", "dot", reverse "newick", "ascii", "crossrefs"]
 
 -- | checkReportCommands takes commands and verifies that they are in list
 checkReportCommands :: [String] -> [String] -> Bool
@@ -117,7 +119,7 @@ reportCommand argList curData curGraphs =
                 in
                 (baseData ++ dataString, outfileName, writeMode)
             else if "graphs" `elem` commandList then 
-            	-- need to specify -O option for multiple graphs
+                -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
                     let graphString = concat $ intersperse "\n" $ fmap fgl2DotString curGraphs
                     in 
@@ -131,7 +133,7 @@ reportCommand argList curData curGraphs =
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
-					let graphString = concat $ fmap fgl2DotString curGraphs
+                    let graphString = concat $ fmap fgl2DotString curGraphs
                     in 
                     (graphString, outfileName, writeMode)
             else ("Blah", outfileName, writeMode)
@@ -139,3 +141,22 @@ reportCommand argList curData curGraphs =
 -- | phyloDataToString converts PhyloData type to String
 phyloDataToString :: [PhyloData] -> String
 phyloDataToString inData = "Bleh Data"
+
+-- | executeRenameCommands takes all the "Rename commands" pairs and 
+-- creates a list of pairs of new name and list of old names to be converted
+-- as Text
+executeRenameCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
+executeRenameCommands curPairs commandList  =
+    if null commandList then return curPairs
+    else do
+        let (firstOption, firstArgs) = head commandList
+
+        -- skip "Read" and "Rename "commands already processed
+        if firstOption /= Rename then executeRenameCommands curPairs (tail commandList)
+        else 
+            let newName = T.pack $ snd $ head firstArgs
+                newNameList = replicate (length $ tail firstArgs) newName
+                newPairs = zip newNameList (fmap T.pack $ fmap snd $ tail firstArgs)
+            in
+            executeRenameCommands (curPairs ++ newPairs) (tail commandList)
+

@@ -53,6 +53,7 @@ import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
 import qualified GraphFormatUtilities as GFU
 import qualified TNTUtilities as TNT
+import qualified DataTransformation as DT
 
 
 -- | executeReadCommands reads iput files and returns raw data 
@@ -82,19 +83,19 @@ executeReadCommands curData curGraphs argList = do
                 executeReadCommands curData curGraphs (tail argList)
             -- fasta
             else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
-                let fastaData = getFastA firstOption fileContents
+                let fastaData = getFastA firstOption fileContents firstFile
                     fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
                 in
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
             -- fastc
             else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
-                let fastaData = getFastC firstOption fileContents
+                let fastaData = getFastC firstOption fileContents firstFile
                     fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
                 in
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
             -- tnt
             else if firstOption == "tnt" then
-                let tntData = TNT.getTNTData fileContents
+                let tntData = TNT.getTNTData fileContents firstFile
                 in
                 executeReadCommands (tntData : curData) curGraphs (tail argList)
             else if firstOption == "tcm" then executeReadCommands curData curGraphs (tail argList)
@@ -176,19 +177,24 @@ getFastaCharInfo inData dataName dataType =
 -- | getFastA processes fasta file 
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> [TermData] 
-getFastA modifier fileContents  =
+getFastA :: String -> String -> String -> [TermData] 
+getFastA modifier fileContents fileName  =
     if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
     else 
         let terminalSplits = T.split (=='>') $ T.pack fileContents 
+            pairData =  getPhyloDataPairsFastA modifier (tail terminalSplits)
+            (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
         in
         -- tail because initial split will an empty text
-        getPhyloDataPairsFastA modifier (tail terminalSplits)
+        if not hasDupTerminals then pairData
+        else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+        
+       
         
 
 -- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
-getPhyloDataPairsFastA :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getPhyloDataPairsFastA :: String -> [T.Text] -> [TermData]
 getPhyloDataPairsFastA modifier inTextList =
     if null inTextList then []
     else 
@@ -197,27 +203,30 @@ getPhyloDataPairsFastA modifier inTextList =
             firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
         in
-        trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
+        --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         if modifier == "prealigned" then (firstName, [ST.fromText $ T.toStrict firstData]) : getPhyloDataPairsFastA modifier (tail inTextList)
         else (firstName, [ST.fromText  $ T.toStrict firstDataNoGaps]) : getPhyloDataPairsFastA modifier (tail inTextList)
-        )
+        --)
         
 -- | getFastC processes fasta file 
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
-getFastC :: String -> String -> [TermData] 
-getFastC modifier fileContents  =
+getFastC :: String -> String -> String -> [TermData] 
+getFastC modifier fileContents fileName =
     if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
     else 
         let terminalSplits = T.split (=='>') $ T.pack fileContents 
+            pairData = getPhyloDataPairsFastC modifier (tail terminalSplits)
+            (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
         in
         -- tail because initial split will an empty text
-        getPhyloDataPairsFastC modifier (tail terminalSplits)
+        if not hasDupTerminals then pairData
+        else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
 
 -- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
-getPhyloDataPairsFastC :: String -> [T.Text] -> [(T.Text, [ST.ShortText])]
+getPhyloDataPairsFastC :: String -> [T.Text] -> [TermData]
 getPhyloDataPairsFastC modifier inTextList =
     if null inTextList then []
     else 

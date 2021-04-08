@@ -48,10 +48,12 @@ import           Data.List
 import           Data.Maybe
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
+import qualified DataTransformation as DT
+
 
 -- getTNTData tkae file contents and returns raw data and char info form TNT file
-getTNTData :: String -> PhyloData
-getTNTData inString =
+getTNTData :: String -> String -> PhyloData
+getTNTData inString fileName =
     if null inString then errorWithoutStackTrace ("\n\nTNT input processing error--empty file")
     else 
         let inText = T.strip $ T.pack inString
@@ -81,9 +83,11 @@ getTNTData inString =
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input processing error--number of taxa mis-specified or interleaved format error")
                 else 
                     let sortedData = glueInterleave dataBlock numTax numChar []
-                    in
-                    (sortedData,[])
-            ))
+                        (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
+                in
+                if not hasDupTerminals then (sortedData,[])
+                else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                ))
             
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 glueInterleave :: [T.Text] -> Int -> Int -> [(T.Text, String)] -> [TermData]

@@ -22,11 +22,14 @@ executable phyg
                 -Wincomplete-patterns
                 -threaded 
                 -O2
+                -XBangPatterns
+                -rtsopts
                 -- for weeder
 --                -fwrite-ide-info 
                 -- linux static binaries
 --		            -optl-static -optl-pthread
                 -static
+                -fllvm
 
 -- delete these for OSX for linux static binaries
 --  cc-options: -static
