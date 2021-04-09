@@ -71,7 +71,7 @@ data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSe
 data CharInfo = CharInfo { charType :: CharType
                          , activity :: Bool
                          , weight :: Double
-                         , costMatrix :: [Int]
+                         , costMatrix :: [[Int]]
                          , name :: T.Text
                          , alphabet :: [ST.ShortText]
                          } deriving (Show, Eq)

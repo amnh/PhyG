@@ -60,26 +60,41 @@ import qualified ReadInputFiles as RIF
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place 
--- assumes one command per line
+-- ensures one command per line
 expandRunCommands :: [String] -> [String] -> IO [String]
 expandRunCommands curLines inLines =
-    trace ("EXP " ++ (show curLines) ++ show inLines) (
+    --trace ("EXP " ++ (show curLines) ++ show inLines) (
     if null inLines then return curLines
     else 
-        let firstLine = removeComments [filter (/= ' ') $ head inLines]
+        let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
+            (firstLine, restLine) =  if null firstLineRead then ([],[])
+                                     else splitCommandLine $ head firstLineRead
         in
-        trace ("FL " ++ show firstLine) (
+        --trace ("FL " ++ firstLine) (
         -- only deal with run lines
         if null firstLine then expandRunCommands curLines (tail inLines)
-        else if (take 3 $ fmap toLower $ head $ firstLine) /= "run" then expandRunCommands ((head firstLine) : curLines) (tail inLines)
+        else if (take 3 $ fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : (tail inLines))
         else do -- is a "run command"
-             let (_, runFileList) = head $ parseCommand $ head firstLine
+             let (_, runFileList) = head $ parseCommand firstLine
              let runFileNames = fmap checkFileNames $ fmap snd runFileList
              fileListContents <- mapM readFile runFileNames
              let newLines = concat $ fmap lines fileListContents
-             expandRunCommands (curLines ++ newLines)   (tail inLines)
-             )
-        )
+             expandRunCommands (curLines ++ newLines)  (restLine : (tail inLines))
+             --)
+        --)
+
+-- | splitCommandLine takes a line with potentially multiple commands and splits
+-- between the first command and all others.
+splitCommandLine :: String -> (String, String)
+splitCommandLine inLine =
+    if null inLine then ([],[])
+    else 
+        let firstPart = takeWhile (/= '(') inLine 
+            parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
+            firstCommand = firstPart ++ parenPart 
+            restPart = drop (length firstCommand) inLine
+        in
+        (firstCommand, restPart)
 
 -- | checkFileNames checks if forst and last element of String are double quotes and remomves them
 checkFileNames :: String -> String
@@ -181,6 +196,7 @@ getSubCommand inString hasComma =
 
 -- | getBalancedParenPart stakes a string starting with '(' and takes all
 -- characters until (and including) the balancing ')'
+-- call with  getBalancedParenPart "" inString 0 0
 getBalancedParenPart :: String -> String -> Int -> Int -> String
 getBalancedParenPart curString inString countLeft countRight =
     if null inString then reverse curString

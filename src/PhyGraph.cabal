@@ -50,6 +50,7 @@ executable phyg
                 , random
                 , hashable
                 , time
+ -- currently doesn't compile               , Graphalyze
  
                 
   default-extensions : BangPatterns                
@@ -70,6 +71,7 @@ executable phyg
                   TNTUtilities
                   CommandExecution
                   DataTransformation
+                  Cyclic
                   
                   
   

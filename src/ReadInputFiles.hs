@@ -57,7 +57,6 @@ import qualified DataTransformation as DT
 
 
 -- | executeReadCommands reads iput files and returns raw data 
--- need to close files after read
 executeReadCommands :: [PhyloData] -> [SimpleGraph] -> [Argument] -> IO ([PhyloData], [SimpleGraph])
 executeReadCommands curData curGraphs argList = do
     if null argList then return (curData, curGraphs)
@@ -77,12 +76,57 @@ executeReadCommands curData curGraphs argList = do
             else executeReadCommands curData (inputDot : curGraphs) (tail argList)
         -- not "dot" files
         else do
-            fileContents <- hGetContents fileHandle
-            -- try to figure out file type
+            -- destroys lazyness but allows closing right away
+            -- this so don't have huge numbers of open files for large data sets
+            fileContents <- hGetContents' fileHandle
+            hClose fileHandle
+            -- try to figure out file type based on first and following characters
             if null firstOption then 
-                -- first cahr == 'x' then tnt
-                -- first cahr '>' fasta/c if lots of spaces/length then fastc else fasta
-                executeReadCommands curData curGraphs (tail argList)
+                let firstChar = head $ dropWhile (== ' ') fileContents
+                in
+                if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
+                    hPutStrLn stderr ("\tTrying to parse " ++ firstOption ++ " as dot") 
+                    -- destroys lazyness but allows closing right away
+                    -- this so don't have huge numbers of open files for large data sets
+                    fileHandle2 <- openFile  firstFile ReadMode
+                    !dotGraph <- LG.hGetDotLocal fileHandle2
+                    hClose fileHandle2
+                    let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
+                    let hasCycles = GFU.cyclic inputDot
+                    if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                    else executeReadCommands curData (inputDot : curGraphs) (tail argList)
+                else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
+                    let thisGraphList = getFENewickGraph fileContents
+                        hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
+                    in 
+                    if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                    else executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
+
+                else if toLower firstChar == 'x' then 
+                    let tntData = TNT.getTNTData fileContents firstFile
+                    in
+                    trace ("\tTrying to parse " ++ firstOption ++ " as TNT") 
+                        executeReadCommands (tntData : curData) curGraphs (tail argList)
+                else if firstChar == '>' then 
+                    let secondLine = head $ tail $ lines fileContents
+                        numSpaces = length $ elemIndices ' ' secondLine
+                        numWords = length $ words secondLine
+                    in
+                    -- spaces between alphabet elements suggest fastc
+                    if (numSpaces >= (numWords -1)) then 
+                        let fastcData = getFastC firstOption fileContents firstFile
+                            fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption
+                        in
+                        trace ("\tTrying to parse " ++ firstOption ++ " as fastc") 
+                        executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs (tail argList)
+                    else 
+                        let fastaData = getFastA firstOption fileContents firstFile
+                            fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                        in
+                        trace ("\tTrying to parse " ++ firstOption ++ " as fasta")
+                        executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+                    
+                else errorWithoutStackTrace ("Can't determione file type for " ++ firstOption ++ " need to prepend type")
             -- fasta
             else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
                 let fastaData = getFastA firstOption fileContents firstFile
@@ -91,10 +135,10 @@ executeReadCommands curData curGraphs argList = do
                 executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
             -- fastc
             else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
-                let fastaData = getFastC firstOption fileContents firstFile
-                    fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                let fastcData = getFastC firstOption fileContents firstFile
+                    fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption
                 in
-                executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs (tail argList)
+                executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs (tail argList)
             -- tnt
             else if firstOption == "tnt" then
                 let tntData = TNT.getTNTData fileContents firstFile
@@ -145,14 +189,27 @@ getAlphabet curList inList =
         getAlphabet (firstChars `union` curList) (tail inList)
 
 
+-- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
+--   in already)
+generateDefaultMatrix :: [ST.ShortText] -> Int -> [[Int]]
+generateDefaultMatrix inAlph rowCount =
+    if null inAlph then []
+    else if rowCount == length inAlph then []
+    else 
+        let firstPart = replicate rowCount 1
+            thirdPart = replicate ((length inAlph) - rowCount - 1) 1
+        in
+        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1)
+
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
+-- need to read in TCM or default
 getFastaCharInfo :: [TermData] -> String -> String -> CharInfo
 getFastaCharInfo inData dataName dataType = 
     if null inData then error "Empty inData in getFastaCharInfo"
     else 
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
-            aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z","Y", "-","?"]
+            aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ concat $ fmap snd inData
@@ -166,13 +223,17 @@ getFastaCharInfo inData dataName dataType =
                       -- can fit in byte with reasonable pre-calculation costs
                       else if (length sequenceData) < 9 then SmallAlphSeq
                       else GenSeq
+            seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
+                       else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
+                       else if seqType == Binary then fmap ST.fromString ["0","1"]
+                       else []
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = []
+                                     , costMatrix = generateDefaultMatrix seqAlphabet 0
                                      , name = T.pack dataName
-                                     , alphabet = sequenceData
+                                     , alphabet = seqAlphabet
                                      }
         in
         trace (show sequenceData)
