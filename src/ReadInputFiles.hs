@@ -72,7 +72,9 @@ executeReadCommands curData curGraphs argList = do
         if firstOption == "dot" then do
             dotGraph <- LG.hGetDotLocal fileHandle
             let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
-            executeReadCommands curData (inputDot : curGraphs) (tail argList)
+            let hasCycles = GFU.cyclic inputDot
+            if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+            else executeReadCommands curData (inputDot : curGraphs) (tail argList)
         -- not "dot" files
         else do
             fileContents <- hGetContents fileHandle
@@ -103,8 +105,10 @@ executeReadCommands curData curGraphs argList = do
             -- FENEwick
             else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
                 let thisGraphList = getFENewickGraph fileContents
+                    hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                 in 
-                executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
+                if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                else executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
             else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 -- | Read arg list allowable modifiers in read
