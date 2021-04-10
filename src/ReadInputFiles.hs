@@ -54,6 +54,8 @@ import qualified LocalGraph as LG
 import qualified GraphFormatUtilities as GFU
 import qualified TNTUtilities as TNT
 import qualified DataTransformation as DT
+import qualified Data.Graph.Inductive.Basic        as B
+
 
 
 -- | executeReadCommands reads iput files and returns raw data 
@@ -71,6 +73,9 @@ executeReadCommands curData curGraphs argList = do
         if firstOption == "dot" then do
             dotGraph <- LG.hGetDotLocal fileHandle
             let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
+            let hasLoops = B.hasLoop inputDot 
+            if hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+            else hPutStr stderr ""
             let hasCycles = GFU.cyclic inputDot
             if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
             else executeReadCommands curData (inputDot : curGraphs) (tail argList)
@@ -92,14 +97,19 @@ executeReadCommands curData curGraphs argList = do
                     !dotGraph <- LG.hGetDotLocal fileHandle2
                     hClose fileHandle2
                     let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
+                    let hasLoops = B.hasLoop inputDot 
+                    if hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                    else hPutStr stderr ""
                     let hasCycles = GFU.cyclic inputDot
                     if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                     else executeReadCommands curData (inputDot : curGraphs) (tail argList)
                 else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
                     let thisGraphList = getFENewickGraph fileContents
                         hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
+                        hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
                     in 
-                    if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                    if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                    else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                     else executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
 
                 else if toLower firstChar == 'x' then 
@@ -149,9 +159,11 @@ executeReadCommands curData curGraphs argList = do
             -- FENEwick
             else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
                 let thisGraphList = getFENewickGraph fileContents
+                    hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
                     hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                 in 
-                if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                 else executeReadCommands curData (thisGraphList ++ curGraphs) (tail argList)
             else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
