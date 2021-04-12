@@ -1,0 +1,133 @@
+\documentclass[11pt]{memoir}
+\usepackage{longtable}
+\usepackage{color}
+\usepackage{tabu}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{graphicx}
+%\usepackage{subfigure}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+\usepackage{fullpage}
+%\bibliographystyle{plain}
+\bibliographystyle{cbe}
+\usepackage{algorithmic}
+\usepackage[vlined,ruled]{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{url}
+
+\let \oriAlgorithm=\algorithm%
+\renewcommand{\algorithm}[2]{%
+	\oriAlgorithm%
+	\SetAlgoLined%
+	\DontPrintSemicolon%
+	\SetKwComment{Comment}{$\triangleright\ $}{}%
+	\TitleOfAlgo{ #1 }%
+	\caption{ #2 }%
+}%
+\newcommand*{\Set}[2]{ #1 $\gets$ #2 \;}
+\newcommand*{\SetC}[3]{ #1 $\gets$ #2 \Comment*[r]{#3}}
+\newcommand*{\ForC}[3]{\For(\Comment*[f]{#2}){#1}{#3}}
+
+\begin{document}
+	%\firstpage{1}
+	
+	\title{Documentation for PhyGraph Program}
+	\author{Ward C. Wheeler\\
+		Division of Invertebrate Zoology,\\ American Museum of Natural History,\\ 200 Central Park West, New York, NY, 10024, USA;\\wheeler@amnh.org}
+	
+	
+	\maketitle
+	\begin{center}
+		Running Title: PhyGraph
+	\end{center}
+	\newpage
+	
+	
+	\section{Introduction}
+	This is the first version of documentation for the program PhyGraph.  This program is designed to produce a phylogenetic graphs from input data and graphs via heuristic searching of general phylogenetic graph space.
+	All source code, precompiled binaries, test data, and documentation are available from \url{https://githib.com/wardwheeler/PhyGraph}.
+	
+	This first version is brief.
+	
+	\section{Input Data Formats}
+	
+	\section{Input Graph Formats}
+	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
+	and Forest Enhanced Newick (defined by \citealp{WheelerPhyloSuperGraphs}) formats.
+	
+	Quickly, Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for forests of components, each
+	of which is represented by an ENewick string.  The ENewick components are surrounded by `$<$' and '$>$'.
+	As in $<$(A, (B,C)); (D,(E,F));$>$.  Groups may be shared among ENewick components.
+	
+	\section{Output Graph Formats}
+	Graph outputs can be in either Graphviz `dot' or FEN formats.  Dot files can be visualized in a variety of ways 
+	using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety of other formats. FEN outputs of 
+	single trees (ie forest with a single component) are rendered as enewick.  Newick files can be visualized in a 
+	large number of programs (e.g. FigTree; \url{http://tree.bio.ed.ac.uk/software/figtree/}, Dendroscope; 
+	\url{https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}). 	
+	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, creating a new node as parent to that leaf
+	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf.  
+	\bigskip
+	\\Example dot command line: \\dot -Tpdf myDotFile.dot $>$ myDotFile.pdf\\
+	
+	Mulitple ``dot'' graphs can be output in a single file.  To create pdf and 
+	other formats the commandline would be (these files are named and numbered automatically):\\\\dot -Tpdf -O myDotFile.dot\\
+	
+	For some reason on OSX the `pdf' option does not seem to work.  You can use `-Tps2' and that will generate a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
+	
+	\section{Command options}
+	There are only a few program options that require specification.  There are defaults for all but input graphs.  
+	Parameters are given with options in a range `a to b' (a-b) with any value in the interval, or alternates `a or b' (a|b). File options require a valid filename.
+	For input graphs, wildcards are allowed (ie `*' and `?').  All commands are followed by a colon `:' before the option with no spaces.  Capitalization (for commands, but not filenames) is ignored.  Commands can be in any order (or entered from a file as stdin `$<$ filename).
+	
+	
+	\begin{itemize}
+		\item {Reconcile:eun$\mid$cun$\mid$majority$\mid$strict$\mid$Adams\\Default:eun\\This commands specifies the type of output graph.
+		EUN is the Edge-Union-Network \cite{MiyagiandWheeler2019}, CUN the Cluster Union Network \citep{Baroni2005},
+		majority (with fraction specified by `threshold') specifies that a values between 0 and 100 of either vertices or edges will be retained.  If all inputs are trees with the same leaf set this will be the Majority-Rule Consensus \citep{MargushandMcMorris1981}.
+		Strict requires all vertices be present to be included in the final graph.  If all inputs are trees with the same leaf set this will be the Strict Consensus \citep{Schuhandpolhemus1980}. Adams denotes the Adams II consensus \citep{Adams1972}.}
+		\item{Compare:Combinable$\mid$identity\\Default:combinable\\Species how group comparisons are to be made.  Either by identical match [(A, (B,C))$\neq$(A,B,C)],
+			combinable sensu \cite{Nelson1979} [(A, (B,C)) consistent with (A,B,C)].  This option can be used to specify ``semi-strict'' consensus
+			\citep{Bremer1990}.
+		}
+		\item{Threshold:(0-100)\\Default:0\\Threshold must be an integer between 0 and 100 and specifies the frequency of vertex or edge occurrence in input graphs to be included in the output graph.  Affects the behavior of `eun' and` majority.'
+		}
+		\item{Connect:True$\mid$False\\Default:False\\Specifies the output graph be connected (single component), potentially creating a root node and new edges labeled with ``0.0''.
+		}
+		\item{EdgeLabel:True$\mid$False\\Default:True\\Specifies the output graph have edges labeled with their frequency in input graphs.
+		}
+		\item{VertexLabel:True$\mid$False\\Default:False\\Specifies the output graph have vertices labeled with their subtree leaf set.
+		}
+		\item{OutFormat:Dot$\mid$FENewick\\Default:Dot\\Specifies the output graph format as either Graphviz `dot' or FEN.
+		}
+		\item{OutFile:filename\\Default:PhyGraph.out\\Specifies the output graph file name. No conventions are enforced.
+		}
+		\item{Any string that does not contain a colon, `:', is assumed to be an input graph file. 
+		}
+	\end{itemize}
+	
+	The program requires at least one input graph file and at least two input graphs (they could be in the same file).
+
+	
+	\section{Program Use}
+	The program is invoked from the command-line as in:\\
+	PhyGraph commandFile\\
+	
+	
+	\subsection{Execution in Parallel}
+	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
+	\\
+	PhyGraph +RTS -N4 -RTS other options...  \\
+	
+	\section*{Acknowledgments}
+	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
+	
+	%\newpage
+	%\bibliography{big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+\end{document}
