@@ -271,4 +271,14 @@ parseCommandArg fullCommand instruction argList
                             else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes") 
     | otherwise = argList
 
-
+-- | movePrealignedTCM move prealigned and tcm commands to front of argument list
+movePrealignedTCM :: [Argument] -> [Argument]
+movePrealignedTCM inArgList =
+    if null inArgList then []
+    else 
+        let firstPart = filter ((== "prealigned").fst) inArgList
+            secondPart = filter ((== "tcm").fst) inArgList
+            restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
+        in
+        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file") 
+        else (head firstPart : ( head secondPart : restPart))

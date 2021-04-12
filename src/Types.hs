@@ -74,6 +74,7 @@ data CharInfo = CharInfo { charType :: CharType
                          , costMatrix :: [[Int]]
                          , name :: T.Text
                          , alphabet :: [ST.ShortText]
+                         , prealigned :: Bool
                          } deriving (Show, Eq)
 
 -- | RawData type processed from input to be passed to characterData

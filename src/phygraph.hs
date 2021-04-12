@@ -80,8 +80,10 @@ main =
     let thingsToDo = PC.getCommandList  commandContents'
     mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
-    -- Process Read commands
-    (rawData, rawGraphs) <- RIF.executeReadCommands [] [] $ concat $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    -- Process Read commands with prealigned and tcm flags 
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[])) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
+
     hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
     -- Process Rename Commands
