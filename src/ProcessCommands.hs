@@ -64,7 +64,7 @@ import qualified ReadInputFiles as RIF
 expandRunCommands :: [String] -> [String] -> IO [String]
 expandRunCommands curLines inLines =
     --trace ("EXP " ++ (show curLines) ++ show inLines) (
-    if null inLines then return curLines
+    if null inLines then return $ reverse curLines
     else 
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
             (firstLine, restLine) =  if null firstLineRead then ([],[])
@@ -79,7 +79,7 @@ expandRunCommands curLines inLines =
              let runFileNames = fmap checkFileNames $ fmap snd runFileList
              fileListContents <- mapM readFile runFileNames
              let newLines = concat $ fmap lines fileListContents
-             expandRunCommands (curLines ++ newLines)  (restLine : (tail inLines))
+             expandRunCommands (newLines ++ curLines)  (restLine : (tail inLines))
              --)
         --)
 
@@ -281,4 +281,5 @@ movePrealignedTCM inArgList =
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
         if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file") 
-        else (head firstPart : ( head secondPart : restPart))
+        else (firstPart ++ secondPart ++ restPart)
+    

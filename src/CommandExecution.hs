@@ -140,7 +140,7 @@ reportCommand argList curData curGraphs =
             
 -- | phyloDataToString converts PhyloData type to String
 phyloDataToString :: [PhyloData] -> String
-phyloDataToString inData = "Bleh Data"
+phyloDataToString inData = show inData
 
 -- | executeRenameCommands takes all the "Rename commands" pairs and 
 -- creates a list of pairs of new name and list of old names to be converted

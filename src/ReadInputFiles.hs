@@ -81,7 +81,7 @@ extractDataGraphPair dataGraphList =
 -- | executeReadCommands reads iput files and returns raw data 
 -- assumes that "prealigned" and "tcm:File" are tghe first arguments if they are specified 
 -- so that they can apply to all teh files in the command without order depence
-executeReadCommands :: [PhyloData] -> [SimpleGraph] -> Bool -> ([T.Text], [[Int]]) -> [Argument] -> IO ([PhyloData], [SimpleGraph])
+executeReadCommands :: [PhyloData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]]) -> [Argument] -> IO ([PhyloData], [SimpleGraph])
 executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs)
     else do
@@ -158,13 +158,13 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                         -- spaces between alphabet elements suggest fastc
                         if (numSpaces >= (numWords -1)) then 
                             let fastcData = getFastC firstOption fileContents firstFile
-                                fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption
+                                fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
                             in
                             trace ("\tTrying to parse " ++ firstOption ++ " as fastc") 
                             executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                         else 
                             let fastaData = getFastA firstOption fileContents firstFile
-                                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
                             in
                             trace ("\tTrying to parse " ++ firstOption ++ " as fasta")
                             executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
@@ -173,13 +173,13 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                 -- fasta
                 else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
                     let fastaData = getFastA firstOption fileContents firstFile
-                        fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption
+                        fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
                     in
                     executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                 -- fastc
                 else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
                     let fastcData = getFastC firstOption fileContents firstFile
-                        fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption
+                        fastcCharInfo = getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
                     in
                     executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                 -- tnt
@@ -198,6 +198,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                     else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                     else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
                 else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
+                
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
@@ -250,8 +251,8 @@ generateDefaultMatrix inAlph rowCount =
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
-getFastaCharInfo :: [TermData] -> String -> String -> CharInfo
-getFastaCharInfo inData dataName dataType = 
+getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
+getFastaCharInfo inData dataName dataType isPrealigned localTCM = 
     if null inData then error "Empty inData in getFastaCharInfo"
     else 
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
@@ -272,18 +273,39 @@ getFastaCharInfo inData dataName dataType =
             seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                        else if seqType == Binary then fmap ST.fromString ["0","1"]
-                       else []
+                       else fst localTCM
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = generateDefaultMatrix seqAlphabet 0
+                                     , costMatrix = if localTCM == ([],[]) then generateDefaultMatrix seqAlphabet 0
+                                                    else snd localTCM
                                      , name = T.pack dataName
-                                     , alphabet = seqAlphabet
-                                     , prealigned = False
+                                     , alphabet = if localTCM == ([],[]) then seqAlphabet
+                                                  else fst localTCM
+                                     , prealigned = isPrealigned
                                      }
         in
-        trace (show sequenceData)
+        defaultGenSeqCharInfo
+
+-- | getFastcCharInfo get alphabet , names etc from processed fasta data
+-- this doesn't separate ambiguities from elements--processed later
+-- need to read in TCM or default
+getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
+getFastcCharInfo inData dataName isPrealigned localTCM = 
+    if null inData then error "Empty inData in getFastaCharInfo"
+    else 
+        let defaultGenSeqCharInfo = CharInfo {
+                                       charType = if (length $ fst localTCM) < 9 then SmallAlphSeq
+                                                     else GenSeq
+                                     , activity = True
+                                     , weight = 1.0
+                                     , costMatrix = snd localTCM
+                                     , name = T.pack dataName
+                                     , alphabet = fst localTCM
+                                     , prealigned = isPrealigned
+                                     }
+        in
         defaultGenSeqCharInfo
 
 -- | getFastA processes fasta file 
@@ -347,10 +369,10 @@ getPhyloDataPairsFastC modifier inTextList =
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = fmap (T.filter (/= '-')) firstData
         in
-        trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
+        -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
         if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getPhyloDataPairsFastC modifier (tail inTextList)
         else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getPhyloDataPairsFastC modifier (tail inTextList)
-        )
+        --
         
 -- | getFENewickGraph takes graph contents and returns local graph format
 -- could be mulitple input graphs
@@ -360,17 +382,17 @@ getFENewickGraph fileString =
     LG.getFENLocal (T.filter (/= '\n') $ T.strip $ T.pack fileString) 
 
 -- | processTCMContents
-processTCMContents :: String -> String -> ([T.Text], [[Int]])
+processTCMContents :: String -> String -> ([ST.ShortText], [[Int]])
 processTCMContents inContents fileName = 
     if null inContents then errorWithoutStackTrace ("\n\n'Read' 'tcm' command error: empty tcmfile `" ++ fileName)
     else 
         --First line is alphabet
         let tcmLines = lines inContents
-            localAlphabet =  fmap T.pack $ words $ head tcmLines
+            localAlphabet =  fmap ST.pack $ words $ head tcmLines
             -- to account for '-'
             numElements = 1 + (length localAlphabet)
             costMatrixStrings = fmap words $ tail tcmLines
-            localCostMatrix = fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
+            localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
             numLines = length localCostMatrix
             lengthRowList = fmap length localCostMatrix
             rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
@@ -380,5 +402,5 @@ processTCMContents inContents fileName =
         else if (not rowsCorrectLength) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from " 
             ++ fileName ++ " there should be (including '-') " ++ show numElements)
         else
-            trace (show localAlphabet ++ "\n" ++ show localCostMatrix) 
-        	(localAlphabet, localCostMatrix)
+            -- trace (show localAlphabet ++ "\n" ++ show localCostMatrix) 
+            (localAlphabet, localCostMatrix)
