@@ -49,9 +49,11 @@ import           Data.Maybe
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified DataTransformation as DT
+import qualified Data.Vector as V
+import           Text.Read
 
 
--- getTNTData tkae file contents and returns raw data and char info form TNT file
+-- getTNTData take file contents and returns raw data and char info form TNT file
 getTNTData :: String -> String -> PhyloData
 getTNTData inString fileName =
     if null inString then errorWithoutStackTrace ("\n\nTNT input processing error--empty file")
@@ -70,24 +72,29 @@ getTNTData inString fileName =
                 numChar = read (T.unpack $ head $ T.words firstLine) :: Int 
                 numTax = read (T.unpack $ last $ T.words firstLine) :: Int
             in
-            trace ("TNT message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
+            trace ("\nTNT message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
             let semiColonLineNumber = findIndex (== T.pack ";") restFile
             in
             if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input processing error--can't find ';' to end data block")
             else 
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
+                    charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
                     (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
-                trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
+                --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input processing error--number of taxa mis-specified or interleaved format error")
                 else 
                     let sortedData = glueInterleave dataBlock numTax numChar []
                         (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
+                        renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
+                        charInfoData = getTNTCharInfo fileName 0 renamedDefaultCharInfo charInfoBlock
+                        checkInfo = (length charInfoData) == numChar
                 in
-                if not hasDupTerminals then (sortedData,[])
+                if not checkInfo then error "Character information number not equal to input character number"
+                else if not hasDupTerminals then (sortedData,charInfoData)
                 else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
-                ))
+                )--)
             
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 glueInterleave :: [T.Text] -> Int -> Int -> [(T.Text, String)] -> [TermData]
@@ -121,3 +128,149 @@ glueInterleave lineList numTax numChars curData =
             in
             glueInterleave (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
         --)
+
+-- | defaultTNTCharInfo default values for TNT characters
+defaultTNTCharInfo :: CharInfo 
+defaultTNTCharInfo = CharInfo { charType = NonAdd
+                                , activity = True
+                                , weight = 1.0
+                                , costMatrix = []
+                                , name = T.empty
+                                , alphabet = []
+                                , prealigned = True
+                                }
+
+-- | renameTNTChars creates a unique name for each character from fileNamer:Number
+renameTNTChars :: String -> Int -> [CharInfo] -> [CharInfo]
+renameTNTChars fileName charIndex inCharInfo =
+    if null inCharInfo then []
+    else 
+        let newName = T.pack $ fileName ++ show charIndex
+            firstCharInfo = head inCharInfo
+            newCharInfo = firstCharInfo {name = newName}
+        in 
+        newCharInfo : renameTNTChars fileName (charIndex + 1) (tail inCharInfo)
+
+
+-- | getTNTCharInfo numChar charInfoBlock
+-- bit of  but needs to update as it goes along
+getTNTCharInfo :: String -> Int -> [CharInfo] -> [T.Text] -> [CharInfo]
+getTNTCharInfo fileName charNumber curCharInfo inLines =
+    if null inLines then []
+    else 
+        let firstLine = T.strip $ head inLines
+        in
+        if (T.last firstLine) /= ';' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--ccode/costs lines must end with semicolon ';': " ++ T.unpack firstLine)
+        else -- have a valid line
+            let wordList = fmap T.toLower $ T.words $ T.init firstLine
+                command2 = T.take 2 $ head wordList
+                newCharInfo  = if command2 == (T.pack "cc") then getCCodes fileName charNumber (tail wordList) curCharInfo
+                               else curCharInfo
+                newCharInfo' = if command2 == (T.pack "co") then getCosts fileName charNumber (tail wordList) newCharInfo
+                               else newCharInfo
+
+            in
+            if  (command2 /= (T.pack "cc")) && (command2 /= (T.pack "co")) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--unrecognized command: " ++ T.unpack firstLine)
+            else newCharInfo'
+
+-- | ccodeChars are the TNT ccode control characters
+ccodeChars :: [Char]
+ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
+
+-- | costsCharacters are teh TNT costs charcaters for sankoff matrix characters
+costsCharacters :: [Char]
+costsCharacters = ['>','/']
+
+-- | getCCodes takes aline form TNT and modifies charac ters according to cc-code option
+-- assumes single command (ccodeChars) per line
+-- could sort and num so only hit each char once--but would be n^2 then.
+getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo] 
+getCCodes fileName charNumber commandWordList curCharInfo =
+    if null curCharInfo then []
+    else 
+        let charStatus = last commandWordList
+            scopeList = init commandWordList
+            charIndices = concat $ fmap (scopeToIndex charNumber) scopeList
+            updatedCharInfo = newCharInfo curCharInfo charStatus charIndices 0
+        in
+        updatedCharInfo
+
+-- | getCosts takes aline form TNT and modifies charac ters according to cc-code option
+getCosts :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
+getCosts fileName charNumber commandWordList curCharInfo =
+    if null curCharInfo then []
+    else 
+    curCharInfo
+
+-- | scopeToIndex takes the number of characters and converts to a list of indices
+scopeToIndex :: Int -> T.Text -> [Int]
+scopeToIndex numChars scopeText =
+    if T.null scopeText then []
+    else    -- stop will include '.' if present`
+        let (start, stop) = T.breakOn (T.pack ".") scopeText
+        in
+        --single integer index
+        if start == scopeText then 
+            let scopeSingleton = [read (T.unpack scopeText) :: Int]
+            in
+            if (head scopeSingleton) < numChars then scopeSingleton
+            else errorWithoutStackTrace ("\n\nTNT ccode processing error: scope greater than char number " ++ show scopeSingleton ++ " > " ++ (show (numChars - 1)))
+        else 
+            let startIndex = if T.null start then 0
+                             else read (T.unpack start) :: Int
+                stopIndex = if stop == T.pack "." then (numChars - 1)
+                            else read (T.unpack $ T.tail stop) :: Int
+            in
+            [(max 0 startIndex)..(min stopIndex numChars)]
+
+-- | updateCharInfo ujpdates the a specific vector character element
+-- if that char is not in index list it is unaffected and added back to create th new vector
+-- in a single pass. 
+newCharInfo :: [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] 
+newCharInfo inCharList newStatus indexList charIndex =
+    if null indexList then []
+    else 
+        let firstIndex = head indexList
+            firstCharInfo =  head inCharList
+        in
+        if charIndex /= firstIndex then firstCharInfo : (newCharInfo (tail inCharList) newStatus indexList (charIndex + 1))
+        else if newStatus == T.pack "-" then 
+            let updatedCharInfo = firstCharInfo {charType = NonAdd}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack "+" then 
+            let updatedCharInfo = firstCharInfo {charType = Add}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack "[" then 
+            let updatedCharInfo = firstCharInfo {activity = True}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack "]" then 
+            let updatedCharInfo = firstCharInfo {activity = False}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack "(" then 
+            let updatedCharInfo = firstCharInfo {charType = Matrix}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack ")" then 
+            let updatedCharInfo = firstCharInfo {charType = NonAdd}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if newStatus == T.pack "/" then 
+            let updatedCharInfo = firstCharInfo {weight = 1.0}
+            in
+            updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else if (T.head newStatus) ==  '/' then 
+            let newWeight = readMaybe (tail $ T.unpack newStatus) :: Maybe Double
+                updatedCharInfo =  firstCharInfo {weight = fromJust newWeight}
+            in
+            if newWeight == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error: weight " ++ (tail $ T.unpack newStatus) ++ " not an integer")
+            else updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
+        else 
+            trace ("Warning: TNT ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/nont implemented--skipping")
+            firstCharInfo : (newCharInfo (tail inCharList) newStatus indexList (charIndex + 1))
+        
+        
+            

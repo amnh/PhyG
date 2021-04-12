@@ -123,7 +123,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                     let firstChar = head $ dropWhile (== ' ') fileContents
                     in
                     if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
-                        hPutStrLn stderr ("\tTrying to parse " ++ firstOption ++ " as dot") 
+                        hPutStrLn stderr ("\tTrying to parse " ++ firstFile ++ " as dot") 
                         -- destroys lazyness but allows closing right away
                         -- this so don't have huge numbers of open files for large data sets
                         fileHandle2 <- openFile  firstFile ReadMode
@@ -148,7 +148,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                     else if toLower firstChar == 'x' then 
                         let tntData = TNT.getTNTData fileContents firstFile
                         in
-                        trace ("\tTrying to parse " ++ firstOption ++ " as TNT") 
+                        trace ("\tTrying to parse " ++ firstFile ++ " as TNT") 
                             executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
                     else if firstChar == '>' then 
                         let secondLine = head $ tail $ lines fileContents
@@ -160,13 +160,13 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                             let fastcData = getFastC firstOption fileContents firstFile
                                 fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
                             in
-                            trace ("\tTrying to parse " ++ firstOption ++ " as fastc") 
+                            trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
                             executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                         else 
                             let fastaData = getFastA firstOption fileContents firstFile
                                 fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
                             in
-                            trace ("\tTrying to parse " ++ firstOption ++ " as fasta")
+                            trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
                             executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                         
                     else errorWithoutStackTrace ("Can't determione file type for " ++ firstOption ++ " need to prepend type")
