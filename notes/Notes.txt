@@ -99,6 +99,8 @@ Task groups:
 		Data
 			csv of assignments etc
 		Append to non-graphical files b y default, overwrite option
+		-O for multiple graphs in dot (automatically named with numbers)
+		make graph files automatically if dot installed (with better options)?
 
 
 
