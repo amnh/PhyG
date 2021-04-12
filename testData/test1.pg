@@ -1,5 +1,5 @@
 -- Test command file
-read (fasta:"IE.MT.fasta")
+read (fasta:"IE.MT.fasta", prealigned)
 read("louse.fastc", tcm:"louse-11.tcm")
 read(newick:"test-1.tre")
 read("test.dot")
