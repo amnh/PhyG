@@ -14,12 +14,15 @@ Output Graphviz LR ans splines=ortho or line, polyline for more cladofgram look
 https://hackage.haskell.org/package/fgl-visualize-0.1.0.1/docs/Data-Graph-Inductive-Dot.html
 	Perhaps better fgl 2 dot functionality
 
+Prealigned and tcm as optoins in read command that aapply to all fasta/c files
+	asopposed to POY "prealigned:"
+
 For documentation:
 	Script files '--' for comment to end of line
 	one command per line (maybe add ';') for multiple later
 
 Look at hash-graph  library https://github.com/patrickdoc/hash-graph
-	some faster and some slower than FGL but strict
+	some faster and some slower than FGL but strict (think edges and nodes are unlablled)
 	
 
 Can use Data hash to get unique bit vector for leaves that is label (and datafile order) invarianty.

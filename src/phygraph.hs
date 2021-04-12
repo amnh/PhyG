@@ -107,7 +107,7 @@ main =
 
     
     -- Final Stderr report
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " phylogenetic graphs")
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
     hPutStrLn stderr "\nDone"
 
 

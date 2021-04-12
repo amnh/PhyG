@@ -29,7 +29,7 @@ executable phyg
                 -- linux static binaries
 --		            -optl-static -optl-pthread
                 -static
-                -fllvm
+--                -fllvm
 
 -- delete these for OSX for linux static binaries
 --  cc-options: -static
