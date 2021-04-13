@@ -230,9 +230,13 @@ getReadArgs fullCommand argList =
         else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
+-- filters out '?' '[' and ']'
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
-    if null inList then fmap ST.fromString $ (sort curList) `union` ["-"]
+    let notAlphElement = fmap ST.fromString ["?", "[", "]"]
+    in
+    if null inList then 
+        filter (`notElem` notAlphElement) $ fmap ST.fromString $ (sort curList) `union` ["-"]
     else 
         let firstChars = fmap (:[]) $ nub $ ST.toString $ head inList 
         in
