@@ -54,6 +54,13 @@
 	This first version is brief.
 	
 	\section{Input Data Formats}
+		\subsection{fasta}
+		\subsection{fastc}
+		\subsection{TNT}
+		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
+		Costs A$>$B A$/$B syntax no spaces. Ambiguiites not allowed.  Must specify all transformations manually.
+		')' sets to non-additive
+		character state designations single characters
 	
 	\section{Input Graph Formats}
 	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
@@ -62,6 +69,7 @@
 	Quickly, Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for forests of components, each
 	of which is represented by an ENewick string.  The ENewick components are surrounded by `$<$' and '$>$'.
 	As in $<$(A, (B,C)); (D,(E,F));$>$.  Groups may be shared among ENewick components.
+	
 	
 	\section{Output Graph Formats}
 	Graph outputs can be in either Graphviz `dot' or FEN formats.  Dot files can be visualized in a variety of ways 
