@@ -50,6 +50,7 @@ executable phyg
                 , random
                 , hashable
                 , time
+                , vector
  -- currently doesn't compile               , Graphalyze
  
                 
