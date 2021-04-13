@@ -149,27 +149,30 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                         let tntData = TNT.getTNTData fileContents firstFile
                         in
                         trace ("\tTrying to parse " ++ firstFile ++ " as TNT") 
-                            executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                    else if firstChar == '>' then 
-                        let secondLine = head $ tail $ lines fileContents
-                            numSpaces = length $ elemIndices ' ' secondLine
-                            numWords = length $ words secondLine
-                        in
-                        -- spaces between alphabet elements suggest fastc
-                        if (numSpaces >= (numWords -1)) then 
-                            let fastcData = getFastC firstOption fileContents firstFile
-                                fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
+                        executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                    else 
+                        let fileContents' =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents
+                        in 
+                          if (head $ dropWhile (== ' ') fileContents') == '>' then 
+                            let secondLine = head $ tail $ lines fileContents'
+                                numSpaces = length $ elemIndices ' ' secondLine
+                                numWords = length $ words secondLine
                             in
-                            trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
-                            executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                        else 
-                            let fastaData = getFastA firstOption fileContents firstFile
-                                fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
-                            in
-                            trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
-                            executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                            -- spaces between alphabet elements suggest fastc
+                            if (numSpaces >= (numWords -1)) then 
+                                let fastcData = getFastC firstOption fileContents' firstFile
+                                    fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
+                                in
+                                trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
+                                executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                            else 
+                                let fastaData = getFastA firstOption fileContents' firstFile
+                                    fastaCharInfo = getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
+                                in
+                                trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
+                                executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                         
-                    else errorWithoutStackTrace ("Can't determione file type for " ++ firstOption ++ " need to prepend type")
+                    else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
                 -- fasta
                 else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
                     let fastaData = getFastA firstOption fileContents firstFile
@@ -312,17 +315,21 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
 getFastA :: String -> String -> String -> [TermData] 
-getFastA modifier fileContents fileName  =
-    if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
-    else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+getFastA modifier fileContents' fileName  =
+    if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
-        let terminalSplits = T.split (=='>') $ T.pack fileContents 
-            pairData =  getPhyloDataPairsFastA modifier (tail terminalSplits)
-            (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
-        in
-        -- tail because initial split will an empty text
-        if not hasDupTerminals then pairData
-        else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+        -- removes ';' comments   
+        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
+        in 
+        if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+        else 
+            let terminalSplits = T.split (=='>') $ T.pack fileContents 
+                pairData =  getPhyloDataPairsFastA modifier (tail terminalSplits)
+                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+            in
+            -- tail because initial split will an empty text
+            if not hasDupTerminals then pairData
+            else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
         
        
         
@@ -346,17 +353,21 @@ getPhyloDataPairsFastA modifier inTextList =
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
 getFastC :: String -> String -> String -> [TermData] 
-getFastC modifier fileContents fileName =
-    if null fileContents then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
-    else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+getFastC modifier fileContents' fileName =
+    if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
-        let terminalSplits = T.split (=='>') $ T.pack fileContents 
-            pairData = getPhyloDataPairsFastC modifier (tail terminalSplits)
-            (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
-        in
-        -- tail because initial split will an empty text
-        if not hasDupTerminals then pairData
-        else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+        -- removes ';' comments   
+        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
+        in 
+        if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+        else 
+            let terminalSplits = T.split (=='>') $ T.pack fileContents 
+                pairData = getPhyloDataPairsFastC modifier (tail terminalSplits)
+                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+            in
+            -- tail because initial split will an empty text
+            if not hasDupTerminals then pairData
+            else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
 
 -- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences

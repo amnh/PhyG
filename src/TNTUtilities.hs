@@ -49,7 +49,6 @@ import           Data.Maybe
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified DataTransformation as DT
-import qualified Data.Vector as V
 import           Text.Read
 import qualified SymMatrix as SM
 
@@ -81,7 +80,7 @@ getTNTData inString fileName =
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
-                    (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                    (_, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
                 --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input processing error--number of taxa mis-specified or interleaved format error")
@@ -148,9 +147,9 @@ renameTNTChars fileName charIndex inCharInfo =
     else 
         let newName = T.pack $ fileName ++ ":" ++ show charIndex
             firstCharInfo = head inCharInfo
-            newCharInfo = firstCharInfo {name = newName}
+            localCharInfo = firstCharInfo {name = newName}
         in 
-        newCharInfo : renameTNTChars fileName (charIndex + 1) (tail inCharInfo)
+        localCharInfo : renameTNTChars fileName (charIndex + 1) (tail inCharInfo)
 
 
 -- | getTNTCharInfo numChar charInfoBlock
@@ -168,24 +167,20 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
         else -- have a valid line
             let wordList = fmap T.toLower $ T.words $ T.init firstLine
                 command2 = T.take 2 $ head wordList
-                newCharInfo  = if command2 == (T.pack "cc") then getCCodes fileName charNumber (tail wordList) curCharInfo
+                localCharInfo  = if command2 == (T.pack "cc") then getCCodes fileName charNumber (tail wordList) curCharInfo
                                else curCharInfo
-                newCharInfo' = if command2 == (T.pack "co") then getCosts fileName charNumber (tail wordList) newCharInfo
-                               else newCharInfo
+                localCharInfo' = if command2 == (T.pack "co") then getCosts fileName charNumber (tail wordList) localCharInfo
+                               else localCharInfo
 
             in
             if  (command2 /= (T.pack "cc")) && (command2 /= (T.pack "co")) then 
                  trace ("\n\nWarning: TNT input file " ++ fileName ++ " unrecognized/not implemented command ignored : " ++ T.unpack firstLine)
                  getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
-            else getTNTCharInfo fileName charNumber newCharInfo' (tail inLines)
+            else getTNTCharInfo fileName charNumber localCharInfo' (tail inLines)
 
 -- | ccodeChars are the TNT ccode control characters
 ccodeChars :: [Char]
 ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
-
--- | costsCharacters are teh TNT costs charcaters for sankoff matrix characters
-costsCharacters :: [Char]
-costsCharacters = ['>','/']
 
 -- | getCCodes takes aline form TNT and modifies charac ters according to cc-code option
 -- assumes single command (ccodeChars) per line
@@ -196,8 +191,8 @@ getCCodes fileName charNumber commandWordList curCharInfo =
     else 
         let charStatus =  head commandWordList
             scopeList = tail commandWordList
-            charIndices = nub $ sort $ concat $ fmap (scopeToIndex charNumber) scopeList
-            updatedCharInfo = newCharInfo curCharInfo charStatus charIndices 0 []
+            charIndices = nub $ sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
+            updatedCharInfo = newCharInfo fileName curCharInfo charStatus charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         updatedCharInfo
@@ -211,7 +206,7 @@ getCosts fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
     else 
         let scopeList =  takeWhile (/= (T.pack "=")) commandWordList
-            charIndices = nub $ sort $ concat $ fmap (scopeToIndex charNumber) scopeList
+            charIndices = nub $ sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
             (localAlphabet, localMatrix) = processCostsLine fileName $  tail $ dropWhile (/= (T.pack "=")) commandWordList
             updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 [] 
         in
@@ -224,19 +219,23 @@ getCosts fileName charNumber commandWordList curCharInfo =
 -- TNT states (alphabet elements) must be single characters
 processCostsLine :: String -> [T.Text] -> ([ST.ShortText],[[Int]])
 processCostsLine fileName wordList =
-    if null wordList then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command without transfomation costs specified")
+    if null wordList then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " costs processing error:  'costs' command without transfomation costs specified")
     else 
         let localAlphabet = sort $ nub $ concat $ fmap getAlphabetElements wordList
-            transCosts = getTransformationCosts localAlphabet wordList
-            localMatrix = makeMatrix localAlphabet transCosts
+            transCosts = getTransformationCosts fileName localAlphabet wordList
+            localMatrix = makeMatrix fileName localAlphabet transCosts
         in
         --trace (show localAlphabet ++ " " ++ show transCosts ++ "\n\t" ++ show localMatrix)
         (localAlphabet, localMatrix)
 
 -- | makeMatrix takes triples and makes a square matrix with 0 diagonals if  not specified
-makeMatrix :: [ST.ShortText]->  [(Int, Int, Int)] -> [[Int]]
-makeMatrix localAlphabet transCosts =
+makeMatrix :: String -> [ST.ShortText]->  [(Int, Int, Int)] -> [[Int]]
+makeMatrix fileName localAlphabet transCosts =
     if null transCosts then []
+    else if length transCosts < ((length localAlphabet) * (length localAlphabet)) - (length localAlphabet) then
+         errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " costs processing error: 'costs' command not all pairwise (non-diagnonal) transformation costs specified")
+    else if  length transCosts > ((length localAlphabet) * (length localAlphabet)) then 
+         errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " costs processing error: 'costs' command too many pairwise transformation costs specified")
     else 
         let initialMatrix = replicate (length localAlphabet) $ replicate (length localAlphabet) 0
             newMatrix = SM.toFullLists $ SM.updateMatrix  (SM.fromLists initialMatrix) transCosts
@@ -246,17 +245,17 @@ makeMatrix localAlphabet transCosts =
 
 -- | getTransformationCosts get state pairs and their costs
 -- retuns as (i,j,k) = i->j costs k
-getTransformationCosts :: [ST.ShortText]-> [T.Text] -> [(Int, Int, Int)]
-getTransformationCosts localAlphabet wordList =
+getTransformationCosts :: String -> [ST.ShortText]-> [T.Text] -> [(Int, Int, Int)]
+getTransformationCosts fileName localAlphabet wordList =
     if null wordList then []
-    else if length wordList == 1 then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command imporperly formated (transformation and costs in pairs)")
+    else if length wordList == 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command imporperly formated (transformation and costs in pairs)")
     else 
         let [transText, costText] = take 2 wordList
             transCost = readMaybe (T.unpack costText) :: Maybe Int
             directedOperator = T.find (== '>') transText
             symetricalOperator = T.find (== '/') transText
         in
-        if (directedOperator == Nothing) && (symetricalOperator == Nothing) then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command requires '/' or '>'")
+        if (directedOperator == Nothing) && (symetricalOperator == Nothing) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command requires '/' or '>': " ++ T.unpack transText)
         else 
             let fromStateText =  if symetricalOperator == Nothing then T.takeWhile (/= '>') transText
                                  else (T.takeWhile (/= '/') transText)
@@ -265,14 +264,14 @@ getTransformationCosts localAlphabet wordList =
                 fromState = readMaybe (T.unpack fromStateText) :: Maybe Int 
                 toState   = readMaybe (T.unpack toStateText)   :: Maybe Int
             in
-            if transCost == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command transformation " ++ (T.unpack costText) ++ " does not appear to be an integer.")
-            else if fromState == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command transformation " ++ (T.unpack fromStateText) ++ " does not appear to be an integer.")
-            else if toState == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error:  'costs' command transformation " ++ (T.unpack toStateText) ++ " does not appear to be an integer.")
+            if transCost == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack costText) ++ " does not appear to be an integer.")
+            else if fromState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack fromStateText) ++ " does not appear to be an integer.")
+            else if toState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack toStateText) ++ " does not appear to be an integer.")
             else 
                 let newTripleList = if symetricalOperator == Nothing then [(fromJust fromState, fromJust toState, fromJust transCost)] 
                                     else  [(fromJust fromState, fromJust toState, fromJust transCost), (fromJust toState, fromJust fromState, fromJust transCost)] 
                 in
-                newTripleList ++ getTransformationCosts localAlphabet (drop 2 wordList)
+                newTripleList ++ getTransformationCosts fileName localAlphabet (drop 2 wordList)
 
 -- | getAlphabetElements takes  Text and returns non '/' '>' elements
 getAlphabetElements :: T.Text -> [ST.ShortText]
@@ -291,28 +290,28 @@ getAlphabetElements inText =
 
 
 -- | scopeToIndex takes the number of characters and converts to a list of indices
-scopeToIndex :: Int -> T.Text -> [Int]
-scopeToIndex numChars scopeText =
+scopeToIndex :: String -> Int -> T.Text -> [Int]
+scopeToIndex fileName numChars scopeText =
     if T.null scopeText then []
     else    -- stop will include '.' if present`
         let (start, stop) = T.breakOn (T.pack ".") scopeText
         in
         --trace (show (start, stop)) (
         --single integer index
-        if (not $ T.null  start) && (T.head start `elem` ccodeChars) then errorWithoutStackTrace ("\n\nTNT ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' incorrect format.  Scope must follow operator ")
+        if (not $ T.null  start) && (T.head start `elem` ccodeChars) then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' incorrect format.  Scope must follow operator ")
         else if start == scopeText then 
             let scopeSingleton = readMaybe (T.unpack scopeText) :: Maybe Int
             in
-            if scopeSingleton == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
+            if scopeSingleton == Nothing then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
             else if (fromJust scopeSingleton) < numChars then [fromJust scopeSingleton] 
-            else errorWithoutStackTrace ("\n\nTNT ccode processing error: scope greater than char number " ++ show scopeSingleton ++ " > " ++ (show (numChars - 1)))
+            else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: scope greater than char number " ++ show scopeSingleton ++ " > " ++ (show (numChars - 1)))
         else 
             let startIndex = if T.null start then Just 0
                              else readMaybe (T.unpack start) :: Maybe Int
                 stopIndex = if stop == T.pack "." then Just (numChars - 1)
                             else readMaybe (T.unpack $ T.tail stop) :: Maybe Int
             in
-            if (startIndex == Nothing) || (stopIndex == Nothing) then errorWithoutStackTrace ("\n\nTNT ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
+            if (startIndex == Nothing) || (stopIndex == Nothing) then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
             else [(max 0 (fromJust startIndex))..(min (fromJust stopIndex) numChars)]
             --)
 
@@ -321,8 +320,8 @@ scopeToIndex numChars scopeText =
 -- in a single pass. 
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise retiurn rteh reverse since new values are prepended 
-newCharInfo :: [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
-newCharInfo inCharList newStatus indexList charIndex curCharList =
+newCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
+newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
     if null inCharList then curCharList
     else if null indexList then 
@@ -333,7 +332,7 @@ newCharInfo inCharList newStatus indexList charIndex curCharList =
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then newCharInfo (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList) 
+        if charIndex /= firstIndex then newCharInfo fileName (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList) 
         else 
             let updatedCharInfo = if      newStatus == T.pack "-" then firstCharInfo {charType = NonAdd}
                                   else if newStatus == T.pack "+" then firstCharInfo {charType = Add}
@@ -345,13 +344,13 @@ newCharInfo inCharList newStatus indexList charIndex curCharList =
                                   else if (T.head newStatus) ==  '/' then
                                     let newWeight = readMaybe (tail $ T.unpack newStatus) :: Maybe Double    
                                     in
-                                    if newWeight == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error: weight " ++ (tail $ T.unpack newStatus) ++ " not an integer")
+                                    if newWeight == Nothing then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: weight " ++ (tail $ T.unpack newStatus) ++ " not an integer")
                                     else firstCharInfo {weight = fromJust newWeight}
                                   else 
-                                    trace ("Warning: TNT ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/not implemented--skipping")
+                                    trace ("Warning: TNT file " ++ fileName ++ " ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/not implemented--skipping")
                                     firstCharInfo
             in
-            newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
+            newCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
 
 -- | newCharInfoMatrix updates alphabet and rcm matrix for characters in indexLisyt
