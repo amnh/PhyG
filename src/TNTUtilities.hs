@@ -216,12 +216,13 @@ scopeToIndex numChars scopeText =
             if (head scopeSingleton) < numChars then scopeSingleton
             else errorWithoutStackTrace ("\n\nTNT ccode processing error: scope greater than char number " ++ show scopeSingleton ++ " > " ++ (show (numChars - 1)))
         else 
-            let startIndex = if T.null start then 0
-                             else read (T.unpack start) :: Int
-                stopIndex = if stop == T.pack "." then (numChars - 1)
-                            else read (T.unpack $ T.tail stop) :: Int
+            let startIndex = if T.null start then Just 0
+                             else readMaybe (T.unpack start) :: Maybe Int
+                stopIndex = if stop == T.pack "." then Just (numChars - 1)
+                            else readMaybe (T.unpack $ T.tail stop) :: Maybe Int
             in
-            [(max 0 startIndex)..(min stopIndex numChars)]
+            if (startIndex == Nothing) || (stopIndex == Nothing) then errorWithoutStackTrace ("\n\nTNT ccode processing error: ccode " ++ (T.unpack scopeText) ++ " contains non-integer")
+            else [(max 0 (fromJust startIndex))..(min (fromJust stopIndex) numChars)]
 
 -- | updateCharInfo ujpdates the a specific vector character element
 -- if that char is not in index list it is unaffected and added back to create th new vector
@@ -269,7 +270,7 @@ newCharInfo inCharList newStatus indexList charIndex =
             if newWeight == Nothing then errorWithoutStackTrace ("\n\nTNT ccode processing error: weight " ++ (tail $ T.unpack newStatus) ++ " not an integer")
             else updatedCharInfo :  (newCharInfo (tail inCharList) newStatus (tail indexList) (charIndex + 1))
         else 
-            trace ("Warning: TNT ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/nont implemented--skipping")
+            trace ("Warning: TNT ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/not implemented--skipping")
             firstCharInfo : (newCharInfo (tail inCharList) newStatus indexList (charIndex + 1))
         
         
