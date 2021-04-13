@@ -51,6 +51,7 @@ executable phyg
                 , hashable
                 , time
                 , vector
+                , sort
  -- currently doesn't compile               , Graphalyze
  
                 
@@ -73,6 +74,7 @@ executable phyg
                   CommandExecution
                   DataTransformation
                   Cyclic
+                  SymMatrix
                   
                   
   
