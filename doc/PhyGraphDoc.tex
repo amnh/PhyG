@@ -58,9 +58,21 @@
 		\subsection{fastc}
 		\subsection{TNT}
 		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
-		Costs A$>$B A$/$B syntax no spaces. Ambiguiites not allowed.  Must specify all transformations manually.
-		')' sets to non-additive
-		character state designations single characters
+		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
+		')' sets to non-additive, if wantadditive then need to reset to additive after\\
+		character state designations single characters\\
+		continuous and other multicharacter states--can be read, abinguitess or ranges (unlike tnt for continuous) are 
+		in squarebraskets with period as in [X.Y]\\
+		- ans ? are always missing/inapplicable.  If DNA are not coded ACGT- => 01234 but left as lettes,
+		then to include gaps as a 5th state, just include another character, such the letter 'O' that is not an IUPAC ambiguity code for DNA (or amino acids for that matter) as an additional state.  This can be used for matrix/Sankoff matrices as well.
+		Amino acid sequences would be processed in the same way.  Including gaps as information requires
+		an extra state (such as letter 'O').\\ 
+		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
+		between them.\\
+		Continuous characters must be numbers only (float fine) and declares by cccode command as 
+		``additive'', otherwise the number will be treated as non-additive character states. \\
+		nonAdd polymorphisms  are [X.Y]--unless  additive '-' for range\\
+		can't have '.' in multichar state (or single for that matter)
 	
 	\section{Input Graph Formats}
 	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
