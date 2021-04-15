@@ -85,49 +85,79 @@ getTNTData inString fileName =
                 --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input processing error--number of taxa mis-specified or interleaved format error")
                 else 
-                    let sortedData = glueInterleave dataBlock numTax numChar []
+                    let sortedData = glueInterleave fileName dataBlock numTax numChar []
+                        charNumberList = fmap length $ fmap snd sortedData
+                        nameLengthList = zip (fmap fst sortedData) charNumberList
+                        incorrectLengthList = filter ((/= numChar).snd) nameLengthList
                         (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
-                        renamedDefaultCharInfo = reverse $ renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
+                        renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
                         charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                         checkInfo = (length charInfoData) == numChar
                 in
                 if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
-                else if not hasDupTerminals then (sortedData,charInfoData)
-                else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with varying numbers of chacters (should be "
+                    ++ show numChar ++ "):" ++ show  incorrectLengthList)
+                else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                else
+                    -- check non-Additive alphabet to be numbers
+                    -- integerize and reweight additive chars (including in ambiguities)
+                    let curNames = fmap fst sortedData
+                        curData = fmap snd sortedData
+                        (curData',charInfoData') = checkAndRecodeAdditiveCharacters fileName curData charInfoData [] []
+                    in
+                    (zip curNames curData',charInfoData')
                 )
             
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
-glueInterleave :: [T.Text] -> Int -> Int -> [(T.Text, String)] -> [TermData]
-glueInterleave lineList numTax numChars curData =
+glueInterleave :: String -> [T.Text] -> Int -> Int -> [(T.Text, [String])] -> [TermData]
+glueInterleave fileName lineList numTax numChars curData =
     if null lineList then
         -- recheck num taxa
         -- check chars after process due to ambiguities 
         if length curData /= numTax then error ("Error in glueInterleave: final taxon number error: " ++ show numTax ++ " vs. " ++ (show $ length curData))
         else 
             let nameList = fmap fst curData
-                charShortText = (fmap ST.fromString $ fmap snd curData)
+                charShortTextList = fmap (fmap ST.fromString) $ (fmap snd curData)
             in
             --trace ((show $ length curData) ++ " " ++ (show $ length $ snd $ head curData))
-            zip nameList (fmap (:[]) charShortText)
+            zip nameList charShortTextList
 
     else if length lineList < numTax then error ("Error in glueInterleave: line number error")
     else 
         let thisDataBlock = fmap T.words $ take numTax lineList
             blockNames = fmap head thisDataBlock
-            blockStrings = fmap T.unpack $ fmap last thisDataBlock
+            -- if two words then regular TNT without space, otherwise spaces between states
+            blockStrings = if ((length $ head thisDataBlock) == 2) then fmap (collectAmbiguities fileName) $ fmap (fmap (:[])) $ fmap T.unpack $ fmap last thisDataBlock
+                           else fmap (fmap T.unpack) $ fmap tail thisDataBlock
             canonicalNames = if (length curData > 0) then fmap fst curData
                              else blockNames
             canonicalStrings = fmap snd curData
         in
         --trace (show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
         --check for raxon order
+        --trace ("Words:" ++ (show $ length $ head thisDataBlock)) (
         if (blockNames /= canonicalNames) then errorWithoutStackTrace ("\n\nTNT input processing error: interleaved taxon order error")
         else 
             let newChars = if (length curData > 0) then zipWith (++) canonicalStrings blockStrings
                            else blockStrings
             in
-            glueInterleave (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
+            glueInterleave fileName (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
         --)
+-- | collectAmbiguities take a list of Strings and collects TNT ambiguities [X.Y] 
+-- into single Strings
+-- this only for single 'block' TNT characters where states are a single character
+collectAmbiguities :: String -> [String] -> [String]
+collectAmbiguities fileName inStringList =
+    if null inStringList then []
+    else 
+        let firstString = head inStringList
+        in
+        if (firstString == "]") then errorWithoutStackTrace ("\n\nTNT input processing error: ambiguity format problem naked '']'")
+        else if firstString == "[" then 
+            let ambiguityString = takeWhile (/=']') firstString
+            in
+            ambiguityString : collectAmbiguities fileName (tail inStringList)
+        else firstString : collectAmbiguities fileName (tail inStringList)
 
 -- | defaultTNTCharInfo default values for TNT characters
 defaultTNTCharInfo :: CharInfo 
@@ -323,7 +353,7 @@ scopeToIndex fileName numChars scopeText =
 newCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
 newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
-    if null inCharList then curCharList
+    if null inCharList then reverse curCharList
     else if null indexList then 
         if null curCharList then inCharList
         else 
@@ -361,7 +391,7 @@ newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
 newCharInfoMatrix :: [CharInfo] -> [ST.ShortText] -> [[Int]] -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
 newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
-    if null inCharList then curCharList
+    if null inCharList then reverse curCharList
     else if null indexList then 
         if null curCharList then inCharList
         else 
@@ -376,3 +406,108 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
             in
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
+-- | checkAndRecodeAdditiveCharacters take phylodata and checks the data with char info.
+-- verifies that states (including in ambiguity) are Numerical
+-- and assigns correct alphabet to all characters
+checkAndRecodeAdditiveCharacters :: String -> [[ST.ShortText]] -> [CharInfo] -> [[ST.ShortText]] -> [CharInfo] -> ([[ST.ShortText]], [CharInfo])
+checkAndRecodeAdditiveCharacters fileName inData inCharInfo newData newCharInfo =
+    if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeAdditiveCharacters"
+    else if null inData then error "Empty inData in checkAndRecodeAdditiveCharacters"
+    else if null inCharInfo then (newData, reverse newCharInfo)
+    else 
+        let firstColumn = fmap head inData
+            firstCharInfo =  head inCharInfo
+            (firstAlphabet, newWeight, newColumn) = getAlphabetFromSTList fileName firstColumn firstCharInfo
+            updatedCharInfo = firstCharInfo {alphabet = firstAlphabet, weight = newWeight}
+        in
+        checkAndRecodeAdditiveCharacters fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
+
+-- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
+-- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
+-- checks if char is additive for numebrical alphabet
+getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> ([ST.ShortText], Double, [ST.ShortText]) 
+getAlphabetFromSTList fileName inStates inCharInfo =
+  if null inStates then error "Empty columkn data in getAlphabetFromSTList" 
+  else 
+    let thisType = charType inCharInfo
+        thisWeight = weight inCharInfo
+        mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
+                       else 0
+        (thisAlphabet, newColumn) = getAlphWithAmbiguity fileName inStates thisType thisWeight mostDecimals [] [] 
+        newWeight = if mostDecimals > 0 then  thisWeight / (10.0 ** (fromIntegral mostDecimals))
+                    else thisWeight
+    in
+    (thisAlphabet, newWeight, newColumn)
+
+-- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range
+getDecimals :: ST.ShortText -> Int
+getDecimals inChar =
+    if ST.null inChar then 0
+    else 
+        let inCharText = ST.toString inChar
+        in
+        if head inCharText /= '[' then  
+            -- no ambiguity
+            ((length $ dropWhile (/= '.') inCharText) - 1)
+        else 
+            let guts = init $ tail inCharText
+                fstChar = T.dropWhile (/= '.') $ head $ T.split (== '-') (T.pack inCharText)
+                sndChar = T.dropWhile (/= '.') $ last $ T.split (== '-') (T.pack inCharText)
+            in
+            (max (length $ T.unpack fstChar) (length $ T.unpack sndChar)) - 1
+
+
+-- | getAlphWithAmbiguity take a liost of ShortText with inform ation and accumulatiors
+-- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
+--  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
+--  else if no spaces 
+--    if non-additgive then each symbol is split out as an alphabet element -- as in TNT
+--    if is additive splits on '-' to denote range
+-- rescales (integerizes later) additive characters with decimal places to an integer type rep
+-- for additive charcaters if states are not nummerical then throuws an error
+getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType -> Double -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
+getAlphWithAmbiguity fileName inStates thisType thisWeight mostDecimals newAlph newStates = 
+    if null inStates then ((sort $ nub newAlph), (reverse newStates))
+    else
+        let firstState = ST.toString $ head inStates
+        in
+            if thisType /= Add then 
+                if (head firstState) /= '['  then getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString firstState) : newAlph) ((ST.fromString firstState) : newStates)
+                else -- ambiguity
+                    let newStates  = if (null $ filter (== ' ') firstState) then fmap ST.fromString $ fmap (:[]) $ init $ tail firstState
+                                    else fmap ST.fromText $ fmap T.toStrict $ T.split (== ' ') $ T.pack $ init $ tail firstState
+                    in
+                    getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals (newStates ++ newAlph) (newStates ++ newStates)
+
+        else -- additive character
+            if (head firstState) /= '['  then 
+                if mostDecimals == 0 then getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString firstState) : newAlph) ((ST.fromString firstState) : newStates)
+                else 
+                    let scaleFactor = thisWeight / (10.0 ** (fromIntegral mostDecimals))
+                        stateNumber = readMaybe firstState :: Maybe Double
+                        newStateNumber = show ((fromJust stateNumber) / scaleFactor)
+                    in
+                    if stateNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
+                    else getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString newStateNumber) : newAlph) ((ST.fromString newStateNumber) : newStates)
+            else 
+                let gutsList  = if (null $ filter (== ' ') firstState) then fmap (:[]) $ init $ tail firstState
+                                else fmap T.unpack $ T.split (== '-') $ T.pack $ init $ tail firstState
+                    newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
+                    newStateNumberStringList = fmap show $ fmap fromJust newStateNumberList
+                in
+                if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
+                else getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((fmap ST.fromString newStateNumberStringList) ++ newAlph) ((fmap ST.fromString newStateNumberStringList) ++ newStates)
+
+
+
+-- prependColumn takes a list of ShortTex and a list of a  list of shortext and prepends the
+-- first element of the newcolumn list to the first list in inData creting newData
+prependColumn :: [ST.ShortText] -> [[ST.ShortText]] ->  [[ST.ShortText]] -> [[ST.ShortText]]
+prependColumn newColumn inData newData = 
+  if null newColumn then reverse $ fmap reverse newData
+  else 
+    let firstColumnElement = head newColumn
+        firstRowElement = head inData
+        newRow = firstColumnElement : firstRowElement 
+    in
+    prependColumn (tail newColumn) (tail inData) (newRow : newData) 

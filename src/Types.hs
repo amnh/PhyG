@@ -68,11 +68,11 @@ data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSe
     deriving (Read, Show, Eq)
 
 -- | CharInfo information about characters
-data CharInfo = CharInfo { charType :: CharType
+data CharInfo = CharInfo { name :: T.Text
+                         , charType :: CharType
                          , activity :: Bool
                          , weight :: Double
                          , costMatrix :: [[Int]]
-                         , name :: T.Text
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
                          } deriving (Show, Eq)

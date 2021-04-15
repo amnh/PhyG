@@ -139,6 +139,7 @@ reportCommand argList curData curGraphs =
             else ("Blah", outfileName, writeMode)
             
 -- | phyloDataToString converts PhyloData type to String
+-- for additive chars--multiply states by weight is < 1 when outputtting due to conversion on input
 phyloDataToString :: [PhyloData] -> String
 phyloDataToString inData = show inData
 

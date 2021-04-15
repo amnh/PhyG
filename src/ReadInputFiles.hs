@@ -156,10 +156,10 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                           if (head $ dropWhile (== ' ') fileContents') == '>' then 
                             let secondLine = head $ tail $ lines fileContents'
                                 numSpaces = length $ elemIndices ' ' secondLine
-                                numWords = length $ words secondLine
+                                -- numWords = length $ words secondLine
                             in
                             -- spaces between alphabet elements suggest fastc
-                            if (numSpaces >= (numWords -1)) then 
+                            if (numSpaces > 0) then 
                                 let fastcData = getFastC firstOption fileContents' firstFile
                                     fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
                                 in
@@ -332,8 +332,8 @@ getFastA modifier fileContents' fileName  =
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
-            if not hasDupTerminals then pairData
-            else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            else pairData 
         
        
         
@@ -344,18 +344,22 @@ getPhyloDataPairsFastA modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ head $ T.lines firstText
+            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
+            firtDataSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstData
+            firstDataNoGapsSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstDataNoGaps
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        if modifier == "prealigned" then (firstName, [ST.fromText $ T.toStrict firstData]) : getPhyloDataPairsFastA modifier (tail inTextList)
-        else (firstName, [ST.fromText  $ T.toStrict firstDataNoGaps]) : getPhyloDataPairsFastA modifier (tail inTextList)
+        --trace ("FA " ++ (show $ length firstDataNoGapsSTList)) (
+        if modifier == "prealigned" then (firstName, firtDataSTList) : getPhyloDataPairsFastA modifier (tail inTextList)
+        else (firstName, firstDataNoGapsSTList) : getPhyloDataPairsFastA modifier (tail inTextList)
         --)
         
 -- | getFastC processes fasta file 
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
+-- NEED TO ADD AMBIGUITY
 getFastC :: String -> String -> String -> [TermData] 
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
@@ -380,7 +384,7 @@ getPhyloDataPairsFastC modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ head $ T.lines firstText
+            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = fmap (T.filter (/= '-')) firstData
         in
