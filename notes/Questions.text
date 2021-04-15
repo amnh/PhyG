@@ -1,0 +1,34 @@
+Questions:
+
+	Word64 versus BitVector efficiency
+
+	Matrix (Vector of Vector) for data
+
+	Element Word64 | BitVector
+
+	Haskwll bytearray very C-like
+
+	Natural number either Word64 or bitarray
+
+
+	For DO:
+		ST Monad Mutable Vector?
+
+	FFI DO type and use (example call)
+	FFI HashMap type and use example
+
+	FFi directorty lib/core/analysis/src/..../ffi
+
+	foreignParwiseDO
+
+	s is dynamic charcaer tyhpe from PCG
+
+
+DenseTrasitionCostMatrix on C-side passed in
+
+Data.TCM.Dense
+	generteDense TrasitionCost Matrix
+
+PCG Dynamic Character def
+	data-structures 
+	encode Stream List of List 
