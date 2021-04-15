@@ -32,3 +32,86 @@ Data.TCM.Dense
 PCG Dynamic Character def
 	data-structures 
 	encode Stream List of List 
+
+
+
+EXTERNAL SENDER
+
+
+References from our conversation regarding PCG FFI usage:
+
+
+
+The FFI pairwise string alignment function is:
+
+   foreignPairwiseDO
+     :: DenseTransitionCostMatrix -- ^ Structure defining the
+transition costs between character states
+     -> DynamicCharacter          -- ^ First  dynamic character
+     -> DynamicCharacter          -- ^ Second dynamic character
+     -> (Word, DynamicCharacter)
+
+To be imported from module:
+Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+Defined internally in here:
+Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
+
+Saved in the following files, respectively:
+lib/core/analysis/src/Analysis/Parsimony/Dynamic/DirectOptimization/Pairwise.hs
+lib/core/analysis/src/Analysis/Parsimony/Dynamic/DirectOptimization/Pairwise/FFI.hsc
+
+
+
+The tcm for the FFI can be created by the function:
+
+generateDenseTransitionCostMatrix
+     :: Word                   -- ^ The gap open cost. A zero value
+indicates non-affine alignment context
+     -> Word                   -- ^ The character alphabet size
+     -> (Word -> Word -> Word) -- ^ The function defining the cost to
+transition between two symbols
+     -> DenseTransitionCostMatrix
+
+To be imported from module: Data.TCM.Dense
+Defined internally in here: Data.TCM.Dense.FFI
+
+Saved in the following files, respectively:
+ lib/core/tcm/src/Data/TCM/Dense.hs
+ lib/core/tcm/src/Data/TCM/Dense/FFI.hsc
+
+
+
+Dynamic characters can be created by calling the function:
+
+    encodeStream
+      :: Alphabet a -- This 'a' parameter can be 'Char' or 'String',
+whatever you prefer
+      -> NonEmpty (NonEmpty a)
+      -> DynamicCharacter
+
+To be imported from module: Bio.Character.Encodable.Dynamic
+Defined internally in here: Bio.Character.Encodable.Stream
+
+Saved in the following files, respectively:
+ lib/core/tcm/src/Data/TCM/Dense.hs
+ lib/core/tcm/src/Data/TCM/Dense/FFI.hsc
+
+
+
+Alphabet can be constructed by calling the function:
+
+   fromSymbols
+     :: Ord a
+     => [a]
+     -> Alphabet a
+
+To be imported from module: Data.Alphabet
+Defined internally in here: Data.Alphabet.Internal
+
+Saved in the following files, respectively:
+ lib/alphabet/src/Data/Alphabet.hs
+ lib/alphabet/src/Data/Alphabet/Internal.hs
+
+
+
+~Alex Washburn
