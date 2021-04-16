@@ -43,6 +43,16 @@ Functions to input TNT file reading for PhyG
                Ambiguiities and multi-character states (e.g. CYTB, 1.23)
                Will limit continuous character reps to 9 sig digits
                     this to allow 2x32 bit representations ina single Word64 later
+
+One Big thing--
+    For multicharacter states--
+        the parsing assumes there is more than one multicharacter character.
+        Can easily add a char from single-state (with spaces) 
+        But the parsing relies on counting hte number of "words" in a line of data
+            if 2--single character states
+            if > 2 --multicharacter states.
+            A singl multi-character states would be parsed as single charcter states
+            NEED TO FIX
 -}
 
 module TNTUtilities  (getTNTData
