@@ -370,12 +370,51 @@ getFastC modifier fileContents' fileName =
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
         else 
             let terminalSplits = T.split (=='>') $ T.pack fileContents 
-                pairData = getPhyloDataPairsFastC modifier (tail terminalSplits)
+                pairData = recodeFASTCAmbiguities fileName $ getPhyloDataPairsFastC modifier (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
-            if not hasDupTerminals then pairData
-            else errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            else pairData
+            
+-- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
+recodeFASTCAmbiguities :: String -> [TermData] -> [TermData] 
+recodeFASTCAmbiguities fileName inData =
+    if null inData then []
+    else 
+        let (firstName, firstData) = head inData
+            newData = concatAmbig fileName firstData
+        in 
+        (firstName, newData) : recodeFASTCAmbiguities fileName (tail inData)
+
+-- | concatAmbig takes a list of ShortText and concatanates ambiguyous states '['X Y Z...']' into a
+-- single Short Tex for later processing
+concatAmbig :: String -> [ST.ShortText] -> [ST.ShortText] 
+concatAmbig fileName inList = 
+    if null inList then []
+    else 
+        let firstGroup = ST.toString $ head inList 
+        in
+        -- not ambiguity group
+        -- trace (firstGroup ++ show inList) (
+        if null firstGroup then concatAmbig fileName (tail inList)
+        else if head firstGroup /= '[' then (head inList) : concatAmbig fileName (tail inList)
+        else 
+            let ambiguityGroup = (head inList) : getRestAmbiguityGroup fileName (tail inList)
+            in
+            trace (show ambiguityGroup) 
+            (ST.concat ambiguityGroup) : concatAmbig fileName (drop (length ambiguityGroup) inList)
+            --)
+
+-- | getRestAmbiguityGroup takes a list of ShorText and keeps added them until one is found with ']'
+getRestAmbiguityGroup :: String -> [ST.ShortText] -> [ST.ShortText]
+getRestAmbiguityGroup fileName inList = 
+    if null inList then errorWithoutStackTrace ("\n\n'Read' command error: fastc file " ++ fileName ++ " with unterminated ambiguity specification ']'")
+    else 
+        let firstGroup = ST.toString $ head inList
+        in
+        if ']' `notElem` firstGroup then (ST.cons ' ' $ head inList) : getRestAmbiguityGroup fileName (tail inList)
+        else [ST.cons ' ' $ head inList]
 
 -- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences

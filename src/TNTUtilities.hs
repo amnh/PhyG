@@ -55,35 +55,35 @@ import qualified SymMatrix as SM
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
 getTNTData :: String -> String -> PhyloData
-getTNTData inString fileName =
-    if null inString then errorWithoutStackTrace ("\n\nTNT input processing error--empty file")
+getTNTData inString fileName = 
+    if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
         let inText = T.strip $ T.pack inString
         in
-        if (toLower $ T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input processing error--must begin with 'xread'")
+        if (toLower $ T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else 
             -- look for quoted message
             let singleQuotes = T.count (T.pack "'") inText
                 quotedMessage = if singleQuotes == 0 then T.pack "No TNT title message" 
-                              else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input processing error--too many single quotes in title")
+                              else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
                               else (T.split (== '\'') inText) !! 1
                 restFile = tail $ T.lines $ (T.split (== '\'') inText) !! 2
                 firstLine = head restFile
                 numChar = read (T.unpack $ head $ T.words firstLine) :: Int 
                 numTax = read (T.unpack $ last $ T.words firstLine) :: Int
             in
-            trace ("\nTNT message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
+            trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
             let semiColonLineNumber = findIndex (== T.pack ";") restFile
             in
-            if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input processing error--can't find ';' to end data block")
+            if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block")
             else 
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
-                    (_, interleaveRemainder) = numDataLines `quotRem` numTax
+                    (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
                 --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
-                if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input processing error--number of taxa mis-specified or interleaved format error")
+                if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
                 else 
                     let sortedData = glueInterleave fileName dataBlock numTax numChar []
                         charNumberList = fmap length $ fmap snd sortedData
@@ -105,9 +105,9 @@ getTNTData inString fileName =
                         curData = fmap snd sortedData
                         (curData',charInfoData') = checkAndRecodeAdditiveCharacters fileName curData charInfoData [] []
                     in
-                    (zip curNames curData',charInfoData')
+                    (zip curNames curData,charInfoData)
                 )
-            
+                       
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 glueInterleave :: String -> [T.Text] -> Int -> Int -> [(T.Text, [String])] -> [TermData]
 glueInterleave fileName lineList numTax numChars curData =
@@ -128,7 +128,7 @@ glueInterleave fileName lineList numTax numChars curData =
             blockNames = fmap head thisDataBlock
             -- if two words then regular TNT without space, otherwise spaces between states
             blockStrings = if ((length $ head thisDataBlock) == 2) then fmap (collectAmbiguities fileName) $ fmap (fmap (:[])) $ fmap T.unpack $ fmap last thisDataBlock
-                           else fmap (fmap T.unpack) $ fmap tail thisDataBlock
+                           else fmap (collectMultiCharAmbiguities fileName) $ fmap (fmap T.unpack) $ fmap tail thisDataBlock
             canonicalNames = if (length curData > 0) then fmap fst curData
                              else blockNames
             canonicalStrings = fmap snd curData
@@ -136,28 +136,49 @@ glueInterleave fileName lineList numTax numChars curData =
         --trace (show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
         --check for raxon order
         --trace ("Words:" ++ (show $ length $ head thisDataBlock)) (
-        if (blockNames /= canonicalNames) then errorWithoutStackTrace ("\n\nTNT input processing error: interleaved taxon order error")
+        if (blockNames /= canonicalNames) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ "processing error: interleaved taxon order error")
         else 
             let newChars = if (length curData > 0) then zipWith (++) canonicalStrings blockStrings
                            else blockStrings
             in
             glueInterleave fileName (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
-        --)
--- | collectAmbiguities take a list of Strings and collects TNT ambiguities [X.Y] 
+            --)
+
+-- | collectMultiCharAmbiguities take a list of Strings and collects TNT ambiguities [X Y]  into single Strings
+-- this only for multicharacter TNT characters as opposed to collectAmbiguities
+collectMultiCharAmbiguities :: String -> [String] -> [String]
+collectMultiCharAmbiguities fileName inStringList = 
+ if null inStringList then []
+    else 
+        let firstString = head inStringList
+        in
+        if (']' `elem` firstString) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem naked ']' in : " ++ firstString)
+        else if (head firstString) == '[' then 
+            let firstStringList = (takeWhile (']' `notElem`) inStringList)
+                ambiguityStringList = firstStringList ++ [(head $ drop (length firstStringList) inStringList)]
+            in
+            --trace (concat ambiguityStringList ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            (concat $ intersperse " " ambiguityStringList) : collectAmbiguities fileName (drop (length $ ambiguityStringList) inStringList)
+        else firstString : collectAmbiguities fileName (tail inStringList)
+        
+-- | collectAmbiguities take a list of Strings and collects TNT ambiguities [XY] 
 -- into single Strings
 -- this only for single 'block' TNT characters where states are a single character
 collectAmbiguities :: String -> [String] -> [String]
-collectAmbiguities fileName inStringList =
+collectAmbiguities fileName inStringList = 
     if null inStringList then []
     else 
         let firstString = head inStringList
         in
-        if (firstString == "]") then errorWithoutStackTrace ("\n\nTNT input processing error: ambiguity format problem naked '']'")
+        if firstString == "]" then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem naked ']' in : " ++ firstString)
         else if firstString == "[" then 
-            let ambiguityString = takeWhile (/=']') firstString
+            let ambiguityStringList = (takeWhile (/="]") inStringList) ++ ["]"]
             in
-            ambiguityString : collectAmbiguities fileName (tail inStringList)
+            --trace (concat ambiguityStringList ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
+        
+        
 
 -- | defaultTNTCharInfo default values for TNT characters
 defaultTNTCharInfo :: CharInfo 
@@ -334,7 +355,7 @@ scopeToIndex fileName numChars scopeText =
             in
             if scopeSingleton == Nothing then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
             else if (fromJust scopeSingleton) < numChars then [fromJust scopeSingleton] 
-            else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: scope greater than char number " ++ show scopeSingleton ++ " > " ++ (show (numChars - 1)))
+            else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: scope greater than char number " ++ (show $ fromJust scopeSingleton) ++ " > " ++ (show (numChars - 1)))
         else 
             let startIndex = if T.null start then Just 0
                              else readMaybe (T.unpack start) :: Maybe Int
@@ -342,6 +363,8 @@ scopeToIndex fileName numChars scopeText =
                             else readMaybe (T.unpack $ T.tail stop) :: Maybe Int
             in
             if (startIndex == Nothing) || (stopIndex == Nothing) then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: ccode '" ++ (T.unpack scopeText) ++ "' contains non-integer")
+            else if (fromJust startIndex) >= numChars then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: scope greater than char number " ++  (show $ fromJust startIndex) ++ " > " ++ (show (numChars - 1)))
+            else if (fromJust stopIndex) >= numChars then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: scope greater than char number " ++  (show $ fromJust stopIndex) ++ " > " ++ (show (numChars - 1)))
             else [(max 0 (fromJust startIndex))..(min (fromJust stopIndex) numChars)]
             --)
 
