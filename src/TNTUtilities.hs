@@ -35,7 +35,14 @@ Portability :  portable (I hope)
 -}
 
 {-
-Functions to peform the input file reading for PhyG
+Functions to input TNT file reading for PhyG
+    This is far from complete wrt TNT functionality 
+    Deals with scope and add/nonadd/sankloff
+               ccode, ccosts
+               Ambiguities in "dense" tnt rows (single character states, no spaces)
+               Ambiguiities and multi-character states (e.g. CYTB, 1.23)
+               Will limit continuous character reps to 9 sig digits
+                    this to allow 2x32 bit representations ina single Word64 later
 -}
 
 module TNTUtilities  (getTNTData
