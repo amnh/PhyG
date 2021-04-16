@@ -255,7 +255,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         let charStatus =  head commandWordList
             scopeList = tail commandWordList
             charIndices = nub $ sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
-            updatedCharInfo = newCharInfo fileName curCharInfo charStatus charIndices 0 []
+            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         updatedCharInfo
@@ -380,13 +380,13 @@ scopeToIndex fileName numChars scopeText =
             else [(max 0 (fromJust startIndex))..(min (fromJust stopIndex) numChars)]
             --)
 
--- | newCharInfo updates the a specific list character element
+-- | getNewCharInfo updates the a specific list character element
 -- if that char is not in index list it is unaffected and added back to create the new list
 -- in a single pass. 
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise retiurn rteh reverse since new values are prepended 
-newCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
-newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
+getNewCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
+getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
     if null inCharList then reverse curCharList
     else if null indexList then 
@@ -397,7 +397,7 @@ newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then newCharInfo fileName (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList) 
+        if charIndex /= firstIndex then getNewCharInfo fileName (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList) 
         else 
             let updatedCharInfo = if      newStatus == T.pack "-" then firstCharInfo {charType = NonAdd}
                                   else if newStatus == T.pack "+" then firstCharInfo {charType = Add}
@@ -415,7 +415,7 @@ newCharInfo fileName inCharList newStatus indexList charIndex curCharList =
                                     trace ("Warning: TNT file " ++ fileName ++ " ccodes command " ++ (T.unpack newStatus) ++ " is unrecognized/not implemented--skipping")
                                     firstCharInfo
             in
-            newCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
+            getNewCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
 
 -- | newCharInfoMatrix updates alphabet and rcm matrix for characters in indexLisyt
@@ -448,7 +448,7 @@ checkAndRecodeAdditiveCharacters :: String -> [[ST.ShortText]] -> [CharInfo] -> 
 checkAndRecodeAdditiveCharacters fileName inData inCharInfo newData newCharInfo =
     if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeAdditiveCharacters"
     else if null inData then error "Empty inData in checkAndRecodeAdditiveCharacters"
-    else if null inCharInfo then (newData, reverse newCharInfo)
+    else if null inCharInfo then (reverse $ fmap reverse newData, reverse newCharInfo)
     else 
         let firstColumn = fmap head inData
             firstCharInfo =  head inCharInfo
@@ -457,22 +457,45 @@ checkAndRecodeAdditiveCharacters fileName inData inCharInfo newData newCharInfo 
         in
         checkAndRecodeAdditiveCharacters fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
 
+-- prependColumn takes a list of ShortTex and a list of a  list of shortext and prepends the
+-- first element of the newcolumn list to the first list in inData creting newData
+prependColumn :: [ST.ShortText] -> [[ST.ShortText]] ->  [[ST.ShortText]] -> [[ST.ShortText]]
+prependColumn newColumn inData newData = 
+  if (length newColumn /= length inData) && (length inData > 0) then error ("Columns and rows not equal in prependColumn: " ++ show (length newColumn, length inData))
+  else if null newColumn then newData
+  else 
+    let firstColumnElement = head newColumn
+        firstRowElement = if not $ null inData then head inData
+                          else []
+        newRow = firstColumnElement : firstRowElement 
+    in
+    -- trace (show newRow) (
+    if null inData then
+        -- first case empty rows
+        prependColumn (tail newColumn) [] (newRow : newData)
+    else
+        --- subsequent cases 
+        prependColumn (tail newColumn) (tail inData) (newRow : newData)
+    --)
+
 -- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
 -- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
 -- checks if char is additive for numebrical alphabet
 getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> ([ST.ShortText], Double, [ST.ShortText]) 
-getAlphabetFromSTList fileName inStates inCharInfo =
+getAlphabetFromSTList fileName inStates inCharInfo = 
   if null inStates then error "Empty columkn data in getAlphabetFromSTList" 
   else 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
                        else 0
-        (thisAlphabet, newColumn) = getAlphWithAmbiguity fileName inStates thisType thisWeight mostDecimals [] [] 
+        (thisAlphabet, newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] [] 
         newWeight = if mostDecimals > 0 then  thisWeight / (10.0 ** (fromIntegral mostDecimals))
                     else thisWeight
     in
+    --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     (thisAlphabet, newWeight, newColumn)
+
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range
 getDecimals :: ST.ShortText -> Int
@@ -480,16 +503,23 @@ getDecimals inChar =
     if ST.null inChar then 0
     else 
         let inCharText = ST.toString inChar
-        in
-        if head inCharText /= '[' then  
+        in 
+        -- trace (inCharText) (
+        if ('.' `notElem` inCharText) then 0
+        else if head inCharText /= '[' then  
             -- no ambiguity
             ((length $ dropWhile (/= '.') inCharText) - 1)
         else 
-            let guts = init $ tail inCharText
-                fstChar = T.dropWhile (/= '.') $ head $ T.split (== '-') (T.pack inCharText)
-                sndChar = T.dropWhile (/= '.') $ last $ T.split (== '-') (T.pack inCharText)
+            -- has ambiguity (range)
+            let rangeStringList = words $ filter (`notElem` ['[',']']) inCharText
+                fstChar = if ('.' `elem` (head rangeStringList)) then dropWhile (/= '.') (head rangeStringList)
+                          else ['.']
+                sndChar = if ('.' `elem` (last rangeStringList)) then dropWhile (/= '.') (last rangeStringList)
+                          else ['.']
             in
-            (max (length $ T.unpack fstChar) (length $ T.unpack sndChar)) - 1
+            -- trace (fstChar ++ " " ++ sndChar) 
+            (max (length fstChar) (length sndChar)) - 1
+            --)
 
 
 -- | getAlphWithAmbiguity take a liost of ShortText with inform ation and accumulatiors
@@ -500,49 +530,40 @@ getDecimals inChar =
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
 -- for additive charcaters if states are not nummerical then throuws an error
-getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType -> Double -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
-getAlphWithAmbiguity fileName inStates thisType thisWeight mostDecimals newAlph newStates = 
+getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType  -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
+getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates = 
     if null inStates then ((sort $ nub newAlph), (reverse newStates))
     else
         let firstState = ST.toString $ head inStates
         in
             if thisType /= Add then 
-                if (head firstState) /= '['  then getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString firstState) : newAlph) ((ST.fromString firstState) : newStates)
+                if (head firstState) /= '['  then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((head inStates) : newAlph) ((head inStates) : newStates)
                 else -- ambiguity
-                    let newStates  = if (null $ filter (== ' ') firstState) then fmap ST.fromString $ fmap (:[]) $ init $ tail firstState
-                                    else fmap ST.fromText $ fmap T.toStrict $ T.split (== ' ') $ T.pack $ init $ tail firstState
+                    let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
                     in
-                    getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals (newStates ++ newAlph) (newStates ++ newStates)
+                    getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (newAmbigStates ++ newAlph) ((head inStates) : newStates)
 
         else -- additive character
+            let scaleFactor = 1.0 / (10.0 ** (fromIntegral mostDecimals))
+            in
             if (head firstState) /= '['  then 
-                if mostDecimals == 0 then getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString firstState) : newAlph) ((ST.fromString firstState) : newStates)
+                if mostDecimals == 0 then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((head inStates) : newAlph) ((head inStates) : newStates)
                 else 
-                    let scaleFactor = thisWeight / (10.0 ** (fromIntegral mostDecimals))
-                        stateNumber = readMaybe firstState :: Maybe Double
-                        newStateNumber = show ((fromJust stateNumber) / scaleFactor)
+                    let stateNumber = readMaybe firstState :: Maybe Double
+                        newStateNumber = takeWhile (/='.') $ show ((fromJust stateNumber) / scaleFactor)
                     in
                     if stateNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
-                    else getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((ST.fromString newStateNumber) : newAlph) ((ST.fromString newStateNumber) : newStates)
+                    else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString newStateNumber) : newAlph) ((ST.fromString newStateNumber) : newStates)
             else 
-                let gutsList  = if (null $ filter (== ' ') firstState) then fmap (:[]) $ init $ tail firstState
-                                else fmap T.unpack $ T.split (== '-') $ T.pack $ init $ tail firstState
+                let gutsList  = words $ filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
-                    newStateNumberStringList = fmap show $ fmap fromJust newStateNumberList
+                    newStateNumberStringList = fmap (takeWhile (/='.') ) $ fmap show $ fmap (/ scaleFactor) $ fmap fromJust newStateNumberList
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
-                else getAlphWithAmbiguity fileName (tail inStates) thisType thisWeight mostDecimals ((fmap ST.fromString newStateNumberStringList) ++ newAlph) ((fmap ST.fromString newStateNumberStringList) ++ newStates)
+                else
+                    let newAmbigState =  ST.fromString $ '[' : (concat $ intersperse " " newStateNumberStringList) ++ "]"
+                    in
+                    getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((fmap ST.fromString newStateNumberStringList) ++ newAlph) (newAmbigState : newStates)
 
 
 
--- prependColumn takes a list of ShortTex and a list of a  list of shortext and prepends the
--- first element of the newcolumn list to the first list in inData creting newData
-prependColumn :: [ST.ShortText] -> [[ST.ShortText]] ->  [[ST.ShortText]] -> [[ST.ShortText]]
-prependColumn newColumn inData newData = 
-  if null newColumn then reverse $ fmap reverse newData
-  else 
-    let firstColumnElement = head newColumn
-        firstRowElement = head inData
-        newRow = firstColumnElement : firstRowElement 
-    in
-    prependColumn (tail newColumn) (tail inData) (newRow : newData) 
