@@ -105,10 +105,12 @@ getTNTData inString fileName =
                         curData = fmap snd sortedData
                         (curData',charInfoData') = checkAndRecodeAdditiveCharacters fileName curData charInfoData [] []
                     in
-                    (zip curNames curData,charInfoData)
+                    (zip curNames curData',charInfoData')
                 )
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
+-- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
+--its a regular block
 glueInterleave :: String -> [T.Text] -> Int -> Int -> [(T.Text, [String])] -> [TermData]
 glueInterleave fileName lineList numTax numChars curData =
     if null lineList then
@@ -152,14 +154,23 @@ collectMultiCharAmbiguities fileName inStringList =
     else 
         let firstString = head inStringList
         in
-        if (']' `elem` firstString) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem naked ']' in : " ++ firstString)
-        else if (head firstString) == '[' then 
+        --trace ("CMA " ++ firstString ++ " " ++ show inStringList) (
+        if ('[' `elem` firstString) && (']' `elem` firstString) then
+            if '-' `elem`  firstString then 
+                let firstPart = takeWhile (/= '-') firstString
+                    secondPart = tail $ dropWhile (/= '-') firstString
+                in
+                (concat [firstPart, " ", secondPart]) : collectMultiCharAmbiguities fileName (tail inStringList)
+            else errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem no ambiguity or range '-' in : " ++ firstString)
+        else if (']' `elem` firstString) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem naked ']' in : " ++ firstString)
+        else if ('[' `elem` firstString) then 
             let firstStringList = (takeWhile (']' `notElem`) inStringList)
                 ambiguityStringList = firstStringList ++ [(head $ drop (length firstStringList) inStringList)]
             in
-            --trace (concat ambiguityStringList ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
-            (concat $ intersperse " " ambiguityStringList) : collectAmbiguities fileName (drop (length $ ambiguityStringList) inStringList)
-        else firstString : collectAmbiguities fileName (tail inStringList)
+            --trace (show firstStringList ++ show ambiguityStringList ++ show (head $ drop (length firstStringList) inStringList))
+            (concat $ intersperse " " ambiguityStringList) : collectMultiCharAmbiguities fileName (drop (length $ ambiguityStringList) inStringList)
+        else firstString : collectMultiCharAmbiguities fileName (tail inStringList)
+        --)
         
 -- | collectAmbiguities take a list of Strings and collects TNT ambiguities [XY] 
 -- into single Strings
@@ -170,6 +181,7 @@ collectAmbiguities fileName inStringList =
     else 
         let firstString = head inStringList
         in
+        --trace ("CA " ++ firstString) (
         if firstString == "]" then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error: ambiguity format problem naked ']' in : " ++ firstString)
         else if firstString == "[" then 
             let ambiguityStringList = (takeWhile (/="]") inStringList) ++ ["]"]
@@ -177,7 +189,7 @@ collectAmbiguities fileName inStringList =
             --trace (concat ambiguityStringList ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
             (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
-        
+        --)
         
 
 -- | defaultTNTCharInfo default values for TNT characters
