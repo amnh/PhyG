@@ -72,7 +72,8 @@
 		Continuous characters must be numbers only (float fine) and declares by cccode command as 
 		``additive'', otherwise the number will be treated as non-additive character states. \\
 		nonAdd polymorphisms  are [X.Y]--unless  additive '-' for range\\
-		can't have '.' in multichar state (or single for that matter)
+		can't have '.' in multichar state (or single for that matter)\\
+		internally continuous chars (addditve multicharacter) are represented as 32bit integers
 	
 	\section{Input Graph Formats}
 	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
