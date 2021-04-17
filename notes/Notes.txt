@@ -26,11 +26,68 @@ Look at hash-graph  library https://github.com/patrickdoc/hash-graph
 	
 
 Can use Data hash to get unique bit vector for leaves that is label (and datafile order) invarianty.
+    0) Use Naive--bitvector data
 	1) sort data
 	2) hash data
 	3) sort hash, leafe number pairs and assign bits on hash order
 
 Can use graph hash to compare trees or nodes, collpased for multiple graphs etc
+
+Data input
+	1) fasta
+	2) fastc
+	3) TNT
+	4) F/E/Newick
+	5) Dot
+	6) dpead--TNT with spaces for continuous characters (?)
+
+Reports
+	Data raw data so can be checked manually 
+		csv
+		text--pretty print maybe from csv
+	Graphs
+		dot
+		f/e/newick
+		pdfs (?)
+	Apomorphy List
+	HTU Assignment
+		single
+		ambiguous
+	Pairwise Data
+	RF Matrices
+	
+Data forms
+	0) Data structured
+		Blocks at top
+			Types of chars
+			Vectors (or whatever) of word64/BitVector
+	1) Raw ShortText for space (not work for search)
+	2) Naive BitVectors (works for search)
+		Reordered by block
+		Not reordered by chartype
+		Not purged of contant
+	3) Optimized (works for search)
+		Characters grouped in "blocks" for display trees 
+		Assume each file a block to start
+		Need option to change 
+		Within blocks Charcaters grouped by type (add, nonadd, sankoff, static, dynamic)
+			at first all 64bit or bitvector
+				even continuous treat as 64bit number (integerized with weight)
+				additive 2x64Bits to keep range
+			later recoded with bitpacking types for 2,4,8,16,32, states
+			End with groups of same charcaters to reduce logic for optimizations
+				Each higher-order character is a vector of 64bit/bitvector
+			Join all static with same TCM, 
+			if 1:1 make nonAdd
+			remove constant chars
+			SAnkoff to additive if binary or all same cost (e.g. not gaps and that only difference in tcm)
+
+	4) Transformed data (works for search)
+		Implied alignment 
+			as recoded static 
+			maybe moved to NonAdd
+			deletre constant chars
+		Turn "off" dynamic
 
 Data flow
 	1) input data to meta format tuples (name, data, info) 
@@ -83,7 +140,7 @@ Task groups:
 			for nitial dWag etc on blocks or all
 
 	3) Graph structure
-		Vertex and edge types (lenses)
+		Vertex and edge types (lenses? prob not too complex)
 
 	4) Graph search routines
 		Naive
