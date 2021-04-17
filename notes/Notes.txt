@@ -45,6 +45,9 @@ Reports
 	Data raw data so can be checked manually 
 		csv
 		text--pretty print maybe from csv
+			https://github.com/lovasko/tablize
+			or just replace ',' with '\t' adding line feeds at end of line
+
 	Graphs
 		dot
 		f/e/newick
