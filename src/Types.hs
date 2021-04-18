@@ -87,6 +87,7 @@ type ChildIndex = Int
 
 -- Only date here that varies by vertex, rest inglobal charcater info
 -- vectors so all data of single type can be grouped together
+-- will need to add masks for bit-packing non-additive chars
 data VertexData = VertexData { stateBV :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
                              , minRange :: V.Vector BV.BV -- for Additive
                              , maxRange :: V.Vector BV.BV -- for Additive
