@@ -67,8 +67,8 @@ Added strictness on read so could close files after reading to
 -}
 
 -- | extractDataGraphPair  takes the list of pairs from mapped executeReadCommands
--- and returns ([PhyloData], [SimpleGraph])
-extractDataGraphPair :: [([PhyloData], [SimpleGraph])] -> ([PhyloData], [SimpleGraph])
+-- and returns ([RawData], [SimpleGraph])
+extractDataGraphPair :: [([RawData], [SimpleGraph])] -> ([RawData], [SimpleGraph])
 extractDataGraphPair dataGraphList =  
     let (inDataList, inGraphList) = unzip dataGraphList
         rawData = concat inDataList
@@ -81,7 +81,7 @@ extractDataGraphPair dataGraphList =
 -- | executeReadCommands reads iput files and returns raw data 
 -- assumes that "prealigned" and "tcm:File" are tghe first arguments if they are specified 
 -- so that they can apply to all teh files in the command without order depence
-executeReadCommands :: [PhyloData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]]) -> [Argument] -> IO ([PhyloData], [SimpleGraph])
+executeReadCommands :: [RawData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]]) -> [Argument] -> IO ([RawData], [SimpleGraph])
 executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs)
     else do
@@ -328,7 +328,7 @@ getFastA modifier fileContents' fileName  =
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
         else 
             let terminalSplits = T.split (=='>') $ T.pack fileContents 
-                pairData =  getPhyloDataPairsFastA modifier (tail terminalSplits)
+                pairData =  getRawDataPairsFastA modifier (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
@@ -338,9 +338,9 @@ getFastA modifier fileContents' fileName  =
        
         
 
--- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
-getPhyloDataPairsFastA :: String -> [T.Text] -> [TermData]
-getPhyloDataPairsFastA modifier inTextList =
+-- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+getRawDataPairsFastA :: String -> [T.Text] -> [TermData]
+getRawDataPairsFastA modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
@@ -352,8 +352,8 @@ getPhyloDataPairsFastA modifier inTextList =
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         --trace ("FA " ++ (show $ length firstDataNoGapsSTList)) (
-        if modifier == "prealigned" then (firstName, firtDataSTList) : getPhyloDataPairsFastA modifier (tail inTextList)
-        else (firstName, firstDataNoGapsSTList) : getPhyloDataPairsFastA modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
+        else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
         --)
         
 -- | getFastC processes fasta file 
@@ -370,7 +370,7 @@ getFastC modifier fileContents' fileName =
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
         else 
             let terminalSplits = T.split (=='>') $ T.pack fileContents 
-                pairData = recodeFASTCAmbiguities fileName $ getPhyloDataPairsFastC modifier (tail terminalSplits)
+                pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
@@ -416,10 +416,10 @@ getRestAmbiguityGroup fileName inList =
         if ']' `notElem` firstGroup then (ST.cons ' ' $ head inList) : getRestAmbiguityGroup fileName (tail inList)
         else [ST.cons ' ' $ head inList]
 
--- | getPhyloDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+-- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
-getPhyloDataPairsFastC :: String -> [T.Text] -> [TermData]
-getPhyloDataPairsFastC modifier inTextList =
+getRawDataPairsFastC :: String -> [T.Text] -> [TermData]
+getRawDataPairsFastC modifier inTextList =
     if null inTextList then []
     else 
         let firstText = head inTextList
@@ -428,8 +428,8 @@ getPhyloDataPairsFastC modifier inTextList =
             firstDataNoGaps = fmap (T.filter (/= '-')) firstData
         in
         -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getPhyloDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getPhyloDataPairsFastC modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
+        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
         --
         
 -- | getFENewickGraph takes graph contents and returns local graph format

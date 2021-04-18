@@ -71,7 +71,7 @@ import qualified SymMatrix as SM
 
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
-getTNTData :: String -> String -> PhyloData
+getTNTData :: String -> String -> RawData
 getTNTData inString fileName = 
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
@@ -97,7 +97,7 @@ getTNTData inString fileName =
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
-                    (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                    (_, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
                 --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
@@ -458,7 +458,7 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
             in
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
--- | checkAndRecodeAdditiveCharacters take phylodata and checks the data with char info.
+-- | checkAndRecodeAdditiveCharacters take RawData and checks the data with char info.
 -- verifies that states (including in ambiguity) are Numerical
 -- and assigns correct alphabet to all characters
 checkAndRecodeAdditiveCharacters :: String -> [[ST.ShortText]] -> [CharInfo] -> [[ST.ShortText]] -> [CharInfo] -> ([[ST.ShortText]], [CharInfo])

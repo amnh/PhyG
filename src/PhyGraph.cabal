@@ -52,6 +52,7 @@ executable phyg
                 , time
                 , vector
                 , sort
+                , bv
  -- currently doesn't compile               , Graphalyze
  
                 

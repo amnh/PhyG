@@ -53,7 +53,7 @@ import qualified Data.Text.Lazy as T
 
 -- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeCommands :: [PhyloData] -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
+executeCommands :: [RawData] -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
 executeCommands curData curGraphs commandList = do
     if null commandList then return curGraphs
     else do
@@ -96,7 +96,7 @@ checkReportCommands commandList permittedList =
 -- | reportCommand takes report options, current data and graphs and returns a 
 -- (potentially large) String to print and the channel to print it to 
 -- and write mode overwrite/append
-reportCommand :: [Argument] -> [PhyloData] -> [SimpleGraph] -> (String, String, String)
+reportCommand :: [Argument] -> [RawData] -> [SimpleGraph] -> (String, String, String)
 reportCommand argList curData curGraphs =
     let outFileNameList = filter (/= "") $ fmap snd argList
         commandList = filter (/= "") $ fmap fst argList
@@ -138,9 +138,9 @@ reportCommand argList curData curGraphs =
                     (graphString, outfileName, writeMode)
             else ("Blah", outfileName, writeMode)
             
--- | phyloDataToString converts PhyloData type to String
+-- | phyloDataToString converts RawData type to String
 -- for additive chars--multiply states by weight is < 1 when outputtting due to conversion on input
-phyloDataToString :: [PhyloData] -> String
+phyloDataToString :: [RawData] -> String
 phyloDataToString inData = show inData
 
 -- | executeRenameCommands takes all the "Rename commands" pairs and 
