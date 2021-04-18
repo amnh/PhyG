@@ -107,9 +107,11 @@ data VertexData = VertexData { stateBV :: V.Vector BV.BV  -- for Non-additive an
 --the format is tuple of a list of taxon-data list tuples and charinfo list.
 --the data list and charinfo list must have the same length
 type RawData = ([TermData], [CharInfo])
+type NaiveData = (V.Vector NodeData, V.Vector CharInfo)
 
 -- | type TermData type contians termnal name and list of characters
 type TermData = (T.Text, [ST.ShortText])
+type NodeData = (T.Text, V.Vector VertexData)
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr T.Text Double
