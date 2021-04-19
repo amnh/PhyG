@@ -39,6 +39,8 @@ module Types where
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
+import qualified Data.BitVector as BV
+import qualified Data.Vector    as V
 
 -- | Program Version
 pgVersion :: String
@@ -67,6 +69,7 @@ type Command = (Instruction, [Argument])
 data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq 
     deriving (Read, Show, Eq)
 
+
 -- | CharInfo information about characters
 data CharInfo = CharInfo { name :: T.Text
                          , charType :: CharType
@@ -77,14 +80,39 @@ data CharInfo = CharInfo { name :: T.Text
                          , prealigned :: Bool
                          } deriving (Show, Eq)
 
+-- | Types for vertex information
+type VertexCost = Double
+type StateCost = Double
+type ChildIndex = Int
+
+-- Only date here that varies by vertex, rest inglobal charcater info
+-- vectors so all data of single type can be grouped together
+-- will need to add masks for bit-packing non-additive chars
+data VertexData = VertexData { stateBV :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+                             , minRange :: V.Vector BV.BV -- for Additive
+                             , maxRange :: V.Vector BV.BV -- for Additive
+                             , matrixStates :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
+                             , approxMatrixCost :: VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
+                             , localCostVect :: V.Vector StateCost 
+                             , localCost :: VertexCost -- weight * V.sum localCostVect
+                             , globalCost :: VertexCost -- unclear if need vector version
+                             -- triple for Sankoff optimization--cost, left and right descendant states
+                             , isLeaf :: Bool  --length succ == 0
+                             , isRoot :: Bool -- length pred == 0
+                             , isTree :: Bool -- length pre == 1
+                             , isNetwork :: Bool -- length pred > 1
+                             } deriving (Show, Eq)
+
 -- | RawData type processed from input to be passed to characterData
 --to recode into usable form
 --the format is tuple of a list of taxon-data list tuples and charinfo list.
 --the data list and charinfo list must have the same length
-type PhyloData = ([TermData], [CharInfo])
+type RawData = ([TermData], [CharInfo])
+type NaiveData = (V.Vector NodeData, V.Vector CharInfo)
 
 -- | type TermData type contians termnal name and list of characters
 type TermData = (T.Text, [ST.ShortText])
+type NodeData = (T.Text, V.Vector VertexData)
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr T.Text Double

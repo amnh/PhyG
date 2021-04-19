@@ -49,7 +49,7 @@ import           Data.Maybe
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
-renameData :: [(T.Text, T.Text)] -> PhyloData -> PhyloData
+renameData :: [(T.Text, T.Text)] -> RawData -> RawData
 renameData newNamePairList inData =
   if null newNamePairList then inData
   else
@@ -74,14 +74,14 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
 
 -- | getDataTerminalNames takes all input data and getss full terminal list
 -- and adds missing data for trerminals not in input files 
-getDataTerminalNames :: [PhyloData] -> [T.Text]
+getDataTerminalNames :: [RawData] -> [T.Text]
 getDataTerminalNames inDataList =
     if null inDataList then []
     else 
         sort $ nub $ fmap fst $ concat $ fmap fst inDataList
 
 -- | addMissingTerminalsToInput dataLeafNames renamedData 
-addMissingTerminalsToInput :: [T.Text] -> PhyloData -> PhyloData
+addMissingTerminalsToInput :: [T.Text] -> RawData -> RawData
 addMissingTerminalsToInput dataLeafNames inData@(termDataList, charInfoList) = 
     if null dataLeafNames then (sortOn fst termDataList, charInfoList)
     else 
