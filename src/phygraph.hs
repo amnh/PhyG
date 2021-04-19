@@ -47,6 +47,7 @@ import qualified CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
 import qualified DataTransformation as DT
 import           Data.List
+import qualified Data.Vector    as V
 --import           Debug.Trace
 
 
@@ -101,11 +102,18 @@ main =
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
     let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.ladderizeGraph $ 
 
+    -- Create unique, label invariant bitvector names for leaf taxa.  
+    let leafBitVectorNames = DT.createBVNames reconciledData
+    
+    -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
+    let naiveData = DT.createNaiveData reconciledData leafBitVectorNames V.empty V.empty
+
+
     -- Optimize Data
-    let optimizedData = reconciledData --  place holder
+    let optimizedData = naiveData --  place holder
 
     -- Execute Following Commands (searches, reports etc)
-    finalGraphList <- CE.executeCommands optimizedData reconciledGraphs (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
+    finalGraphList <- CE.executeCommands reconciledData optimizedData reconciledGraphs (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     
     -- Final Stderr report

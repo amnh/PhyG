@@ -83,15 +83,32 @@ data CharInfo = CharInfo { name :: T.Text
 -- | Types for vertex information
 type VertexCost = Double
 type StateCost = Double
+
+-- | index of child vertices 
 type ChildIndex = Int
+
+-- | unique bitvector labelling for vertex based on descednent labellings
+-- these labels are used for caching, left/right DO optimizaiton
+-- thery should be label invariant
+-- a hash of sorted input data for leaves
+-- will need a map from NameBV to T.Text name (or not)
+type NameBV = BV.BV
+
+-- | Human legibale name for vertices, charcaters, and Blocks
+type NameText = T.Text
 
 -- Only date here that varies by vertex, rest inglobal charcater info
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
-data VertexData = VertexData { stateBV :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
-                             , minRange :: V.Vector BV.BV -- for Additive
-                             , maxRange :: V.Vector BV.BV -- for Additive
-                             , matrixStates :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
+-- may have to add single
+data CharacterData = CharcaterData { stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+                             , minRangerelim :: V.Vector BV.BV -- for Additive
+                             , maxRangerelim :: V.Vector BV.BV -- for Additive
+                             , matrixStatesrelim :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
+                             , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+                             , minRangeFinal :: V.Vector BV.BV -- for Additive
+                             , maxRangeFinal :: V.Vector BV.BV -- for Additive
+                             , matrixStatesFinal :: V.Vector (StateCost) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
                              , approxMatrixCost :: VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
                              , localCostVect :: V.Vector StateCost 
                              , localCost :: VertexCost -- weight * V.sum localCostVect
@@ -103,22 +120,44 @@ data VertexData = VertexData { stateBV :: V.Vector BV.BV  -- for Non-additive an
                              , isNetwork :: Bool -- length pred > 1
                              } deriving (Show, Eq)
 
--- | RawData type processed from input to be passed to characterData
---to recode into usable form
---the format is tuple of a list of taxon-data list tuples and charinfo list.
---the data list and charinfo list must have the same length
-type RawData = ([TermData], [CharInfo])
-type NaiveData = (V.Vector NodeData, V.Vector CharInfo)
-
 -- | type TermData type contians termnal name and list of characters
-type TermData = (T.Text, [ST.ShortText])
-type NodeData = (T.Text, V.Vector VertexData)
+-- characters as ShortText to save space on input
+type TermData = (NameText, [ST.ShortText])
+type LeafData = (NameText, V.Vector CharacterData)
 
 -- | type RawGraph is input graphs with leaf and edge labels
-type SimpleGraph = LG.Gr T.Text Double
+type SimpleGraph = LG.Gr NameText Double
 
 -- | type RawGraph is input graphs with leaf and edge labels
 -- need to establish this later
 -- type LabelledGraph =  LG.Gr a b
+-- | RawData type processed from input to be passed to characterData
+-- to recode into usable form
+-- the format is tuple of a list of taxon-data list tuples and charinfo list.
+-- the data list and charinfo list must have the same length
+type RawData = ([TermData], [CharInfo])
+
+-- | Processed data is the basic data structire for analysis
+-- can be input to functions
+-- based on "blocks" that follow same display tree (soft-wired network)
+-- each block has a set of characters (for each vertex eventually) and character info
+-- the vector of T.Text are teh names--leaves form input, internal HTU ++ (show index)
+-- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
+-- command
+-- "Naive" "Opyimized" and "Transformed" darta are this type after differnet processing steps
+type ProcessedData = (V.Vector NameText, V.Vector BlockData)
+
+-- | Block data  is the basic data unit that is optimized on a display tree
+-- it is row, ie vertex dominant
+-- it has a bitvector name derived from leaf bitvector labels (union of children)
+-- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees 
+-- a vector of characterer data where assignments nd costs rteside, and a vector of character info
+-- leaves will alwasy be first (indices 0..n-1) for simpler ipdating of data during graph optimization
+-- NameText is the block label used for assignment and reporting output
+-- Initially set to input filename of character
+-- the second field of thee intial pair is a vector for vertices which has a vector for its charcaer states
+-- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
+type BlockData = (V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
+
 
 

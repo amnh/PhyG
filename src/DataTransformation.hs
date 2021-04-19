@@ -35,10 +35,12 @@ Portability :  portable (I hope)
 -}
 
 
-module DataTransformation (renameData
-                          ,getDataTerminalNames
-                          ,addMissingTerminalsToInput
-                          ,checkDuplicatedTerminals
+module DataTransformation ( renameData
+                          , getDataTerminalNames
+                          , addMissingTerminalsToInput
+                          , checkDuplicatedTerminals
+                          , createNaiveData
+                          , createBVNames
                           ) where
 
 
@@ -46,6 +48,11 @@ import qualified Data.Text.Lazy as T
 import           Types
 import           Data.List
 import           Data.Maybe
+import qualified Data.BitVector as BV
+import qualified Data.Vector    as V
+import qualified Data.Text.Short as ST
+import qualified Data.Hashable as H
+import           Debug.Trace
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
@@ -102,3 +109,60 @@ checkDuplicatedTerminals inData =
         if null dupList then (False, [])
         else (True, fmap head dupList)
 
+-- | joinSortFileData takes list if list of short text and merges line by line to joing leaf states
+-- and sorts the result
+joinSortFileData :: [[ST.ShortText]] -> [String]
+joinSortFileData inFileLists =
+	if ((length $ head inFileLists) == 0) then []
+	else 	
+	    let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
+	    in
+	    firstLeaf : joinSortFileData (fmap tail inFileLists)
+
+
+-- | createBVNames takes input data, sorts the raw data, hashes, sorts those to create
+-- unique, label invariant (but data related so arbitrary but consistent)
+-- Assumes the rawData come in sorted by the data reconciliation process
+-- These used for vertex labels, caching, left/right DO issues
+createBVNames :: [RawData] -> [(T.Text, BV.BV)]
+createBVNames inDataList =
+    let rawDataList = fmap fst inDataList
+        textNameList = fmap fst $ head rawDataList
+        textNameList' = fmap fst $ last rawDataList
+        fileLeafCharList = fmap (fmap snd) rawDataList
+        fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
+        leafList = reverse $ joinSortFileData fileLeafList
+        leafHash = fmap H.hash leafList 
+        leafHashPair = sortOn fst $ zip leafHash textNameList
+        (_, leafReoderedList) = unzip leafHashPair
+        leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
+        (nameList, intList) = unzip leafOrder
+        bv1 = BV.bitVec (length nameList) 1
+        bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length nameList)) intList)
+    in
+    if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
+    else zip nameList bvList
+
+-- | createNaiveData takes input RawData and transforms to "Naive" data.
+-- these data are otganized into bloicks (set to input filenames initially)
+-- and are bitvector coded, but are not organized by charcter type, packed ot
+-- optimized in any other way (prealigned-> nonadd, Sankoff.  2 state sankoff to binary, 
+-- constant charcaters skipped etc)
+-- these processes take place latet
+-- these data can be input to any data optimization commands and are useful
+-- for data output as they haven't been reordered or transformed in any way.
+-- the RawData is a list since it is organized by input file
+createNaiveData :: [RawData] -> [(T.Text, BV.BV)] -> V.Vector NameText -> V.Vector BlockData -> ProcessedData
+createNaiveData inDataList leafBitVectorNames curNames curBlockData = 
+    if null inDataList then (curNames, curBlockData)
+    else 
+        let firstInput@(firstData, firstCharInfo) = head inDataList
+        in
+        -- empty file should have been caught earlier, but avoids some head/tail errors
+        if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames curNames curBlockData
+        else 
+            -- process data as come in--each of these should be from a single file
+            -- and initially assigned to a single, unique block
+            
+
+            createNaiveData (tail inDataList) leafBitVectorNames curNames curBlockData

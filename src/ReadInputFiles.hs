@@ -103,7 +103,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                 dotGraph <- LG.hGetDotLocal fileHandle
                 let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                 let hasLoops = B.hasLoop inputDot 
-                if hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                if hasLoops then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
                 else hPutStr stderr ""
                 let hasCycles = GFU.cyclic inputDot
                 if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
@@ -131,7 +131,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                         hClose fileHandle2
                         let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                         let hasLoops = B.hasLoop inputDot 
-                        if hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                        if hasLoops then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
                         else hPutStr stderr ""
                         let hasCycles = GFU.cyclic inputDot
                         if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
@@ -141,7 +141,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                             hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                             hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
                         in 
-                        if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                        if (not $ null hasLoops) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
                         else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                         else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
 
@@ -287,7 +287,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                      , weight = 1.0
                                      , costMatrix = if localTCM == ([],[]) then generateDefaultMatrix seqAlphabet 0
                                                     else snd localTCM
-                                     , name = T.pack dataName
+                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = if localTCM == ([],[]) then seqAlphabet
                                                   else fst localTCM
                                      , prealigned = isPrealigned
@@ -308,7 +308,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , activity = True
                                      , weight = 1.0
                                      , costMatrix = snd localTCM
-                                     , name = T.pack dataName
+                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = fst localTCM
                                      , prealigned = isPrealigned
                                      }
@@ -402,7 +402,7 @@ concatAmbig fileName inList =
         else 
             let ambiguityGroup = (head inList) : getRestAmbiguityGroup fileName (tail inList)
             in
-            trace (show ambiguityGroup) 
+            --trace (show ambiguityGroup) 
             (ST.concat ambiguityGroup) : concatAmbig fileName (drop (length ambiguityGroup) inList)
             --)
 

@@ -53,8 +53,8 @@ import qualified Data.Text.Lazy as T
 
 -- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeCommands :: [RawData] -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
-executeCommands curData curGraphs commandList = do
+executeCommands :: [RawData] -> ProcessedData -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
+executeCommands rawData processedData curGraphs commandList = do
     if null commandList then return curGraphs
     else do
         let (firstOption, firstArgs) = head commandList
@@ -64,16 +64,16 @@ executeCommands curData curGraphs commandList = do
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
         -- report command    
         else if firstOption == Report then do
-            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs curData curGraphs
+            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs rawData processedData curGraphs
             hPutStrLn stderr ("Report writing to " ++ outFile)
             if outFile == "stderr" then hPutStr stderr reportString
             else if outFile == "stdout" then hPutStr stdout reportString
             else if writeMode == "overwrite" then writeFile outFile reportString
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
-            executeCommands curData curGraphs (tail commandList)
+            executeCommands rawData processedData curGraphs (tail commandList)
         else 
-            executeCommands curData curGraphs (tail commandList)
+            executeCommands rawData processedData curGraphs (tail commandList)
             
 -- | reportArgList contains valid report arguments
 reportArgList :: [String]
@@ -96,8 +96,8 @@ checkReportCommands commandList permittedList =
 -- | reportCommand takes report options, current data and graphs and returns a 
 -- (potentially large) String to print and the channel to print it to 
 -- and write mode overwrite/append
-reportCommand :: [Argument] -> [RawData] -> [SimpleGraph] -> (String, String, String)
-reportCommand argList curData curGraphs =
+reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [SimpleGraph] -> (String, String, String)
+reportCommand argList rawData processedData curGraphs =
     let outFileNameList = filter (/= "") $ fmap snd argList
         commandList = filter (/= "") $ fmap fst argList
     in
@@ -114,8 +114,8 @@ reportCommand argList curData curGraphs =
         else 
             -- This for reconciled data
             if "data" `elem` commandList then 
-                let baseData = ("There were " ++ (show $ length curData) ++ " input data files and " ++ (show $ length curGraphs) ++ " graphs\n")
-                    dataString = phyloDataToString curData
+                let baseData = ("There were " ++ (show $ length rawData) ++ " input data files and " ++ (show $ length curGraphs) ++ " graphs\n")
+                    dataString = phyloDataToString rawData
                 in
                 (baseData ++ dataString, outfileName, writeMode)
             else if "graphs" `elem` commandList then 
@@ -161,3 +161,6 @@ executeRenameCommands curPairs commandList  =
             in
             executeRenameCommands (curPairs ++ newPairs) (tail commandList)
 
+-- | executeSet processes the "set" command
+-- set command very general can set outgroup, optimality criterion, blocks
+-- executeSet :: 

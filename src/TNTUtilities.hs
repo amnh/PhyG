@@ -225,7 +225,7 @@ renameTNTChars :: String -> Int -> [CharInfo] -> [CharInfo]
 renameTNTChars fileName charIndex inCharInfo =
     if null inCharInfo then []
     else 
-        let newName = T.pack $ fileName ++ ":" ++ show charIndex
+        let newName = T.pack $ (filter (/= ' ') fileName) ++ ":" ++ show charIndex
             firstCharInfo = head inCharInfo
             localCharInfo = firstCharInfo {name = newName}
         in 
