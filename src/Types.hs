@@ -101,24 +101,24 @@ type NameText = T.Text
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single
-data CharacterData = CharcaterData { stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
-                             , minRangerelim :: V.Vector BV.BV -- for Additive
-                             , maxRangerelim :: V.Vector BV.BV -- for Additive
-                             , matrixStatesrelim :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
-                             , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
-                             , minRangeFinal :: V.Vector BV.BV -- for Additive
-                             , maxRangeFinal :: V.Vector BV.BV -- for Additive
-                             , matrixStatesFinal :: V.Vector (StateCost) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
-                             , approxMatrixCost :: VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
-                             , localCostVect :: V.Vector StateCost 
-                             , localCost :: VertexCost -- weight * V.sum localCostVect
-                             , globalCost :: VertexCost -- unclear if need vector version
-                             -- triple for Sankoff optimization--cost, left and right descendant states
-                             , isLeaf :: Bool  --length succ == 0
-                             , isRoot :: Bool -- length pred == 0
-                             , isTree :: Bool -- length pre == 1
-                             , isNetwork :: Bool -- length pred > 1
-                             } deriving (Show, Eq)
+data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+		                             , minRangerelim :: V.Vector Int -- for Additive
+		                             , maxRangerelim :: V.Vector Int -- for Additive
+		                             , matrixStatesrelim :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
+		                             , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+		                             , minRangeFinal :: V.Vector Int -- for Additive
+		                             , maxRangeFinal :: V.Vector Int -- for Additive
+		                             , matrixStatesFinal :: V.Vector (StateCost) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
+		                             , approxMatrixCost :: VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
+		                             , localCostVect :: V.Vector StateCost 
+		                             , localCost :: VertexCost -- weight * V.sum localCostVect
+		                             , globalCost :: VertexCost -- unclear if need vector version
+		                             -- triple for Sankoff optimization--cost, left and right descendant states
+		                             , isLeaf :: Bool  --length succ == 0
+		                             , isRoot :: Bool -- length pred == 0
+		                             , isTree :: Bool -- length pre == 1
+		                             , isNetwork :: Bool -- length pred > 1
+		                             } deriving (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
@@ -155,9 +155,10 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- leaves will alwasy be first (indices 0..n-1) for simpler ipdating of data during graph optimization
 -- NameText is the block label used for assignment and reporting output
 -- Initially set to input filename of character
+-- first feils is the name of teh block--intially taken from input filenames
 -- the second field of thee intial pair is a vector for vertices which has a vector for its charcaer states
 -- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
-type BlockData = (V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
+type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
 
 
 

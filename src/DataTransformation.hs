@@ -113,11 +113,11 @@ checkDuplicatedTerminals inData =
 -- and sorts the result
 joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
-	if ((length $ head inFileLists) == 0) then []
-	else 	
-	    let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
-	    in
-	    firstLeaf : joinSortFileData (fmap tail inFileLists)
+    if ((length $ head inFileLists) == 0) then []
+    else     
+        let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
+        in
+        firstLeaf : joinSortFileData (fmap tail inFileLists)
 
 
 -- | createBVNames takes input data, sorts the raw data, hashes, sorts those to create
@@ -152,17 +152,53 @@ createBVNames inDataList =
 -- these data can be input to any data optimization commands and are useful
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
-createNaiveData :: [RawData] -> [(T.Text, BV.BV)] -> V.Vector NameText -> V.Vector BlockData -> ProcessedData
-createNaiveData inDataList leafBitVectorNames curNames curBlockData = 
-    if null inDataList then (curNames, curBlockData)
+-- the list accumulator is to avoid Vector snoc/cons O(n)
+createNaiveData :: [RawData] -> [(T.Text, BV.BV)] -> [BlockData] -> ProcessedData
+createNaiveData inDataList leafBitVectorNames curBlockData = 
+    if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ reverse curBlockData)
     else 
         let firstInput@(firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames curNames curBlockData
+        if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
         else 
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
-            
+            let thisBlockName = T.takeWhile (/= ':') $ name $ head firstCharInfo
+                thisBlockCharInfo = V.fromList firstCharInfo
+                recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
+                thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
+                thisBlockData = (thisBlockName, thisBlockGuts, thisBlockCharInfo)
+            in
+            trace ("Recoding block: " ++ T.unpack thisBlockName)
+            createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
 
-            createNaiveData (tail inDataList) leafBitVectorNames curNames curBlockData
+-- | recodeRawData takes the ShortText representation of character states/ranges etc
+-- and recodes the apporpriate fields in CharacterData (from Types) 
+-- the list accumulator is to avoid Vectotr cons/snoc O(n)
+-- differentiates between seqeunce type and others with char info
+recodeRawData :: [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
+recodeRawData inData inCharInfo curCharData =
+    if null inData then V.fromList $ reverse $ fmap V.fromList curCharData
+    else 
+        let firstData = head inData
+            firstDataRecoded = createLeafCharacter inCharInfo firstData
+        in
+        --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo))
+        recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)  
+
+-- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
+-- need to add in missing data as well
+createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
+createLeafCharacter inCharInfoList rawDataList =
+    if null inCharInfoList then error "Null data in charInfoList createLeafCharacter"
+    else if null rawDataList then
+        -- missing data
+        [] --getMissingValue (charType $ head inCharInfoList)
+    else 
+        if (length inCharInfoList == 1) && (charType (head inCharInfoList) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
+            trace ("Sequence character")
+            []
+        else 
+            trace ("Non-sequence character")
+            []

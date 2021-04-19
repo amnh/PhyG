@@ -104,9 +104,10 @@ main =
 
     -- Create unique, label invariant bitvector names for leaf taxa.  
     let leafBitVectorNames = DT.createBVNames reconciledData
-    
+
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
-    let naiveData = DT.createNaiveData reconciledData leafBitVectorNames V.empty V.empty
+    let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
+    hPutStrLn stderr (show naiveData)
 
 
     -- Optimize Data
