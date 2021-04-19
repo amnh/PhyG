@@ -194,7 +194,8 @@ createLeafCharacter inCharInfoList rawDataList =
     if null inCharInfoList then error "Null data in charInfoList createLeafCharacter"
     else if null rawDataList then
         -- missing data
-        [] --getMissingValue (charType $ head inCharInfoList)
+        trace ("Missing data")
+            [] --getMissingValue (charType $ head inCharInfoList)
     else 
         if (length inCharInfoList == 1) && (charType (head inCharInfoList) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
             trace ("Sequence character")
