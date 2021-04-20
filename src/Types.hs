@@ -157,7 +157,7 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- first field is the name of the block--intially taken from input filenames
 -- the second field of four tuple is the vertex type, the third a vector for  its character states
 -- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
-type BlockData = (NameText, V.Vector (NameBV, VertexType, V.Vector CharacterData), V.Vector CharInfo)
+type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
 
 
 

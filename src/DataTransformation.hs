@@ -167,7 +167,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             let thisBlockName = T.takeWhile (/= ':') $ name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
                 recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
-                thisBlockGuts = V.zip3 (V.fromList $ fmap snd leafBitVectorNames) (V.replicate (length recodedCharacters) Leaf) recodedCharacters
+                thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
                 thisBlockData = (thisBlockName, thisBlockGuts, thisBlockCharInfo)
             in
             trace ("Recoding block: " ++ T.unpack thisBlockName)
