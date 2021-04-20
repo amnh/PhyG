@@ -59,9 +59,11 @@ type Time = (Days, Hours, Minutes, Seconds)
 type Argument = (String, String)
 
 --For rename format rename:(a,b,c,...,y,z) => a-y renamed to z 
-
 data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename
     deriving (Show, Eq)
+
+-- | Vertex types
+data VertexType = Root | Leaf | Tree | Network
 
 type Command = (Instruction, [Argument])
 
@@ -104,6 +106,7 @@ type NameText = T.Text
 data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
                                      , minRangePrelim :: V.Vector Int -- for Additive
                                      , maxRangePrelim :: V.Vector Int -- for Additive
+                                     -- triple for Sankoff optimization--cost, left and right descendant states
                                      , matrixStatesPrelim :: V.Vector (V.Vector (StateCost, ChildIndex, ChildIndex)) -- for Sankoff/Matrix
                                      , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
                                      , minRangeFinal :: V.Vector Int -- for Additive
@@ -113,11 +116,6 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for N
                                      , localCostVect :: V.Vector StateCost 
                                      , localCost :: VertexCost -- weight * V.sum localCostVect
                                      , globalCost :: VertexCost -- unclear if need vector version
-                                     -- triple for Sankoff optimization--cost, left and right descendant states
-                                     , isLeaf :: Bool  --length succ == 0
-                                     , isRoot :: Bool -- length pred == 0
-                                     , isTree :: Bool -- length pre == 1
-                                     , isNetwork :: Bool -- length pred > 1
                                      } deriving (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters

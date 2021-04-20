@@ -202,10 +202,6 @@ missingNonAdditive inCharInfo =
                               , localCostVect = V.singleton 0.0
                               , localCost = 0.0
                               , globalCost = 0.0
-                              , isLeaf = True  
-                              , isRoot = False 
-                              , isTree = False
-                              , isNetwork = False
                               }
   in missingValue
 
@@ -224,10 +220,6 @@ missingAdditive inCharInfo =
                               , localCostVect = V.singleton 0.0
                               , localCost = 0.0
                               , globalCost = 0.0
-                              , isLeaf = True  
-                              , isRoot = False 
-                              , isTree = False
-                              , isNetwork = False
                               }
   in missingValue
 
@@ -248,15 +240,10 @@ missingMatrix inCharInfo =
                                     , localCostVect = V.singleton 0.0
                                     , localCost = 0.0
                                     , globalCost = 0.0
-                                    , isLeaf = True  
-                                    , isRoot = False 
-                                    , isTree = False
-                                    , isNetwork = False
                                     }
   in missingValue
 
-
--- | getMissingValue takes teh charcater type ans returns the appropriate missineg data value
+-- | getMissingValue takes the charcater type ans returns the appropriate missineg data value
 getMissingValue :: [CharInfo] -> [CharacterData] 
 getMissingValue inChar
   | null inChar = []
