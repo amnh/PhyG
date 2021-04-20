@@ -264,7 +264,7 @@ getMissingValue inChar
   | (charType $ head inChar) == NonAdd = (missingNonAdditive  $ head inChar) : getMissingValue (tail inChar)
   | (charType $ head inChar) == Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
   | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
-  | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognozed")
+  | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognized")
 
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
