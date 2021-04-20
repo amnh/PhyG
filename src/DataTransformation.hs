@@ -191,12 +191,12 @@ recodeRawData inData inCharInfo curCharData =
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
   let missingValue = CharacterData { stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
-                              , minRangePrelim = V.singleton 0
-                              , maxRangePrelim = V.singleton 0
+                              , minRangePrelim = V.empty
+                              , maxRangePrelim = V.empty
                               , matrixStatesPrelim = V.empty
                               , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
-                              , minRangeFinal = V.singleton 0
-                              , maxRangeFinal = V.singleton 0
+                              , minRangeFinal = V.empty
+                              , maxRangeFinal = V.empty
                               , matrixStatesFinal = V.empty
                               , approxMatrixCost = V.singleton 0.0
                               , localCostVect = V.singleton 0.0
@@ -208,11 +208,11 @@ missingNonAdditive inCharInfo =
 -- | missingAdditive is additive missing character value, all 1's based on alohabte size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
-  let missingValue = CharacterData { stateBVPrelim = V.singleton (BV.zeros 1) 
+  let missingValue = CharacterData { stateBVPrelim = V.empty
                               , minRangePrelim = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
                               , maxRangePrelim = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
                               , matrixStatesPrelim = V.empty
-                              , stateBVFinal = V.singleton (BV.zeros 1) 
+                              , stateBVFinal = V.empty
                               , minRangeFinal = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
                               , maxRangeFinal = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
                               , matrixStatesFinal = V.empty
@@ -228,13 +228,13 @@ missingMatrix :: CharInfo -> CharacterData
 missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0.0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
-      missingValue = CharacterData  { stateBVPrelim = V.singleton (BV.zeros 1) 
-                                    , minRangePrelim = V.singleton 0
-                                    , maxRangePrelim = V.singleton 0
+      missingValue = CharacterData  { stateBVPrelim = V.empty
+                                    , minRangePrelim = V.empty
+                                    , maxRangePrelim = V.empty
                                     , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
-                                    , stateBVFinal = V.singleton (BV.zeros 1) 
-                                    , minRangeFinal = V.singleton 0
-                                    , maxRangeFinal = V.singleton 0
+                                    , stateBVFinal = V.empty
+                                    , minRangeFinal = V.empty
+                                    , maxRangeFinal = V.empty
                                     , matrixStatesFinal = V.singleton (V.empty)
                                     , approxMatrixCost = V.singleton 0.0
                                     , localCostVect = V.singleton 0.0
