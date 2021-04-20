@@ -74,6 +74,7 @@ data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSe
 
 
 -- | CharInfo information about characters
+-- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
 data CharInfo = CharInfo { name :: T.Text
                          , charType :: CharType
                          , activity :: Bool
@@ -104,6 +105,7 @@ type NameText = T.Text
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single
+-- for approximate (DO-like) costs can use stateBVPrelim/stateBVFinal
 data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
                                      , minRangePrelim :: V.Vector Int -- for Additive
                                      , maxRangePrelim :: V.Vector Int -- for Additive

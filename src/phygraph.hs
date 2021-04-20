@@ -106,7 +106,10 @@ main =
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
-    hPutStrLn stderr (show naiveData)
+
+    -- To test datga recoding and basic median2
+    let pairDist = getPairwiseDistances naiveData
+    hPutStrLn stderr (show pairDist)
 
 
     -- Optimize Data

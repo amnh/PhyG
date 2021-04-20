@@ -52,6 +52,7 @@ import qualified Data.BitVector as BV
 import qualified Data.Vector    as V
 import qualified Data.Text.Short as ST
 import qualified Data.Hashable as H
+import           Text.Read
 import           Debug.Trace
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
@@ -187,7 +188,7 @@ recodeRawData inData inCharInfo curCharData =
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo))
         recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)  
 
--- | missingNonAdditive is non-additive missing character value, all 1's based on alohabte size
+-- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
   let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
@@ -205,7 +206,7 @@ missingNonAdditive inCharInfo =
                                       }
   in missingValue
 
--- | missingAdditive is additive missing character value, all 1's based on alohabte size
+-- | missingAdditive is additive missing character value, all 1's based on alphabet size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
   let missingValue = CharacterData {    stateBVPrelim = V.empty
@@ -223,16 +224,17 @@ missingAdditive inCharInfo =
                                       }
   in missingValue
 
--- | missingMatrix is additive missing character value, all 1's based on alohabte size
+-- | missingMatrix is additive missing character value, all 1's based on alphabet size
+-- setrting stateBVPrelim/Final for approx DO-like costs (lookup)
 missingMatrix :: CharInfo -> CharacterData
 missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
-      missingValue = CharacterData  { stateBVPrelim = V.empty
+      missingValue = CharacterData  { stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
                                     , minRangePrelim = V.empty
                                     , maxRangePrelim = V.empty
                                     , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
-                                    , stateBVFinal = V.empty
+                                    , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
                                     , minRangeFinal = V.empty
                                     , maxRangeFinal = V.empty
                                     , matrixStatesFinal = V.singleton (V.empty)
@@ -402,6 +404,157 @@ getGeneralSequenceChar inCharInfo stateList =
                                               }
         in
         [newSequenceChar]
+
+
+-- | getSingleStateBV takes a single state and retuerns its bitvector
+-- based on alphabet size--does not check if ambiguous--assumes single state
+getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BV
+getSingleStateBV localAlphabet localState = 
+    let stateIndex = findIndex (== localState) localAlphabet
+        bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
+        bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
+    in
+    if stateIndex ==  Nothing then error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
+    else bvState
+
+-- | getStateBitVector takes teh alphabet of a character ([ShorText])
+-- and returns then bitvectorfor that state in order of states in alphabet
+getStateBitVector :: [ST.ShortText] -> ST.ShortText -> BV.BV
+getStateBitVector localAlphabet localState  =
+    if null localAlphabet then error "Character with empty alphabet in getStateBitVector"
+    else 
+        let stateString = ST.toString localState
+        in
+        --single state
+        if '[' `notElem` stateString then getSingleStateBV localAlphabet localState 
+        --Ambiguous/Polymorphic state
+        else 
+            let statesStringList = words $ tail $ init stateString
+                stateList = fmap ST.fromString statesStringList
+            in
+            BV.or $ fmap (getSingleStateBV localAlphabet) stateList
+            
+
+-- getIntRange takes the local states and returns the IOnteger range of an additive character
+-- in principle allows for > 2 states 
+getIntRange :: ST.ShortText -> (Int, Int)
+getIntRange localState = 
+    let stateString = ST.toString localState
+        in
+        --single state
+        if '[' `notElem` stateString then 
+            let onlyInt = readMaybe stateString :: Maybe Int
+            in
+            if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ ST.toString localState)
+            else (fromJust onlyInt, fromJust onlyInt)
+        --Range of states
+        else 
+            let statesStringList = words $ tail $ init stateString
+                stateInts = fmap readMaybe statesStringList :: [Maybe Int]
+            in
+            if Nothing `elem` stateInts then error ("Non-integer in range " ++ ST.toString localState)
+            else (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts)
+
+-- | getTripleList
+getTripleList :: (StateCost, ChildIndex, ChildIndex) -> (StateCost, ChildIndex, ChildIndex) -> [ST.ShortText] -> [ST.ShortText]-> [(StateCost, ChildIndex, ChildIndex)]
+getTripleList hasState notHasState localAlphabet stateList =
+    if null localAlphabet then []
+    else 
+        let firstAlphState = head localAlphabet
+        in
+        if firstAlphState `elem` stateList then hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
+        else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
+
+-- | getInitialMatrixVector gets matric vector
+getInitialMatrixVector :: [ST.ShortText] -> ST.ShortText -> V.Vector (StateCost, ChildIndex, ChildIndex)
+getInitialMatrixVector localAlphabet localState = 
+    let hasState = (0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+        notHasState = (maxBound :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+    in
+    let stateString = ST.toString localState
+        in
+        --single state
+        if '[' `notElem` stateString then 
+            V.fromList $ reverse $ getTripleList hasState notHasState localAlphabet [localState]
+        -- polylorphic/ambiguous
+        else 
+            let statesStringList = words $ tail $ init stateString
+                stateList = fmap ST.fromString statesStringList
+            in
+            V.fromList $ reverse $ getTripleList hasState notHasState localAlphabet stateList
+
+-- | getQualitativeCharacters processes non-sequence characters (non-additive, additive, sankoff/matrix)
+-- and recodes returning list of encoded characters
+-- reverses order due to prepending
+-- matrix stateBVPrelim/Final for approx matrix costs
+getQualitativeCharacters :: [CharInfo] -> [ST.ShortText] -> [CharacterData] -> [CharacterData]
+getQualitativeCharacters inCharInfoList inStateList curCharList =
+    if null inCharInfoList then reverse curCharList
+    else 
+        let firstCharInfo = head inCharInfoList
+            firstState = head inStateList
+            firstCharType = charType firstCharInfo
+        in
+        --single state
+        if firstCharType == NonAdd then
+            let stateBV = getStateBitVector (alphabet firstCharInfo) firstState
+                newCharacter = CharacterData {  stateBVPrelim = V.singleton stateBV
+                                              , minRangePrelim = V.empty
+                                              , maxRangePrelim = V.empty
+                                              , matrixStatesPrelim = V.empty
+                                              , stateBVFinal = V.singleton stateBV
+                                              , minRangeFinal = V.empty
+                                              , maxRangeFinal = V.empty
+                                              , matrixStatesFinal = V.empty
+                                              , approxMatrixCost = V.singleton 0
+                                              , localCostVect = V.singleton 0
+                                              , localCost = 0.0
+                                              , globalCost = 0.0
+                                              }
+                in
+                getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+
+            else if firstCharType == Add then
+                let (minRange, maxRange) = getIntRange firstState
+                    newCharacter = CharacterData {  stateBVPrelim = V.empty
+                                                  , minRangePrelim = V.singleton minRange
+                                                  , maxRangePrelim = V.singleton maxRange
+                                                  , matrixStatesPrelim = V.empty
+                                                  , stateBVFinal = V.empty
+                                                  , minRangeFinal = V.singleton minRange
+                                                  , maxRangeFinal = V.singleton maxRange
+                                                  , matrixStatesFinal = V.empty
+                                                  , approxMatrixCost = V.singleton 0
+                                                  , localCostVect = V.singleton 0
+                                                  , localCost = 0.0
+                                                  , globalCost = 0.0
+                                                  }
+                in
+                getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+
+            else if firstCharType == Matrix then 
+                let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
+                    stateBV = getStateBitVector (alphabet firstCharInfo) firstState
+                    newCharacter = CharacterData {  stateBVPrelim = V.singleton stateBV
+                                                  , minRangePrelim = V.empty
+                                                  , maxRangePrelim = V.empty
+                                                  , matrixStatesPrelim = V.singleton initialMatrixVector
+                                                  , stateBVFinal = V.singleton stateBV
+                                                  , minRangeFinal = V.empty
+                                                  , maxRangeFinal = V.empty
+                                                  , matrixStatesFinal = V.singleton V.empty
+                                                  , approxMatrixCost = V.singleton 0
+                                                  , localCostVect = V.singleton 0
+                                                  , localCost = 0.0
+                                                  , globalCost = 0.0
+                                                  }
+                in
+                if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
+                else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+
+            else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
+
+        
         
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
@@ -421,8 +574,9 @@ createLeafCharacter inCharInfoList rawDataList =
             else -- non-IUPAC codes 
                 getGeneralSequenceChar (head inCharInfoList) rawDataList -- ambiguities different, and alphabet varies with character (potentially)
         else 
-            trace ("Non-sequence character")  
-            []
+            if (length inCharInfoList /= length rawDataList) then error ("Mismatch in nubner of characters and character info")
+            else 
+                getQualitativeCharacters inCharInfoList rawDataList []
 
 
 
