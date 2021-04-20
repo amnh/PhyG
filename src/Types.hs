@@ -85,7 +85,7 @@ data CharInfo = CharInfo { name :: T.Text
 
 -- | Types for vertex information
 type VertexCost = Double
-type StateCost = Double
+type StateCost = Int
 
 -- | index of child vertices 
 type ChildIndex = Int
@@ -104,7 +104,7 @@ type NameText = T.Text
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single
-data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
                                      , minRangePrelim :: V.Vector Int -- for Additive
                                      , maxRangePrelim :: V.Vector Int -- for Additive
                                      -- triple for Sankoff optimization--cost, left and right descendant states
@@ -113,7 +113,7 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for N
                                      , minRangeFinal :: V.Vector Int -- for Additive
                                      , maxRangeFinal :: V.Vector Int -- for Additive
                                      , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
-                                     , approxMatrixCost ::  V.Vector VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
+                                     , approxMatrixCost ::  V.Vector StateCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
                                      , localCostVect :: V.Vector StateCost 
                                      , localCost :: VertexCost -- weight * V.sum localCostVect
                                      , globalCost :: VertexCost -- unclear if need vector version

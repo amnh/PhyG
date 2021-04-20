@@ -190,44 +190,44 @@ recodeRawData inData inCharInfo curCharData =
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alohabte size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
-  let missingValue = CharacterData { stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
-                              , minRangePrelim = V.empty
-                              , maxRangePrelim = V.empty
-                              , matrixStatesPrelim = V.empty
-                              , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
-                              , minRangeFinal = V.empty
-                              , maxRangeFinal = V.empty
-                              , matrixStatesFinal = V.empty
-                              , approxMatrixCost = V.singleton 0.0
-                              , localCostVect = V.singleton 0.0
-                              , localCost = 0.0
-                              , globalCost = 0.0
-                              }
+  let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+                                      , minRangePrelim = V.empty
+                                      , maxRangePrelim = V.empty
+                                      , matrixStatesPrelim = V.empty
+                                      , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+                                      , minRangeFinal = V.empty
+                                      , maxRangeFinal = V.empty
+                                      , matrixStatesFinal = V.empty
+                                      , approxMatrixCost = V.singleton 0
+                                      , localCostVect = V.singleton 0
+                                      , localCost = 0.0
+                                      , globalCost = 0.0
+                                      }
   in missingValue
 
 -- | missingAdditive is additive missing character value, all 1's based on alohabte size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
-  let missingValue = CharacterData { stateBVPrelim = V.empty
-                              , minRangePrelim = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
-                              , maxRangePrelim = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
-                              , matrixStatesPrelim = V.empty
-                              , stateBVFinal = V.empty
-                              , minRangeFinal = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
-                              , maxRangeFinal = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
-                              , matrixStatesFinal = V.empty
-                              , approxMatrixCost = V.singleton 0.0
-                              , localCostVect = V.singleton 0.0
-                              , localCost = 0.0
-                              , globalCost = 0.0
-                              }
+  let missingValue = CharacterData {    stateBVPrelim = V.empty
+                                      , minRangePrelim = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
+                                      , maxRangePrelim = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
+                                      , matrixStatesPrelim = V.empty
+                                      , stateBVFinal = V.empty
+                                      , minRangeFinal = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
+                                      , maxRangeFinal = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
+                                      , matrixStatesFinal = V.empty
+                                      , approxMatrixCost = V.singleton 0
+                                      , localCostVect = V.singleton 0
+                                      , localCost = 0.0
+                                      , globalCost = 0.0
+                                      }
   in missingValue
 
 -- | missingMatrix is additive missing character value, all 1's based on alohabte size
 missingMatrix :: CharInfo -> CharacterData
 missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
-      missingState = (0.0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+      missingState = (0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
       missingValue = CharacterData  { stateBVPrelim = V.empty
                                     , minRangePrelim = V.empty
                                     , maxRangePrelim = V.empty
@@ -236,8 +236,8 @@ missingMatrix inCharInfo =
                                     , minRangeFinal = V.empty
                                     , maxRangeFinal = V.empty
                                     , matrixStatesFinal = V.singleton (V.empty)
-                                    , approxMatrixCost = V.singleton 0.0
-                                    , localCostVect = V.singleton 0.0
+                                    , approxMatrixCost = V.singleton 0
+                                    , localCostVect = V.singleton 0
                                     , localCost = 0.0
                                     , globalCost = 0.0
                                     }
@@ -253,6 +253,156 @@ getMissingValue inChar
   | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
   | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognized")
 
+
+-- | getStateBitVectorList takes teh alphabet of a character ([ShorText])
+-- and returns bitvectors (with of size alphabet) for each state in order of states in alphabet
+getStateBitVectorList :: [ST.ShortText] -> V.Vector (ST.ShortText, BV.BV)
+getStateBitVectorList localStates =
+    if null localStates then error "Character with empty alphabet in getStateBitVectorList"
+    else 
+        let stateIndexList = [0..((length localStates) - 1)]
+            bv1 = BV.bitVec (length localStates) (1 :: Integer)
+            bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length localStates)) stateIndexList)
+        in
+        V.fromList $ zip localStates bvList
+
+-- | getNucleotideSequenceChar returns the character sgtructure for a Nucleic Acid sequence type
+getNucleotideSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BV)
+getNucleotideSequenceCodes localAlphabet  =
+    let stateBVList = getStateBitVectorList localAlphabet
+        stateA = snd $ stateBVList V.! 0
+        stateC = snd $ stateBVList V.! 1
+        stateG = snd $ stateBVList V.! 2
+        stateT = snd $ stateBVList V.! 3
+        stateGap = snd $ stateBVList V.! 4
+        -- ambiguity codes
+        pairR = (ST.singleton 'R', BV.or [stateA, stateG])
+        pairY = (ST.singleton 'Y', BV.or [stateC, stateT])
+        pairW = (ST.singleton 'W', BV.or [stateA, stateT])
+        pairS = (ST.singleton 'S', BV.or [stateC, stateG])
+        pairM = (ST.singleton 'M', BV.or [stateA, stateC])
+        pairK = (ST.singleton 'K', BV.or [stateG, stateT])
+        pairB = (ST.singleton 'B', BV.or [stateC, stateG, stateT])
+        pairD = (ST.singleton 'D', BV.or [stateA, stateG, stateT])
+        pairH = (ST.singleton 'H', BV.or [stateA, stateC, stateT])
+        pairV = (ST.singleton 'V', BV.or [stateA, stateC, stateG])
+        pairN = (ST.singleton 'N', BV.or [stateA, stateC, stateG, stateT])
+        pairQuest = (ST.singleton '?', BV.or [stateA, stateC, stateG, stateT, stateGap])
+        ambigPairVect = V.fromList $ [pairR, pairY, pairW, pairS, pairM, pairK, pairB, pairD, pairH, pairV, pairN, pairQuest]
+        totalStateList = stateBVList V.++ ambigPairVect
+    in
+    --trace (show $ fmap BV.showBin $ fmap snd $ totalStateList)
+    totalStateList
+
+-- | nucleotideBVPairs for recoding DNA sequences
+-- this done to insure not recalculating everything for each base
+nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BV)
+nucleotideBVPairs = getNucleotideSequenceCodes (fmap ST.fromString ["A","C","G","T","-"]) 
+
+
+-- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
+getAminoAcidSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BV)
+getAminoAcidSequenceCodes localAlphabet  =
+    let stateBVList = getStateBitVectorList localAlphabet
+        pairB = (ST.singleton 'B', BV.or [snd $ stateBVList V.! 2, snd $ stateBVList V.! 11]) -- B = D or N
+        pairZ = (ST.singleton 'Z', BV.or [snd $ stateBVList V.! 3, snd $ stateBVList V.! 13]) -- E or Q
+        pairX = (ST.singleton 'X', BV.or $ V.toList $ V.map snd (V.init stateBVList))  --All AA not '-'
+        pairQuest = (ST.singleton '?', BV.or $ V.toList $ V.map snd stateBVList)       -- all including -'-' Not IUPAC
+        ambigPairVect = V.fromList $ [pairB, pairZ, pairX, pairQuest]
+        totalStateList = stateBVList V.++ ambigPairVect
+
+    in
+    --trace (show $ fmap BV.showBin $ fmap snd $ totalStateList)
+    totalStateList
+
+
+-- | aminoAcidBVPairs for recoding protein sequences
+-- this done to insure not recalculating everything for each residue
+-- B, Z, X, ? for ambiguities
+aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BV)
+aminoAcidBVPairs = getAminoAcidSequenceCodes (fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"])
+
+-- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for
+-- ShortText state
+getBVCode :: V.Vector (ST.ShortText, BV.BV) -> ST.ShortText -> BV.BV
+getBVCode bvCodeVect inState = 
+    let newCode = V.find ((== inState).fst) bvCodeVect
+    in
+    if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
+    else snd $ fromJust newCode
+
+
+-- | getSequenceChar takes shortext list and converts to a Vector of bit vector coded states
+-- in a CharacterData structure
+getSequenceChar :: V.Vector (ST.ShortText, BV.BV) -> [ST.ShortText] -> [CharacterData]
+getSequenceChar nucBVPairVect stateList =
+    if null stateList then error "Empty stateLIst in getNucleotideSequenceChar"
+    else 
+        let sequenceVect = V.fromList $ fmap (getBVCode nucBVPairVect) stateList
+            newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
+                                              , minRangePrelim = V.empty
+                                              , maxRangePrelim = V.empty
+                                              , matrixStatesPrelim = V.empty
+                                              , stateBVFinal = sequenceVect
+                                              , minRangeFinal = V.empty
+                                              , maxRangeFinal = V.empty
+                                              , matrixStatesFinal = V.empty
+                                              , approxMatrixCost = V.singleton 0
+                                              , localCostVect = V.singleton 0
+                                              , localCost = 0.0
+                                              , globalCost = 0.0
+                                              }
+        in
+        [newSequenceChar]
+
+-- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
+-- ShortText state.  These states can be ambiguous as in general sequences
+-- so states need to be parsed first
+getGeneralBVCode :: V.Vector (ST.ShortText, BV.BV) -> ST.ShortText -> BV.BV
+getGeneralBVCode bvCodeVect inState = 
+    let inStateString = ST.toString inState
+    in
+    if '[' `notElem` inStateString then --single state
+        let newCode = V.find ((== inState).fst) bvCodeVect
+        in
+        if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
+        else snd $ fromJust newCode
+    else 
+        let statesStringList = words $ tail $ init inStateString
+            stateList = fmap ST.fromString statesStringList
+            maybeBVList =  fmap getBV stateList
+            stateBVList = fmap snd $ fmap fromJust maybeBVList
+            ambiguousBVState = BV.or stateBVList
+        in
+        if Nothing `elem` maybeBVList then error ("Ambiguity grooup " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
+        else ambiguousBVState
+            where getBV s = (V.find ((== s).fst)) bvCodeVect
+
+-- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
+-- as bitvectors,.  Main difference with getSequenceChar is in dealing wioth ambiguities
+-- they need to be parsed and "or-ed" differently
+getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
+getGeneralSequenceChar inCharInfo stateList = 
+    if null stateList then error "Empty stateLIst in getGeneralSequenceChar"
+    else 
+        let stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
+            sequenceVect = V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+            newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
+                                              , minRangePrelim = V.empty
+                                              , maxRangePrelim = V.empty
+                                              , matrixStatesPrelim = V.empty
+                                              , stateBVFinal = sequenceVect
+                                              , minRangeFinal = V.empty
+                                              , maxRangeFinal = V.empty
+                                              , matrixStatesFinal = V.empty
+                                              , approxMatrixCost = V.singleton 0
+                                              , localCostVect = V.singleton 0
+                                              , localCost = 0.0
+                                              , globalCost = 0.0
+                                              }
+        in
+        [newSequenceChar]
+        
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
 createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
@@ -262,11 +412,16 @@ createLeafCharacter inCharInfoList rawDataList =
         -- missing data
         getMissingValue inCharInfoList
     else 
-        if (length inCharInfoList == 1) && (charType (head inCharInfoList) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
-            trace ("Sequence character")
-            []
+        let localCharType = charType $ head inCharInfoList
+        in
+        if (length inCharInfoList == 1) &&  (localCharType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
+            --trace ("Sequence character")
+            if localCharType == NucSeq then getSequenceChar nucleotideBVPairs rawDataList --single state ambiguity codes
+            else if localCharType == AminoSeq then getSequenceChar aminoAcidBVPairs rawDataList --single state ambiguity codes
+            else -- non-IUPAC codes 
+                getGeneralSequenceChar (head inCharInfoList) rawDataList -- ambiguities different, and alphabet varies with character (potentially)
         else 
-            trace ("Non-sequence character")
+            trace ("Non-sequence character")  
             []
 
 
