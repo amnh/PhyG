@@ -155,7 +155,7 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- NameText is the block label used for assignment and reporting output
 -- Initially set to input filename of character
 -- first field is the name of the block--intially taken from input filenames
--- the second field of four tuple is the vertex type, the third a vector for  its character states
+-- the second field of three tuple is a vector with a nde Bitvector, its character states
 -- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
 type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
 
