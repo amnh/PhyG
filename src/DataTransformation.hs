@@ -137,7 +137,7 @@ createBVNames inDataList =
         (_, leafReoderedList) = unzip leafHashPair
         leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
         (nameList, intList) = unzip leafOrder
-        bv1 = BV.bitVec (length nameList) 1
+        bv1 = BV.bitVec (length nameList) (1 :: Integer)
         bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length nameList)) intList)
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
@@ -187,6 +187,85 @@ recodeRawData inData inCharInfo curCharData =
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo))
         recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)  
 
+-- | missingNonAdditive is non-additive missing character value, all 1's based on alohabte size
+missingNonAdditive :: CharInfo -> CharacterData
+missingNonAdditive inCharInfo =
+  let missingValue = CharacterData { stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+                              , minRangePrelim = V.singleton 0
+                              , maxRangePrelim = V.singleton 0
+                              , matrixStatesPrelim = V.empty
+                              , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+                              , minRangeFinal = V.singleton 0
+                              , maxRangeFinal = V.singleton 0
+                              , matrixStatesFinal = V.empty
+                              , approxMatrixCost = V.singleton 0.0
+                              , localCostVect = V.singleton 0.0
+                              , localCost = 0.0
+                              , globalCost = 0.0
+                              , isLeaf = True  
+                              , isRoot = False 
+                              , isTree = False
+                              , isNetwork = False
+                              }
+  in missingValue
+
+-- | missingAdditive is additive missing character value, all 1's based on alohabte size
+missingAdditive :: CharInfo -> CharacterData
+missingAdditive inCharInfo =
+  let missingValue = CharacterData { stateBVPrelim = V.singleton (BV.zeros 1) 
+                              , minRangePrelim = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
+                              , maxRangePrelim = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
+                              , matrixStatesPrelim = V.empty
+                              , stateBVFinal = V.singleton (BV.zeros 1) 
+                              , minRangeFinal = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
+                              , maxRangeFinal = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
+                              , matrixStatesFinal = V.empty
+                              , approxMatrixCost = V.singleton 0.0
+                              , localCostVect = V.singleton 0.0
+                              , localCost = 0.0
+                              , globalCost = 0.0
+                              , isLeaf = True  
+                              , isRoot = False 
+                              , isTree = False
+                              , isNetwork = False
+                              }
+  in missingValue
+
+-- | missingMatrix is additive missing character value, all 1's based on alohabte size
+missingMatrix :: CharInfo -> CharacterData
+missingMatrix inCharInfo =
+  let numStates = length $ alphabet inCharInfo
+      missingState = (0.0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+      missingValue = CharacterData  { stateBVPrelim = V.singleton (BV.zeros 1) 
+                                    , minRangePrelim = V.singleton 0
+                                    , maxRangePrelim = V.singleton 0
+                                    , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
+                                    , stateBVFinal = V.singleton (BV.zeros 1) 
+                                    , minRangeFinal = V.singleton 0
+                                    , maxRangeFinal = V.singleton 0
+                                    , matrixStatesFinal = V.singleton (V.empty)
+                                    , approxMatrixCost = V.singleton 0.0
+                                    , localCostVect = V.singleton 0.0
+                                    , localCost = 0.0
+                                    , globalCost = 0.0
+                                    , isLeaf = True  
+                                    , isRoot = False 
+                                    , isTree = False
+                                    , isNetwork = False
+                                    }
+  in missingValue
+
+
+-- | getMissingValue takes teh charcater type ans returns the appropriate missineg data value
+getMissingValue :: [CharInfo] -> [CharacterData] 
+getMissingValue inChar
+  | null inChar = []
+  | (charType $ head inChar) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] = [] 
+  | (charType $ head inChar) == NonAdd = (missingNonAdditive  $ head inChar) : getMissingValue (tail inChar)
+  | (charType $ head inChar) == Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
+  | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
+  | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognozed")
+
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
 createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
@@ -194,8 +273,7 @@ createLeafCharacter inCharInfoList rawDataList =
     if null inCharInfoList then error "Null data in charInfoList createLeafCharacter"
     else if null rawDataList then
         -- missing data
-        trace ("Missing data")
-            [] --getMissingValue (charType $ head inCharInfoList)
+        getMissingValue inCharInfoList
     else 
         if (length inCharInfoList == 1) && (charType (head inCharInfoList) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
             trace ("Sequence character")
@@ -203,3 +281,7 @@ createLeafCharacter inCharInfoList rawDataList =
         else 
             trace ("Non-sequence character")
             []
+
+
+
+

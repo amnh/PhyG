@@ -102,23 +102,23 @@ type NameText = T.Text
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single
 data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
-		                             , minRangerelim :: V.Vector Int -- for Additive
-		                             , maxRangerelim :: V.Vector Int -- for Additive
-		                             , matrixStatesrelim :: V.Vector (StateCost, ChildIndex, ChildIndex) -- for Sankoff/Matrix
-		                             , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
-		                             , minRangeFinal :: V.Vector Int -- for Additive
-		                             , maxRangeFinal :: V.Vector Int -- for Additive
-		                             , matrixStatesFinal :: V.Vector (StateCost) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
-		                             , approxMatrixCost :: VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
-		                             , localCostVect :: V.Vector StateCost 
-		                             , localCost :: VertexCost -- weight * V.sum localCostVect
-		                             , globalCost :: VertexCost -- unclear if need vector version
-		                             -- triple for Sankoff optimization--cost, left and right descendant states
-		                             , isLeaf :: Bool  --length succ == 0
-		                             , isRoot :: Bool -- length pred == 0
-		                             , isTree :: Bool -- length pre == 1
-		                             , isNetwork :: Bool -- length pred > 1
-		                             } deriving (Show, Eq)
+                                     , minRangePrelim :: V.Vector Int -- for Additive
+                                     , maxRangePrelim :: V.Vector Int -- for Additive
+                                     , matrixStatesPrelim :: V.Vector (V.Vector (StateCost, ChildIndex, ChildIndex)) -- for Sankoff/Matrix
+                                     , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+                                     , minRangeFinal :: V.Vector Int -- for Additive
+                                     , maxRangeFinal :: V.Vector Int -- for Additive
+                                     , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
+                                     , approxMatrixCost ::  V.Vector VertexCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
+                                     , localCostVect :: V.Vector StateCost 
+                                     , localCost :: VertexCost -- weight * V.sum localCostVect
+                                     , globalCost :: VertexCost -- unclear if need vector version
+                                     -- triple for Sankoff optimization--cost, left and right descendant states
+                                     , isLeaf :: Bool  --length succ == 0
+                                     , isRoot :: Bool -- length pred == 0
+                                     , isTree :: Bool -- length pre == 1
+                                     , isNetwork :: Bool -- length pred > 1
+                                     } deriving (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
