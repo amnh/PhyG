@@ -47,7 +47,6 @@ import qualified CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
 import qualified DataTransformation as DT
 import           Data.List
-import qualified Data.Vector    as V
 --import           Debug.Trace
 
 

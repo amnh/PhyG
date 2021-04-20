@@ -64,6 +64,7 @@ data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | S
 
 -- | Vertex types
 data VertexType = Root | Leaf | Tree | Network
+    deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])
 
@@ -153,10 +154,10 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- leaves will alwasy be first (indices 0..n-1) for simpler ipdating of data during graph optimization
 -- NameText is the block label used for assignment and reporting output
 -- Initially set to input filename of character
--- first feils is the name of teh block--intially taken from input filenames
--- the second field of thee intial pair is a vector for vertices which has a vector for its charcaer states
+-- first field is the name of the block--intially taken from input filenames
+-- the second field of four tuple is the vertex type, the third a vector for  its character states
 -- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
-type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
+type BlockData = (NameText, V.Vector (NameBV, VertexType, V.Vector CharacterData), V.Vector CharInfo)
 
 
 
