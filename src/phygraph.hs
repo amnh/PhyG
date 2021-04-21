@@ -46,6 +46,7 @@ import           GeneralUtilities
 import qualified CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
 import qualified DataTransformation as DT
+import qualified Distances as D
 import           Data.List
 --import           Debug.Trace
 
@@ -108,7 +109,7 @@ main =
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
     -- To test datga recoding and basic median2
-    let pairDist = getPairwiseDistances naiveData
+    let pairDist = D.getPairwiseDistances naiveData
     hPutStrLn stderr (show pairDist)
 
 

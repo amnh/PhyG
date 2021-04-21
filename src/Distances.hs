@@ -1,6 +1,6 @@
 {- |
-Module      :  Medians.hs
-Description :  Module specifying data type medians
+Module      :  Distances.hs
+Description :  Module specifying data types
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -34,12 +34,35 @@ Portability :  portable (I hope)
 
 -}
 
-module Medians (  median2
+module Distances (  distance2
+                , getPairwiseDistances
+                , getBlockDistance
+                , getPairwiseBlocDistance
                 ) where
 
 import           Types
 import           Debug.Trace
 
--- | median2 takes character data and returns median character and cost
-median2 :: CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2 inCharacter inCharInfo = (inCharacter, 0.0)
+-- | distance2 gets distance cost between two vertices
+-- leaf or otherwise in Processsed data (data in blocks and bit coded)
+distance2 :: ProcessedData -> Int -> Int -> VertexCost
+distance2 inData firstIndex secondIndex = 0.0
+
+
+
+-- | getPairwiseDistances takes Processed data
+-- and retuns a matrix (list of lists of Double) of pairwise
+-- distances among vertices in data set over blocks ans all cahracter types
+getPairwiseDistances :: ProcessedData ->  [[VertexCost]]
+getPairwiseDistances inData = [[0.0]]
+
+
+-- | getBlockDistance takes Block data and returns distance between
+-- vertices based on block data
+getBlockDistance :: BlockData -> Int -> Int -> VertexCost
+getBlockDistance inData firstIndex secondIndex = 0.0
+
+-- | getPairwiseBlocDistance returns pairwsie ditances among vertices for 
+-- a block of data
+getPairwiseBlocDistance :: BlockData -> [[VertexCost]]
+getPairwiseBlocDistance inData = [[0.0]]

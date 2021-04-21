@@ -76,6 +76,8 @@ executable phyg
                   DataTransformation
                   Cyclic
                   SymMatrix
+                  Distances
+                  Medians
                   
                   
   
