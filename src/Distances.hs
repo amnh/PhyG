@@ -42,6 +42,7 @@ module Distances (  distance2
 
 import           Types
 import           Debug.Trace
+import qualified Medians as M
 
 -- | distance2 gets distance cost between two vertices
 -- leaf or otherwise in Processsed data (data in blocks and bit coded)
