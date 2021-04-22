@@ -34,8 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Distances (  distance2
-                , getPairwiseDistances
+module Distances (getPairwiseDistances
                 , getBlockDistance
                 , getPairwiseBlocDistance
                 ) where
@@ -43,27 +42,51 @@ module Distances (  distance2
 import           Types
 import           Debug.Trace
 import qualified Medians as M
-
--- | distance2 gets distance cost between two vertices
--- leaf or otherwise in Processsed data (data in blocks and bit coded)
-distance2 :: ProcessedData -> Int -> Int -> VertexCost
-distance2 inData firstIndex secondIndex = 0.0
-
+import qualified SymMatrix as S
+import qualified Data.Vector as V
+import           Data.List
+import           GeneralUtilities
 
 
 -- | getPairwiseDistances takes Processed data
 -- and retuns a matrix (list of lists of Double) of pairwise
--- distances among vertices in data set over blocks ans all cahracter types
+-- distances among vertices in data set over blocks ans all character types
+-- sums over blocks
 getPairwiseDistances :: ProcessedData ->  [[VertexCost]]
-getPairwiseDistances inData = [[0.0]]
+getPairwiseDistances (nameVect, blockDataVect) =
+    if V.null nameVect then error "Null name vector in getPairwiseDistances"
+    else if V.null blockDataVect then error "Null Block Data vector in getPairwiseDistances"
+    else 
+        let blockDistancesList =  fmap S.fromLists $ V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect 
+            summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
+        in
+        S.toLists summedBlock 
 
 
 -- | getBlockDistance takes Block data and returns distance between
--- vertices based on block data
-getBlockDistance :: BlockData -> Int -> Int -> VertexCost
-getBlockDistance inData firstIndex secondIndex = 0.0
+-- vertices based on block data  
+-- this can be done for ;leaves only or all via the input processed
+-- data leaves are first--then HTUs follow
+getBlockDistance :: BlockData -> (Int, Int) -> VertexCost
+getBlockDistance (_, blockCharData, blockCharInfo) (firstIndex, secondIndex) =
+    let vertData = V.map snd blockCharData
+        pairCost = V.sum $ V.map snd $ M.median2 $ V.zip3 (vertData V.! firstIndex) (vertData V.! secondIndex) blockCharInfo
+    in
+    pairCost
 
 -- | getPairwiseBlocDistance returns pairwsie ditances among vertices for 
 -- a block of data
-getPairwiseBlocDistance :: BlockData -> [[VertexCost]]
-getPairwiseBlocDistance inData = [[0.0]]
+-- this can be done for ;leaves only or all via the input processed
+-- data leaves are first--then HTUs follow
+getPairwiseBlocDistance :: Int -> BlockData-> [[VertexCost]]
+getPairwiseBlocDistance  numVerts inData =
+    let pairList = makeIndexPairs numVerts numVerts 0 0
+        initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
+        pairListCosts = fmap (getBlockDistance inData) pairList
+        (iLst, jList) = unzip pairList
+        threeList = zip3 iLst jList pairListCosts
+        newMatrix = S.updateMatrix initialPairMatrix threeList
+    in 
+    trace (show $ S.toLists newMatrix)
+    S.toLists newMatrix
+    

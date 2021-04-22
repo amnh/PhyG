@@ -34,7 +34,14 @@ Portability :  portable (I hope)
 
 -}
 
+{--
+TODO:
+
+  Parallelize  median2Vect
+--}
+
 module Medians (  median2
+                , median2Single
                 ) where
 
 import           Types
@@ -44,9 +51,18 @@ import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
 
--- | median2 takes character data and returns median character and cost
-median2 :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2 firstVertChar secondVertChar inCharInfo = 
+
+-- | median2 takes the vectors of characters and applies media2 to each 
+-- character 
+-- for parallel fmap over all then parallelized by type and seqeunces
+median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
+median2 inData = V.map median2Single inData
+
+-- | median2Single takes character data and returns median character and cost
+-- median2single assumes that tjhe character vectors in teh various states are the same length
+-- that is--all leaves (hecneother veritces later) have the same number of each type of character
+median2Single :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
+median2Single (firstVertChar, secondVertChar, inCharInfo) = 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
