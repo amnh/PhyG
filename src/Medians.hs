@@ -42,12 +42,14 @@ import           Debug.Trace
 import qualified Data.Vector as V
 import qualified Data.BitVector as BV
 import           GeneralUtilities
+import qualified SymMatrix as S 
 
 -- | median2 takes character data and returns median character and cost
 median2 :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 median2 firstVertChar secondVertChar inCharInfo = 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
+        thisMatrix = costMatrix inCharInfo
     in
     if thisType == Add then 
         let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar 
@@ -59,7 +61,10 @@ median2 firstVertChar secondVertChar inCharInfo =
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType == Matrix then (firstVertChar, 0.0)
+    else if thisType == Matrix then 
+      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar 
+        in
+        (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` [SmallAlphSeq, NucSeq] then (firstVertChar, 0.0)
 
@@ -154,3 +159,61 @@ intervalAdd thisWeight leftChar rightChar =
         ++ (show newMinRange) ++ "\n\t" ++ (show newMaxRange) ++ "\n\t" 
         ++ (show newRangeCosts))
     newCharcater
+
+-- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 
+getMinCostStates :: S.Matrix Int -> MatrixState -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
+getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex =
+   if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates) 
+   else
+      let (childCost, _, _)  = V.head childVect
+          childStateCost = if childCost /= (maxBound :: Int) then childCost + (thisMatrix S.! (childState, stateIndex))
+                           else (maxBound :: Int) 
+      in
+      if childStateCost > bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) currentBestStates stateIndex
+      else if childStateCost == bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) ((childStateCost, childState) : currentBestStates) stateIndex
+      else getMinCostStates thisMatrix (V.tail childVect) (min childStateCost bestCost) numStates (childState + 1) [(childStateCost, childState)] stateIndex
+
+
+
+-- | getNewVector takes the vector of states and costs from teh child nodes and the 
+-- cost matrix and calculates a new verctor n^2 in states
+getNewVector :: S.Matrix Int -> Int -> (MatrixState, MatrixState) -> MatrixState
+getNewVector thisMatrix  numStates (lChild, rChild) =
+  let newStates = [0..(numStates -1)] 
+      leftPairs = fmap (getMinCostStates thisMatrix lChild (maxBound :: Int) numStates 0 []) newStates
+      rightPairs = fmap (getMinCostStates thisMatrix rChild (maxBound :: Int) numStates 0 []) newStates
+      stateCosts = zipWith (+) (fmap fst $ fmap head leftPairs) (fmap fst $ fmap head rightPairs) 
+      newStateTripleList = zip3 stateCosts (fmap (fmap snd) leftPairs) (fmap (fmap snd) rightPairs)
+  in
+  V.fromList newStateTripleList
+
+-- | addMatrix thisWeight thisMatrix firstVertChar secondVertChar 
+-- assumes each character has asme cost matrix 
+-- Need to add approximation ala DO tcm lookup later
+-- Local and global costs are based on current not necessaril;y optimal minimum cost states
+addMatrix :: Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
+addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
+  if null thisMatrix then error "Null cost matrix in addMatrix"
+  else 
+    let numStates = length thisMatrix 
+        initialMatrixVector = V.map (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar) 
+        initialCostVector = V.map V.minimum $ V.map (V.map fst3) initialMatrixVector
+        newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
+        newCharcater = CharacterData {  stateBVPrelim = V.empty  -- this for approximation--would come from TCM not here
+                                      , minRangePrelim = V.empty
+                                      , maxRangePrelim = V.empty
+                                      , matrixStatesPrelim = initialMatrixVector
+                                      , stateBVFinal = V.singleton BV.nil
+                                      , minRangeFinal = V.empty
+                                      , maxRangeFinal = V.empty
+                                      , matrixStatesFinal = V.empty
+                                      , approxMatrixCost = V.singleton 0
+                                      , localCostVect = initialCostVector
+                                      , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
+                                      , globalCost = newCost 
+                                      }
+        in 
+        trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
+          "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
+
+        newCharcater

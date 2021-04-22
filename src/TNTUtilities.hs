@@ -214,7 +214,7 @@ defaultTNTCharInfo :: CharInfo
 defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , activity = True
                                 , weight = 1.0
-                                , costMatrix = []
+                                , costMatrix = SM.empty
                                 , name = T.empty
                                 , alphabet = []
                                 , prealigned = True
@@ -454,7 +454,7 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         in
         if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  indexList (charIndex + 1) (firstCharInfo : curCharList) 
         else 
-            let updatedCharInfo = firstCharInfo {alphabet = localAlphabet, costMatrix = localMatrix}
+            let updatedCharInfo = firstCharInfo {alphabet = localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             

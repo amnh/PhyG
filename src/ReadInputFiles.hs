@@ -57,6 +57,7 @@ import qualified TNTUtilities as TNT
 import qualified DataTransformation as DT
 import qualified Data.Graph.Inductive.Basic        as B
 import qualified GeneralUtilities as GU
+import qualified SymMatrix as SM
 
 
 {-
@@ -285,8 +286,8 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                        charType = seqType
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = if localTCM == ([],[]) then generateDefaultMatrix seqAlphabet 0
-                                                    else snd localTCM
+                                     , costMatrix = if localTCM == ([],[]) then SM.fromLists $ generateDefaultMatrix seqAlphabet 0
+                                                    else SM.fromLists $ snd localTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = if localTCM == ([],[]) then seqAlphabet
                                                   else fst localTCM
@@ -307,7 +308,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                                      else GenSeq
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = snd localTCM
+                                     , costMatrix = SM.fromLists $ snd localTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = fst localTCM
                                      , prealigned = isPrealigned

@@ -229,7 +229,7 @@ missingAdditive inCharInfo =
 missingMatrix :: CharInfo -> CharacterData
 missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
-      missingState = (0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+      missingState = (0 :: StateCost , [] ,[])
       missingValue = CharacterData  { stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
                                     , minRangePrelim = V.empty
                                     , maxRangePrelim = V.empty
@@ -456,7 +456,7 @@ getIntRange localState =
             else (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts)
 
 -- | getTripleList
-getTripleList :: (StateCost, ChildIndex, ChildIndex) -> (StateCost, ChildIndex, ChildIndex) -> [ST.ShortText] -> [ST.ShortText]-> [(StateCost, ChildIndex, ChildIndex)]
+getTripleList :: MatrixTriple -> MatrixTriple -> [ST.ShortText] -> [ST.ShortText]-> [MatrixTriple]
 getTripleList hasState notHasState localAlphabet stateList =
     if null localAlphabet then []
     else 
@@ -466,10 +466,10 @@ getTripleList hasState notHasState localAlphabet stateList =
         else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
 
 -- | getInitialMatrixVector gets matric vector
-getInitialMatrixVector :: [ST.ShortText] -> ST.ShortText -> V.Vector (StateCost, ChildIndex, ChildIndex)
+getInitialMatrixVector :: [ST.ShortText] -> ST.ShortText -> V.Vector MatrixTriple
 getInitialMatrixVector localAlphabet localState = 
-    let hasState = (0 :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
-        notHasState = (maxBound :: StateCost , -1 :: ChildIndex ,-1 :: ChildIndex)
+    let hasState = (0 :: StateCost , [] ,[])
+        notHasState = (maxBound :: StateCost , [] ,[])
     in
     let stateString = ST.toString localState
         in

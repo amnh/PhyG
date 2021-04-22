@@ -41,6 +41,7 @@ import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
 import qualified Data.BitVector as BV
 import qualified Data.Vector    as V
+import qualified SymMatrix as S 
 
 -- | Program Version
 pgVersion :: String
@@ -79,7 +80,7 @@ data CharInfo = CharInfo { name :: T.Text
                          , charType :: CharType
                          , activity :: Bool
                          , weight :: Double
-                         , costMatrix :: [[Int]]
+                         , costMatrix :: S.Matrix Int
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
                          } deriving (Show, Eq)
@@ -89,7 +90,7 @@ type VertexCost = Double
 type StateCost = Int
 
 -- | index of child vertices 
-type ChildIndex = Int
+type ChildStateIndex = Int
 
 -- | unique bitvector labelling for vertex based on descednent labellings
 -- these labels are used for caching, left/right DO optimizaiton
@@ -101,6 +102,10 @@ type NameBV = BV.BV
 -- | Human legibale name for vertices, charcaters, and Blocks
 type NameText = T.Text
 
+-- | TYpes for Matrix/Sankoff charcaters
+type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
+type MatrixState = V.Vector MatrixTriple
+
 -- Only date here that varies by vertex, rest inglobal charcater info
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
@@ -109,8 +114,8 @@ type NameText = T.Text
 data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
                                      , minRangePrelim :: V.Vector Int -- for Additive
                                      , maxRangePrelim :: V.Vector Int -- for Additive
-                                     -- triple for Sankoff optimization--cost, left and right descendant states
-                                     , matrixStatesPrelim :: V.Vector (V.Vector (StateCost, ChildIndex, ChildIndex)) -- for Sankoff/Matrix
+                                     -- triple for Sankoff optimization--cost, left and right descendant states (could be multiple)
+                                     , matrixStatesPrelim :: V.Vector MatrixState -- for Sankoff/Matrix
                                      , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
                                      , minRangeFinal :: V.Vector Int -- for Additive
                                      , maxRangeFinal :: V.Vector Int -- for Additive
