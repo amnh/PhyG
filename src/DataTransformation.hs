@@ -340,10 +340,9 @@ getBVCode bvCodeVect inState =
 -- in a CharacterData structure
 getSequenceChar :: V.Vector (ST.ShortText, BV.BV) -> [ST.ShortText] -> [CharacterData]
 getSequenceChar nucBVPairVect stateList =
-    if null stateList then error "Empty stateLIst in getNucleotideSequenceChar"
-    else 
-        let sequenceVect = V.fromList $ fmap (getBVCode nucBVPairVect) stateList
-            newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
+    let sequenceVect = if (null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
+                       else V.empty
+        newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
                                               , minRangePrelim = V.empty
                                               , maxRangePrelim = V.empty
                                               , matrixStatesPrelim = V.empty
@@ -356,8 +355,8 @@ getSequenceChar nucBVPairVect stateList =
                                               , localCost = 0.0
                                               , globalCost = 0.0
                                               }
-        in
-        [newSequenceChar]
+    in
+    [newSequenceChar]
 
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
@@ -387,10 +386,9 @@ getGeneralBVCode bvCodeVect inState =
 -- they need to be parsed and "or-ed" differently
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList = 
-    if null stateList then error "Empty stateLIst in getGeneralSequenceChar"
-    else 
         let stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
-            sequenceVect = V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+            sequenceVect = if (null stateList) then V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+                           else V.empty
             newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
                                               , minRangePrelim = V.empty
                                               , maxRangePrelim = V.empty

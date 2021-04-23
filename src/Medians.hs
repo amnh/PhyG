@@ -50,7 +50,8 @@ import qualified Data.Vector as V
 import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
-
+--import qualified Data.TCM.Dense as TCMD
+--import qualified Data.Alphabet as DALPH
 
 -- | median2 takes the vectors of characters and applies media2 to each 
 -- character 
@@ -83,9 +84,14 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SmallAlphSeq, NucSeq] then (firstVertChar, 0.0)
+    else if thisType `elem` [SmallAlphSeq, NucSeq] then 
+      -- ffi to POY-C/PCG code
+      let newCharVect = getDOMedian thisWeight thisMatrix firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, GenSeq] then (firstVertChar, 0.0)
+    else if thisType `elem` [AminoSeq, GenSeq] then 
+      (firstVertChar, 0.0)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -238,3 +244,13 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
         newCharcater
+
+-- | getDOMedian calls PCG/POY/C ffi to create sequcne median after some type wrangling
+getDOMedian ::  Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
+getDOMedian thisWeight thisMatrix lChar rChar =
+  if null thisMatrix then error "Null cost matrix in addMatrix"
+  else 
+    let 
+    in
+    lChar
+  
