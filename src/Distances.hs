@@ -57,7 +57,7 @@ getPairwiseDistances (nameVect, blockDataVect) =
     if V.null nameVect then error "Null name vector in getPairwiseDistances"
     else if V.null blockDataVect then error "Null Block Data vector in getPairwiseDistances"
     else 
-        let blockDistancesList =  fmap S.fromLists $ V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect 
+        let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect 
             summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
         in
         S.toLists summedBlock 
@@ -78,7 +78,7 @@ getBlockDistance (_, blockCharData, blockCharInfo) (firstIndex, secondIndex) =
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
-getPairwiseBlocDistance :: Int -> BlockData-> [[VertexCost]]
+getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlocDistance  numVerts inData =
     let pairList = makeIndexPairs numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
@@ -87,6 +87,6 @@ getPairwiseBlocDistance  numVerts inData =
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList
     in 
-    trace (show $ S.toLists newMatrix)
-    S.toLists newMatrix
+    --trace ("NM:\n" ++ (show $ S.toFullLists newMatrix))
+    newMatrix
     

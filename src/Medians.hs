@@ -80,6 +80,7 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
     else if thisType == Matrix then 
       let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar 
         in
+        --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` [SmallAlphSeq, NucSeq] then (firstVertChar, 0.0)
@@ -128,8 +129,10 @@ interUnion thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
+    {-
     trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\n\t" ++ (show $ stateBVPrelim leftChar) ++ "\n\t" ++ (show $ stateBVPrelim rightChar) ++ "\n\t"
         ++ (show intersectVect) ++ "\n\t" ++ (show unionVect) ++ "\n\t" ++ (show newStateVect))
+    -}
     newCharcater
 
 -- | getNewRange takes min and max range of two additive charcaters and returns 
@@ -140,10 +143,10 @@ getNewRange inStuff@(lMin, lMax, rMin, rMax) =
     if (rMin >= lMin) && (rMax <= lMax) then (rMin, rMax, 0)
     else if  (lMin >= rMin) && (lMax <= rMax) then (lMin, lMax, 0)
     -- overlaps
-    else if (rMin >= lMin) && (rMax >= lMax) then (rMin, lMax,0)
-    else if (lMin >= rMin) && (lMax >= rMax) then (lMin, rMax,0)
+    else if (rMin >= lMin) && (rMax >= lMax) && (rMin <= lMax) then (rMin, lMax,0)
+    else if (lMin >= rMin) && (lMax >= rMax) && (lMin <= rMax) then (lMin, rMax,0)
     -- newInterval
-    else if (lMax <= rMin) then (lMax, rMin ,rMin - lMax)
+    else if (lMax <= rMin) then (lMax, rMin, rMin - lMax)
     else if (rMax <= lMin) then (rMax, lMin, lMin - rMax)
     else error ("This can't happen " ++ show inStuff)
 
@@ -170,15 +173,17 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
+    {-
     trace ("Additive: " ++ (show newCost) ++ "\n\t" ++ (show $ minRangePrelim leftChar) ++ "\n\t" ++ (show $ maxRangePrelim leftChar) ++ "\n\t"
         ++ (show $ minRangePrelim rightChar) ++ "\n\t" ++ (show $ maxRangePrelim rightChar) ++ "\n\t"  
-        ++ (show newMinRange) ++ "\n\t" ++ (show newMaxRange) ++ "\n\t" 
         ++ (show newRangeCosts))
+    -}
     newCharcater
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 
 getMinCostStates :: S.Matrix Int -> MatrixState -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
-getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex =
+getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex = 
+   --trace (show thisMatrix ++ "\n" ++ (show  childVect) ++ "\n" ++ show (numStates, childState, stateIndex)) (
    if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates) 
    else
       let (childCost, _, _)  = V.head childVect
@@ -187,8 +192,8 @@ getMinCostStates thisMatrix childVect bestCost numStates childState currentBestS
       in
       if childStateCost > bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) currentBestStates stateIndex
       else if childStateCost == bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) ((childStateCost, childState) : currentBestStates) stateIndex
-      else getMinCostStates thisMatrix (V.tail childVect) (min childStateCost bestCost) numStates (childState + 1) [(childStateCost, childState)] stateIndex
-
+      else getMinCostStates thisMatrix (V.tail childVect) childStateCost numStates (childState + 1) [(childStateCost, childState)] stateIndex
+    --)
 
 
 -- | getNewVector takes the vector of states and costs from teh child nodes and the 
@@ -229,7 +234,7 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
                                       , globalCost = newCost 
                                       }
         in 
-        trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
-          "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
+        --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
+        --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
         newCharcater

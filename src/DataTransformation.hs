@@ -158,7 +158,7 @@ createNaiveData :: [RawData] -> [(T.Text, BV.BV)] -> [BlockData] -> ProcessedDat
 createNaiveData inDataList leafBitVectorNames curBlockData = 
     if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ reverse curBlockData)
     else 
-        let firstInput@(firstData, firstCharInfo) = head inDataList
+        let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
         if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
@@ -185,7 +185,7 @@ recodeRawData inData inCharInfo curCharData =
         let firstData = head inData
             firstDataRecoded = createLeafCharacter inCharInfo firstData
         in
-        --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo))
+        --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
         recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)  
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
@@ -243,7 +243,9 @@ missingMatrix inCharInfo =
                                     , localCost = 0.0
                                     , globalCost = 0.0
                                     }
-  in missingValue
+  in 
+  --trace ("MM" ++ (show $ alphabet inCharInfo))
+  missingValue
 
 -- | getMissingValue takes the charcater type ans returns the appropriate missineg data value
 getMissingValue :: [CharInfo] -> [CharacterData] 
@@ -414,7 +416,9 @@ getSingleStateBV localAlphabet localState =
         bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
         bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
     in
-    if stateIndex ==  Nothing then error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
+    if stateIndex ==  Nothing then 
+        if (localState `elem` (fmap ST.fromString ["?","-"])) then BV.ones (length localAlphabet)
+        else error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
@@ -514,7 +518,10 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
-            else if firstCharType == Add then
+        else if firstCharType == Add then
+               if firstState == (ST.fromString "-1") then 
+                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingAdditive firstCharInfo) : curCharList)
+               else  
                 let (minRange, maxRange) = getIntRange firstState
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
                                                   , minRangePrelim = V.singleton minRange
@@ -532,7 +539,10 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
-            else if firstCharType == Matrix then 
+        else if firstCharType == Matrix then 
+            if (firstState `elem` (fmap ST.fromString ["?","-"])) then 
+                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingMatrix firstCharInfo) : curCharList)
+             else  
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
                     stateBV = getStateBitVector (alphabet firstCharInfo) firstState
                     newCharacter = CharacterData {  stateBVPrelim = V.singleton stateBV
@@ -548,11 +558,14 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , localCost = 0.0
                                                   , globalCost = 0.0
                                                   }
-                in
-                if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
-                else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+            in
+            --trace ((show $ alphabet firstCharInfo) ++ " " ++ (ST.toString firstState)) (
+            --trace ("GQC " ++ (T.unpack $ name firstCharInfo) ++ (show $ alphabet firstCharInfo) ++ " " ++ (show $ costMatrix firstCharInfo)) (
+            if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
+            else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+            --)
 
-            else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
+        else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
 
         
         

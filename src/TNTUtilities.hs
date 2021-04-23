@@ -111,6 +111,7 @@ getTNTData inString fileName =
                         charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                         checkInfo = (length charInfoData) == numChar
                 in
+                --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                 if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
                 else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with varying numbers of chacters (should be "
                     ++ show numChar ++ "):" ++ show  incorrectLengthList)
@@ -120,10 +121,10 @@ getTNTData inString fileName =
                     -- integerize and reweight additive chars (including in ambiguities)
                     let curNames = fmap fst sortedData
                         curData = fmap snd sortedData
-                        (curData',charInfoData') = checkAndRecodeAdditiveCharacters fileName curData charInfoData [] []
+                        (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
                     in
                     (zip curNames curData',charInfoData')
-                )
+                )--)
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 -- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
@@ -277,7 +278,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         updatedCharInfo
 
--- | getCosts takes aline form TNT and modifies charac ters according to cc-code option
+-- | getCosts takes a line from TNT and modifies characters according to cc-code option
 -- command format : costs A.B = X/Y Z U>V Q;
 -- assumes X/Y and U>V have no sapces (= one word)
 getCosts :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
@@ -290,7 +291,7 @@ getCosts fileName charNumber commandWordList curCharInfo =
             (localAlphabet, localMatrix) = processCostsLine fileName $  tail $ dropWhile (/= (T.pack "=")) commandWordList
             updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 [] 
         in
-        --trace ("Alph " ++ show localAlphabet)
+        --trace ("Alph " ++ (show $ fmap alphabet updatedCharInfo))
         updatedCharInfo
         --)
 
@@ -305,7 +306,7 @@ processCostsLine fileName wordList =
             transCosts = getTransformationCosts fileName localAlphabet wordList
             localMatrix = makeMatrix fileName localAlphabet transCosts
         in
-        --trace (show localAlphabet ++ " " ++ show transCosts ++ "\n\t" ++ show localMatrix)
+        --trace ("TNT" ++ show localAlphabet ++ " " ++ show transCosts ++ "\n\t" ++ show localMatrix)
         (localAlphabet, localMatrix)
 
 -- | makeMatrix takes triples and makes a square matrix with 0 diagonals if  not specified
@@ -325,6 +326,7 @@ makeMatrix fileName localAlphabet transCosts =
 
 -- | getTransformationCosts get state pairs and their costs
 -- retuns as (i,j,k) = i->j costs k
+-- need to make this gerneral to letter states 
 getTransformationCosts :: String -> [ST.ShortText]-> [T.Text] -> [(Int, Int, Int)]
 getTransformationCosts fileName localAlphabet wordList =
     if null wordList then []
@@ -345,8 +347,8 @@ getTransformationCosts fileName localAlphabet wordList =
                 toState   = readMaybe (T.unpack toStateText)   :: Maybe Int
             in
             if transCost == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack costText) ++ " does not appear to be an integer.")
-            else if fromState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack fromStateText) ++ " does not appear to be an integer.")
-            else if toState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack toStateText) ++ " does not appear to be an integer.")
+            else if fromState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation from state '" ++ (T.unpack fromStateText) ++ "' does not appear to be an integer.")
+            else if toState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation to state '" ++ (T.unpack toStateText) ++ "'' does not appear to be an integer.")
             else 
                 let newTripleList = if symetricalOperator == Nothing then [(fromJust fromState, fromJust toState, fromJust transCost)] 
                                     else  [(fromJust fromState, fromJust toState, fromJust transCost), (fromJust toState, fromJust fromState, fromJust transCost)] 
@@ -435,8 +437,8 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
             getNewCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
 
--- | newCharInfoMatrix updates alphabet and rcm matrix for characters in indexLisyt
--- if that char is not in index list it is unaffected and added back to create the new list
+-- | newCharInfoMatrix updates alphabet and tcm matrix for characters in indexList
+-- if that character is not in index list it is unaffected and added back to create the new list
 -- in a single pass. 
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise retiurn the reverse since new values are prepended 
@@ -456,23 +458,39 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         else 
             let updatedCharInfo = firstCharInfo {alphabet = localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
+            -- trace ("TNT2" ++ (show $ alphabet updatedCharInfo))
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList) 
             
--- | checkAndRecodeAdditiveCharacters take RawData and checks the data with char info.
--- verifies that states (including in ambiguity) are Numerical
+-- | reconcileAlphabetAndCostMatrix trakes the original charcater alphabet created from the cost matrix and compares to the  
+-- observed states.  If observed states are a subset of the inferred, the inferred are used to replace the original
+-- this could happen if a matrix is specified for arange of characters, some of which do not exhibit all the states
+-- otherwsie an error is thrown since states done't agree with m,artrix specification
+-- this could happen for a DNA character (ACGT-) with a martix specified of numerical values (01234)
+reconcileAlphabetAndCostMatrix :: String -> String -> [ST.ShortText] -> [ST.ShortText] -> [ST.ShortText]
+reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphabet = 
+    if intersect observedAlphabet inferredAlphabet == observedAlphabet then inferredAlphabet
+    else errorWithoutStackTrace ("Error: TNT file " ++ fileName ++ " character " ++ charName  ++ " Observed alphabet " ++ (show observedAlphabet) ++ " is incompatible with matrix specification states " ++ (show inferredAlphabet))
+                              
+
+-- | checkAndRecodeCharacterAlphabets take RawData and checks the data with char info.
+-- verifies that states (including in ambiguity) are Numerical for additive, and checks alphabets and cost matrices
 -- and assigns correct alphabet to all characters
-checkAndRecodeAdditiveCharacters :: String -> [[ST.ShortText]] -> [CharInfo] -> [[ST.ShortText]] -> [CharInfo] -> ([[ST.ShortText]], [CharInfo])
-checkAndRecodeAdditiveCharacters fileName inData inCharInfo newData newCharInfo =
-    if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeAdditiveCharacters"
-    else if null inData then error "Empty inData in checkAndRecodeAdditiveCharacters"
+checkAndRecodeCharacterAlphabets :: String -> [[ST.ShortText]] -> [CharInfo] -> [[ST.ShortText]] -> [CharInfo] -> ([[ST.ShortText]], [CharInfo])
+checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo =
+    if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeCharacterAlphabets"
+    else if null inData then error "Empty inData in checkAndRecodeCharacterAlphabets"
     else if null inCharInfo then (reverse $ fmap reverse newData, reverse newCharInfo)
     else 
         let firstColumn = fmap head inData
             firstCharInfo =  head inCharInfo
+            originalAlphabet = alphabet firstCharInfo
+            thisName = name firstCharInfo
             (firstAlphabet, newWeight, newColumn) = getAlphabetFromSTList fileName firstColumn firstCharInfo
-            updatedCharInfo = firstCharInfo {alphabet = firstAlphabet, weight = newWeight}
+            updatedCharInfo = if (Matrix == charType firstCharInfo) && (firstAlphabet /= originalAlphabet) then 
+                                firstCharInfo {alphabet = reconcileAlphabetAndCostMatrix fileName (T.unpack thisName) firstAlphabet originalAlphabet}
+                              else firstCharInfo {alphabet = firstAlphabet, weight = newWeight}
         in
-        checkAndRecodeAdditiveCharacters fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
+        checkAndRecodeCharacterAlphabets fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
 
 -- prependColumn takes a list of ShortTex and a list of a  list of shortext and prepends the
 -- first element of the newcolumn list to the first list in inData creting newData
@@ -543,7 +561,7 @@ getDecimals inChar =
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
 --  else if no spaces 
---    if non-additgive then each symbol is split out as an alphabet element -- as in TNT
+--    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
 -- for additive charcaters if states are not nummerical then throuws an error
@@ -554,7 +572,9 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
         let firstState = ST.toString $ head inStates
         in
             if thisType /= Add then 
-                if (head firstState) /= '['  then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((head inStates) : newAlph) ((head inStates) : newStates)
+                if (head firstState) /= '['  then 
+                    if (firstState `elem` ["?","-"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph ((head inStates) : newStates)
+                    else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((head inStates) : newAlph) ((head inStates) : newStates)
                 else -- ambiguity
                     let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
                     in
@@ -569,7 +589,9 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                     let stateNumber = readMaybe firstState :: Maybe Double
                         newStateNumber = takeWhile (/='.') $ show ((fromJust stateNumber) / scaleFactor)
                     in
-                    if stateNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
+                    if stateNumber == Nothing then
+                        if (firstState `elem` ["?","-"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString "-1") : newAlph) ((ST.fromString "-1") : newStates)
+                        else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString newStateNumber) : newAlph) ((ST.fromString newStateNumber) : newStates)
             else 
                 let gutsList  = words $ filter (`notElem` ['[',']']) firstState
