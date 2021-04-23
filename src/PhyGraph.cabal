@@ -1,4 +1,4 @@
-cabal-version:  2.2
+cabal-version:  3.4
 build-type:     Simple
 
 name:           phygraph
@@ -52,7 +52,22 @@ executable phyg
                 , time
                 , vector
                 , sort
-                , bv
+                -- PCG FFI stuff
+                --, bimap
+                --, mtl
+                --, binary
+                --, keys
+                --, text-show
+                --, semigroupoids
+                --, xml-conduit
+                --, QuickCheck
+                --, nonempty-vector
+                --, semigroups
+                --, double-conversion
+                --, dlist
+                --, mono-traversable
+                --, enumerator
+                
  -- currently doesn't compile               , Graphalyze
  
                 
@@ -62,7 +77,10 @@ executable phyg
 
   -- include the source files needed in src for github library
   -- this for local library files
-  hs-source-dirs: . ../../PhyloLibs
+  hs-source-dirs: . ../../PhyloLibs 
+                  -- ../../PCG/lib/alphabet/src
+                  -- ../../PCG/lib/core/tcm/src/
+                  -- ../../PCG/lib/core/analysis/src/
 
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
@@ -78,9 +96,26 @@ executable phyg
                   SymMatrix
                   Distances
                   Medians
-                  
-                  
-  
+                  DOPrototype
+                  -- Data.TCM.Dense
+                  -- Data.Alphabet
+                  -- Data.Alphabet.IUPAC 
+                  -- Data.Alphabet.Internal 
+                  -- Data.Alphabet.Special
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Internal
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace
+                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
+            
+      
 
 
  
