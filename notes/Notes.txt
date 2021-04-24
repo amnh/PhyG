@@ -166,6 +166,14 @@ Data forms
 			deletre constant chars
 		Turn "off" dynamic
 
+	5) Prealigned seequences -> Approx Matrix/Sankoff 
+		Approximate Sankoff type
+		Multiple characters with same tcm
+		Small Alphabet "dense" extendedTCM
+		Large Alphabet Hash extendedTCM
+		Transform option between Matrix and ApproxMatrix/Small and Large
+
+
 Data flow
 	1) input data to meta format tuples (name, data, info) 
 	2) reconciled data 

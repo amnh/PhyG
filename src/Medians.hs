@@ -251,7 +251,7 @@ getDOMedian thisWeight thisMatrix thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
     let (newStateVect, medianCost) = DOP.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisType
-        newCost = thisWeight * medianCost
+        newCost = thisWeight * (fromIntegral medianCost)
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , minRangePrelim = V.empty
                                       , maxRangePrelim = V.empty

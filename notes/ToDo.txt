@@ -1,3 +1,16 @@
-1) Remove approx stuff from Matrix/Sankoff
+0) Chnage - from missing to gap char if alphabet
+	is DNA/Protein (note in doc change to ? for missing)
+	What to do for multichar, prealigned data (TNT, Prealigned)
+1) Add matrix process ccosts for non-numerical data
+	General states e.g. A>C etc
 2) Create MatrixApproxSmall, MatrixApproxLarge
-3) 
+	Prealigned chars
+	Add to test.pg
+3) Modify and Import DOPrototype code
+	BV general, tcm restrictions
+4) Improve report
+	Cross refs (CVS,text)
+	Data output (CVS, text)
+5) Set blocks
+6) Transform 
+	Matrix <-> ApproxMatrix
