@@ -1,6 +1,7 @@
 {- |
-Module      :  Parsimony Optimization functions
-Description :  Functions for parsimony cost and vertex optimizations
+Module      :  DOPrototype 
+Description :  Functions for parsimony DO optimization functions
+               Prototype non-optimized, restricted Haskell functisns
 Copyright   :  (c) 2014 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :  
 
@@ -34,9 +35,8 @@ Portability :  portable (I hope)
 
 -}
 
-module Parsimony
-( getPrelim
-, getPrelimTriple
+module DOPrototype
+( getDOMedian
 ) where
 
 import Debug.Trace
@@ -44,14 +44,39 @@ import Data.Int
 import Data.Bits
 import qualified Data.Vector as V
 import Types
+import qualified Data.BitVector as BV
 
 data Direction = LeftDir | DownDir | DiagDir
     deriving (Read, Show, Eq)
 
-type BaseChar = (V.Vector Int64)   
+type BaseChar = V.Vector Int64 
 
 
---Move these to Character Data?
+--  Wrappers to interface with PhyGraph Types
+--      This is a temporary step until PCG/POY code 
+--      Imported vi FFIs
+
+-- | getDOMedian wraps around getPrelim and getPrelim3
+-- changing types and checking for missing cases
+getDOMedian :: V.Vector BV.BV -> V.Vector BV.BV -> V.Vector (V.Vector Int) -> CharType -> (V.Vector BV.BV, Double)
+getDOMedian lBV rBV thisMatrix thisType =
+    -- missing data inputs
+    if V.null lBV then (rBV, 0)
+    else if V.null rBV then (lBV, 0)
+    else 
+        -- not missing
+        -- get inDelCost 
+        let inDelCost = V.last $ V.! 1 inDelCost
+            leftChar64 = V.map convertBVTo64 lBV
+            rightChar64 = V.map convertBVTo64 rBV
+        in
+        getPrelim leftChar64 leftChar64 inDelCost
+
+-- | convertBVTo64 converts bitvector type to bit64 Int64 type 
+convertBVTo64 :: BV.BV -> Int64
+convertBVTo64 inBV = 
+
+--Old stuff later bitvectors
 inDelBit :: Int64
 inDelBit = (bit 63) :: Int64 --(bit 63) :: Int64 --set indelBit to 64th bit in Int64
 
@@ -62,17 +87,15 @@ barrierBit :: Int64
 barrierBit = (bit 63) :: Int64
 
 -- | getPrelimTriple takes bit-coded states (as triple) and returns cost and prelim state
-getPrelimTriple :: (BaseChar, BaseChar, CharInfo) -> (BaseChar, Double)
-getPrelimTriple (lState, rState, charInfo) =
+getPrelimTriple :: (BaseChar, BaseChar, CharType, Int) -> (BaseChar, Int)
+getPrelimTriple (lState, rState, localType, inDelCost) =
     --trace ("\nlS " ++ show lState ++ " rS " ++ show rState) (
-    if charType charInfo == GenSeq then
-        let (median, cost) = naive_do lState rState charInfo
-            charWeight = (weight charInfo)
+    if localType == GenSeq then
+        let (median, cost) = naive_do lState rState inDelCost
         in
-        (median, charWeight * cost) 
-    else if charType charInfo == NucSeq then
-        let (median2, cost2) = ukkonenDO lState rState charInfo
-            charWeight = (weight charInfo)
+        (median, cost) 
+    else if localType == NucSeq then
+        let (median2, cost2) = ukkonenDO lState rState inDelCost
         in
         {-let (lSeq, _, rSeq, _) = setLeftRight lState rState
             (median, cost) = naive_do lState rState charInfo
@@ -80,21 +103,20 @@ getPrelimTriple (lState, rState, charInfo) =
         if (cost /= cost2) || (median /= median2) then 
             trace ("(" ++ show cost ++ " " ++ show cost2 ++ ")" ++ "\n" ++ show lSeq ++ "\n" ++ show rSeq ++ "\n" ++ show median ++ "\n" ++ show median2 ++ "\n") 
             (median2, charWeight * cost2)
-        else-}  (median2, charWeight * cost2)
+        else-}  (median2, cost2)
     else error "Unrecognized/Not implemented character type"
 
 -- | getPrelim takes bit-coded states and returns cost and prelim state
-getPrelim :: BaseChar -> BaseChar -> CharInfo -> (BaseChar, Double)
-getPrelim lState rState charInfo =
+getPrelim :: BaseChar -> BaseChar -> CharType -> Int -> (BaseChar, Int)
+getPrelim lState rState localType inDelCost =
     --trace ("\nlS " ++ show lState ++ " rS " ++ show rState) (
-    if charType charInfo == GenSeq then
-        let (median, cost) = naive_do lState rState charInfo
-            charWeight = (weight charInfo)
+    -- THis is really for length here not alhabet issues
+    if localType == GenSeq then
+        let (median, cost) = naive_do lState rState inDelCost
         in
-        (median, charWeight * cost) 
-    else if charType charInfo == NucSeq then
-        let (median2, cost2) = ukkonenDO lState rState charInfo
-            charWeight = (weight charInfo)
+        (median, cost) 
+    else if localType == NucSeq then
+        let (median2, cost2) = ukkonenDO lState rState inDelCost
         in
         {-let (lSeq, _, rSeq, _) = setLeftRight lState rState
             (median, cost) = naive_do lState rState charInfo
@@ -102,7 +124,7 @@ getPrelim lState rState charInfo =
         if (cost /= cost2) || (median /= median2) then 
             trace ("(" ++ show cost ++ " " ++ show cost2 ++ ")" ++ "\n" ++ show lSeq ++ "\n" ++ show rSeq ++ "\n" ++ show median ++ "\n" ++ show median2 ++ "\n") 
             (median2, charWeight * cost2)
-        else-}  (median2, charWeight * cost2)
+        else-}  (median2, cost2)
     else error "Unrecognized/Not implemented character type"
 
 -- | transformFullYShortY take full Y value (if did entire NW matrix) and returns
@@ -129,7 +151,7 @@ setLeftRight inL inR =
 
 -- | ukkonenCore core functions of Ukkonen to allow for recursing with maxGap
 --doubled if not large enough (returns Nothing)  
-ukkonenCore :: BaseChar -> Int -> BaseChar -> Int -> Int -> Int -> Int -> (BaseChar, Double)
+ukkonenCore :: BaseChar -> Int -> BaseChar -> Int -> Int -> Int -> Int -> (BaseChar, Int)
 ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =  
     let firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap
         nwMatrix = V.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap)
@@ -153,17 +175,16 @@ ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =
 --lseq > rseq appeard more efficient--could be wrong
 --move to C via FFI
 --Still occasional error in cost and median (disagreement) show in Chel.seq
-ukkonenDO :: BaseChar -> BaseChar -> CharInfo -> (BaseChar, Double)
-ukkonenDO inlSeq inrSeq charInfo =
+ukkonenDO :: BaseChar -> BaseChar -> Int -> (BaseChar, Int)
+ukkonenDO inlSeq inrSeq inDelCost =
     if V.null inlSeq then (inrSeq, 0)
     else if V.null inrSeq then (inlSeq, 0)
     else 
-        let indelCost = 1
-            subCost = 1
+        let subCost = 1
             --this for left right constant--want longer in left for Ukkonnen
             (lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
             maxGap = 1 + lLength - rLength  --10000 :: Int --holder lseq - rSeq + 1
-            (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost
+            (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap inDelCost subCost
             --firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap
             --nwMatrix = V.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap)
             --(cost, _, _) = (nwMatrix V.! rLength) V.! (transformFullYShortY lLength rLength  maxGap) --fix for offset
@@ -277,26 +298,25 @@ getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow position rowLength 
 --      Ukkonnen
 --      C via FFI
 --      Affine
-naive_do :: BaseChar -> BaseChar -> CharInfo -> (BaseChar, Double)
-naive_do inlSeq inrSeq charInfo =
+naive_do :: BaseChar -> BaseChar -> Int -> (BaseChar, Int)
+naive_do inlSeq inrSeq inDelCost =
     if V.null inlSeq then (inrSeq, 0)
     else if V.null inrSeq then (inlSeq, 0)
     else 
-        let indelCost = 1
-            subCost = 1
+        let subCost = 1
             --this for left right constant--want longer in left for Ukkonnen
             (lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
             --lSeq = max inlSeq inrSeq
             --rSeq = min inlSeq inrSeq
             --lLength = V.length lSeq
             --rLength = V.length rSeq
-            firstRow = getFirstRow indelCost lLength 0 0 lSeq
-            nwMatrix = V.cons firstRow (getRows lSeq rSeq indelCost subCost 1 firstRow)
+            firstRow = getFirstRow inDelCost lLength 0 0 lSeq
+            nwMatrix = V.cons firstRow (getRows lSeq rSeq inDelCost subCost 1 firstRow)
             (cost, _, _) = (nwMatrix V.! rLength) V.! lLength
             median = V.reverse (traceback nwMatrix (V.length rSeq) (V.length lSeq))
         in
         --trace ("NW: " ++ show nwMatrix ++ "\nCost/median " ++ show cost ++ "->" ++ show median)
-        (median, fromIntegral cost)
+        (median, cost)
 
 -- | traceback creates REVERSE mediian from nwMatrix, reverse to make tail
 --recusive

@@ -70,7 +70,7 @@ data VertexType = Root | Leaf | Tree | Network
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
-data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq 
+data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq | MatrixApproxSmall | MatrixApproxLarge
     deriving (Read, Show, Eq)
 
 

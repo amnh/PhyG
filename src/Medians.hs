@@ -50,6 +50,7 @@ import qualified Data.Vector as V
 import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
+import qualified DOPrototype as DOP
 --import qualified Data.TCM.Dense as TCMD
 --import qualified Data.Alphabet as DALPH
 
@@ -86,12 +87,14 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 
     else if thisType `elem` [SmallAlphSeq, NucSeq] then 
       -- ffi to POY-C/PCG code
-      let newCharVect = getDOMedian thisWeight thisMatrix firstVertChar secondVertChar
+      let newCharVect = getDOMedian thisWeight thisMatrix thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` [AminoSeq, GenSeq] then 
-      (firstVertChar, 0.0)
+      let newCharVect = getDOMedian thisWeight thisMatrix thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -243,11 +246,26 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         newCharcater
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequcne median after some type wrangling
-getDOMedian ::  Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
-getDOMedian thisWeight thisMatrix lChar rChar =
+getDOMedian ::  Double -> S.Matrix Int -> CharType -> CharacterData -> CharacterData -> CharacterData
+getDOMedian thisWeight thisMatrix thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
-    let 
-    in
-    lChar
+    let (newStateVect, medianCost) = DOP.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisType
+        newCost = thisWeight * medianCost
+        newCharcater = CharacterData {  stateBVPrelim = newStateVect
+                                      , minRangePrelim = V.empty
+                                      , maxRangePrelim = V.empty
+                                      , matrixStatesPrelim = V.empty
+                                      , stateBVFinal = V.singleton BV.nil
+                                      , minRangeFinal = V.empty
+                                      , maxRangeFinal = V.empty
+                                      , matrixStatesFinal = V.empty
+                                      , localCostVect = V.singleton 0
+                                      , localCost = newCost
+                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
+                                      }
+    in 
+    trace ("Sequence: " ++ (show newStateVect) ++ " " ++ (show newCost))
+    newCharcater
+    
   

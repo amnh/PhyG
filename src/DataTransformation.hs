@@ -576,7 +576,7 @@ createLeafCharacter inCharInfoList rawDataList =
             else -- non-IUPAC codes 
                 getGeneralSequenceChar (head inCharInfoList) rawDataList -- ambiguities different, and alphabet varies with character (potentially)
         else 
-            if (length inCharInfoList /= length rawDataList) then error ("Mismatch in nubner of characters and character info")
+            if (length inCharInfoList /= length rawDataList) then error ("Mismatch in number of characters and character info")
             else 
                 getQualitativeCharacters inCharInfoList rawDataList []
 
