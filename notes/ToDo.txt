@@ -1,6 +1,7 @@
-0) Chnage - from missing to gap char if alphabet
+0) Change '-'' from missing to gap char if alphabet
 	is DNA/Protein (note in doc change to ? for missing)
 	What to do for multichar, prealigned data (TNT, Prealigned)
+	Add naked '-' for gap?
 1) Add matrix process ccosts for non-numerical data
 	General states e.g. A>C etc
 2) Create MatrixApproxSmall, MatrixApproxLarge
