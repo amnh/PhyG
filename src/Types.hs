@@ -120,7 +120,6 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for N
                                      , minRangeFinal :: V.Vector Int -- for Additive
                                      , maxRangeFinal :: V.Vector Int -- for Additive
                                      , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
-                                     , approxMatrixCost ::  V.Vector StateCost --Approximate Sankoff/Matrix Cost using DO-like precalculations 
                                      , localCostVect :: V.Vector StateCost 
                                      , localCost :: VertexCost -- weight * V.sum localCostVect
                                      , globalCost :: VertexCost -- unclear if need vector version
