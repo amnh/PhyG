@@ -52,6 +52,7 @@ executable phyg
                 , time
                 , vector
                 , sort
+                , unboxing-vector
                 -- PCG FFI stuff
                 --, bimap
                 --, mtl
@@ -97,6 +98,7 @@ executable phyg
                   Distances
                   Medians
                   DOPrototype
+                  NaiveDO
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

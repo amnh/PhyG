@@ -35,6 +35,8 @@ Portability :  portable (I hope)
 
 -}
 
+{-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
+
 module DOPrototype
 ( getDOMedian
 ) where
@@ -42,12 +44,30 @@ module DOPrototype
 import Debug.Trace
 import Data.Int
 import Data.Bits
-import qualified Data.Vector as V
+import qualified Data.Vector as VB
+-- import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Generic as VG (convert)
 import Types
 import qualified Data.BitVector as BV
+import qualified NaiveDO as NDO
+import qualified Data.Vector.Unboxing as V --Unboxing
+import GHC.Generics
+
 
 data Direction = LeftDir | DownDir | DiagDir
-    deriving (Read, Show, Eq)
+  deriving Eq 
+  deriving Enum
+  deriving V.Unboxable via V.Enum Direction
+    --deriving (Read, Show, Eq)
+    
+type NWElement = (Int, Int64, Direction)
+
+type VectorNWElement = V.Vector NWElement
+
+
+data NWElementStruct = NWElementStruct {fstS :: (Int, Int64, Direction)}
+  deriving Generic
+  deriving V.Unboxable via V.Generics NWElementStruct
 
 type BaseChar = V.Vector Int64 
 
@@ -58,28 +78,35 @@ type BaseChar = V.Vector Int64
 --      UkkonenDO is for small alphabets keeping bit64
 --      NaiveDO is for large alphabets migrated to general bitvector
 
+{-
+-- | convert between boxed and unboxed vector
+boxedToUnboxed :: (VU.Unbox a) => V.Vector a -> VU.Vector a
+boxedToUnboxed inVect = VG.convert inVect
+
+unbBoxedtoBoxed :: (VU.Unbox a) => VU.Vector a -> V.Vector a
+unbBoxedtoBoxed inVect = VG.convert inVect
+-}
+
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector BV.BV -> V.Vector BV.BV -> V.Vector (V.Vector Int) -> CharType -> (V.Vector BV.BV, Int)
+getDOMedian :: VB.Vector BV.BV -> VB.Vector BV.BV -> VB.Vector (VB.Vector Int) -> CharType -> (VB.Vector BV.BV, Int)
 getDOMedian lBV rBV thisMatrix thisType =
     -- missing data inputs
-    if V.null lBV then (rBV, 0)
-    else if V.null rBV then (lBV, 0)
+    if VB.null lBV then (rBV, 0)
+    else if VB.null rBV then (lBV, 0)
     else 
         -- not missing
         -- get inDelCost 
-        let bvLength = BV.size (V.head lBV) 
-            inDelCost = V.head (V.last thisMatrix)
-            leftChar64 = V.map convertBVTo64 lBV
-            rightChar64 = V.map convertBVTo64 rBV
+        let bvLength = BV.size (VB.head lBV) 
+            inDelCost = VB.head (VB.last thisMatrix)
+            leftChar64 = VG.convert $ VB.map convertBVTo64 lBV
+            rightChar64 = VG.convert $ VB.map convertBVTo64 rBV
             (newMedianSmall, medianCostSmall) = ukkonenDO leftChar64 rightChar64 inDelCost
-            newMedianSmallBV = V.map (convert64ToBV bvLength)newMedianSmall
+            newMedianSmallBV = VB.map (convert64ToBV bvLength) $ VG.convert newMedianSmall
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
-            bv1 = BV.bitVec bvLength (1 :: Integer)
-            inDelBitBV = bv1 BV.<<.(BV.bitVec bvLength (bvLength - 1))
-            (newMedianLarge, medianCostLarge) = naive_do lBV rBV inDelCost inDelBitBV
+            (newMedianLarge, medianCostLarge) = NDO.naiveDO lBV rBV inDelCost
         in
-        --trace ("DO: " ++ (show inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
+        --trace ("DO: " ++ (s(VectorNWElement)how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
         else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
         else error "Unrecognized/Not implemented character type"
@@ -116,20 +143,8 @@ transformFullYShortY currentY rowNumber maxGap =
 
 -- | setLeftRight returns sequence that is longer first,
 --shorter second
-setLeftRight :: BaseChar -> BaseChar -> (BaseChar, Int, BaseChar, Int)
+setLeftRight :: BaseChar -> BaseChar  -> (BaseChar, Int, BaseChar, Int)
 setLeftRight inL inR = 
-        if V.length inL < V.length inR then (inR, V.length inR, inL, V.length inL)
-        else if V.length inL > V.length inR then (inL, V.length inL, inR, V.length inR)
-        else 
-            let outL = max inL inR
-                outR = min inL inR 
-            in
-            (outL, V.length outL, outR, V.length outR)
-
--- | setLeftRightBV returns sequence that is longer first,
---shorter second in BV
-setLeftRightBV :: V.Vector BV.BV -> V.Vector BV.BV  -> (V.Vector BV.BV , Int, V.Vector BV.BV , Int)
-setLeftRightBV inL inR = 
         if V.length inL < V.length inR then (inR, V.length inR, inL, V.length inL)
         else if V.length inL > V.length inR then (inL, V.length inL, inR, V.length inR)
         else 
@@ -148,7 +163,7 @@ ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =
         medianTest = tracebackUkkonen nwMatrix rLength lLength maxGap 0 0
     in
     --trace ("mh " ++ show (V.head medianTest)) (
-    if  (V.last medianTest) /= (0 :: Int64) then 
+    if  (V.last medianTest) /= 0 then -- (0 :: Int64) then 
         --trace (show nwMatrix) 
         (V.reverse medianTest, fromIntegral cost)
     else --trace ("Going back!! " ++ show cost) 
@@ -187,10 +202,10 @@ ukkonenDO inlSeq inrSeq inDelCost =
 --recusive, for Ukkonen space/time saving offsets
 --need to count gaps in traceback for threshold/barrier stuff
 --CHANGE TO MAYBE (V.Vector Int64) FOR BARRIER CHECK
-tracebackUkkonen :: V.Vector (V.Vector (Int, Int64, Direction)) -> Int -> Int -> Int -> Int -> Int -> V.Vector Int64
+tracebackUkkonen :: V.Vector (VectorNWElement) -> Int -> Int -> Int -> Int -> Int -> V.Vector Int64
 tracebackUkkonen nwMatrix posR posL maxGap rInDel lInDel =
         --trace ("psLR " ++ show posR ++ " " ++ show posL ++ " Left " ++ show lInDel ++ " Right " ++ show rInDel ++ " maxGap " ++ show maxGap) (
-        if (rInDel  > (maxGap - 2)) || (lInDel > (maxGap - 2)) then V.singleton (0 :: Int64)
+        if (rInDel  > (maxGap - 2)) || (lInDel > (maxGap - 2)) then V.singleton 0 --
         else if posL == 0 && posR == 0 then V.empty
         else 
             --trace ("TB " ++ show posL ++ " " ++ show posR) (
@@ -208,7 +223,7 @@ tracebackUkkonen nwMatrix posR posL maxGap rInDel lInDel =
             --)--)
 
 -- | getFirstRowUkkonen initializes first row of NW-Ukkonen matrix
-getFirstRowUkkonen :: Int -> Int -> Int -> Int -> BaseChar -> Int -> V.Vector (Int, Int64, Direction)
+getFirstRowUkkonen :: Int -> Int -> Int -> Int -> BaseChar -> Int -> VectorNWElement
 getFirstRowUkkonen indelCost rowLength position prevCost lSeq  maxGap = 
     --trace ("row 0 pos " ++ show position ++ "/" ++ show (maxShortY rowLength 0 maxGap) ++ " rowLength " ++ show rowLength ++ " maxGap " ++ show maxGap ++ " lseq " ++ show lSeq) (
     if position == rowLength  + 1 then V.empty
@@ -229,7 +244,7 @@ getFirstRowUkkonen indelCost rowLength position prevCost lSeq  maxGap =
    --) 
 
 -- | getRowUkkonen starts at second row (=1) and creates each row in turn--Ukkonen
-getRowsUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int -> V.Vector (Int, Int64, Direction) -> Int -> V.Vector (V.Vector (Int, Int64, Direction))
+getRowsUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int -> VectorNWElement -> Int -> V.Vector (VectorNWElement)
 getRowsUkkonen lSeq rSeq indelCost subCost rowNum prevRow maxGap =
     if rowNum == ((V.length rSeq) + 1) then V.empty
     else 
@@ -248,7 +263,7 @@ getRowsUkkonen lSeq rSeq indelCost subCost rowNum prevRow maxGap =
 
 -- | getThisRowUkkonen takes sequences and parameters with row number and make a non-first
 --row--Ukkonen
-getThisRowUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int ->  V.Vector (Int, Int64, Direction) -> Int -> Int -> Int -> Int -> V.Vector (Int, Int64, Direction)
+getThisRowUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int ->  VectorNWElement -> Int -> Int -> Int -> Int -> VectorNWElement
 getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow position rowLength prevCost maxGap =
     if  position ==  rowLength  + 1 then V.empty
     else if position == (rowNum + maxGap + 1) then V.singleton (barrierCost, barrierBit, LeftDir)
@@ -279,116 +294,10 @@ getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow position rowLength 
         --    ++ " trip " ++ show minCost ++ " " ++ show minState ++ " " ++ show minDir)
         V.cons (minCost, minState, minDir) (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength minCost maxGap)        
 
--- | naive_do takes two input sequences and returns median sequence and cost 
---based on charInfo-1:1 for now
---to do:
---      different costs
---      left/right based on name
---      Ukkonnen
---      C via FFI
---      Affine
-naive_do :: V.Vector BV.BV  -> V.Vector BV.BV  -> Int -> BV.BV  ->  (V.Vector BV.BV , Int)
-naive_do inlSeq inrSeq inDelCost inDelBitBV =
-    if V.null inlSeq then (inrSeq, 0)
-    else if V.null inrSeq then (inlSeq, 0)
-    else 
-        let subCost = 1
-            --this for left right constant--want longer in left for Ukkonnen
-            (lSeq, lLength, rSeq, rLength) = setLeftRightBV inlSeq inrSeq
-            --lSeq = max inlSeq inrSeq
-            --rSeq = min inlSeq inrSeq
-            --lLength = V.length lSeq
-            --rLength = V.length rSeq
-            firstRow = getFirstRow inDelCost lLength 0 0 lSeq inDelBitBV
-            nwMatrix = V.cons firstRow (getRows lSeq rSeq inDelCost subCost 1 firstRow inDelBitBV)
-            (cost, _, _) = (nwMatrix V.! rLength) V.! lLength
-            median = V.reverse (traceback nwMatrix (V.length rSeq) (V.length lSeq) inDelBitBV)
-        in
-        --trace ("NW: " ++ show nwMatrix ++ "\nCost/median " ++ show cost ++ "->" ++ show median)
-        (median, cost)
-
--- | traceback creates REVERSE mediian from nwMatrix, reverse to make tail
---recusive
-traceback :: V.Vector (V.Vector (Int, BV.BV, Direction)) -> Int -> Int -> BV.BV -> V.Vector BV.BV
-traceback nwMatrix posL posR inDelBitBV =
-        --trace ("psLR " ++ show posL ++ " " ++ show posR) (
-        if posL == 0 && posR == 0 then V.empty
-        else 
-            let (_, state, direction) = (nwMatrix V.! posL ) V.! posR
-            in
-                if (state /= inDelBitBV) then
-                    if direction == LeftDir then V.cons  state (traceback nwMatrix (posL) (posR - 1) inDelBitBV) 
-                    else if direction == DownDir then V.cons state (traceback nwMatrix (posL - 1) (posR) inDelBitBV)  
-                    else V.cons state (traceback nwMatrix (posL - 1) (posR - 1) inDelBitBV)
-                else 
-                    if direction == LeftDir then (traceback nwMatrix (posL) (posR - 1) inDelBitBV) 
-                    else if direction == DownDir then (traceback nwMatrix (posL - 1) (posR) inDelBitBV)  
-                    else (traceback nwMatrix (posL - 1) (posR - 1) inDelBitBV) 
-
--- | getFirstRow initializes foirst row of NW matrix
-getFirstRow :: Int -> Int -> Int -> Int -> V.Vector BV.BV  -> BV.BV -> V.Vector (Int, BV.BV, Direction)
-getFirstRow indelCost rowLength position prevCost lSeq inDelBitBV = 
-    if position == (rowLength + 1) then V.empty
-    else
-        if position == 0 then V.cons (0, inDelBitBV, DiagDir) (getFirstRow indelCost rowLength (position + 1) 0 lSeq inDelBitBV) 
-        else
-            let newCost = prevCost + indelCost
-                newState = getUnionIntersectionStateBV inDelBitBV (lSeq V.! (position - 1))
-            in
-            --trace ("FRC " ++ show newCost)
-            if (newState /= inDelBitBV) then --if there was no inDel overlap between states
-                V.cons (newCost, newState, LeftDir) 
-                    (getFirstRow  indelCost rowLength (position + 1) newCost lSeq inDelBitBV)
-            else                           --indel in both states so no cost
-                V.cons (prevCost, newState, LeftDir)
-                    (getFirstRow  indelCost rowLength (position + 1) prevCost lSeq inDelBitBV)
-
--- | getRow starts at second row (=1) and cretes each row in turn
-getRows :: V.Vector BV.BV  -> V.Vector BV.BV  -> Int -> Int -> Int -> V.Vector (Int, BV.BV, Direction) -> BV.BV -> V.Vector (V.Vector (Int, BV.BV, Direction))
-getRows lSeq rSeq indelCost subCost rowNum prevRow inDelBitBV =
-    if rowNum == ((V.length rSeq) + 1) then V.empty
-    else 
-        let thisRow =  getThisRow lSeq rSeq indelCost subCost rowNum prevRow 0 (V.length lSeq) 0 inDelBitBV
-        in
-        --trace ("Row " ++ show rowNum)
-        V.cons thisRow (getRows lSeq rSeq indelCost subCost (rowNum + 1) thisRow inDelBitBV) 
-
--- | getDiagDirCost takes union intersection and state to get diagonla sub or no-sub
---cost
-getDiagDirCost :: Int -> Int64 -> Int64 -> Int -> (Int, Int64)
-getDiagDirCost upLeftDirCost intersection unionLocal subCost =
-    --trace ("DiagCost " ++ show upLeftDirCost ++ " int " ++ show intersection ++ " union " ++ show union) (
-    if intersection /= 0 then (upLeftDirCost, intersection)
-    else (upLeftDirCost + subCost, unionLocal)
-
--- | getDiagDirCostBV takes union intersection and state to get diagonla sub or no-sub
---cost
-getDiagDirCostBV :: Int -> BV.BV -> BV.BV -> Int -> (Int, BV.BV)
-getDiagDirCostBV upLeftDirCost intersection unionLocal subCost =
-    --trace ("DiagCost " ++ show upLeftDirCost ++ " int " ++ show intersection ++ " union " ++ show union) (
-    if intersection /= 0 then (upLeftDirCost, intersection)
-    else (upLeftDirCost + subCost, unionLocal)
-
--- | getUnionIntersection
-getUnionIntersectionState :: Int64 -> Int64 -> Int64
-getUnionIntersectionState lState rState =
-    let intersection = (lState .&. rState) :: Int64
-    in
-    if intersection /= 0 then intersection
-    else (lState .|. rState) :: Int64
-
--- | getUnionIntersectionBV
-getUnionIntersectionStateBV :: BV.BV -> BV.BV -> BV.BV
-getUnionIntersectionStateBV lState rState =
-    let intersection = BV.and [lState, rState]
-    in
-    if intersection /= 0 then intersection
-    else BV.or [lState, rState]
-
 -- | getMinCostDir takes costs and states of three directins and returns min cost,
 --directin, and state
 --ORDER diag, down, left so same as POY4-5.
-getMinCostDir :: Int -> Int -> Int -> Int64 -> Int64 -> Int64 -> (Int, Int64, Direction)
+getMinCostDir :: Int -> Int -> Int -> Int64 -> Int64 -> Int64 -> NWElement
 getMinCostDir leftCost downCost diagCost diagState leftState downState =
     let minValue = minimum [leftCost, downCost, diagCost]
     in
@@ -404,18 +313,22 @@ getMinCostDir leftCost downCost diagCost diagState leftState downState =
     else (diagCost, diagState, DiagDir)
     -}
 
--- | getMinCostDirBV takes costs and states of three directins and returns min cost,
---directin, and state
---ORDER diag, down, left so same as POY4-5.
-getMinCostDirBV :: Int -> Int -> Int -> BV.BV -> BV.BV -> BV.BV -> (Int, BV.BV, Direction)
-getMinCostDirBV leftCost downCost diagCost diagState leftState downState =
-    let minValue = minimum [leftCost, downCost, diagCost]
+-- | getDiagDirCost takes union intersection and state to get diagonla sub or no-sub
+--cost
+getDiagDirCost :: Int -> Int64 -> Int64 -> Int -> (Int, Int64)
+getDiagDirCost upLeftDirCost intersection unionLocal subCost =
+    --trace ("DiagCost " ++ show upLeftDirCost ++ " int " ++ show intersection ++ " union " ++ show union) (
+    if intersection /= 0 then (upLeftDirCost, intersection)
+    else (upLeftDirCost + subCost, unionLocal)
+
+-- | getUnionIntersection
+getUnionIntersectionState :: Int64 -> Int64 -> Int64
+getUnionIntersectionState lState rState =
+    let intersection = (lState .&. rState) :: Int64
     in
-    --trace ("costs " ++ show leftCost ++ " " ++ show downCost ++ " " ++ show diagCost ++ " -> " ++ show minValue) (
-    if diagCost == minValue then (diagCost, diagState, DiagDir)
-    else if downCost == minValue then (downCost, downState, DownDir)
-    else (leftCost, leftState, LeftDir)
-    
+    if intersection /= 0 then intersection
+    else (lState .|. rState) :: Int64
+
 -- | getOverlapCost cheks for ovelap in gap so if indel, but opossite a gap
 --ambiguity--there is no cost
 getOverlapCost :: Int -> Int -> Int64 -> Int
@@ -426,49 +339,4 @@ getOverlapCost preCost indelCost oppositeState =
     if (.&.) oppositeState inDelBit == (0 :: Int64) then preCost + indelCost
     else preCost
     --)
-
--- | getOverlapCostBV cheks for ovelap in gap so if indel, but opossite a gap
---ambiguity--there is no cost
-getOverlapCostBV :: Int -> Int -> BV.BV -> BV.BV -> Int
-getOverlapCostBV preCost indelCost oppositeState inDelBitBV =
-    --trace("bits " ++ show oppositeState ++ " overAND " ++ show ((.&.) oppositeState inDelBit) ++ " control " ++ show ((.&.) inDelBit inDelBit)) ( 
-    --if preCost == barrierCost then barrierCost 
-    --else 
-    if BV.and [oppositeState, inDelBitBV] == 0 then preCost + indelCost
-    else preCost
-    --)
-
--- | getThisRow takes sequences and parameters with row number and make a non-first
---row
-getThisRow :: V.Vector BV.BV  -> V.Vector BV.BV  -> Int -> Int -> Int ->  V.Vector (Int, BV.BV, Direction) -> Int -> Int -> Int -> BV.BV -> V.Vector (Int, BV.BV, Direction)
-getThisRow lSeq rSeq indelCost subCost rowNum prevRow position rowLength prevCost inDelBitBV =
-    if position == (rowLength + 1) then V.empty
-    else if position == 0 then
-        let newState = getUnionIntersectionStateBV inDelBitBV (rSeq V.! (rowNum - 1))
-            (upValue, _, _) = prevRow V.! position
-        in --following in case overlap of inDelBit in leading gaps
-        if (newState /= inDelBitBV) then
-            V.cons (upValue + indelCost, newState, DownDir) 
-                (getThisRow lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength (upValue + indelCost) inDelBitBV)
-        else 
-            V.cons (upValue, newState, DownDir)
-                (getThisRow lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength upValue inDelBitBV)
-    else 
-        let lSeqPos = position - 1 --since first is '-' the index is row/pos - 1
-            rSeqRow = rowNum - 1 --since first is '-' the index is row/pos - 1
-            leftCost = getOverlapCostBV prevCost indelCost (lSeq V.! lSeqPos) inDelBitBV --need to check for overlap
-            (upValue, _, _) = prevRow V.! position 
-            downCost = getOverlapCostBV upValue indelCost (rSeq V.! rSeqRow) inDelBitBV--need to check for overlap
-            (diagValue, _, _) = prevRow V.! (position - 1)
-            intersection = BV.and [(lSeq V.! lSeqPos), (rSeq V.! rSeqRow)]
-            unionLocal = BV.or [(lSeq V.! lSeqPos), (rSeq V.! rSeqRow)]
-            (diagCost, diagState) = getDiagDirCostBV diagValue intersection unionLocal subCost
-            (minCost, minState, minDir) = getMinCostDirBV leftCost downCost diagCost diagState 
-                (getUnionIntersectionStateBV inDelBitBV (lSeq V.! lSeqPos)) (getUnionIntersectionStateBV inDelBitBV (rSeq V.! rSeqRow)) 
-        in
-        --trace ("preRow " ++ show prevRow ++ "row " ++ show rowNum ++ " col " ++ show position 
-        --    ++ " trip " ++ show minCost ++ " " ++ show minState ++ " " ++ show minDir)
-        V.cons (minCost, minState, minDir) (getThisRow lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength minCost inDelBitBV)        
-
-
 
