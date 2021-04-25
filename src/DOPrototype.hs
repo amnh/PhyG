@@ -69,7 +69,7 @@ getDOMedian lBV rBV thisMatrix thisType =
         -- not missing
         -- get inDelCost 
         let bvLength = BV.size (V.head lBV) 
-            inDelCost = V.last (V.head thisMatrix)
+            inDelCost = V.head (V.last thisMatrix)
             leftChar64 = V.map convertBVTo64 lBV
             rightChar64 = V.map convertBVTo64 rBV
             (newMedianSmall, medianCostSmall) = ukkonenDO leftChar64 rightChar64 inDelCost
@@ -79,9 +79,11 @@ getDOMedian lBV rBV thisMatrix thisType =
             inDelBitBV = bv1 BV.<<.(BV.bitVec bvLength (bvLength - 1))
             (newMedianLarge, medianCostLarge) = naive_do lBV rBV inDelCost inDelBitBV
         in
+        --trace ("DO: " ++ (show inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
         else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
         else error "Unrecognized/Not implemented character type"
+        --)
         
 
 -- | convertBVTo64 converts bitvector type to bit64 Int64 type 

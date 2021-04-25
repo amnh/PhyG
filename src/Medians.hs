@@ -265,7 +265,7 @@ getDOMedian thisWeight thisMatrix thisType leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
-    trace ("Sequence: " ++ (show newStateVect) ++ " " ++ (show newCost))
+    --trace ("Sequence: " ++ (show newStateVect) ++ " " ++ (show medianCost) ++ "\n" ++ (show $ stateBVPrelim leftChar) ++ "\n" ++ (show $ stateBVPrelim rightChar))
     newCharcater
     
   

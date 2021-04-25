@@ -162,7 +162,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                             -- spaces between alphabet elements suggest fastc
                             if (numSpaces > 0) then 
                                 let fastcData = getFastC firstOption fileContents' firstFile
-                                    fastcCharInfo = getFastaCharInfo fastcData firstFile firstOption isPrealigned' tcmPair 
+                                    fastcCharInfo = getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
                                 in
                                 trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
                                 executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
@@ -294,7 +294,9 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                      , prealigned = isPrealigned
                                      }
         in
+        trace ("Warning:  no tcm file specied for use with file : " ++ dataName ++ " . Using default, all 1 cost matrix.")
         defaultGenSeqCharInfo
+
 
 -- | getFastcCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -302,13 +304,15 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
 getFastcCharInfo inData dataName isPrealigned localTCM = 
     if null inData then error "Empty inData in getFastaCharInfo"
+    else if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
     else 
-        let defaultGenSeqCharInfo = CharInfo {
+        let inMatrix = SM.fromLists $ snd localTCM
+            defaultGenSeqCharInfo = CharInfo {
                                        charType = if (length $ fst localTCM) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = SM.fromLists $ snd localTCM
+                                     , costMatrix = inMatrix
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = fst localTCM
                                      , prealigned = isPrealigned

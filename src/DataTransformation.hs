@@ -337,7 +337,7 @@ getBVCode bvCodeVect inState =
 -- in a CharacterData structure
 getSequenceChar :: V.Vector (ST.ShortText, BV.BV) -> [ST.ShortText] -> [CharacterData]
 getSequenceChar nucBVPairVect stateList =
-    let sequenceVect = if (null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
+    let sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
                        else V.empty
         newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
                                               , minRangePrelim = V.empty
@@ -383,7 +383,7 @@ getGeneralBVCode bvCodeVect inState =
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList = 
         let stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
-            sequenceVect = if (null stateList) then V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+            sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
                            else V.empty
             newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
                                               , minRangePrelim = V.empty

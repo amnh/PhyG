@@ -46,6 +46,7 @@ import qualified SymMatrix as S
 import qualified Data.Vector as V
 import           Data.List
 import           GeneralUtilities
+import qualified ParallelUtilities as P
 
 
 -- | getPairwiseDistances takes Processed data
@@ -82,7 +83,7 @@ getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlocDistance  numVerts inData =
     let pairList = makeIndexPairs numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
-        pairListCosts = fmap (getBlockDistance inData) pairList
+        pairListCosts = P.seqParMap P.myStrategy (getBlockDistance inData) pairList
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList
