@@ -246,8 +246,8 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
         else if T.head firstLine == 'p' then curCharInfo
         else if (T.last firstLine) /= ';' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--ccode/costs lines must end with semicolon ';': " ++ T.unpack firstLine)
         else -- have a valid line
-            let wordList = fmap T.toLower $ T.words $ T.init firstLine
-                command2 = T.take 2 $ head wordList
+            let wordList = T.words $ T.init firstLine
+                command2 = T.toLower $ T.take 2 $ head wordList
                 localCharInfo  = if command2 == (T.pack "cc") then getCCodes fileName charNumber (tail wordList) curCharInfo
                                else curCharInfo
                 localCharInfo' = if command2 == (T.pack "co") then getCosts fileName charNumber (tail wordList) localCharInfo
@@ -347,15 +347,26 @@ getTransformationCosts fileName localAlphabet wordList =
                 toState   = readMaybe (T.unpack toStateText)   :: Maybe Int
             in
             if transCost == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation " ++ (T.unpack costText) ++ " does not appear to be an integer.")
-            else if fromState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation from state '" ++ (T.unpack fromStateText) ++ "' does not appear to be an integer.")
-            else if toState == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command transformation to state '" ++ (T.unpack toStateText) ++ "'' does not appear to be an integer.")
-            else 
+            else if (fromState /= Nothing) && (toState /= Nothing) then 
+                -- states are numerical
                 let newTripleList = if symetricalOperator == Nothing then [(fromJust fromState, fromJust toState, fromJust transCost)] 
                                     else  [(fromJust fromState, fromJust toState, fromJust transCost), (fromJust toState, fromJust fromState, fromJust transCost)] 
                 in
                 newTripleList ++ getTransformationCosts fileName localAlphabet (drop 2 wordList)
+            else 
+                -- states are characters (or multicharacters) 
+                let fromStateIndex = elemIndex (ST.fromText $ T.toStrict fromStateText) localAlphabet
+                    toStateIndex = elemIndex (ST.fromText $ T.toStrict toStateText) localAlphabet
+                    newTripleList = if symetricalOperator == Nothing then [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost)] 
+                                    else  [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost), (fromJust toStateIndex, fromJust fromStateIndex, fromJust transCost)] 
+                in
+                if fromStateIndex == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command " ++ (show $ T.unwords wordList) ++ " transformation state " ++ (T.unpack fromStateText) ++ " was not found in charcater alphabet " ++ show localAlphabet)
+                else if toStateIndex == Nothing then errorWithoutStackTrace  ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command " ++ (show $ T.unwords wordList) ++ " transformation state " ++ (T.unpack toStateText) ++ " was not found in charcater alphabet " ++ show localAlphabet)
+                else newTripleList ++ getTransformationCosts fileName localAlphabet (drop 2 wordList)
+
 
 -- | getAlphabetElements takes  Text and returns non '/' '>' elements
+-- this is for a single "block" as in A1>G2 or C>T 
 getAlphabetElements :: T.Text -> [ST.ShortText]
 getAlphabetElements inText =
     if T.null inText then []
@@ -364,11 +375,16 @@ getAlphabetElements inText =
             hasGreaterThan = T.find (== '>') inText
         in
         if (hasForwardSlash == Nothing) && (hasGreaterThan == Nothing) then []
-        else 
+        else    
+            let firstSymbol = T.takeWhile (`notElem` ['/','>']) inText
+                secondSymbol = T.tail $ T.dropWhile (`notElem` ['/','>']) inText
+            in
+            [ST.fromText $ T.toStrict firstSymbol, ST.fromText  $ T.toStrict secondSymbol]
+            {-
             let symbolList = T.filter (/= '/') $ T.filter (/= '>') inText
             in
             fmap ST.singleton $ T.unpack symbolList
-        
+            -}
 
 
 -- | scopeToIndex takes the number of characters and converts to a list of indices
@@ -518,7 +534,7 @@ prependColumn newColumn inData newData =
 -- checks if char is additive for numebrical alphabet
 getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> ([ST.ShortText], Double, [ST.ShortText]) 
 getAlphabetFromSTList fileName inStates inCharInfo = 
-  if null inStates then error "Empty columkn data in getAlphabetFromSTList" 
+  if null inStates then error "Empty column data in getAlphabetFromSTList" 
   else 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
@@ -557,7 +573,7 @@ getDecimals inChar =
             --)
 
 
--- | getAlphWithAmbiguity take a liost of ShortText with inform ation and accumulatiors
+-- | getAlphWithAmbiguity take a list of ShortText with inform ation and accumulatiors
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
 --  else if no spaces 
@@ -573,7 +589,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
         in
             if thisType /= Add then 
                 if (head firstState) /= '['  then 
-                    if (firstState `elem` ["?","-"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph ((head inStates) : newStates)
+                    if (firstState `elem` ["?"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph ((head inStates) : newStates)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((head inStates) : newAlph) ((head inStates) : newStates)
                 else -- ambiguity
                     let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
@@ -590,7 +606,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         newStateNumber = takeWhile (/='.') $ show ((fromJust stateNumber) / scaleFactor)
                     in
                     if stateNumber == Nothing then
-                        if (firstState `elem` ["?","-"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString "-1") : newAlph) ((ST.fromString "-1") : newStates)
+                        if (firstState `elem` ["?"]) then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString "-1") : newAlph) ((ST.fromString "-1") : newStates)
                         else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((ST.fromString newStateNumber) : newAlph) ((ST.fromString newStateNumber) : newStates)
             else 

@@ -231,7 +231,7 @@ getReadArgs fullCommand argList =
         else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
--- filters out '?' '[' and ']'
+-- filters out '?' '[' and ']' adds in '-' for indel Gap
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]"]
@@ -294,8 +294,34 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                      , prealigned = isPrealigned
                                      }
         in
-        trace ("Warning:  no tcm file specied for use with file : " ++ dataName ++ " . Using default, all 1 cost matrix.")
+        trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.")
         defaultGenSeqCharInfo
+
+-- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
+-- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
+--  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
+--  else if no spaces 
+--    if non-additive then each symbol is split out as an alphabet element -- as in TNT
+--    if is additive splits on '-' to denote range
+-- rescales (integerizes later) additive characters with decimal places to an integer type rep
+-- for additive charcaters if states are not nummerical then throuws an error
+getSequenceAphabet :: [ST.ShortText]  -> [ST.ShortText] -> [ST.ShortText]
+getSequenceAphabet newAlph inStates = 
+    if null inStates then 
+        -- removes indel gap from alphabet if present and then (re) adds at end
+        (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
+    else
+        let firstState = ST.toString $ head inStates
+        in
+        if (head firstState) /= '['  then 
+            if (firstState `elem` ["?"]) then getSequenceAphabet  newAlph (tail inStates)
+            else getSequenceAphabet ((head inStates) : newAlph) (tail inStates)
+        else -- ambiguity
+            let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
+            in
+            getSequenceAphabet (newAmbigStates ++ newAlph) (tail inStates) 
+
+
 
 
 -- | getFastcCharInfo get alphabet , names etc from processed fasta data
@@ -303,22 +329,28 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 -- need to read in TCM or default
 getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
 getFastcCharInfo inData dataName isPrealigned localTCM = 
-    if null inData then error "Empty inData in getFastaCharInfo"
-    else if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
+    if null inData then error "Empty inData in getFastcCharInfo"
     else 
-        let inMatrix = SM.fromLists $ snd localTCM
+        --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
+        let thisAlphabet = if (not $ null $ fst localTCM) then fst localTCM
+                           else getSequenceAphabet [] $ concat $ fmap snd inData
+            inMatrix = if (not $ null $ fst localTCM) then SM.fromLists $ snd localTCM
+                       else SM.fromLists $ generateDefaultMatrix thisAlphabet 0
             defaultGenSeqCharInfo = CharInfo {
-                                       charType = if (length $ fst localTCM) < 9 then SmallAlphSeq
+                                       charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
                                      , weight = 1.0
                                      , costMatrix = inMatrix
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
-                                     , alphabet = fst localTCM
+                                     , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }
         in
+        trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.")
         defaultGenSeqCharInfo
+
+-- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present  
 
 -- | getFastA processes fasta file 
 -- assumes single character alphabet
@@ -460,10 +492,11 @@ processTCMContents inContents fileName =
             lengthRowList = fmap length localCostMatrix
             rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
         in
-        if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from " 
+        if (not $ null (filter (== ST.singleton '-') localAlphabet)) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix")
+        else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from " 
             ++ fileName ++ " there should be (including '-') " ++ show numElements ++ " and there are " ++ show numLines)
         else if (not rowsCorrectLength) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from " 
             ++ fileName ++ " there should be (including '-') " ++ show numElements)
         else
             -- trace (show localAlphabet ++ "\n" ++ show localCostMatrix) 
-            (localAlphabet, localCostMatrix)
+            (localAlphabet ++ [ST.singleton '-'], localCostMatrix)
