@@ -1,17 +1,22 @@
-0) Change '-'' from missing to gap char if alphabet
-	is DNA/Protein (note in doc change to ? for missing)
-	What to do for multichar, prealigned data (TNT, Prealigned)
-	Add naked '-' for gap?
-1) Add matrix process ccosts for non-numerical data
-	General states e.g. A>C etc
+1) add tnt fasta/c tcm stuff and -? to docs
+
 2) Create MatrixApproxSmall, MatrixApproxLarge
 	Prealigned chars
 	Add to test.pg
-3) Modify and Import DOPrototype code
-	BV general, tcm restrictions
+
 4) Improve report
 	Cross refs (CVS,text)
 	Data output (CVS, text)
+
 5) Set blocks
+
 6) Transform 
 	Matrix <-> ApproxMatrix
+
+7) Newick--count bits in bitvector of nodes to deermine laeft versus right
+  so output smaller group "top" left and "right" bottom.
+  If equal  "Lower" number value left (ie earlier in input list)
+  likley more basal groups earlier in matrix
+
+8) select command for taxa/chars/blocks
+	to only use a list of taxa
