@@ -100,9 +100,15 @@ main =
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
-    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.ladderizeGraph $ 
+    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.toPhylogeneticGraph $ 
 
-    -- Create unique, label invariant bitvector names for leaf taxa.  
+    {-To do
+    -- Remove an not "selected" taxa from both data and graphs (easier to remove from fgl)
+    let reconciledData' = removeTaxaFromData includeList reconciledData
+    let reconciledGraphs' = removeTaxaFromGraphs includeList reconciledData
+    -}
+
+    -- Create unique bitvector names for leaf taxa.  
     let leafBitVectorNames = DT.createBVNames reconciledData
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 

@@ -51,7 +51,7 @@ import           Data.Maybe
 import qualified Data.BitVector as BV
 import qualified Data.Vector    as V
 import qualified Data.Text.Short as ST
-import qualified Data.Hashable as H
+--import qualified Data.Hashable as H
 import           Text.Read
 import           Debug.Trace
 
@@ -110,6 +110,7 @@ checkDuplicatedTerminals inData =
         if null dupList then (False, [])
         else (True, fmap head dupList)
 
+{-Used in data hash to create bitvectors for taxa--removed
 -- | joinSortFileData takes list if list of short text and merges line by line to joing leaf states
 -- and sorts the result
 joinSortFileData :: [[ST.ShortText]] -> [String]
@@ -119,17 +120,21 @@ joinSortFileData inFileLists =
         let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
-
+-}
 
 -- | createBVNames takes input data, sorts the raw data, hashes, sorts those to create
 -- unique, label invariant (but data related so arbitrary but consistent)
 -- Assumes the rawData come in sorted by the data reconciliation process
 -- These used for vertex labels, caching, left/right DO issues
+-- CHANGED: to simple bitvector order since left right is determined 
+-- in the DO operations based on data so label invariant anyway
+
 createBVNames :: [RawData] -> [(T.Text, BV.BV)]
 createBVNames inDataList =
     let rawDataList = fmap fst inDataList
         textNameList = fmap fst $ head rawDataList
         textNameList' = fmap fst $ last rawDataList
+        {-
         fileLeafCharList = fmap (fmap snd) rawDataList
         fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
         leafList = reverse $ joinSortFileData fileLeafList
@@ -138,11 +143,12 @@ createBVNames inDataList =
         (_, leafReoderedList) = unzip leafHashPair
         leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
         (nameList, intList) = unzip leafOrder
-        bv1 = BV.bitVec (length nameList) (1 :: Integer)
-        bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length nameList)) intList)
+        -}
+        bv1 = BV.bitVec (length textNameList) (1 :: Integer)
+        bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length textNameList)) [0..((length textNameList) - 1)])
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
-    else zip nameList bvList
+    else zip textNameList bvList
 
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
 -- these data are otganized into bloicks (set to input filenames initially)
