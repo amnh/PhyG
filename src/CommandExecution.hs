@@ -49,12 +49,15 @@ import           GraphFormatUtilities
 import qualified LocalGraph as LG
 import           Data.List
 import qualified Data.Text.Lazy as T
+import qualified Data.CSV as CSV
+import qualified Data.Vector as V
+import qualified Data.Text.Short as ST
 
 
 -- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeCommands :: [RawData] -> ProcessedData -> [SimpleGraph] -> [Command] -> IO [SimpleGraph]
-executeCommands rawData processedData curGraphs commandList = do
+executeCommands :: [RawData] -> ProcessedData -> [SimpleGraph] -> [[VertexCost]] -> [Command] -> IO [SimpleGraph]
+executeCommands rawData processedData curGraphs pairwiseDist commandList = do
     if null commandList then return curGraphs
     else do
         let (firstOption, firstArgs) = head commandList
@@ -64,20 +67,20 @@ executeCommands rawData processedData curGraphs commandList = do
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
         -- report command    
         else if firstOption == Report then do
-            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs rawData processedData curGraphs
+            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
             if outFile == "stderr" then hPutStr stderr reportString
             else if outFile == "stdout" then hPutStr stdout reportString
             else if writeMode == "overwrite" then writeFile outFile reportString
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
-            executeCommands rawData processedData curGraphs (tail commandList)
+            executeCommands rawData processedData curGraphs pairwiseDist (tail commandList)
         else 
-            executeCommands rawData processedData curGraphs (tail commandList)
+            executeCommands rawData processedData curGraphs pairwiseDist (tail commandList)
             
 -- | reportArgList contains valid report arguments
 reportArgList :: [String]
-reportArgList = ["all", "data","graphs", "overwrite", "append", "dot", reverse "newick", "ascii", "crossrefs"]
+reportArgList = ["all", "data","graphs", "overwrite", "append", "dot", reverse "newick", "ascii", "crossrefs","pairdist"]
 
 -- | checkReportCommands takes commands and verifies that they are in list
 checkReportCommands :: [String] -> [String] -> Bool
@@ -96,8 +99,8 @@ checkReportCommands commandList permittedList =
 -- | reportCommand takes report options, current data and graphs and returns a 
 -- (potentially large) String to print and the channel to print it to 
 -- and write mode overwrite/append
-reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [SimpleGraph] -> (String, String, String)
-reportCommand argList rawData processedData curGraphs =
+reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [SimpleGraph] -> [[VertexCost]] -> (String, String, String)
+reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
     let outFileNameList = filter (/= "") $ fmap snd argList
         commandList = filter (/= "") $ fmap fst argList
     in
@@ -110,14 +113,27 @@ reportCommand argList rawData processedData curGraphs =
                         else "append"
             
         in
+        -- error too harsh, lose everything else
+        --if (null $ filter (/= "overwrite") $ filter (/= "append") commandList) then errorWithoutStackTrace ("Error: Missing 'report' option in " ++ show commandList)
+        --else 
         if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in report: " ++ (show argList))
         else 
             -- This for reconciled data
-            if "data" `elem` commandList then 
-                let baseData = ("There were " ++ (show $ length rawData) ++ " input data files and " ++ (show $ length curGraphs) ++ " graphs\n")
-                    dataString = phyloDataToString rawData
+            if "crossrefs" `elem` commandList then
+                let dataString = CSV.genCsvFile $ getDataListList rawData processedData
+                in 
+                (dataString, outfileName, writeMode)
+            else if "pairdist" `elem` commandList then
+                let nameData = (intercalate "," $ V.toList $ fmap T.unpack $ fst processedData) ++ "\n"
+                    dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
+                in 
+                (nameData ++ dataString, outfileName, writeMode)
+            else if "data" `elem` commandList then 
+                let dataString = phyloDataToString 0 $ snd processedData
+                    baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ snd processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
+                    charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet"]
                 in
-                (baseData ++ dataString, outfileName, writeMode)
+                (baseData ++ (CSV.genCsvFile $ charInfoFields : dataString), outfileName, writeMode)
             else if "graphs" `elem` commandList then 
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
@@ -136,12 +152,55 @@ reportCommand argList rawData processedData curGraphs =
                     let graphString = concat $ fmap fgl2DotString curGraphs
                     in 
                     (graphString, outfileName, writeMode)
-            else ("Blah", outfileName, writeMode)
-            
+            else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+
+-- | getDataListList returns a list of lists of Strings for data output as csv
+-- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in 
+-- input file
+getDataListList :: [RawData] -> ProcessedData -> [[String]]
+getDataListList inDataList processedData = 
+    if null inDataList then []
+    else 
+        let fileNames = " " : (fmap (takeWhile (/= ':')) $ fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
+            fullTaxList = V.toList $ fst  processedData
+            presenceAbsenceList = fmap (isThere inDataList) fullTaxList
+            fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
+        in
+        trace (show fileNames)
+        fileNames : fullMatrix
+
+-- | isThere takes a list of Rawdata and reurns a String of + - 
+isThere :: [RawData] -> T.Text -> [String]
+isThere inData inName =
+    if null inData then []
+    else
+        let firstTaxList = fmap fst $ fst $ head inData
+        in
+        if inName `elem` firstTaxList then "+" : isThere (tail inData) inName
+        else  "-" : isThere (tail inData) inName
+
 -- | phyloDataToString converts RawData type to String
 -- for additive chars--multiply states by weight is < 1 when outputtting due to conversion on input
-phyloDataToString :: [RawData] -> String
-phyloDataToString inData = show inData
+phyloDataToString :: Int -> V.Vector BlockData -> [[String]]
+phyloDataToString charIndexStart inDataVect = 
+    if V.null inDataVect then []
+    else 
+        let (blockName, _, charInfoVect) = V.head inDataVect
+            charStrings = zipWith (:) (replicate (V.length charInfoVect) (T.unpack blockName)) (fmap getCharInfoStrings $ V.toList charInfoVect)
+            charNumberString = fmap show [charIndexStart..(charIndexStart + (length charStrings) - 1)] 
+            fullMatrix = zipWith (:) charNumberString charStrings
+        in 
+        fullMatrix ++ phyloDataToString (charIndexStart + (length charStrings)) (V.tail inDataVect)
+    
+-- | getCharInfoStrings takes charInfo and returns list of Strings of fields
+getCharInfoStrings :: CharInfo -> [String]
+getCharInfoStrings inChar =
+    let activityString = if (activity inChar) == True then "active"
+                         else "inactive"
+        prealignedString = if (prealigned inChar) == True then "prealigned"
+                         else "unaligned"
+    in
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar)
 
 -- | executeRenameCommands takes all the "Rename commands" pairs and 
 -- creates a list of pairs of new name and list of old names to be converted

@@ -35,6 +35,10 @@ Portability :  portable (I hope)
 
 -}
 
+{-Improvements
+Lots of cons  O(n) stuff--could be improved
+-}
+
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
 module DOPrototype
@@ -60,7 +64,9 @@ data Direction = LeftDir | DownDir | DiagDir
 
 
 {-
-import qualified Data.V.Vector .Unboxed as V
+This for unboxing (unbboxed wrapper) vector
+should be ~5x faster
+import qualified Data.V.Vector.Unboxed as V
 import qualified Data.Vector.Generic as VG (convert)
 import qualified Data.Vector.Unboxing as V --Unboxing
 import GHC.Generics

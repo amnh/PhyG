@@ -53,6 +53,7 @@ executable phyg
                 , vector
                 , sort
                 , unboxing-vector
+                , MissingH
                 -- PCG FFI stuff
                 --, bimap
                 --, mtl
@@ -99,6 +100,7 @@ executable phyg
                   Medians
                   DOPrototype
                   NaiveDO
+                  FastAC
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

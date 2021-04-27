@@ -115,16 +115,16 @@ main =
     -- Need to check data for equal in charcater number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-    -- To test datga recoding and basic median2
+    -- To test data recoding and basic median2
     let pairDist = D.getPairwiseDistances naiveData
-    hPutStrLn stderr (show pairDist)
+    --hPutStrLn stderr (show pairDist)
 
 
     -- Optimize Data
     let optimizedData = naiveData --  place holder
 
     -- Execute Following Commands (searches, reports etc)
-    finalGraphList <- CE.executeCommands reconciledData optimizedData reconciledGraphs (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
+    finalGraphList <- CE.executeCommands rawData optimizedData reconciledGraphs pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     
     -- Final Stderr report
