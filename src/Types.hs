@@ -60,11 +60,11 @@ type Time = (Days, Hours, Minutes, Seconds)
 type Argument = (String, String)
 
 --For rename format rename:(a,b,c,...,y,z) => a-y renamed to z 
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename
+data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename | Select
     deriving (Show, Eq)
 
--- | Vertex types
-data VertexType = Root | Leaf | Tree | Network
+-- | Node variety
+data NodeType = Root | Leaf | Tree | Network
     deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])
@@ -130,8 +130,49 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for N
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
+
+data VertexType = VertexType { index :: Int  -- For accessing
+                             , bvLabel :: BV.BV -- For comparison of vertices subtrees, etc
+                             , parents :: V.Vector Int --indegree indices
+                             , children :: V.Vector Int -- outdegree indices
+                             , variety :: NodeType  
+                             } deriving (Show, Eq)
+
+
+data EdgeType = EdgeType { sourceIndex :: Int  -- For accessing
+                         , sinkIndex :: Int  -- For accessing
+                         , minLength :: Double
+                         , maxLength :: Double
+                         } deriving (Show, Eq)
+
+-- | Type BLockDisplayTree is a Forest of tree components (indegree, outdegree) = (0,1|2),(1,2),(1,0)
+-- these are "resolved" from more general graphs
+-- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
+type BlockDisplayForest = LG.Gr VertexType EdgeType 
+
+-- | Type BlockFoci are a vector for each character (in a block usually) of a vector of edges since there may be more than 1 "best" focus
+-- static charcatsr all are fine--so length 1 defualt value
+-- dynamic characters its the edge of traversal focus, a psuedo-root 
+type BlockFoci = V.Vector (V.Vector (LG.LEdge EdgeType))
+
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
+
+-- | Type phylogentic Graph is a graph with
+-- cost, optimality value, 
+-- block display trees, character traversal "foci" (could have multiple)
+-- Data optimizations exist in Processed Data
+-- Question of wheterh traversal foci shold be in Graph or Data section
+-- for now in Graph but could easiily be moved to Processed data
+-- May need "EdgeData" like VertexData for heuristics.  UNclear if local scope during SPR/TBR will do it.
+--	Fields:
+--		1) "Simple" graph with fileds useful for outputting graphs  
+--		2) Graph optimality value or cost
+--		3) Vector of display trees for each data Block
+--		4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
+-- 		5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
+type PhylogeneticGraph = (SimpleGraph, VertexCost, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
+
 
 -- | type RawGraph is input graphs with leaf and edge labels
 -- need to establish this later
@@ -156,13 +197,14 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- it is row, ie vertex dominant
 -- it has a bitvector name derived from leaf bitvector labels (union of children)
 -- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees 
--- a vector of characterer data where assignments nd costs rteside, and a vector of character info
--- leaves will alwasy be first (indices 0..n-1) for simpler ipdating of data during graph optimization
+-- a vector of characterer data where assignments and costs reside, and a vector of character info
+-- leaves will alwasy be first (indices 0..n-1) for simpler updating of data during graph optimization
 -- NameText is the block label used for assignment and reporting output
 -- Initially set to input filename of character
--- first field is the name of the block--intially taken from input filenames
--- the second field of three tuple is a vector with a nde Bitvector, its character states
--- later these will have size > 1 for internal data so only a single "charatcer" for each type at a vertex
+--	Fields:
+--		1) name of the block--intially taken from input filenames
+--		2) vector of vertiex data with (node Bitvector--for dsisplayu tree stuff, vector of character states)
+--		3) Vector of charcater information for characters in the block 
 type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
 
 

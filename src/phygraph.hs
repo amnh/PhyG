@@ -103,7 +103,7 @@ main =
     let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.toPhylogeneticGraph $ 
 
     {-To do
-    -- Remove an not "selected" taxa from both data and graphs (easier to remove from fgl)
+    -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
     let reconciledData' = removeTaxaFromData includeList reconciledData
     let reconciledGraphs' = removeTaxaFromGraphs includeList reconciledData
     -}

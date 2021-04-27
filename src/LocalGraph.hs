@@ -56,7 +56,11 @@ import           System.IO
 -- | Gr local graph definition using FGL
 type Gr a b = P.Gr a b
 type Node = G.Node
+type LNode a = G.LNode a
 type DotGraph = GV.DotGraph
+type Edge = G.Edge
+type LEdge b = G.LEdge b
+
 
 -- | getFENLocal maps to forestEnhancedNewickStringList2FGLList in GraphFormatUtilities
 -- to allow for potnetial swapping FGL graph backend
