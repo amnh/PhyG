@@ -53,5 +53,10 @@
 		Maybe try to remove the Vector "cons" and make it work on lists
 		to have O(1) prepend only previous row has index access--and that is n ot random
 		but only one previous so probbaly could be done as a list 
+		Perhaps better with Data.Sequence, constant time pre/append
+		random access min (i, n-i) so OK for first r seond element--
+		still should deal with head tail of previous row for contant access
+
+		Would have to write own unZip4 but that's not so bad
 
 
