@@ -4,10 +4,6 @@
 	Prealigned chars
 	Add to test.pg
 
-4) Improve report
-	Cross refs (CVS,text)
-	Data output (CVS, text)
-
 5) Set blocks
 
 6) Transform 
@@ -20,3 +16,34 @@
 
 8) select command for taxa/chars/blocks
 	to only use a list of taxa
+
+9) Consolidate General seqeunce characters in the same block with the same
+	TCM.  Would have to merge alphabets and TCMs so that only need a single 
+	hashMap for them 
+	Would need to modify the CharacterData type to add a Vector (Vector BV.BV)
+	to hold teh multiple sequenxe states like with static characters.
+
+10) General sequence characters--thread hashMap through traversal--or any tree cost determination
+	Need to return it with tree to update CharInfo to incude updated hashMap
+	Would need to add to the CharacterData type to hold hashMap, 
+	empty in leaves so use the initial charInfo hashMap, then take childrens HashMaps, 
+	if they are unequal in length, union them, and update through DO
+	returning updated hashMap at end with cost to potentially (if length increases) 
+	update the charInfo hashMap field
+	THis would be obviated with Alex and Callan's code if it can be migrated in.
+	But basically--anyhting that returns a tree will have to return potentially updated
+	CharInfo wrt hashMap
+
+11) Add tcmDense2D nad tcmDense3D matrix fields to CharInfo for general matrix
+	Do stuff
+	Like general sequence charcater worth consolidating if have same TCM/Alphabet
+
+12) Modify DO functions to return additional fields
+	For post order, return postorder median2D, "gapped" median2D, "gapped" left and right children
+	For preorder:
+		Do DO pairwise based on "gqpped" preliminary state, BUT
+		traceback based on "gapped" children (same length as gapped preliminary)
+		Can apply tcmDense3 (or hashMap for general seqeunces) on traceback to
+		parent, gapped children during traceback to get "final" assignment 
+
+

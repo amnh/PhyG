@@ -79,7 +79,7 @@ main =
 
     commandContents' <- PC.expandRunCommands [] (lines commandContents) 
     let thingsToDo = PC.getCommandList  commandContents'
-    mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
+    --mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read commands (with prealigned and tcm flags first)
     dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[])) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo

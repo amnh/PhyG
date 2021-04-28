@@ -114,7 +114,7 @@ getCommandList  rawContents =
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
             processedCommands = concat $ fmap parseCommand rawList
         in
-        trace (show rawList)
+        --trace (show rawList)
         processedCommands
 
 -- | removeComments deletes anyhting on line (including line) 
@@ -176,7 +176,7 @@ parseCommand inLine =
             instruction = getInstruction instructionString allowedCommandList
             processedArg = parseCommandArg firstString instruction argList
         in
-        trace (instructionString ++ " " ++  show argList)
+        --trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg) : parseCommand restString
 
 -- | getSubCommand takes a string ans extracts the first occurrence of the 
