@@ -55,7 +55,11 @@
 		but only one previous so probbaly could be done as a list 
 		Perhaps better with Data.Sequence, constant time pre/append
 		random access min (i, n-i) so OK for first r seond element--
-		still should deal with head tail of previous row for contant access
+		still should deal with head tail of previous row for contant access,
+		and input data wold have to be vector because they are somehwt random,
+		but that cold be worked around as well if need be.
+
+		So could use Data.Sequence for interna NW matrix, but vectors for seqeunces--basically avoiding all teh O(n) cons-ing
 
 		Would have to write own unZip4 but that's not so bad
 
