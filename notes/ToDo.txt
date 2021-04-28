@@ -59,7 +59,8 @@
 		and input data wold have to be vector because they are somehwt random,
 		but that cold be worked around as well if need be.
 
-		So could use Data.Sequence for interna NW matrix, but vectors for seqeunces--basically avoiding all teh O(n) cons-ing
+		So could use Data.Sequence for interna NW matrix, but vectors for seqeunces--basically 
+		avoiding all teh O(n) cons-ing
 
 		Would have to write own unZip4 but that's not so bad
 
