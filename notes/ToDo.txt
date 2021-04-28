@@ -46,4 +46,12 @@
 		Can apply tcmDense3 (or hashMap for general seqeunces) on traceback to
 		parent, gapped children during traceback to get "final" assignment 
 
+		traceback produce a list of 3-tuples gapped children and preliminary,
+		filter gaps out of preliinary for that field (keep gapped too),
+		Convert to Vector so cheaper cons
+
+		Maybe try to remove the Vector "cons" and make it work on lists
+		to have O(1) prepend only previous row has index access--and that is n ot random
+		but only one previous so probbaly could be done as a list 
+
 
