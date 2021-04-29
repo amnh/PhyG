@@ -101,6 +101,8 @@ executable phyg
                   DOPrototype
                   NaiveDO
                   FastAC
+                  NaiveDOSequence
+                  LocalSequence
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

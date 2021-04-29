@@ -52,6 +52,7 @@ import qualified Data.Vector  as VB
 import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
 import qualified NaiveDO as NDO
+import qualified NaiveDOSequence as NDOS
 import Types
 
 
@@ -114,11 +115,11 @@ getDOMedian lBV rBV thisMatrix thisType =
             (newMedianLarge, medianCostLarge) = NDO.naiveDO lBV rBV inDelCost
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
-        if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
-        else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
-        else error "Unrecognized/Not implemented character type"
+        --if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
+        --else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
+        --else error "Unrecognized/Not implemented character type"
         --)
-        
+        NDOS.naiveDO lBV rBV inDelCost
 
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
 convertBVTo64 :: BV.BV -> Int64

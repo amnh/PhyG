@@ -126,6 +126,8 @@ main =
     -- Execute Following Commands (searches, reports etc)
     finalGraphList <- CE.executeCommands rawData optimizedData reconciledGraphs pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
+    timeDN <- getSystemTimeSeconds 
+    hPutStrLn stderr ("Execution time " ++ show (timeDN - timeD))
     
     -- Final Stderr report
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
