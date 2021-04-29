@@ -110,7 +110,7 @@ naive_do_BV inlSeq inrSeq inDelCost inDelBitBV =
             nwMatrix = LS.cons firstRow (getRows lSeq rSeq inDelCost subCost 1 firstRow inDelBitBV)
             firstRow = getFirstRow inDelCost lLength 0 0 lSeq inDelBitBV
             (cost, _, _) = (nwMatrix LS.! rLength) LS.! lLength
-            median = LS.reverse (traceback nwMatrix (V.length rSeq) (V.length lSeq) inDelBitBV)
+            median = traceback nwMatrix (V.length rSeq) (V.length lSeq) inDelBitBV
             --revNWMatrix = LS.reverse nwMatrix
             --nwMatrix = LS.snocFlip firstRow (getRows lSeq rSeq inDelCost subCost 1 firstRow inDelBitBV)
             --(cost, _, _) = (nwMatrix LS.! 0) LS.! lLength
@@ -148,9 +148,9 @@ traceback nwMatrix posL posR inDelBitBV =
             let (_, state, direction) = (nwMatrix LS.! posL ) LS.! posR
             in
                 if (state /= inDelBitBV) then
-                    if direction == LeftDir then LS.cons  state (traceback nwMatrix (posL) (posR - 1) inDelBitBV) 
-                    else if direction == DownDir then LS.cons state (traceback nwMatrix (posL - 1) (posR) inDelBitBV)  
-                    else LS.cons state (traceback nwMatrix (posL - 1) (posR - 1) inDelBitBV)
+                    if direction == LeftDir then LS.snocFlip  state (traceback nwMatrix (posL) (posR - 1) inDelBitBV) 
+                    else if direction == DownDir then LS.snocFlip state (traceback nwMatrix (posL - 1) (posR) inDelBitBV)  
+                    else LS.snocFlip state (traceback nwMatrix (posL - 1) (posR - 1) inDelBitBV)
                 else 
                     if direction == LeftDir then (traceback nwMatrix (posL) (posR - 1) inDelBitBV) 
                     else if direction == DownDir then (traceback nwMatrix (posL - 1) (posR) inDelBitBV)  
