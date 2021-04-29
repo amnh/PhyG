@@ -103,6 +103,7 @@ executable phyg
                   FastAC
                   NaiveDOSequence
                   LocalSequence
+                  DOUkkonenSequence
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

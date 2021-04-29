@@ -53,6 +53,8 @@ import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
 import qualified NaiveDO as NDO
 import qualified NaiveDOSequence as NDOS
+import qualified DOUkkonnenSequence as NDOUKS
+
 import Types
 
 
@@ -108,19 +110,17 @@ getDOMedian lBV rBV thisMatrix thisType =
             -}
             leftChar64 = VB.map convertBVTo64 lBV
             rightChar64 = VB.map convertBVTo64 rBV
-            (newMedianSmall, medianCostSmall) = ukkonenDO leftChar64 rightChar64 inDelCost
+            (newMedianSmall, medianCostSmall) = NDOUKS.ukkonenDO leftChar64 rightChar64 inDelCost
             newMedianSmallBV = VB.map (convert64ToBV bvLength) newMedianSmall
             
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
-            (newMedianLarge, medianCostLarge) = NDO.naiveDO lBV rBV inDelCost
+            (newMedianLarge, medianCostLarge) = NDOS.naiveDO lBV rBV inDelCost
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
-        --if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
-        --else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
-        --else error "Unrecognized/Not implemented character type"
-        --)
-        NDOS.naiveDO lBV rBV inDelCost
-
+        if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
+        else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
+        else error "Unrecognized/Not implemented character type"
+        
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
 convertBVTo64 :: BV.BV -> Int64
 convertBVTo64 inBV = fromIntegral (BV.nat inBV) 

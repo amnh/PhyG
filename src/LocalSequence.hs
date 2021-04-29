@@ -76,7 +76,7 @@ empty = S.empty
 -- | null equal to empty
 null :: (Eq a) => Seq a -> Bool
 null inSeq = if inSeq == S.empty then True
-	         else False
+             else False
 
 -- | singleton to singleton
 singleton :: a -> Seq a
@@ -109,3 +109,10 @@ fromVector inVect = S.fromList $ V.toList inVect
 -- | reverse to reverse
 reverse :: Seq a -> Seq a
 reverse inSeq = S.reverse inSeq
+
+-- last should be connstant time
+last :: Seq a -> a
+last inSeq = S.index inSeq $ (S.length inSeq) - 1
+
+
+
