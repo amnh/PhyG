@@ -4,7 +4,7 @@ Description :  Functions for parsimony DO Naive version using bitvectors (so lar
                without Ukkonen space/time saving 
                Uses "Sequence" type to avoid O(n) of Vector.cons
                Prototype non-optimized, restricted Haskell functisns
-Copyright   :  (c) 2014 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :  
 
 Redistribution and use in source and binary forms, with or without
@@ -73,19 +73,6 @@ naiveDO lBV rBV inDelCost =
         --trace ("DO: " ++ (show inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         (newMedianLarge, medianCostLarge) 
         --)
-        
--- | setLeftRight returns sequence that is longer first,
---shorter second
-setLeftRight :: (Ord a) => V.Vector a -> V.Vector a  -> (V.Vector a, Int, V.Vector a, Int)
-setLeftRight inL inR = 
-        if V.length inL < V.length inR then (inR, V.length inR, inL, V.length inL)
-        else if V.length inL > V.length inR then (inL, V.length inL, inR, V.length inR)
-        else 
-            let outL = max inL inR
-                outR = min inL inR 
-            in
-            (outL, V.length outL, outR, V.length outR)
-
 
 -- | naive_do takes two input sequences and returns median sequence and cost 
 --based on charInfo-1:1 for now
@@ -96,17 +83,17 @@ setLeftRight inL inR =
 --      C via FFI
 --      Affine
 naive_do_BV :: V.Vector BV.BV  -> V.Vector BV.BV  -> Int -> BV.BV  ->  (V.Vector BV.BV , Int)
-naive_do_BV inlSeq inrSeq inDelCost inDelBitBV =
-    if V.null inlSeq then (inrSeq, 0)
-    else if V.null inrSeq then (inlSeq, 0)
+naive_do_BV lSeq rSeq inDelCost inDelBitBV =
+    if V.null lSeq then (rSeq, 0)
+    else if V.null rSeq then (lSeq, 0)
     else 
         let subCost = 1
             --this for left right constant--want longer in left for Ukkonnen
-            (lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
+            --(lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
             --lSeq = max inlSeq inrSeq
             --rSeq = min inlSeq inrSeq
-            --lLength = V.length lSeq
-            --rLength = V.length rSeq
+            lLength = V.length lSeq
+            rLength = V.length rSeq
             nwMatrix = LS.cons firstRow (getRows lSeq rSeq inDelCost subCost 1 firstRow inDelBitBV)
             firstRow = getFirstRow inDelCost lLength 0 0 lSeq inDelBitBV
             (cost, _, _) = (nwMatrix LS.! rLength) LS.! lLength

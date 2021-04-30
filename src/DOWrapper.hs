@@ -48,15 +48,11 @@ import Debug.Trace
 import Data.Int
 import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
-import qualified NaiveDO as NDO
 import qualified NaiveDOSequence as NDOS
 import qualified DOUkkonnenSequence as NDOUKS
 import qualified DOUkkonnenSequenceInt64 as NDOUKS64
 
 import Types
-
-
-nt64 
 
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.
@@ -66,22 +62,22 @@ thesholdUKLength = 10
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: VB.Vector  BV.BV -> VB.Vector  BV.BV -> VB.Vector  (VB.Vector  Int) -> CharType -> (VB.Vector  BV.BV, Int)
-getDOMedian lBV rBV thisMatrix thisType =
+getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) -> CharType -> (V.Vector  BV.BV, Int)
+getDOMedian origLBV origRBV thisMatrix thisType =
     -- missing data inputs
-    if VB.null lBV then (rBV, 0)
-    else if VB.null rBV then (lBV, 0)
+    if V.null origLBV then (origRBV, 0)
+    else if V.null origRBV then (origLBV, 0)
     else 
         -- not missing
         -- get inDelCost 
-        let inDelCost = VB.head (VB.last thisMatrix)
-
+        let inDelCost = V.head (V.last thisMatrix)
+            (lBV, rBV) = setLeftRight origLBV origRBV
             -- Int64 version faster for small aphabets
-            bvLength = BV.size (VB.head lBV) 
-            leftChar64 = VB.map convertBVTo64 lBV
-            rightChar64 = VB.map convertBVTo64 rBV
+            bvLength = BV.size (V.head lBV) 
+            leftChar64 = V.map convertBVTo64 lBV
+            rightChar64 = V.map convertBVTo64 rBV
             (newMedian64, medianCost64) = NDOUKS64.ukkonenDO leftChar64 rightChar64 inDelCost
-            newMedianBV = VB.map (convert64ToBV bvLength) newMedian64
+            newMedianBV = V.map (convert64ToBV bvLength) newMedian64
             
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
             (newMedianSmall, medianCostSmall) = NDOUKS.ukkonenDO lBV rBV inDelCost
@@ -102,3 +98,14 @@ convertBVTo64 inBV = fromIntegral (BV.nat inBV)
 convert64ToBV :: Int -> Int64 -> BV.BV
 convert64ToBV bvLength in64  =  BV.bitVec  bvLength in64
 
+-- | setLeftRight returns sequence that is longer first,
+--shorter second
+setLeftRight :: V.Vector  BV.BV -> V.Vector  BV.BV -> (V.Vector  BV.BV, V.Vector  BV.BV)
+setLeftRight inL inR = 
+        if V.length inL < V.length inR then (inR, inL)
+        else if V.length inL > V.length inR then (inL, inR)
+        else 
+            let outL = max inL inR
+                outR = min inL inR 
+            in
+            (outL, outR)

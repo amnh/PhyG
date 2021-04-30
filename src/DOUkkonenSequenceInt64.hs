@@ -88,17 +88,7 @@ transformFullYShortY currentY rowNumber maxGap =
     if (transformY < 0) then error (show currentY ++ " " ++ show rowNumber ++ " " ++ show maxGap ++ " Impossible negative value for transfomred Y")
     else transformY
 
--- | setLeftRight returns sequence that is longer first,
---shorter second
-setLeftRight :: BaseChar -> BaseChar  -> (BaseChar, Int, BaseChar, Int)
-setLeftRight inL inR = 
-        if V.length inL < V.length inR then (inR, V.length inR, inL, V.length inL)
-        else if V.length inL > V.length inR then (inL, V.length inL, inR, V.length inR)
-        else 
-            let outL = max inL inR
-                outR = min inL inR 
-            in
-            (outL, V.length outL, outR, V.length outR)
+
 
 -- | ukkonenCore core functions of Ukkonen to allow for recursing with maxGap
 --doubled if not large enough (returns Nothing)  
@@ -127,13 +117,15 @@ ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =
 --move to C via FFI
 --Still occasional error in cost and median (disagreement) show in Chel.seq
 ukkonenDO :: BaseChar -> BaseChar -> Int -> (BaseChar, Int)
-ukkonenDO inlSeq inrSeq inDelCost =
-    if V.null inlSeq then (inrSeq, 0)
-    else if V.null inrSeq then (inlSeq, 0)
+ukkonenDO lSeq rSeq inDelCost =
+    if V.null lSeq then (rSeq, 0)
+    else if V.null rSeq then (lSeq, 0)
     else 
         let subCost = 1
             --this for left right constant--want longer in left for Ukkonnen
-            (lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
+            lLength = V.length lSeq
+            rLength = V.length rSeq
+
             maxGap = 1 + lLength - rLength  --10000 :: Int --holder lseq - rSeq + 1
             (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap inDelCost subCost
             --firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap

@@ -98,14 +98,12 @@ executable phyg
                   SymMatrix
                   Distances
                   Medians
-                  DOPrototype
-                  NaiveDO
                   FastAC
-                  NaiveDOSequence
                   LocalSequence
                   DOUkkonenSequence
                   DOUkkonenSequenceInt64
                   DOWrapper
+                  NaiveDOSequence
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

@@ -50,7 +50,7 @@ import qualified Data.Vector as V
 import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
-import qualified DOPrototype as DOP
+import qualified DOWrapper as DOW
 --import qualified Data.TCM.Dense as TCMD
 --import qualified Data.Alphabet as DALPH
 
@@ -250,7 +250,7 @@ getDOMedian ::  Double -> S.Matrix Int -> CharType -> CharacterData -> Character
 getDOMedian thisWeight thisMatrix thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
-    let (newStateVect, medianCost) = DOP.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisType
+    let (newStateVect, medianCost) = DOW.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisType
         newCost = thisWeight * (fromIntegral medianCost)
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , minRangePrelim = V.empty
