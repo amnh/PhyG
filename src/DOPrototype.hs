@@ -54,6 +54,7 @@ import qualified Data.BitVector  as BV
 import qualified NaiveDO as NDO
 import qualified NaiveDOSequence as NDOS
 import qualified DOUkkonnenSequence as NDOUKS
+import qualified DOUkkonnenSequenceInt64 as NDOUKS64
 
 import Types
 
@@ -89,6 +90,11 @@ type NWElement = (Int, Int64, Direction)
 
 type BaseChar = V.Vector Int64 
 
+-- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
+-- short seqeuneces not worth it.
+thesholdUKLength :: Int 
+thesholdUKLength = 10
+
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
@@ -100,25 +106,36 @@ getDOMedian lBV rBV thisMatrix thisType =
     else 
         -- not missing
         -- get inDelCost 
-        let bvLength = BV.size (VB.head lBV) 
-            inDelCost = VB.head (VB.last thisMatrix)
+        let inDelCost = VB.head (VB.last thisMatrix)
             {-
             leftChar64 = VG.convert $ VB.map convertBVTo64 lBV
             rightChar64 = VG.convert $ VB.map convertBVTo64 rBV
             (newMedianSmall, medianCostSmall) = ukkonenDO leftChar64 rightChar64 inDelCost
             newMedianSmallBV = VB.map (convert64ToBV bvLength) $ VG.convert newMedianSmall
             -}
+            {-
+            bvLength = BV.size (VB.head lBV) 
             leftChar64 = VB.map convertBVTo64 lBV
             rightChar64 = VB.map convertBVTo64 rBV
             (newMedianSmall, medianCostSmall) = NDOUKS.ukkonenDO leftChar64 rightChar64 inDelCost
             newMedianSmallBV = VB.map (convert64ToBV bvLength) newMedianSmall
+            -}
+            -- Int64 version faster for small aphabets
+            bvLength = BV.size (VB.head lBV) 
+            leftChar64 = VB.map convertBVTo64 lBV
+            rightChar64 = VB.map convertBVTo64 rBV
+            (newMedian64, medianCost64) = NDOUKS64.ukkonenDO leftChar64 rightChar64 inDelCost
+            newMedianBV = VB.map (convert64ToBV bvLength) newMedian64
             
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
+            (newMedianSmall, medianCostSmall) = NDOUKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NDOS.naiveDO lBV rBV inDelCost
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
-        if thisType == NucSeq then (newMedianSmallBV, medianCostSmall)
-        else if thisType == GenSeq then (newMedianLarge, medianCostLarge) 
+        -- Naive (ie no Ukkonene if short sequneces)
+        if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
+        else if thisType == NucSeq then (newMedianBV, medianCost64)
+        else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
         else error "Unrecognized/Not implemented character type"
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
