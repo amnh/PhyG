@@ -105,6 +105,7 @@ executable phyg
                   LocalSequence
                   DOUkkonenSequence
                   DOUkkonenSequenceInt64
+                  DOWrapper
                   -- Data.TCM.Dense
                   -- Data.Alphabet
                   -- Data.Alphabet.IUPAC 

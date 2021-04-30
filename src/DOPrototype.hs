@@ -35,12 +35,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-Improvements
-Lots of cons  O(n) stuff--could be improved
--}
-
--- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
-
 module DOPrototype
 ( getDOMedian
 ) where
