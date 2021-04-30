@@ -119,7 +119,7 @@ executeCommands rawData processedData curGraphs pairwiseDist commandList = do
             
 -- | reportArgList contains valid report arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", reverse "newick", "ascii", "crossrefs", "pairdist"]
+reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist"]
 
 -- | checkReportCommands takes commands and verifies that they are in list
 checkReportCommands :: [String] -> [String] -> Bool
@@ -179,7 +179,7 @@ reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
                     let graphString = concat $ intersperse "\n" $ fmap fgl2DotString curGraphs
                     in 
                     (graphString, outfileName, writeMode)
-                else if (reverse "newick") `elem` (take 6 $ fmap reverse commandList) then
+                else if "newick" `elem` commandList then
                     let graphString = fglList2ForestEnhancedNewickString curGraphs  True True
                     in 
                     (graphString, outfileName, writeMode)
