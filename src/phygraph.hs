@@ -36,19 +36,19 @@ Portability :  portable (I hope)
 
 module Main where
 
+--import           Debug.Trace
 import           System.IO
 import           System.Environment
-
-import qualified ProcessCommands as PC
+import           Data.List
 import           Types
+import qualified ProcessCommands as PC
 import qualified ReadInputFiles as RIF
 import           GeneralUtilities
 import qualified CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
 import qualified DataTransformation as DT
 import qualified Distances as D
-import           Data.List
---import           Debug.Trace
+import qualified GraphOperations as GO
 
 
 -- | main driver
@@ -95,13 +95,14 @@ main =
     let renamedData = fmap (DT.renameData newNamePairList) rawData
     let renamedGraphs =  fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
-    -- Reconcile Data and Graphs (if input)
+    -- Reconcile Data and Graphs (if input) including ladderization
     let dataLeafNames = sort $ DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
     let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.toPhylogeneticGraph $ 
-
+    let ladderizedGraphList = fmap GO.ladderizeGraph reconciledGraphs
+    
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
     let reconciledData' = removeTaxaFromData includeList reconciledData
@@ -114,25 +115,32 @@ main =
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
     -- Need to check data for equal in charcater number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
+  
+    {-To do
+      Execute any 'Block' change commands--make reBlockedNaiveData
+    -}
 
-    -- To test data recoding and basic median2
-    let pairDist = D.getPairwiseDistances naiveData
+    -- Optimize Data
+    let optimizedData = naiveData --  place holder (consolidate all add, non-add etc chars in blocks)
+
+    let inputGraphList = fmap (GO.fullyLabelGraph optimizedData) ladderizedGraphList
+
+    -- Create lazy pairwise distances if needed later for build or report
+    let pairDist = D.getPairwiseDistances optimizedData
     --hPutStrLn stderr (show pairDist)
 
 
-    -- Optimize Data
-    let optimizedData = naiveData --  place holder
-
+    
     -- Execute Following Commands (searches, reports etc)
     finalGraphList <- CE.executeCommands rawData optimizedData reconciledGraphs pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
-    timeDN <- getSystemTimeSeconds 
-    hPutStrLn stderr ("Execution time " ++ show (timeDN - timeD))
-    
     -- Final Stderr report
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
     hPutStrLn stderr "\nDone"
 
+    timeDN <- getSystemTimeSeconds 
+    hPutStrLn stderr ("Execution time " ++ show (timeDN - timeD))
+    
 
 {-
     hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))

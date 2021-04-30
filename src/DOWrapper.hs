@@ -55,9 +55,9 @@ import qualified DOUkkonnenSequenceInt64 as DKS64
 import Types
 
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
--- short seqeuneces not worth it.
+-- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
-thesholdUKLength = 10
+thesholdUKLength = 15
 
 
 -- | getDOMedian wraps around getPrelim and getPrelim3

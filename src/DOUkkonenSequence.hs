@@ -47,7 +47,6 @@ module DOUkkonnenSequence
 ) where
 
 import Debug.Trace
-import Data.Int
 import Data.Bits
 import qualified Data.BitVector as BV
 import qualified Data.Vector  as V

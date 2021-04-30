@@ -42,13 +42,9 @@ module NaiveDOSequence
 ) where
 
 import Debug.Trace
-import Data.Int
-import Data.Bits
 import qualified Data.Vector as V
-import Types
 import qualified Data.BitVector as BV
 import qualified LocalSequence as LS
-import GeneralUtilities
 
 data Direction = LeftDir | DownDir | DiagDir
     deriving (Read, Show, Eq)
@@ -106,24 +102,6 @@ naive_do_BV lSeq rSeq inDelCost inDelBitBV =
         in
         --trace ("NW: " ++ show cost ++ "\n" ++ (show $ fmap (fmap fst3) nwMatrix))
         (LS.toVector median, cost)
-  
--- | tracebackReverse uses revese matrix (ie last elemnt 0,0) 
-tracebackReverse :: LS.Seq (LS.Seq (Int, BV.BV, Direction)) -> Int -> Int -> BV.BV -> Int -> Int -> LS.Seq BV.BV
-tracebackReverse nwMatrix posL posR inDelBitBV maxL maxR =
-        --trace ((show (maxL, maxR)) ++ " psLR " ++ (show (posL,posR)) ++ " " ++ (show ((nwMatrix LS.! posL) LS.! posR))) (
-        if posL == maxL && posR == 0 then LS.empty
-        else 
-            let (_, state, direction) = (nwMatrix LS.! 0 ) LS.! posR
-            in
-                if (state /= inDelBitBV) then
-                    if direction == LeftDir then LS.cons  state (tracebackReverse nwMatrix (posL) (posR - 1) inDelBitBV  maxL maxR ) 
-                    else if direction == DownDir then LS.cons state (tracebackReverse (LS.tail nwMatrix) (posL + 1) (posR) inDelBitBV  maxL maxR )  
-                    else LS.cons state (tracebackReverse (LS.tail nwMatrix) (posL + 1) (posR - 1) inDelBitBV  maxL maxR )
-                else 
-                    if direction == LeftDir then (tracebackReverse nwMatrix (posL) (posR - 1) inDelBitBV  maxL maxR ) 
-                    else if direction == DownDir then (tracebackReverse (LS.tail nwMatrix) (posL + 1) (posR) inDelBitBV  maxL maxR )  
-                    else (tracebackReverse (LS.tail nwMatrix) (posL + 1) (posR - 1) inDelBitBV  maxL maxR ) 
-                    
 
 -- | traceback creates REVERSE mediian from nwMatrix, reverse to make tail
 --recusive

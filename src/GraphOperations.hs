@@ -40,22 +40,31 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module GraphOperations ( ladderize
-                	   , fullyLabelGraph
-                	   ) where
+module GraphOperations ( ladderizeGraph
+                       , fullyLabelGraph
+                       ) where
 
 import           Debug.Trace
 import qualified Data.Vector as V
 import qualified DOWrapper as DOW
+import Types
+import qualified LocalGraph as LG
 
 -- | ladderize takes an input graph and ensures/creates nodes
 -- such that all vertices are (indegree, outdegree) (0,>0), (1,2) (2,1) (1,0)
-ladderize :: SimpleGraph -> SimpleGraph
-ladderize inGraph = 
-	outGraph
+ladderizeGraph :: SimpleGraph -> SimpleGraph
+ladderizeGraph inGraph = 
+    if LG.isEmpty inGraph then LG.empty
+    else 
+        let labNodeList = LG.labNodes inGraph
+            degreeTripleList = fmap (LG.getInOut inGraph) labNodeList
+        in
+        inGraph
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
 -- fully label the graph and return a PhylogeenticGraph
-fullyLabelGraph :: SimpleGraph -> ProcessedData -> PhylogeneticGraph
-fullyLabelGraph inGraph inData = 
-	(inGraph, 0.0, V.empty, V.empty, inData)
+fullyLabelGraph :: ProcessedData -> SimpleGraph -> PhylogeneticGraph
+fullyLabelGraph inData inGraph = 
+    if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
+    else 
+        (inGraph, 0.0, V.empty, V.empty, inData)

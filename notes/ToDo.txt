@@ -17,7 +17,7 @@
 8) select command for taxa/chars/blocks
 	to only use a list of taxa
 
-9) Consolidate General seqeunce characters in the same block with the same
+9) Consolidate General sequence characters in the same block with the same
 	TCM.  Would have to merge alphabets and TCMs so that only need a single 
 	hashMap for them 
 	Would need to modify the CharacterData type to add a Vector (Vector BV.BV)
@@ -73,3 +73,8 @@
 	if keep left/right gap info can create IA efficently ala Alex algorithm
 
 	rely on lazyness to be effecient if don't need IA 
+
+14) Ladderize tree Graph input 
+
+15) Simple tree optimization
+		and with smart reroot
