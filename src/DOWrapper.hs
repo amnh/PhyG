@@ -48,9 +48,9 @@ import Debug.Trace
 import Data.Int
 import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
-import qualified NaiveDOSequence as NDOS
-import qualified DOUkkonnenSequence as NDOUKS
-import qualified DOUkkonnenSequenceInt64 as NDOUKS64
+import qualified NaiveDOSequence as NS
+import qualified DOUkkonnenSequence as DKS
+import qualified DOUkkonnenSequenceInt64 as DKS64
 
 import Types
 
@@ -76,12 +76,12 @@ getDOMedian origLBV origRBV thisMatrix thisType =
             bvLength = BV.size (V.head lBV) 
             leftChar64 = V.map convertBVTo64 lBV
             rightChar64 = V.map convertBVTo64 rBV
-            (newMedian64, medianCost64) = NDOUKS64.ukkonenDO leftChar64 rightChar64 inDelCost
+            (newMedian64, medianCost64) = DKS64.ukkonenDO leftChar64 rightChar64 inDelCost
             newMedianBV = V.map (convert64ToBV bvLength) newMedian64
             
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
-            (newMedianSmall, medianCostSmall) = NDOUKS.ukkonenDO lBV rBV inDelCost
-            (newMedianLarge, medianCostLarge) = NDOS.naiveDO lBV rBV inDelCost
+            (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
+            (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces)
