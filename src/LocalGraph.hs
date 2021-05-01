@@ -85,3 +85,36 @@ hGetDotLocal inFileHandle = GVIO.hGetDot inFileHandle
 fglToPrettyString :: (Show a, Show b) => P.Gr a b -> String
 fglToPrettyString inGraph = G.prettify inGraph
 
+-- Wrapper functions for fgl so could swap out later if want to
+
+-- | maps to isEmpty
+isEmpty :: Gr a b -> Bool
+isEmpty inGraph = G.isEmpty inGraph
+
+-- | maps to empty
+empty :: Gr a b
+empty = G.empty
+
+-- | maps to labNodes
+labNodes :: Gr a b -> [LNode a] 
+labNodes inGraph = G.labNodes inGraph
+
+-- | maps to indeg
+indeg :: Gr a b -> LNode a -> Int
+indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
+
+-- | maps to outdeg
+outdeg :: Gr a b -> LNode a -> Int
+outdeg inGraph inLNode = G.outdeg inGraph $ fst inLNode
+
+
+-- | getInOut takes a node and a graph and returns 
+-- a triple (LNode a, indegree, outDegree)
+getInOut :: Gr a b -> LNode a -> (LNode a, Int, Int)
+getInOut inGraph inLNode = 
+    if isEmpty inGraph then error "Empty graph in getInOut"
+    else 
+        let inDeg = indeg inGraph inLNode 
+            outDeg = outdeg inGraph inLNode
+        in
+        (inLNode, inDeg, outDeg)

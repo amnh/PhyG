@@ -54,23 +54,9 @@ executable phyg
                 , sort
                 , unboxing-vector
                 , MissingH
-                -- PCG FFI stuff
-                --, bimap
-                --, mtl
-                --, binary
-                --, keys
-                --, text-show
-                --, semigroupoids
-                --, xml-conduit
-                --, QuickCheck
-                --, nonempty-vector
-                --, semigroups
-                --, double-conversion
-                --, dlist
-                --, mono-traversable
-                --, enumerator
                 
- -- currently doesn't compile               , Graphalyze
+               -- currently doesn't compile but could be useful
+               -- , Graphalyze
  
                 
   default-extensions : BangPatterns                
@@ -80,10 +66,7 @@ executable phyg
   -- include the source files needed in src for github library
   -- this for local library files
   hs-source-dirs: . ../../PhyloLibs 
-                  -- ../../PCG/lib/alphabet/src
-                  -- ../../PCG/lib/core/tcm/src/
-                  -- ../../PCG/lib/core/analysis/src/
-
+  
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
                   GeneralUtilities
@@ -98,29 +81,13 @@ executable phyg
                   SymMatrix
                   Distances
                   Medians
-                  DOPrototype
-                  NaiveDO
                   FastAC
-                  NaiveDOSequence
                   LocalSequence
                   DOUkkonenSequence
-                  -- Data.TCM.Dense
-                  -- Data.Alphabet
-                  -- Data.Alphabet.IUPAC 
-                  -- Data.Alphabet.Internal 
-                  -- Data.Alphabet.Special
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Internal
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace
-                  -- Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
+                  DOUkkonenSequenceInt64
+                  DOWrapper
+                  NaiveDOSequence
+                  GraphOperations
             
       
 

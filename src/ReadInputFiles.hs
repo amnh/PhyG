@@ -94,7 +94,9 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
             fileHandle <- openFile  firstFile ReadMode
             canBeReadFrom <- hIsReadable fileHandle
             if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
-            else hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
+            else    
+                if not $ null firstOption then hPutStrLn stderr ("Reading " ++ firstFile ++ " with option " ++ firstOption)
+                else hPutStrLn stderr ("Reading " ++ firstFile ++ " with no options")
 
             -- this is awkward but need to use dot utilities
             if firstOption == "dot" then do

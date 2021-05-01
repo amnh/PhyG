@@ -1,6 +1,6 @@
 {- |
 Module      :  DOUkkonnenSequence 
-Description :  Functions for parsimony DO optimization functions. usin Sequence type
+Description :  Functions for parsimony DO optimization functions. using Sequence type
                mainly to reduce vector cons cost
                Prototype non-optimized, restricted Haskell functisns
 Copyright   :  (c) 2014 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
@@ -47,8 +47,8 @@ module DOUkkonnenSequence
 ) where
 
 import Debug.Trace
-import Data.Int
 import Data.Bits
+import qualified Data.BitVector as BV
 import qualified Data.Vector  as V
 import qualified LocalSequence as LS
 
@@ -61,60 +61,24 @@ data Direction = LeftDir | DownDir | DiagDir
   deriving (Read, Show, Eq)
 
 
-type NWElement = (Int, Int64, Direction)
+type NWElement = (Int, BV.BV, Direction)
 
-type BaseChar = V.Vector Int64 
+type BaseChar = V.Vector BV.BV 
 
 
 
+{-
 --Old stuff later bitV.Vector s
-inDelBit :: Int64
-inDelBit = (bit 63) :: Int64 --(bit 63) :: Int --set indelBit to 64th bit in Int
+inDelBitBV :: BV.BV
+inDelBitBV = (bit 63) :: BV.BV --(bit 63) :: Int --set inDelBitBV to 64th bit in Int
+-}
 
+-- | barrierCost really should ne Infnity or somehting like that
 barrierCost:: Int
 barrierCost = (bit 60) :: Int --really big Int--asssumes 64 bit at least, but can be added to without rolling over.
 
-barrierBit :: Int64
-barrierBit = (bit 63) :: Int64
-
--- | transformFullYShortY take full Y value (if did entire NW matrix) and returns
---short (Ukkonnen Y) given Y, Y length and row numbera
---remove error when working--overhead
-transformFullYShortY :: Int -> Int -> Int -> Int
-transformFullYShortY currentY rowNumber maxGap =
-    let transformY = currentY - (max 0 (rowNumber - maxGap - 1))
-    in
-    if (transformY < 0) then error (show currentY ++ " " ++ show rowNumber ++ " " ++ show maxGap ++ " Impossible negative value for transfomred Y")
-    else transformY
-
--- | setLeftRight returns sequence that is longer first,
---shorter second
-setLeftRight :: BaseChar -> BaseChar  -> (BaseChar, Int, BaseChar, Int)
-setLeftRight inL inR = 
-        if V.length inL < V.length inR then (inR, V.length inR, inL, V.length inL)
-        else if V.length inL > V.length inR then (inL, V.length inL, inR, V.length inR)
-        else 
-            let outL = max inL inR
-                outR = min inL inR 
-            in
-            (outL, V.length outL, outR, V.length outR)
-
--- | ukkonenCore core functions of Ukkonen to allow for recursing with maxGap
---doubled if not large enough (returns Nothing)  
-ukkonenCore :: BaseChar -> Int -> BaseChar -> Int -> Int -> Int -> Int -> (LS.Seq Int64, Int)
-ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =  
-    let firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap
-        nwMatrix = LS.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap)
-        (cost, _, _) = LS.last (LS.last nwMatrix) -- V.! rLength) --V.! (transformFullYShortY lLength rLength  maxGap) --fix for offset
-        medianTest = tracebackUkkonen nwMatrix rLength lLength maxGap 0 0
-    in
-    --trace ("mh " ++ show (V.head medianTest)) (
-    if  (LS.last medianTest) /= 0 then -- (0 :: Int) then 
-        --trace (show nwMatrix) 
-        (medianTest, fromIntegral cost)
-    else --trace ("Going back!! " ++ show cost) 
-        ukkonenCore lSeq lLength rSeq rLength (2 * maxGap) indelCost subCost
-    
+barrierBit :: BV.BV
+barrierBit = 0 :: BV.BV --(bit 63) :: BV.BV
 
 --FOR both DO's  lseq is a row, acrosss so num columns = length of lseq
 --There are rseq rows
@@ -126,15 +90,21 @@ ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost =
 --move to C via FFI
 --Still occasional error in cost and median (disagreement) show in Chel.seq
 ukkonenDO :: BaseChar -> BaseChar -> Int -> (BaseChar, Int)
-ukkonenDO inlSeq inrSeq inDelCost =
-    if V.null inlSeq then (inrSeq, 0)
-    else if V.null inrSeq then (inlSeq, 0)
+ukkonenDO lSeq rSeq inDelCost =
+    if V.null lSeq then (rSeq, 0)
+    else if V.null rSeq then (lSeq, 0)
     else 
         let subCost = 1
             --this for left right constant--want longer in left for Ukkonnen
-            (lSeq, lLength, rSeq, rLength) = setLeftRight inlSeq inrSeq
+            lLength = V.length lSeq
+            rLength = V.length rSeq
+
             maxGap = 1 + lLength - rLength  --10000 :: Int --holder lseq - rSeq + 1
-            (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap inDelCost subCost
+            bvLength = BV.size (V.head lSeq) 
+            --setting left most bit to 1 same purpose as inDelBitBV for Ukkonen
+            bv1 = BV.bitVec bvLength (1 :: Integer)
+            inDelBitBV = bv1 BV.<<.(BV.bitVec bvLength (bvLength - 1))
+            (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap inDelCost subCost inDelBitBV
             --firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap
             --nwMatrix = V.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap)
             --(cost, _, _) = (nwMatrix V.! rLength) V.! (transformFullYShortY lLength rLength  maxGap) --fix for offset
@@ -144,12 +114,41 @@ ukkonenDO inlSeq inrSeq inDelCost =
         --(median, fromIntegral cost)
         (LS.toVector $ median, cost)
 
+
+-- | transformFullYShortY take full Y value (if did entire NW matrix) and returns
+--short (Ukkonnen Y) given Y, Y length and row numbera
+--remove error when working--overhead
+transformFullYShortY :: Int -> Int -> Int -> Int
+transformFullYShortY currentY rowNumber maxGap =
+    let transformY = currentY - (max 0 (rowNumber - maxGap - 1))
+    in
+    if (transformY < 0) then error (show currentY ++ " " ++ show rowNumber ++ " " ++ show maxGap ++ " Impossible negative value for transfomred Y")
+    else transformY
+
+-- | ukkonenCore core functions of Ukkonen to allow for recursing with maxGap
+--doubled if not large enough (returns Nothing)  
+ukkonenCore :: BaseChar -> Int -> BaseChar -> Int -> Int -> Int -> Int -> BV.BV -> (LS.Seq BV.BV, Int)
+ukkonenCore lSeq lLength rSeq rLength maxGap indelCost subCost inDelBitBV =  
+    let firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap inDelBitBV 
+        nwMatrix = LS.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap inDelBitBV )
+        (cost, _, _) = LS.last (LS.last nwMatrix) -- V.! rLength) --V.! (transformFullYShortY lLength rLength  maxGap) --fix for offset
+        medianTest = tracebackUkkonen nwMatrix rLength lLength maxGap 0 0  inDelBitBV 
+    in
+    --trace ("mh " ++ show (V.head medianTest)) (
+    if  (LS.last medianTest) /= 0 then -- (0 :: Int) then 
+        --trace (show nwMatrix) 
+        (medianTest, fromIntegral cost)
+    else --trace ("Going back!! " ++ show cost) 
+        ukkonenCore lSeq lLength rSeq rLength (2 * maxGap) indelCost subCost  inDelBitBV 
+    
+
+
 -- | tracebackUkkonen creates REVERSE mediian from nwMatrix, reverse to make tail
 --recusive, for Ukkonen space/time saving offsets
 --need to count gaps in traceback for threshold/barrier stuff
 --CHANGE TO MAYBE (V.Vector  Int) FOR BARRIER CHECK
-tracebackUkkonen :: LS.Seq  (LS.Seq NWElement) -> Int -> Int -> Int -> Int -> Int -> LS.Seq  Int64
-tracebackUkkonen nwMatrix posR posL maxGap rInDel lInDel =
+tracebackUkkonen :: LS.Seq  (LS.Seq NWElement) -> Int -> Int -> Int -> Int -> Int -> BV.BV -> LS.Seq  BV.BV
+tracebackUkkonen nwMatrix posR posL maxGap rInDel lInDel  inDelBitBV =
         --trace ("psLR " ++ show posR ++ " " ++ show posL ++ " Left " ++ show lInDel ++ " Right " ++ show rInDel ++ " maxGap " ++ show maxGap) (
         if (rInDel  > (maxGap - 2)) || (lInDel > (maxGap - 2)) then LS.singleton 0 --
         else if posL == 0 && posR == 0 then LS.empty
@@ -158,95 +157,95 @@ tracebackUkkonen nwMatrix posR posL maxGap rInDel lInDel =
             let (_, state, direction) = (nwMatrix LS.! posR) LS.! (transformFullYShortY posL posR  maxGap) --(transformFullYShortY posL posR maxGap)
             in
                 --trace ("state " ++ show state ++ " dir " ++ show direction) (
-                if (state /= inDelBit) then
-                    if direction == LeftDir then (LS.snocFlip  state (tracebackUkkonen nwMatrix (posR) (posL - 1) maxGap rInDel (lInDel + 1))) 
-                    else if direction == DownDir then (LS.snocFlip state (tracebackUkkonen nwMatrix (posR - 1) (posL) maxGap (rInDel + 1) lInDel))  
-                    else (LS.snocFlip state (tracebackUkkonen nwMatrix (posR - 1) (posL - 1) maxGap rInDel lInDel))
+                if (state /= inDelBitBV) then
+                    if direction == LeftDir then LS.snocFlip  state (tracebackUkkonen nwMatrix (posR) (posL - 1) maxGap rInDel (lInDel + 1) inDelBitBV) 
+                    else if direction == DownDir then LS.snocFlip state (tracebackUkkonen nwMatrix (posR - 1) (posL) maxGap (rInDel + 1) lInDel inDelBitBV)  
+                    else LS.snocFlip state (tracebackUkkonen nwMatrix (posR - 1) (posL - 1) maxGap rInDel lInDel inDelBitBV)
                 else 
-                    if direction == LeftDir then (tracebackUkkonen nwMatrix (posR) (posL - 1) maxGap rInDel (lInDel + 1)) 
-                    else if direction == DownDir then (tracebackUkkonen nwMatrix (posR - 1) (posL) maxGap (rInDel + 1) lInDel)  
-                    else (tracebackUkkonen nwMatrix (posR - 1) (posL - 1) maxGap rInDel lInDel) 
+                    if direction == LeftDir then tracebackUkkonen nwMatrix (posR) (posL - 1) maxGap rInDel (lInDel + 1) inDelBitBV 
+                    else if direction == DownDir then tracebackUkkonen nwMatrix (posR - 1) (posL) maxGap (rInDel + 1) lInDel inDelBitBV  
+                    else tracebackUkkonen nwMatrix (posR - 1) (posL - 1) maxGap rInDel lInDel inDelBitBV 
             --)--)
 
 -- | getFirstRowUkkonen initializes first row of NW-Ukkonen matrix
-getFirstRowUkkonen :: Int -> Int -> Int -> Int -> BaseChar -> Int -> LS.Seq NWElement
-getFirstRowUkkonen indelCost rowLength position prevCost lSeq  maxGap = 
+getFirstRowUkkonen :: Int -> Int -> Int -> Int -> BaseChar -> Int -> BV.BV -> LS.Seq NWElement
+getFirstRowUkkonen indelCost rowLength position prevCost lSeq  maxGap inDelBitBV = 
     --trace ("row 0 pos " ++ show position ++ "/" ++ show (maxShortY rowLength 0 maxGap) ++ " rowLength " ++ show rowLength ++ " maxGap " ++ show maxGap ++ " lseq " ++ show lSeq) (
     if position == rowLength  + 1 then LS.empty
     else if position == (maxGap + 1) then LS.singleton (barrierCost, barrierBit, LeftDir) 
     else
-        if position == 0 then LS.cons (0, inDelBit, DiagDir) (getFirstRowUkkonen indelCost rowLength (position + 1) 0 lSeq maxGap) 
+        if position == 0 then LS.cons (0, inDelBitBV, DiagDir) (getFirstRowUkkonen indelCost rowLength (position + 1) 0 lSeq maxGap inDelBitBV) 
         else
             let newCost = prevCost + indelCost
-                newState = getUnionIntersectionState inDelBit (lSeq V.! (position - 1))
+                newState = getUnionIntersectionState inDelBitBV (lSeq V.! (position - 1))
             in
             --trace ("FRC " ++ show newCost)
-            if (newState /= inDelBit) then --if there was no inDel overlap between states
+            if (newState /= inDelBitBV) then --if there was no inDel overlap between states
                 LS.cons (newCost, newState, LeftDir) 
-                    (getFirstRowUkkonen  indelCost rowLength (position + 1) newCost lSeq maxGap)
+                    (getFirstRowUkkonen  indelCost rowLength (position + 1) newCost lSeq maxGap inDelBitBV)
             else                           --indel in both states so no cost
                 LS.cons (prevCost, newState, LeftDir)
-                    (getFirstRowUkkonen  indelCost rowLength (position + 1) prevCost lSeq maxGap)
+                    (getFirstRowUkkonen  indelCost rowLength (position + 1) prevCost lSeq maxGap inDelBitBV)
    --) 
 
 -- | getRowUkkonen starts at second row (=1) and creates each row in turn--Ukkonen
-getRowsUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int -> LS.Seq NWElement -> Int -> LS.Seq  (LS.Seq NWElement)
-getRowsUkkonen lSeq rSeq indelCost subCost rowNum prevRow maxGap =
+getRowsUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int -> LS.Seq NWElement -> Int -> BV.BV -> LS.Seq  (LS.Seq NWElement)
+getRowsUkkonen lSeq rSeq indelCost subCost rowNum prevRow maxGap  inDelBitBV=
     --trace ("Row " ++ show rowNum) (
     if rowNum == ((V.length rSeq) + 1) then LS.empty
     else 
         let startPosition = max 0 (rowNum - maxGap) --check for left barriers 
-            thisRowZero =  getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow startPosition (V.length lSeq) 0 maxGap
-            thisRowNonZero = LS.cons (barrierCost, barrierBit, DownDir) (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow startPosition  (V.length lSeq) barrierCost maxGap )
+            thisRowZero =  getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow startPosition (V.length lSeq) 0 maxGap inDelBitBV
+            thisRowNonZero = LS.cons (barrierCost, barrierBit, DownDir) (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow startPosition  (V.length lSeq) barrierCost maxGap  inDelBitBV)
         in
         if startPosition == 0 then 
             --trace ("Row " ++ show rowNum ++ " of " ++ show (V.length rSeq) ++ " starts " ++ show startPosition ++ ":" ++ show thisRowZero) (
-                LS.cons thisRowZero (getRowsUkkonen lSeq rSeq indelCost subCost (rowNum + 1) thisRowZero maxGap) 
+                LS.cons thisRowZero (getRowsUkkonen lSeq rSeq indelCost subCost (rowNum + 1) thisRowZero maxGap inDelBitBV) 
                 --)
         else
             --trace ("Row " ++ show rowNum ++ " of " ++ show (V.length rSeq) ++" starts " ++ show startPosition ++ ":" ++ show thisRowNonZero) (
-            LS.cons thisRowNonZero (getRowsUkkonen lSeq rSeq indelCost subCost (rowNum + 1) thisRowNonZero maxGap)
+            LS.cons thisRowNonZero (getRowsUkkonen lSeq rSeq indelCost subCost (rowNum + 1) thisRowNonZero maxGap inDelBitBV)
             --)
 
 -- | getThisRowUkkonen takes sequences and parameters with row number and make a non-first
 --row--Ukkonen
-getThisRowUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int ->  LS.Seq NWElement -> Int -> Int -> Int -> Int -> LS.Seq NWElement
-getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow position rowLength prevCost maxGap =
+getThisRowUkkonen :: BaseChar -> BaseChar -> Int -> Int -> Int ->  LS.Seq NWElement -> Int -> Int -> Int -> Int -> BV.BV -> LS.Seq NWElement
+getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow position rowLength prevCost maxGap inDelBitBV=
     --trace ("Column " ++ show position) (
     if  position ==  rowLength  + 1 then LS.empty
     else if position == (rowNum + maxGap + 1) then LS.singleton (barrierCost, barrierBit, LeftDir)
     else if position == 0 then
-        let newState = getUnionIntersectionState inDelBit (rSeq V.! (rowNum - 1))
+        let newState = getUnionIntersectionState inDelBitBV (rSeq V.! (rowNum - 1))
             (upValue, _, _) = prevRow LS.! position 
-        in --following in case overlap of inDelBit in leading gaps
-        if (newState /= inDelBit) then
+        in --following in case overlap of inDelBitBV in leading gaps
+        if (newState /= inDelBitBV) then
             LS.cons (upValue + indelCost, newState, DownDir) 
-                (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength (upValue + indelCost) maxGap)
+                (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength (upValue + indelCost) maxGap inDelBitBV)
         else 
             LS.cons (upValue, newState, DownDir)
-                (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength upValue maxGap)
+                (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength upValue maxGap inDelBitBV)
     else 
         let lSeqPos = position - 1 --since first is '-' the index is row/pos - 1
             rSeqRow = rowNum - 1 --since first is '-' the index is row/pos - 1
-            leftCost = getOverlapCost prevCost indelCost (lSeq V.! lSeqPos) --need to check for overlap
+            leftCost = getOverlapCost prevCost indelCost (lSeq V.! lSeqPos) inDelBitBV --need to check for overlap
             (upValue, _, _) = prevRow LS.! (transformFullYShortY  position (rowNum - 1) maxGap)
-            downCost = getOverlapCost upValue indelCost (rSeq V.! rSeqRow) --need to check for overlap
+            downCost = getOverlapCost upValue indelCost (rSeq V.! rSeqRow)  inDelBitBV --need to check for overlap
             (diagValue, _, _) = prevRow LS.! (transformFullYShortY  (position - 1) (rowNum - 1) maxGap)
-            intersection = (lSeq V.! lSeqPos) .&. (rSeq V.! rSeqRow)
-            unionLocal = (lSeq V.! lSeqPos) .|. (rSeq V.! rSeqRow)
+            intersection = BV.and [(lSeq V.! lSeqPos) , (rSeq V.! rSeqRow)]
+            unionLocal = BV.or [(lSeq V.! lSeqPos) , (rSeq V.! rSeqRow)]
             (diagCost, diagState) = getDiagDirCost diagValue intersection unionLocal subCost
             (minCost, minState, minDir) = getMinCostDir leftCost downCost diagCost diagState 
-                (getUnionIntersectionState inDelBit (lSeq V.! lSeqPos)) (getUnionIntersectionState inDelBit (rSeq V.! rSeqRow)) 
+                (getUnionIntersectionState inDelBitBV (lSeq V.! lSeqPos)) (getUnionIntersectionState inDelBitBV (rSeq V.! rSeqRow)) 
         in
         --trace ("preRow " ++ show prevRow ) -- ++ "row " ++ show rowNum ++ " col " ++ show position 
         --    ++ " trip " ++ show minCost ++ " " ++ show minState ++ " " ++ show minDir)
-        LS.cons (minCost, minState, minDir) (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength minCost maxGap)        
+        LS.cons (minCost, minState, minDir) (getThisRowUkkonen lSeq rSeq indelCost subCost rowNum prevRow (position + 1) rowLength minCost maxGap inDelBitBV)        
         --)
 
 -- | getMinCostDir takes costs and states of three directins and returns min cost,
 --directin, and state
 --ORDER diag, down, left so same as POY4-5.
-getMinCostDir :: Int -> Int -> Int -> Int64 -> Int64 -> Int64 -> NWElement
+getMinCostDir :: Int -> Int -> Int -> BV.BV -> BV.BV -> BV.BV -> NWElement
 getMinCostDir leftCost downCost diagCost diagState leftState downState =
     let minValue = minimum [leftCost, downCost, diagCost]
     in
@@ -264,28 +263,28 @@ getMinCostDir leftCost downCost diagCost diagState leftState downState =
 
 -- | getDiagDirCost takes union intersection and state to get diagonla sub or no-sub
 --cost
-getDiagDirCost :: Int -> Int64 -> Int64 -> Int -> (Int, Int64)
+getDiagDirCost :: Int -> BV.BV -> BV.BV -> Int -> (Int, BV.BV)
 getDiagDirCost upLeftDirCost intersection unionLocal subCost =
     --trace ("DiagCost " ++ show upLeftDirCost ++ " int " ++ show intersection ++ " union " ++ show union) (
     if intersection /= 0 then (upLeftDirCost, intersection)
     else (upLeftDirCost + subCost, unionLocal)
 
 -- | getUnionIntersection
-getUnionIntersectionState :: Int64 -> Int64 -> Int64
+getUnionIntersectionState :: BV.BV -> BV.BV -> BV.BV
 getUnionIntersectionState lState rState =
-    let intersection = (lState .&. rState) :: Int64
+    let intersection = BV.and [lState , rState] 
     in
-    if intersection /= (0 :: Int64) then intersection
-    else (lState .|. rState) :: Int64
+    if intersection /= 0 then intersection
+    else BV.or [lState , rState] 
 
 -- | getOverlapCost cheks for ovelap in gap so if indel, but opossite a gap
 --ambiguity--there is no cost
-getOverlapCost :: Int -> Int -> Int64 -> Int
-getOverlapCost preCost indelCost oppositeState =
-    --trace("bits " ++ show oppositeState ++ " overAND " ++ show ((.&.) oppositeState inDelBit) ++ " control " ++ show ((.&.) inDelBit inDelBit)) ( 
+getOverlapCost :: Int -> Int -> BV.BV -> BV.BV -> Int
+getOverlapCost preCost indelCost oppositeState inDelBitBV =
+    --trace("bits " ++ show oppositeState ++ " overAND " ++ show ((.&.) oppositeState inDelBitBV) ++ " control " ++ show ((.&.) inDelBitBV inDelBitBV)) ( 
     --if preCost == barrierCost then barrierCost 
     --else 
-    if (.&.) oppositeState inDelBit == (0 :: Int64) then preCost + indelCost
+    if BV.and [oppositeState, inDelBitBV] == 0 then preCost + indelCost
     else preCost
     --)
 
