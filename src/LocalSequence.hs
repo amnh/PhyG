@@ -41,13 +41,14 @@ import Data.Sequence ((<|), (|>), (><))
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Foldable
 import qualified Data.Vector as V
+import qualified Data.Foldable as F
 
 -- | sequjence type for exporting 
 type Seq = S.Seq
 
 -- | head maps to Take 
-head :: Seq a -> Seq a
-head inSeq = S.take 1 inSeq
+head :: Seq a -> a
+head inSeq = S.index inSeq 0
 
 -- | tail maps to drop Seq
 tail :: Seq a -> Seq a
@@ -86,13 +87,30 @@ singleton newElem = S.singleton newElem
 (++) :: Seq a -> Seq a -> Seq a
 (++) inSeqA inSeqB = inSeqA >< inSeqB
 
+-- | concat fold over ><
+concat :: (Eq a) => Seq (Seq a) -> Seq a
+concat inSeqSeq = concatInternal inSeqSeq LocalSequence.empty
+
+-- | concatInternal internal concat function with accumulator
+concatInternal :: (Eq a) => Seq (Seq a) -> Seq a -> Seq a
+concatInternal inSeqSeq newSeq = 
+	if LocalSequence.null inSeqSeq then newSeq
+	else 
+		let firstSeq = LocalSequence.head inSeqSeq
+		in
+		concatInternal (LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
+
+-- | zip maps to zip
+zip :: Seq a -> Seq b -> Seq (a,b)
+zip inSeqA inSeqB = S.zip inSeqA inSeqB
+
 -- | length maps to length
 length :: Seq a -> Int
 length inSeq = S.length inSeq
 
 -- | toList from Foldable
 toList :: Seq a -> [a]
-toList inSeq = Foldable.toList inSeq
+toList inSeq = F.toList inSeq
 
 -- | fromList from fromList
 fromList :: [a] -> Seq a 
@@ -110,9 +128,30 @@ fromVector inVect = S.fromList $ V.toList inVect
 reverse :: Seq a -> Seq a
 reverse inSeq = S.reverse inSeq
 
--- last should be connstant time
+-- | last should be connstant time
 last :: Seq a -> a
 last inSeq = S.index inSeq $ (S.length inSeq) - 1
 
+-- | map to fmap for ease of migrating libraries
+map :: Traversable t => (a->b) -> t a -> t b
+map f = fmap f
 
+-- | drop maps to drop
+drop :: Int -> Seq a -> Seq a
+drop number inSeq = S.drop number inSeq
 
+-- | take maps to take
+take :: Int -> Seq a -> Seq a
+take number inSeq = S.take number inSeq
+
+-- | unsafeTake maps to take
+unsafeTake ::  Int -> Seq a -> Seq a
+unsafeTake number inSeq = S.take number inSeq
+
+-- | unsafeDrop maps to drop
+unsafeDrop :: Int -> Seq a -> Seq a
+unsafeDrop number inSeq = S.drop number inSeq
+
+-- | replicate maps to replicate
+replicate ::  Int -> a -> Seq a 
+replicate number value = S.replicate number value
