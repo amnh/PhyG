@@ -95,7 +95,7 @@ import qualified Data.Text.Short as ST
 
 -- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeCommands :: [RawData] -> ProcessedData -> [SimpleGraph] -> [[VertexCost]] -> [Command] -> IO [SimpleGraph]
+executeCommands :: [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO [PhylogeneticGraph]
 executeCommands rawData processedData curGraphs pairwiseDist commandList = do
     if null commandList then return curGraphs
     else do
@@ -138,7 +138,7 @@ checkReportCommands commandList permittedList =
 -- | reportCommand takes report options, current data and graphs and returns a 
 -- (potentially large) String to print and the channel to print it to 
 -- and write mode overwrite/append
-reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [SimpleGraph] -> [[VertexCost]] -> (String, String, String)
+reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
     let outFileNameList = filter (/= "") $ fmap snd argList
         commandList = filter (/= "") $ fmap fst argList
@@ -176,19 +176,19 @@ reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
             else if "graphs" `elem` commandList then 
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
-                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString curGraphs
+                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
-                    let graphString = fglList2ForestEnhancedNewickString curGraphs  True True
+                    let graphString = fglList2ForestEnhancedNewickString (fmap fst5 curGraphs)  True True
                     in 
                     (graphString, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.fglToPrettyString curGraphs
+                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
-                    let graphString = concat $ fmap fgl2DotString curGraphs
+                    let graphString = concat $ fmap fgl2DotString  $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)

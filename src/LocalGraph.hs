@@ -107,14 +107,47 @@ indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
 outdeg :: Gr a b -> LNode a -> Int
 outdeg inGraph inLNode = G.outdeg inGraph $ fst inLNode
 
-
 -- | getInOut takes a node and a graph and returns 
 -- a triple (LNode a, indegree, outDegree)
-getInOut :: Gr a b -> LNode a -> (LNode a, Int, Int)
-getInOut inGraph inLNode = 
+getInOutDeg :: Gr a b -> LNode a -> (LNode a, Int, Int)
+getInOutDeg inGraph inLNode = 
     if isEmpty inGraph then error "Empty graph in getInOut"
     else 
         let inDeg = indeg inGraph inLNode 
             outDeg = outdeg inGraph inLNode
         in
         (inLNode, inDeg, outDeg)
+
+-- | in-bound edge list to node\, maps to inn
+inn :: Gr a b -> Node -> [LEdge b]
+inn inGraph inNode = G.inn inGraph inNode
+
+-- | out-bound edge list from node, maps to out
+out :: Gr a b -> Node -> [LEdge b]
+out inGraph inNode = G.out inGraph inNode
+
+-- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
+getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
+getInOutEdges inGraph inNode = (inn inGraph inNode, out inGraph inNode )
+
+
+-- | nodes returns list of unlabbeled nodes, maps to nodes
+nodes ::  Gr a b -> [Node]
+nodes inGraph = G.nodes inGraph
+
+-- | edges returns list of unlabbeled nodes, maps to nodes
+edges ::  Gr a b -> [Edge]
+edges inGraph = G.edges inGraph
+
+-- | insEdges inserts a list of labelled edges into a graph
+insEdges :: [LEdge b] -> Gr a b -> Gr a b
+insEdges edgeList inGraph = G.insEdges edgeList inGraph
+
+-- | delLEdges deletes a list of labelled edges from a graph
+-- wrapps around delEdges
+delLEdges :: [LEdge b] -> Gr a b -> Gr a b
+delLEdges inEdgeList inGraph = G.delEdges (fmap G.toEdge inEdgeList) inGraph
+
+-- | insNode inserts a labelled  node into a graph
+insNode :: LNode a -> Gr a b -> Gr a b
+insNode inNode inGraph = G.insNode inNode inGraph

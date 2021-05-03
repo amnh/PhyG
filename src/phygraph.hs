@@ -100,8 +100,10 @@ main =
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
-    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs -- fmap GFU.toPhylogeneticGraph $ 
-    let ladderizedGraphList = fmap GO.ladderizeGraph reconciledGraphs
+    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
+
+    -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
+    let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs
     
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
@@ -123,7 +125,7 @@ main =
     -- Optimize Data
     let optimizedData = naiveData --  place holder (consolidate all add, non-add etc chars in blocks)
 
-    let inputGraphList = fmap (GO.fullyLabelGraph optimizedData) ladderizedGraphList
+    let inputGraphList = map (GO.fullyLabelGraph optimizedData) ladderizedGraphList
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
@@ -132,7 +134,7 @@ main =
 
     
     -- Execute Following Commands (searches, reports etc)
-    finalGraphList <- CE.executeCommands rawData optimizedData reconciledGraphs pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
+    finalGraphList <- CE.executeCommands rawData optimizedData inputGraphList pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     -- Final Stderr report
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
