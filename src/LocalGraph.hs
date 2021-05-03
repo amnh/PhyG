@@ -99,6 +99,10 @@ empty = G.empty
 labNodes :: Gr a b -> [LNode a] 
 labNodes inGraph = G.labNodes inGraph
 
+-- | maps to labEdges
+labEdges :: Gr a b -> [LEdge b] 
+labEdges inGraph = G.labEdges inGraph
+
 -- | maps to indeg
 indeg :: Gr a b -> LNode a -> Int
 indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
@@ -151,3 +155,7 @@ delLEdges inEdgeList inGraph = G.delEdges (fmap G.toEdge inEdgeList) inGraph
 -- | insNode inserts a labelled  node into a graph
 insNode :: LNode a -> Gr a b -> Gr a b
 insNode inNode inGraph = G.insNode inNode inGraph
+
+-- | mkGraph creates a greaph from list of nodes and list of edges
+mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
+mkGraph nodeList edgeList = G.mkGraph nodeList edgeList

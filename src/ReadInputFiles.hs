@@ -114,93 +114,95 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                 -- this so don't have huge numbers of open files for large data sets
                 fileContents <- hGetContents' fileHandle
                 hClose fileHandle
-                -- try to figure out file type based on first and following characters
-                if firstOption == "tcm" then
-                    let newTCMPair = processTCMContents fileContents firstFile
-                    in
-                    executeReadCommands curData curGraphs isPrealigned' newTCMPair (tail argList)
-                else if null firstOption then 
-                    let firstChar = head $ dropWhile (== ' ') fileContents
-                    in
-                    if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
-                        hPutStrLn stderr ("\tTrying to parse " ++ firstFile ++ " as dot") 
-                        -- destroys lazyness but allows closing right away
-                        -- this so don't have huge numbers of open files for large data sets
-                        fileHandle2 <- openFile  firstFile ReadMode
-                        !dotGraph <- LG.hGetDotLocal fileHandle2
-                        hClose fileHandle2
-                        let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
-                        let hasLoops = B.hasLoop inputDot 
-                        if hasLoops then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
-                        else hPutStr stderr ""
-                        let hasCycles = GFU.cyclic inputDot
-                        if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                        else executeReadCommands curData (inputDot : curGraphs) isPrealigned' tcmPair (tail argList)
-                    else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
-                        let thisGraphList = getFENewickGraph fileContents
-                            hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
-                            hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
-                        in 
-                        if (not $ null hasLoops) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
-                        else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                        else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
+                if (null fileContents) then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
+                else 
+                    -- try to figure out file type based on first and following characters
+                    if firstOption == "tcm" then
+                        let newTCMPair = processTCMContents fileContents firstFile
+                        in
+                        executeReadCommands curData curGraphs isPrealigned' newTCMPair (tail argList)
+                    else if null firstOption then 
+                        let firstChar = head $ dropWhile (== ' ') fileContents
+                        in
+                        if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
+                            hPutStrLn stderr ("\tTrying to parse " ++ firstFile ++ " as dot") 
+                            -- destroys lazyness but allows closing right away
+                            -- this so don't have huge numbers of open files for large data sets
+                            fileHandle2 <- openFile  firstFile ReadMode
+                            !dotGraph <- LG.hGetDotLocal fileHandle2
+                            hClose fileHandle2
+                            let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
+                            let hasLoops = B.hasLoop inputDot 
+                            if hasLoops then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
+                            else hPutStr stderr ""
+                            let hasCycles = GFU.cyclic inputDot
+                            if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                            else executeReadCommands curData (inputDot : curGraphs) isPrealigned' tcmPair (tail argList)
+                        else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
+                            let thisGraphList = getFENewickGraph fileContents
+                                hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
+                                hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
+                            in 
+                            if (not $ null hasLoops) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
+                            else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                            else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
 
-                    else if toLower firstChar == 'x' then 
+                        else if toLower firstChar == 'x' then 
+                            let tntData = TNT.getTNTData fileContents firstFile
+                            in
+                            trace ("\tTrying to parse " ++ firstFile ++ " as TNT") 
+                            executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                        else 
+                            let fileContents' =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents
+                            in 
+                              if (head $ dropWhile (== ' ') fileContents') == '>' then 
+                                let secondLine = head $ tail $ lines fileContents'
+                                    numSpaces = length $ elemIndices ' ' secondLine
+                                    -- numWords = length $ words secondLine
+                                in
+                                -- spaces between alphabet elements suggest fastc
+                                if (numSpaces > 0) then 
+                                    let fastcData = FAC.getFastC firstOption fileContents' firstFile
+                                        fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
+                                    in
+                                    trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
+                                    executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                                else 
+                                    let fastaData = FAC.getFastA  firstOption fileContents' firstFile
+                                        fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
+                                    in
+                                    trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
+                                    executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                            
+                        else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
+                    -- fasta
+                    else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
+                        let fastaData = FAC.getFastA  firstOption fileContents firstFile
+                            fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
+                        in
+                        executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                    -- fastc
+                    else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
+                        let fastcData = FAC.getFastC firstOption fileContents firstFile
+                            fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
+                        in
+                        executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                    -- tnt
+                    else if firstOption == "tnt" then
                         let tntData = TNT.getTNTData fileContents firstFile
                         in
-                        trace ("\tTrying to parse " ++ firstFile ++ " as TNT") 
                         executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                    else 
-                        let fileContents' =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents
+                    else if firstOption == "prealigned" then executeReadCommands curData curGraphs isPrealigned' tcmPair (tail argList)
+                    -- FENEwick
+                    else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
+                        let thisGraphList = getFENewickGraph fileContents
+                            hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
+                            hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                         in 
-                          if (head $ dropWhile (== ' ') fileContents') == '>' then 
-                            let secondLine = head $ tail $ lines fileContents'
-                                numSpaces = length $ elemIndices ' ' secondLine
-                                -- numWords = length $ words secondLine
-                            in
-                            -- spaces between alphabet elements suggest fastc
-                            if (numSpaces > 0) then 
-                                let fastcData = FAC.getFastC firstOption fileContents' firstFile
-                                    fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
-                                in
-                                trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
-                                executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                            else 
-                                let fastaData = FAC.getFastA  firstOption fileContents' firstFile
-                                    fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
-                                in
-                                trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
-                                executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                        
-                    else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
-                -- fasta
-                else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then 
-                    let fastaData = FAC.getFastA  firstOption fileContents firstFile
-                        fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
-                    in
-                    executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                -- fastc
-                else if (firstOption `elem` ["fastc", "custom_alphabet"])  then 
-                    let fastcData = FAC.getFastC firstOption fileContents firstFile
-                        fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
-                    in
-                    executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                -- tnt
-                else if firstOption == "tnt" then
-                    let tntData = TNT.getTNTData fileContents firstFile
-                    in
-                    executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                else if firstOption == "prealigned" then executeReadCommands curData curGraphs isPrealigned' tcmPair (tail argList)
-                -- FENEwick
-                else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then 
-                    let thisGraphList = getFENewickGraph fileContents
-                        hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList 
-                        hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
-                    in 
-                    if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
-                    else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                    else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
-                else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
+                        if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                        else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                        else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
+                    else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
                 
 
 -- | Read arg list allowable modifiers in read

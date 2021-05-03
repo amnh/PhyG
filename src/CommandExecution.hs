@@ -84,20 +84,22 @@ import           Types
 import           Debug.Trace
 import           GeneralUtilities
 import           System.IO
-import           GraphFormatUtilities
-import qualified LocalGraph as LG
+import           Data.Maybe
 import           Data.List
 import qualified Data.Text.Lazy as T
 import qualified Data.CSV as CSV
 import qualified Data.Vector as V
 import qualified Data.Text.Short as ST
+import qualified GraphOperations as GO
+import           GraphFormatUtilities
+import qualified LocalGraph as LG
 
 
 -- | executeReadCommands reads iput files and returns raw data 
 -- need to close files after read
-executeCommands :: [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO [PhylogeneticGraph]
-executeCommands rawData processedData curGraphs pairwiseDist commandList = do
-    if null commandList then return curGraphs
+executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
+executeCommands globalSettings rawData processedData curGraphs pairwiseDist commandList = do
+    if null commandList then return (curGraphs, globalSettings)
     else do
         let (firstOption, firstArgs) = head commandList
 
@@ -106,46 +108,90 @@ executeCommands rawData processedData curGraphs pairwiseDist commandList = do
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
         -- report command    
         else if firstOption == Report then do
-            let reportStuff@(reportString, outFile, writeMode) = reportCommand firstArgs rawData processedData curGraphs pairwiseDist
+            let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
             if outFile == "stderr" then hPutStr stderr reportString
             else if outFile == "stdout" then hPutStr stdout reportString
             else if writeMode == "overwrite" then writeFile outFile reportString
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
-            executeCommands rawData processedData curGraphs pairwiseDist (tail commandList)
+            executeCommands globalSettings rawData processedData curGraphs pairwiseDist (tail commandList)
+        else if firstOption == Set then
+            let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
+            in
+            executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist (tail commandList)
         else 
-            executeCommands rawData processedData curGraphs pairwiseDist (tail commandList)
+            executeCommands globalSettings rawData processedData curGraphs pairwiseDist (tail commandList)
+
+-- | setArgLIst contains valid 'set' arguments
+setArgList :: [String]
+setArgList = ["outgroup", "criterion", "graphtype","block"]
+
+-- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
+setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
+setCommand argList globalSettings processedData =
+    let commandList = filter (/= "") $ fmap fst argList
+        optionList = filter (/= "") $ fmap snd argList
+        checkCommandList = checkCommandArgs "set" commandList setArgList
+        leafNameVect = fst processedData
+
+    in
+    if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ (show argList))
+    else 
+        if head commandList == "outgroup"  then 
+            let outTaxonName = T.pack $ filter (/= '"') $ head optionList
+                outTaxonIndex = V.elemIndex outTaxonName leafNameVect
+
+            in
+            if outTaxonIndex == Nothing then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ (T.unpack outTaxonName) ++ " not found in input leaf list" ++ (show $ fmap (T.unpack) leafNameVect))
+            else (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
+        else if head commandList == "graphtype"  then 
+            let localGraphType = if (head optionList == "tree") then Tree
+                                 else if (head optionList == "softwired") then SoftWired
+                                 else if (head optionList == "hardwired") then HardWired
+                                 else errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
+            in
+            (globalSettings {graphType = localGraphType}, processedData)
+        else if head commandList == "criterion"  then 
+            let localCriterion = if (head optionList == "parsimony") then Parsimony
+                                 else if (head optionList == "pmdl") then PMDL
+                                 else errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
+            in
+            (globalSettings {optimalityCriterion = localCriterion}, processedData)
+        else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
+
+
+
             
--- | reportArgList contains valid report arguments
+-- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
 reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist"]
 
--- | checkReportCommands takes commands and verifies that they are in list
-checkReportCommands :: [String] -> [String] -> Bool
-checkReportCommands commandList permittedList =
+-- | checkCommandArgs takes comamnd and args and verifies that they are in list
+checkCommandArgs :: String -> [String] -> [String] -> Bool
+checkCommandArgs commandString commandList permittedList =
     if null commandList then True
     else 
         let firstCommand = head commandList
             foundCommand = firstCommand `elem` permittedList
         in
-        if foundCommand then checkReportCommands (tail commandList) permittedList
+        if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
         else 
             let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
             in
-            errorWithoutStackTrace ("\nError: Unrecognized 'report' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
+            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
 
 -- | reportCommand takes report options, current data and graphs and returns a 
 -- (potentially large) String to print and the channel to print it to 
 -- and write mode overwrite/append
-reportCommand :: [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
-reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
+reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
+reportCommand globalSettings argList rawData processedData curGraphs pairwiseDistanceMatrix =
     let outFileNameList = filter (/= "") $ fmap snd argList
         commandList = filter (/= "") $ fmap fst argList
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ show outFileNameList)
     else 
-        let checkCommandList = checkReportCommands commandList reportArgList
+        let checkCommandList = checkCommandArgs "report" commandList reportArgList
             outfileName = if null outFileNameList then "stderr" 
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
@@ -176,19 +222,19 @@ reportCommand argList rawData processedData curGraphs pairwiseDistanceMatrix =
             else if "graphs" `elem` commandList then 
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
-                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap fst5 curGraphs
+                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
-                    let graphString = fglList2ForestEnhancedNewickString (fmap fst5 curGraphs)  True True
+                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst5 curGraphs))  True True
                     in 
                     (graphString, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap fst5 curGraphs
+                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
-                    let graphString = concat $ fmap fgl2DotString  $ fmap fst5 curGraphs
+                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)

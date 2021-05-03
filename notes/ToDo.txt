@@ -4,6 +4,21 @@
 	Prealigned chars
 	Add to test.pg
 
+3) Reexamine "executeCommands" to make more stream like
+	passing various results back to itself till all done
+	THis allow builds, swaps, transformtion in order
+	E.g. search tree first then network, search non implied alignment
+
+4) Set graph complexity for hard-wired ans soft-wired graphs differnetly
+	Hard-wired--as in complexity code now--just edges and vertices
+	Soft-wired--account for the display tree set
+		extra edges?, "switching" cost among diaplay trees? log2 2^n?
+		so regular graph + n bits? or somehting related to grahs specification
+		etc so miuch larger--toal complexity of entire dispolay tree set.
+		Can be generated in code so see what it is?  To add recursive generation
+		of display trees. YThat is prob the way to do it. And also add in swtitch 
+		tree cost (log2 2^n)  
+
 5) Set blocks
 
 6) Transform 
@@ -78,3 +93,11 @@
 
 15) Simple tree optimization
 		and with smart reroot
+
+16) Time concistencuy test for graphs (input especially)
+
+17) Set for "gobal" values--would have tyo be passed around as well 
+	Part of processed data?
+
+18) Check all commands before execution for valid syntax
+	so don't error out at very end after lots of effort

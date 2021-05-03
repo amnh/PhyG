@@ -64,7 +64,7 @@ data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | S
     deriving (Show, Eq)
 
 -- | Node variety
-data NodeType = Root | Leaf | Tree | Network
+data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
     deriving (Show, Eq)
 
 type Command = (Instruction, [Argument])
@@ -73,6 +73,23 @@ type Command = (Instruction, [Argument])
 data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq | MatrixApproxSmall | MatrixApproxLarge
     deriving (Read, Show, Eq)
 
+
+-- | Graph types for searching etc.  Can be modified by 'Set command
+-- HardWired and SoftWired are network types
+-- 'Tree'  would be a single tree in the sense as produced by typical phylogentic
+--seqrch programs--no forests
+data GraphType = Tree | HardWired | SoftWired
+    deriving (Show, Eq)
+
+-- | Optimality criterion sets the cost function for graphs and potentially models
+data OptimalityCriterion = Parsimony | PMDL 
+    deriving (Show, Eq)
+
+data GlobalSettings = GlobalSettings { outgroupIndex :: Int -- Outgroup terminal index, default 0 (first input leaf)
+                                    , outGroupName :: T.Text -- Outgropu name
+                                    , optimalityCriterion :: OptimalityCriterion
+                                    , graphType :: GraphType
+                                    } deriving (Show, Eq)
 
 -- | CharInfo information about characters
 -- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
@@ -165,12 +182,12 @@ type SimpleGraph = LG.Gr NameText Double
 -- Question of wheterh traversal foci shold be in Graph or Data section
 -- for now in Graph but could easiily be moved to Processed data
 -- May need "EdgeData" like VertexData for heuristics.  UNclear if local scope during SPR/TBR will do it.
---	Fields:
---		1) "Simple" graph with fileds useful for outputting graphs  
---		2) Graph optimality value or cost
---		3) Vector of display trees for each data Block
---		4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
--- 		5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
+--    Fields:
+--        1) "Simple" graph with fileds useful for outputting graphs  
+--        2) Graph optimality value or cost
+--        3) Vector of display trees for each data Block
+--        4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
+--         5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
 type PhylogeneticGraph = (SimpleGraph, VertexCost, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
 
 
@@ -201,10 +218,10 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- leaves will alwasy be first (indices 0..n-1) for simpler updating of data during graph optimization
 -- NameText is the block label used for assignment and reporting output
 -- Initially set to input filename of character
---	Fields:
---		1) name of the block--intially taken from input filenames
---		2) vector of vertiex data with (node Bitvector--for dsisplayu tree stuff, vector of character states)
---		3) Vector of charcater information for characters in the block 
+--    Fields:
+--        1) name of the block--intially taken from input filenames
+--        2) vector of vertiex data with (node Bitvector--for dsisplayu tree stuff, vector of character states)
+--        3) Vector of charcater information for characters in the block 
 type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
 
 

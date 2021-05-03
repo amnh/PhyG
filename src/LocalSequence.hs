@@ -155,3 +155,21 @@ unsafeDrop number inSeq = S.drop number inSeq
 -- | replicate maps to replicate
 replicate ::  Int -> a -> Seq a 
 replicate number value = S.replicate number value
+
+-- | elem returns True if element present in Sequence
+-- False otherwise
+elem :: (Eq a) => a -> Seq a -> Bool
+elem element fullSequence = 
+	let index = S.elemIndexL element fullSequence
+	in
+	if index == Nothing then False
+	else True
+
+-- | notElem returns False if element present in Sequence
+-- True otherwise
+notElem :: (Eq a) => a -> Seq a -> Bool
+notElem element fullSequence = 
+	let index = S.elemIndexL element fullSequence
+	in
+	if index == Nothing then True
+	else False

@@ -95,16 +95,20 @@ main =
     let renamedData = fmap (DT.renameData newNamePairList) rawData
     let renamedGraphs =  fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
+    let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
+
     -- Reconcile Data and Graphs (if input) including ladderization
-    let dataLeafNames = sort $ DT.getDataTerminalNames renamedData
+        -- could be sorted, but no real need
+    let dataLeafNames = DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
 
+    
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
     let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
     let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs
-    
+
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
     let reconciledData' = removeTaxaFromData includeList reconciledData
@@ -125,16 +129,28 @@ main =
     -- Optimize Data
     let optimizedData = naiveData --  place holder (consolidate all add, non-add etc chars in blocks)
 
-    let inputGraphList = map (GO.fullyLabelGraph optimizedData) ladderizedGraphList
+
+    -- Set global vaues before search--should be integrated with executing commands
+    let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree}
+    hPutStrLn stderr (show defaultGlobalSettings)
+
+    let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename 
+    let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename 
+    
+    -- This rather awkward syntax makes sure global settings (outgropu, criterion etc) are in place for initial input graph diagnosis
+    (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings rawData optimizedData [] [] initialSetCommands
+    let inputGraphList = map (GO.fullyLabelGraph initialGlobalSettings optimizedData) ladderizedGraphList
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
     --hPutStrLn stderr (show pairDist)
 
-
     
     -- Execute Following Commands (searches, reports etc)
-    finalGraphList <- CE.executeCommands rawData optimizedData inputGraphList pairDist (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
+    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings rawData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+
+    -- print global setting just to check
+    hPutStrLn stderr (show finalGlobalSettings)
 
     -- Final Stderr report
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
