@@ -254,6 +254,8 @@ Task groups:
 		Append to non-graphical files b y default, overwrite option
 		-O for multiple graphs in dot (automatically named with numbers)
 		make graph files automatically if dot installed (with better options)?
+		For display tree fraction of contributions of parents (50:50 -> 1/99)
+		for hybridizatin versus introgression
 
 
 
