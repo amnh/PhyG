@@ -224,6 +224,14 @@ Task groups:
 		6) Distance character?
 			for nitial dWag etc on blocks or all
 
+	2a) Optimize for singel child
+	2b) OPtimize Graph for hard-wired
+		Post-order straight forward as before
+		Pre-order 2-parent 3D median with cost delta
+		Delta is cost of two-parent 1 child from post-order 
+		minus adjustment to states in pre-order can loweer cost 
+		and then that cost (summed over netwro vetices) subtracted
+
 	3) Graph structure
 		Vertex and edge types (lenses? prob not too complex)
 

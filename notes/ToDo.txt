@@ -101,3 +101,34 @@
 
 18) Check all commands before execution for valid syntax
 	so don't error out at very end after lots of effort
+
+19) Reroot
+	Check if current root aame and return if so
+	keep track of root node index
+
+	This can be used for "rerooting" graph optimization
+		that one edge shift at a time--should be very predictable in 
+		how much work done (check for networks)
+
+	make edged from root to chikdern (outgroup and sibling)
+	Delete root edge
+
+	traverse from sibling of outgroup, fliping (deleting and reinserting) edges that
+		need to change orientation
+	if orientation doesn't change--that recursive thread is finisged
+
+	For others keep going until hit old root edge 
+		When encounter root edge, Remove edges from orignal root to children and add 
+		edge between them with correct direction
+		the 'v' traveraal (edge u->v) should already be in correct orientation
+			but check initially
+
+   if forest, no issues since if outgroup not in component
+   		should participate in traversal
+   		Should be OK for network, but needs to be checked
+
+
+
+
+
+
