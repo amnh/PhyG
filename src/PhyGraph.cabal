@@ -56,7 +56,8 @@ executable phyg
                 , MissingH
                 
                -- currently doesn't compile but could be useful
-               -- , Graphalyze
+               -- lots of good functions
+               --, Graphalyze
  
                 
   default-extensions : BangPatterns                

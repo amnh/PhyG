@@ -42,15 +42,17 @@ module LocalGraph  where
 
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
+import qualified Data.Graph.Inductive.Query.DFS as DFS
 import qualified GraphFormatUtilities              as GFU
 --import qualified Data.Text as T
 import qualified Data.Text.Lazy as T
 import           Data.GraphViz                     as GV
-import           Data.GraphViz.Attributes.Complete (Attribute (Label),
-                                                    Label (..))
+--import           Data.GraphViz.Attributes.Complete (Attribute (Label),
+                                                    --Label (..))
 import           Data.GraphViz.Commands.IO         as GVIO
 import qualified Data.Graph.Inductive.Graph        as G
 import           System.IO
+import GeneralUtilities
 
 
 -- | Gr local graph definition using FGL
@@ -159,3 +161,65 @@ insNode inNode inGraph = G.insNode inNode inGraph
 -- | mkGraph creates a greaph from list of nodes and list of edges
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
 mkGraph nodeList edgeList = G.mkGraph nodeList edgeList
+
+-- | components list of list of nodes (graphalyze can return graph list)
+components :: Gr a b -> [[Node]]
+components inGraph = DFS.components inGraph
+
+-- | noComponents returns number of components
+noComponents :: Gr a b -> Int
+noComponents inGraph = DFS.noComponents inGraph
+
+-- | isLeaf checks if node is root 
+isLeaf  :: Gr a b -> Node -> Bool
+isLeaf  inGraph inNode = (G.outdeg inGraph inNode) == 0
+
+-- | isRoot checks if node is root 
+isRoot :: Gr a b -> Node-> Bool
+isRoot inGraph inNode = (G.indeg inGraph inNode) == 0
+
+-- | pre returns list of nodes linking to a node 
+pre :: Gr a b -> Node -> [Node]
+pre inGraph inNode = G.pre inGraph inNode 
+
+-- | suc returns list of nodes linking from a node 
+suc :: Gr a b -> Node -> [Node]
+suc inGraph inNode = G.suc inGraph inNode 
+
+-- | edgeLabel returns label of edge
+edgeLabel :: LEdge b -> b
+edgeLabel inEdge = G.edgeLabel inEdge
+
+-- | getOtherVertex retuns the edge vertex /= index
+getOtherVertex :: LEdge b -> Int -> Int 
+getOtherVertex (u,v,_) index = if u == index then v else u
+
+
+ -- | splitVertexList splits the vertices of a graph into ([root], [leaf], [tree], [network])
+splitVertexList ::  Gr a b -> ([LNode a], [LNode a], [LNode a], [LNode a])
+splitVertexList inGraph =
+  if G.isEmpty inGraph then ([],[],[],[])
+  else
+    let -- leaves
+        degOutList = outdeg inGraph <$> labNodes inGraph
+        newNodePair = zip degOutList (labNodes inGraph)
+        leafPairList = filter ((==0).fst ) newNodePair
+        (_, leafList) = unzip leafPairList
+
+        -- roots
+        degInList = indeg inGraph <$> labNodes inGraph
+        newRootPair = zip degInList (labNodes inGraph)
+        rootPairList = filter ((==0).fst ) newRootPair
+        (_, rootList) = unzip rootPairList
+
+        -- tree nodes
+        nodeTripleList = zip3 degOutList degInList (labNodes inGraph)
+        treeTripleList = filter ((==1).fst3 ) $ filter ((>0).snd3 ) nodeTripleList
+        (_, _, treeVertexList) = unzip3 treeTripleList
+
+         -- network nodes
+        networkTripleList = filter ((>1).fst3 ) $ filter ((>0).snd3 ) nodeTripleList
+        (_, _, networkVertexList) = unzip3 networkTripleList
+    in
+    (rootList, leafList, treeVertexList, networkVertexList)
+
