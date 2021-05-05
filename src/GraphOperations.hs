@@ -143,11 +143,11 @@ fullyLabelGraph inGS inData inGraph =
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
---   unclear how will effect network edges
+--   unclear how will effect network edges--will need to verify that does not create cycles
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root 
-rerootGraph :: Int -> LG.Gr a b -> LG.Gr a b
+rerootGraph :: Int -> SimpleGraph -> SimpleGraph
 rerootGraph rerootIndex inGraph = 
   if LG.isEmpty inGraph then inGraph
   else 
@@ -170,25 +170,63 @@ rerootGraph rerootIndex inGraph =
           numRoots = length originalRootList
           orginalRoot = head originalRootList
           originalRootEdges = LG.out inGraph orginalRoot
+
       in
+      {-
+      if null originalRootList then error "No orginal roots"
+      else if null (LG.inn inGraph rerootIndex) then error ("Can't find parent of " ++ show rerootIndex)
+      else if null componentWithOutgroup then error ("Can't findcomponent with " ++ show rerootIndex)
+      else if null originalRootEdges then error ("Null original root edges ")
+      else 
+        -}
       -- check if outgroup in a multirooted component
       if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
       else
         --reroot graph safely automatically will only affect the component with the outgroup
         -- delete old root edge and create two new edges from oringal root node.
         -- keep orignl root node and delte/crete new edges when they are encounterd
-        trace ("moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex) ) (
+        trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
         let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
             rightChildEdge = (orginalRoot, LG.getOtherVertex (head originalRootEdges) orginalRoot, LG.edgeLabel $ last originalRootEdges)
-            newRootEdges = [leftChildEdge, rightChildEdge]
-            newGraph = LG.insEdges newRootEdges $ LG.delLEdges [newRootEdge] inGraph
-            newGraph' = preTraverseAndFlipEdges newGraph orginalRoot originalRootEdges rightChildEdge
+
+            --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+            newEdgeOnOldRoot = if LG.isLeaf inGraph (snd3 $ head originalRootEdges) then (snd3 $ last originalRootEdges, snd3 $ head originalRootEdges, thd3 $ head originalRootEdges)
+                               else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+
+            newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
+            newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootEdge : originalRootEdges) inGraph
+            newGraph' = preTraverseAndFlipEdges newGraph [rightChildEdge]
         in
-        newGraph
+        newGraph'
         )
 
--- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as need and deleting old root edges 
--- when encountered 
--- when recursion its edges that don't need to be fliped then stops, also at old root edges
-preTraverseAndFlipEdges :: LG.Gr a b -> LG.Node -> [LG.LEdge b] -> LG.LEdge b -> LG.Gr a b
-preTraverseAndFlipEdges inGraph orginalRoot originalRootEdges rightChildEdge = inGraph
+-- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
+-- when recursion its edges that don't need to be fliped then stops
+-- assumes input edge is directed correctly
+-- follows postorder traversal
+-- have to check edge orientatins--make sure thay haven't changed as graph was updated earlier
+preTraverseAndFlipEdges :: LG.Gr a b -> [LG.LEdge b] -> LG.Gr a b
+preTraverseAndFlipEdges inGraph inEdgelist = 
+  if null inEdgelist then inGraph
+  else 
+    let inEdge@(_,v,_) = head inEdgelist
+        childEdges = LG.out inGraph v
+        -- retursn list of edges that had to be flipped
+        edgesToFlip = getToFlipEdges v childEdges
+        flippedEdges = fmap LG.flipLEdge edgesToFlip
+        newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
+    in
+    -- edge needs to be reversed to follow through its children
+    preTraverseAndFlipEdges newGraph (flippedEdges ++ (tail inEdgelist))
+
+-- | getToFlipEdges takes an index and ceck edge list
+-- and cretes new list of edges that need to be flipped
+getToFlipEdges ::  LG.Node -> [LG.LEdge b] -> [LG.LEdge b]
+getToFlipEdges parentNodeIndex inEdgeList =
+  if null inEdgeList then []
+  else 
+    let firstEdge@(u,_,_) = head inEdgeList
+    in
+    if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
+    else getToFlipEdges parentNodeIndex (tail inEdgeList)
+      

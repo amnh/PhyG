@@ -149,7 +149,16 @@ edges inGraph = G.edges inGraph
 insEdges :: [LEdge b] -> Gr a b -> Gr a b
 insEdges edgeList inGraph = G.insEdges edgeList inGraph
 
--- | delLEdges deletes a list of labelled edges from a graph
+-- | insEdge inserts a labelled edge into a graph
+insEdge :: LEdge b -> Gr a b -> Gr a b
+insEdge inEdge inGraph = G.insEdge inEdge inGraph
+
+-- | delLEdges delete a labelled edge from a graph
+-- wrapps around delEdge
+delLEdge :: LEdge b -> Gr a b -> Gr a b
+delLEdge inEdge inGraph = G.delEdge (G.toEdge inEdge) inGraph
+
+-- | delLEdge deletes a list of labelled edges from a graph
 -- wrapps around delEdges
 delLEdges :: [LEdge b] -> Gr a b -> Gr a b
 delLEdges inEdgeList inGraph = G.delEdges (fmap G.toEdge inEdgeList) inGraph
@@ -193,6 +202,14 @@ edgeLabel inEdge = G.edgeLabel inEdge
 -- | getOtherVertex retuns the edge vertex /= index
 getOtherVertex :: LEdge b -> Int -> Int 
 getOtherVertex (u,v,_) index = if u == index then v else u
+
+-- | flipEdge flips orientation of unlabelled edge
+flipEdge :: Edge -> Edge
+flipEdge (u,v) = (v,u)
+
+-- flipLEdge flips orientation of labelled edge
+flipLEdge :: LEdge b ->LEdge b
+flipLEdge (u,v,w) = (v,u,w)
 
 
  -- | splitVertexList splits the vertices of a graph into ([root], [leaf], [tree], [network])

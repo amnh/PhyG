@@ -101,10 +101,11 @@ main =
         -- could be sorted, but no real need
     let dataLeafNames = DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
+    --hPutStrLn stderr (show dataLeafNames)
 
     
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
-    let reconciledGraphs = fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
+    let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
     let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs
@@ -137,9 +138,9 @@ main =
     let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename 
     let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename 
     
-    -- This rather awkward syntax makes sure global settings (outgropu, criterion etc) are in place for initial input graph diagnosis
+    -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings rawData optimizedData [] [] initialSetCommands
-    let inputGraphList = map (GO.fullyLabelGraph initialGlobalSettings optimizedData) ladderizedGraphList
+    let inputGraphList = map (GO.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
