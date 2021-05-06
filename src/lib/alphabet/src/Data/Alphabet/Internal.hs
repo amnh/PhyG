@@ -69,7 +69,6 @@ import           Numeric.Natural
 import           Prelude                             hiding (lookup, unzip, zip)
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances ()
-import           Text.XML
 import           TextShow                            (TextShow(showb))
 
 
@@ -251,11 +250,6 @@ instance TextShow a => TextShow (Alphabet a) where
         , intercalateB ", " $ showb <$> toList x
         , "}"
         ]
-
-
-instance (Show a) => ToXML (Alphabet a) where
-
-    toXML alphabet = xmlElement "Alphabet" [] [ Left ("Symbols", show alphabet)]
 
 
 -- |

@@ -32,7 +32,6 @@ import Data.Foldable
 import Data.Range
 import GHC.Generics
 import Numeric.Extended.Real
-import Text.XML.Class
 import TextShow                                 (TextShow(showb))
 
 
@@ -88,14 +87,6 @@ instance TextShow ContinuousCharacter where
       | otherwise      = renderRange lower upper
         where
             renderRange x y = fold [ "[", showb x, ", ", showb y, "]" ]
-
-
-instance ToXML ContinuousCharacter where
-
-    toXML continuousChar = xmlElement "Continuous_character" attributes content
-        where
-            attributes = []
-            content    = [Left ("Character_states", show continuousChar)]
 
 
 -- |

@@ -42,7 +42,7 @@ common ffi-buildinfo
     --std=c11
 
   hs-source-dirs:
-    lib/core/ffi
+    ffi
 
   c-sources:
     ffi/external-direct-optimization/alignCharacters.c
@@ -412,8 +412,6 @@ library exportable
     ghc-flags,
     language-specs,
 
-  visibility:
-    private
 
   default-language:
     Haskell2010
@@ -445,9 +443,6 @@ library tcm
     ffi-buildinfo,
     ghc-flags,
     language-specs,
-
-  visibility:
-    private
 
   default-language:
     Haskell2010
@@ -491,9 +486,6 @@ library tcm-memo
     ffi-buildinfo,
     ghc-flags,
     language-specs,
-
-  visibility:
-    private
 
   default-language:
     Haskell2010
@@ -552,9 +544,6 @@ library utility
   import:
     ghc-flags,
     language-specs
-
-  visibility:
-    private
 
   default-language:
     Haskell2010

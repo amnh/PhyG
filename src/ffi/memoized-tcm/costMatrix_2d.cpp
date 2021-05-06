@@ -198,7 +198,7 @@ costMedian_t* CostMatrix_2d::computeCostMedian(keys_2d_t keys)
 
         if (DEBUG) {
             printf("Before Minimization Logic:\n");
-            printf("  Symbol Index: %" PRIu64 " \n", symbolIndex);
+            printf("  Symbol Index: %" PRIu64 " \n", (unsigned long long) symbolIndex);
             printf("  Current Cost: %d\n", curCost);
             printf("  Minimal Cost: %d\n", minCost);
             printPackedChar( curMedian, 1, alphabetSize);

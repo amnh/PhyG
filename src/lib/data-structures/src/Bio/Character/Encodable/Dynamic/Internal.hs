@@ -73,7 +73,6 @@ import qualified Data.Vector.Unboxed.Mutable                    as MUV
 import           GHC.Generics
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances            ()
-import           Text.XML
 import           TextShow                                       (TextShow(showb))
 
 
@@ -389,15 +388,6 @@ instance TextShow DynamicCharacter where
     showb (Missing w)  = "Missing " <> showb w
     showb (DC      bm) = "DC "      <> showb bm
 
-
-instance ToXML DynamicCharacter where
-
-    toXML dynamicChar = xmlElement "Dynamic_character" attributes contents
-      where
-        attributes            = []
-        contents              = Left . contentTuple <$> otoList dynamicChar -- toXML on all dynamic character elements
-        contentTuple (DCE (m,l,r)) = ("Character_states", show (f m, f l, f r)) -- the value of this character
-        f = fmap (\x -> if x then '1' else '0') . toBits
 
 
 --selectDC :: DynamicCharacterElement -> Word -> Maybe Word

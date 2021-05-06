@@ -47,7 +47,6 @@ import           Data.Vector.Unboxed  (Vector)
 import qualified Data.Vector.Unboxed  as V
 import           GHC.Generics
 import           Test.QuickCheck      hiding (generate)
-import           Text.XML
 
 
 -- |
@@ -270,14 +269,6 @@ instance Show TCM where
           where
             shown = show x
             pad   = (padSpacing - length shown) `replicate` ' '
-
-
-instance ToXML TCM where
-
-    toXML x = xmlElement "TCM" attrs contents
-        where
-            attrs = []
-            contents = [Left ("TCM", show x)]
 
 
 -- |

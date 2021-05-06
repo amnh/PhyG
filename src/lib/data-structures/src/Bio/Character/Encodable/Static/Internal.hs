@@ -55,7 +55,6 @@ import           Data.String                           (fromString)
 import           GHC.Generics
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances   ()
-import           Text.XML
 import           TextShow                              (TextShow)
 
 
@@ -322,16 +321,6 @@ instance Semigroup StaticCharacterBlock where
       where
         m = numCols lhs
         n = numCols rhs
-
-
-instance ToXML StaticCharacter where
-
-    toXML (SC bv) = xmlElement "Static_character" attributes contents
-        where
-            attributes = []
-            contents   = [intRep, bitRep]
-            intRep     = Left ("Integer_representation", show (toUnsignedNumber bv :: Integer))
-            bitRep     = Left ("Bit_representation"    , (\x -> if x then '1' else '0') <$> toBits bv)
 
 
 {-# INLINE unstream #-}
