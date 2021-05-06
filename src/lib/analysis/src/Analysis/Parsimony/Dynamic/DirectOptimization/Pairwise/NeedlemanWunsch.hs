@@ -20,15 +20,18 @@
 module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
   ( naiveDO
   , naiveDOMemo
+  , overlap2
   ) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
 import Bio.Character.Encodable
-import Bio.Metadata.Dynamic                                            (overlap2)
 import Data.Bits
 import Data.Matrix.NotStupid                                           (matrix)
 import Data.MonoTraversable
-
+import Data.Foldable.Custom
+import Data.List.NonEmpty      (NonEmpty(..))
+import Data.Semigroup
+import Data.Semigroup.Foldable
 
 -- |
 -- Performs a naive direct optimization.
@@ -86,3 +89,65 @@ createNeedlemanWunchMatrix overlapFunction topChar leftChar = result
     rows               = olength leftChar + 1
     cols               = olength topChar  + 1
     generatingFunction = needlemanWunschDefinition overlapFunction topChar leftChar result
+
+
+
+-- |
+-- Takes one or more elements of 'FiniteBits' and a symbol change cost function
+-- and returns a tuple of a new character, along with the cost of obtaining that
+-- character. The return character may be (or is even likely to be) ambiguous.
+-- Will attempt to intersect the two characters, but will union them if that is
+-- not possible, based on the symbol change cost function.
+--
+-- To clarify, the return character is an intersection of all possible least-cost
+-- combinations, so for instance, if @ char1 == A,T @ and @ char2 == G,C @, and
+-- the two (non-overlapping) least cost pairs are A,C and T,G, then the return
+-- value is A,C,G,T.
+{-# INLINE overlap #-}
+{-# SPECIALISE overlap :: FiniteBits e => (Word -> Word -> Word) -> NonEmpty e -> (e, Word) #-}
+{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty AmbiguityGroup -> (AmbiguityGroup, Word) #-}
+overlap
+  :: ( FiniteBits e
+     , Foldable1 f
+     , Functor f
+     )
+  => (Word -> Word -> Word) -- ^ Symbol change matrix (SCM) to determine cost
+  -> f e                    -- ^ List of elements for of which to find the k-median and cost
+  -> (e, Word)              -- ^ K-median and cost
+overlap sigma xs = go size maxBound zero
+  where
+    (size, zero) = let wlog = getFirst $ foldMap1 First xs
+                   in  (finiteBitSize wlog, wlog `xor` wlog)
+
+    go 0 theCost bits = (bits, theCost)
+    go i oldCost bits =
+        let i' = i - 1
+            newCost = sum' $ getDistance (toEnum i') <$> xs
+            (minCost, bits') = case oldCost `compare` newCost of
+                                 EQ -> (oldCost, bits `setBit` i')
+                                 LT -> (oldCost, bits            )
+                                 GT -> (newCost, zero `setBit` i')
+        in go i' minCost bits'
+
+    getDistance i b = go' size (maxBound :: Word)
+      where
+        go' :: Int -> Word -> Word
+        go' 0 a = a
+        go' j a =
+          let j' = j - 1
+              a' = if b `testBit` j' then min a $ sigma i (toEnum j') else a
+          in  go' j' a'
+
+
+-- |
+-- Calculate the median between /two/ states.
+{-# INLINE overlap2 #-}
+{-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word) #-}
+overlap2
+  :: FiniteBits e -- EncodableStreamElement e {- , Show e -})
+  => (Word -> Word -> Word)
+  -> e
+  -> e
+  -> (e, Word)
+overlap2 sigma char1 char2 = overlap sigma $ char1 :| [char2]
+

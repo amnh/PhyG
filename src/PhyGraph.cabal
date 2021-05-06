@@ -291,29 +291,30 @@ library analysis
     parallel                 >= 3.2       && < 4.0,
     primitive                >= 0.7.1     && < 1.0,
     unordered-containers     >= 0.2.10    && < 1.0,
+    semigroupoids            >= 5.3       && < 5.4,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-builder           >= 0.3.7     && < 0.4,
     vector-instances         >= 3.4       && < 3.5,
 
   exposed-modules:
-    Analysis.Clustering
-    Analysis.Clustering.Hierarchical
-    Analysis.Distance
-    Analysis.Parsimony.Additive
-    Analysis.Parsimony.Dynamic.DirectOptimization
+    --Analysis.Clustering
+    --Analysis.Clustering.Hierarchical
+    --Analysis.Distance
+    --Analysis.Parsimony.Additive
+    --Analysis.Parsimony.Dynamic.DirectOptimization
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
-    Analysis.Parsimony.Fitch
-    Analysis.Parsimony.Sankoff
-    Analysis.Scoring
-    Analysis.TotalEdgeCost
+    --Analysis.Parsimony.Fitch
+    --Analysis.Parsimony.Sankoff
+    --Analysis.Scoring
+    --Analysis.TotalEdgeCost
 
   other-modules:
-    Analysis.Parsimony.Additive.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Internal
+    --Analysis.Parsimony.Additive.Internal
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
-    Analysis.Parsimony.Fitch.Internal
-    Analysis.Parsimony.Sankoff.Internal
+    --Analysis.Parsimony.Fitch.Internal
+    --Analysis.Parsimony.Sankoff.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
@@ -392,7 +393,7 @@ library data-structures
 --    Bio.Character.Decoration.Metric
 --    Bio.Character.Decoration.NonMetric
     Bio.Character.Encodable
-    Bio.Character.Encodable.Continuous
+--    Bio.Character.Encodable.Continuous
 --    Bio.Metadata
 --    Bio.Metadata.Continuous
 --    Bio.Metadata.Discrete
