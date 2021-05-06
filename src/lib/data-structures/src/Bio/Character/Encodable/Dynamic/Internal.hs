@@ -307,6 +307,10 @@ instance ExportableBuffer DynamicCharacter where
         elemCount = ecs ^. exportedElementCount
         elemWidth = ecs ^. exportedElementWidth
 
+instance DecodableStream DynamicCharacter where
+
+    decodeStream alphabet = NE.fromList . ofoldMap (\e -> [decodeElement alphabet e])
+
 
 instance Hashable DynamicCharacter where
 

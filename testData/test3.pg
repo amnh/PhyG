@@ -1,6 +1,7 @@
 -- Test command file
-read(fasta:"chel.fas")
-read("chel.tre")
+--read(fasta:"chel.fas")
+read(fastc:"louse.fastc")
+--read("chel.tre")
 report("pairwise.txt", pairdist, overwrite)
-report("data.txt", data, overwrite)
-report("graphs.tre", graphs, newick, overwrite)
+--report("data.txt", data, overwrite)
+--report("graphs.tre", graphs, newick, overwrite)

@@ -33,6 +33,7 @@ import Data.List.NonEmpty      (NonEmpty(..))
 import Data.Semigroup
 import Data.Semigroup.Foldable
 
+
 -- |
 -- Performs a naive direct optimization.
 -- Takes in two characters to run DO on and a metadata object

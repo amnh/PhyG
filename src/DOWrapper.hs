@@ -46,6 +46,8 @@ module DOWrapper
 
 import Debug.Trace
 import Data.Int
+import qualified DOFFI as DOFFI
+import qualified DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
 import qualified NaiveDOSequence as NS
@@ -58,7 +60,6 @@ import Types
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
 thesholdUKLength = 15
-
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
@@ -82,12 +83,16 @@ getDOMedian origLBV origRBV thisMatrix thisType =
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
             (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
+            (mediansFFI, costFFI) = DOFFI.wrapperPCG_DO_FFI lBV rBV thisMatrix
+            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces)
         if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
-        else if thisType == NucSeq then (newMedianBV, medianCost64)
-        else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
+        else if thisType == NucSeq then (mediansFFI, costFFI)
+        else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
+--        else if thisType == NucSeq then (newMedianBV, medianCost64)
+--        else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
         else error "Unrecognized/Not implemented character type"
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 

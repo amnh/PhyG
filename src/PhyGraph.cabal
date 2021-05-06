@@ -155,6 +155,10 @@ executable phyg
 --  ld-options: -static -pthread
 
   build-depends:  alphabet
+                , analysis
+                , data-structures
+                , tcm
+                , tcm-memo
                 , base >=4.10
                 , containers >=0.6
                 , graphviz
@@ -210,6 +214,7 @@ executable phyg
                   NaiveDOSequence
                   GraphOperations
                   DOFFI
+                  DOLargeFFI
             
 library alphabet
 

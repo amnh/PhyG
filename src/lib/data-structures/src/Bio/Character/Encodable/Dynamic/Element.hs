@@ -42,6 +42,7 @@ module Bio.Character.Encodable.Dynamic.Element
 import Bio.Character.Encodable.Dynamic.AmbiguityGroup
 import Bio.Character.Encodable.Dynamic.Class
 import Bio.Character.Encodable.Internal
+import Bio.Character.Encodable.Stream
 import Bio.Character.Exportable                       (Subcomponent)
 import Control.Applicative
 import Control.DeepSeq
@@ -103,6 +104,9 @@ newtype DynamicCharacterElement
 type instance Bound DynamicCharacterElement = Word
 
 
+type instance Element DynamicCharacterElement = Bool
+
+
 type instance Subcomponent DynamicCharacterElement = AmbiguityGroup
 
 
@@ -113,8 +117,29 @@ instance Arbitrary DynamicCharacterElement where
         arbitraryOfSize $ toEnum alphabetLen
 
 
+instance Bits DynamicCharacterElement where
+
+
+
 instance CoArbitrary DynamicCharacterElement
 
+
+instance FiniteBits DynamicCharacterElement where
+
+    finiteBitSize = finiteBitSize . getMedian
+
+
+instance MonoFoldable DynamicCharacterElement where
+
+    ofoldl' f a = ofoldl' f a . getMedian
+
+    ofoldl1Ex' f = ofoldr1Ex f . getMedian
+
+    ofoldr f a = ofoldr f a . getMedian
+
+    ofoldr1Ex f = ofoldr1Ex f . getMedian
+
+    ofoldMap f = ofoldMap f . getMedian
 
 instance EncodedAmbiguityGroupContainer DynamicCharacterElement where
 
@@ -153,24 +178,25 @@ instance EncodableDynamicCharacterElement DynamicCharacterElement where
     getMedian   (DCE (m,_,_)) = AG m
 
 
-{-
 instance EncodableStreamElement DynamicCharacterElement where
 
-    decodeElement alphabet character =
-        case foldMapWithKey f alphabet of
+    decodeElement alphabet character = decodeElement alphabet $ getMedian character
+{-        case foldMapWithKey f alphabet of
           []   -> error "Attempting to decode an empty dynamic character element."
           x:xs -> x:|xs
       where
         f i symbol
           | character `testBit` i = [symbol]
           | otherwise             = []
+-}
 
     -- Use foldl here to do an implicit reversal of the alphabet!
     -- The head element of the list is the most significant bit when calling fromBits.
     -- We need the first element of the alphabet to correspond to the least significant bit.
     -- Hence foldl, don't try foldMap or toList & fmap without careful thought.
-    encodeElement alphabet ambiguity = DCE . fromBits $ (`elem` ambiguity) <$> toList alphabet
--}
+    encodeElement alphabet ambiguity =
+        let x = fromBits $ (`elem` ambiguity) <$> toList alphabet
+        in DCE (x,x,x)
 
 
 {--
