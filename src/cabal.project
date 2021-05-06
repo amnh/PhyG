@@ -1,0 +1,38 @@
+allow-newer:
+    active,
+    base,
+    Cabal,
+    ghc-prim,
+    integer-gmp,
+    lens,
+    MissingH,
+    optparse-applicative,
+    QuickCheck,
+    template-haskell,
+    th-abstraction
+
+constraints: th-abstraction >= 0.4.0.0
+    
+package *
+    ghc-options: -fwrite-ide-info -hiedir=.hie
+
+packages: .
+
+-- Pinned dependencies
+
+source-repository-package
+  type: git
+  location: https://github.com/diagrams/active
+  tag: ca23431a8dfa013992f9164ccc882a3277361f17
+
+source-repository-package
+  type: git
+  location: https://github.com/recursion-ninja/bv-little
+  tag: 62d9d4408f0942284e009e994303455c6f033940
+
+source-repository-package
+  type: git
+  location: https://github.com/diagrams/diagrams-lib
+  tag: 6f66ce6bd5aed81d8a1330c143ea012724dbac3c
+
+with-compiler: ghc-9.0.1
