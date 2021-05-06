@@ -253,6 +253,77 @@ library alphabet
     Data.Alphabet.Internal      
 
 
+-- Library for performing parsimony analysis.
+
+-- Provides various metrics for scoring static characters and
+-- performing string alignment on dynamic characters.
+
+library analysis
+
+  import:
+    ffi-buildinfo,
+    ghc-flags,
+    language-specs
+
+  default-language:
+    Haskell2010
+
+  hs-source-dirs:
+    lib/analysis/src
+
+  build-depends:
+    data-structures,
+    exportable,
+    tcm,
+    tcm-memo,
+    utility,
+    base                     >= 4.11      && < 5.0,
+    clustering               >= 0.4       && < 0.5,
+    containers               >= 0.6.2     && < 1.0,
+    data-default             >= 0.5.2     && < 0.8,
+    dlist                    >= 0.8       && < 1.0,
+    keys                     >= 3.12      && < 4.0,
+    lens                     >= 4.18      && < 6.0,
+    matrices                 >= 0.5       && < 1.0,            
+    monad-loops              >= 0.4       && < 1.0,
+    mono-traversable         >= 1.0       && < 2.0,
+    mtl                      >= 2.2.2     && < 3.0,
+    parallel                 >= 3.2       && < 4.0,
+    primitive                >= 0.7.1     && < 1.0,
+    unordered-containers     >= 0.2.10    && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+    vector-builder           >= 0.3.7     && < 0.4,
+    vector-instances         >= 3.4       && < 3.5,
+
+  exposed-modules:
+    Analysis.Clustering
+    Analysis.Clustering.Hierarchical
+    Analysis.Distance
+    Analysis.Parsimony.Additive
+    Analysis.Parsimony.Dynamic.DirectOptimization
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+    Analysis.Parsimony.Fitch
+    Analysis.Parsimony.Sankoff
+    Analysis.Scoring
+    Analysis.TotalEdgeCost
+
+  other-modules:
+    Analysis.Parsimony.Additive.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
+    Analysis.Parsimony.Fitch.Internal
+    Analysis.Parsimony.Sankoff.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace            
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
+
+
 library data-structures
 
   import:
