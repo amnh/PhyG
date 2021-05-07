@@ -53,6 +53,11 @@ import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified DataTransformation as DT
 import           Data.List
+import qualified Data.TCM.Dense as TCMD
+import qualified Data.Vector as V
+import qualified SymMatrix as SM
+
+
 
 
 
@@ -108,12 +113,19 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                        else if seqType == Binary then fmap ST.fromString ["0","1"]
                        else fst localTCM
+            localCostMatrix = if localTCM == ([],[]) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
+                              else S.fromLists $ snd localTCM
+            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
+            -- not sure of this
+            tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
+            localDenseCostMatrix = if seqType == NucSeq || seqType == SmallAlphSeq then tcmDense
+                                   else tcmNaught
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
                                      , weight = 1.0
-                                     , costMatrix = if localTCM == ([],[]) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
-                                                    else S.fromLists $ snd localTCM
+                                     , costMatrix = localCostMatrix
+                                     , denseTCM = localDenseCostMatrix
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = if localTCM == ([],[]) then seqAlphabet
                                                   else fst localTCM
@@ -122,6 +134,11 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
         in
         trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.")
         defaultGenSeqCharInfo
+    
+getCost :: S.Matrix Int -> Word -> Word -> Word     
+getCost localCM i j = 
+    let x = SM.getFullVects localCM
+    in  toEnum $ (x V.! fromEnum i) V.! fromEnum j
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
@@ -162,12 +179,18 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                            else getSequenceAphabet [] $ concat $ fmap snd inData
             inMatrix = if (not $ null $ fst localTCM) then S.fromLists $ snd localTCM
                        else S.fromLists $ generateDefaultMatrix thisAlphabet 0
+            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
+            -- not sure of this
+            tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
+            localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
+                                   else tcmNaught
             defaultGenSeqCharInfo = CharInfo {
                                        charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
                                      , weight = 1.0
                                      , costMatrix = inMatrix
+                                     , denseTCM = localDenseCostMatrix
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned

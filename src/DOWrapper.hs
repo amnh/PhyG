@@ -46,13 +46,17 @@ module DOWrapper
 
 import Debug.Trace
 import Data.Int
-import qualified DOFFI as DOFFI
+import qualified DOSmallFFI as DOSmallFFI
 import qualified DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
 import qualified Data.BitVector  as BV
 import qualified NaiveDOSequence as NS
 import qualified DOUkkonnenSequence as DKS
 import qualified DOUkkonnenSequenceInt64 as DKS64
+import qualified Data.TCM.Dense as TCMD
+import qualified SymMatrix as SM
+
+
 
 import Types
 
@@ -63,8 +67,8 @@ thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) -> CharType -> (V.Vector  BV.BV, Int)
-getDOMedian origLBV origRBV thisMatrix thisType =
+getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) -> TCMD.DenseTransitionCostMatrix -> CharType -> (V.Vector  BV.BV, Int)
+getDOMedian origLBV origRBV thisMatrix tcmDense thisType =
     -- missing data inputs
     if V.null origLBV then (origRBV, 0)
     else if V.null origRBV then (origLBV, 0)
@@ -83,7 +87,8 @@ getDOMedian origLBV origRBV thisMatrix thisType =
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
             (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
-            (mediansFFI, costFFI) = DOFFI.wrapperPCG_DO_FFI lBV rBV thisMatrix
+
+            (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_FFI lBV rBV tcmDense
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
@@ -94,6 +99,7 @@ getDOMedian origLBV origRBV thisMatrix thisType =
 --        else if thisType == NucSeq then (newMedianBV, medianCost64)
 --        else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
         else error "Unrecognized/Not implemented character type"
+       
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
 convertBVTo64 :: BV.BV -> Int64

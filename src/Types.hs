@@ -42,6 +42,7 @@ import qualified LocalGraph as LG
 import qualified Data.BitVector as BV
 import qualified Data.Vector    as V
 import qualified SymMatrix as S 
+import Data.TCM.Dense as TCMD
 
 -- | Program Version
 pgVersion :: String
@@ -98,6 +99,7 @@ data CharInfo = CharInfo { name :: T.Text
                          , activity :: Bool
                          , weight :: Double
                          , costMatrix :: S.Matrix Int
+                         , denseTCM :: TCMD.DenseTransitionCostMatrix 
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
                          } deriving (Show, Eq)

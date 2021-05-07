@@ -1,4 +1,4 @@
-module DOFFI where
+module DOSmallFFI where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
 import Bio.Character.Encodable
@@ -15,9 +15,8 @@ import qualified SymMatrix as SM
 import Debug.Trace
 
 
-wrapperPCG_DO_FFI :: Vector BV.BV -> Vector BV.BV -> Vector (Vector Int) -> (Vector BV.BV, Int)
--- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
-wrapperPCG_DO_FFI lhs rhs tcm = (resultingMedians, fromEnum resultCost)
+wrapperPCG_DO_FFI :: Vector BV.BV -> Vector BV.BV -> DenseTransitionCostMatrix -> (Vector BV.BV, Int)
+wrapperPCG_DO_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCost)
     where
         (resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
 
@@ -28,12 +27,14 @@ wrapperPCG_DO_FFI lhs rhs tcm = (resultingMedians, fromEnum resultCost)
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
 
+        {-
         tcmDense = generateDenseTransitionCostMatrix 0 5 getCost
 
         getCost i j = 
             let x = SM.getFullVects tcm
             in  toEnum $ (x ! fromEnum i) ! fromEnum j
-
+        -}
+        
         buildDC :: Vector BV.BV -> DynamicCharacter
         buildDC = encodeStream specializedAlphabetToDNA . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
 

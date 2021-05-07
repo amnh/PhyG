@@ -24,7 +24,6 @@ import Debug.Trace
 -}
 
 wrapperPCG_DO_Large :: Vector BV.BV -> Vector BV.BV -> Vector (Vector Int) -> (Vector BV.BV, Int)
--- wrapperPCG_DO_Large lhs rhs tcmVect | trace (show tcmVect) False= undefined
 wrapperPCG_DO_Large lhs rhs tcmVect = (resultingMedians, fromEnum resultCost)
     where
         (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo) lhsDC rhsDC
