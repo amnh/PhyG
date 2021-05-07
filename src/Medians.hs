@@ -52,6 +52,8 @@ import           GeneralUtilities
 import qualified SymMatrix as S 
 import qualified DOWrapper as DOW
 import qualified Data.TCM.Dense as TCMD
+import qualified Data.MetricRepresentation as MR
+import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
 
 --import qualified Data.Alphabet as DALPH
 
@@ -70,6 +72,7 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
         thisDenseMatrix = denseTCM inCharInfo
+        thisTCMMemo = memoTCM inCharInfo
     in
     if thisType == Add then 
         let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar 
@@ -89,12 +92,12 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 
     else if thisType `elem` [SmallAlphSeq, NucSeq] then 
       -- ffi to POY-C/PCG code
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisType firstVertChar secondVertChar
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` [AminoSeq, GenSeq] then 
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisType firstVertChar secondVertChar
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
@@ -248,11 +251,12 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         newCharcater
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequcne median after some type wrangling
-getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> CharType -> CharacterData -> CharacterData -> CharacterData
-getDOMedian thisWeight thisMatrix thisDenseMatrix thisType leftChar rightChar =
+getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
+              -> CharType -> CharacterData -> CharacterData -> CharacterData
+getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
-    let (newStateVect, medianCost) = DOW.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisDenseMatrix thisType
+    let (newStateVect, medianCost) = DOW.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisDenseMatrix thisMemoTCM thisType
         newCost = thisWeight * (fromIntegral medianCost)
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , minRangePrelim = V.empty

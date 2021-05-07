@@ -55,7 +55,9 @@ import qualified DOUkkonnenSequence as DKS
 import qualified DOUkkonnenSequenceInt64 as DKS64
 import qualified Data.TCM.Dense as TCMD
 import qualified SymMatrix as SM
-
+import qualified Data.TCM as TCM
+import qualified Data.MetricRepresentation as MR
+import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
 
 
 import Types
@@ -67,8 +69,11 @@ thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) -> TCMD.DenseTransitionCostMatrix -> CharType -> (V.Vector  BV.BV, Int)
-getDOMedian origLBV origRBV thisMatrix tcmDense thisType =
+getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) 
+            -> TCMD.DenseTransitionCostMatrix 
+            -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
+            -> CharType -> (V.Vector  BV.BV, Int)
+getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
     -- missing data inputs
     if V.null origLBV then (origRBV, 0)
     else if V.null origRBV then (origLBV, 0)
@@ -89,7 +94,7 @@ getDOMedian origLBV origRBV thisMatrix tcmDense thisType =
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
             (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_FFI lBV rBV tcmDense
-            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix
+            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces)

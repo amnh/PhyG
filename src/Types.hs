@@ -42,7 +42,9 @@ import qualified LocalGraph as LG
 import qualified Data.BitVector as BV
 import qualified Data.Vector    as V
 import qualified SymMatrix as S 
-import Data.TCM.Dense as TCMD
+import qualified Data.TCM.Dense as TCMD
+import qualified Data.MetricRepresentation as MR
+import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
 
 -- | Program Version
 pgVersion :: String
@@ -100,9 +102,10 @@ data CharInfo = CharInfo { name :: T.Text
                          , weight :: Double
                          , costMatrix :: S.Matrix Int
                          , denseTCM :: TCMD.DenseTransitionCostMatrix 
+                         , memoTCM :: MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word))
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
-                         } deriving (Show, Eq)
+                         } --deriving (Show, Eq)
 
 -- | Types for vertex information
 type VertexCost = Double

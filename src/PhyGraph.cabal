@@ -214,7 +214,7 @@ executable phyg
                   DOWrapper
                   NaiveDOSequence
                   GraphOperations
-                  DOFFI
+                  DOSmallFFI
                   DOLargeFFI
             
 library alphabet
@@ -399,6 +399,7 @@ library data-structures
 --    Bio.Character.Decoration.Metric
 --    Bio.Character.Decoration.NonMetric
     Bio.Character.Encodable
+    Bio.Character.Encodable.Dynamic.AmbiguityGroup
 --    Bio.Character.Encodable.Continuous
 --    Bio.Metadata
 --    Bio.Metadata.Continuous
@@ -448,7 +449,7 @@ library data-structures
     Bio.Character.Encodable.Continuous.Class
     Bio.Character.Encodable.Continuous.Internal
     Bio.Character.Encodable.Dynamic
-    Bio.Character.Encodable.Dynamic.AmbiguityGroup
+--    Bio.Character.Encodable.Dynamic.AmbiguityGroup
     Bio.Character.Encodable.Dynamic.Class
     Bio.Character.Encodable.Dynamic.Element
     Bio.Character.Encodable.Dynamic.Internal
@@ -607,9 +608,10 @@ library tcm-memo
   exposed-modules:
     Data.TCM.Memoized
     Data.TCM.Memoized.Types
+    Data.TCM.Memoized.FFI
 
   other-modules:
-    Data.TCM.Memoized.FFI
+  --  Data.TCM.Memoized.FFI
 
 
 -- Collection of utility functions and data structures

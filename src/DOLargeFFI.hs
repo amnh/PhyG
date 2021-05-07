@@ -6,13 +6,14 @@ import Data.Alphabet
 import Data.Foldable
 import Data.MetricRepresentation
 import qualified Data.TCM as TCM
-import Data.TCM.Memoized
+import qualified Data.TCM.Memoized as TCMM
 import qualified Data.BitVector as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified SymMatrix as SM
+import qualified Data.MetricRepresentation as MR
 
 import Debug.Trace
 
@@ -23,8 +24,10 @@ import Debug.Trace
   -> (Word, s)
 -}
 
-wrapperPCG_DO_Large :: Vector BV.BV -> Vector BV.BV -> Vector (Vector Int) -> (Vector BV.BV, Int)
-wrapperPCG_DO_Large lhs rhs tcmVect = (resultingMedians, fromEnum resultCost)
+wrapperPCG_DO_Large :: Vector BV.BV -> Vector BV.BV -> SM.Matrix Int 
+                      -> MR.MetricRepresentation (AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word)) 
+                      -> (Vector BV.BV, Int)
+wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum resultCost)
     where
         (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo) lhsDC rhsDC
 
@@ -35,13 +38,15 @@ wrapperPCG_DO_Large lhs rhs tcmVect = (resultingMedians, fromEnum resultCost)
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
 
+        {-
         tcmMemo = 
             let scm i j         = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 memoMatrixValue = generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
             in  ExplicitLayout tcm (getMedianAndCost2D memoMatrixValue)
-
+        -}
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
+        
 
         buildDC :: Vector BV.BV -> DynamicCharacter
         buildDC = encodeStream arbitraryAlphabet . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
