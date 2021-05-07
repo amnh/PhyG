@@ -49,7 +49,8 @@ import Data.Int
 import qualified DOSmallFFI as DOSmallFFI
 import qualified DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
-import qualified Data.BitVector  as BV
+--import qualified Data.BitVector  as BV
+import qualified Data.BitVector.LittleEndian as BV
 import qualified NaiveDOSequence as NS
 import qualified DOUkkonnenSequence as DKS
 import qualified DOUkkonnenSequenceInt64 as DKS64
@@ -69,10 +70,10 @@ thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector  BV.BV -> V.Vector  BV.BV -> V.Vector  (V.Vector  Int) 
+getDOMedian :: V.Vector  BV.BitVector -> V.Vector  BV.BitVector -> V.Vector  (V.Vector  Int) 
             -> TCMD.DenseTransitionCostMatrix 
             -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
-            -> CharType -> (V.Vector  BV.BV, Int)
+            -> CharType -> (V.Vector  BV.BitVector, Int)
 getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
     -- missing data inputs
     if V.null origLBV then (origRBV, 0)
@@ -83,7 +84,7 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
         let inDelCost = V.head (V.last thisMatrix)
             (lBV, rBV) = setLeftRight origLBV origRBV
             -- Int64 version faster for small aphabets
-            bvLength = BV.size (V.head lBV) 
+            bvLength = BV.dimension (V.head lBV) 
             leftChar64 = V.map convertBVTo64 lBV
             rightChar64 = V.map convertBVTo64 rBV
             (newMedian64, medianCost64) = DKS64.ukkonenDO leftChar64 rightChar64 inDelCost
@@ -93,7 +94,7 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
             (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
-            (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_FFI lBV rBV tcmDense
+            (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV tcmDense
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
@@ -107,16 +108,16 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
        
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
-convertBVTo64 :: BV.BV -> Int64
-convertBVTo64 inBV = fromIntegral (BV.nat inBV) 
+convertBVTo64 :: BV.BitVector -> Int64
+convertBVTo64 inBV = fromIntegral (BV.toSignedNumber inBV) 
 
 -- | convert64ToBV converts bitV.Vector  type to bit64 Int type 
-convert64ToBV :: Int -> Int64 -> BV.BV
-convert64ToBV bvLength in64  =  BV.bitVec  bvLength in64
+convert64ToBV :: Word -> Int64 -> BV.BitVector
+convert64ToBV bvLength in64  =  BV.fromNumber bvLength in64
 
 -- | setLeftRight returns sequence that is longer first,
 --shorter second
-setLeftRight :: V.Vector  BV.BV -> V.Vector  BV.BV -> (V.Vector  BV.BV, V.Vector  BV.BV)
+setLeftRight :: V.Vector  BV.BitVector -> V.Vector  BV.BitVector -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector)
 setLeftRight inL inR = 
         if V.length inL < V.length inR then (inR, inL)
         else if V.length inL > V.length inR then (inL, inR)

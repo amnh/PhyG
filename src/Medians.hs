@@ -47,13 +47,15 @@ module Medians (  median2
 import           Types
 import           Debug.Trace
 import qualified Data.Vector as V
-import qualified Data.BitVector as BV
+import qualified Data.BitVector.LittleEndian as BV
+--import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
 import qualified DOWrapper as DOW
 import qualified Data.TCM.Dense as TCMD
 import qualified Data.MetricRepresentation as MR
 import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
+import Data.Bits ((.&.), (.|.))
 
 --import qualified Data.Alphabet as DALPH
 
@@ -104,17 +106,17 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 -- | localOr wrapper for BV.or for vector elements
-localOr :: BV.BV -> BV.BV -> BV.BV
-localOr lBV rBV = BV.or [lBV, rBV]
+localOr :: BV.BitVector -> BV.BitVector -> BV.BitVector
+localOr lBV rBV = lBV .|. rBV
 
 -- | localAnd wrapper for BV.and for vector elements
-localAnd :: BV.BV -> BV.BV -> BV.BV
-localAnd lBV rBV = BV.and [lBV, rBV]
+localAnd :: BV.BitVector -> BV.BitVector -> BV.BitVector
+localAnd lBV rBV = lBV .&. rBV
 
 -- | localAndOr takes the intesection vect and union vect elements
 -- and return intersection is /= 0 otherwise union
-localAndOr :: BV.BV -> BV.BV -> BV.BV -> BV.BV
-localAndOr localZero interBV unionBV = if (interBV BV.==. localZero) then unionBV else interBV
+localAndOr :: BV.BitVector -> BV.BitVector -> BV.BitVector -> BV.BitVector
+localAndOr localZero interBV unionBV = if (interBV  ==  localZero) then unionBV else interBV
 
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
@@ -125,15 +127,15 @@ interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight leftChar rightChar =
     let intersectVect =  V.zipWith localAnd (stateBVPrelim leftChar) (stateBVPrelim rightChar)
         unionVect = V.zipWith localOr (stateBVPrelim leftChar) (stateBVPrelim rightChar)
-        localZero = BV.bitVec (BV.size $ V.head $ stateBVPrelim leftChar) (0 :: Integer)
-        numUnions = V.length $ V.filter (BV.==. localZero) intersectVect
+        localZero = BV.fromBits [False] -- BV.bitVec (BV.size $ V.head $ stateBVPrelim leftChar) (0 :: Integer)
+        numUnions = V.length $ V.filter ( ==  localZero) intersectVect
         newCost = thisWeight * (fromIntegral numUnions)
         newStateVect = V.zipWith (localAndOr localZero) intersectVect unionVect
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , minRangePrelim = V.empty
                                       , maxRangePrelim = V.empty
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton BV.nil
+                                      , stateBVFinal = V.singleton (BV.fromBits [False])
                                       , minRangeFinal = V.empty
                                       , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty
@@ -176,7 +178,7 @@ intervalAdd thisWeight leftChar rightChar =
                                       , minRangePrelim = newMinRange
                                       , maxRangePrelim = newMaxRange
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton BV.nil
+                                      , stateBVFinal = V.singleton (BV.fromBits [False])
                                       , minRangeFinal = V.empty
                                       , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty
@@ -262,7 +264,7 @@ getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar 
                                       , minRangePrelim = V.empty
                                       , maxRangePrelim = V.empty
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton BV.nil
+                                      , stateBVFinal = V.singleton (BV.fromBits [False])
                                       , minRangeFinal = V.empty
                                       , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty

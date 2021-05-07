@@ -48,12 +48,14 @@ import qualified Data.Text.Lazy as T
 import           Types
 import           Data.List
 import           Data.Maybe
-import qualified Data.BitVector as BV
+--import qualified Data.BitVector as BV
+import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
 import qualified Data.Text.Short as ST
 --import qualified Data.Hashable as H
 import           Text.Read
 import           Debug.Trace
+import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
@@ -129,7 +131,7 @@ joinSortFileData inFileLists =
 -- CHANGED: to simple bitvector order since left right is determined 
 -- in the DO operations based on data so label invariant anyway
 
-createBVNames :: [RawData] -> [(T.Text, BV.BV)]
+createBVNames :: [RawData] -> [(T.Text, BV.BitVector)]
 createBVNames inDataList =
     let rawDataList = fmap fst inDataList
         textNameList = fmap fst $ head rawDataList
@@ -144,8 +146,9 @@ createBVNames inDataList =
         leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
         (nameList, intList) = unzip leafOrder
         -}
-        bv1 = BV.bitVec (length textNameList) (1 :: Integer)
-        bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length textNameList)) [0..((length textNameList) - 1)])
+        --bv1 = BV.bitVec (length textNameList) (1 :: Integer)
+        bv1 = BV.fromBits [True]
+        bvList = fmap (shiftR bv1) [0..((length textNameList) - 1)]
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
     else zip textNameList bvList
@@ -160,7 +163,7 @@ createBVNames inDataList =
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
 -- the list accumulator is to avoid Vector snoc/cons O(n)
-createNaiveData :: [RawData] -> [(T.Text, BV.BV)] -> [BlockData] -> ProcessedData
+createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
 createNaiveData inDataList leafBitVectorNames curBlockData = 
     if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ reverse curBlockData)
     else 
@@ -197,11 +200,11 @@ recodeRawData inData inCharInfo curCharData =
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
-  let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+  let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
                                       , minRangePrelim = V.empty
                                       , maxRangePrelim = V.empty
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton (BV.ones $ length $ alphabet inCharInfo)
+                                      , stateBVFinal = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
                                       , minRangeFinal = V.empty
                                       , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty
@@ -263,18 +266,20 @@ getMissingValue inChar
 
 -- | getStateBitVectorList takes teh alphabet of a character ([ShorText])
 -- and returns bitvectors (with of size alphabet) for each state in order of states in alphabet
-getStateBitVectorList :: [ST.ShortText] -> V.Vector (ST.ShortText, BV.BV)
+getStateBitVectorList :: [ST.ShortText] -> V.Vector (ST.ShortText, BV.BitVector)
 getStateBitVectorList localStates =
     if null localStates then error "Character with empty alphabet in getStateBitVectorList"
     else 
         let stateIndexList = [0..((length localStates) - 1)]
-            bv1 = BV.bitVec (length localStates) (1 :: Integer)
-            bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length localStates)) stateIndexList)
+            --bv1 = BV.bitVec (length localStates) (1 :: Integer)
+            --bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length localStates)) stateIndexList)
+            bv1 = BV.fromBits [True]
+            bvList = fmap (shiftR bv1) stateIndexList
         in
         V.fromList $ zip localStates bvList
 
 -- | getNucleotideSequenceChar returns the character sgtructure for a Nucleic Acid sequence type
-getNucleotideSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BV)
+getNucleotideSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BitVector)
 getNucleotideSequenceCodes localAlphabet  =
     let stateBVList = getStateBitVectorList localAlphabet
         stateA = snd $ stateBVList V.! 0
@@ -283,18 +288,18 @@ getNucleotideSequenceCodes localAlphabet  =
         stateT = snd $ stateBVList V.! 3
         stateGap = snd $ stateBVList V.! 4
         -- ambiguity codes
-        pairR = (ST.singleton 'R', BV.or [stateA, stateG])
-        pairY = (ST.singleton 'Y', BV.or [stateC, stateT])
-        pairW = (ST.singleton 'W', BV.or [stateA, stateT])
-        pairS = (ST.singleton 'S', BV.or [stateC, stateG])
-        pairM = (ST.singleton 'M', BV.or [stateA, stateC])
-        pairK = (ST.singleton 'K', BV.or [stateG, stateT])
-        pairB = (ST.singleton 'B', BV.or [stateC, stateG, stateT])
-        pairD = (ST.singleton 'D', BV.or [stateA, stateG, stateT])
-        pairH = (ST.singleton 'H', BV.or [stateA, stateC, stateT])
-        pairV = (ST.singleton 'V', BV.or [stateA, stateC, stateG])
-        pairN = (ST.singleton 'N', BV.or [stateA, stateC, stateG, stateT])
-        pairQuest = (ST.singleton '?', BV.or [stateA, stateC, stateG, stateT, stateGap])
+        pairR = (ST.singleton 'R',  stateA .|. stateG)
+        pairY = (ST.singleton 'Y',  stateC .|. stateT)
+        pairW = (ST.singleton 'W',  stateA .|. stateT)
+        pairS = (ST.singleton 'S',  stateC .|. stateG)
+        pairM = (ST.singleton 'M',  stateA .|. stateC)
+        pairK = (ST.singleton 'K',  stateG .|. stateT)
+        pairB = (ST.singleton 'B',  foldr1 (.|.) [stateC, stateG, stateT])
+        pairD = (ST.singleton 'D',  foldr1 (.|.) [stateA, stateG, stateT])
+        pairH = (ST.singleton 'H',  foldr1 (.|.) [stateA, stateC, stateT])
+        pairV = (ST.singleton 'V',  foldr1 (.|.) [stateA, stateC, stateG])
+        pairN = (ST.singleton 'N',  foldr1 (.|.) [stateA, stateC, stateG, stateT])
+        pairQuest = (ST.singleton '?', foldr1 (.|.)  [stateA, stateC, stateG, stateT, stateGap])
         ambigPairVect = V.fromList $ [pairR, pairY, pairW, pairS, pairM, pairK, pairB, pairD, pairH, pairV, pairN, pairQuest]
         totalStateList = stateBVList V.++ ambigPairVect
     in
@@ -303,18 +308,18 @@ getNucleotideSequenceCodes localAlphabet  =
 
 -- | nucleotideBVPairs for recoding DNA sequences
 -- this done to insure not recalculating everything for each base
-nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BV)
+nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
 nucleotideBVPairs = getNucleotideSequenceCodes (fmap ST.fromString ["A","C","G","T","-"]) 
 
 
 -- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
-getAminoAcidSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BV)
+getAminoAcidSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BitVector)
 getAminoAcidSequenceCodes localAlphabet  =
     let stateBVList = getStateBitVectorList localAlphabet
-        pairB = (ST.singleton 'B', BV.or [snd $ stateBVList V.! 2, snd $ stateBVList V.! 11]) -- B = D or N
-        pairZ = (ST.singleton 'Z', BV.or [snd $ stateBVList V.! 3, snd $ stateBVList V.! 13]) -- E or Q
-        pairX = (ST.singleton 'X', BV.or $ V.toList $ V.map snd (V.init stateBVList))  --All AA not '-'
-        pairQuest = (ST.singleton '?', BV.or $ V.toList $ V.map snd stateBVList)       -- all including -'-' Not IUPAC
+        pairB = (ST.singleton 'B', (snd $ stateBVList V.! 2) .|. (snd $ stateBVList V.! 11)) -- B = D or N
+        pairZ = (ST.singleton 'Z', (snd $ stateBVList V.! 3) .|. (snd $ stateBVList V.! 13))-- E or Q
+        pairX = (ST.singleton 'X', foldr1 (.|.) $ V.toList $ V.map snd (V.init stateBVList))  --All AA not '-'
+        pairQuest = (ST.singleton '?', foldr1 (.|.) $ V.toList $ V.map snd stateBVList)       -- all including -'-' Not IUPAC
         ambigPairVect = V.fromList $ [pairB, pairZ, pairX, pairQuest]
         totalStateList = stateBVList V.++ ambigPairVect
 
@@ -326,12 +331,12 @@ getAminoAcidSequenceCodes localAlphabet  =
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
 -- B, Z, X, ? for ambiguities
-aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BV)
+aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
 aminoAcidBVPairs = getAminoAcidSequenceCodes (fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"])
 
 -- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state
-getBVCode :: V.Vector (ST.ShortText, BV.BV) -> ST.ShortText -> BV.BV
+getBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVector
 getBVCode bvCodeVect inState = 
     let newCode = V.find ((== inState).fst) bvCodeVect
     in
@@ -341,7 +346,7 @@ getBVCode bvCodeVect inState =
 
 -- | getSequenceChar takes shortext list and converts to a Vector of bit vector coded states
 -- in a CharacterData structure
-getSequenceChar :: V.Vector (ST.ShortText, BV.BV) -> [ST.ShortText] -> [CharacterData]
+getSequenceChar :: V.Vector (ST.ShortText, BV.BitVector) -> [ST.ShortText] -> [CharacterData]
 getSequenceChar nucBVPairVect stateList =
     let sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
                        else V.empty
@@ -363,7 +368,7 @@ getSequenceChar nucBVPairVect stateList =
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
-getGeneralBVCode :: V.Vector (ST.ShortText, BV.BV) -> ST.ShortText -> BV.BV
+getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVector
 getGeneralBVCode bvCodeVect inState = 
     let inStateString = ST.toString inState
     in
@@ -377,7 +382,7 @@ getGeneralBVCode bvCodeVect inState =
             stateList = fmap ST.fromString statesStringList
             maybeBVList =  fmap getBV stateList
             stateBVList = fmap snd $ fmap fromJust maybeBVList
-            ambiguousBVState = BV.or stateBVList
+            ambiguousBVState = foldr1 (.|.) stateBVList
         in
         if Nothing `elem` maybeBVList then error ("Ambiguity grooup " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
         else ambiguousBVState
@@ -409,20 +414,22 @@ getGeneralSequenceChar inCharInfo stateList =
 
 -- | getSingleStateBV takes a single state and retuerns its bitvector
 -- based on alphabet size--does not check if ambiguous--assumes single state
-getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BV
+getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getSingleStateBV localAlphabet localState = 
     let stateIndex = findIndex (== localState) localAlphabet
-        bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
-        bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
+        --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
+        --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
+        bv1 = BV.fromBits [True]
+        bvState = shiftR bv1 (fromJust stateIndex)
     in
     if stateIndex ==  Nothing then 
-        if (localState `elem` (fmap ST.fromString ["?","-"])) then BV.ones (length localAlphabet)
+        if (localState `elem` (fmap ST.fromString ["?","-"])) then (BV.fromBits $ replicate (length $ localAlphabet) True) 
         else error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
 -- and returns then bitvectorfor that state in order of states in alphabet
-getStateBitVector :: [ST.ShortText] -> ST.ShortText -> BV.BV
+getStateBitVector :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getStateBitVector localAlphabet localState  =
     if null localAlphabet then error "Character with empty alphabet in getStateBitVector"
     else 
@@ -435,7 +442,7 @@ getStateBitVector localAlphabet localState  =
             let statesStringList = words $ tail $ init stateString
                 stateList = fmap ST.fromString statesStringList
             in
-            BV.or $ fmap (getSingleStateBV localAlphabet) stateList
+            foldr1 (.|.) $ fmap (getSingleStateBV localAlphabet) stateList
             
 
 -- getIntRange takes the local states and returns the IOnteger range of an additive character

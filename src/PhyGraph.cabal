@@ -179,6 +179,8 @@ executable phyg
                 , sort
                 , unboxing-vector
                 , MissingH >= 1.4.3
+                , bv-little
+                , bits
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions

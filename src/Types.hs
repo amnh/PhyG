@@ -39,7 +39,8 @@ module Types where
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified LocalGraph as LG
-import qualified Data.BitVector as BV
+--import qualified Data.BitVector as BV
+import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
 import qualified SymMatrix as S 
 import qualified Data.TCM.Dense as TCMD
@@ -119,7 +120,7 @@ type ChildStateIndex = Int
 -- thery should be label invariant
 -- a hash of sorted input data for leaves
 -- will need a map from NameBV to T.Text name (or not)
-type NameBV = BV.BV
+type NameBV = BV.BitVector
 
 -- | Human legibale name for vertices, charcaters, and Blocks
 type NameText = T.Text
@@ -133,12 +134,12 @@ type MatrixState = V.Vector MatrixTriple
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single
 -- for approximate (DO-like) costs can use stateBVPrelim/stateBVFinal
-data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BV  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
+data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
                                      , minRangePrelim :: V.Vector Int -- for Additive
                                      , maxRangePrelim :: V.Vector Int -- for Additive
                                      -- triple for Sankoff optimization--cost, left and right descendant states (could be multiple)
                                      , matrixStatesPrelim :: V.Vector MatrixState -- for Sankoff/Matrix
-                                     , stateBVFinal :: V.Vector BV.BV  -- for Non-additive ans Sankoff/Matrix approximate state
+                                     , stateBVFinal :: V.Vector BV.BitVector  -- for Non-additive ans Sankoff/Matrix approximate state
                                      , minRangeFinal :: V.Vector Int -- for Additive
                                      , maxRangeFinal :: V.Vector Int -- for Additive
                                      , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
@@ -154,7 +155,7 @@ type LeafData = (NameText, V.Vector CharacterData)
 
 
 data VertexType = VertexType { index :: Int  -- For accessing
-                             , bvLabel :: BV.BV -- For comparison of vertices subtrees, etc
+                             , bvLabel :: BV.BitVector -- For comparison of vertices subtrees, etc
                              , parents :: V.Vector Int --indegree indices
                              , children :: V.Vector Int -- outdegree indices
                              , variety :: NodeType  
