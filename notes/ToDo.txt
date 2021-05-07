@@ -126,7 +126,10 @@
    if forest, no issues since if outgroup not in component
    		should participate in traversal
    		Should be OK for network, but needs to be checked
+
 20) FFI/Alex
 	BV.BV to bvlittle
 	move TCMs to charinfo
 	more efficent to DynamicCharcater functions.
+
+21)  Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
