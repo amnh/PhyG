@@ -133,3 +133,6 @@
 	more efficent to DynamicCharcater functions.
 
 21)  Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
+
+22) cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
+	until figure out why cabal does this.

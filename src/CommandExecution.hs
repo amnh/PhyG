@@ -144,19 +144,21 @@ setCommand argList globalSettings processedData =
 
             in
             if outTaxonIndex == Nothing then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ (T.unpack outTaxonName) ++ " not found in input leaf list" ++ (show $ fmap (T.unpack) leafNameVect))
-            else (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
+            else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
         else if head commandList == "graphtype"  then 
             let localGraphType = if (head optionList == "tree") then Tree
                                  else if (head optionList == "softwired") then SoftWired
                                  else if (head optionList == "hardwired") then HardWired
                                  else errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
             in
+            trace ("Graphtype set to " ++ (head optionList))
             (globalSettings {graphType = localGraphType}, processedData)
         else if head commandList == "criterion"  then 
             let localCriterion = if (head optionList == "parsimony") then Parsimony
                                  else if (head optionList == "pmdl") then PMDL
                                  else errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
             in
+            trace ("Optimality criterion set to " ++ (head optionList))
             (globalSettings {optimalityCriterion = localCriterion}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 

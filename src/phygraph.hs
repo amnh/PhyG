@@ -85,7 +85,8 @@ main =
     dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[])) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
 
-    hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
+    if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
+    else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameCommands [] thingsToDo
@@ -133,7 +134,7 @@ main =
 
     -- Set global vaues before search--should be integrated with executing commands
     let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree}
-    hPutStrLn stderr (show defaultGlobalSettings)
+    --hPutStrLn stderr (show defaultGlobalSettings)
 
     let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename 
     let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename 
@@ -151,14 +152,11 @@ main =
     (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings rawData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
 
     -- print global setting just to check
-    hPutStrLn stderr (show finalGlobalSettings)
+    --hPutStrLn stderr (show finalGlobalSettings)
 
     -- Final Stderr report
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graphs")
-    hPutStrLn stderr "\nDone"
-
     timeDN <- getSystemTimeSeconds 
-    hPutStrLn stderr ("Execution time " ++ show (timeDN - timeD))
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) in "++ show (timeDN - timeD) ++ " second(s)")
     
 
 {-
