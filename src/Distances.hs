@@ -83,7 +83,7 @@ getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlocDistance  numVerts inData =
     let pairList = makeIndexPairs numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
-        pairListCosts = P.seqParMap P.myStrategy (getBlockDistance inData) pairList
+        pairListCosts = P.seqParMap P.myStrategyRPAR (getBlockDistance inData) pairList
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList

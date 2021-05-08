@@ -101,12 +101,12 @@ ukkonenDO lSeq rSeq inDelCost =
             rLength = V.length rSeq
 
             maxGap = 1 + lLength - rLength  --10000 :: Int --holder lseq - rSeq + 1
-            bvLength = BV.dimension (V.head lSeq) 
+            bvLength = fromIntegral $ BV.dimension (V.head lSeq) 
             --setting left most bit to 1 same purpose as inDelBitBV for Ukkonen
             --bv1 = BV.bitVec bvLength (1 :: Integer)
             --inDelBitBV = bv1 BV.<<.(BV.bitVec bvLength (bvLength - 1))
-            bv1 = BV.fromBits [True]
-            inDelBitBV = shiftR bv1 (fromIntegral $ bvLength - 1)
+            bv1 = BV.fromBits (True : (replicate (bvLength -1) False))
+            inDelBitBV = shiftL bv1 (fromIntegral $ bvLength - 1)
             (median, cost) = ukkonenCore lSeq lLength rSeq rLength maxGap inDelCost subCost inDelBitBV
             --firstRow = getFirstRowUkkonen indelCost lLength 0 0 lSeq maxGap
             --nwMatrix = V.cons firstRow (getRowsUkkonen lSeq rSeq indelCost subCost 1 firstRow maxGap)

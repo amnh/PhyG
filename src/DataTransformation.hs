@@ -271,10 +271,11 @@ getStateBitVectorList localStates =
     if null localStates then error "Character with empty alphabet in getStateBitVectorList"
     else 
         let stateIndexList = [0..((length localStates) - 1)]
+            bitsOffList = replicate ((length localStates) - 1) False
             --bv1 = BV.bitVec (length localStates) (1 :: Integer)
             --bvList = fmap (bv1 BV.<<.) (fmap (BV.bitVec (length localStates)) stateIndexList)
-            bv1 = BV.fromBits [True]
-            bvList = fmap (shiftR bv1) stateIndexList
+            bv1 = BV.fromBits $ True : bitsOffList
+            bvList = fmap (shiftL bv1) stateIndexList
         in
         V.fromList $ zip localStates bvList
 
@@ -363,6 +364,7 @@ getSequenceChar nucBVPairVect stateList =
                                               , globalCost = 0.0
                                               }
     in
+    --trace ("getSeqChar codes: " ++ (show nucBVPairVect) ++ " inChar: " ++ (show stateList) ++ "\n" ++ (show newSequenceChar))
     [newSequenceChar]
 
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
@@ -419,7 +421,7 @@ getSingleStateBV localAlphabet localState =
     let stateIndex = findIndex (== localState) localAlphabet
         --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
         --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
-        bv1 = BV.fromBits [True]
+        bv1 = BV.fromBits (True :  (replicate ((length localAlphabet) - 1) False))
         bvState = shiftR bv1 (fromJust stateIndex)
     in
     if stateIndex ==  Nothing then 

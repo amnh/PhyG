@@ -64,10 +64,10 @@ naiveDO lBV rBV inDelCost =
     else 
         -- not missing
         -- get inDelCost 
-        let bvLength = BV.dimension (V.head lBV) 
+        let bvLength = fromIntegral $ BV.dimension (V.head lBV) 
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen
-            bv1 = BV.fromBits [True]
-            inDelBitBV = shiftR bv1 (fromIntegral $ bvLength - 1)
+            bv1 = BV.fromBits (True : (replicate (bvLength -1) False))
+            inDelBitBV = shiftL bv1 (fromIntegral $ bvLength - 1)
             (newMedianLarge, medianCostLarge) = naive_do_BV lBV rBV inDelCost inDelBitBV
         in
         --trace ("DO: " ++ (show inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (

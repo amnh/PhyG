@@ -34,49 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-
-Functions to manage command execution after data have been read and processed
-
-Need top add:
-    Report 
-        reconciled graphs ala EUN2 codes
-    Select() 
-        Trees, taxa and blocks or characters to use or not use
-
-    Set()
-        Outgroup
-        Optimality criterion (Pars/PMDL)
-        Blocks  
-            create new based on character names
-            filter any empty blocks
-            Reorganize optimimized data
-                Consolidating chracter types, packing etc
-    Build
-        Trees
-        Networks
-        Distance trees/Networks
-            based on "Block" trees and reconciled via EUN2 code
-
-    Swap 
-        NNI, SPR,TBR with distnce from orginal placement
-            Edges spiral out from original location
-            For networks based on inflectgion points
-            Forests etc
-    Refine
-        Other forms of refinement
-        GA (Fusing), Perturbation, Similated Annealing
-        Thomsons algorithm and timerd search
-
-    Transformed data 
-        Implied alignment
-        Search till no improvement
-
-    Support 
-        Bremer (vis swap)
-        Bootstrap and JackKnife resampling with search options
-
--}
-
 module CommandExecution ( executeCommands
                         , executeRenameCommands) where
 
