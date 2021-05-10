@@ -66,7 +66,7 @@ import Types
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
-thesholdUKLength = 15
+thesholdUKLength = 1
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
@@ -99,9 +99,9 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces)
-        if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
-        else if thisType == NucSeq then (mediansFFI, costFFI)
+        if thisType == NucSeq then (mediansFFI, costFFI)
         else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
+        --if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
         --else if thisType == NucSeq then (newMedianBV, medianCost64)
         --else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
         else error "Unrecognized/Not implemented character type"

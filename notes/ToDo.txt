@@ -136,3 +136,7 @@
 
 22) cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
 	until figure out why cabal does this.
+
+23) Maybe use PCG DynamicCharacter type
+
+24) fix tcmMemo

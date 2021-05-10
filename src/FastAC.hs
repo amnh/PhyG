@@ -127,13 +127,14 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             localDenseCostMatrix = if seqType == NucSeq || seqType == SmallAlphSeq then tcmDense
                                    else tcmNaught
 
-            localMemoTCM = if seqType == GenSeq then getTCMMemo localTCM
+            (weightFactor, localMemoTCM) = if seqType == GenSeq then getTCMMemo localTCM
                            else getTCMMemo ([],[])
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = 1.0
+                                     , weight = if seqType == GenSeq then weightFactor
+                                                else 1.0
                                      , costMatrix = localCostMatrix
                                      , denseTCM = localDenseCostMatrix
                                      , memoTCM = localMemoTCM
@@ -154,13 +155,12 @@ getCost localCM i j =
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
-getTCMMemo :: ([ST.ShortText], [[Int]]) -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
+getTCMMemo :: ([ST.ShortText], [[Int]]) -> (Double, MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word))) 
 getTCMMemo (inAlphabet, inMatrix) =
-        let (weight, tcm) = TCM.fromRows $ SM.getFullVects $ SM.fromLists inMatrix
-            scm i j         = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
+        let (lweight, tcm) = TCM.fromRows $ SM.getFullVects $ SM.fromLists inMatrix
             sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
             memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length inAlphabet) sigma
-        in  ExplicitLayout tcm (TCMFFI.getMedianAndCost2D memoMatrixValue)
+        in  (fromRational lweight, ExplicitLayout tcm (TCMFFI.getMedianAndCost2D memoMatrixValue))
         
 
 
@@ -210,14 +210,15 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
             localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
                                    else tcmNaught
 
-            localMemoTCM = if (length $ thisAlphabet) > 8 then getTCMMemo localTCM
+            (weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo localTCM
                            else getTCMMemo ([],[])
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
-                                     , weight = 1.0
+                                     , weight = if (length $ thisAlphabet) > 8 then weightFactor
+                                                else 1.0
                                      , costMatrix = inMatrix
                                      , denseTCM = localDenseCostMatrix
                                      , memoTCM = localMemoTCM
