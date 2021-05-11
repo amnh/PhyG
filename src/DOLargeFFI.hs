@@ -40,10 +40,9 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum result
         rhsDC = buildDC rhs
 
         tcmMemo' = 
-            let scm i j         = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
-                sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
-                memoMatrixValue = generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
-            in  ExplicitLayout tcm (getMedianAndCost2D memoMatrixValue)
+            let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
+                memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
+            in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
         
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
         
