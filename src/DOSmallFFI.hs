@@ -40,13 +40,15 @@ wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCos
         -}
 -}
        
-wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
-wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCost)
+wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
+                         -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
+wrapperPCG_DO_Small_FFI lhs rhs tcmVect tcmDense = (resultingMedians, fromEnum resultCost)
     where
         --(resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
         (resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
 
-        bitStreams = decodeStream specializedAlphabetToDNA resultFFI
+        -- bitStreams = decodeStream specializedAlphabetToDNA resultFFI
+        bitStreams = decodeStream arbitraryAlphabet resultFFI
 
         resultingMedians = V.fromList . toList $ fmap (BV.fromBits . g 0 . toList) bitStreams
         
@@ -62,24 +64,27 @@ wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCos
             in  toEnum $ (x ! fromEnum i) ! fromEnum j
         -}
  
-buildDC :: Vector BV.BitVector -> DynamicCharacter
-buildDC = encodeStream specializedAlphabetToDNA . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
+        buildDC :: Vector BV.BitVector -> DynamicCharacter
+        -- buildDC = encodeStream specializedAlphabetToDNA . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
+        buildDC = encodeStream arbitraryAlphabet . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
 
-f :: Word -> [Bool] -> [String]
-f _ [] = []
-f n (x:xs)
-    | x = show n : f (n+1) xs
-    | otherwise = f (n+1) xs
-        
+        f :: Word -> [Bool] -> [String]
+        f _ [] = []
+        f n (x:xs)
+            | x = show n : f (n+1) xs
+            | otherwise = f (n+1) xs
+                
 
-g :: Word -> [String] -> [Bool]
-g 5 _ = []
-g n [] = False : g (n+1) []
-g n (x:xs)
-    | read x == n = True  : g (n+1)    xs
-    | otherwise   = False : g (n+1) (x:xs)
-        
-        
+        g :: Word -> [String] -> [Bool]
+        g 5 _ = []
+        g n [] = False : g (n+1) []
+        g n (x:xs)
+            | read x == n = True  : g (n+1)    xs
+            | otherwise   = False : g (n+1) (x:xs)
+                
+                
+        arbitraryAlphabet :: Alphabet String
+        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length tcmVect - 1]
 
-specializedAlphabetToDNA :: Alphabet String
-specializedAlphabetToDNA = fromSymbols $ show <$> (0 :: Word) :| [1 .. 4]
+-- specializedAlphabetToDNA :: Alphabet String
+-- specializedAlphabetToDNA = fromSymbols $ show <$> (0 :: Word) :| [1 .. 4]

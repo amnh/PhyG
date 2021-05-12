@@ -28,7 +28,6 @@ import Debug.Trace
 wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
                       -> MR.MetricRepresentation (AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word)) 
                       -> (Vector BV.BitVector, Int)
--- wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo | trace (show $ SM.getFullVects tcmVect) False = undefined
 wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum resultCost)
     where
         (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo) lhsDC rhsDC

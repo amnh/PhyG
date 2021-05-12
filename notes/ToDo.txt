@@ -140,3 +140,7 @@
 23) Maybe use PCG DynamicCharacter type
 
 24) fix tcmMemo
+
+25) Special case tcmMemo sub/inDel?
+
+26) Special case costonly for C-FFI
