@@ -101,7 +101,7 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
                 in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
         
             (weight, tcm) = TCM.fromRows $ SM.getFullVects thisMatrix
-            
+
             arbitraryAlphabet :: Alphabet String
             arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length thisMatrix - 1]
             
@@ -114,13 +114,12 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces)
-        --if thisType == NucSeq then (mediansFFI, costFFI)
-        --else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
-        (mediansLargeFFI, costLargeFFI)
+        if thisType == NucSeq then (mediansFFI, costFFI)
+        else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
         --if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
         --else if thisType == NucSeq then (newMedianBV, medianCost64)
         --else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
-        --else error "Unrecognized/Not implemented character type"
+        else error "Unrecognized/Not implemented character type"
        
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
