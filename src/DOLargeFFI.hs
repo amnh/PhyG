@@ -28,9 +28,10 @@ import Debug.Trace
 wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
                       -> MR.MetricRepresentation (AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word)) 
                       -> (Vector BV.BitVector, Int)
+-- wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo | trace (show $ SM.getFullVects tcmVect) False = undefined
 wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum resultCost)
     where
-        (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo') lhsDC rhsDC
+        (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo) lhsDC rhsDC
 
         bitStreams = decodeStream arbitraryAlphabet resultFFI
 
@@ -39,12 +40,14 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum result
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
 
+        {-
         tcmMemo' = 
             let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
             in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
         
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
+        -}
         
 
         buildDC :: Vector BV.BitVector -> DynamicCharacter
@@ -60,10 +63,11 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum result
         g :: Word -> [String] -> [Bool]
         g n [] = False : g (n+1) []
         g n (x:xs)
-          | fromEnum n >= TCM.size tcm = []
+          -- | fromEnum n >= TCM.size tcm = []
+          | fromEnum n >= length tcmVect = []
           | read x == n = True  : g (n+1)    xs
           | otherwise   = False : g (n+1) (x:xs)
         
 
         arbitraryAlphabet :: Alphabet String
-        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. TCM.size tcm - 1]
+        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length tcmVect - 1]

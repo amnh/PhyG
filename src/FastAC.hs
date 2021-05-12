@@ -127,17 +127,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             localDenseCostMatrix = if seqType == NucSeq || seqType == SmallAlphSeq then tcmDense
                                    else tcmNaught
 
-            (weightFactor, localMemoTCM) = if seqType == GenSeq then getTCMMemo localTCM
-                           else getTCMMemo ([],[])
+            --(weightFactor, localMemoTCM) = if seqType == GenSeq then getTCMMemo localTCM
+            --               else getTCMMemo ([],[])
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = if seqType == GenSeq then weightFactor
-                                                else 1.0
+                                     , weight = 1.0 --if seqType == GenSeq then weightFactor
+                                                --else 1.0
                                      , costMatrix = localCostMatrix
                                      , denseTCM = localDenseCostMatrix
-                                     , memoTCM = localMemoTCM
+                                     --, memoTCM = localMemoTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = if localTCM == ([],[]) then seqAlphabet
                                                   else fst localTCM
@@ -210,18 +210,18 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
             localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
                                    else tcmNaught
 
-            (weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo localTCM
-                           else getTCMMemo ([],[])
+            --(weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo localTCM
+            --               else getTCMMemo ([],[])
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
-                                     , weight = if (length $ thisAlphabet) > 8 then weightFactor
-                                                else 1.0
+                                     , weight = 1.0 -- if (length $ thisAlphabet) > 8 then weightFactor
+                                                -- else 1.0
                                      , costMatrix = inMatrix
                                      , denseTCM = localDenseCostMatrix
-                                     , memoTCM = localMemoTCM
+                                     --, memoTCM = localMemoTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
