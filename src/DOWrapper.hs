@@ -118,6 +118,7 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
         -- Naive (ie no Ukkonene if short sequneces
         if thisType == NucSeq then (mediansFFI, costFFI)
         else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
+        --else if thisType == GenSeq then  (newMedianLarge, medianCostLarge)
         --if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
         --else if thisType == NucSeq then (newMedianBV, medianCost64)
         --else if thisType == GenSeq then (newMedianSmall, medianCostSmall)

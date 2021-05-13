@@ -82,7 +82,7 @@ main =
     --mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read commands (with prealigned and tcm flags first)
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[])) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."

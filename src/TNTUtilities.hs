@@ -419,7 +419,7 @@ scopeToIndex fileName numChars scopeText =
 -- if that char is not in index list it is unaffected and added back to create the new list
 -- in a single pass. 
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
--- othewise retiurn rteh reverse since new values are prepended 
+-- othewise return the reverse since new values are prepended 
 getNewCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo] 
 getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (

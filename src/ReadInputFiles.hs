@@ -79,7 +79,7 @@ extractDataGraphPair dataGraphList =
 -- | executeReadCommands reads iput files and returns raw data 
 -- assumes that "prealigned" and "tcm:File" are tghe first arguments if they are specified 
 -- so that they can apply to all teh files in the command without order depence
-executeReadCommands :: [RawData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]]) -> [Argument] -> IO ([RawData], [SimpleGraph])
+executeReadCommands :: [RawData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]], Double) -> [Argument] -> IO ([RawData], [SimpleGraph])
 executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs)
     else do
@@ -239,7 +239,8 @@ getFENewickGraph fileString =
     LG.getFENLocal (T.filter (/= '\n') $ T.strip $ T.pack fileString) 
 
 -- | processTCMContents
-processTCMContents :: String -> String -> ([ST.ShortText], [[Int]])
+-- functionality added to integerize tcm and add weight factor to allow for decimal tcm values
+processTCMContents :: String -> String -> ([ST.ShortText], [[Int]], Double)
 processTCMContents inContents fileName = 
     if null inContents then errorWithoutStackTrace ("\n\n'Read' 'tcm' command error: empty tcmfile `" ++ fileName)
     else 
@@ -249,7 +250,8 @@ processTCMContents inContents fileName =
             -- to account for '-'
             numElements = 1 + (length localAlphabet)
             costMatrixStrings = fmap words $ tail tcmLines
-            localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
+            -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
+            (scaleFactor, localCostMatrix) = getCostMatrixAndScaleFactor fileName costMatrixStrings 
             numLines = length localCostMatrix
             lengthRowList = fmap length localCostMatrix
             rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
@@ -260,6 +262,48 @@ processTCMContents inContents fileName =
         else if (not rowsCorrectLength) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from " 
             ++ fileName ++ " there should be (including '-') " ++ show numElements)
         else
+            --trace (show (scaleFactor, localCostMatrix)) 
             -- trace (show localAlphabet ++ "\n" ++ show localCostMatrix) 
-            (localAlphabet ++ [ST.singleton '-'], localCostMatrix)
+            (localAlphabet ++ [ST.singleton '-'], localCostMatrix, scaleFactor)
 
+
+-- | getCostMatrixAndScaleFactor takes [[String]] and returns cost matrix as
+-- [[Int]] but if there are decimal values, a scalerFactor is determined and the 
+-- cost matrix are integerized by multiplication by 1/scaleFactor
+-- scaleFactor will alway be a factor of 10 to allow for easier 
+-- compilation of tcm charcaters later (weights the same...)
+getCostMatrixAndScaleFactor :: String -> [[String]] -> (Double, [[Int]])
+getCostMatrixAndScaleFactor fileName inStringListList =
+    if null inStringListList then error "Empty list in inStringListList"
+    else 
+        let maxDecimalPlaces = maximum $ fmap getDecimals $ concat inStringListList
+            scaleFactor = if maxDecimalPlaces == 0 then 1.0
+                          else (0.1) ** (fromIntegral maxDecimalPlaces)
+            in
+            if maxDecimalPlaces == 0 then (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
+            else 
+                let newStringListList = fmap (fmap (integerizeString maxDecimalPlaces)) inStringListList
+                in (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
+                
+
+-- | getDecimals returns the number of decimal places in a string rep of a number
+getDecimals :: String -> Int
+getDecimals inString =
+    if null inString then 0
+    else 
+        let decimalPart = dropWhile (/= '.') inString
+        in
+        if null decimalPart then 0
+        else (length decimalPart) - 1
+
+-- | integerizeString integerizes a String by removing the '.' and adding the number of '0's to pad out 
+-- adds maxDecimalPlaces - the nymber in the String  
+integerizeString :: Int -> String -> String
+integerizeString maxDecimalPlaces inString = 
+    if null inString then error "Null string in integerizeString"
+    else 
+        let decimalPart = dropWhile (/= '.') inString
+        in
+        if inString == "0" then inString
+        else if null decimalPart then inString ++ (replicate maxDecimalPlaces '0')
+        else (filter (/= '.') inString) ++ (replicate (maxDecimalPlaces - ((length decimalPart) - 1)) '0')

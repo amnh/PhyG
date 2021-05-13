@@ -83,7 +83,7 @@ getBlockDistance (_, blockCharData, blockCharInfo) (firstIndex, secondIndex) =
 -- data leaves are first--then HTUs follow
 getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlocDistance  numVerts inData =
-    let pairList = makeIndexPairs numVerts numVerts 0 0
+    let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
         pairListCosts = P.seqParMap P.myStrategyRPAR (getBlockDistance inData) pairList
         (iLst, jList) = unzip pairList

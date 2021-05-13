@@ -60,6 +60,7 @@ import qualified Data.MetricRepresentation as MR
 import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
 import Data.MetricRepresentation
 import qualified Data.TCM.Memoized.FFI as TCMFFI
+import GeneralUtilities
 
 import qualified Data.TCM.Memoized as TCMM
 import Data.Alphabet
@@ -100,7 +101,7 @@ generateDefaultMatrix inAlph rowCount =
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
-getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
+getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
 getFastaCharInfo inData dataName dataType isPrealigned localTCM = 
     if null inData then error "Empty inData in getFastaCharInfo"
     else 
@@ -122,29 +123,30 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                        else if seqType == Binary then fmap ST.fromString ["0","1"]
-                       else fst localTCM
-            localCostMatrix = if localTCM == ([],[]) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
-                              else S.fromLists $ snd localTCM
+                       else fst3 localTCM
+            localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
+                              else S.fromLists $ snd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
             localDenseCostMatrix = if seqType == NucSeq || seqType == SmallAlphSeq then tcmDense
                                    else tcmNaught
 
-            (weightFactor, localMemoTCM) =  if seqType == GenSeq then getTCMMemo (fst localTCM, localCostMatrix)
+            tcmWeightFactor = thd3 localTCM
+            (weightFactor, localMemoTCM) =  if seqType == GenSeq then getTCMMemo (fst3 localTCM, localCostMatrix)
                                             else getTCMMemo ([],S.empty)
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = if seqType == GenSeq then weightFactor
-                                                else 1.0
+                                     , weight = if seqType == GenSeq then weightFactor * tcmWeightFactor
+                                                else tcmWeightFactor
                                      , costMatrix = localCostMatrix
                                      , denseTCM = localDenseCostMatrix
                                      , memoTCM = localMemoTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
-                                     , alphabet = if localTCM == ([],[]) then seqAlphabet
-                                                  else fst localTCM
+                                     , alphabet = if null $ fst3 localTCM then seqAlphabet
+                                                  else fst3 localTCM
                                      , prealigned = isPrealigned
                                      }
         in
@@ -168,10 +170,6 @@ getTCMMemo (inAlphabet, inMatrix) =
             (weight, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         in  (fromRational weight, ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue))
         
-        
-
-        
-
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
@@ -198,20 +196,21 @@ getSequenceAphabet newAlph inStates =
             getSequenceAphabet (newAmbigStates ++ newAlph) (tail inStates) 
 
 
-
-
 -- | getFastcCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
-getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]]) -> CharInfo
+
+--Not correct with default alphabet and matrix now after tcm recodeing added to loow for decmials I htink.
+getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
 getFastcCharInfo inData dataName isPrealigned localTCM = 
     if null inData then error "Empty inData in getFastcCharInfo"
     else 
         --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
-        let thisAlphabet = if (not $ null $ fst localTCM) then fst localTCM
+        let thisAlphabet = if (not $ null $ fst3 localTCM)  then fst3 localTCM
                            else getSequenceAphabet [] $ concat $ fmap snd inData
-            inMatrix = if (not $ null $ fst localTCM) then S.fromLists $ snd localTCM
+            inMatrix = if (not $ null $ fst3 localTCM) then S.fromLists $ snd3 localTCM
                        else S.fromLists $ generateDefaultMatrix thisAlphabet 0
+            tcmWeightFactor = thd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
 
             -- not sure of this
@@ -219,15 +218,15 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
             localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
                                    else tcmNaught
 
-            (weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo (fst localTCM, inMatrix)
-                           else getTCMMemo ([], S.empty) 
+            (weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo (fst3 localTCM, inMatrix)
+                                           else getTCMMemo ([], S.empty) 
 
             defaultGenSeqCharInfo = CharInfo {
                                        charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
                                                      else GenSeq
                                      , activity = True
-                                     , weight  = if (length $ thisAlphabet) > 8 then weightFactor
-                                                else 1.0
+                                     , weight  = if (length $ thisAlphabet) > 8 then weightFactor * tcmWeightFactor
+                                                else tcmWeightFactor
                                      , costMatrix = inMatrix
                                      , denseTCM = localDenseCostMatrix
                                      , memoTCM = localMemoTCM
