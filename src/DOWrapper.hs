@@ -95,33 +95,18 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
             (newMedian64, medianCost64) = DKS64.ukkonenDO leftChar64 rightChar64 inDelCost
             newMedianBV = V.map (convert64ToBV bvLength) newMedian64
 
-            {-
-            tcmMemo' = 
-                let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
-                    memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
-                in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
-        
-            (weight, tcm) = TCM.fromRows $ SM.getFullVects thisMatrix
-
-            arbitraryAlphabet :: Alphabet String
-            arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length thisMatrix - 1]
-            -}
-
-            --setting left most bit to 1 same purpose as inDelBit for Ukkonen
+            --setting left most bit to 1 same purpose as inDelBit for Ukkonen--I thnik small error in this
+            -- after bitvector change but Naive OK
             (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
             (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in
-        --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
-        -- Naive (ie no Ukkonene if short sequneces
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
+        --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)
         --else if (thisType == GenSeq || thisType == AminoSeq) then  (mediansLargeFFI, costLargeFFI) 
         else if (thisType == GenSeq || thisType == AminoSeq) then  (newMedianLarge, medianCostLarge)
-        --if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
-        --else if thisType == NucSeq then (newMedianBV, medianCost64)
-        --else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
         else error "Unrecognized/Not implemented character type"
        
         
