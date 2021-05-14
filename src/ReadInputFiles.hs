@@ -162,13 +162,13 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                                 in
                                 -- spaces between alphabet elements suggest fastc
                                 if (numSpaces > 0) then 
-                                    let fastcData = FAC.getFastC firstOption fileContents' firstFile
+                                    let fastcData = FAC.getFastC firstOption fileContents firstFile
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair 
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fastc") 
                                     executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
                                 else 
-                                    let fastaData = FAC.getFastA  firstOption fileContents' firstFile
+                                    let fastaData = FAC.getFastA  firstOption fileContents firstFile
                                         fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair 
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fasta")

@@ -30,7 +30,7 @@ wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix I
                       -> (Vector BV.BitVector, Int)
 wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum resultCost)
     where
-        (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo) lhsDC rhsDC
+        (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo') lhsDC rhsDC
 
         bitStreams = decodeStream arbitraryAlphabet resultFFI
 
@@ -39,14 +39,14 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum result
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
 
-        {-
+        
         tcmMemo' = 
             let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
             in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
         
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
-        -}
+        
         
 
         buildDC :: Vector BV.BitVector -> DynamicCharacter

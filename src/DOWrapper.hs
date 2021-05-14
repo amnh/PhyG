@@ -116,9 +116,9 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
         in
         --trace ("DO: " ++ (s(V.Vector (Int, Int, Int))how inDelCost) ++ " " ++ (show $ V.head $ V.last thisMatrix)) (
         -- Naive (ie no Ukkonene if short sequneces
-        if thisType == NucSeq then (mediansFFI, costFFI)
-        else if thisType == GenSeq then (mediansLargeFFI, costLargeFFI)
-        --else if thisType == GenSeq then  (newMedianLarge, medianCostLarge)
+        if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
+        --else if (thisType == GenSeq || thisType == AminoSeq) then  (mediansLargeFFI, costLargeFFI) 
+        else if (thisType == GenSeq || thisType == AminoSeq) then  (newMedianLarge, medianCostLarge)
         --if (min (V.length lBV)  (V.length rBV)) < thesholdUKLength then (newMedianLarge, medianCostLarge)
         --else if thisType == NucSeq then (newMedianBV, medianCost64)
         --else if thisType == GenSeq then (newMedianSmall, medianCostSmall)
