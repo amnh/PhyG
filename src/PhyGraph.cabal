@@ -193,7 +193,15 @@ executable phyg
 
   -- include the source files needed in src for github library
   -- this for local library files
-  hs-source-dirs: . ../../PhyloLibs 
+  hs-source-dirs: .  
+                  ./Input 
+                  ./DirectOptimization 
+                  ./Utilitities
+                  ./Types
+                  ./GraphOptimizations
+                  ./Commands
+                  ./Graphs
+                  ../../PhyloLibs
   
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
