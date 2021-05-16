@@ -196,9 +196,9 @@ executable phyg
   hs-source-dirs: .  
                   ./Input 
                   ./DirectOptimization 
-                  ./Utilitities
+                  ./Utilities 
                   ./Types
-                  ./GraphOptimizations
+                  ./GraphOptimization
                   ./Commands
                   ./Graphs
                   ../../PhyloLibs
