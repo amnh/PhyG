@@ -147,7 +147,7 @@
 28) Reorganize code structure
 	Data Inputs, Outputs etc
 
-29) Laddreize function to convert graph -> tree
+29) Ladderize function to convert graph -> tree
 	if global GraphType == Tree
 
 30) Fix small (?) error in UkkonenDO for BitVector and Int64
