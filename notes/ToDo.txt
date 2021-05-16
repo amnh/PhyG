@@ -49,11 +49,6 @@
 	But basically--anyhting that returns a tree will have to return potentially updated
 	CharInfo wrt hashMap
 
-11) Add tcmDense2D nad tcmDense3D matrix fields to CharInfo for general matrix
-	Do stuff
-	Like general sequence character worth consolidating if have same TCM/Alphabet
-	to save space
-
 12) Modify DO functions to return additional fields
 	For post order, return postorder median2D, "gapped" median2D, "gapped" left and right children
 	For preorder:
@@ -89,8 +84,6 @@
 
 	rely on lazyness to be effecient if don't need IA 
 
-14) Ladderize tree Graph input 
-
 15) Simple tree optimization
 		and with smart reroot
 
@@ -110,29 +103,21 @@
 		that one edge shift at a time--should be very predictable in 
 		how much work done (check for networks)
 
-	make edged from root to chikdern (outgroup and sibling)
-	Delete root edge
-
-	traverse from sibling of outgroup, fliping (deleting and reinserting) edges that
-		need to change orientation
-	if orientation doesn't change--that recursive thread is finisged
-
-	For others keep going until hit old root edge 
-		When encounter root edge, Remove edges from orignal root to children and add 
-		edge between them with correct direction
-		the 'v' traveraal (edge u->v) should already be in correct orientation
-			but check initially
-
    if forest, no issues since if outgroup not in component
    		should participate in traversal
    		Should be OK for network, but needs to be checked
+
+   	Verify number of edges visited 
+   		Ie 3 for adjecent
 
 20) FFI/Alex
 	BV.BV to bvlittle
 	move TCMs to charinfo
 	more efficent to DynamicCharcater functions.
 
-21)  Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
+21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
+	bin +RTS -p -RTS args....
+	cretes prog.prof
 
 22) cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
 	until figure out why cabal does this.
@@ -140,7 +125,24 @@
 23) Maybe use PCG DynamicCharacter type
 
 24) fix tcmMemo
+	Unpredictable behavior not found in non hash memo version
+	Could be unsafeIO isssue in FFI of hashmap?
 
 25) Special case tcmMemo sub/inDel?
+	need to check tcmMemo  very slow for sub/indel only
+	ensure its actually updating and not recreating every time
 
 26) Special case costonly for C-FFI
+	New wrapper for C-FFI with alternate input output types
+	Triple of vectors as opposed to vector (NE) of triples 
+
+27) Check if DO swap is necessary maybe done by ffi
+	Not necessary for large-Naive DO.
+
+28) Reorganize code structure
+	Data Inputs, Outputs etc
+
+29) Laddreize function to convert graph -> tree
+	if global GraphType == Tree
+
+

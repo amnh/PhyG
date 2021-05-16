@@ -104,6 +104,7 @@ data CharInfo = CharInfo { name :: T.Text
                          , costMatrix :: S.Matrix Int
                          , denseTCM :: TCMD.DenseTransitionCostMatrix 
                          , memoTCM :: MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word))
+                         --, memoTCM :: (BV.BitVector -> BV.BitVector -> (BV.BitVector, Word))
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
                          } --deriving (Show, Eq)
