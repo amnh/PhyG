@@ -135,6 +135,11 @@
 26) Special case costonly for C-FFI
 	New wrapper for C-FFI with alternate input output types
 	Triple of vectors as opposed to vector (NE) of triples 
+	Will want to do this to make traversals etc more 
+	maintainable
+
+	For now profile the conversion functions to see how
+	much time suck they are (prob little)
 
 27) Check if DO swap is necessary maybe done by ffi
 	Not necessary for large-Naive DO.
@@ -144,5 +149,20 @@
 
 29) Laddreize function to convert graph -> tree
 	if global GraphType == Tree
+
+30) Fix small (?) error in UkkonenDO for BitVector and Int64
+	for possibility of long large alphabet sequences
+		Check 1:1 versus 1:2 first
+
+31) Modify charInfo to have gapped, left gapped, right gapped triple
+
+32) Add affine cost option
+	modify charInfo field for affine cost
+	first arg in generateDenseTransitionCostMatrix
+	0 /= 0
+
+
+
+
 
 
