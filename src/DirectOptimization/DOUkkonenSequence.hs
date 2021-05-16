@@ -1,5 +1,5 @@
 {- |
-Module      :  DOUkkonnenSequence 
+Module      :  DOUkkonenSequence 
 Description :  Functions for parsimony DO optimization functions. using Sequence type
                mainly to reduce vector cons cost
                Prototype non-optimized, restricted Haskell functisns
@@ -42,7 +42,7 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOUkkonnenSequence
+module DOUkkonenSequence
 ( ukkonenDO
 ) where
 

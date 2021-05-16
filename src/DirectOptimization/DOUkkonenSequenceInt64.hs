@@ -1,5 +1,5 @@
 {- |
-Module      :  DOUkkonnenSequenceInt64
+Module      :  DOUkkonenSequenceInt64
 Description :  Functions for parsimony DO optimization functions. usin Sequence type
                fixed bit64 size if small alphabet, a buit faster than BitVector version
                Prototype non-optimized, restricted Haskell functisns
@@ -42,7 +42,7 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOUkkonnenSequenceInt64
+module DOUkkonenSequenceInt64
 ( ukkonenDO
 ) where
 
