@@ -52,8 +52,8 @@ import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified NaiveDOSequence as NS
-import qualified DOUkkonnenSequence as DKS
-import qualified DOUkkonnenSequenceInt64 as DKS64
+import qualified DOUkkonenSequence as DKS
+import qualified DOUkkonenSequenceInt64 as DKS64
 import qualified Data.TCM.Dense as TCMD
 import qualified SymMatrix as SM
 import qualified Data.TCM as TCM
