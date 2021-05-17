@@ -227,6 +227,7 @@ executable phyg
                   DOSmallFFI
                   DOLargeFFI
                   Utilities
+                  Traversals
             
 library alphabet
 

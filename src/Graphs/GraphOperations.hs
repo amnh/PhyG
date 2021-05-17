@@ -41,7 +41,6 @@ TODO:
 --}
 
 module GraphOperations ( ladderizeGraph
-                       , fullyLabelGraph
                        , verifyTimeConsistency
                        , rerootGraph
                        ) where
@@ -131,14 +130,6 @@ verifyTimeConsistency inGraph =
    {-
    errorWithoutStackTrace ("Graph violates time consistency")
    -}
-
--- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
--- fully label the graph and return a PhylogeenticGraph
-fullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-fullyLabelGraph inGS inData inGraph = 
-    if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
-    else 
-        (inGraph, 0.0, V.empty, V.empty, inData)
 
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
