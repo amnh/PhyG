@@ -1,4 +1,6 @@
 1) add tnt fasta/c tcm stuff and -? to docs
+	Source docs
+	User docs
 
 2) Create MatrixApproxSmall, MatrixApproxLarge
 	Prealigned chars
@@ -110,19 +112,9 @@
    	Verify number of edges visited 
    		Ie 3 for adjecent
 
-20) FFI/Alex
-	BV.BV to bvlittle
-	move TCMs to charinfo
-	more efficent to DynamicCharcater functions.
-
 21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
 	bin +RTS -p -RTS args....
 	cretes prog.prof
-
-22) cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
-	until figure out why cabal does this.
-
-23) Maybe use PCG DynamicCharacter type
 
 24) fix tcmMemo
 	Unpredictable behavior not found in non hash memo version
@@ -143,9 +135,6 @@
 
 27) Check if DO swap is necessary maybe done by ffi
 	Not necessary for large-Naive DO.
-
-28) Reorganize code structure
-	Data Inputs, Outputs etc
 
 29) Ladderize function to convert graph -> tree
 	if global GraphType == Tree
