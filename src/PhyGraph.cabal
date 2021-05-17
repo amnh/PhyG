@@ -226,6 +226,7 @@ executable phyg
                   GraphOperations
                   DOSmallFFI
                   DOLargeFFI
+                  Utilities
             
 library alphabet
 
