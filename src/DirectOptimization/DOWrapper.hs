@@ -71,7 +71,7 @@ import Types
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
-thesholdUKLength = 1
+thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
@@ -101,6 +101,8 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
             (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
+
+            -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)

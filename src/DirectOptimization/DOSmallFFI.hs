@@ -1,4 +1,4 @@
-module DOSmallFFI where
+module DOSmallFFI (wrapperPCG_DO_Small_FFI) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
 import Bio.Character.Encodable  -- this has DynamicCharacter reference
@@ -13,6 +13,7 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified SymMatrix as SM
 import GeneralUtilities
+import Utilities
 import Debug.Trace
 
 
@@ -118,28 +119,7 @@ g' alphSize n inList =
         else False : g' alphSize (n+1) inList
 -}
 
--- | dynamicCharacterTo3Vector takes a DYnamicCharacter and returns three Vectors
-dynamicCharacterTo3Vector :: DynamicCharacter -> (Word, V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-dynamicCharacterTo3Vector (Missing x) = (x, V.empty, V.empty, V.empty)
-dynamicCharacterTo3Vector (DC x) = 
-    let neVect = V.fromList $ toList x
-        (a,b,c) = V.unzip3 neVect
-    in
-    (0 :: Word, a, b, c)
 
-
-convertVectorToDynamicCharacter :: V.Vector BV.BitVector -> DynamicCharacter
-convertVectorToDynamicCharacter inVector =
-    let lenAlph = BV.dimension $ V.head inVector
-        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. lenAlph - 1]
-    in
-    encodeStream arbitraryAlphabet $ fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList $ toList  inVector
-    where 
-        f :: Word -> [Bool] -> [String]
-        f _ [] = []
-        f n (x:xs)
-            | x = show n : f (n+1) xs
-            | otherwise = f (n+1) xs
        
 
     {-

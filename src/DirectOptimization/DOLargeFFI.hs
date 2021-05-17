@@ -15,20 +15,23 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified SymMatrix as SM
 import qualified Data.MetricRepresentation as MR
+import Utilities
+import GeneralUtilities
 
 import Debug.Trace
 
-{-
-  => OverlapFunction (Subcomponent (Element s))
-  -> s
-  -> s
-  -> (Word, s)
--}
+
+-- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
+-- could be due to issues with IO and such
+            
+
 
 wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
                       -> MR.MetricRepresentation (AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word)) 
                       -> (Vector BV.BitVector, Int)
-wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum resultCost)
+wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = 
+  --(resultingMedians, fromEnum resultCost)
+  (snd4 $ dynamicCharacterTo3Vector resultFFI, fromEnum resultCost)  
     where
         (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo') lhsDC rhsDC
 
@@ -36,9 +39,12 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = (resultingMedians, fromEnum result
 
         resultingMedians = V.fromList . toList $ fmap (BV.fromBits . g 0 . toList) bitStreams
         
+        {-
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
-
+        -}
+        lhsDC = convertVectorToDynamicCharacter lhs
+        rhsDC = convertVectorToDynamicCharacter rhs
         
         tcmMemo' = 
             let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
