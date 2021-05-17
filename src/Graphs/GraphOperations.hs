@@ -43,6 +43,7 @@ TODO:
 module GraphOperations ( ladderizeGraph
                        , verifyTimeConsistency
                        , rerootGraph
+                       , generateDisplayTrees
                        ) where
 
 import           Debug.Trace
@@ -86,10 +87,11 @@ ladderizeGraph' inGraph nodeList =
         --)
 
 -- | resolveNode takes a graph and node and inbound edgelist and outbound edge list
--- and converts node to one off (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)
+-- and converts node to one of (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)
 -- this only resolves a single nodes edges at a time and then returns new graph
 -- when more hase to be done--that will occur on lultiple passes through nodes.
 -- perhaps not the most efficient, but only done once per input graph
+-- contracts indegree 1 outdegree 1 nodes
 resolveNode :: SimpleGraph -> LG.Node -> ([LG.LEdge Double], [LG.LEdge Double]) -> (Int, Int) -> SimpleGraph
 resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) =
   if LG.isEmpty inGraph then LG.empty
@@ -97,8 +99,18 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --trace ("Resolveing " ++ show curNode) (
     let numNodes = length $ LG.nodes inGraph
     in
-    -- leaf or simple tree node in outdegree 
-    if outNum == 0 || outNum == 1 then
+    -- isolated node -- throw error
+    if inNum == 0 || outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (GFU.showGraph inGraph) )
+
+    -- indegree 1 outdegree 1 node to contract
+    else if inNum == 1 || outNum == 1 then
+      let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
+          newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
+      in
+      newGraph
+
+    -- leaf or simple tree node in outdegree
+    else if outNum == 0 || outNum == 1 then
       let first2Edges = take 2 inEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
@@ -107,6 +119,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
           newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
       in
       newGraph 
+
     -- root or simple network indegree node
     else if inNum == 0 || inNum == 2 then 
       let first2Edges = take 2 outEdgeList
@@ -117,6 +130,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
           newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
       in 
       newGraph
+
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair)
     --)
 
@@ -227,3 +241,32 @@ getToFlipEdges parentNodeIndex inEdgeList =
     if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
     else getToFlipEdges parentNodeIndex (tail inEdgeList)
       
+-- | generateDisplayTrees takes a graph list and recursively generates 
+-- a list of trees created by progresively resolving each network vertex into a tree vertex
+-- in each input graph
+-- creating up to 2**m (m network vertices) trees.  This only resolves the indegree 
+-- edges.  Indegree 1 outdegree 1 edges are contracted when created or encountered.
+-- call -> generateDisplayTrees  [startGraph] []  
+-- the second and third args contain graphs that need more work and graphs that are done (ie trees)
+generateDisplayTrees :: [LG.Gr a b] -> [LG.Gr a b] -> [LG.Gr a b]
+generateDisplayTrees curGraphList treeList  = 
+  if null curGraphList then treeList
+  else 
+    let firstGraph = head curGraphList
+    in
+      if LG.isEmpty firstGraph then []
+      else 
+        let nodeList = LG.labNodes firstGraph   
+            inNetEdgeList = filter ((>1).length) $ fmap (LG.inn firstGraph) $ fmap fst nodeList
+        in
+        if null inNetEdgeList then generateDisplayTrees (tail curGraphList) (firstGraph : treeList)
+        else
+          let newGraphList = splitGraphListFromNode inNetEdgeList firstGraph
+          in
+          generateDisplayTrees (newGraphList ++ (tail curGraphList)) treeList
+
+-- | splitGraphListFromNode take a graph and a lits of edges for indegree > 1 node
+-- removes each in edge in turn to create a new graph and contracts any in 1 out 1 nodes
+splitGraphListFromNode :: [[LG.LEdge b]] -> LG.Gr a b -> [LG.Gr a b]
+splitGraphListFromNode inEdgeListList inGraph = 
+  [inGraph]
