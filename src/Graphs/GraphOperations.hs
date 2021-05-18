@@ -326,12 +326,14 @@ deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
 -- must be compatible A intersect B = A|B|Empty for teh graph to be time consistant.  
 -- would be edge based to check before and a network edge were to be added  
 
---Logic wrong--maybe only 'after lists'
+--Logic wrong--may have to look at each pair of in-nodes to network edge
 
 verifyTimeConsistency :: SimpleGraph -> SimpleGraph
 verifyTimeConsistency inGraph =
    if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
-   else 
+   else inGraph
+    {-
+
       let (_, _, _, netVertList) = LG.splitVertexList inGraph
           beforeLists = [] -- fmap fst $ fmap (nodesAndEdgesBefore inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
           afterLists = fmap fst $ fmap (nodesAndEdgesAfter inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
@@ -340,6 +342,7 @@ verifyTimeConsistency inGraph =
       in
       if areCompatible then inGraph
       else errorWithoutStackTrace ("Graph violates time consistency" ++ GFU.showGraph inGraph)
+    -}
 
 -- | checkCompaptible takes a list of a list of nodes and checks the node lists
 -- to see if compatible-- ie A intersect B = A|B|[]
