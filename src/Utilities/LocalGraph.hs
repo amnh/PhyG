@@ -167,6 +167,14 @@ delLEdges inEdgeList inGraph = G.delEdges (fmap G.toEdge inEdgeList) inGraph
 insNode :: LNode a -> Gr a b -> Gr a b
 insNode inNode inGraph = G.insNode inNode inGraph
 
+-- | delLNode deletes a labelled node from a graph
+delLNode :: LNode a -> Gr a b -> Gr a b
+delLNode inNode inGraph = G.delNode (fst inNode) inGraph
+
+-- | delNode deletes an unlabelled node from a graph
+delNode :: Node -> Gr a b -> Gr a b
+delNode inNode inGraph = G.delNode inNode inGraph
+
 -- | mkGraph creates a greaph from list of nodes and list of edges
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
 mkGraph nodeList edgeList = G.mkGraph nodeList edgeList
