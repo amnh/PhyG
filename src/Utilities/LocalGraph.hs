@@ -136,7 +136,6 @@ out inGraph inNode = G.out inGraph inNode
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
 getInOutEdges inGraph inNode = (inn inGraph inNode, out inGraph inNode )
 
-
 -- | nodes returns list of unlabbeled nodes, maps to nodes
 nodes ::  Gr a b -> [Node]
 nodes inGraph = G.nodes inGraph
@@ -174,6 +173,10 @@ delLNode inNode inGraph = G.delNode (fst inNode) inGraph
 -- | delNode deletes an unlabelled node from a graph
 delNode :: Node -> Gr a b -> Gr a b
 delNode inNode inGraph = G.delNode inNode inGraph
+
+-- | delNodes deletes a list of unlabelled nodes from a graph
+delNodes :: [Node] -> Gr a b -> Gr a b
+delNodes inNodeList inGraph = G.delNodes inNodeList inGraph
 
 -- | mkGraph creates a greaph from list of nodes and list of edges
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b

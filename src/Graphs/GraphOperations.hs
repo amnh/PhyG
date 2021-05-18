@@ -44,9 +44,13 @@ module GraphOperations ( ladderizeGraph
                        , verifyTimeConsistency
                        , rerootGraph
                        , generateDisplayTrees
+                       , contractOneOneEdges
+                       , nodesAndEdgesBefore
+                       , nodesAndEdgesAfter
                        ) where
 
 import           Debug.Trace
+import Data.List
 import qualified Data.Vector as V
 import qualified DOWrapper as DOW
 import Types
@@ -60,8 +64,6 @@ import qualified GraphFormatUtilities as GFU
 -- local nodelist
 ladderizeGraph :: SimpleGraph -> SimpleGraph
 ladderizeGraph inGraph = ladderizeGraph' inGraph (LG.nodes inGraph)
-
-
 
 -- | ladderize takes an input graph and ensures/creates nodes
 -- such that all vertices are (indegree, outdegree) (0,>0), (1,2) (2,1) (1,0)
@@ -133,18 +135,6 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
 
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair)
     --)
-
--- | verifyTimeConsistency take a SimpleGraph and checks for time consistency
--- of network nodes to verify network nodes are not definately not coeval
-verifyTimeConsistency :: SimpleGraph -> SimpleGraph
-verifyTimeConsistency inGraph =
-   if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
-   else inGraph
-   
-   {-
-   errorWithoutStackTrace ("Graph violates time consistency")
-   -}
-
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -241,11 +231,39 @@ getToFlipEdges parentNodeIndex inEdgeList =
     if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
     else getToFlipEdges parentNodeIndex (tail inEdgeList)
       
+-- | contractOneOneEdges removes indegree 1 outdegree 1 nodes and its edges creating a new edge
+-- connecting the nodes on either side
+contractOneOneEdges :: LG.Gr a b -> LG.Gr a b 
+contractOneOneEdges inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let nodeList = LG.nodes inGraph
+        inOutEdgeList = zip (fmap (LG.getInOutEdges inGraph) nodeList) nodeList
+        (edgesToDelete, edgesToAdd, nodesToDelete) = getContractGraphEdits inOutEdgeList ([],[],[])
+        newGraph = LG.insEdges edgesToAdd $ LG.delNodes nodesToDelete $ LG.delLEdges edgesToDelete inGraph
+    in
+    newGraph
+      
+-- | getContractGraphEdits takes a series of pair of indegree outdegree and nodes and
+-- returns list of graph edits to contract edges
+getContractGraphEdits :: [(([LG.LEdge b], [LG.LEdge b]), LG.Node)] -> ([LG.LEdge b],[LG.LEdge b],[LG.Node]) -> ([LG.LEdge b],[LG.LEdge b],[LG.Node]) 
+getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesToDelete) =
+  if null inEdgeNodeList then curEdits
+  else 
+    let firstGroup@((firstInEdges, firstOutEdges), firstNode) = head inEdgeNodeList
+    in
+    if  (length firstInEdges, length firstOutEdges) /= (1,1) then getContractGraphEdits (tail inEdgeNodeList) curEdits
+    else 
+      let newEdge = (fst3 $ head firstInEdges, snd3 $ head firstOutEdges, thd3 $ head firstInEdges)
+      in 
+      getContractGraphEdits (tail inEdgeNodeList) (firstInEdges ++ firstOutEdges ++ edgesToDelete, newEdge : edgesToAdd, firstNode : nodesToDelete)
+
+
 -- | generateDisplayTrees takes a graph list and recursively generates 
 -- a list of trees created by progresively resolving each network vertex into a tree vertex
 -- in each input graph
 -- creating up to 2**m (m network vertices) trees.  This only resolves the indegree 
--- edges.  Indegree 1 outdegree 1 edges are contracted when created or encountered.
+-- edges.  Indegree 1 outdegree 1 edges ARE NOT contracted when created or encountered.
 -- call -> generateDisplayTrees  [startGraph] []  
 -- the second and third args contain graphs that need more work and graphs that are done (ie trees)
 generateDisplayTrees :: [LG.Gr a b] -> [LG.Gr a b] -> [LG.Gr a b]
@@ -261,12 +279,110 @@ generateDisplayTrees curGraphList treeList  =
         in
         if null inNetEdgeList then generateDisplayTrees (tail curGraphList) (firstGraph : treeList)
         else
-          let newGraphList = splitGraphListFromNode inNetEdgeList firstGraph
+          let newGraphList = splitGraphListFromNode inNetEdgeList [firstGraph]
           in
           generateDisplayTrees (newGraphList ++ (tail curGraphList)) treeList
 
--- | splitGraphListFromNode take a graph and a lits of edges for indegree > 1 node
--- removes each in edge in turn to create a new graph and contracts any in 1 out 1 nodes
-splitGraphListFromNode :: [[LG.LEdge b]] -> LG.Gr a b -> [LG.Gr a b]
-splitGraphListFromNode inEdgeListList inGraph = 
-  [inGraph]
+-- | splitGraphListFromNode take a graph and a list of edges for indegree > 1 node
+-- removes each in edge in turn to create a new graph and maintains any in 1 out 1 nodes
+-- if these edges are to be contracted out  use 'contractOneOneEdges'
+-- should be a single traversal 'splitting' graph each time. removing edges anmd recursing
+-- to do it again untill all edges are indegree 1.
+-- the edges in list for recurvise deleteion should always be in all graphs uuntil
+-- the end
+splitGraphListFromNode :: [[LG.LEdge b]] -> [LG.Gr a b] -> [LG.Gr a b]
+splitGraphListFromNode inEdgeListList inGraphList = 
+  if null inEdgeListList then inGraphList
+  else if null inGraphList then error "Empty graph lits in splitGraphListFromNode"
+  else 
+    let firstNetEdgeList = head inEdgeListList
+        indexList = [0.. (length firstNetEdgeList - 1)]
+        repeatedEdgeList = replicate (length firstNetEdgeList) firstNetEdgeList
+        netEdgeIndexPairList = zip repeatedEdgeList indexList
+        newGraphList = concat $ fmap (deleteEdgesCreateGraphs netEdgeIndexPairList 0) inGraphList
+    in
+    splitGraphListFromNode (tail inEdgeListList) newGraphList
+
+-- | deleteEdgesCreateGraphs takes a list of edges and an index list and a graph,
+-- recursively keeps the index-th edge and deltes the others creating a new graph list
+deleteEdgesCreateGraphs :: [([LG.LEdge b], Int)] -> Int -> LG.Gr a b -> [LG.Gr a b]
+deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
+  if LG.isEmpty inGraph then error "Empty graph in  "deleteEdgesCreateGraphs
+  else if null netEdgeIndexPairList then []
+  else 
+    let (edgeList, index) = head netEdgeIndexPairList
+        --edgeToKeep = edgeList !! index
+        edgesToDelete = (take index edgeList) ++ (drop (index + 1) edgeList)
+        newGraph = LG.delLEdges edgesToDelete inGraph
+    in
+    newGraph : deleteEdgesCreateGraphs (tail netEdgeIndexPairList) (counter + 1) inGraph 
+
+
+-- | verifyTimeConsistency take a SimpleGraph and checks for time consistency
+-- of network nodes to verify network nodes are not definately not coeval
+-- basically, each set of network edges (usually 2) create a split in the set of nodes (and edges) 
+-- to those 'before' (ie leading to) and after (ie leadgin from) the heads of the network edges
+-- thse sets can be generated for each vertex (cost n for traversal) and these sets of nodes
+-- must be compatible A intersect B = A|B|Empty for teh graph to be time consistant.  
+-- would be edge based to check before and a network edge were to be added  
+verifyTimeConsistency :: SimpleGraph -> SimpleGraph
+verifyTimeConsistency inGraph =
+   if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
+   else 
+      let (_, _, _, netVertList) = LG.splitVertexList inGraph
+          beforeLists = fmap fst $ fmap (nodesAndEdgesBefore inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
+          afterLists = fmap fst $ fmap (nodesAndEdgesAfter inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
+          allLists = beforeLists ++ afterLists
+          areCompatible = checkCompatible allLists 
+      in
+      if areCompatible then inGraph
+      else errorWithoutStackTrace ("Graph violates time consistency" ++ GFU.showGraph inGraph)
+
+-- | checkCompaptible takes a list of a list of nodes and checks the node lists
+-- to see if compatible-- ie A intersect B = A|B|[]
+checkCompatible :: [[LG.Node]] -> Bool
+checkCompatible inNodeListList = 
+  if null inNodeListList then True
+  else 
+    let firstList = head inNodeListList
+        compatibleList = fmap (interCheck firstList) (tail inNodeListList)
+    in
+    if (not $ foldl' (&&) True compatibleList) then False
+    else checkCompatible (tail inNodeListList)
+
+  where 
+    interCheck a b = 
+      let c = a `intersect` b 
+      in
+      if null c then True
+      else if (c == a) || (c == b) then True
+      else False
+
+-- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
+-- and edges 'before' in the sense of leading to--ie between (not including) root and
+-- (not including)) that node
+-- call with ([], [])
+nodesAndEdgesBefore :: LG.Gr a b -> ([LG.Node], [LG.LEdge b]) -> [LG.Node] -> ([LG.Node], [LG.LEdge b])
+nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList =
+  if LG.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesBefore")
+  else if null inNodeList then curResults
+  else 
+    let intoEdgeList = LG.inn inGraph (head inNodeList)
+        intoNodeList = fmap fst3 intoEdgeList
+    in
+    nodesAndEdgesBefore inGraph (intoNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoNodeList ++ (tail inNodeList)) 
+
+-- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
+-- and edges 'after' in the sense of leading from-ie between (not including)) that node
+-- and all the way to any leaves is connects to.
+-- call with ([], [])
+nodesAndEdgesAfter :: LG.Gr a b -> ([LG.Node], [LG.LEdge b]) -> [LG.Node] -> ([LG.Node], [LG.LEdge b])
+nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
+  if LG.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesAfter")
+  else if null inNodeList then curResults
+  else 
+    let fromEdgeList = LG.out inGraph (head inNodeList)
+        fromNodeList = fmap fst3 fromEdgeList
+    in
+    nodesAndEdgesAfter inGraph (fromNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromNodeList ++ (tail inNodeList)) 
+
