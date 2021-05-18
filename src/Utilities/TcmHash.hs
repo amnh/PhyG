@@ -1,6 +1,6 @@
 {- |
 Module      :  TcmHash.hs
-Description :  Module wiht functions to support hashMap for large alphabet TCMs
+Description :  Module with functions to support hashMap for large alphabet TCMs
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -39,4 +39,11 @@ module TcmHash where
 
 import Data.HashMap
 import Types
+import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.Vector    as V
+import Data.Bits ((.&.), (.|.))
 
+-- | getMedianPair takes a tcm (single states) and two states and
+-- retuns the best median as superimposed bitvectors and the cost of that median
+getMedianPair :: V.Vector (V.Vector Int) -> BV.BitVector -> BV.BitVector-> (BV.BitVector, Int)
+getMedianPair tcm stateI stateJ = (stateI .&. stateJ, 0)
