@@ -181,6 +181,7 @@ executable phyg
                 , MissingH >= 1.4.3
                 , bv-little
                 , bits
+                , hashmap
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions
@@ -228,6 +229,7 @@ executable phyg
                   DOLargeFFI
                   Utilities
                   Traversals
+                  TcmHash
             
 library alphabet
 
