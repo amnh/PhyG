@@ -42,8 +42,14 @@ import Types
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
 import Data.Bits ((.&.), (.|.))
+import qualified SymMatrix as S
 
 -- | getMedianPair takes a tcm (single states) and two states and
 -- retuns the best median as superimposed bitvectors and the cost of that median
-getMedianPair :: V.Vector (V.Vector Int) -> BV.BitVector -> BV.BitVector-> (BV.BitVector, Int)
-getMedianPair tcm stateI stateJ = (stateI .&. stateJ, 0)
+getMedianPair :: S.Matrix Int -> BV.BitVector -> BV.BitVector-> (BV.BitVector, Int)
+getMedianPair tcm stateI stateJ = 
+    let cost =  tcm S.! ((BV.toSignedNumber stateI), (BV.toSignedNumber stateJ))
+    in
+    (stateI .&. stateJ, cost)
+
+    
