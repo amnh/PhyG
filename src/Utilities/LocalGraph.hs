@@ -194,6 +194,14 @@ noComponents inGraph = DFS.noComponents inGraph
 isLeaf  :: Gr a b -> Node -> Bool
 isLeaf  inGraph inNode = (G.outdeg inGraph inNode) == 0
 
+-- | isNetworkNode checks if node is network node 
+isNetworkNode  :: Gr a b -> Node -> Bool
+isNetworkNode  inGraph inNode = (((G.indeg inGraph inNode) > 1) && ((G.outdeg inGraph inNode) > 0))
+
+-- | isTreeNode checks if node is network node 
+isTreeNode  :: Gr a b -> Node -> Bool
+isTreeNode  inGraph inNode = (((G.indeg inGraph inNode) == 1) && ((G.outdeg inGraph inNode) > 0))
+
 -- | isRoot checks if node is root 
 isRoot :: Gr a b -> Node-> Bool
 isRoot inGraph inNode = (G.indeg inGraph inNode) == 0

@@ -48,34 +48,36 @@ import qualified GraphFormatUtilities as GFU
 
 -- | emptyPhyloGeneticGraph for checking inputs
 emptyPhyloGeneticGraph :: PhylogeneticGraph
-emptyPhyloGeneticGraph = (LG.empty, 0.0, V.empty, V.empty, (V.empty, V.empty))
+emptyPhyloGeneticGraph = (LG.empty, 0.0, LG.empty, V.empty, V.empty, (V.empty, V.empty))
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
 -- fully label the graph and return a PhylogeenticGraph
 fullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 fullyLabelGraph inGS inData inGraph = 
-    if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
+    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty,V.empty, V.empty, inData)
     else 
         let postOrderTree = postOrderTreeTraversal inGS inData inGraph
             preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
         in
-        (inGraph, 0.0, V.empty, V.empty, inData)
+        preOrderTree
 
 
 -- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
 -- vi post-order traversal, yields cost as well
 -- for a binary tree only
+-- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 postOrderTreeTraversal inGS inData inGraph = 
-    if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
+    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, inData)
     else
         -- Assumes root is Number of Leaves  
-    	let rootIndex = V.length $ fst inData
-    	in
-    	trace ("It Begins at " ++ show rootIndex) (
-    	if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
-    	else emptyPhyloGeneticGraph
-    	)
+        let rootIndex = V.length $ fst inData
+            newTree = preDecorateTree inGS inData inGraph rootIndex
+        in
+        trace ("It Begins at " ++ show rootIndex) (
+        if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
+        else newTree 
+        )
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -83,12 +85,17 @@ postOrderTreeTraversal inGS inData inGraph =
 -- invafiant that root is HTU !! nLeaves?
 preOrderTreeTraversal :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS inData inPGraph = 
-    if LG.isEmpty (fst5 inPGraph) then emptyPhyloGeneticGraph
+    if LG.isEmpty (thd6 inPGraph) then (fst6 inPGraph, 0.0, LG.empty, V.empty, V.empty, inData)
     else 
-    	inPGraph
-    	
-
+        inPGraph
         
+
+-- | preDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
+-- labelling vertices and edges as it goes back to root
+preDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> VertexIndex -> PhylogeneticGraph
+preDecorateTree inGS inData inGraph startIndex = 
+	
+        (inGraph, 0.0, LG.empty, V.empty, V.empty, inData)
 
 
 

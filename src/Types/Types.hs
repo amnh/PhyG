@@ -117,6 +117,7 @@ data CharInfo = CharInfo { name :: T.Text
 -- | Types for vertex information
 type VertexCost = Double
 type StateCost = Int
+type VertexIndex = Int
 
 -- | index of child vertices 
 type ChildStateIndex = Int
@@ -188,6 +189,7 @@ data EdgeInfo = EdgeInfo { minLength :: Double
 -- these are "resolved" from more general graphs
 -- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
 type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo 
+type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
 -- | Type BlockFoci are a vector for each character (in a block usually) of a vector of edges since there may be more than 1 "best" focus
 -- static charcatsr all are fine--so length 1 defualt value
@@ -207,10 +209,10 @@ type SimpleGraph = LG.Gr NameText Double
 --    Fields:
 --        1) "Simple" graph with fileds useful for outputting graphs  
 --        2) Graph optimality value or cost
---        3) Vector of display trees for each data Block
+--        3) Vector of display tree for each data Block
 --        4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
 --         5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
-type PhylogeneticGraph = (SimpleGraph, VertexCost, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
 
 
 -- | type RawGraph is input graphs with leaf and edge labels
