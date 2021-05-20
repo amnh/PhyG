@@ -127,26 +127,37 @@ type NameBV = BV.BitVector
 type NameText = T.Text
 
 -- | TYpes for Matrix/Sankoff charcaters
+    -- Triple contains infor from left and right child--could be only one
+    -- use fst then
 type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
-type MatrixState = V.Vector MatrixTriple
 
 -- Only date here that varies by vertex, rest inglobal charcater info
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
--- may have to add single
--- for approximate (DO-like) costs can use stateBVPrelim/stateBVFinal
-data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
-                                     , minRangePrelim :: V.Vector Int -- for Additive
-                                     , maxRangePrelim :: V.Vector Int -- for Additive
-                                     -- triple for Sankoff optimization--cost, left and right descendant states (could be multiple)
-                                     , matrixStatesPrelim :: V.Vector MatrixState -- for Sankoff/Matrix
-                                     , stateBVFinal :: V.Vector BV.BitVector  -- for Non-additive ans Sankoff/Matrix approximate state
-                                     , minRangeFinal :: V.Vector Int -- for Additive
-                                     , maxRangeFinal :: V.Vector Int -- for Additive
-                                     , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
+-- may have to add single assignment for hardwired and IP optimization
+-- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
+-- for sequnce and matrix/Saknoff characters-- Vector of vector of States
+    --BUT all with same cost matrix/tcm
+data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx 
+                                     -- for Non-additive ans Sankoff/Matrix approximate state
+                                     , stateBVFinal :: V.Vector BV.BitVector  
+                                     -- for Additive
+                                     , rangePrelim :: V.Vector (Int, Int) 
+                                     , rangeFinal :: V.Vector (Int, Int) 
+                                     -- for multiple Sankoff/Matrix with sme tcm
+                                     , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple) 
+                                     , matrixStatesFinal :: V.Vector (StateCost) 
+                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM 
+                                     , sequencePrelim :: V.Vector (V.Vector BV.BitVector) 
+                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     , sequenceGapped :: V.Vector (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , sequenceFinal :: V.Vector (V.Vector BV.BitVector) 
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect :: V.Vector StateCost 
-                                     , localCost :: VertexCost -- weight * V.sum localCostVect
-                                     , globalCost :: VertexCost -- unclear if need vector version
+                                     -- weight * V.sum localCostVect
+                                     , localCost :: VertexCost 
+                                     -- unclear if need vector version
+                                     , globalCost :: VertexCost 
                                      } deriving (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters

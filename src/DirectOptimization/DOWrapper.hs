@@ -75,11 +75,11 @@ thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector  BV.BitVector -> V.Vector  BV.BitVector -> V.Vector  (V.Vector  Int) 
+getDOMedian :: V.Vector  (V.Vector  Int) 
             -> TCMD.DenseTransitionCostMatrix 
             -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
-            -> CharType -> (V.Vector  BV.BitVector, Int)
-getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
+            -> CharType -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) -> (V.Vector  BV.BitVector, Int)
+getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     -- missing data inputs
     if V.null origLBV then (origRBV, 0)
     else if V.null origRBV then (origLBV, 0)

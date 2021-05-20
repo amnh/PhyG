@@ -132,13 +132,14 @@ interUnion thisWeight leftChar rightChar =
         newCost = thisWeight * (fromIntegral numUnions)
         newStateVect = V.zipWith (localAndOr localZero) intersectVect unionVect
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
-                                      , minRangePrelim = V.empty
-                                      , maxRangePrelim = V.empty
-                                      , matrixStatesPrelim = V.empty
                                       , stateBVFinal = V.singleton (BV.fromBits [False])
-                                      , minRangeFinal = V.empty
-                                      , maxRangeFinal = V.empty
+                                      , rangePrelim = V.empty
+                                      , rangeFinal = V.empty
+                                      , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
@@ -170,18 +171,19 @@ getNewRange inStuff@(lMin, lMax, rMin, rMax) =
 -- assumes a single weight for all
 intervalAdd :: Double -> CharacterData -> CharacterData -> CharacterData
 intervalAdd thisWeight leftChar rightChar =
-    let newRangeCosts = V.map getNewRange $ V.zip4 (minRangePrelim leftChar) (maxRangePrelim leftChar) (minRangePrelim rightChar) (maxRangePrelim rightChar)
+    let newRangeCosts = V.map getNewRange $ V.zip4 (V.map fst $ rangePrelim leftChar) (V.map snd $ rangePrelim leftChar) (V.map fst $ rangePrelim rightChar) (V.map snd $ rangePrelim rightChar)
         newMinRange = V.map fst3 newRangeCosts
         newMaxRange = V.map snd3 newRangeCosts
         newCost = thisWeight * (fromIntegral $ V.sum $ V.map thd3 newRangeCosts)
         newCharcater = CharacterData {  stateBVPrelim = V.empty
-                                      , minRangePrelim = newMinRange
-                                      , maxRangePrelim = newMaxRange
+                                      , stateBVFinal = V.empty
+                                      , rangePrelim = V.zip newMinRange newMaxRange
+                                      , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton (BV.fromBits [False])
-                                      , minRangeFinal = V.empty
-                                      , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
@@ -195,7 +197,7 @@ intervalAdd thisWeight leftChar rightChar =
     newCharcater
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 
-getMinCostStates :: S.Matrix Int -> MatrixState -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
+getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
 getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex = 
    --trace (show thisMatrix ++ "\n" ++ (show  childVect) ++ "\n" ++ show (numStates, childState, stateIndex)) (
    if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates) 
@@ -212,7 +214,7 @@ getMinCostStates thisMatrix childVect bestCost numStates childState currentBestS
 
 -- | getNewVector takes the vector of states and costs from teh child nodes and the 
 -- cost matrix and calculates a new verctor n^2 in states
-getNewVector :: S.Matrix Int -> Int -> (MatrixState, MatrixState) -> MatrixState
+getNewVector :: S.Matrix Int -> Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
 getNewVector thisMatrix  numStates (lChild, rChild) =
   let newStates = [0..(numStates -1)] 
       leftPairs = fmap (getMinCostStates thisMatrix lChild (maxBound :: Int) numStates 0 []) newStates
@@ -235,13 +237,14 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         initialCostVector = V.map V.minimum $ V.map (V.map fst3) initialMatrixVector
         newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
         newCharcater = CharacterData {  stateBVPrelim = V.empty  
-                                      , minRangePrelim = V.empty
-                                      , maxRangePrelim = V.empty
-                                      , matrixStatesPrelim = initialMatrixVector
                                       , stateBVFinal = V.empty
-                                      , minRangeFinal = V.empty
-                                      , maxRangeFinal = V.empty
+                                      , rangePrelim = V.empty
+                                      , rangeFinal = V.empty
+                                      , matrixStatesPrelim = initialMatrixVector
                                       , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
                                       , localCostVect = initialCostVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
                                       , globalCost = newCost 
@@ -258,17 +261,20 @@ getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.M
 getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
-    let (newStateVect, medianCost) = DOW.getDOMedian (stateBVPrelim leftChar) (stateBVPrelim rightChar) thisMatrix thisDenseMatrix thisMemoTCM thisType
-        newCost = thisWeight * (fromIntegral medianCost)
-        newCharcater = CharacterData {  stateBVPrelim = newStateVect
-                                      , minRangePrelim = V.empty
-                                      , maxRangePrelim = V.empty
+    let resultVect = V.map (DOW.getDOMedian thisMatrix thisDenseMatrix thisMemoTCM thisType)  (V.zip  (sequencePrelim leftChar) (sequencePrelim rightChar))
+        newStateVect = V.map fst resultVect
+        newCostVect = V.map snd resultVect
+        newCost = V.sum $ V.map (thisWeight *) (V.map fromIntegral newCostVect)
+        newCharcater = CharacterData {  stateBVPrelim = V.empty  
+                                      , stateBVFinal = V.empty
+                                      , rangePrelim = V.empty
+                                      , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
-                                      , stateBVFinal = V.singleton (BV.fromBits [False])
-                                      , minRangeFinal = V.empty
-                                      , maxRangeFinal = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , localCostVect = V.singleton 0
+                                      , sequencePrelim = newStateVect
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
+                                      , localCostVect = newCostVect
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }

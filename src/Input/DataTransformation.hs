@@ -201,13 +201,14 @@ recodeRawData inData inCharInfo curCharData =
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
   let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-                                      , minRangePrelim = V.empty
-                                      , maxRangePrelim = V.empty
-                                      , matrixStatesPrelim = V.empty
                                       , stateBVFinal = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-                                      , minRangeFinal = V.empty
-                                      , maxRangeFinal = V.empty
+                                      , rangePrelim = V.empty
+                                      , rangeFinal = V.empty
+                                      , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
@@ -217,14 +218,16 @@ missingNonAdditive inCharInfo =
 -- | missingAdditive is additive missing character value, all 1's based on alphabet size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
-  let missingValue = CharacterData {    stateBVPrelim = V.empty
-                                      , minRangePrelim = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
-                                      , maxRangePrelim = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
-                                      , matrixStatesPrelim = V.empty
+  let missingRange = V.zip (V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)) (V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int))
+      missingValue = CharacterData {    stateBVPrelim = V.empty
                                       , stateBVFinal = V.empty
-                                      , minRangeFinal = V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)
-                                      , maxRangeFinal = V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int)
+                                      , rangePrelim = missingRange
+                                      , rangeFinal = missingRange
+                                      , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = V.empty
+                                      , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
@@ -238,13 +241,14 @@ missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0 :: StateCost , [] ,[])
       missingValue = CharacterData  { stateBVPrelim = V.empty
-                                    , minRangePrelim = V.empty
-                                    , maxRangePrelim = V.empty
-                                    , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
                                     , stateBVFinal = V.empty
-                                    , minRangeFinal = V.empty
-                                    , maxRangeFinal = V.empty
-                                    , matrixStatesFinal = V.singleton (V.empty)
+                                    , rangePrelim = V.empty
+                                    , rangeFinal = V.empty
+                                    , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
+                                    , matrixStatesFinal = V.empty
+                                    , sequencePrelim = V.empty
+                                    , sequenceGapped = V.empty
+                                    , sequenceFinal = V.empty
                                     , localCostVect = V.singleton 0
                                     , localCost = 0.0
                                     , globalCost = 0.0
@@ -351,18 +355,19 @@ getSequenceChar :: V.Vector (ST.ShortText, BV.BitVector) -> [ST.ShortText] -> [C
 getSequenceChar nucBVPairVect stateList =
     let sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
                        else V.empty
-        newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
-                                              , minRangePrelim = V.empty
-                                              , maxRangePrelim = V.empty
-                                              , matrixStatesPrelim = V.empty
-                                              , stateBVFinal = sequenceVect
-                                              , minRangeFinal = V.empty
-                                              , maxRangeFinal = V.empty
-                                              , matrixStatesFinal = V.empty
-                                              , localCostVect = V.singleton 0
-                                              , localCost = 0.0
-                                              , globalCost = 0.0
-                                              }
+        newSequenceChar = CharacterData  {  stateBVPrelim = V.empty
+                                          , stateBVFinal = V.empty
+                                          , rangePrelim = V.empty
+                                          , rangeFinal = V.empty
+                                          , matrixStatesPrelim = V.empty
+                                          , matrixStatesFinal = V.empty
+                                          , sequencePrelim = V.singleton sequenceVect
+                                          , sequenceGapped = V.empty
+                                          , sequenceFinal = V.singleton sequenceVect
+                                          , localCostVect = V.singleton 0
+                                          , localCost = 0.0
+                                          , globalCost = 0.0
+                                          }
     in
     --trace ("getSeqChar codes: " ++ (show nucBVPairVect) ++ " inChar: " ++ (show stateList) ++ "\n" ++ (show newSequenceChar))
     [newSequenceChar]
@@ -398,14 +403,15 @@ getGeneralSequenceChar inCharInfo stateList =
         let stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
             sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
                            else V.empty
-            newSequenceChar = CharacterData  {  stateBVPrelim = sequenceVect
-                                              , minRangePrelim = V.empty
-                                              , maxRangePrelim = V.empty
+            newSequenceChar = CharacterData  {  stateBVPrelim = V.empty
+                                              , stateBVFinal = V.empty
+                                              , rangePrelim = V.empty
+                                              , rangeFinal = V.empty
                                               , matrixStatesPrelim = V.empty
-                                              , stateBVFinal = sequenceVect
-                                              , minRangeFinal = V.empty
-                                              , maxRangeFinal = V.empty
                                               , matrixStatesFinal = V.empty
+                                              , sequencePrelim = V.singleton sequenceVect
+                                              , sequenceGapped = V.empty
+                                              , sequenceFinal = V.singleton sequenceVect
                                               , localCostVect = V.singleton 0
                                               , localCost = 0.0
                                               , globalCost = 0.0
@@ -511,13 +517,14 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         if firstCharType == NonAdd then
             let stateBV = getStateBitVector (alphabet firstCharInfo) firstState
                 newCharacter = CharacterData {  stateBVPrelim = V.singleton stateBV
-                                              , minRangePrelim = V.empty
-                                              , maxRangePrelim = V.empty
-                                              , matrixStatesPrelim = V.empty
                                               , stateBVFinal = V.singleton stateBV
-                                              , minRangeFinal = V.empty
-                                              , maxRangeFinal = V.empty
+                                              , rangePrelim = V.empty
+                                              , rangeFinal = V.empty
+                                              , matrixStatesPrelim = V.empty
                                               , matrixStatesFinal = V.empty
+                                              , sequencePrelim = V.empty
+                                              , sequenceGapped = V.empty
+                                              , sequenceFinal = V.empty
                                               , localCostVect = V.singleton 0
                                               , localCost = 0.0
                                               , globalCost = 0.0
@@ -531,13 +538,14 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                else  
                 let (minRange, maxRange) = getIntRange firstState
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
-                                                  , minRangePrelim = V.singleton minRange
-                                                  , maxRangePrelim = V.singleton maxRange
-                                                  , matrixStatesPrelim = V.empty
                                                   , stateBVFinal = V.empty
-                                                  , minRangeFinal = V.singleton minRange
-                                                  , maxRangeFinal = V.singleton maxRange
+                                                  , rangePrelim = V.singleton (minRange, maxRange)
+                                                  , rangeFinal = V.singleton (minRange, maxRange)
+                                                  , matrixStatesPrelim = V.empty
                                                   , matrixStatesFinal = V.empty
+                                                  , sequencePrelim = V.empty
+                                                  , sequenceGapped = V.empty
+                                                  , sequenceFinal = V.empty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0
                                                   , globalCost = 0.0
@@ -551,13 +559,14 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
              else  
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
-                                                  , minRangePrelim = V.empty
-                                                  , maxRangePrelim = V.empty
-                                                  , matrixStatesPrelim = V.singleton initialMatrixVector
                                                   , stateBVFinal = V.empty
-                                                  , minRangeFinal = V.empty
-                                                  , maxRangeFinal = V.empty
-                                                  , matrixStatesFinal = V.singleton V.empty
+                                                  , rangePrelim = V.empty
+                                                  , rangeFinal = V.empty
+                                                  , matrixStatesPrelim = V.singleton initialMatrixVector
+                                                  , matrixStatesFinal = V.empty
+                                                  , sequencePrelim = V.empty
+                                                  , sequenceGapped = V.empty
+                                                  , sequenceFinal = V.empty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0
                                                   , globalCost = 0.0
