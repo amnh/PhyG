@@ -34,13 +34,21 @@ Portability :  portable (I hope)
 
 -}
 
-module Traversals (fullyLabelGraph
+module Traversals  (  fullyLabelGraph
+                    , postOrderTreeTraversal
+                    , preOrderTreeTraversal
                    ) where
 
 import           Types
 import qualified Data.Vector as V
 import qualified LocalGraph as LG
+import GeneralUtilities
+import Debug.Trace
+import qualified GraphFormatUtilities as GFU
 
+-- | emptyPhyloGeneticGraph for checking inputs
+emptyPhyloGeneticGraph :: PhylogeneticGraph
+emptyPhyloGeneticGraph = (LG.empty, 0.0, V.empty, V.empty, (V.empty, V.empty))
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
 -- fully label the graph and return a PhylogeenticGraph
@@ -48,4 +56,39 @@ fullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> Phylogeneti
 fullyLabelGraph inGS inData inGraph = 
     if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
     else 
+        let postOrderTree = postOrderTreeTraversal inGS inData inGraph
+            preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
+        in
         (inGraph, 0.0, V.empty, V.empty, inData)
+
+
+-- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
+-- vi post-order traversal, yields cost as well
+-- for a binary tree only
+postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+postOrderTreeTraversal inGS inData inGraph = 
+    if LG.isEmpty inGraph then (LG.empty, 0.0, V.empty, V.empty, inData)
+    else
+        -- Assumes root is Number of Leaves  
+    	let rootIndex = V.length $ fst inData
+    	in
+    	trace ("It Begins at " ++ show rootIndex) (
+    	if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
+    	else emptyPhyloGeneticGraph
+    	)
+
+
+-- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
+-- and returns a full labbels with 'final' assignments
+-- invafiant that root is HTU !! nLeaves?
+preOrderTreeTraversal :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inGS inData inPGraph = 
+    if LG.isEmpty (fst5 inPGraph) then emptyPhyloGeneticGraph
+    else 
+    	inPGraph
+    	
+
+        
+
+
+

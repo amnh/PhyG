@@ -71,6 +71,11 @@ data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | S
 data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
     deriving (Show, Eq)
 
+-- | Edge types 
+data EdgeType = NetworkEdge | TreeEdge | PendantEdge
+    deriving (Show, Eq)
+
+-- | Cooamnd type structure
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
@@ -165,30 +170,29 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
-
-data VertexType = VertexType { index :: Int  -- For accessing
+-- type vertex data
+data VertexInfo = VertexInfo { index :: Int  -- For accessing
                              , bvLabel :: BV.BitVector -- For comparison of vertices subtrees, etc
                              , parents :: V.Vector Int --indegree indices
                              , children :: V.Vector Int -- outdegree indices
-                             , variety :: NodeType  
+                             , nodeType :: NodeType  
                              } deriving (Show, Eq)
 
-
-data EdgeType = EdgeType { sourceIndex :: Int  -- For accessing
-                         , sinkIndex :: Int  -- For accessing
-                         , minLength :: Double
+-- | type edge data, source and sink node indices are fst3 and snd3 fields. 
+data EdgeInfo = EdgeInfo { minLength :: Double
                          , maxLength :: Double
+                         , edgeType  :: EdgeType
                          } deriving (Show, Eq)
 
 -- | Type BLockDisplayTree is a Forest of tree components (indegree, outdegree) = (0,1|2),(1,2),(1,0)
 -- these are "resolved" from more general graphs
 -- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
-type BlockDisplayForest = LG.Gr VertexType EdgeType 
+type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo 
 
 -- | Type BlockFoci are a vector for each character (in a block usually) of a vector of edges since there may be more than 1 "best" focus
 -- static charcatsr all are fine--so length 1 defualt value
 -- dynamic characters its the edge of traversal focus, a psuedo-root 
-type BlockFoci = V.Vector (V.Vector (LG.LEdge EdgeType))
+type BlockFoci = V.Vector (V.Vector (LG.LEdge EdgeInfo))
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
