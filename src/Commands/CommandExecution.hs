@@ -181,19 +181,19 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "graphs" `elem` commandList then 
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
-                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
+                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
-                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst5 curGraphs))  True True
+                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst6 curGraphs))  True True
                     in 
                     (graphString, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
+                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
-                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst5 curGraphs
+                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
