@@ -120,9 +120,10 @@ preOrderTreeTraversal inGS inData inPGraph =
 -- | preDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
 preDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> VertexIndex -> PhylogeneticGraph
-preDecorateTree inGS inData inGraph startIndex = 
-    
-        (inGraph, 0.0, LG.empty, V.empty, V.empty, V.empty)
+preDecorateTree inGS inData@(nameVect, bvNameVect, blocDataVect) inGraph startIndex = 
+    let blockCharInfo = V.map thd3 blocDataVect
+    in
+    (inGraph, 0.0, LG.empty, V.empty, V.empty, blockCharInfo)
 
 
 
