@@ -1,0 +1,1 @@
+git commit ./src/Commands/*.hs  ./src/DirectOptimization/*.hs  ./src/GraphOptimization/*.hs  ./src/Graphs/*.hs  ./src/Input/*.hs ./src/PhyGraph.cabal  ./src/phygraph.hs  ./src/Types/*.hs ./src/Utilities/*.hs ./notes/*.txt ./doc/*.tex ./doc/*.pdf  -m
