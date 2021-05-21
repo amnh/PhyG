@@ -97,6 +97,10 @@ isEmpty inGraph = G.isEmpty inGraph
 empty :: Gr a b
 empty = G.empty
 
+-- | gelem is a node in a graph
+gelem :: Node -> Gr a b -> Bool
+gelem inNode inGraph = G.gelem inNode inGraph 
+
 -- | maps to labNodes
 labNodes :: Gr a b -> [LNode a] 
 labNodes inGraph = G.labNodes inGraph
