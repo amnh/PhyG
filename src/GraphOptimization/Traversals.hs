@@ -46,6 +46,7 @@ import qualified LocalGraph as LG
 import GeneralUtilities
 import Debug.Trace
 import qualified GraphFormatUtilities as GFU
+import Data.Maybe
 
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
@@ -96,18 +97,34 @@ makeLeafVertex nameVect bvNameVect inData index =
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal inGS inData leafGraph inGraph = 
+postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGraph inGraph = 
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else
         -- Assumes root is Number of Leaves  
         let rootIndex = V.length $ fst3 inData
-            newTree = preDecorateTree inGS inData inGraph rootIndex
+            blockCharInfo = V.map thd3 blocDataVect
+            newTree = preDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
         trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
         else newTree 
         )
 
+
+-- | preDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
+-- labelling vertices and edges as it goes back to root
+-- this for a tree so single rtoot
+preDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexIndex -> PhylogeneticGraph
+preDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo startIndex = 
+    if LG.gelem startIndex curDecGraph then 
+        let rootLabel = LG.lab curDecGraph startIndex 
+        in
+        if rootLabel == Nothing then error ("Root label missing in preDecorateTree for node : " ++ show startIndex)
+        else (simpleGraph, subGraphCost $ fromJust rootLabel, curDecGraph, V.empty, V.empty, blockCharInfo)
+    else -- recurse to children 
+        --let childrenInGraph = fmap LG.gelem  
+        --in
+        (simpleGraph, 0.0, LG.empty, V.empty, V.empty, blockCharInfo)
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labbels with 'final' assignments
@@ -118,14 +135,6 @@ preOrderTreeTraversal inGS inData inPGraph =
     else 
         inPGraph
         
-
--- | preDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
--- labelling vertices and edges as it goes back to root
-preDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> VertexIndex -> PhylogeneticGraph
-preDecorateTree inGS inData@(nameVect, bvNameVect, blocDataVect) inGraph startIndex = 
-    let blockCharInfo = V.map thd3 blocDataVect
-    in
-    (inGraph, 0.0, LG.empty, V.empty, V.empty, blockCharInfo)
 
 
 
