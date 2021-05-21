@@ -179,6 +179,8 @@ data VertexInfo = VertexInfo { index :: Int  -- For accessing
                              , nodeType :: NodeType -- root, leaf, network, tree
                              , vertName :: NameText --Text name of vertex either input or HTU#
                              , vertData :: VertexBlockData -- data as vector of blocks (each a vector of characters) 
+                             , vertexCost :: VertexCost -- local cost of vertex
+                             , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
                              } deriving (Show, Eq)
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields. 

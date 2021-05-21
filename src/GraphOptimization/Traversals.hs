@@ -83,6 +83,8 @@ makeLeafVertex nameVect bvNameVect inData index =
                                 , nodeType = LeafNode
                                 , vertName =  nameVect V.! index
                                 , vertData = thisData
+                                , vertexCost = 0.0
+                                , subGraphCost = 0.0
                                 }   
         in
         (index, newVertex)
