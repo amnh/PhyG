@@ -171,12 +171,14 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
--- type vertex data
+-- | type vertex information
 data VertexInfo = VertexInfo { index :: Int  -- For accessing
-                             , bvLabel :: BV.BitVector -- For comparison of vertices subtrees, etc
+                             , bvLabel :: NameBV -- For comparison of vertices subtrees, etc
                              , parents :: V.Vector Int --indegree indices
                              , children :: V.Vector Int -- outdegree indices
-                             , nodeType :: NodeType  
+                             , nodeType :: NodeType -- root, leaf, network, tree
+                             , vertName :: NameText --Text name of vertex either input or HTU#
+                             , vertData :: VertexBlockData -- data as vector of blocks (each a vector of characters) 
                              } deriving (Show, Eq)
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields. 
@@ -191,10 +193,11 @@ data EdgeInfo = EdgeInfo { minLength :: Double
 type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo 
 type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
--- | Type BlockFoci are a vector for each character (in a block usually) of a vector of edges since there may be more than 1 "best" focus
--- static charcatsr all are fine--so length 1 defualt value
+-- | Type CharacterFoci is a vector for each character (in a block usually) of a vector of edges 
+-- (since there may be more than 1 "best" focus)
+-- static characters all are fine--so length 1 and default value
 -- dynamic characters its the edge of traversal focus, a psuedo-root 
-type BlockFoci = V.Vector (V.Vector (LG.LEdge EdgeInfo))
+type CharacterFoci = V.Vector (V.Vector (LG.LEdge EdgeInfo))
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
@@ -209,10 +212,11 @@ type SimpleGraph = LG.Gr NameText Double
 --    Fields:
 --        1) "Simple" graph with fileds useful for outputting graphs  
 --        2) Graph optimality value or cost
---        3) Vector of display tree for each data Block
---        4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
---         5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
+--        3) Decorated Graph with optimized vertex/Node data
+--        4) Vector of display tree for each data Block 
+--        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
+--        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector CharacterFoci, V.Vector (V.Vector CharInfo))
 
 
 -- | type RawGraph is input graphs with leaf and edge labels
@@ -232,9 +236,10 @@ type RawData = ([TermData], [CharInfo])
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
 -- "Naive" "Opyimized" and "Transformed" darta are this type after differnet processing steps
-type ProcessedData = (V.Vector NameText, V.Vector BlockData)
+type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 
 -- | Block data  is the basic data unit that is optimized on a display tree
+--  Block data contain data fo all leaves and all characters in the block
 -- it is row, ie vertex dominant
 -- it has a bitvector name derived from leaf bitvector labels (union of children)
 -- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees 
@@ -244,9 +249,11 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- Initially set to input filename of character
 --    Fields:
 --        1) name of the block--intially taken from input filenames
---        2) vector of vertiex data with (node Bitvector--for dsisplayu tree stuff, vector of character states)
---        3) Vector of charcater information for characters in the block 
-type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
+--        2) vector of vertex data with vector of character data
+--        3) Vector of character information for characters in the block 
+type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+
+type VertexBlockData = V.Vector (V.Vector CharacterData)
 
 
 

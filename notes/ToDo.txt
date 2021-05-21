@@ -39,6 +39,7 @@
 	hashMap for them 
 	Would need to modify the CharacterData type to add a Vector (Vector BV.BV)
 	to hold teh multiple sequenxe states like with static characters.
+	Same for Matrix/Sankoff
 
 10) General sequence characters--thread hashMap through traversal--or any tree cost determination
 	Need to return it with tree to update CharInfo to incude updated hashMap
@@ -138,6 +139,8 @@
 
 29) Ladderize function to convert graph -> tree
 	if global GraphType == Tree
+	make and use function to produce display tree list
+	from input graph--only take some number (1-> length)
 
 30) Fix small (?) error in UkkonenDO for BitVector and Int64
 	for possibility of long large alphabet sequences
@@ -150,8 +153,23 @@
 	first arg in generateDenseTransitionCostMatrix
 	0 /= 0
 
+33) Test ladderize
+	look may fail if indegree 1 outdegree 1 vertex
 
+34) Test graph -> tree
 
+35) test contract edges
 
+36) test time consistancy
+	non overlap of "before" and "after" nodes
+	for each network node 
+	Consistency among
+	Before nodes
+	After nodes 
+	Equal nodes and their before and after
 
-
+37) new network edges
+	No ancestral edges	
+	No descendant edges
+	No ancestors of network ancestor sister 
+	No descendants of network descendant sister

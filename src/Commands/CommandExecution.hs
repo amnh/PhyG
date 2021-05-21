@@ -90,7 +90,7 @@ setCommand argList globalSettings processedData =
     let commandList = filter (/= "") $ fmap fst argList
         optionList = filter (/= "") $ fmap snd argList
         checkCommandList = checkCommandArgs "set" commandList setArgList
-        leafNameVect = fst processedData
+        leafNameVect = fst3 processedData
 
     in
     if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ (show argList))
@@ -168,13 +168,13 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 in 
                 (dataString, outfileName, writeMode)
             else if "pairdist" `elem` commandList then
-                let nameData = (intercalate "," $ V.toList $ fmap T.unpack $ fst processedData) ++ "\n"
+                let nameData = (intercalate "," $ V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in 
                 (nameData ++ dataString, outfileName, writeMode)
             else if "data" `elem` commandList then 
-                let dataString = phyloDataToString 0 $ snd processedData
-                    baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ snd processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
+                let dataString = phyloDataToString 0 $ thd3 processedData
+                    baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ thd3 processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet"]
                 in
                 (baseData ++ (CSV.genCsvFile $ charInfoFields : dataString), outfileName, writeMode)
@@ -206,7 +206,7 @@ getDataListList inDataList processedData =
     if null inDataList then []
     else 
         let fileNames = " " : (fmap (takeWhile (/= ':')) $ fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
-            fullTaxList = V.toList $ fst  processedData
+            fullTaxList = V.toList $ fst3  processedData
             presenceAbsenceList = fmap (isThere inDataList) fullTaxList
             fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
         in

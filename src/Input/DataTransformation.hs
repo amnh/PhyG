@@ -165,7 +165,7 @@ createBVNames inDataList =
 -- the list accumulator is to avoid Vector snoc/cons O(n)
 createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
 createNaiveData inDataList leafBitVectorNames curBlockData = 
-    if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ reverse curBlockData)
+    if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ fmap snd leafBitVectorNames, V.fromList $ reverse curBlockData)
     else 
         let (firstData, firstCharInfo) = head inDataList
         in
@@ -177,8 +177,8 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             let thisBlockName = T.takeWhile (/= ':') $ name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
                 recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
-                thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
-                thisBlockData = (thisBlockName, thisBlockGuts, thisBlockCharInfo)
+                --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
+                thisBlockData = (thisBlockName, recodedCharacters, thisBlockCharInfo)
             in
             trace ("Recoding block: " ++ T.unpack thisBlockName)
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
