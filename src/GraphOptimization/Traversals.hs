@@ -143,6 +143,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             -- make node from children and new edges to children
             -- median2 takes characters in blocks--but for tree really all same block
             let newCharData = V.map $ M.median2 $ V.zip3 (vertData leftChild) (vertData  crightChild) blockCharInfo
+                neCost = V.sum $ V.map snd $ newCharData
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = (bvLabel leftChild) .&. (bvLabel rightChild)
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
@@ -150,11 +151,16 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                         , nodeType = LG.getNodeType simpleGraph curNode
                                         , vertName = "HTU" ++ (show curNode)
                                         , vertData = newCharData
-                                        , vertexCost = 
-                                        , subGraphCost = 
+                                        , vertexCost = neCost
+                                        , subGraphCost = (subGraphCost leftChild) + (subGraphCost rightChild) + neCost
                                         }   
-                newEdges = makeNewEdges simpleGraph nodeChildren
-                newGraph =  LG.insEdges newEdges $ LG.insNode (curNode, newVertex) (thd6 curDecGraph)                         
+                newEdgesLabel = EdgeInfo {  minLength = 0.0
+                                            , maxLength = 0.0
+                                            , edgeType = TreeEdge
+                                         }
+                newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
+                newLEdges =  fmap (toLEdge' newEdgesLabel) newEdgesLabel
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) (thd6 curDecGraph)                         
             in
             -- return new graph
             (simpleGraph, subGraphCost, newGraph, V.empty, V.empty, blockCharInfo)

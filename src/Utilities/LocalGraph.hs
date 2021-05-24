@@ -110,6 +110,18 @@ labNodes inGraph = G.labNodes inGraph
 labEdges :: Gr a b -> [LEdge b] 
 labEdges inGraph = G.labEdges inGraph
 
+-- | toEdge removes label from edge
+toEdge :: LEdge b -> Edge
+toEdge inEdge = G.toEdge inEdge 
+
+-- | toLEdge adds a label to an edge
+toLEdge :: Edge -> b -> LEdge b 
+toLEdge inEdge inLabel = G.toLEdge inEdge inLabel
+
+-- | toLEdge' flipped version of toLEdge
+toLEdge' :: b -> Edge -> LEdge b 
+toLEdge' inLabel inEdge = G.toLEdge inEdge inLabel
+
 -- | maps to indeg
 indeg :: Gr a b -> LNode a -> Int
 indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
