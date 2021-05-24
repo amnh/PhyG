@@ -103,7 +103,7 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
         -- Assumes root is Number of Leaves  
         let rootIndex = V.length $ fst3 inData
             blockCharInfo = V.map thd3 blocDataVect
-            newTree = preDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
+            newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
         trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
@@ -111,17 +111,20 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
         )
 
 
--- | preDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
+-- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single rtoot
-preDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexIndex -> PhylogeneticGraph
-preDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo startIndex = 
-    if LG.gelem startIndex curDecGraph then 
-        let rootLabel = LG.lab curDecGraph startIndex 
+postDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
+postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
+    -- Back at root of nerw graph
+    if LG.isRoot curDecGraph curNode then
+        let nodeLabel = LG.lab curDecGraph curNode
         in
-        if rootLabel == Nothing then error ("Root label missing in preDecorateTree for node : " ++ show startIndex)
-        else (simpleGraph, subGraphCost $ fromJust rootLabel, curDecGraph, V.empty, V.empty, blockCharInfo)
-    else -- recurse to children 
+        if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.empty, blockCharInfo)
+
+    -- recurse to children 
+    else 
         --let childrenInGraph = fmap LG.gelem  
         --in
         (simpleGraph, 0.0, LG.empty, V.empty, V.empty, blockCharInfo)

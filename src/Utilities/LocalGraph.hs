@@ -213,7 +213,9 @@ isTreeNode  inGraph inNode = (((G.indeg inGraph inNode) == 1) && ((G.outdeg inGr
 
 -- | isRoot checks if node is root 
 isRoot :: Gr a b -> Node-> Bool
-isRoot inGraph inNode = (G.indeg inGraph inNode) == 0
+isRoot inGraph inNode = 
+    if not $ G.gelem inNode inGraph then False
+    else (G.indeg inGraph inNode) == 0
 
 -- | pre returns list of nodes linking to a node 
 pre :: Gr a b -> Node -> [Node]
