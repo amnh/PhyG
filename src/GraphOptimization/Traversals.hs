@@ -141,8 +141,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         -- make node from childern
         else    
             -- make node from children and new edges to children
-            -- characters in blocks--but for tree really all same block
-            let newCharData = M.median2 $ V.zip3 
+            -- median2 takes characters in blocks--but for tree really all same block
+            let newCharData = V.map $ M.median2 $ V.zip3 (vertData leftChild) (vertData  crightChild) blockCharInfo
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = (bvLabel leftChild) .&. (bvLabel rightChild)
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
