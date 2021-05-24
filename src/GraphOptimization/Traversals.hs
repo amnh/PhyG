@@ -46,6 +46,7 @@ import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
 import Debug.Trace
 import qualified GraphFormatUtilities as GFU
+import qualified GraphOptimization.Medians as M
 import Data.Maybe
 
 
@@ -116,18 +117,47 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
 -- this for a tree so single rtoot
 postDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
 postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
-    -- Back at root of nerw graph
-    if LG.isRoot curDecGraph curNode then
+    -- if node in there nothing to do and return
+    if LG.gelem curNode curDecGraph then 
         let nodeLabel = LG.lab curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.empty, blockCharInfo)
 
-    -- recurse to children 
+    -- Need to make node
     else 
-        --let childrenInGraph = fmap LG.gelem  
-        --in
-        (simpleGraph, 0.0, LG.empty, V.empty, V.empty, blockCharInfo)
+        -- check if children in graph
+        let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
+            leftChild = (head nodeChildren)
+            rightChild = (last nodeChildren)
+            leftChildTree = postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo leftChild
+            rightLeftChildTree = if (length nodeChildren == 2) then postDecorateTree inGS inData simpleGraph leftChildTree blockCharInfo rightChild
+                                 else leftChildTree
+        in 
+
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
+        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
+
+        -- make node from childern
+        else    
+            -- make node from children and new edges to children
+            -- characters in blocks--but for tree really all same block
+            let newCharData = M.median2 $ V.zip3 
+                newVertex = VertexInfo {  index = curNode
+                                        , bvLabel = (bvLabel leftChild) .&. (bvLabel rightChild)
+                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                        , children = V.fromList nodeChildren
+                                        , nodeType = LG.getNodeType simpleGraph curNode
+                                        , vertName = "HTU" ++ (show curNode)
+                                        , vertData = newCharData
+                                        , vertexCost = 
+                                        , subGraphCost = 
+                                        }   
+                newEdges = makeNewEdges simpleGraph nodeChildren
+                newGraph =  LG.insEdges newEdges $ LG.insNode (curNode, newVertex) (thd6 curDecGraph)                         
+            in
+            -- return new graph
+            (simpleGraph, subGraphCost, newGraph, V.empty, V.empty, blockCharInfo)
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labbels with 'final' assignments

@@ -40,7 +40,7 @@ Portability :  portable (I hope)
 
 module Utilities.LocalGraph  where
 
-
+import Types.Types
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.DFS as DFS
 import qualified GraphFormatUtilities              as GFU
@@ -129,7 +129,7 @@ getInOutDeg inGraph inLNode =
         in
         (inLNode, inDeg, outDeg)
 
--- | in-bound edge list to node\, maps to inn
+-- | in-bound edge list to node, maps to inn
 inn :: Gr a b -> Node -> [LEdge b]
 inn inGraph inNode = G.inn inGraph inNode
 
@@ -140,6 +140,15 @@ lab inGraph inNode = G.lab inGraph inNode
 -- | out-bound edge list from node, maps to out
 out :: Gr a b -> Node -> [LEdge b]
 out inGraph inNode = G.out inGraph inNode
+
+-- | parents of unlabelled node
+parents :: Gr a b -> Node -> [Node]
+parents inGraph inNode = fmap snd3 $ G.inn inGraph inNode
+
+
+-- | descendants of unlabelled node
+descendants :: Gr a b -> Node -> [Node]
+descendants inGraph inNode = fmap snd3 $ G.out inGraph inNode
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
@@ -216,6 +225,16 @@ isRoot :: Gr a b -> Node-> Bool
 isRoot inGraph inNode = 
     if not $ G.gelem inNode inGraph then False
     else (G.indeg inGraph inNode) == 0
+
+-- | getNodeType returns node type for Node
+getNodeType :: Gr a b -> Node -> NodeType
+getNodeType inGraph inNode =
+    if not $ G.elem inNode inGraph then error ("Node " ++ (show inNode) ++ " not in graph\n" ++ (GFU.showGraph inGraph))
+    else if isLeaf $ inGraph inNode then LeafNode
+    else if isTreeNode $ inGraph inNode then TreeNode
+    else if isNetworkNode $ inGraph inNode then NetworkNode
+    else if isRoot $ inGraph inNode then RootNode
+    else error ("Node type " ++ (show inNode) ++ " not Leaf, Tree, Network, or Root in graph\n" ++ (GFU.showGraph inGraph))
 
 -- | pre returns list of nodes linking to a node 
 pre :: Gr a b -> Node -> [Node]
