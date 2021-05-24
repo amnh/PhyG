@@ -1,4 +1,4 @@
-module DOSmallFFI (wrapperPCG_DO_Small_FFI) where
+module DirectOptimization.DOSmallFFI (wrapperPCG_DO_Small_FFI) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
 import Bio.Character.Encodable  -- this has DynamicCharacter reference
@@ -13,7 +13,7 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified SymMatrix as SM
 import GeneralUtilities
-import Utilities
+import Utilities.Utilities
 import Debug.Trace
 
 

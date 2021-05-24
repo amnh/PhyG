@@ -37,7 +37,7 @@ Portability :  portable (I hope)
 module Commands.CommandExecution ( executeCommands
                                  , executeRenameCommands) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import           GeneralUtilities
 import           System.IO

@@ -58,7 +58,7 @@ One Big thing--
 module Input.TNTUtilities  (getTNTData
                       ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import           Data.Char
 import           Data.List

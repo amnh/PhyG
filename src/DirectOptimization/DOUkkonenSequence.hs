@@ -42,7 +42,7 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOUkkonenSequence
+module DirectOptimization.DOUkkonenSequence
 ( ukkonenDO
 ) where
 
@@ -51,7 +51,7 @@ import Data.Bits
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector  as V
-import qualified LocalSequence as LS
+import qualified Utilities.LocalSequence as LS
 import Data.Bits ((.&.), (.|.))
 
 

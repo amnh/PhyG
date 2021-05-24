@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 -}
 
-module NaiveDO
+module DirectOptimization.NaiveDO
 ( naiveDO
 ) where
 

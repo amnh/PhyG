@@ -207,29 +207,29 @@ executable phyg
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
                   GeneralUtilities
-                  ProcessCommands
-                  Types
+                  Commands.ProcessCommands
+                  Types.Types
                   Input.ReadInputFiles
-                  LocalGraph
+                  Utilities.LocalGraph
                   Input.TNTUtilities
-                  CommandExecution
+                  Commands.CommandExecution
                   Input.DataTransformation
                   Cyclic
                   SymMatrix
-                  Distances
-                  Medians
+                  Utilities.Distances
+                  GraphOptimization.Medians
                   Input.FastAC
-                  LocalSequence
-                  DOUkkonenSequence
-                  DOUkkonenSequenceInt64
-                  DOWrapper
-                  NaiveDOSequence
-                  GraphOperations
-                  DOSmallFFI
-                  DOLargeFFI
-                  Utilities
-                  Traversals
-                  TcmHash
+                  Utilities.LocalSequence
+                  DirectOptimization.DOUkkonenSequence
+                  DirectOptimization.DOUkkonenSequenceInt64
+                  DirectOptimization.DOWrapper
+                  DirectOptimization.NaiveDOSequence
+                  Graphs.GraphOperations
+                  DirectOptimization.DOSmallFFI
+                  DirectOptimization.DOLargeFFI
+                  Utilities.Utilities
+                  GraphOptimization.Traversals
+                  Utilities.TcmHash
             
 library alphabet
 

@@ -34,14 +34,14 @@ Portability :  portable (I hope)
 
 -}
 
-module Distances (getPairwiseDistances
+module Utilities.Distances (getPairwiseDistances
                 , getBlockDistance
                 , getPairwiseBlocDistance
                 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
-import qualified Medians as M
+import qualified GraphOptimization.Medians as M
 import qualified SymMatrix as S
 import qualified Data.Vector as V
 import           Data.List

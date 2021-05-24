@@ -1,5 +1,5 @@
 {- |
-Module      :  LocalGraph.hs
+Module      :  Utilities.LocalGraph.hs
 Description :  Module specifying graph types and functionality
                 This is for indirection so can change underlying graph library
                 without  polutting the rest of the code
@@ -38,7 +38,7 @@ Portability :  portable (I hope)
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LocalGraph  where
+module Utilities.LocalGraph  where
 
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
@@ -68,20 +68,20 @@ type LEdge b = G.LEdge b
 -- | getFENLocal maps to forestEnhancedNewickStringList2FGLList in GraphFormatUtilities
 -- to allow for potnetial swapping FGL graph backend
 -- requires leading and trailing space and newlines to be removed
-getFENLocal :: T.Text -> [LocalGraph.Gr T.Text Double] 
+getFENLocal :: T.Text -> [Utilities.LocalGraph.Gr T.Text Double] 
 getFENLocal inText = GFU.forestEnhancedNewickStringList2FGLList inText
 
 
 -- | readDotLocal calls GrapvViz function to allow for substitution later
-readDotLocal :: String -> IO (LocalGraph.DotGraph LocalGraph.Node)
+readDotLocal :: String -> IO (Utilities.LocalGraph.DotGraph Utilities.LocalGraph.Node)
 readDotLocal fileName = GVIO.readDotFile fileName
 
 -- | dotToGraph local mapo dor 
-dotToGraph ::  (LocalGraph.DotGraph LocalGraph.Node) -> (LocalGraph.Gr Attributes Attributes)
+dotToGraph ::  (Utilities.LocalGraph.DotGraph Utilities.LocalGraph.Node) -> (Utilities.LocalGraph.Gr Attributes Attributes)
 dotToGraph dotGraphList = GV.dotToGraph dotGraphList
 
 -- | hGetDotLocal calls hGetDot from GraphVoz
-hGetDotLocal :: Handle -> IO (LocalGraph.DotGraph LocalGraph.Node)
+hGetDotLocal :: Handle -> IO (Utilities.LocalGraph.DotGraph Utilities.LocalGraph.Node)
 hGetDotLocal inFileHandle = GVIO.hGetDot inFileHandle
 
 -- | fglToPrettyString calls prettify from FGL

@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Utilities  where
+module Utilities.Utilities  where
 
 import qualified Data.Vector as V
 import qualified Data.BitVector.LittleEndian as BV

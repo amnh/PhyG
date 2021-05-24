@@ -44,7 +44,7 @@ module Input.ReadInputFiles
  , extractDataGraphPair
 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import           Data.Char
 import           System.IO

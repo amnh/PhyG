@@ -46,7 +46,7 @@ module Input.FastAC (   getFastA
                 , getFastcCharInfo
                 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import qualified SymMatrix as S 
 import qualified Data.Text.Lazy  as T

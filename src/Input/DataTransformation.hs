@@ -45,7 +45,7 @@ module Input.DataTransformation ( renameData
 
 
 import qualified Data.Text.Lazy as T
-import           Types
+import           Types.Types
 import           Data.List
 import           Data.Maybe
 --import qualified Data.BitVector as BV

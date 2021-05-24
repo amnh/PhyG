@@ -40,16 +40,16 @@ module Main where
 import           System.IO
 import           System.Environment
 import           Data.List
-import           Types
-import qualified ProcessCommands as PC
+import           Types.Types
+import qualified Commands.ProcessCommands as PC
 import qualified Input.ReadInputFiles as RIF
 import           GeneralUtilities
-import qualified CommandExecution as CE
+import qualified Commands.CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
 import qualified Input.DataTransformation as DT
-import qualified Distances as D
-import qualified GraphOperations as GO
-import qualified Traversals as T
+import qualified Utilities.Distances as D
+import qualified Graphs.GraphOperations as GO
+import qualified GraphOptimization.Traversals as T
 
 
 -- | main driver

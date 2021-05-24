@@ -64,9 +64,7 @@ import Data.Alphabet
 import Data.Foldable
 import Data.MetricRepresentation
 import Data.List.NonEmpty (NonEmpty(..))
-
-
-import Types
+import Types.Types
 
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically

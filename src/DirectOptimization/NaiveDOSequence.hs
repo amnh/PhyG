@@ -37,7 +37,7 @@ Portability :  portable (I hope)
 
 -}
 
-module NaiveDOSequence
+module DirectOptimization.NaiveDOSequence
 ( naiveDO
 ) where
 
@@ -46,7 +46,7 @@ import qualified Data.Vector as V
 --import qualified Data.BitVector as BV
 import Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
-import qualified LocalSequence as LS
+import qualified Utilities.LocalSequence as LS
 import qualified Data.BitVector.LittleEndian as BL
 import Data.Bits ((.&.), (.|.))
 

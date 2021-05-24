@@ -40,18 +40,18 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module Medians (  median2
+module GraphOptimization.Medians (  median2
                 , median2Single
                 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import qualified Data.Vector as V
 import qualified Data.BitVector.LittleEndian as BV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
 import qualified SymMatrix as S 
-import qualified DOWrapper as DOW
+import qualified DirectOptimization.DOWrapper as DOW
 import qualified Data.TCM.Dense as TCMD
 import qualified Data.MetricRepresentation as MR
 import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG

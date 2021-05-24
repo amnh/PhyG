@@ -42,7 +42,7 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOUkkonenSequenceInt64
+module DirectOptimization.DOUkkonenSequenceInt64
 ( ukkonenDO
 ) where
 
@@ -50,7 +50,7 @@ import Debug.Trace
 import Data.Int
 import Data.Bits
 import qualified Data.Vector  as V
-import qualified LocalSequence as LS
+import qualified Utilities.LocalSequence as LS
 
 
 

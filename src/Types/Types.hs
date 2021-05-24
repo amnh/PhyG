@@ -34,11 +34,11 @@ Portability :  portable (I hope)
 
 -}
 
-module Types where
+module Types.Types where
 
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V

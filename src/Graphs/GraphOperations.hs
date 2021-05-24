@@ -40,7 +40,7 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module GraphOperations ( ladderizeGraph
+module Graphs.GraphOperations ( ladderizeGraph
                        , verifyTimeConsistency
                        , rerootGraph
                        , generateDisplayTrees
@@ -52,12 +52,12 @@ module GraphOperations ( ladderizeGraph
 import           Debug.Trace
 import Data.List
 import qualified Data.Vector as V
-import qualified DOWrapper as DOW
-import Types
-import qualified LocalGraph as LG
+import qualified DirectOptimization.DOWrapper as DOW
+import Types.Types
+import qualified Utilities.LocalGraph as LG
 import qualified Data.Text.Lazy as T
 import GeneralUtilities
-import qualified LocalSequence as LS
+import qualified Utilities.LocalSequence as LS
 import qualified GraphFormatUtilities as GFU
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with 

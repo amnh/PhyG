@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module LocalSequence where
+module Utilities.LocalSequence where
 
 import Debug.Trace
 import Data.Sequence ((<|), (|>), (><))
@@ -89,16 +89,16 @@ singleton newElem = S.singleton newElem
 
 -- | concat fold over ><
 concat :: (Eq a) => Seq (Seq a) -> Seq a
-concat inSeqSeq = concatInternal inSeqSeq LocalSequence.empty
+concat inSeqSeq = concatInternal inSeqSeq Utilities.LocalSequence.empty
 
 -- | concatInternal internal concat function with accumulator
 concatInternal :: (Eq a) => Seq (Seq a) -> Seq a -> Seq a
 concatInternal inSeqSeq newSeq = 
-	if LocalSequence.null inSeqSeq then newSeq
+	if Utilities.LocalSequence.null inSeqSeq then newSeq
 	else 
-		let firstSeq = LocalSequence.head inSeqSeq
+		let firstSeq = Utilities.LocalSequence.head inSeqSeq
 		in
-		concatInternal (LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
+		concatInternal (Utilities.LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
 
 -- | zip maps to zip
 zip :: Seq a -> Seq b -> Seq (a,b)

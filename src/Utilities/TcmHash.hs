@@ -35,10 +35,10 @@ Portability :  portable (I hope)
 -}
 
 
-module TcmHash where
+module Utilities.TcmHash where
 
 import Data.HashMap
-import Types
+import Types.Types
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
 import Data.Bits ((.&.), (.|.))

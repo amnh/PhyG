@@ -34,15 +34,15 @@ Portability :  portable (I hope)
 
 -}
 
-module Traversals  (  fullyLabelGraph
+module GraphOptimization.Traversals  (  fullyLabelGraph
                     , postOrderTreeTraversal
                     , preOrderTreeTraversal
                     , makeLeafGraph
                    ) where
 
-import           Types
+import           Types.Types
 import qualified Data.Vector as V
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
 import Debug.Trace
 import qualified GraphFormatUtilities as GFU
