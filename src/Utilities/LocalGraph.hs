@@ -53,6 +53,7 @@ import           Data.GraphViz.Commands.IO         as GVIO
 import qualified Data.Graph.Inductive.Graph        as G
 import           System.IO
 import GeneralUtilities
+import Data.Maybe
 
 
 -- | Gr local graph definition using FGL
@@ -131,6 +132,10 @@ getInOutDeg inGraph inLNode =
 -- | in-bound edge list to node\, maps to inn
 inn :: Gr a b -> Node -> [LEdge b]
 inn inGraph inNode = G.inn inGraph inNode
+
+-- | lab returns label of node as Maybe
+lab :: Gr a b -> Node -> Maybe a 
+lab inGraph inNode = G.lab inGraph inNode
 
 -- | out-bound edge list from node, maps to out
 out :: Gr a b -> Node -> [LEdge b]
