@@ -1,4 +1,4 @@
-module DOFFI where
+module DirectOptimization.DOFFI where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
 import Bio.Character.Encodable

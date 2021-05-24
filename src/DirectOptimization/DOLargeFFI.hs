@@ -1,4 +1,4 @@
-module DOLargeFFI where
+module DirectOptimization.DOLargeFFI where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
 import Bio.Character.Encodable
@@ -15,7 +15,7 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified SymMatrix as SM
 import qualified Data.MetricRepresentation as MR
-import Utilities
+import Utilities.Utilities
 import GeneralUtilities
 
 import Debug.Trace

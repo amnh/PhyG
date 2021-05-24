@@ -196,12 +196,12 @@ executable phyg
   -- this for local library files
   hs-source-dirs: .  
                   --./Input 
-                  ./DirectOptimization 
-                  ./Utilities 
-                  ./Types
-                  ./GraphOptimization
-                  ./Commands
-                  ./Graphs
+                  --./DirectOptimization 
+                  --./Utilities 
+                  --./Types
+                  --./GraphOptimization
+                  --./Commands
+                  --./Graphs
                   ../../PhyloLibs
   
   other-modules:  GraphFormatUtilities

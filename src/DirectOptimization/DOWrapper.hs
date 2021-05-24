@@ -40,20 +40,20 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOWrapper
+module DirectOptimization.DOWrapper
 ( getDOMedian
 ) where
 
 import Debug.Trace
 import Data.Int
-import qualified DOSmallFFI as DOSmallFFI
-import qualified DOLargeFFI as DOLargeFFI
+import qualified DirectOptimization.DOSmallFFI as DOSmallFFI
+import qualified DirectOptimization.DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
 import qualified Data.BitVector.LittleEndian as BV
-import qualified NaiveDOSequence as NS
-import qualified DOUkkonenSequence as DKS
-import qualified DOUkkonenSequenceInt64 as DKS64
+import qualified DirectOptimization.NaiveDOSequence as NS
+import qualified DirectOptimization.DOUkkonenSequence as DKS
+import qualified DirectOptimization.DOUkkonenSequenceInt64 as DKS64
 import qualified Data.TCM.Dense as TCMD
 import qualified SymMatrix as SM
 import qualified Data.TCM as TCM

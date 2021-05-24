@@ -34,8 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
-module CommandExecution ( executeCommands
-                        , executeRenameCommands) where
+module Commands.CommandExecution ( executeCommands
+                                 , executeRenameCommands) where
 
 import           Types
 import           Debug.Trace
@@ -47,9 +47,9 @@ import qualified Data.Text.Lazy as T
 import qualified Data.CSV as CSV
 import qualified Data.Vector as V
 import qualified Data.Text.Short as ST
-import qualified GraphOperations as GO
+import qualified Graphs.GraphOperations as GO
 import           GraphFormatUtilities
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 
 
 -- | executeReadCommands reads iput files and returns raw data 

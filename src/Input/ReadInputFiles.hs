@@ -51,7 +51,7 @@ import           System.IO
 import           Data.List
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 import qualified GraphFormatUtilities as GFU
 import qualified Input.TNTUtilities as TNT
 import qualified Data.Graph.Inductive.Basic as B

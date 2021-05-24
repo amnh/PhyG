@@ -46,7 +46,7 @@ Portability :  portable (I hope)
 -}
 
 
-module ProcessCommands  where
+module Commands.ProcessCommands  where
 
 import           Data.Char
 import           Data.List
@@ -54,7 +54,7 @@ import           Debug.Trace
 import           Data.List.Split
 import           Data.Maybe
 
-import           Types
+import           Types.Types
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 
