@@ -55,7 +55,7 @@ One Big thing--
             NEED TO FIX
 -}
 
-module TNTUtilities  (getTNTData
+module Input.TNTUtilities  (getTNTData
                       ) where
 
 import           Types
@@ -65,7 +65,7 @@ import           Data.List
 import           Data.Maybe
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified DataTransformation as DT
+import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
 

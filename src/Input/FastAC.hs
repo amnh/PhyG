@@ -40,7 +40,7 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module FastAC (   getFastA
+module Input.FastAC (   getFastA
                 , getFastaCharInfo
                 , getFastC
                 , getFastcCharInfo
@@ -51,7 +51,7 @@ import           Debug.Trace
 import qualified SymMatrix as S 
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified DataTransformation as DT
+import qualified Input.DataTransformation as DT
 import           Data.List
 import qualified Data.TCM as TCM
 import qualified Data.TCM.Dense as TCMD

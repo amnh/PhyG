@@ -35,7 +35,7 @@ Portability :  portable (I hope)
 -}
 
 
-module DataTransformation ( renameData
+module Input.DataTransformation ( renameData
                           , getDataTerminalNames
                           , addMissingTerminalsToInput
                           , checkDuplicatedTerminals

@@ -195,7 +195,7 @@ executable phyg
   -- include the source files needed in src for github library
   -- this for local library files
   hs-source-dirs: .  
-                  ./Input 
+                  --./Input 
                   ./DirectOptimization 
                   ./Utilities 
                   ./Types
@@ -209,16 +209,16 @@ executable phyg
                   GeneralUtilities
                   ProcessCommands
                   Types
-                  ReadInputFiles
+                  Input.ReadInputFiles
                   LocalGraph
-                  TNTUtilities
+                  Input.TNTUtilities
                   CommandExecution
-                  DataTransformation
+                  Input.DataTransformation
                   Cyclic
                   SymMatrix
                   Distances
                   Medians
-                  FastAC
+                  Input.FastAC
                   LocalSequence
                   DOUkkonenSequence
                   DOUkkonenSequenceInt64

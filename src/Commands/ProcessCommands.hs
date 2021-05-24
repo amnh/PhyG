@@ -56,7 +56,7 @@ import           Data.Maybe
 
 import           Types
 import           GeneralUtilities
-import qualified ReadInputFiles as RIF
+import qualified Input.ReadInputFiles as RIF
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place 

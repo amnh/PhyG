@@ -42,11 +42,11 @@ import           System.Environment
 import           Data.List
 import           Types
 import qualified ProcessCommands as PC
-import qualified ReadInputFiles as RIF
+import qualified Input.ReadInputFiles as RIF
 import           GeneralUtilities
 import qualified CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
-import qualified DataTransformation as DT
+import qualified Input.DataTransformation as DT
 import qualified Distances as D
 import qualified GraphOperations as GO
 import qualified Traversals as T
@@ -130,7 +130,7 @@ main =
     -}
 
     -- Optimize Data
-    let optimizedData = naiveData --  place holder (consolidate all add, non-add etc chars in blocks)
+    let optimizedData = naiveData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
 
     -- Set global vaues before search--should be integrated with executing commands
