@@ -17,14 +17,14 @@ import Utilities.Utilities
 import Debug.Trace
 
 
-{-
-wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
-wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCost)
+
+wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
+wrapperPCG_DO_Small_FFI lhs rhs tcmVect tcmDense = (resultingMedians, fromEnum resultCost)
     where
         --(resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
         (resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
 
-        bitStreams = decodeStream specializedAlphabetToDNA resultFFI
+        bitStreams = decodeStream arbitraryAlphabet resultFFI
 
         resultingMedians = V.fromList . toList $ fmap (BV.fromBits . g 0 . toList) bitStreams
         
@@ -32,6 +32,24 @@ wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCos
         lhsDC = buildDC lhs 
         rhsDC = buildDC rhs
 
+        buildDC :: Vector BV.BitVector -> DynamicCharacter
+        -- buildDC = encodeStream specializedAlphabetToDNA . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
+        buildDC = encodeStream arbitraryAlphabet . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
+
+        f :: Word -> [Bool] -> [String]
+        f _ [] = []
+        f n (x:xs)
+            | x = show n : f (n+1) xs
+            | otherwise = f (n+1) xs
+                
+        -- modified to allow for variable size alphabets
+        g :: Word -> [String] -> [Bool]
+        g n thang
+          | fromEnum n >= length tcmVect = []
+          | null thang = False : g (n+1) []
+          | read (head thang) == n = True  : g (n+1) (tail thang)
+          | otherwise   = False : g (n+1) thang
+        
         {-
         tcmDense = generateDenseTransitionCostMatrix 0 5 getCost
 
@@ -39,12 +57,12 @@ wrapperPCG_DO_Small_FFI lhs rhs tcmDense = (resultingMedians, fromEnum resultCos
             let x = SM.getFullVects tcm
             in  toEnum $ (x ! fromEnum i) ! fromEnum j
         -}
-        specializedAlphabetToDNA :: Alphabet String
-        specializedAlphabetToDNA = fromSymbols $ show <$> (0 :: Word) :| [1 .. 4]
+        arbitraryAlphabet :: Alphabet String
+        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length tcmVect - 1]
 
 
--}
-       
+
+{-
 wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
                          -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
 wrapperPCG_DO_Small_FFI lhs rhs tcmVect tcmDense = 
@@ -106,7 +124,7 @@ wrapperPCG_DO_Small_FFI lhs rhs tcmVect tcmDense =
                 
         arbitraryAlphabet :: Alphabet String
         arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length tcmVect - 1]
-
+-}
 {-
 g' :: Int -> Int -> [String] -> [Bool]
 g' alphSize n inList = 
