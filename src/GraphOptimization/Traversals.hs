@@ -61,7 +61,8 @@ naiveMultiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGr
 naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
-        let rootList = [0.. ((V.length $ fst3 inData) - 1)]
+        let rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
+            --(rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
             rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
             rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData) rerootSimpleList
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
