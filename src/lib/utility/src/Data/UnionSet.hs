@@ -29,7 +29,6 @@ import Data.BitVector.LittleEndian
 import Data.BitVector.LittleEndian.Instances ()
 import Data.Bits
 import GHC.Generics
-import TextShow                              (TextShow)
 
 
 -- |
@@ -38,7 +37,7 @@ import TextShow                              (TextShow)
 newtype UnionSet = Union BitVector
     deriving stock    (Generic)
     deriving anyclass (NFData)
-    deriving newtype  (Binary, Bits, Ord, TextShow)
+    deriving newtype  (Binary, Bits, Ord)
 
 
 instance Eq UnionSet where

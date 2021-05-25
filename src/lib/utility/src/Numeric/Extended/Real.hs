@@ -33,7 +33,6 @@ import Data.Binary
 import GHC.Generics
 import Numeric.Extended.Internal
 import Test.QuickCheck
-import TextShow                  (TextShow(showb))
 
 
 -- |
@@ -159,13 +158,6 @@ instance Show ExtendedReal where
     show value@(Cost x)
       | value == infinity = "∞"
       | otherwise         = show x
-
-
-instance TextShow ExtendedReal where
-
-    showb value@(Cost x)
-      | value == infinity = "∞"
-      | otherwise         = showb x
 
 
 {-# INLINE toDouble #-}

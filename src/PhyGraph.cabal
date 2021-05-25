@@ -244,7 +244,6 @@ library alphabet
     QuickCheck               >= 2.14      && < 3.0,
     semigroupoids            >= 5.3       && < 5.4,
     text-short               >= 0.1.3     && < 1.0,
-    text-show                >= 3.8.1     && < 4.0,
     transformers             >= 0.5.6     && < 1.0,
 
   -- Apparently this is needed to compile with profiling, which is really stupid.
@@ -381,8 +380,6 @@ library data-structures
     smallcheck               >= 1.1.5     && < 2.0,
     text                     >= 1.2.4     && < 2.0,
     text-short               >= 0.1.3     && < 1.0,
-    text-show                >= 3.8.1     && < 4.0,
-    text-show-instances      >= 3.8       && < 4.0,
     unordered-containers     >= 0.2.10    && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-builder           >= 0.3.7     && < 0.4,
@@ -654,8 +651,6 @@ library utility
     tasty-hunit              >= 0.10      && < 1.0,
     text                     >= 1.2.4     && < 2.0,
     text-short               >= 0.1.3     && < 1.0,
-    text-show                >= 3.8.1     && < 4.0,
-    text-show-instances      >= 3.8       && < 4.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2       && < 1.0,
     vector-instances         >= 3.4       && < 3.5,
@@ -676,7 +671,6 @@ library utility
     Data.Pair.Strict
     Data.Range
     Data.ShortText.Custom
-    Data.TextShow.Custom
     Data.UnionSet
     Data.Vector.Custom
     Data.Vector.Memo

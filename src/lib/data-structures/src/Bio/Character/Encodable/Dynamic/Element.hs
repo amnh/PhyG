@@ -57,7 +57,6 @@ import Data.String                                    (fromString)
 import GHC.Generics
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Instances            ()
-import TextShow                                       (TextShow(showb), toString)
 
 
 -- |
@@ -212,12 +211,7 @@ instance Enum DynamicCharacterElement where
 
 instance Show DynamicCharacterElement where
 
-    show = toString . showb
-
-
-instance TextShow DynamicCharacterElement where
-
-    showb dce@(DCE ~(m,l,r)) = fold
+    show dce@(DCE ~(m,l,r)) = fold
         [ "["
         , prefix
         , "|"

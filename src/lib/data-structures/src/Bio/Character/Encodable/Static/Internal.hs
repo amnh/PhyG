@@ -55,7 +55,6 @@ import           Data.String                           (fromString)
 import           GHC.Generics
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances   ()
-import           TextShow                              (TextShow)
 
 
 -- |
@@ -63,7 +62,7 @@ import           TextShow                              (TextShow)
 newtype StaticCharacter
       = SC BitVector
       deriving stock   (Generic)
-      deriving newtype (Arbitrary, Binary, Bits, Eq, Hashable, MonoFunctor, MonoFoldable, Ord, Show, TextShow)
+      deriving newtype (Arbitrary, Binary, Bits, Eq, Hashable, MonoFunctor, MonoFoldable, Ord, Show)
 
 
 -- |
@@ -74,7 +73,7 @@ newtype StaticCharacter
 newtype StaticCharacterBlock
       = SCB BitMatrix
       deriving stock   (Generic)
-      deriving newtype (Eq, Ord, Show, TextShow)
+      deriving newtype (Eq, Ord, Show)
 
 
 type instance Bound StaticCharacter = Word

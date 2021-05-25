@@ -32,7 +32,6 @@ import Data.Foldable
 import Data.Range
 import GHC.Generics
 import Numeric.Extended.Real
-import TextShow                                 (TextShow(showb))
 
 
 -- |
@@ -78,15 +77,6 @@ instance Show ContinuousCharacter where
       | otherwise      = renderRange lower upper
         where
             renderRange x y = fold [ "[", show x, ", ", show y, "]" ]
-
-
-instance TextShow ContinuousCharacter where
-
-    showb (CC (lower, upper))
-      | lower == upper = showb lower
-      | otherwise      = renderRange lower upper
-        where
-            renderRange x y = fold [ "[", showb x, ", ", showb y, "]" ]
 
 
 -- |

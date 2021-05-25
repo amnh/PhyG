@@ -29,7 +29,6 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TypeFamilies       #-}
 
-
 module Numeric.Cost
   ( Cost
   , ExtendedNumber(..)
@@ -50,7 +49,6 @@ import Numeric.Extended.Internal
 import Numeric.Natural
 import Prelude                   hiding (reverse, splitAt)
 import Test.QuickCheck
-import TextShow                  (TextShow(showb))
 
 
 -- |
@@ -140,11 +138,6 @@ instance Semigroup Cost where
 instance Show Cost where
 
     show = renderCost
-
-
-instance TextShow Cost where
-
-    showb = fromString . show
 
 
 renderCost :: Cost -> String

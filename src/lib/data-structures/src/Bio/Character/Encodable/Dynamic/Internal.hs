@@ -73,7 +73,6 @@ import qualified Data.Vector.Unboxed.Mutable                    as MUV
 import           GHC.Generics
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances            ()
-import           TextShow                                       (TextShow(showb))
 
 
 -- |
@@ -385,13 +384,6 @@ instance PossiblyMissingCharacter DynamicCharacter where
     {-# INLINE isMissing  #-}
     isMissing Missing{} = True
     isMissing _         = False
-
-
-instance TextShow DynamicCharacter where
-
-    showb (Missing w)  = "Missing " <> showb w
-    showb (DC      bm) = "DC "      <> showb bm
-
 
 
 --selectDC :: DynamicCharacterElement -> Word -> Maybe Word

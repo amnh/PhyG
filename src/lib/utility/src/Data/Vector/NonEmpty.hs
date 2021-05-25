@@ -21,7 +21,6 @@
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 module Data.Vector.NonEmpty
@@ -65,8 +64,6 @@ import           Data.Vector.Binary         ()
 import           Data.Vector.Instances      ()
 import           Test.QuickCheck            hiding (generate)
 import           Text.Read
-import           TextShow                   (TextShow)
-import           TextShow.Instances         ()
 
 
 -- |
@@ -92,7 +89,6 @@ newtype Vector a = NEV { unwrap :: V.Vector a }
                    , Read
                    , Read1
                    , Semigroup
-                   , TextShow
                    , Zip
                    , ZipWithKey
                    )

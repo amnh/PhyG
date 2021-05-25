@@ -51,7 +51,6 @@ import Data.Range
 import GHC.Generics
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Instances   ()
-import TextShow                              (TextShow(showb), toString)
 
 
 {-# SPECIALISE discreteMetricPairwiseLogic :: AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word) #-}
@@ -180,12 +179,7 @@ instance Ranged AmbiguityGroup where
 
 instance Show AmbiguityGroup where
 
-    show = toString . showb
-
-
-instance TextShow AmbiguityGroup where
-
-    showb (AG bv) = ofoldMap g bv
+    show (AG bv) = ofoldMap g bv
       where
         g b | b         = "1"
             | otherwise = "0"

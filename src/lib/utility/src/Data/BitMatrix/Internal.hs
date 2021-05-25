@@ -33,7 +33,6 @@ import Data.MonoTraversable
 import Data.Ord
 import GHC.Generics
 import Test.QuickCheck                       hiding ((.&.))
-import TextShow                              (TextShow(showb), singleton, unlinesB, unwordsB)
 
 
 -- |
@@ -183,21 +182,6 @@ instance Show BitMatrix where
                     , show $ numRows bm
                     , "x"
                     , show $ numCols bm
-                    , "\n"
-                    ]
-
-instance TextShow BitMatrix where
-
-    showb bm = headerLine <> matrixLines
-      where
-        renderRow   = foldMap (\b -> if b then singleton '1' else singleton '0') . toBits
-        matrixLines = unlinesB $ renderRow <$> rows bm
-        headerLine  = singleton '\n' <>
-                    unwordsB
-                    [ "BitMatrix:"
-                    , showb $ numRows bm
-                    , "x"
-                    , showb $ numCols bm
                     , "\n"
                     ]
 

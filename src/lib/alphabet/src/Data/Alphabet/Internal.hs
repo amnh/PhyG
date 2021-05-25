@@ -61,7 +61,6 @@ import           Data.Set                            (Set)
 import qualified Data.Set                            as Set
 import           Data.String
 import           Data.Text.Short                     (ShortText)
-import           Data.TextShow.Custom                (intercalateB)
 import           Data.Vector.NonEmpty                (Vector)
 import qualified Data.Vector.NonEmpty                as NEV
 import           GHC.Generics                        (Generic)
@@ -69,7 +68,6 @@ import           Numeric.Natural
 import           Prelude                             hiding (lookup, unzip, zip)
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances ()
-import           TextShow                            (TextShow(showb))
 
 
 -- |
@@ -239,15 +237,6 @@ instance Show a => Show (Alphabet a) where
     show x = fold
         [ "Alphabet: {"
         , intercalate ", " $ show <$> toList x
-        , "}"
-        ]
-
-
-instance TextShow a => TextShow (Alphabet a) where
-
-    showb x = fold
-       [ "Alphabet: {"
-        , intercalateB ", " $ showb <$> toList x
         , "}"
         ]
 
