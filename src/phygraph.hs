@@ -142,7 +142,8 @@ main =
     
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings rawData optimizedData [] [] initialSetCommands
-    let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = map (T.naiveMultiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    --let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
@@ -157,7 +158,8 @@ main =
 
     -- Final Stderr report
     timeDN <- getSystemTimeSeconds 
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) in "++ show (timeDN - timeD) ++ " second(s)")
+    let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at minimum cost " ++ (show minCost) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
     
 
 {-

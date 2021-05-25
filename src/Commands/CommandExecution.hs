@@ -193,7 +193,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     in
                     (graphStringCost, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.fglToPrettyString  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
+                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs 
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default

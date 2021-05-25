@@ -43,6 +43,7 @@ TODO:
 module Graphs.GraphOperations ( ladderizeGraph
                        , verifyTimeConsistency
                        , rerootGraph
+                       , rerootGraph'
                        , generateDisplayTrees
                        , contractOneOneEdges
                        , nodesAndEdgesBefore
@@ -200,6 +201,10 @@ rerootGraph rerootIndex inGraph =
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
         newGraph'
         --))
+
+-- | rerootGraph' flipped version of rerootGraph 
+rerootGraph' :: SimpleGraph -> Int -> SimpleGraph
+rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops

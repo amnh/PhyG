@@ -199,7 +199,7 @@ type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 -- (since there may be more than 1 "best" focus)
 -- static characters all are fine--so length 1 and default value
 -- dynamic characters its the edge of traversal focus, a psuedo-root 
-type CharacterFoci = V.Vector (V.Vector (LG.LEdge EdgeInfo))
+type CharacterFoci = V.Vector (V.Vector LG.Node)
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double

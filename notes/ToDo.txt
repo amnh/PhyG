@@ -176,6 +176,6 @@
 
 38) Convert phylogenetic graph to simple graph for output
 
-39) add reroot to traversal
+39) add smart reroot to traversal
 
 40) Check traversal costs

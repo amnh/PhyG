@@ -34,13 +34,15 @@ Portability :  portable (I hope)
 
 -}
 
-module GraphOptimization.Traversals  (  fullyLabelGraph
-                    , postOrderTreeTraversal
-                    , preOrderTreeTraversal
-                    , makeLeafGraph
-                   ) where
+module GraphOptimization.Traversals ( fullyLabelGraph
+                                    , postOrderTreeTraversal
+                                    , preOrderTreeTraversal
+                                    , makeLeafGraph
+                                    , naiveMultiTraverseFullyLabelGraph
+                                    ) where
 
 import           Types.Types
+import Data.List
 import qualified Data.Vector as V
 import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
@@ -53,6 +55,20 @@ import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
+
+-- | naiveMultiTraverseFullyLabelGraph naive;ly rerioot graph on all vertices and chooses lowest cost
+naiveMultiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
+    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    else 
+        let rootList = [0.. ((V.length $ fst3 inData) - 1)]
+            rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
+            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData) rerootSimpleList
+            minCost = minimum $ fmap snd6 rerootedPhyloGraphList
+            minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
+        in
+        -- trace (show $ fmap snd6 rerootedPhyloGraphList)
+        head minCostGraphList
 
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
@@ -111,10 +127,10 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
             blockCharInfo = V.map thd3 blocDataVect
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
-        trace ("It Begins at " ++ show rootIndex) (
+        --trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
         else newTree 
-        )
+        --)
 
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
@@ -127,7 +143,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         let nodeLabel = LG.lab curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.empty, blockCharInfo)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.singleton (V.singleton (V.singleton curNode)), blockCharInfo)
 
     -- Need to make node
     else 
@@ -173,7 +189,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
             -- return new graph
-            trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
+            --trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
             (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
             
 

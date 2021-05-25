@@ -290,3 +290,6 @@ splitVertexList inGraph =
     in
     (rootList, leafList, treeVertexList, networkVertexList)
 
+-- | pretty prints graph to String
+prettify :: (Show a, Show b) => Gr a b -> String
+prettify inGraph = G.prettify inGraph
