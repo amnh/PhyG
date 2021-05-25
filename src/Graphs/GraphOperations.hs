@@ -48,6 +48,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , nodesAndEdgesBefore
                        , nodesAndEdgesAfter
                        , getNodeType
+                       , convertDecoratedToSimpleGraph
                        ) where
 
 import           Debug.Trace
@@ -403,3 +404,19 @@ getNodeType inGraph inNode =
     else if LG.isRoot inGraph inNode then RootNode
     else error ("Node type " ++ (show inNode) ++ " not Leaf, Tree, Network, or Root in graph\n" ++ (GFU.showGraph inGraph))
 
+-- | convertDecoratedToSimpleGraph
+convertDecoratedToSimpleGraph :: DecoratedGraph -> SimpleGraph
+convertDecoratedToSimpleGraph inDec = 
+  if LG.isEmpty inDec then LG.empty
+  else 
+    let decNodeList = LG.labNodes inDec
+        newNodeLabels = fmap vertName $ fmap snd decNodeList
+        simpleNodes = zip (fmap fst decNodeList) newNodeLabels
+
+        decEdgeList = LG.labEdges inDec
+        sourceList = fmap fst3 decEdgeList
+        sinkList = fmap snd3 decEdgeList
+        newEdgeLables = fmap minLength $ fmap thd3 decEdgeList
+        simpleEdgeList = zip3 sourceList sinkList newEdgeLables
+    in
+    LG.mkGraph simpleNodes simpleEdgeList

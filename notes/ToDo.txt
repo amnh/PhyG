@@ -173,3 +173,9 @@
 	No descendant edges
 	No ancestors of network ancestor sister 
 	No descendants of network descendant sister
+
+38) Convert phylogenetic graph to simple graph for output
+
+39) add reroot to traversal
+
+40) Check traversal costs

@@ -170,7 +170,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
-                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                        
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
             -- return new graph
             trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
