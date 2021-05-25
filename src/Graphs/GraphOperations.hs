@@ -47,6 +47,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , contractOneOneEdges
                        , nodesAndEdgesBefore
                        , nodesAndEdgesAfter
+                       , getNodeType
                        ) where
 
 import           Debug.Trace
@@ -391,4 +392,14 @@ nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
         fromNodeList = fmap fst3 fromEdgeList
     in
     nodesAndEdgesAfter inGraph (fromNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromNodeList ++ (tail inNodeList)) 
+
+-- | getNodeType returns node type for Node
+getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
+getNodeType inGraph inNode =
+    if not $ LG.gelem inNode inGraph then error ("Node " ++ (show inNode) ++ " not in graph\n" ++ (GFU.showGraph inGraph))
+    else if LG.isLeaf inGraph inNode then LeafNode
+    else if LG.isTreeNode inGraph inNode then TreeNode
+    else if LG.isNetworkNode inGraph inNode then NetworkNode
+    else if LG.isRoot inGraph inNode then RootNode
+    else error ("Node type " ++ (show inNode) ++ " not Leaf, Tree, Network, or Root in graph\n" ++ (GFU.showGraph inGraph))
 

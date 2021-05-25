@@ -47,6 +47,11 @@ import GeneralUtilities
 import Debug.Trace
 import qualified GraphFormatUtilities as GFU
 import qualified GraphOptimization.Medians as M
+import qualified Graphs.GraphOperations  as GO
+
+import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.Text.Lazy  as T
+import Data.Bits ((.&.), (.|.))
 import Data.Maybe
 
 
@@ -131,7 +136,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             leftChild = (head nodeChildren)
             rightChild = (last nodeChildren)
             leftChildTree = postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo leftChild
-            rightLeftChildTree = if (length nodeChildren == 2) then postDecorateTree inGS inData simpleGraph leftChildTree blockCharInfo rightChild
+            rightLeftChildTree = if (length nodeChildren == 2) then postDecorateTree inGS inData simpleGraph (thd6 $ leftChildTree) blockCharInfo rightChild
                                  else leftChildTree
         in 
 
@@ -142,28 +147,32 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         else    
             -- make node from children and new edges to children
             -- median2 takes characters in blocks--but for tree really all same block
-            let newCharData = V.map $ M.median2 $ V.zip3 (vertData leftChild) (vertData  crightChild) blockCharInfo
-                neCost = V.sum $ V.map snd $ newCharData
+            let newSubTree = thd6 $ rightLeftChildTree
+                leftChildLabel = fromJust $ LG.lab newSubTree leftChild
+                rightChildLabel = fromJust $ LG.lab newSubTree rightChild
+                
+                newCharData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
-                                        , bvLabel = (bvLabel leftChild) .&. (bvLabel rightChild)
+                                        , bvLabel = (bvLabel leftChildLabel) .&. (bvLabel rightChildLabel)
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
-                                        , nodeType = LG.getNodeType simpleGraph curNode
-                                        , vertName = "HTU" ++ (show curNode)
-                                        , vertData = newCharData
-                                        , vertexCost = neCost
-                                        , subGraphCost = (subGraphCost leftChild) + (subGraphCost rightChild) + neCost
+                                        , nodeType = GO.getNodeType simpleGraph curNode
+                                        , vertName = T.pack $ "HTU" ++ (show curNode)
+                                        , vertData = V.map (V.map fst) newCharData
+                                        , vertexCost = newCost
+                                        , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                         }   
-                newEdgesLabel = EdgeInfo {  minLength = 0.0
+                newEdgesLabel = EdgeInfo {    minLength = 0.0
                                             , maxLength = 0.0
                                             , edgeType = TreeEdge
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
-                newLEdges =  fmap (toLEdge' newEdgesLabel) newEdgesLabel
-                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) (thd6 curDecGraph)                         
+                newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                        
             in
             -- return new graph
-            (simpleGraph, subGraphCost, newGraph, V.empty, V.empty, blockCharInfo)
+            (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labbels with 'final' assignments
@@ -176,4 +185,16 @@ preOrderTreeTraversal inGS inData inPGraph =
         
 
 
+-- | createVertexDataOverBlocks takes data in blocks and block vector of char info and 
+-- extracts the triple for each block and creates new bloick data for parent node (usually)
+-- not checking if vectgors are equal in length
+createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData then V.fromList curBlockData
+    else
+        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
+            firstBlockMedian = M.median2 firstBlock
+        in
+        createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
+--M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
