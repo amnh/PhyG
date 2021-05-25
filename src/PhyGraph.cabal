@@ -181,6 +181,7 @@ executable phyg
                 , MissingH >= 1.4.3
                 , bv-little
                 , bits
+                , hashmap
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions
@@ -193,31 +194,42 @@ executable phyg
 
   -- include the source files needed in src for github library
   -- this for local library files
-  hs-source-dirs: . ../../PhyloLibs 
+  hs-source-dirs: .  
+                  --./Input 
+                  --./DirectOptimization 
+                  --./Utilities 
+                  --./Types
+                  --./GraphOptimization
+                  --./Commands
+                  --./Graphs
+                  ../../PhyloLibs
   
   other-modules:  GraphFormatUtilities
                   ParallelUtilities
                   GeneralUtilities
-                  ProcessCommands
-                  Types
-                  ReadInputFiles
-                  LocalGraph
-                  TNTUtilities
-                  CommandExecution
-                  DataTransformation
+                  Commands.ProcessCommands
+                  Types.Types
+                  Input.ReadInputFiles
+                  Utilities.LocalGraph
+                  Input.TNTUtilities
+                  Commands.CommandExecution
+                  Input.DataTransformation
                   Cyclic
                   SymMatrix
-                  Distances
-                  Medians
-                  FastAC
-                  LocalSequence
-                  DOUkkonenSequence
-                  DOUkkonenSequenceInt64
-                  DOWrapper
-                  NaiveDOSequence
-                  GraphOperations
-                  DOSmallFFI
-                  DOLargeFFI
+                  Utilities.Distances
+                  GraphOptimization.Medians
+                  Input.FastAC
+                  Utilities.LocalSequence
+                  DirectOptimization.DOUkkonenSequence
+                  DirectOptimization.DOUkkonenSequenceInt64
+                  DirectOptimization.DOWrapper
+                  DirectOptimization.NaiveDOSequence
+                  Graphs.GraphOperations
+                  DirectOptimization.DOSmallFFI
+                  DirectOptimization.DOLargeFFI
+                  Utilities.Utilities
+                  GraphOptimization.Traversals
+                  Utilities.TcmHash
             
 library alphabet
 

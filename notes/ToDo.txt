@@ -1,4 +1,6 @@
 1) add tnt fasta/c tcm stuff and -? to docs
+	Source docs
+	User docs
 
 2) Create MatrixApproxSmall, MatrixApproxLarge
 	Prealigned chars
@@ -37,6 +39,7 @@
 	hashMap for them 
 	Would need to modify the CharacterData type to add a Vector (Vector BV.BV)
 	to hold teh multiple sequenxe states like with static characters.
+	Same for Matrix/Sankoff
 
 10) General sequence characters--thread hashMap through traversal--or any tree cost determination
 	Need to return it with tree to update CharInfo to incude updated hashMap
@@ -48,11 +51,6 @@
 	THis would be obviated with Alex and Callan's code if it can be migrated in.
 	But basically--anyhting that returns a tree will have to return potentially updated
 	CharInfo wrt hashMap
-
-11) Add tcmDense2D nad tcmDense3D matrix fields to CharInfo for general matrix
-	Do stuff
-	Like general sequence character worth consolidating if have same TCM/Alphabet
-	to save space
 
 12) Modify DO functions to return additional fields
 	For post order, return postorder median2D, "gapped" median2D, "gapped" left and right children
@@ -89,8 +87,6 @@
 
 	rely on lazyness to be effecient if don't need IA 
 
-14) Ladderize tree Graph input 
-
 15) Simple tree optimization
 		and with smart reroot
 
@@ -110,33 +106,70 @@
 		that one edge shift at a time--should be very predictable in 
 		how much work done (check for networks)
 
-	make edged from root to chikdern (outgroup and sibling)
-	Delete root edge
-
-	traverse from sibling of outgroup, fliping (deleting and reinserting) edges that
-		need to change orientation
-	if orientation doesn't change--that recursive thread is finisged
-
-	For others keep going until hit old root edge 
-		When encounter root edge, Remove edges from orignal root to children and add 
-		edge between them with correct direction
-		the 'v' traveraal (edge u->v) should already be in correct orientation
-			but check initially
-
    if forest, no issues since if outgroup not in component
    		should participate in traversal
    		Should be OK for network, but needs to be checked
 
-20) FFI/Alex
-	BV.BV to bvlittle
-	move TCMs to charinfo
-	more efficent to DynamicCharcater functions.
+   	Verify number of edges visited 
+   		Ie 3 for adjecent
 
-21)  Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
-
-22) cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
-	until figure out why cabal does this.
-
-23) Maybe use PCG DynamicCharacter type
+21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
+	bin +RTS -p -RTS args....
+	cretes prog.prof
 
 24) fix tcmMemo
+	Unpredictable behavior not found in non hash memo version
+	Could be unsafeIO isssue in FFI of hashmap?
+
+25) Special case tcmMemo sub/inDel?
+	need to check tcmMemo  very slow for sub/indel only
+	ensure its actually updating and not recreating every time
+
+26) Special case costonly for C-FFI
+	New wrapper for C-FFI with alternate input output types
+	Triple of vectors as opposed to vector (NE) of triples 
+	Will want to do this to make traversals etc more 
+	maintainable
+
+	For now profile the conversion functions to see how
+	much time suck they are (prob little)
+
+27) Check if DO swap is necessary maybe done by ffi
+	Not necessary for large-Naive DO.
+
+29) Ladderize function to convert graph -> tree
+	if global GraphType == Tree
+	make and use function to produce display tree list
+	from input graph--only take some number (1-> length)
+
+30) Fix small (?) error in UkkonenDO for BitVector and Int64
+	for possibility of long large alphabet sequences
+		Check 1:1 versus 1:2 first
+
+31) Modify charInfo to have gapped, left gapped, right gapped triple
+
+32) Add affine cost option
+	modify charInfo field for affine cost
+	first arg in generateDenseTransitionCostMatrix
+	0 /= 0
+
+33) Test ladderize
+	look may fail if indegree 1 outdegree 1 vertex
+
+34) Test graph -> tree
+
+35) test contract edges
+
+36) test time consistancy
+	non overlap of "before" and "after" nodes
+	for each network node 
+	Consistency among
+	Before nodes
+	After nodes 
+	Equal nodes and their before and after
+
+37) new network edges
+	No ancestral edges	
+	No descendant edges
+	No ancestors of network ancestor sister 
+	No descendants of network descendant sister

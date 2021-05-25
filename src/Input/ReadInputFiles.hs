@@ -38,25 +38,25 @@ Portability :  portable (I hope)
 Functions to peform the input file reading for PhyG
 -}
 
-module ReadInputFiles  
+module Input.ReadInputFiles  
 (  executeReadCommands
  , getReadArgs
  , extractDataGraphPair
 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
 import           Data.Char
 import           System.IO
 import           Data.List
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 import qualified GraphFormatUtilities as GFU
-import qualified TNTUtilities as TNT
+import qualified Input.TNTUtilities as TNT
 import qualified Data.Graph.Inductive.Basic as B
 import qualified GeneralUtilities as GU
-import qualified FastAC as FAC
+import qualified Input.FastAC as FAC
 
 
 {-

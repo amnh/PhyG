@@ -34,11 +34,11 @@ Portability :  portable (I hope)
 
 -}
 
-module Types where
+module Types.Types where
 
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
-import qualified LocalGraph as LG
+import qualified Utilities.LocalGraph as LG
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
@@ -71,6 +71,11 @@ data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | S
 data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
     deriving (Show, Eq)
 
+-- | Edge types 
+data EdgeType = NetworkEdge | TreeEdge | PendantEdge
+    deriving (Show, Eq)
+
+-- | Cooamnd type structure
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
@@ -112,6 +117,7 @@ data CharInfo = CharInfo { name :: T.Text
 -- | Types for vertex information
 type VertexCost = Double
 type StateCost = Int
+type VertexIndex = Int
 
 -- | index of child vertices 
 type ChildStateIndex = Int
@@ -127,26 +133,37 @@ type NameBV = BV.BitVector
 type NameText = T.Text
 
 -- | TYpes for Matrix/Sankoff charcaters
+    -- Triple contains infor from left and right child--could be only one
+    -- use fst then
 type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
-type MatrixState = V.Vector MatrixTriple
 
 -- Only date here that varies by vertex, rest inglobal charcater info
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
--- may have to add single
--- for approximate (DO-like) costs can use stateBVPrelim/stateBVFinal
-data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- for Non-additive, seqeujnce, and Sankoff/Matrix approximate state
-                                     , minRangePrelim :: V.Vector Int -- for Additive
-                                     , maxRangePrelim :: V.Vector Int -- for Additive
-                                     -- triple for Sankoff optimization--cost, left and right descendant states (could be multiple)
-                                     , matrixStatesPrelim :: V.Vector MatrixState -- for Sankoff/Matrix
-                                     , stateBVFinal :: V.Vector BV.BitVector  -- for Non-additive ans Sankoff/Matrix approximate state
-                                     , minRangeFinal :: V.Vector Int -- for Additive
-                                     , maxRangeFinal :: V.Vector Int -- for Additive
-                                     , matrixStatesFinal :: V.Vector (V.Vector (StateCost)) -- for Sankoff/Matrix  keeps delta to "best" states 0 or > 0
+-- may have to add single assignment for hardwired and IP optimization
+-- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
+-- for sequnce and matrix/Saknoff characters-- Vector of vector of States
+    --BUT all with same cost matrix/tcm
+data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx 
+                                     -- for Non-additive ans Sankoff/Matrix approximate state
+                                     , stateBVFinal :: V.Vector BV.BitVector  
+                                     -- for Additive
+                                     , rangePrelim :: V.Vector (Int, Int) 
+                                     , rangeFinal :: V.Vector (Int, Int) 
+                                     -- for multiple Sankoff/Matrix with sme tcm
+                                     , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple) 
+                                     , matrixStatesFinal :: V.Vector (StateCost) 
+                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM 
+                                     , sequencePrelim :: V.Vector (V.Vector BV.BitVector) 
+                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     , sequenceGapped :: V.Vector (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , sequenceFinal :: V.Vector (V.Vector BV.BitVector) 
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect :: V.Vector StateCost 
-                                     , localCost :: VertexCost -- weight * V.sum localCostVect
-                                     , globalCost :: VertexCost -- unclear if need vector version
+                                     -- weight * V.sum localCostVect
+                                     , localCost :: VertexCost 
+                                     -- unclear if need vector version
+                                     , globalCost :: VertexCost 
                                      } deriving (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters
@@ -154,30 +171,35 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
-
-data VertexType = VertexType { index :: Int  -- For accessing
-                             , bvLabel :: BV.BitVector -- For comparison of vertices subtrees, etc
+-- | type vertex information
+data VertexInfo = VertexInfo { index :: Int  -- For accessing
+                             , bvLabel :: NameBV -- For comparison of vertices subtrees, etc
                              , parents :: V.Vector Int --indegree indices
                              , children :: V.Vector Int -- outdegree indices
-                             , variety :: NodeType  
+                             , nodeType :: NodeType -- root, leaf, network, tree
+                             , vertName :: NameText --Text name of vertex either input or HTU#
+                             , vertData :: VertexBlockData -- data as vector of blocks (each a vector of characters) 
+                             , vertexCost :: VertexCost -- local cost of vertex
+                             , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
                              } deriving (Show, Eq)
 
-
-data EdgeType = EdgeType { sourceIndex :: Int  -- For accessing
-                         , sinkIndex :: Int  -- For accessing
-                         , minLength :: Double
+-- | type edge data, source and sink node indices are fst3 and snd3 fields. 
+data EdgeInfo = EdgeInfo { minLength :: Double
                          , maxLength :: Double
+                         , edgeType  :: EdgeType
                          } deriving (Show, Eq)
 
 -- | Type BLockDisplayTree is a Forest of tree components (indegree, outdegree) = (0,1|2),(1,2),(1,0)
 -- these are "resolved" from more general graphs
 -- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
-type BlockDisplayForest = LG.Gr VertexType EdgeType 
+type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo 
+type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
--- | Type BlockFoci are a vector for each character (in a block usually) of a vector of edges since there may be more than 1 "best" focus
--- static charcatsr all are fine--so length 1 defualt value
+-- | Type CharacterFoci is a vector for each character (in a block usually) of a vector of edges 
+-- (since there may be more than 1 "best" focus)
+-- static characters all are fine--so length 1 and default value
 -- dynamic characters its the edge of traversal focus, a psuedo-root 
-type BlockFoci = V.Vector (V.Vector (LG.LEdge EdgeType))
+type CharacterFoci = V.Vector (V.Vector (LG.LEdge EdgeInfo))
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
@@ -192,10 +214,11 @@ type SimpleGraph = LG.Gr NameText Double
 --    Fields:
 --        1) "Simple" graph with fileds useful for outputting graphs  
 --        2) Graph optimality value or cost
---        3) Vector of display trees for each data Block
---        4) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
---         5) Data associated with that tree, alwasy same for leaves (Could keep them separate), but vary for HTUs
-type PhylogeneticGraph = (SimpleGraph, VertexCost, V.Vector BlockDisplayForest, V.Vector BlockFoci, ProcessedData)
+--        3) Decorated Graph with optimized vertex/Node data
+--        4) Vector of display tree for each data Block 
+--        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
+--        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector CharacterFoci, V.Vector (V.Vector CharInfo))
 
 
 -- | type RawGraph is input graphs with leaf and edge labels
@@ -215,9 +238,10 @@ type RawData = ([TermData], [CharInfo])
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
 -- "Naive" "Opyimized" and "Transformed" darta are this type after differnet processing steps
-type ProcessedData = (V.Vector NameText, V.Vector BlockData)
+type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 
 -- | Block data  is the basic data unit that is optimized on a display tree
+--  Block data contain data fo all leaves and all characters in the block
 -- it is row, ie vertex dominant
 -- it has a bitvector name derived from leaf bitvector labels (union of children)
 -- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees 
@@ -227,9 +251,12 @@ type ProcessedData = (V.Vector NameText, V.Vector BlockData)
 -- Initially set to input filename of character
 --    Fields:
 --        1) name of the block--intially taken from input filenames
---        2) vector of vertiex data with (node Bitvector--for dsisplayu tree stuff, vector of character states)
---        3) Vector of charcater information for characters in the block 
-type BlockData = (NameText, V.Vector (NameBV, V.Vector CharacterData), V.Vector CharInfo)
+--        2) vector of vertex data with vector of character data
+--        3) Vector of character information for characters in the block 
+type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+
+-- | VertexBlockData vector over bloickss of character data in block (Vector)
+type VertexBlockData = V.Vector (V.Vector CharacterData)
 
 
 

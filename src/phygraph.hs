@@ -40,15 +40,16 @@ module Main where
 import           System.IO
 import           System.Environment
 import           Data.List
-import           Types
-import qualified ProcessCommands as PC
-import qualified ReadInputFiles as RIF
+import           Types.Types
+import qualified Commands.ProcessCommands as PC
+import qualified Input.ReadInputFiles as RIF
 import           GeneralUtilities
-import qualified CommandExecution as CE
+import qualified Commands.CommandExecution as CE
 import qualified GraphFormatUtilities as GFU
-import qualified DataTransformation as DT
-import qualified Distances as D
-import qualified GraphOperations as GO
+import qualified Input.DataTransformation as DT
+import qualified Utilities.Distances as D
+import qualified Graphs.GraphOperations as GO
+import qualified GraphOptimization.Traversals as T
 
 
 -- | main driver
@@ -82,7 +83,7 @@ main =
     --mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read commands (with prealigned and tcm flags first)
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[])) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
@@ -129,7 +130,7 @@ main =
     -}
 
     -- Optimize Data
-    let optimizedData = naiveData --  place holder (consolidate all add, non-add etc chars in blocks)
+    let optimizedData = naiveData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
 
     -- Set global vaues before search--should be integrated with executing commands
@@ -141,7 +142,7 @@ main =
     
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings rawData optimizedData [] [] initialSetCommands
-    let inputGraphList = map (GO.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData

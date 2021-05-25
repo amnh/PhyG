@@ -40,20 +40,20 @@ Lots of cons  O(n) stuff--could be improved
 
 -- {-# LANGUAGE DeriveGeneric, DerivingVia, UndecidableInstances #-}
 
-module DOWrapper
+module DirectOptimization.DOWrapper
 ( getDOMedian
 ) where
 
 import Debug.Trace
 import Data.Int
-import qualified DOSmallFFI as DOSmallFFI
-import qualified DOLargeFFI as DOLargeFFI
+import qualified DirectOptimization.DOSmallFFI as DOSmallFFI
+import qualified DirectOptimization.DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
 import qualified Data.BitVector.LittleEndian as BV
-import qualified NaiveDOSequence as NS
-import qualified DOUkkonnenSequence as DKS
-import qualified DOUkkonnenSequenceInt64 as DKS64
+import qualified DirectOptimization.NaiveDOSequence as NS
+import qualified DirectOptimization.DOUkkonenSequence as DKS
+import qualified DirectOptimization.DOUkkonenSequenceInt64 as DKS64
 import qualified Data.TCM.Dense as TCMD
 import qualified SymMatrix as SM
 import qualified Data.TCM as TCM
@@ -64,22 +64,20 @@ import Data.Alphabet
 import Data.Foldable
 import Data.MetricRepresentation
 import Data.List.NonEmpty (NonEmpty(..))
-
-
-import Types
+import Types.Types
 
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
-thesholdUKLength = 1
+thesholdUKLength = 15
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
-getDOMedian :: V.Vector  BV.BitVector -> V.Vector  BV.BitVector -> V.Vector  (V.Vector  Int) 
+getDOMedian :: V.Vector  (V.Vector  Int) 
             -> TCMD.DenseTransitionCostMatrix 
             -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
-            -> CharType -> (V.Vector  BV.BitVector, Int)
-getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
+            -> CharType -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) -> (V.Vector  BV.BitVector, Int)
+getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     -- missing data inputs
     if V.null origLBV then (origRBV, 0)
     else if V.null origRBV then (origLBV, 0)
@@ -101,6 +99,8 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
             (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
+
+            -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)

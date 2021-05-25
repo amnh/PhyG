@@ -34,14 +34,14 @@ Portability :  portable (I hope)
 
 -}
 
-module Distances (getPairwiseDistances
+module Utilities.Distances (getPairwiseDistances
                 , getBlockDistance
                 , getPairwiseBlocDistance
                 ) where
 
-import           Types
+import           Types.Types
 import           Debug.Trace
-import qualified Medians as M
+import qualified GraphOptimization.Medians as M
 import qualified SymMatrix as S
 import qualified Data.Vector as V
 import           Data.List
@@ -54,7 +54,7 @@ import qualified ParallelUtilities as P
 -- distances among vertices in data set over blocks ans all character types
 -- sums over blocks
 getPairwiseDistances :: ProcessedData ->  [[VertexCost]]
-getPairwiseDistances (nameVect, blockDataVect) =
+getPairwiseDistances (nameVect, _, blockDataVect) =
     if V.null nameVect then error "Null name vector in getPairwiseDistances"
     else if V.null blockDataVect then error "Null Block Data vector in getPairwiseDistances"
     else 
@@ -71,9 +71,8 @@ getPairwiseDistances (nameVect, blockDataVect) =
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
 getBlockDistance :: BlockData -> (Int, Int) -> VertexCost
-getBlockDistance (_, blockCharData, blockCharInfo) (firstIndex, secondIndex) =
-    let vertData = V.map snd blockCharData
-        pairCost = V.sum $ V.map snd $ M.median2 $ V.zip3 (vertData V.! firstIndex) (vertData V.! secondIndex) blockCharInfo
+getBlockDistance (_, vertData, blockCharInfo) (firstIndex, secondIndex) =
+    let pairCost = V.sum $ V.map snd $ M.median2 $ V.zip3 (vertData V.! firstIndex) (vertData V.! secondIndex) blockCharInfo
     in
     pairCost
 
