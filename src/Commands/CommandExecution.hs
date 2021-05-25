@@ -186,8 +186,9 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
                     let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst6 curGraphs))  True True
-                    in 
-                    (graphString, outfileName, writeMode)
+                        costStringList  = fmap ('[' :) $ fmap (++ "];") $ fmap show $ fmap snd6 curGraphs
+                    in
+                    (graphString  ++ (concat costStringList), outfileName, writeMode)
                 else if "ascii" `elem` commandList then
                     let graphString = concat $ fmap LG.fglToPrettyString  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 

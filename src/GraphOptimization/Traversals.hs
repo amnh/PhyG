@@ -131,6 +131,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 
     -- Need to make node
     else 
+        
         -- check if children in graph
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = (head nodeChildren)
@@ -163,8 +164,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                         , vertexCost = newCost
                                         , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                         }   
-                newEdgesLabel = EdgeInfo {    minLength = 0.0
-                                            , maxLength = 0.0
+                newEdgesLabel = EdgeInfo {    minLength = newCost / 2.0
+                                            , maxLength = newCost / 2.0
                                             , edgeType = TreeEdge
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
@@ -172,7 +173,9 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                        
             in
             -- return new graph
+            trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
             (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
+            
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labbels with 'final' assignments
