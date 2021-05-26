@@ -87,9 +87,6 @@
 
 	rely on lazyness to be effecient if don't need IA 
 
-15) Simple tree optimization
-		and with smart reroot
-
 16) Time concistencuy test for graphs (input especially)
 
 17) Set for "gobal" values--would have tyo be passed around as well 
@@ -97,21 +94,6 @@
 
 18) Check all commands before execution for valid syntax
 	so don't error out at very end after lots of effort
-
-19) Reroot
-	Check if current root aame and return if so
-	keep track of root node index
-
-	This can be used for "rerooting" graph optimization
-		that one edge shift at a time--should be very predictable in 
-		how much work done (check for networks)
-
-   if forest, no issues since if outgroup not in component
-   		should participate in traversal
-   		Should be OK for network, but needs to be checked
-
-   	Verify number of edges visited 
-   		Ie 3 for adjecent
 
 21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
 	bin +RTS -p -RTS args....
@@ -136,11 +118,6 @@
 
 27) Check if DO swap is necessary maybe done by ffi
 	Not necessary for large-Naive DO.
-
-29) Ladderize function to convert graph -> tree
-	if global GraphType == Tree
-	make and use function to produce display tree list
-	from input graph--only take some number (1-> length)
 
 30) Fix small (?) error in UkkonenDO for BitVector and Int64
 	for possibility of long large alphabet sequences
@@ -174,8 +151,10 @@
 	No ancestors of network ancestor sister 
 	No descendants of network descendant sister
 
-38) Convert phylogenetic graph to simple graph for output
-
 39) add smart reroot to traversal
+	and only for dynamic characters
+	do regular traversal first
+		then reroot from that, bt only apply to dynamic
+		keep foci for preorder
 
-40) Check traversal costs
+40) Do preorder with traversal foci
