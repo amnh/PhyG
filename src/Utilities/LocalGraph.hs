@@ -154,7 +154,7 @@ out inGraph inNode = G.out inGraph inNode
 
 -- | parents of unlabelled node
 parents :: Gr a b -> Node -> [Node]
-parents inGraph inNode = fmap snd3 $ G.inn inGraph inNode
+parents inGraph inNode = fmap fst3 $ G.inn inGraph inNode
 
 
 -- | descendants of unlabelled node

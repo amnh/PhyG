@@ -158,3 +158,8 @@
 		keep foci for preorder
 
 40) Do preorder with traversal foci
+
+41) For output diagnosis
+	rediagnose graph(s) wiht Naive data for more legible output
+
+	

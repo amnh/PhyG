@@ -102,7 +102,7 @@ data GlobalSettings = GlobalSettings { outgroupIndex :: Int -- Outgroup terminal
 
 -- | CharInfo information about characters
 -- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
-data CharInfo = CharInfo { name :: T.Text
+data CharInfo = CharInfo { name :: NameText
                          , charType :: CharType
                          , activity :: Bool
                          , weight :: Double
@@ -255,7 +255,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 --        3) Vector of character information for characters in the block 
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 
--- | VertexBlockData vector over bloickss of character data in block (Vector)
+-- | VertexBlockData vector over blocks of character data in block (Vector)
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
 
