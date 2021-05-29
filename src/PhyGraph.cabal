@@ -73,6 +73,7 @@ common ghc-flags
 --    -g                    
     -- Optimization flags
     -O2
+    -threaded
     -fexcess-precision
     -fexpose-all-unfoldings
     -flate-specialise
@@ -195,13 +196,6 @@ executable phyg
   -- include the source files needed in src for github library
   -- this for local library files
   hs-source-dirs: .  
-                  --./Input 
-                  --./DirectOptimization 
-                  --./Utilities 
-                  --./Types
-                  --./GraphOptimization
-                  --./Commands
-                  --./Graphs
                   ../../PhyloLibs
   
   other-modules:  GraphFormatUtilities

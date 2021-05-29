@@ -162,4 +162,10 @@
 41) For output diagnosis
 	rediagnose graph(s) wiht Naive data for more legible output
 
+42) Add function to map bitvector back to alphabet states (including ambiguities)
+
+43) Add edge transformations for diagnosis output
+
+
+
 	
