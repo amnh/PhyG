@@ -79,10 +79,15 @@ main =
       -- Process so one command per line?
 
     commandContents' <- PC.expandRunCommands [] (lines commandContents) 
-    let thingsToDo = PC.getCommandList  commandContents'
+    let thingsToDo' = PC.getCommandList  commandContents'
     --mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
 
     -- Process Read commands (with prealigned and tcm flags first)
+        --expand read commands for wildcards
+    expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
+    let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
+    --hPutStrLn stderr (show $ concat expandedReadCommands)
+
     dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
 
@@ -103,7 +108,7 @@ main =
         -- could be sorted, but no real need
     let dataLeafNames = DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
-    --hPutStrLn stderr (show dataLeafNames)
+    -- hPutStrLn stderr (show dataLeafNames)
 
     
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 

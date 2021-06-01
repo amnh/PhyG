@@ -52,7 +52,7 @@ import           GraphFormatUtilities
 import qualified Utilities.LocalGraph as LG
 
 
--- | executeReadCommands reads iput files and returns raw data 
+-- | executeCommands reads iput files and returns raw data 
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist commandList = do
@@ -266,9 +266,9 @@ executeRenameCommands curPairs commandList  =
         -- skip "Read" and "Rename "commands already processed
         if firstOption /= Rename then executeRenameCommands curPairs (tail commandList)
         else 
-            let newName = T.pack $ snd $ head firstArgs
+            let newName = T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
-                newPairs = zip newNameList (fmap T.pack $ fmap snd $ tail firstArgs)
+                newPairs = zip newNameList (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
             in
             executeRenameCommands (curPairs ++ newPairs) (tail commandList)
 
@@ -314,7 +314,8 @@ getBlockList (blockName, blockDataVect, charInfoVect) =
 
 -- | makeCharLine takes character data 
 -- will be less legible for optimized data--so should use a diagnosis
---based on "naive" data for human legible output
+-- based on "naive" data for human legible output
+-- need to add back-converting to observed states using alphabet in charInfo
 makeCharLine :: (CharacterData, CharInfo) -> [String]
 makeCharLine (blockDatum, charInfo) =
     let localType = charType charInfo

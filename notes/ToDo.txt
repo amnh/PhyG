@@ -166,6 +166,8 @@
 
 43) Add edge transformations for diagnosis output
 
+44) expand read for wildcards
+	issue wirth modifier--needs to be propagated--ie "fasta"
 
 
-	
+45) Tree lengths seem way off for primate data--maybe multiple counting?

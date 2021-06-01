@@ -50,6 +50,8 @@ import qualified Data.Vector as V
 import qualified Data.BitVector.LittleEndian as BV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
+
+import qualified ParallelUtilities as P
 import qualified SymMatrix as S 
 import qualified DirectOptimization.DOWrapper as DOW
 import qualified Data.TCM.Dense as TCMD

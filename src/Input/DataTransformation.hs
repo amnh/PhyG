@@ -79,8 +79,12 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
      else 
         let foundName = find ((== leafName) .snd) namePairList 
         in
-        if foundName == Nothing then terminalData
-        else (fst $ fromJust foundName, leafData)
+        if foundName == Nothing then 
+          --trace ("Not renaming " ++ (T.unpack leafName) ++ " " ++ show namePairList) 
+          terminalData
+        else 
+          --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName)) 
+          (fst $ fromJust foundName, leafData)
 
 -- | getDataTerminalNames takes all input data and getss full terminal list
 -- and adds missing data for trerminals not in input files 

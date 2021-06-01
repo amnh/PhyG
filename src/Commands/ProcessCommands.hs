@@ -112,6 +112,7 @@ getCommandList  rawContents =
     if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
     else 
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
+            -- expand for read wildcards here--cretge a new, potentially longer list
             processedCommands = concat $ fmap parseCommand rawList
         in
         --trace (show rawList)

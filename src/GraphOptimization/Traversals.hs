@@ -68,7 +68,7 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
         in
-        -- trace (show $ fmap snd6 rerootedPhyloGraphList)
+        trace (show $ fmap snd6 rerootedPhyloGraphList)
         head minCostGraphList
 
 
