@@ -172,4 +172,5 @@
 
 45) Tree lengths seem way off for primate data--maybe multiple counting?
 	One block bleeding into another?  Doesn't seem to affect doubling of data file
-	
+
+46) need to ladderize at base
