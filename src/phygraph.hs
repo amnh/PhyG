@@ -80,7 +80,7 @@ main =
 
     commandContents' <- PC.expandRunCommands [] (lines commandContents) 
     let thingsToDo' = PC.getCommandList  commandContents'
-    --mapM_ (hPutStrLn stderr) (fmap show thingsToDo)
+    -- mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
 
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards
@@ -146,7 +146,7 @@ main =
     let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename 
     
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings rawData optimizedData [] [] initialSetCommands
+    (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] initialSetCommands
     let inputGraphList = map (T.naiveMultiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
     --let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
@@ -156,7 +156,7 @@ main =
 
     
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings rawData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show finalGlobalSettings)

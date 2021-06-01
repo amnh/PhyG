@@ -197,7 +197,7 @@ rerootGraph rerootIndex inGraph =
             -- get edges that need reversing
             newGraph' = preTraverseAndFlipEdges newGraph [leftChildEdge,rightChildEdge]
         in
-        trace ("=") 
+        --trace ("=") 
         --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
         newGraph'
@@ -223,12 +223,12 @@ preTraverseAndFlipEdges inGraph inEdgelist  =
         flippedEdges = fmap LG.flipLEdge edgesToFlip
         newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
     in
-    trace ("+") (
+    --trace ("+") (
     -- edge terminates in leaf or edges in correct orientation
     if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges inGraph (tail inEdgelist) 
     -- edge needs to be reversed to follow through its children from a new graph
     else preTraverseAndFlipEdges newGraph (flippedEdges ++ (tail inEdgelist))
-    )
+    --)
 
 -- | getToFlipEdges takes an index and ceck edge list
 -- and cretes new list of edges that need to be flipped

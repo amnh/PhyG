@@ -170,7 +170,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "data" `elem` commandList then 
                 let dataString = phyloDataToString 0 $ thd3 processedData
                     baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ thd3 processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
-                    charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet"]
+                    charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
                 in
                 (baseData ++ (CSV.genCsvFile $ charInfoFields : dataString), outfileName, writeMode)
             else if "diagnosis" `elem` commandList then
@@ -252,7 +252,7 @@ getCharInfoStrings inChar =
         prealignedString = if (prealigned inChar) == True then "prealigned"
                          else "unaligned"
     in
-    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar)
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar) ++ [show $ costMatrix inChar]
 
 -- | executeRenameCommands takes all the "Rename commands" pairs and 
 -- creates a list of pairs of new name and list of old names to be converted

@@ -102,7 +102,8 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
 
             -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
-        in
+        in 
+
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
         --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)
         --else if (thisType == GenSeq || thisType == AminoSeq) then  (mediansLargeFFI, costLargeFFI) 

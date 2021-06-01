@@ -68,7 +68,7 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
         in
-        trace (show $ fmap snd6 rerootedPhyloGraphList)
+        --trace (show $ fmap snd6 rerootedPhyloGraphList)
         head minCostGraphList
 
 
@@ -190,8 +190,11 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
             -- return new graph
-            --trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
+            --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
+               -- ++ (show $ V.map (V.map snd) newCharData)) (
+            --trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
             (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
+            --)
             
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
