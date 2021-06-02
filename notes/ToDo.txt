@@ -173,4 +173,7 @@
 45) Tree lengths seem way off for primate data--maybe multiple counting?
 	One block bleeding into another?  Doesn't seem to affect doubling of data file
 
-46) need to ladderize at base
+46) need to remove blank lines from newick nbefore parse
+
+47)  Output alphabets incorrect;ly formated--should be single string, same for TCM
+

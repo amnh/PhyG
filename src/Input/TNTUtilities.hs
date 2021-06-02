@@ -90,9 +90,9 @@ getTNTData inString fileName =
                 numTax = read (T.unpack $ last $ T.words firstLine) :: Int
             in
             trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
-            let semiColonLineNumber = findIndex (== T.pack ";") restFile
+            let semiColonLineNumber = findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
             in
-            if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block")
+            if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
             else 
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile

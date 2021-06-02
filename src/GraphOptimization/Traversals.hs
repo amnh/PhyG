@@ -190,6 +190,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
             -- return new graph
+            --trace ("Childer: " ++ show (index leftChildLabel, index rightChildLabel))
             --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
                -- ++ (show $ V.map (V.map snd) newCharData)) (
             --trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
