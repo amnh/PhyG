@@ -1,0 +1,6 @@
+read("../data/heteroptera/Matrix-morphology-10Feb2016-123-taxa.ss")
+--read("../data/heteroptera/*.fasta")
+read("../results/heteroptera/heteroptera-dW-1-poy.tre")
+report("heteroptera-pg.tre", graphs,newick, overwrite)
+report("het-pair-dist.csv", pairdist, overwrite)
+report("het-pg-data.csv", data, overwrite)
