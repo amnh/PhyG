@@ -177,3 +177,17 @@
 
 47)  Output alphabets incorrect;ly formated--should be single string, same for TCM
 
+48) Hartigan 1973 preorder optimization
+
+49) additive to binary for small number states?  Bit packing
+
+50) Bit packing 
+Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
+
+51) Additive chars recoded to binary (and packed)
+
+52) Node clusters--Goloboff 1996,1999
+
+53) tree cmoparsino hash, 
+	Could be hash of edges wth min 0 filtered out
+
