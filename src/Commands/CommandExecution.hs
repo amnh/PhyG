@@ -282,7 +282,7 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
     else 
         let vertexList = LG.labNodes decGraph
             edgeList = LG.labEdges decGraph
-            topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State"]
+            topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
             vertexInfoList =  concat $ fmap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
             edgeHeaderList = [[""],["", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
@@ -298,7 +298,7 @@ getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
                      else if nodeType  (snd inVert) == LeafNode then show leafParents 
                      else show $  parents  (snd inVert)
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
-        basicInfoList = ["", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes]
+        basicInfoList = ["", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, "", "", "", "", "", show $ vertexCost (snd inVert)]
         blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect 
         blockInfoList = concat $ V.toList $ V.map getBlockList blockCharVect
     in
@@ -329,7 +329,7 @@ makeCharLine (blockDatum, charInfo) =
                                       else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (show $ sequencePrelim blockDatum, show $ sequenceFinal blockDatum)
                                       else error ("Un-implemented data type " ++ show localType)
         in
-        ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal]
+        ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation

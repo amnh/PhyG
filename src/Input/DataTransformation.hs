@@ -152,7 +152,7 @@ createBVNames inDataList =
         -}
         --bv1 = BV.bitVec (length textNameList) (1 :: Integer)
         bv1 = BV.fromBits [True]
-        bvList = fmap (shiftR bv1) [0..((length textNameList) - 1)]
+        bvList = fmap (shiftL bv1) [0..((length textNameList) - 1)]
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
     else zip textNameList bvList
@@ -432,7 +432,7 @@ getSingleStateBV localAlphabet localState =
         --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
         --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
         bv1 = BV.fromBits (True :  (replicate ((length localAlphabet) - 1) False))
-        bvState = shiftR bv1 (fromJust stateIndex)
+        bvState = shiftL bv1 (fromJust stateIndex)
     in
     if stateIndex ==  Nothing then 
         if (localState `elem` (fmap ST.fromString ["?","-"])) then (BV.fromBits $ replicate (length $ localAlphabet) True) 

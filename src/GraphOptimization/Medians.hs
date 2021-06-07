@@ -77,8 +77,10 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         thisMatrix = costMatrix inCharInfo
         thisDenseMatrix = denseTCM inCharInfo
         thisTCMMemo = memoTCM inCharInfo
+        thisActive = activity inCharInfo
     in
-    if thisType == Add then 
+    if thisActive == False then (firstVertChar, 0)
+    else if thisType == Add then 
         let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar 
         in
         (newCharVect, localCost  newCharVect)
@@ -117,8 +119,8 @@ localAnd lBV rBV = lBV .&. rBV
 
 -- | localAndOr takes the intesection vect and union vect elements
 -- and return intersection is /= 0 otherwise union
-localAndOr :: BV.BitVector -> BV.BitVector -> BV.BitVector -> BV.BitVector
-localAndOr localZero interBV unionBV = if (interBV  ==  localZero) then unionBV else interBV
+localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
+localAndOr interBV unionBV = if (BV.isZeroVector interBV) then unionBV else interBV
 
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
@@ -129,10 +131,9 @@ interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight leftChar rightChar =
     let intersectVect =  V.zipWith localAnd (stateBVPrelim leftChar) (stateBVPrelim rightChar)
         unionVect = V.zipWith localOr (stateBVPrelim leftChar) (stateBVPrelim rightChar)
-        localZero = BV.fromBits [False] -- BV.bitVec (BV.size $ V.head $ stateBVPrelim leftChar) (0 :: Integer)
-        numUnions = V.length $ V.filter ( ==  localZero) intersectVect
+        numUnions = V.length $ V.filter BV.isZeroVector intersectVect
         newCost = thisWeight * (fromIntegral numUnions)
-        newStateVect = V.zipWith (localAndOr localZero) intersectVect unionVect
+        newStateVect = V.zipWith localAndOr intersectVect unionVect
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , stateBVFinal = V.singleton (BV.fromBits [False])
                                       , rangePrelim = V.empty
@@ -147,10 +148,10 @@ interUnion thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
-    {-
-    trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\n\t" ++ (show $ stateBVPrelim leftChar) ++ "\n\t" ++ (show $ stateBVPrelim rightChar) ++ "\n\t"
-        ++ (show intersectVect) ++ "\n\t" ++ (show unionVect) ++ "\n\t" ++ (show newStateVect))
-    -}
+    
+    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --    ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
+    
     newCharcater
 
 -- | getNewRange takes min and max range of two additive charcaters and returns 
@@ -191,11 +192,10 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
-    {-
-    trace ("Additive: " ++ (show newCost) ++ "\n\t" ++ (show $ minRangePrelim leftChar) ++ "\n\t" ++ (show $ maxRangePrelim leftChar) ++ "\n\t"
-        ++ (show $ minRangePrelim rightChar) ++ "\n\t" ++ (show $ maxRangePrelim rightChar) ++ "\n\t"  
-        ++ (show newRangeCosts))
-    -}
+    
+    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar) 
+     --   ++ (show newRangeCosts))
+    
     newCharcater
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 

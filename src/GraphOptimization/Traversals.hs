@@ -61,10 +61,12 @@ naiveMultiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGr
 naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
-        let rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
-            --(rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
+        let leafGraph = makeLeafGraph inData
+            rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
+            -- (rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
             rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
-            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData) rerootSimpleList
+            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) (take 1 rerootSimpleList)
+            -- rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
         in
@@ -74,19 +76,18 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
 -- fully label the graph and return a PhylogeenticGraph
-fullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-fullyLabelGraph inGS inData inGraph = 
+fullyLabelGraph :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+fullyLabelGraph inGS inData leafGraph inGraph = 
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
-        let leafGraph = makeLeafGraph inData
-            postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
+        let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
             preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
         in
         preOrderTree
 
--- | makeLeafGraph takes input dsata and creates a 'graph' of leaves wiyth Vertex informnation
--- biut with zero edges.  This 'graph' can be reused as a starting structure for graph construction
--- to avoid remaking of leave vertices
+-- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
 makeLeafGraph :: ProcessedData -> DecoratedGraph
 makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
     if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
@@ -95,23 +96,24 @@ makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
         in
         LG.mkGraph leafVertexList []
 
--- | makeLeafVertex
+-- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
-makeLeafVertex nameVect bvNameVect inData index =
+makeLeafVertex nameVect bvNameVect inData localIndex =
     let centralData = V.map snd3 inData 
-        thisData = V.map (V.! index) centralData
-        newVertex = VertexInfo  { index = index
-                                , bvLabel = bvNameVect V.! index
+        thisData = V.map (V.! localIndex) centralData
+        newVertex = VertexInfo  { index = localIndex
+                                , bvLabel = bvNameVect V.! localIndex
                                 , parents = V.empty
                                 , children = V.empty
                                 , nodeType = LeafNode
-                                , vertName =  nameVect V.! index
+                                , vertName =  nameVect V.! localIndex
                                 , vertData = thisData
                                 , vertexCost = 0.0
                                 , subGraphCost = 0.0
                                 }   
         in
-        (index, newVertex)
+        -- trace (show (length thisData))
+        (localIndex, newVertex)
 
 
 
@@ -193,7 +195,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             --trace ("Childer: " ++ show (index leftChildLabel, index rightChildLabel))
             --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
                -- ++ (show $ V.map (V.map snd) newCharData)) (
-            --trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
+            -- trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " 
+              --  ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
             (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
             --)
             
@@ -214,7 +217,9 @@ preOrderTreeTraversal inGS inData inPGraph =
 -- not checking if vectgors are equal in length
 createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then V.fromList curBlockData
+    if V.null leftBlockData then 
+        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        V.fromList curBlockData
     else
         let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
             firstBlockMedian = M.median2 firstBlock
