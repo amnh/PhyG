@@ -108,8 +108,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --if inNum == 0 || outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (GFU.showGraph inGraph) )
 
     -- indegree 1 outdegree 1 node to contract
-    --else 
-    if inNum == 1 || outNum == 1 then
+    if inNum == 1 && outNum == 1 then
       let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
           newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
       in
@@ -137,7 +136,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       in 
       newGraph
 
-    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair)
+    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     --)
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)

@@ -97,7 +97,7 @@
 
 21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
 	bin +RTS -p -RTS args....
-	cretes prog.prof
+	creates prog.prof
 
 24) fix tcmMemo
 	Unpredictable behavior not found in non hash memo version

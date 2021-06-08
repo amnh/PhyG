@@ -573,14 +573,14 @@ getDecimals inChar =
             --)
 
 
--- | getAlphWithAmbiguity take a list of ShortText with inform ation and accumulatiors
+-- | getAlphWithAmbiguity take a list of ShortText with information and accumulatiors
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
 --  else if no spaces 
 --    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
--- for additive charcaters if states are not nummerical then throuws an error
+-- for additive charcaters if states are not nummerical then throws an error
 getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType  -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
 getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates = 
     if null inStates then ((sort $ nub newAlph), (reverse newStates))
