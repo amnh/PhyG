@@ -97,6 +97,7 @@ ladderizeGraph' inGraph nodeList =
 -- when more hase to be done--that will occur on lultiple passes through nodes.
 -- perhaps not the most efficient, but only done once per input graph
 -- contracts indegree 1 outdegree 1 nodes
+--NEED TO ADD LOTS OF CASES
 resolveNode :: SimpleGraph -> LG.Node -> ([LG.LEdge Double], [LG.LEdge Double]) -> (Int, Int) -> SimpleGraph
 resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) =
   if LG.isEmpty inGraph then LG.empty
@@ -115,7 +116,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       newGraph
 
     -- leaf or simple tree node in outdegree
-    else if outNum == 0 || outNum == 1 then
+    else if (inNum > 1) && (outNum == 0 || outNum == 1) then
       let first2Edges = take 2 inEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
@@ -126,7 +127,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       newGraph 
 
     -- root or simple network indegree node
-    else if inNum == 0 || inNum == 2 then 
+    else if (inNum == 0 || inNum == 2) then 
       let first2Edges = take 2 outEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
