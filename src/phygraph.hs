@@ -106,12 +106,12 @@ main =
 
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
-    let dataLeafNames = DT.getDataTerminalNames renamedData
+    let dataLeafNames = sort $ DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
     -- hPutStrLn stderr (show dataLeafNames)
 
     
-    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames) renamedData 
+    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData 
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent

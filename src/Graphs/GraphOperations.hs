@@ -97,26 +97,25 @@ ladderizeGraph' inGraph nodeList =
 -- when more hase to be done--that will occur on lultiple passes through nodes.
 -- perhaps not the most efficient, but only done once per input graph
 -- contracts indegree 1 outdegree 1 nodes
---NEED TO ADD LOTS OF CASES
 resolveNode :: SimpleGraph -> LG.Node -> ([LG.LEdge Double], [LG.LEdge Double]) -> (Int, Int) -> SimpleGraph
 resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) =
   if LG.isEmpty inGraph then LG.empty
   else 
-    --trace ("Resolveing " ++ show curNode) (
+    --trace ("Resolveing " ++ show (inNum, outNum)) (
     let numNodes = length $ LG.nodes inGraph
     in
     -- isolated node -- throw error
-    --if inNum == 0 || outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (GFU.showGraph inGraph) )
+    if inNum == 0 || outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (LG.prettify inGraph) )
 
     -- indegree 1 outdegree 1 node to contract
-    if inNum == 1 && outNum == 1 then
+    else if inNum == 1 && outNum == 1 then
       let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
           newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
       in
       newGraph
 
-    -- leaf or simple tree node in outdegree
-    else if (inNum > 1) && (outNum == 0 || outNum == 1) then
+    -- leaf leaf with too manuy parents
+    else if (inNum > 1) && (outNum == 0) then
       let first2Edges = take 2 inEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
@@ -126,8 +125,19 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       in
       newGraph 
 
-    -- root or simple network indegree node
-    else if (inNum == 0 || inNum == 2) then 
+    -- network node with too many parents
+    else if (inNum > 2) && (outNum == 1) then
+      let first2Edges = take 2 inEdgeList
+          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+          newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
+          newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
+          newEdge3 = (numNodes, curNode, 0.0 :: Double)
+          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+      in
+      newGraph 
+
+    -- tree node or root node with too many children
+    else if (inNum < 2 || outNum > 2) then 
       let first2Edges = take 2 outEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
@@ -136,6 +146,31 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
           newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
       in 
       newGraph
+
+    -- node with too parents and too many children
+      -- converts to tree node--biased in that direction
+    else if (inNum > 2) && (outNum > 2) then
+      let first2Edges = take 2 inEdgeList
+          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+          newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
+          newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
+          newEdge3 = (numNodes, curNode, 0.0 :: Double)
+          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+      in
+      newGraph 
+
+
+    -- root or simple network indegree node
+    else if (inNum == 0 || outNum > 2) then 
+      let first2Edges = take 2 outEdgeList
+          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+          newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
+          newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
+          newEdge3 = (curNode, numNodes, 0.0 :: Double)
+          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+      in 
+      newGraph
+
 
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     --)

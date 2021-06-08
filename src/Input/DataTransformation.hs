@@ -95,15 +95,15 @@ getDataTerminalNames inDataList =
         sort $ nub $ fmap fst $ concat $ fmap fst inDataList
 
 -- | addMissingTerminalsToInput dataLeafNames renamedData 
-addMissingTerminalsToInput :: [T.Text] -> RawData -> RawData
-addMissingTerminalsToInput dataLeafNames inData@(termDataList, charInfoList) = 
-    if null dataLeafNames then (sortOn fst termDataList, charInfoList)
+addMissingTerminalsToInput :: [T.Text] -> [TermData]-> RawData -> RawData
+addMissingTerminalsToInput dataLeafNames curTermData inData@(termDataList, charInfoList) = 
+    if null dataLeafNames then (reverse curTermData, charInfoList)
     else 
         let firstLeafName = head dataLeafNames
             foundLeaf = find ((== firstLeafName) .fst)  termDataList
         in
-        if foundLeaf /= Nothing then addMissingTerminalsToInput (tail dataLeafNames) inData
-        else addMissingTerminalsToInput (tail dataLeafNames) ((firstLeafName, []) : termDataList, charInfoList)
+        if foundLeaf /= Nothing then addMissingTerminalsToInput (tail dataLeafNames) ((fromJust foundLeaf) : curTermData) inData 
+        else addMissingTerminalsToInput (tail dataLeafNames) ((firstLeafName, []) : curTermData) inData 
 
 -- | checkDuplicatedTerminals takes list TermData and checks for repeated terminal names
 checkDuplicatedTerminals :: [TermData] -> (Bool, [T.Text]) 
@@ -158,11 +158,11 @@ createBVNames inDataList =
     else zip textNameList bvList
 
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
--- these data are otganized into bloicks (set to input filenames initially)
+-- these data are organized into blocks (set to input filenames initially)
 -- and are bitvector coded, but are not organized by charcter type, packed ot
 -- optimized in any other way (prealigned-> nonadd, Sankoff.  2 state sankoff to binary, 
--- constant charcaters skipped etc)
--- these processes take place latet
+-- constant characters skipped etc)
+-- these processes take place later
 -- these data can be input to any data optimization commands and are useful
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
@@ -443,7 +443,7 @@ getSingleStateBV localAlphabet localState =
 -- and returns then bitvectorfor that state in order of states in alphabet
 getStateBitVector :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getStateBitVector localAlphabet localState  =
-    if null localAlphabet then error "Character with empty alphabet in getStateBitVector"
+    if null localAlphabet then errorWithoutStackTrace "Character with empty alphabet--perhpas all missing(?) or inapplicable values (-)?"
     else 
         let stateString = ST.toString localState
         in
@@ -455,16 +455,57 @@ getStateBitVector localAlphabet localState  =
                 stateList = fmap ST.fromString statesStringList
             in
             foldr1 (.|.) $ fmap (getSingleStateBV localAlphabet) stateList
-            
 
--- getIntRange takes the local states and returns the IOnteger range of an additive character
+-- getMinMaxStates takes  list of strings and determines tjh eminimum and maximum integer values
+getMinMaxStates :: [String] -> (Int, Int) -> (Int, Int)
+getMinMaxStates inStateStringList (curMin, curMax) =
+    if null inStateStringList then (curMin, curMax)
+    else 
+        let firstString = head inStateStringList
+        in
+        -- missing data
+        if firstString == "-" || firstString == "?" then getMinMaxStates (tail inStateStringList) (curMin, curMax)
+        -- single state
+        else if '[' `notElem` firstString then 
+            let onlyInt = readMaybe firstString :: Maybe Int
+            in
+            if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ firstString)
+            else 
+                let minVal = if (fromJust onlyInt) < curMin then (fromJust onlyInt) 
+                             else curMin
+                    maxVal = if (fromJust onlyInt) > curMax then (fromJust onlyInt) 
+                             else curMax
+                in
+                getMinMaxStates (tail inStateStringList) (minVal, maxVal)
+
+        -- range of states
+        else 
+            let statesStringList = words $ tail $ init firstString
+                stateInts = fmap readMaybe statesStringList :: [Maybe Int]
+            in
+            if Nothing `elem` stateInts then error ("Non-integer in range " ++ firstString)
+            else 
+                let localMin = minimum $ fmap fromJust stateInts
+                    localMax = maximum $ fmap fromJust stateInts
+                    minVal = if localMin < curMin then localMin 
+                             else curMin
+                    maxVal = if localMax >  curMax then localMax 
+                             else curMax
+                in
+                getMinMaxStates (tail inStateStringList) (minVal, maxVal)
+
+
+
+-- getIntRange takes the local states and returns the Integer range of an additive character
 -- in principle allows for > 2 states 
-getIntRange :: ST.ShortText -> (Int, Int)
-getIntRange localState = 
+getIntRange :: ST.ShortText -> [ST.ShortText] -> (Int, Int)
+getIntRange localState totalAlphabet = 
     let stateString = ST.toString localState
         in
         --single state
-        if '[' `notElem` stateString then 
+        if (stateString == "?") || (stateString == "-") then getMinMaxStates (fmap ST.toString totalAlphabet) (maxBound :: Int, minBound :: Int)
+
+        else if '[' `notElem` stateString then 
             let onlyInt = readMaybe stateString :: Maybe Int
             in
             if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ ST.toString localState)
@@ -516,6 +557,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         let firstCharInfo = head inCharInfoList
             firstState = head inStateList
             firstCharType = charType firstCharInfo
+            totalAlphabet = alphabet firstCharInfo
         in
         --single state
         if firstCharType == NonAdd then
@@ -540,7 +582,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                if firstState == (ST.fromString "-1") then 
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingAdditive firstCharInfo) : curCharList)
                else  
-                let (minRange, maxRange) = getIntRange firstState
+                let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
                                                   , stateBVFinal = V.empty
                                                   , rangePrelim = V.singleton (minRange, maxRange)

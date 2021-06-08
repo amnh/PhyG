@@ -75,8 +75,10 @@ getTNTData :: String -> String -> RawData
 getTNTData inString fileName = 
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
-        let inText = T.strip $ T.pack inString
+        let inString' = unlines $ filter ((>0).length) $ lines inString
+            inText = T.strip $ T.pack inString'
         in
+        trace (show $ lines inString) (
         if (toLower $ T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else 
             -- look for quoted message
@@ -97,9 +99,9 @@ getTNTData inString fileName =
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
-                    (_, interleaveRemainder) = numDataLines `quotRem` numTax
+                    (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
-                --trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
+                trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
                 else 
                     let sortedData = glueInterleave fileName dataBlock numTax numChar []
@@ -111,6 +113,7 @@ getTNTData inString fileName =
                         charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                         checkInfo = (length charInfoData) == numChar
                 in
+                trace ("Shorted data:" ++ show sortedData) (
                 --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                 if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
                 else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with varying numbers of chacters (should be "
@@ -123,8 +126,9 @@ getTNTData inString fileName =
                         curData = fmap snd sortedData
                         (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
                     in
+                    trace (show (curNames, curData'))
                     (zip curNames curData',charInfoData')
-                )--)
+                ))))
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 -- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
@@ -156,7 +160,7 @@ glueInterleave fileName lineList numTax numChars curData =
         --trace (show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
         --check for raxon order
         --trace ("Words:" ++ (show $ length $ head thisDataBlock)) (
-        if (blockNames /= canonicalNames) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ "processing error: interleaved taxon order error")
+        if (blockNames /= canonicalNames) then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ "processing error--interleaved taxon order error or mispecified number of taxa")
         else 
             let newChars = if (length curData > 0) then zipWith (++) canonicalStrings blockStrings
                            else blockStrings
@@ -513,7 +517,7 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo 
 prependColumn :: [ST.ShortText] -> [[ST.ShortText]] ->  [[ST.ShortText]] -> [[ST.ShortText]]
 prependColumn newColumn inData newData = 
   if (length newColumn /= length inData) && (length inData > 0) then error ("Columns and rows not equal in prependColumn: " ++ show (length newColumn, length inData))
-  else if null newColumn then newData
+  else if null newColumn then fmap reverse newData
   else 
     let firstColumnElement = head newColumn
         firstRowElement = if not $ null inData then head inData
@@ -525,13 +529,13 @@ prependColumn newColumn inData newData =
         -- first case empty rows
         prependColumn (tail newColumn) [] (newRow : newData)
     else
-        --- subsequent cases 
+        -- subsequent cases 
         prependColumn (tail newColumn) (tail inData) (newRow : newData)
     --)
 
 -- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
 -- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
--- checks if char is additive for numebrical alphabet
+-- checks if char is additive for numerical alphabet
 getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> ([ST.ShortText], Double, [ST.ShortText]) 
 getAlphabetFromSTList fileName inStates inCharInfo = 
   if null inStates then error "Empty column data in getAlphabetFromSTList" 
