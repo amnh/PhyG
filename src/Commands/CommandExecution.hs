@@ -50,6 +50,7 @@ import qualified Data.Text.Short as ST
 import qualified Graphs.GraphOperations as GO
 import           GraphFormatUtilities
 import qualified Utilities.LocalGraph as LG
+import qualified Utilities.Utilities  as U
 import qualified Data.BitVector.LittleEndian as BV
 
 -- | executeCommands reads iput files and returns raw data 
@@ -325,9 +326,9 @@ makeCharLine (blockDatum, charInfo) =
         enhancedCharType = if localType `elem`  [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (isPrealigned ++ (show localType))
                            else (show localType)
         (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum) 
-                                      else if localType == NonAdd then (concat $ V.map (bitVectToCharState localAlphabet) $ stateBVPrelim blockDatum, concat $ V.map (bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
+                                      else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (show $ sequencePrelim blockDatum, show $ sequenceFinal blockDatum)
+                                      else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (concat $ V.map concat $ V.map (V.map (U.bitVectToCharState localAlphabet)) $ sequencePrelim blockDatum, concat $ V.map concat $ V.map (V.map (U.bitVectToCharState localAlphabet)) $ sequenceFinal blockDatum)
                                       else error ("Un-implemented data type " ++ show localType)
         in
         ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
@@ -342,14 +343,5 @@ getEdgeInfo inEdge =
 -- | executeSet processes the "set" command
 -- set command very general can set outgroup, optimality criterion, blocks
 -- executeSet :: 
-
--- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState :: [String] -> BV.BitVector -> String
-bitVectToCharState localAlphabet inBit = 
-    let bitBoolPairList = zip (BV.toBits inBit) localAlphabet
-        (_, stateList) = unzip $ filter ((==True).fst) bitBoolPairList
-        in
-        intercalate "," stateList
-
 
 

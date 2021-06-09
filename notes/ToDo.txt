@@ -191,7 +191,8 @@ Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
 53) tree cmoparsino hash, 
 	Could be hash of edges wth min 0 filtered out
 
-54) Add parallel over blocks and charcaters in blocks
+54) Add parallel over blocks and characters in blocks
 
 55) TNT -, ? parse with TNT command?
 
+56) add back reroot

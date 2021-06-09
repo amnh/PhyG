@@ -78,7 +78,7 @@ getTNTData inString fileName =
         let inString' = unlines $ filter ((>0).length) $ lines inString
             inText = T.strip $ T.pack inString'
         in
-        trace (show $ lines inString) (
+        -- trace (show $ lines inString) (
         if (toLower $ T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else 
             -- look for quoted message
@@ -101,7 +101,7 @@ getTNTData inString fileName =
                     numDataLines = length dataBlock
                     (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
-                trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
+                -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
                 else 
                     let sortedData = glueInterleave fileName dataBlock numTax numChar []
@@ -113,7 +113,7 @@ getTNTData inString fileName =
                         charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                         checkInfo = (length charInfoData) == numChar
                 in
-                trace ("Shorted data:" ++ show sortedData) (
+                -- trace ("Shorted data:" ++ show sortedData) (
                 --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                 if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
                 else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with varying numbers of chacters (should be "
@@ -126,9 +126,9 @@ getTNTData inString fileName =
                         curData = fmap snd sortedData
                         (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
                     in
-                    trace (show (curNames, curData'))
+                    -- trace (show (curNames, curData'))
                     (zip curNames curData',charInfoData')
-                ))))
+                ) -- )))
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 -- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
@@ -500,9 +500,10 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo 
     if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeCharacterAlphabets"
     else if null inData then error "Empty inData in checkAndRecodeCharacterAlphabets"
     else if null inCharInfo then 
-        trace (show $ transpose newData)
+        --trace (show $ transpose newData)
         -- (reverse $ fmap reverse newData, reverse newCharInfo)
-        (fmap reverse $ transpose newData, reverse newCharInfo) 
+        (transpose $ reverse newData, reverse newCharInfo) 
+        -- (reverse newData, reverse newCharInfo) 
     else 
         let firstColumn = fmap head inData
             firstCharInfo =  head inCharInfo

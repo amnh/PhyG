@@ -65,7 +65,7 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
             rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
             -- (rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
             rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
-            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) (take 1 rerootSimpleList)
+            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
             -- rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
@@ -112,7 +112,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
                                 , subGraphCost = 0.0
                                 }   
         in
-        -- trace (show (length thisData))
+        -- trace (show (length thisData) ++ (show $ fmap length thisData))
         (localIndex, newVertex)
 
 
@@ -160,8 +160,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                  else leftChildTree
         in 
 
-        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
-        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
+        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateTree node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
 
         -- make node from childern
         else    
@@ -219,7 +219,7 @@ createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.
 createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then 
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
-        V.fromList curBlockData
+        V.fromList $ reverse curBlockData
     else
         let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
             firstBlockMedian = M.median2 firstBlock

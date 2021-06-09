@@ -48,6 +48,7 @@ import Debug.Trace
 import Data.Int
 import qualified DirectOptimization.DOSmallFFI as DOSmallFFI
 import qualified DirectOptimization.DOLargeFFI as DOLargeFFI
+import qualified Utilities.Utilities  as U
 import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
 import qualified Data.BitVector.LittleEndian as BV
@@ -65,6 +66,7 @@ import Data.Foldable
 import Data.MetricRepresentation
 import Data.List.NonEmpty (NonEmpty(..))
 import Types.Types
+import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
@@ -84,10 +86,13 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     else 
         -- not missing
         -- get inDelCost 
+        --trace ("2 in :\n" ++ (concat $ V.map (U.bitVectToCharState ["A","C","G","T","-"]) origLBV) ++ "\n" ++ (concat $ V.map (U.bitVectToCharState ["A","C","G","T","-"]) origRBV)) (
         let inDelCost = V.head (V.last thisMatrix)
             (lBV, rBV) = setLeftRight origLBV origRBV
             -- Int64 version faster for small aphabets
-            bvLength = BV.dimension (V.head lBV) 
+            bvLength = BV.dimension (V.head lBV)
+            bv1 = BV.fromBits (True : (replicate ((fromIntegral bvLength) -1) False))
+            gapCharBit =  shiftL bv1 ((fromIntegral bvLength) - 1)
             leftChar64 = V.map convertBVTo64 lBV
             rightChar64 = V.map convertBVTo64 rBV
             (newMedian64, medianCost64) = DKS64.ukkonenDO leftChar64 rightChar64 inDelCost
@@ -99,21 +104,23 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
             (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
+            mediansFFI' =  V.filter (/= gapCharBit) mediansFFI
 
             -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
             (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in 
 
-        if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
+        if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI', costFFI)-- (newMedianLarge, medianCostLarge) -- 
         --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)
         --else if (thisType == GenSeq || thisType == AminoSeq) then  (mediansLargeFFI, costLargeFFI) 
         else if (thisType == GenSeq || thisType == AminoSeq) then  (newMedianLarge, medianCostLarge)
         else error "Unrecognized/Not implemented character type"
+        --)
        
         
 -- | convertBVTo64 converts bitV.Vector  type to bit64 Int type 
 convertBVTo64 :: BV.BitVector -> Int64
-convertBVTo64 inBV = fromIntegral (BV.toSignedNumber inBV) 
+convertBVTo64 inBV = fromIntegral (BV.toUnsignedNumber inBV) 
 
 -- | convert64ToBV converts bitV.Vector  type to bit64 Int type 
 convert64ToBV :: Word -> Int64 -> BV.BitVector
