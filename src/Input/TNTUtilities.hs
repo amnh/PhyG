@@ -499,7 +499,10 @@ checkAndRecodeCharacterAlphabets :: String -> [[ST.ShortText]] -> [CharInfo] -> 
 checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo =
     if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeCharacterAlphabets"
     else if null inData then error "Empty inData in checkAndRecodeCharacterAlphabets"
-    else if null inCharInfo then (reverse $ fmap reverse newData, reverse newCharInfo)
+    else if null inCharInfo then 
+        trace (show $ transpose newData)
+        -- (reverse $ fmap reverse newData, reverse newCharInfo)
+        (fmap reverse $ transpose newData, reverse newCharInfo) 
     else 
         let firstColumn = fmap head inData
             firstCharInfo =  head inCharInfo
@@ -510,14 +513,17 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo 
                                 firstCharInfo {alphabet = reconcileAlphabetAndCostMatrix fileName (T.unpack thisName) firstAlphabet originalAlphabet}
                               else firstCharInfo {alphabet = firstAlphabet, weight = newWeight}
         in
-        checkAndRecodeCharacterAlphabets fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
+        -- checkAndRecodeCharacterAlphabets fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
+        checkAndRecodeCharacterAlphabets fileName (fmap tail inData) (tail inCharInfo) (newColumn : newData) (updatedCharInfo : newCharInfo)
 
+
+{-
 -- prependColumn takes a list of ShortTex and a list of a  list of shortext and prepends the
 -- first element of the newcolumn list to the first list in inData creting newData
 prependColumn :: [ST.ShortText] -> [[ST.ShortText]] ->  [[ST.ShortText]] -> [[ST.ShortText]]
 prependColumn newColumn inData newData = 
   if (length newColumn /= length inData) && (length inData > 0) then error ("Columns and rows not equal in prependColumn: " ++ show (length newColumn, length inData))
-  else if null newColumn then fmap reverse newData
+  else if null newColumn then newData -- fmap reverse newData
   else 
     let firstColumnElement = head newColumn
         firstRowElement = if not $ null inData then head inData
@@ -532,6 +538,7 @@ prependColumn newColumn inData newData =
         -- subsequent cases 
         prependColumn (tail newColumn) (tail inData) (newRow : newData)
     --)
+-}
 
 -- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
 -- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
