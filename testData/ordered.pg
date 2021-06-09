@@ -1,0 +1,5 @@
+read("ordered.ss")
+read("ordered.tre")
+report("ordered-pair.csv", pairdist, overwrite)
+report("ordered-out.tre", graphs, newick, overwrite)
+report("ordered.diag", diagnosis, overwrite)
