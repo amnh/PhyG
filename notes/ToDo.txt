@@ -196,3 +196,7 @@ Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
 55) TNT -, ? parse with TNT command?
 
 56) add back reroot
+
+57) Add sum line and column to crossrefernces
+
+58) reverse ross ref loci
