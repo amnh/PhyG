@@ -199,7 +199,7 @@ type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 -- (since there may be more than 1 "best" focus)
 -- static characters all are fine--so length 1 and default value
 -- dynamic characters its the edge of traversal focus, a psuedo-root 
-type CharacterFoci = V.Vector (V.Vector LG.Node)
+type CharacterFoci = V.Vector (V.Vector LG.Edge)
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
@@ -217,6 +217,8 @@ type SimpleGraph = LG.Gr NameText Double
 --        3) Decorated Graph with optimized vertex/Node data
 --        4) Vector of display tree for each data Block 
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
+--               vector is over blocks, then charactes and can have multiple for each character
+--               only important for dynamic (ie none-eact) characters whose costs depend on traversal focus
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector CharacterFoci, V.Vector (V.Vector CharInfo))
 

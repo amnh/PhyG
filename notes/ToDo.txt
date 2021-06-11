@@ -199,4 +199,6 @@ Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
 
 57) Add sum line and column to crossrefernces
 
-58) reverse ross ref loci
+58) reverse cross ref loci ?
+
+59) GraphOperations.hs  l 290 on--need to replicate code over different graphs for Decorated and Display forest

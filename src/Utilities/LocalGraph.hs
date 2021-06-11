@@ -231,6 +231,19 @@ isNetworkNode  inGraph inNode = (((G.indeg inGraph inNode) > 1) && ((G.outdeg in
 isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (((G.indeg inGraph inNode) == 1) && ((G.outdeg inGraph inNode) > 0))
 
+-- getRoots retuirns list of graph roots (labelled)
+getRoots :: Gr a b -> [LNode b]
+getRoots inGraph = 
+    if isEmpty inGraph then []
+    else 
+        let nodeList =  labNodes inGraph
+            rootBoolList = fmap (isRoot inGraph) (fmap fst labNodes)
+            pairList = zip rootBoolList nodeList
+            rootPairList =  (filter (==True).fst) pairList
+            rootList = fmap snd rootPairList
+        in
+        rootList 
+
 -- | isRoot checks if node is root 
 isRoot :: Gr a b -> Node-> Bool
 isRoot inGraph inNode = 
