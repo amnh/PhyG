@@ -182,20 +182,18 @@
 49) additive to binary for small number states?  Bit packing
 
 50) Bit packing 
-Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
+	Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
 
 51) Additive chars recoded to binary (and packed)
 
 52) Node clusters--Goloboff 1996,1999
 
-53) tree cmoparsino hash, 
+53) tree comparison hash, 
 	Could be hash of edges wth min 0 filtered out
 
 54) Add parallel over blocks and characters in blocks
 
 55) TNT -, ? parse with TNT command?
-
-56) add back reroot
 
 57) Add sum line and column to crossrefernces
 

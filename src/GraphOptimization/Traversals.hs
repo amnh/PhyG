@@ -64,7 +64,7 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
         let leafGraph = makeLeafGraph inData
             rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
             -- (rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
-            rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
+            rerootSimpleList = fmap (GO.rerootGraph' False inGraph) rootList
             rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
             -- rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
@@ -133,7 +133,24 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
         --trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
         else newTree 
-        --)
+        -- )
+
+-- | getVirtualRootEdge cretes tehe virtual edge that would have existed to crete that node rott
+-- the ide is that if the tree had been rooted somewhere else -- what edge would have existied and was
+-- "divided" to crete this node.  This is used for individual charcater graph traversal foci
+-- edge is basically undirected since orientation is unknown
+getVirtualRootEdge :: (Show a, Show b) => LG.Gr a b -> LG.Node -> LG.Edge
+getVirtualRootEdge inGraph inNode = 
+    if LG.isEmpty inGraph then error "Empty graph in getVirtualRootEdge"
+    else 
+        let childList = LG.descendants inGraph inNode
+            parentList = LG.parents inGraph inNode
+        in
+        -- this really shouldn't be used but in recursion for traversal may be needed
+        if LG.isLeaf inGraph inNode then (head parentList, inNode)
+        else 
+            if length childList /= 2 then error ("Root node with /= 2 childern in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
+            else (head childList, last childList)
 
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
@@ -144,9 +161,12 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
     -- if node in there nothing to do and return
     if LG.gelem curNode curDecGraph then 
         let nodeLabel = LG.lab curDecGraph curNode
+            -- identify/create the virtual edge this node would have been created from
+            -- this for traversal focus use for character 
+            impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.singleton (V.singleton (V.singleton curNode)), blockCharInfo)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.singleton (V.singleton (V.singleton impliedRootEdge)), blockCharInfo)
 
     -- Need to make node
     else 

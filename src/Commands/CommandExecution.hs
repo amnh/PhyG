@@ -181,11 +181,11 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "graphs" `elem` commandList then 
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
-                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
+                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph False (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
-                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs))  True True
+                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph False (outgroupIndex globalSettings)) (fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs))  True True
                         --graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst6 curGraphs))  True True
                         newickStringList = fmap init $ lines graphString
                         costStringList  = fmap ('[' :) $ fmap (++ "];\n") $ fmap show $ fmap snd6 curGraphs
@@ -193,11 +193,11 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     in
                     (graphStringCost, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs 
+                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph False (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs 
                     in 
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
-                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
+                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph False (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
                     in 
                     (graphString, outfileName, writeMode)
             else if "pairdist" `elem` commandList then

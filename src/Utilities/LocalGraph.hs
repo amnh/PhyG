@@ -232,14 +232,14 @@ isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (((G.indeg inGraph inNode) == 1) && ((G.outdeg inGraph inNode) > 0))
 
 -- getRoots retuirns list of graph roots (labelled)
-getRoots :: Gr a b -> [LNode b]
+getRoots :: Gr a b -> [LNode a]
 getRoots inGraph = 
     if isEmpty inGraph then []
     else 
         let nodeList =  labNodes inGraph
-            rootBoolList = fmap (isRoot inGraph) (fmap fst labNodes)
+            rootBoolList = fmap (isRoot inGraph) (fmap fst nodeList)
             pairList = zip rootBoolList nodeList
-            rootPairList =  (filter (==True).fst) pairList
+            rootPairList =  filter ((==True).fst) pairList
             rootList = fmap snd rootPairList
         in
         rootList 
@@ -306,3 +306,4 @@ splitVertexList inGraph =
 -- | pretty prints graph to String
 prettify :: (Show a, Show b) => Gr a b -> String
 prettify inGraph = G.prettify inGraph
+

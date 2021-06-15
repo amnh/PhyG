@@ -44,8 +44,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , verifyTimeConsistency
                        , rerootGraph
                        , rerootGraph'
-                       , rerootDecoratedGraph
-                       , rerootDecoratedGraph'
+                       , rerootPhylogeneticGraph
+                       , rerootPhylogeneticGraph'
                        , generateDisplayTrees
                        , contractOneOneEdges
                        , nodesAndEdgesBefore
@@ -183,8 +183,8 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root 
-rerootGraph :: Int -> SimpleGraph -> SimpleGraph
-rerootGraph rerootIndex inGraph = 
+rerootGraph :: (Eq b) => Bool -> Int -> LG.Gr a b -> LG.Gr a b
+rerootGraph reoptimizeNonExact rerootIndex inGraph = 
   if LG.isEmpty inGraph then inGraph
   else 
     let componentList = LG.components inGraph
@@ -227,13 +227,14 @@ rerootGraph rerootIndex inGraph =
             rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
             --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-            newEdgeOnOldRoot = (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+            newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
+                               else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
             newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
             newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
             -- get edges that need reversing
-            newGraph' = preTraverseAndFlipEdges newGraph [leftChildEdge,rightChildEdge]
+            newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph 
         in
         --trace ("=") 
         --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
@@ -242,12 +243,13 @@ rerootGraph rerootIndex inGraph =
         --))
 
 -- | rerootGraph' flipped version of rerootGraph 
-rerootGraph' :: SimpleGraph -> Int -> SimpleGraph
-rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
+rerootGraph' :: (Eq b) => Bool -> LG.Gr a b -> Int -> LG.Gr a b 
+rerootGraph' reoptimizeNonExact inGraph rerootIndex = rerootGraph reoptimizeNonExact rerootIndex inGraph
+
 
 -- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph 
-rerootPhylogeneticGraph' :: PhylogenticGraph -> Int -> PhylogenticGraph
-rerootPhylogeneticGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
+rerootPhylogeneticGraph' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
+rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootIndex inGraph
 
 -- | rerootGraph takes a pphylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -259,81 +261,42 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
 --   in order that the root costr be correct.  The block display forest (components are always trees--for soft-wired
 --   graphs only) is also rerooted, and
 --   Character foci set to the new root edge
-rerootPhylogeneticGraph :: Int -> PhylogenticGraph -> PhylogenticGraph
-rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVect, _, charInfoVectVect) = 
+--   NB--Uses calls to rerootGraph since traversals are for different graphs so wouldn't save
+--   much time by consolidating--also since labels are all different--can'treuse alot of info
+--   from graph to graph.
+rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
   if LG.isEmpty inSimple then inPhyGraph
   else 
-    -- these should all be teh same for inSimple, inDecGraph, and blockDisplayForestVect
-    let componentList = LG.components inSimple
-        parentNewRootList = LG.pre inSimple rerootIndex
+    let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
+        newSimpleGraph = rerootGraph False rerootIndex inSimple
+        -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
+        newDecGraph = rerootGraph True rerootIndex inDecGraph
+        -- sum of root costs on Decorated graph
+
+        newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots inDecGraph
+
+        -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
+        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.null
+                                    else V.map (rerootGraph False rerootIndex) blockDisplayForestVect
+        -- the edge the rerooting was switched to (vect vect vect)
         newRootOrigEdge = head $ LG.inn inSimple rerootIndex
-        parentRootList = fmap (LG.isRoot inSimple) parentNewRootList
-        outgroupInComponent = fmap (rerootIndex `elem`) componentList
-        componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
-    in
-    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    if null parentNewRootList then inPhyGraph
-    -- check if outgroup doesn't change rooting--ie its parent is a root somewhere
-    else if True `elem` parentRootList then inPhyGraph
-    -- this can't happen but whatever....
-    else if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-    else 
-      --rooroot component with new outtaxon 
-      let componentWithNewOutgroup = snd $ head componentWithOutgroup
-          (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inSimple) componentWithNewOutgroup) componentWithNewOutgroup
-          numRoots = length originalRootList
-          orginalRoot = head originalRootList
-          originalRootEdges = LG.out inSimple orginalRoot
-
-      in
-      {-These to prevent heads of empty lists 
-      if null originalRootList then error "No orginal roots"
-      else if null (LG.inn inGraph rerootIndex) then error ("Can't find parent of " ++ show rerootIndex)
-      else if null componentWithOutgroup then error ("Can't findcomponent with " ++ show rerootIndex)
-      else if null originalRootEdges then error ("Null original root edges ")
-      else 
-        -}
-      -- check if outgroup in a multirooted component
-      if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inPhyGraph
-      else
-        --reroot graph safely automatically will only affect the component with the outgroup
-        -- delete old root edge and create two new edges from oringal root node.
-        -- keep orignl root node and delte/crete new edges when they are encounterd
-        --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-        let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-            rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
-
-            --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-            newEdgeOnOldRoot = (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
-
-            newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-            newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
-
-            -- get edges that need reversing
-            -- simple graph
-            newGraph' = preTraverseAndFlipEdges newGraph [leftChildEdge,rightChildEdge]
-            -- decorated gaph
-            newDecGraph' = 
-            -- sum of root costs on Decorated graph
-
-            newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots inDecGraph
-            -- rerooted diplay forests
-            newBlockDisplayForestVect = V.map () blockDisplayForestVect
-            -- the edge the rerooting was switched to (vect vect vect)
-            newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
+        newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
         in
         --trace ("=") 
         --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-        (newGraph', newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+        (newSimpleGraph, newGraphCost, newDecGraph, newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+
+
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops
 -- assumes input edge is directed correctly
 -- follows  traversal out "pre" order ish from edges
 -- have to check edge orientatins--make sure thay haven't changed as graph was updated earlier
-preTraverseAndFlipEdges :: (Eq b) => LG.Gr a b -> [LG.LEdge b] ->  LG.Gr a b
-preTraverseAndFlipEdges inGraph inEdgelist  = 
+preTraverseAndFlipEdges :: (Eq b) => [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
+preTraverseAndFlipEdges inEdgelist inGraph  = 
   if null inEdgelist then inGraph
   else 
     let inEdge@(_,v,_) = head inEdgelist
@@ -345,10 +308,10 @@ preTraverseAndFlipEdges inGraph inEdgelist  =
     in
     --trace ("+") (
     -- edge terminates in leaf or edges in correct orientation
-    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges inGraph (tail inEdgelist) 
+    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph 
     -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdges newGraph (flippedEdges ++ (tail inEdgelist))
-    --)
+    else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph 
+    -- )
 
 -- | getToFlipEdges takes an index and ceck edge list
 -- and cretes new list of edges that need to be flipped
@@ -363,7 +326,7 @@ getToFlipEdges parentNodeIndex inEdgeList =
       
 -- | makeCharFociVVV takes an edge and creates the Vector Vector Vector structure for that edge based
 -- on charInfo 
-makeCharFociVVV :: LG.Edge -> V.Vector (V.Vector Int) -> V.Vector (V.Vector (V.Vector LG.Edge))
+makeCharFociVVV :: LG.Edge -> V.Vector Int -> V.Vector (V.Vector (V.Vector LG.Edge))
 makeCharFociVVV inEdge lengthList =
   if V.null lengthList then V.empty
   else 

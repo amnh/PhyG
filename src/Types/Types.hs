@@ -216,6 +216,7 @@ type SimpleGraph = LG.Gr NameText Double
 --        2) Graph optimality value or cost
 --        3) Decorated Graph with optimized vertex/Node data
 --        4) Vector of display tree for each data Block 
+--                  root and vertex costs not updated in rerooting so cannot be trusted
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
 --               vector is over blocks, then charactes and can have multiple for each character
 --               only important for dynamic (ie none-eact) characters whose costs depend on traversal focus
