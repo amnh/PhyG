@@ -195,6 +195,10 @@ delLEdges inEdgeList inGraph = G.delEdges (fmap G.toEdge inEdgeList) inGraph
 insNode :: LNode a -> Gr a b -> Gr a b
 insNode inNode inGraph = G.insNode inNode inGraph
 
+-- | insNodes inserts multiple labelled nodes into a graph
+insNodes :: [LNode a] -> Gr a b -> Gr a b
+insNodes inNodeList inGraph = G.insNodes inNodeList inGraph
+
 -- | delLNode deletes a labelled node from a graph
 delLNode :: LNode a -> Gr a b -> Gr a b
 delLNode inNode inGraph = G.delNode (fst inNode) inGraph
@@ -307,3 +311,45 @@ splitVertexList inGraph =
 prettify :: (Show a, Show b) => Gr a b -> String
 prettify inGraph = G.prettify inGraph
 
+-- | pathToRoot takes a greaph and a vertex and reurns a pair of lists 
+-- of vertices and edges to root(s)
+pathToRoot :: (Eq a, Show a) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
+pathToRoot inGraph inNode =
+    if G.isEmpty inGraph then error "Empty graph in pathToRoot"
+    else nodesAndEdgesBefore inGraph ([],[]) [inNode]
+
+-- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
+-- and edges 'before' in the sense of leading to--ie between root and
+-- (not including)) that node
+-- call with ([], [])
+nodesAndEdgesBefore :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList =
+  if G.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesBefore")
+  else if null inNodeList then curResults
+  else 
+    let intoEdgeList = inn inGraph (fst $ head inNodeList)
+        intoNodeList = fmap fst3 intoEdgeList
+        labelMaybeList = fmap (lab inGraph) intoNodeList
+        labelList = fmap fromJust labelMaybeList
+        intoLabNodeList = zip intoNodeList labelList
+    in
+    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesBefore" ++ show intoLabNodeList)
+    else nodesAndEdgesBefore inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ (tail inNodeList)) 
+
+-- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
+-- and edges 'after' in the sense of leading from-ie between (not including)) that node
+-- and all the way to any leaves is connects to.
+-- call with ([], [])
+nodesAndEdgesAfter :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
+  if G.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesAfter")
+  else if null inNodeList then curResults
+  else 
+    let fromEdgeList = out inGraph (fst $ head inNodeList)
+        fromNodeList = fmap snd3 fromEdgeList
+        labelMaybeList = fmap (lab inGraph) fromNodeList
+        labelList = fmap fromJust labelMaybeList
+        fromLabNodeList = zip fromNodeList labelList
+    in
+    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
+    else nodesAndEdgesAfter inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ (tail inNodeList)) 

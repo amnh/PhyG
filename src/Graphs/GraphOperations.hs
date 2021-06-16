@@ -48,14 +48,13 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , rerootPhylogeneticGraph'
                        , generateDisplayTrees
                        , contractOneOneEdges
-                       , nodesAndEdgesBefore
-                       , nodesAndEdgesAfter
                        , getNodeType
                        , convertDecoratedToSimpleGraph
                        ) where
 
 import           Debug.Trace
 import Data.List
+import Data.Maybe
 import qualified Data.Vector as V
 import qualified DirectOptimization.DOWrapper as DOW
 import Types.Types
@@ -177,6 +176,10 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     --)
 
+-- | rerootGraph' flipped version of rerootGraph 
+rerootGraph' :: (Eq b) => Bool -> LG.Gr a b -> Int -> LG.Gr a b 
+rerootGraph' reoptimizeNonExact inGraph rerootIndex = rerootGraph reoptimizeNonExact rerootIndex inGraph
+
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
 --   unclear how will effect network edges--will need to verify that does not create cycles
@@ -234,18 +237,14 @@ rerootGraph reoptimizeNonExact rerootIndex inGraph =
             newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
             -- get edges that need reversing
-            newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph 
+            newGraph' = preTraverseAndFlipEdges reoptimizeNonExact [leftChildEdge,rightChildEdge] newGraph 
+
         in
         --trace ("=") 
         --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
         newGraph'
         --))
-
--- | rerootGraph' flipped version of rerootGraph 
-rerootGraph' :: (Eq b) => Bool -> LG.Gr a b -> Int -> LG.Gr a b 
-rerootGraph' reoptimizeNonExact inGraph rerootIndex = rerootGraph reoptimizeNonExact rerootIndex inGraph
-
 
 -- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph 
 rerootPhylogeneticGraph' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
@@ -266,15 +265,25 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 --   from graph to graph.
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
-  if LG.isEmpty inSimple then inPhyGraph
+  if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
+  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input garph in rerootPhylogeneticGraph"
   else 
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
         newSimpleGraph = rerootGraph False rerootIndex inSimple
+
         -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
         newDecGraph = rerootGraph True rerootIndex inDecGraph
-        -- sum of root costs on Decorated graph
 
-        newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots inDecGraph
+        -- reoptimize nodes here
+        -- nodes on spine from new root to old root that needs to be reoptimized
+        (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
+        -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
+        reoptimizedNodes = reOptimizeNodes newDecGraph (reverse nodesToOptimize)
+
+        newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
+
+        -- sum of root costs on Decorated graph
+        newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
 
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
@@ -286,8 +295,19 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         --trace ("=") 
         --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-        (newSimpleGraph, newGraphCost, newDecGraph, newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+        (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
 
+
+-- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
+-- them based on children in input graph
+-- simple recursive since each node depends on children
+reOptimizeNodes :: DecoratedGraph -> [LG.LNode VertexInfo] -> [LG.LNode VertexInfo]
+reOptimizeNodes inGraph oldNodeList =
+  if null oldNodeList then []
+  else 
+    -- debugging check of unoptimized nodes
+    -- code form postDecorateTree
+    oldNodeList
 
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
@@ -295,8 +315,8 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
 -- assumes input edge is directed correctly
 -- follows  traversal out "pre" order ish from edges
 -- have to check edge orientatins--make sure thay haven't changed as graph was updated earlier
-preTraverseAndFlipEdges :: (Eq b) => [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
-preTraverseAndFlipEdges inEdgelist inGraph  = 
+preTraverseAndFlipEdges :: (Eq b) => Bool -> [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
+preTraverseAndFlipEdges reoptimizeNonExact inEdgelist inGraph  = 
   if null inEdgelist then inGraph
   else 
     let inEdge@(_,v,_) = head inEdgelist
@@ -308,9 +328,9 @@ preTraverseAndFlipEdges inEdgelist inGraph  =
     in
     --trace ("+") (
     -- edge terminates in leaf or edges in correct orientation
-    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph 
+    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges reoptimizeNonExact (tail inEdgelist) inGraph 
     -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph 
+    else preTraverseAndFlipEdges reoptimizeNonExact (flippedEdges ++ (tail inEdgelist)) newGraph 
     -- )
 
 -- | getToFlipEdges takes an index and ceck edge list
@@ -469,34 +489,6 @@ checkCompatible inNodeListList =
       if null c then True
       else if (c == a) || (c == b) then True
       else False
-
--- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
--- and edges 'before' in the sense of leading to--ie between (not including) root and
--- (not including)) that node
--- call with ([], [])
-nodesAndEdgesBefore :: LG.Gr a b -> ([LG.Node], [LG.LEdge b]) -> [LG.Node] -> ([LG.Node], [LG.LEdge b])
-nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList =
-  if LG.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesBefore")
-  else if null inNodeList then curResults
-  else 
-    let intoEdgeList = LG.inn inGraph (head inNodeList)
-        intoNodeList = fmap fst3 intoEdgeList
-    in
-    nodesAndEdgesBefore inGraph (intoNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoNodeList ++ (tail inNodeList)) 
-
--- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
--- and edges 'after' in the sense of leading from-ie between (not including)) that node
--- and all the way to any leaves is connects to.
--- call with ([], [])
-nodesAndEdgesAfter :: LG.Gr a b -> ([LG.Node], [LG.LEdge b]) -> [LG.Node] -> ([LG.Node], [LG.LEdge b])
-nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
-  if LG.isEmpty inGraph then error ("Input Graph is empty in nodesAndEdgesAfter")
-  else if null inNodeList then curResults
-  else 
-    let fromEdgeList = LG.out inGraph (head inNodeList)
-        fromNodeList = fmap snd3 fromEdgeList
-    in
-    nodesAndEdgesAfter inGraph (fromNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromNodeList ++ (tail inNodeList)) 
 
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
