@@ -179,8 +179,8 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --)
 
 -- | rerootGraph' flipped version of rerootGraph 
-rerootGraph' :: (Eq b) => Bool -> LG.Gr a b -> Int -> LG.Gr a b 
-rerootGraph' reoptimizeNonExact inGraph rerootIndex = rerootGraph reoptimizeNonExact rerootIndex inGraph
+rerootGraph' :: (Eq b) => LG.Gr a b -> Int -> LG.Gr a b 
+rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -188,8 +188,8 @@ rerootGraph' reoptimizeNonExact inGraph rerootIndex = rerootGraph reoptimizeNonE
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root 
-rerootGraph :: (Eq b) => Bool -> Int -> LG.Gr a b -> LG.Gr a b
-rerootGraph reoptimizeNonExact rerootIndex inGraph = 
+rerootGraph :: (Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootGraph rerootIndex inGraph = 
   if LG.isEmpty inGraph then inGraph
   else 
     let componentList = LG.components inGraph
@@ -239,7 +239,7 @@ rerootGraph reoptimizeNonExact rerootIndex inGraph =
             newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
             -- get edges that need reversing
-            newGraph' = preTraverseAndFlipEdges reoptimizeNonExact [leftChildEdge,rightChildEdge] newGraph 
+            newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph 
 
         in
         --trace ("=") 
@@ -271,10 +271,10 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
   else if inCost == 0 then error "Input graph with cost zero--likely non decorated input garph in rerootPhylogeneticGraph"
   else 
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
-        newSimpleGraph = rerootGraph False rerootIndex inSimple
+        newSimpleGraph = rerootGraph rerootIndex inSimple
 
         -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
-        newDecGraph = rerootGraph True rerootIndex inDecGraph
+        newDecGraph = rerootGraph rerootIndex inDecGraph
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
@@ -289,7 +289,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
 
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
-                                    else V.map (rerootGraph False rerootIndex) blockDisplayForestVect
+                                    else V.map (rerootGraph rerootIndex) blockDisplayForestVect
         -- the edge the rerooting was switched to (vect vect vect)
         newRootOrigEdge = head $ LG.inn inSimple rerootIndex
         newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
@@ -304,15 +304,17 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
 -- them based on children in input graph
 -- simple recursive since each node depends on children
 -- remove check for debbubg after it works
+-- check for out-degree 1, doens't matter for trees however.
 reOptimizeNodes :: V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> [LG.LNode VertexInfo]
 reOptimizeNodes charInfoVectVect inGraph oldNodeList =
   if null oldNodeList then []
   else 
     let curNode = head oldNodeList
         -- debugging check of unoptimized nodes  if childern of cur node in list of ones yet to be done
-        curNodeChildren = filter (== (fst curNode)) $ fmap fst (tail oldNodeList)
+        curNodeChildren = V.toList $ children $ snd curNode 
+        foundCurChildern = filter (`elem` curNodeChildren) $ fmap fst (tail oldNodeList)
     in
-    if (not $ null curNodeChildren) then error ("Current node has childer in optimize list" ++ show oldNodeList)
+    if (not $ null foundCurChildern) then error ("Current node has childer in optimize list" ++ show oldNodeList)
     -- code form postDecorateTree
     else 
         let nodeChildren = LG.descendants inGraph (fst curNode)  -- should be 1 or 2, not zero since all leaves already in graph
@@ -324,7 +326,9 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             newVertexData = createVertexDataOverBlocksNonExact  (vertData leftChildLabel) (vertData  rightChildLabel) (vertData curnodeLabel) charInfoVectVect []
         in
         --debug remove when not needed--checking to see if node should not be re optimized
-        if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then error ("Children for vertex unchanged " ++ show curNode)
+        if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then 
+          trace ("Children for vertex unchanged " ++ (show $ fst curNode))
+          curNode : reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
         else 
            let newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
                newVertexLabel = VertexInfo {  index = fst curNode
@@ -363,8 +367,8 @@ createVertexDataOverBlocksNonExact leftBlockData rightBlockData existingBlockDat
 -- assumes input edge is directed correctly
 -- follows  traversal out "pre" order ish from edges
 -- have to check edge orientatins--make sure thay haven't changed as graph was updated earlier
-preTraverseAndFlipEdges :: (Eq b) => Bool -> [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
-preTraverseAndFlipEdges reoptimizeNonExact inEdgelist inGraph  = 
+preTraverseAndFlipEdges :: (Eq b) => [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
+preTraverseAndFlipEdges inEdgelist inGraph  = 
   if null inEdgelist then inGraph
   else 
     let inEdge@(_,v,_) = head inEdgelist
@@ -376,9 +380,9 @@ preTraverseAndFlipEdges reoptimizeNonExact inEdgelist inGraph  =
     in
     --trace ("+") (
     -- edge terminates in leaf or edges in correct orientation
-    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges reoptimizeNonExact (tail inEdgelist) inGraph 
+    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph 
     -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdges reoptimizeNonExact (flippedEdges ++ (tail inEdgelist)) newGraph 
+    else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph 
     -- )
 
 -- | getToFlipEdges takes an index and ceck edge list

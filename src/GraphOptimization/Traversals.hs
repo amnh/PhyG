@@ -56,21 +56,25 @@ import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
 
--- | naiveMultiTraverseFullyLabelGraph naive;ly rerioot graph on all vertices and chooses lowest cost
+-- | naiveMultiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
+-- does not yet minimize over characters to get multi-min
 naiveMultiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
         let leafGraph = makeLeafGraph inData
-            rootList = [0.. ((V.length $ fst3 inData) - 1)] -- need a smarter list going to adjecent edges
-            -- (rootList', _) = GO.nodesAndEdgesAfter (GO.rerootGraph' inGraph 0) ([], []) [V.length $ fst3 inData] 
-            rerootSimpleList = fmap (GO.rerootGraph' False inGraph) rootList
+            rootList = [0.. (( 2 * (V.length $ fst3 inData)) - 1)] -- need a smarter list going to adjecent edges
+            rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
             rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
-            -- rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
+            
+            rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' $ head rerootedPhyloGraphList) rootList
+            minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
+            minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
         in
-        --trace (show $ fmap snd6 rerootedPhyloGraphList)
+        trace (show minCost ++ ":" ++ (show $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
+            show minCostDirect ++ ":" ++ (show $ fmap snd6 rerootPhyloGraphListDirect))
         head minCostGraphList
 
 
