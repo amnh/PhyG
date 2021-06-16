@@ -277,7 +277,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots inDecGraph
 
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
-        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.null
+        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
                                     else V.map (rerootGraph False rerootIndex) blockDisplayForestVect
         -- the edge the rerooting was switched to (vect vect vect)
         newRootOrigEdge = head $ LG.inn inSimple rerootIndex
