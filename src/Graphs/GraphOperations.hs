@@ -55,6 +55,7 @@ module Graphs.GraphOperations ( ladderizeGraph
 import           Debug.Trace
 import Data.List
 import Data.Maybe
+import Data.Bits ((.&.), (.|.))
 import qualified Data.Vector as V
 import qualified DirectOptimization.DOWrapper as DOW
 import Types.Types
@@ -63,6 +64,7 @@ import qualified Data.Text.Lazy as T
 import GeneralUtilities
 import qualified Utilities.LocalSequence as LS
 import qualified GraphFormatUtilities as GFU
+import qualified GraphOptimization.Medians as M
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with 
 -- local nodelist
@@ -278,7 +280,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         -- nodes on spine from new root to old root that needs to be reoptimized
         (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
         -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
-        reoptimizedNodes = reOptimizeNodes newDecGraph (reverse nodesToOptimize)
+        reoptimizedNodes = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
 
         newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
 
@@ -301,14 +303,60 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
 -- them based on children in input graph
 -- simple recursive since each node depends on children
-reOptimizeNodes :: DecoratedGraph -> [LG.LNode VertexInfo] -> [LG.LNode VertexInfo]
-reOptimizeNodes inGraph oldNodeList =
+-- remove check for debbubg after it works
+reOptimizeNodes :: V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> [LG.LNode VertexInfo]
+reOptimizeNodes charInfoVectVect inGraph oldNodeList =
   if null oldNodeList then []
   else 
-    -- debugging check of unoptimized nodes
+    let curNode = head oldNodeList
+        -- debugging check of unoptimized nodes  if childern of cur node in list of ones yet to be done
+        curNodeChildren = filter (== (fst curNode)) $ fmap fst (tail oldNodeList)
+    in
+    if (not $ null curNodeChildren) then error ("Current node has childer in optimize list" ++ show oldNodeList)
     -- code form postDecorateTree
-    oldNodeList
+    else 
+        let nodeChildren = LG.descendants inGraph (fst curNode)  -- should be 1 or 2, not zero since all leaves already in graph
+            leftChild = (head nodeChildren)
+            rightChild = (last nodeChildren)
+            leftChildLabel = fromJust $ LG.lab inGraph leftChild
+            rightChildLabel = fromJust $ LG.lab inGraph rightChild
+            curnodeLabel = snd curNode
+            newVertexData = createVertexDataOverBlocksNonExact  (vertData leftChildLabel) (vertData  rightChildLabel) (vertData curnodeLabel) charInfoVectVect []
+        in
+        --debug remove when not needed--checking to see if node should not be re optimized
+        if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then error ("Children for vertex unchanged " ++ show curNode)
+        else 
+           let newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
+               newVertexLabel = VertexInfo {  index = fst curNode
+                                            , bvLabel = (bvLabel leftChildLabel) .&. (bvLabel rightChildLabel)
+                                            , parents = V.fromList $ LG.parents inGraph (fst curNode)
+                                            , children = V.fromList nodeChildren
+                                            , nodeType = nodeType curnodeLabel
+                                            , vertName = vertName curnodeLabel
+                                            , vertData = V.map (V.map fst) newVertexData
+                                            , vertexCost = newCost
+                                            , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                            }   
+            in
+            (fst curNode, newVertexLabel) : reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
 
+-- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and 
+-- extracts the quartet for each block and creates new block data for parent node (usually)
+-- not checking if vectors are equal in length
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksNonExact leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData then 
+        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        V.fromList $ reverse curBlockData
+    else
+        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head existingBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian = M.median2NonExact firstBlock
+        in
+        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
+--M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops

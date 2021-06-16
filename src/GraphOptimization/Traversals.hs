@@ -230,8 +230,6 @@ preOrderTreeTraversal inGS inData inPGraph =
     else 
         inPGraph
         
-
-
 -- | createVertexDataOverBlocks takes data in blocks and block vector of char info and 
 -- extracts the triple for each block and creates new bloick data for parent node (usually)
 -- not checking if vectgors are equal in length
@@ -247,3 +245,4 @@ createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlo
         createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 --M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
+

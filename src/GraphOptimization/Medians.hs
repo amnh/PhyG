@@ -40,9 +40,11 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module GraphOptimization.Medians (  median2
-                , median2Single
-                ) where
+module GraphOptimization.Medians  ( median2
+                                  , median2Single
+                                  , median2NonExact
+                                  , median2SingleNonExact
+                                  ) where
 
 import           Types.Types
 import           Debug.Trace
@@ -66,6 +68,14 @@ import Data.Bits ((.&.), (.|.))
 -- for parallel fmap over all then parallelized by type and seqeunces
 median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
 median2 inData = V.map median2Single inData
+
+
+-- | median2NonExact takes the vectors of characters and applies median2NonExact to each 
+-- character for parallel fmap over all then parallelized by type and seqeunces
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+median2NonExact :: V.Vector (CharacterData, CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
+median2NonExact inData = V.map median2SingleNonExact inData
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
@@ -108,6 +118,43 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
       (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+
+
+-- | median2SingleNonExact takes character data and returns median character and cost
+-- median2single assumes that the character vectors in the various states are the same length
+-- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+median2SingleNonExact :: (CharacterData, CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
+median2SingleNonExact (firstVertChar, secondVertChar, existingVertChar, inCharInfo) = 
+    let thisType = charType inCharInfo
+        thisWeight = weight inCharInfo
+        thisMatrix = costMatrix inCharInfo
+        thisDenseMatrix = denseTCM inCharInfo
+        thisTCMMemo = memoTCM inCharInfo
+        thisActive = activity inCharInfo
+    in
+    if thisActive == False then (firstVertChar, 0)
+      
+    else if thisType == Add then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType == NonAdd then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType == Matrix then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType `elem` [SmallAlphSeq, NucSeq] then 
+      -- ffi to POY-C/PCG code
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` [AminoSeq, GenSeq] then 
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+
 
 -- | localOr wrapper for BV.or for vector elements
 localOr :: BV.BitVector -> BV.BitVector -> BV.BitVector
