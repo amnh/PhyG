@@ -199,6 +199,6 @@
 
 58) reverse cross ref loci ?
 
-59) GraphOperations.hs  l 290 on--need to replicate code over different graphs for Decorated and Display forest
-
-60) Vertex Bvlabels look lik uninitialized
+61) Create structures with best costs andtraveral foci for each non-exact charcater
+	to prepare for preorder step
+	all the book-keeping
