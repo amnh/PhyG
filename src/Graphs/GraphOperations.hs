@@ -248,120 +248,6 @@ rerootGraph rerootIndex inGraph =
         newGraph'
         --))
 
--- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph 
-rerootPhylogeneticGraph' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
-rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootIndex inGraph
-
--- | rerootGraph takes a pphylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
---   if input is a forest then only roots the component that contains the vertex wil be rerooted
---   unclear how will effect network edges--will need to verify that does not create cycles
---   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
---   after checking for existing root and multiroots, should be O(n) where 'n is the length
---   of the path between the old and new root 
---   the PhyloGenetic graph is (minimally) reoptimized along the spine of edegs that are redirected
---   in order that the root costr be correct.  The block display forest (components are always trees--for soft-wired
---   graphs only) is also rerooted, and
---   Character foci set to the new root edge
---   NB--Uses calls to rerootGraph since traversals are for different graphs so wouldn't save
---   much time by consolidating--also since labels are all different--can'treuse alot of info
---   from graph to graph.
-rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
-  if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
-  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input garph in rerootPhylogeneticGraph"
-  else 
-    let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
-        newSimpleGraph = rerootGraph rerootIndex inSimple
-
-        -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
-        newDecGraph = rerootGraph rerootIndex inDecGraph
-
-        -- reoptimize nodes here
-        -- nodes on spine from new root to old root that needs to be reoptimized
-        (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
-        -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
-        reoptimizedNodes = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
-
-        newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
-
-        -- sum of root costs on Decorated graph
-        newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
-
-        -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
-        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
-                                    else V.map (rerootGraph rerootIndex) blockDisplayForestVect
-        -- the edge the rerooting was switched to (vect vect vect)
-        newRootOrigEdge = head $ LG.inn inSimple rerootIndex
-        newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
-        in
-        --trace ("=") 
-        --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
-        --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-        (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
-
-
--- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
--- them based on children in input graph
--- simple recursive since each node depends on children
--- remove check for debbubg after it works
--- check for out-degree 1, doens't matter for trees however.
-reOptimizeNodes :: V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> [LG.LNode VertexInfo]
-reOptimizeNodes charInfoVectVect inGraph oldNodeList =
-  if null oldNodeList then []
-  else 
-    let curNode = head oldNodeList
-        -- debugging check of unoptimized nodes  if childern of cur node in list of ones yet to be done
-        curNodeChildren = V.toList $ children $ snd curNode 
-        foundCurChildern = filter (`elem` curNodeChildren) $ fmap fst (tail oldNodeList)
-    in
-    if (not $ null foundCurChildern) then error ("Current node has childer in optimize list" ++ show oldNodeList)
-    -- code form postDecorateTree
-    else 
-        let nodeChildren = LG.descendants inGraph (fst curNode)  -- should be 1 or 2, not zero since all leaves already in graph
-            leftChild = (head nodeChildren)
-            rightChild = (last nodeChildren)
-            leftChildLabel = fromJust $ LG.lab inGraph leftChild
-            rightChildLabel = fromJust $ LG.lab inGraph rightChild
-            curnodeLabel = snd curNode
-            newVertexData = createVertexDataOverBlocksNonExact  (vertData leftChildLabel) (vertData  rightChildLabel) (vertData curnodeLabel) charInfoVectVect []
-        in
-        --debug remove when not needed--checking to see if node should not be re optimized
-        if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then 
-          trace ("Children for vertex unchanged " ++ (show $ fst curNode))
-          curNode : reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
-        else 
-           let newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
-               newVertexLabel = VertexInfo {  index = fst curNode
-                                            , bvLabel = (bvLabel leftChildLabel) .&. (bvLabel rightChildLabel)
-                                            , parents = V.fromList $ LG.parents inGraph (fst curNode)
-                                            , children = V.fromList nodeChildren
-                                            , nodeType = nodeType curnodeLabel
-                                            , vertName = vertName curnodeLabel
-                                            , vertData = V.map (V.map fst) newVertexData
-                                            , vertexCost = newCost
-                                            , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
-                                            }   
-            in
-            (fst curNode, newVertexLabel) : reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
-
--- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and 
--- extracts the quartet for each block and creates new block data for parent node (usually)
--- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
--- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
-createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then 
-        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head existingBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
-        in
-        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
---M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
-
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops
 -- assumes input edge is directed correctly
@@ -396,6 +282,130 @@ getToFlipEdges parentNodeIndex inEdgeList =
     if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
     else getToFlipEdges parentNodeIndex (tail inEdgeList)
       
+
+-- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph 
+rerootPhylogeneticGraph' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
+rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootIndex inGraph
+
+-- | rerootGraph takes a pphylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
+--   if input is a forest then only roots the component that contains the vertex wil be rerooted
+--   unclear how will effect network edges--will need to verify that does not create cycles
+--   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
+--   after checking for existing root and multiroots, should be O(n) where 'n is the length
+--   of the path between the old and new root 
+--   the PhyloGenetic graph is (minimally) reoptimized along the spine of edegs that are redirected
+--   in order that the root costr be correct.  The block display forest (components are always trees--for soft-wired
+--   graphs only) is also rerooted, and
+--   Character foci set to the new root edge
+--   NB--Uses calls to rerootGraph since traversals are for different graphs so wouldn't save
+--   much time by consolidating--also since labels are all different--can'treuse alot of info
+--   from graph to graph.
+rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
+  if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
+  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input garph in rerootPhylogeneticGraph"
+  else 
+    let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
+        newSimpleGraph = rerootGraph rerootIndex inSimple
+
+        -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
+        newDecGraph = rerootGraph rerootIndex inDecGraph
+
+        -- reoptimize nodes here
+        -- nodes on spine from new root to old root that needs to be reoptimized
+        (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
+        -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
+        -- reoptimizedNodes = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
+        newDecGraph' = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
+        -- newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
+
+        -- sum of root costs on Decorated graph
+        newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
+
+        -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
+        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
+                                    else V.map (rerootGraph rerootIndex) blockDisplayForestVect
+        -- the edge the rerooting was switched to (vect vect vect)
+        newRootOrigEdge = head $ LG.inn inSimple rerootIndex
+        newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
+        in
+        --trace ("=") 
+        -- Same root, so no need to redo
+        if (length nodesToOptimize == 1) then inPhyGraph 
+        else 
+          {-
+          trace ("To optimize:" ++ (show nodesToOptimize) ++ "\nOG " ++ (show inCost) ++ " :" 
+          ++ (LG.prettify inDecGraph) ++ "\nRRG:" ++ ((LG.prettify newDecGraph)) ++ "\nNG " ++ (show newGraphCost) ++ " :" ++ (LG.prettify newDecGraph')
+          ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
+          -}
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+          
+
+
+-- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
+-- them based on children in input graph
+-- simple recursive since each node depends on children
+-- remove check for debbubg after it works
+-- check for out-degree 1, doens't matter for trees however.
+reOptimizeNodes :: V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
+reOptimizeNodes charInfoVectVect inGraph oldNodeList =
+  if null oldNodeList then inGraph
+  else 
+    let curNode = head oldNodeList
+        -- debugging check of unoptimized nodes  if childern of cur node in list of ones yet to be done
+        nodeChildren = LG.descendants inGraph (fst curNode)  -- should be 1 or 2, not zero since all leaves already in graph
+        foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
+    in
+    if (not $ null foundCurChildern) then 
+      --trace ("Current node has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ show oldNodeList)
+      reOptimizeNodes charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
+    -- code form postDecorateTree
+    else 
+        let leftChild = (head nodeChildren)
+            rightChild = (last nodeChildren)
+            leftChildLabel = fromJust $ LG.lab inGraph leftChild
+            rightChildLabel = fromJust $ LG.lab inGraph rightChild
+            curnodeLabel = snd curNode
+            newVertexData = createVertexDataOverBlocksNonExact  (vertData leftChildLabel) (vertData  rightChildLabel) (vertData curnodeLabel) charInfoVectVect []
+        in
+        --debug remove when not needed--checking to see if node should not be re optimized
+        if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then 
+          trace ("Children for vertex unchanged " ++ (show $ fst curNode))
+          reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
+        else 
+           let newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
+               newVertexLabel = VertexInfo {  index = fst curNode
+                                            , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
+                                            , parents = V.fromList $ LG.parents inGraph (fst curNode)
+                                            , children = V.fromList nodeChildren
+                                            , nodeType = nodeType curnodeLabel
+                                            , vertName = vertName curnodeLabel
+                                            , vertData = V.map (V.map fst) newVertexData
+                                            , vertexCost = newCost
+                                            , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                            }
+               -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
+               replacementEdges = (LG.inn inGraph (fst curNode)) ++ (LG.out inGraph (fst curNode))
+               newGraph = LG.insEdges replacementEdges $ LG.insNode (fst curNode, newVertexLabel) $ LG.delNode (fst curNode) inGraph   
+            in
+            reOptimizeNodes charInfoVectVect newGraph (tail oldNodeList)
+
+-- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and 
+-- extracts the quartet for each block and creates new block data for parent node (usually)
+-- not checking if vectors are equal in length
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksNonExact leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData then 
+        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        V.fromList $ reverse curBlockData
+    else
+        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head existingBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian = M.median2NonExact firstBlock
+        in
+        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
 -- | makeCharFociVVV takes an edge and creates the Vector Vector Vector structure for that edge based
 -- on charInfo 
 makeCharFociVVV :: LG.Edge -> V.Vector Int -> V.Vector (V.Vector (V.Vector LG.Edge))

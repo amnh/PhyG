@@ -126,7 +126,7 @@ main =
 
     -- Create unique bitvector names for leaf taxa.  
     let leafBitVectorNames = DT.createBVNames reconciledData
-
+    
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
     -- Need to check data for equal in charcater number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []

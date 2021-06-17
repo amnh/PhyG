@@ -200,14 +200,17 @@ insNodes :: [LNode a] -> Gr a b -> Gr a b
 insNodes inNodeList inGraph = G.insNodes inNodeList inGraph
 
 -- | delLNode deletes a labelled node from a graph
+-- NB  I beleive removes any edges involving this node
 delLNode :: LNode a -> Gr a b -> Gr a b
 delLNode inNode inGraph = G.delNode (fst inNode) inGraph
 
 -- | delNode deletes an unlabelled node from a graph
+-- NB  I beleive removes any edges involving this node
 delNode :: Node -> Gr a b -> Gr a b
 delNode inNode inGraph = G.delNode inNode inGraph
 
 -- | delNodes deletes a list of unlabelled nodes from a graph
+-- NB  I beleive removes any edges involving these nodes
 delNodes :: [Node] -> Gr a b -> Gr a b
 delNodes inNodeList inGraph = G.delNodes inNodeList inGraph
 

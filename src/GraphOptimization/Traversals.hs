@@ -69,7 +69,7 @@ naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
             
-            rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' $ head rerootedPhyloGraphList) rootList
+            rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' (head rerootedPhyloGraphList)) rootList
             minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
             minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
         in
@@ -198,7 +198,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newCharData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
-                                        , bvLabel = (bvLabel leftChildLabel) .&. (bvLabel rightChildLabel)
+                                        , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
                                         , nodeType = GO.getNodeType simpleGraph curNode

@@ -151,7 +151,8 @@ createBVNames inDataList =
         (nameList, intList) = unzip leafOrder
         -}
         --bv1 = BV.bitVec (length textNameList) (1 :: Integer)
-        bv1 = BV.fromBits [True]
+        boolList = replicate ((length textNameList) - 1) False
+        bv1 = BV.fromBits $ True : boolList
         bvList = fmap (shiftL bv1) [0..((length textNameList) - 1)]
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"

@@ -200,3 +200,5 @@
 58) reverse cross ref loci ?
 
 59) GraphOperations.hs  l 290 on--need to replicate code over different graphs for Decorated and Display forest
+
+60) Vertex Bvlabels look lik uninitialized
