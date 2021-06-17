@@ -126,7 +126,7 @@ main =
 
     -- Create unique bitvector names for leaf taxa.  
     let leafBitVectorNames = DT.createBVNames reconciledData
-    
+
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
     -- Need to check data for equal in charcater number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
@@ -148,7 +148,7 @@ main =
     
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] initialSetCommands
-    let inputGraphList = map (T.naiveMultiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
     --let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Create lazy pairwise distances if needed later for build or report

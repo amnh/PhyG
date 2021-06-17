@@ -38,7 +38,7 @@ module GraphOptimization.Traversals ( fullyLabelGraph
                                     , postOrderTreeTraversal
                                     , preOrderTreeTraversal
                                     , makeLeafGraph
-                                    , naiveMultiTraverseFullyLabelGraph
+                                    , multiTraverseFullyLabelGraph
                                     ) where
 
 import           Types.Types
@@ -56,27 +56,55 @@ import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
 
--- | naiveMultiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
+-- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
-naiveMultiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-naiveMultiTraverseFullyLabelGraph inGS inData inGraph =
+multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
         let leafGraph = makeLeafGraph inData
+
+            {-
+            -- brute force
             rootList = [0.. (( 2 * (V.length $ fst3 inData)) - 1)] -- need a smarter list going to adjecent edges
             rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
             rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
             minCost = minimum $ fmap snd6 rerootedPhyloGraphList
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
             
+            -- minimal reoptimize--but order naive
             rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' (head rerootedPhyloGraphList)) rootList
             minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
             minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
-        in
-        trace (show minCost ++ ":" ++ (show $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
-            show minCostDirect ++ ":" ++ (show $ fmap snd6 rerootPhyloGraphListDirect))
-        head minCostGraphList
+            -}
 
+            -- minimal reoptimize with smart order to minimize node reoptimization
+            outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
+            childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
+            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
+            minCostRecursive = minimum $ fmap snd6 recursiveRerootList
+            minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
+        in
+        --trace ("Initial Children: " ++ show childrenOfRoot)
+        --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
+        --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
+        --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
+        head minCostGraphListRecursive 
+
+-- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph
+-- and "intelligently" reroots by traversing through adjacent edges, hopefully
+-- reoptimizing the minimum number of vertices each time (2) but could be more depending
+-- on graph topology
+minimalReRootPhyloGraph :: PhylogeneticGraph -> [LG.Node] -> [PhylogeneticGraph]
+minimalReRootPhyloGraph inGraph nodesToRoot =
+    if null nodesToRoot then []
+    else 
+        let firstRerootIndex = head nodesToRoot
+            nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
+            newGraph = GO.rerootPhylogeneticGraph' inGraph firstRerootIndex
+        in
+        -- trace ("This : " ++ (show firstRerootIndex) ++ " Next:" ++ show nextReroots)
+        newGraph : minimalReRootPhyloGraph newGraph nextReroots
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
 -- fully label the graph and return a PhylogeenticGraph
