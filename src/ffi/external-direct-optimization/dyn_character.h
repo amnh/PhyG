@@ -22,11 +22,8 @@
 
 #include <stddef.h>
 
-
-// #define USE_LARGE_ALPHABETS
-
-
 // #ifdef USE_LARGE_ALPHABETS
+//#define elem_t char
 #define elem_t unsigned int
 
 

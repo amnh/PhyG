@@ -47,9 +47,11 @@ module DOWrapper
 import Debug.Trace
 import Data.Int
 import qualified DOSmallFFI as DOSmallFFI
+import qualified DOSlim     as DOSlim
 import qualified DOLargeFFI as DOLargeFFI
 import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
+import           Data.BitVector.LittleEndian (BitVector)
 import qualified Data.BitVector.LittleEndian as BV
 import qualified NaiveDOSequence as NS
 import qualified DOUkkonnenSequence as DKS
@@ -68,10 +70,12 @@ import Data.List.NonEmpty (NonEmpty(..))
 
 import Types
 
+
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
 thesholdUKLength = 1
+
 
 -- | getDOMedian wraps around getPrelim and getPrelim3
 -- changing types and checking for missing cases
@@ -100,8 +104,9 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
             (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
 
-            (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
-            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
+--            (mediansFFI, costFFI)           = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
+            (mediansFFI, costFFI)           = wrapperSlimDO lBV rBV thisMatrix tcmDense
+            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large     lBV rBV thisMatrix tcmMemo
         in
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
         --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)

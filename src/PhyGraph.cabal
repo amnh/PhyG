@@ -22,6 +22,7 @@ extra-source-files:
     ffi/external-direct-optimization/alignCharacters.h
     ffi/external-direct-optimization/alignmentMatrices.h
     ffi/external-direct-optimization/c_alignment_interface.h
+    ffi/external-direct-optimization/c_alignment_interface2.h
     ffi/external-direct-optimization/c_code_alloc_setup.h
     ffi/external-direct-optimization/costMatrix.h
     ffi/external-direct-optimization/debug_constants.h
@@ -49,6 +50,7 @@ common ffi-buildinfo
     ffi/external-direct-optimization/alignCharacters.c
     ffi/external-direct-optimization/alignmentMatrices.c
     ffi/external-direct-optimization/c_alignment_interface.c
+    ffi/external-direct-optimization/c_alignment_interface2.c
     ffi/external-direct-optimization/c_code_alloc_setup.c
     ffi/external-direct-optimization/costMatrix.c
     ffi/external-direct-optimization/dyn_character.c
@@ -230,6 +232,8 @@ executable phyg
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
+                  DOSlim
+
             
 library alphabet
 
@@ -297,6 +301,7 @@ library analysis
     tcm-memo,
     utility,
     base                     >= 4.11      && < 5.0,
+    bv-little,
     clustering               >= 0.4       && < 0.5,
     containers               >= 0.6.2     && < 1.0,
     data-default             >= 0.5.2     && < 0.8,
@@ -322,6 +327,7 @@ library analysis
     --Analysis.Parsimony.Additive
     --Analysis.Parsimony.Dynamic.DirectOptimization
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
     --Analysis.Parsimony.Fitch
     --Analysis.Parsimony.Sankoff
     --Analysis.Scoring
@@ -334,8 +340,11 @@ library analysis
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
     --Analysis.Parsimony.Fitch.Internal
     --Analysis.Parsimony.Sankoff.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix

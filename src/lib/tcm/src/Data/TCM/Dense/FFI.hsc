@@ -139,8 +139,9 @@ data  CostMatrix3d
 -- Exposed wrapper for C allocated cost matrix structs.
 data  DenseTransitionCostMatrix
     = DenseTransitionCostMatrix
-    { costMatrix2D :: Ptr CostMatrix2d
-    , costMatrix3D :: Ptr CostMatrix3d
+    { matrixDimension :: Word
+    , costMatrix2D    :: Ptr CostMatrix2d
+    , costMatrix3D    :: Ptr CostMatrix3d
     }
     deriving stock    (Eq, Generic)
     deriving anyclass (NFData)
@@ -465,8 +466,9 @@ performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . wit
         !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM matrixDimension gapOpen
         !_ <- setUpCostMatrix3dFn_c ptr3D allocedTCM matrixDimension gapOpen
         pure DenseTransitionCostMatrix
-             { costMatrix2D = ptr2D
-             , costMatrix3D = ptr3D
+             { matrixDimension = alphabetSize
+             , costMatrix2D    = ptr2D
+             , costMatrix3D    = ptr3D
              }
     where
         matrixDimension = coerceEnum alphabetSize

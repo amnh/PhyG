@@ -196,6 +196,7 @@ costMedian_t* CostMatrix_2d::computeCostMedian(keys_2d_t keys)
         curCost = findDistance(symbolIndex, firstKey)
                 + findDistance(symbolIndex, secondKey);
 
+        /*
         if (DEBUG) {
             printf("Before Minimization Logic:\n");
             printf("  Symbol Index: %" PRIu64 " \n", (unsigned long long) symbolIndex);
@@ -204,6 +205,7 @@ costMedian_t* CostMatrix_2d::computeCostMedian(keys_2d_t keys)
             printPackedChar( curMedian, 1, alphabetSize);
             printf("\n\n");
         }
+        */
 
         // now seemingly recreating logic in findDistance(). However, that was to get the cost for the
         // ambElem on each child; now we're combining those costs get overall cost and median
