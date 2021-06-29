@@ -21,7 +21,6 @@ import Debug.Trace
 wrapperPCG_DO_Small_FFI :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int -> DenseTransitionCostMatrix -> (Vector BV.BitVector, Int)
 wrapperPCG_DO_Small_FFI lhs rhs tcmVect tcmDense = (resultingMedians, fromEnum resultCost)
     where
-        --(resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
         (resultCost, resultFFI) = foreignPairwiseDO tcmDense lhsDC rhsDC
 
         bitStreams = decodeStream arbitraryAlphabet resultFFI

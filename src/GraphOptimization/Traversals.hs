@@ -34,13 +34,15 @@ Portability :  portable (I hope)
 
 -}
 
-module GraphOptimization.Traversals  (  fullyLabelGraph
-                    , postOrderTreeTraversal
-                    , preOrderTreeTraversal
-                    , makeLeafGraph
-                   ) where
+module GraphOptimization.Traversals ( fullyLabelGraph
+                                    , postOrderTreeTraversal
+                                    , preOrderTreeTraversal
+                                    , makeLeafGraph
+                                    , multiTraverseFullyLabelGraph
+                                    ) where
 
 import           Types.Types
+import Data.List
 import qualified Data.Vector as V
 import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
@@ -54,22 +56,70 @@ import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
 
-
--- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
--- fully label the graph and return a PhylogeenticGraph
-fullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-fullyLabelGraph inGS inData inGraph = 
+-- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
+-- does not yet minimize over characters to get multi-min
+multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
         let leafGraph = makeLeafGraph inData
-            postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
+
+            {-
+            -- brute force
+            rootList = [0.. (( 2 * (V.length $ fst3 inData)) - 1)] -- need a smarter list going to adjecent edges
+            rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
+            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
+            minCost = minimum $ fmap snd6 rerootedPhyloGraphList
+            minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
+            
+            -- minimal reoptimize--but order naive
+            rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' (head rerootedPhyloGraphList)) rootList
+            minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
+            minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
+            -}
+
+            -- minimal reoptimize with smart order to minimize node reoptimization
+            outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
+            childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
+            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
+            minCostRecursive = minimum $ fmap snd6 recursiveRerootList
+            minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
+        in
+        --trace ("Initial Children: " ++ show childrenOfRoot)
+        --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
+        --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
+        --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
+        head minCostGraphListRecursive 
+
+-- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph
+-- and "intelligently" reroots by traversing through adjacent edges, hopefully
+-- reoptimizing the minimum number of vertices each time (2) but could be more depending
+-- on graph topology
+minimalReRootPhyloGraph :: PhylogeneticGraph -> [LG.Node] -> [PhylogeneticGraph]
+minimalReRootPhyloGraph inGraph nodesToRoot =
+    if null nodesToRoot then []
+    else 
+        let firstRerootIndex = head nodesToRoot
+            nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
+            newGraph = GO.rerootPhylogeneticGraph' inGraph firstRerootIndex
+        in
+        -- trace ("This : " ++ (show firstRerootIndex) ++ " Next:" ++ show nextReroots)
+        newGraph : minimalReRootPhyloGraph newGraph nextReroots
+
+-- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
+-- fully label the graph and return a PhylogeenticGraph
+fullyLabelGraph :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+fullyLabelGraph inGS inData leafGraph inGraph = 
+    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    else 
+        let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
             preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
         in
         preOrderTree
 
--- | makeLeafGraph takes input dsata and creates a 'graph' of leaves wiyth Vertex informnation
--- biut with zero edges.  This 'graph' can be reused as a starting structure for graph construction
--- to avoid remaking of leave vertices
+-- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
 makeLeafGraph :: ProcessedData -> DecoratedGraph
 makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
     if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
@@ -78,23 +128,24 @@ makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
         in
         LG.mkGraph leafVertexList []
 
--- | makeLeafVertex
+-- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
-makeLeafVertex nameVect bvNameVect inData index =
+makeLeafVertex nameVect bvNameVect inData localIndex =
     let centralData = V.map snd3 inData 
-        thisData = V.map (V.! index) centralData
-        newVertex = VertexInfo  { index = index
-                                , bvLabel = bvNameVect V.! index
+        thisData = V.map (V.! localIndex) centralData
+        newVertex = VertexInfo  { index = localIndex
+                                , bvLabel = bvNameVect V.! localIndex
                                 , parents = V.empty
                                 , children = V.empty
                                 , nodeType = LeafNode
-                                , vertName =  nameVect V.! index
+                                , vertName =  nameVect V.! localIndex
                                 , vertData = thisData
                                 , vertexCost = 0.0
                                 , subGraphCost = 0.0
                                 }   
         in
-        (index, newVertex)
+        -- trace (show (length thisData) ++ (show $ fmap length thisData))
+        (localIndex, newVertex)
 
 
 
@@ -111,10 +162,27 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
             blockCharInfo = V.map thd3 blocDataVect
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
-        trace ("It Begins at " ++ show rootIndex) (
+        --trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
         else newTree 
-        )
+        -- )
+
+-- | getVirtualRootEdge cretes tehe virtual edge that would have existed to crete that node rott
+-- the ide is that if the tree had been rooted somewhere else -- what edge would have existied and was
+-- "divided" to crete this node.  This is used for individual charcater graph traversal foci
+-- edge is basically undirected since orientation is unknown
+getVirtualRootEdge :: (Show a, Show b) => LG.Gr a b -> LG.Node -> LG.Edge
+getVirtualRootEdge inGraph inNode = 
+    if LG.isEmpty inGraph then error "Empty graph in getVirtualRootEdge"
+    else 
+        let childList = LG.descendants inGraph inNode
+            parentList = LG.parents inGraph inNode
+        in
+        -- this really shouldn't be used but in recursion for traversal may be needed
+        if LG.isLeaf inGraph inNode then (head parentList, inNode)
+        else 
+            if length childList /= 2 then error ("Root node with /= 2 childern in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
+            else (head childList, last childList)
 
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
@@ -125,9 +193,12 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
     -- if node in there nothing to do and return
     if LG.gelem curNode curDecGraph then 
         let nodeLabel = LG.lab curDecGraph curNode
+            -- identify/create the virtual edge this node would have been created from
+            -- this for traversal focus use for character 
+            impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.empty, blockCharInfo)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.singleton (V.singleton (V.singleton impliedRootEdge)), blockCharInfo)
 
     -- Need to make node
     else 
@@ -141,8 +212,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                  else leftChildTree
         in 
 
-        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
-        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateTree node " ++ (show curNode) ++ "\n" ++ GFU.showGraph simpleGraph)
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
+        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateTree node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
 
         -- make node from childern
         else    
@@ -155,7 +226,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newCharData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
-                                        , bvLabel = (bvLabel leftChildLabel) .&. (bvLabel rightChildLabel)
+                                        , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
                                         , nodeType = GO.getNodeType simpleGraph curNode
@@ -170,11 +241,16 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
-                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                        
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
             -- return new graph
-            trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex))
+            --trace ("Node stuff: " ++ show (curNode, index leftChildLabel, index rightChildLabel)) -- , vertData leftChildLabel, vertData  rightChildLabel, V.map (V.map fst) newCharData))
+            --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
+               -- ++ (show $ V.map (V.map snd) newCharData)) (
+            -- trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " 
+              --  ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
             (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
+            --)
             
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -186,14 +262,14 @@ preOrderTreeTraversal inGS inData inPGraph =
     else 
         inPGraph
         
-
-
 -- | createVertexDataOverBlocks takes data in blocks and block vector of char info and 
 -- extracts the triple for each block and creates new bloick data for parent node (usually)
 -- not checking if vectgors are equal in length
 createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then V.fromList curBlockData
+    if V.null leftBlockData then 
+        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        V.fromList $ reverse curBlockData
     else
         let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
             firstBlockMedian = M.median2 firstBlock
@@ -201,3 +277,4 @@ createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlo
         createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 --M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
+

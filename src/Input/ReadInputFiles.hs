@@ -42,6 +42,7 @@ module Input.ReadInputFiles
 (  executeReadCommands
  , getReadArgs
  , extractDataGraphPair
+ , expandReadCommands
 ) where
 
 import           Types.Types
@@ -51,12 +52,46 @@ import           System.IO
 import           Data.List
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
+import qualified System.Path.Glob as SPG
 import qualified Utilities.LocalGraph as LG
 import qualified GraphFormatUtilities as GFU
 import qualified Input.TNTUtilities as TNT
 import qualified Data.Graph.Inductive.Basic as B
 import qualified GeneralUtilities as GU
 import qualified Input.FastAC as FAC
+import Debug.Trace
+
+
+-- | expandReadCommands expands read commands to multiple satisfying wild cards
+-- read command can have multiple file names 
+expandReadCommands ::  [Command] -> Command -> IO [Command]
+expandReadCommands newReadList inCommand@(commandType, argList) =
+    let fileNames = fmap snd argList
+        modifierList = fmap fst argList
+    in
+    if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ (show inCommand))
+    else do 
+        globbedFileNames <- mapM SPG.glob fileNames
+        if null (concat globbedFileNames) then errorWithoutStackTrace ("File name(s) not found in 'read' command: " ++ show fileNames)
+        else if (length $ concat globbedFileNames) == length fileNames then return [inCommand]
+        else 
+            let newArgPairs = fmap makeNewArgs $ zip modifierList globbedFileNames
+                commandList = replicate (length newArgPairs) commandType
+            in
+            return $ zip commandList newArgPairs
+            
+
+-- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
+-- globbed file name list to create a list of arguments
+makeNewArgs :: (String, [String]) -> [(String, String)]
+makeNewArgs inPair@(modifier, fileNameList) =
+    if null fileNameList then error "Null filename list in makeNewArgs"
+    else 
+        let modList = replicate (length fileNameList) modifier
+        in
+        zip modList fileNameList
+
+
 
 
 {-

@@ -87,9 +87,6 @@
 
 	rely on lazyness to be effecient if don't need IA 
 
-15) Simple tree optimization
-		and with smart reroot
-
 16) Time concistencuy test for graphs (input especially)
 
 17) Set for "gobal" values--would have tyo be passed around as well 
@@ -98,24 +95,9 @@
 18) Check all commands before execution for valid syntax
 	so don't error out at very end after lots of effort
 
-19) Reroot
-	Check if current root aame and return if so
-	keep track of root node index
-
-	This can be used for "rerooting" graph optimization
-		that one edge shift at a time--should be very predictable in 
-		how much work done (check for networks)
-
-   if forest, no issues since if outgroup not in component
-   		should participate in traversal
-   		Should be OK for network, but needs to be checked
-
-   	Verify number of edges visited 
-   		Ie 3 for adjecent
-
 21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
 	bin +RTS -p -RTS args....
-	cretes prog.prof
+	creates prog.prof
 
 24) fix tcmMemo
 	Unpredictable behavior not found in non hash memo version
@@ -136,11 +118,6 @@
 
 27) Check if DO swap is necessary maybe done by ffi
 	Not necessary for large-Naive DO.
-
-29) Ladderize function to convert graph -> tree
-	if global GraphType == Tree
-	make and use function to produce display tree list
-	from input graph--only take some number (1-> length)
 
 30) Fix small (?) error in UkkonenDO for BitVector and Int64
 	for possibility of long large alphabet sequences
@@ -173,3 +150,55 @@
 	No descendant edges
 	No ancestors of network ancestor sister 
 	No descendants of network descendant sister
+
+39) add smart reroot to traversal
+	and only for dynamic characters
+	do regular traversal first
+		then reroot from that, bt only apply to dynamic
+		keep foci for preorder
+
+40) Do preorder with traversal foci
+
+41) For output diagnosis
+	rediagnose graph(s) wiht Naive data for more legible output
+
+42) Add function to map bitvector back to alphabet states (including ambiguities)
+
+43) Add edge transformations for diagnosis output
+
+44) expand read for wildcards
+	issue wirth modifier--needs to be propagated--ie "fasta"
+
+
+45) Tree lengths seem way off for primate data--maybe multiple counting?
+	One block bleeding into another?  Doesn't seem to affect doubling of data file
+
+46) need to remove blank lines from newick nbefore parse
+
+47)  Output alphabets incorrect;ly formated--should be single string, same for TCM
+
+48) Hartigan 1973 preorder optimization
+
+49) additive to binary for small number states?  Bit packing
+
+50) Bit packing 
+	Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
+
+51) Additive chars recoded to binary (and packed)
+
+52) Node clusters--Goloboff 1996,1999
+
+53) tree comparison hash, 
+	Could be hash of edges wth min 0 filtered out
+
+54) Add parallel over blocks and characters in blocks
+
+55) TNT -, ? parse with TNT command?
+
+57) Add sum line and column to crossrefernces
+
+58) reverse cross ref loci ?
+
+61) Create structures with best costs andtraveral foci for each non-exact charcater
+	to prepare for preorder step
+	all the book-keeping

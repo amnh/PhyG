@@ -40,9 +40,11 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module GraphOptimization.Medians (  median2
-                , median2Single
-                ) where
+module GraphOptimization.Medians  ( median2
+                                  , median2Single
+                                  , median2NonExact
+                                  , median2SingleNonExact
+                                  ) where
 
 import           Types.Types
 import           Debug.Trace
@@ -50,6 +52,8 @@ import qualified Data.Vector as V
 import qualified Data.BitVector.LittleEndian as BV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
+
+import qualified ParallelUtilities as P
 import qualified SymMatrix as S 
 import qualified DirectOptimization.DOWrapper as DOW
 import qualified Data.TCM.Dense as TCMD
@@ -65,6 +69,14 @@ import Data.Bits ((.&.), (.|.))
 median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
 median2 inData = V.map median2Single inData
 
+
+-- | median2NonExact takes the vectors of characters and applies median2NonExact to each 
+-- character for parallel fmap over all then parallelized by type and seqeunces
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+median2NonExact :: V.Vector (CharacterData, CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
+median2NonExact inData = V.map median2SingleNonExact inData
+
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
@@ -75,8 +87,10 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         thisMatrix = costMatrix inCharInfo
         thisDenseMatrix = denseTCM inCharInfo
         thisTCMMemo = memoTCM inCharInfo
+        thisActive = activity inCharInfo
     in
-    if thisType == Add then 
+    if thisActive == False then (firstVertChar, 0)
+    else if thisType == Add then 
         let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar 
         in
         (newCharVect, localCost  newCharVect)
@@ -105,6 +119,43 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
+
+-- | median2SingleNonExact takes character data and returns median character and cost
+-- median2single assumes that the character vectors in the various states are the same length
+-- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+median2SingleNonExact :: (CharacterData, CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
+median2SingleNonExact (firstVertChar, secondVertChar, existingVertChar, inCharInfo) = 
+    let thisType = charType inCharInfo
+        thisWeight = weight inCharInfo
+        thisMatrix = costMatrix inCharInfo
+        thisDenseMatrix = denseTCM inCharInfo
+        thisTCMMemo = memoTCM inCharInfo
+        thisActive = activity inCharInfo
+    in
+    if thisActive == False then (firstVertChar, 0)
+      
+    else if thisType == Add then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType == NonAdd then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType == Matrix then (existingVertChar, localCost  existingVertChar)
+
+    else if thisType `elem` [SmallAlphSeq, NucSeq] then 
+      -- ffi to POY-C/PCG code
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` [AminoSeq, GenSeq] then 
+      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+
+
 -- | localOr wrapper for BV.or for vector elements
 localOr :: BV.BitVector -> BV.BitVector -> BV.BitVector
 localOr lBV rBV = lBV .|. rBV
@@ -115,8 +166,8 @@ localAnd lBV rBV = lBV .&. rBV
 
 -- | localAndOr takes the intesection vect and union vect elements
 -- and return intersection is /= 0 otherwise union
-localAndOr :: BV.BitVector -> BV.BitVector -> BV.BitVector -> BV.BitVector
-localAndOr localZero interBV unionBV = if (interBV  ==  localZero) then unionBV else interBV
+localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
+localAndOr interBV unionBV = if (BV.isZeroVector interBV) then unionBV else interBV
 
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
@@ -127,10 +178,9 @@ interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight leftChar rightChar =
     let intersectVect =  V.zipWith localAnd (stateBVPrelim leftChar) (stateBVPrelim rightChar)
         unionVect = V.zipWith localOr (stateBVPrelim leftChar) (stateBVPrelim rightChar)
-        localZero = BV.fromBits [False] -- BV.bitVec (BV.size $ V.head $ stateBVPrelim leftChar) (0 :: Integer)
-        numUnions = V.length $ V.filter ( ==  localZero) intersectVect
+        numUnions = V.length $ V.filter BV.isZeroVector intersectVect
         newCost = thisWeight * (fromIntegral numUnions)
-        newStateVect = V.zipWith (localAndOr localZero) intersectVect unionVect
+        newStateVect = V.zipWith localAndOr intersectVect unionVect
         newCharcater = CharacterData {  stateBVPrelim = newStateVect
                                       , stateBVFinal = V.singleton (BV.fromBits [False])
                                       , rangePrelim = V.empty
@@ -145,10 +195,10 @@ interUnion thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
-    {-
-    trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\n\t" ++ (show $ stateBVPrelim leftChar) ++ "\n\t" ++ (show $ stateBVPrelim rightChar) ++ "\n\t"
-        ++ (show intersectVect) ++ "\n\t" ++ (show unionVect) ++ "\n\t" ++ (show newStateVect))
-    -}
+    
+    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
+    
     newCharcater
 
 -- | getNewRange takes min and max range of two additive charcaters and returns 
@@ -189,11 +239,10 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }
     in 
-    {-
-    trace ("Additive: " ++ (show newCost) ++ "\n\t" ++ (show $ minRangePrelim leftChar) ++ "\n\t" ++ (show $ maxRangePrelim leftChar) ++ "\n\t"
-        ++ (show $ minRangePrelim rightChar) ++ "\n\t" ++ (show $ maxRangePrelim rightChar) ++ "\n\t"  
-        ++ (show newRangeCosts))
-    -}
+    
+    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar) 
+     --   ++ (show newRangeCosts))
+    
     newCharcater
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 
