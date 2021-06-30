@@ -338,7 +338,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
           ++ (LG.prettify inDecGraph) ++ "\nRRG:" ++ ((LG.prettify newDecGraph)) ++ "\nNG " ++ (show newGraphCost) ++ " :" ++ (LG.prettify newDecGraph')
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
           
 
 

@@ -328,7 +328,7 @@ makeCharLine (blockDatum, charInfo) =
         (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum) 
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (concat $ V.map concat $ V.map (V.map (U.bitVectToCharState localAlphabet)) $ sequencePrelim blockDatum, concat $ V.map concat $ V.map (V.map (U.bitVectToCharState localAlphabet)) $ sequenceFinal blockDatum)
+                                      else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (concat $ V.map (U.bitVectToCharState localAlphabet) $ sequencePrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ sequenceFinal blockDatum)
                                       else error ("Un-implemented data type " ++ show localType)
         in
         ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]

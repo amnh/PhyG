@@ -79,8 +79,13 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             -}
 
             -- minimal reoptimize with smart order to minimize node reoptimization
+
+            -- initial travesal based on global outgroup and the "next" traversla points as children of existing traversal
+            -- here initial root.
             outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
+
+            -- create list of multi-traversals with original rooting first
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
@@ -198,7 +203,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.singleton (V.singleton (V.singleton impliedRootEdge)), blockCharInfo)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.replicate (length blockCharInfo) (V.singleton curDecGraph), blockCharInfo)
 
     -- Need to make node
     else 

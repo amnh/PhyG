@@ -142,8 +142,11 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single assignment for hardwired and IP optimization
 -- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
--- for sequnce and matrix/Saknoff characters-- Vector of vector of States
+-- for matrix/Saknoff characters-- Vector of vector of States
     --BUT all with same cost matrix/tcm
+-- sequence characters are a vector os bitvectors--so only a single seqeunce character
+--  per "charctaer" this is so the multi-traversal can take place independently for each 
+--  sequence charcater, creating a properly "rooted" tree/graph for each non-exact seqeunce character 
 data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx 
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal :: V.Vector BV.BitVector  
@@ -154,10 +157,10 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple) 
                                      , matrixStatesFinal :: V.Vector (StateCost) 
                                      -- preliminary for m,ultiple seqeunce cahrs with same TCM 
-                                     , sequencePrelim :: V.Vector (V.Vector BV.BitVector) 
+                                     , sequencePrelim :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , sequenceGapped :: V.Vector (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , sequenceFinal :: V.Vector (V.Vector BV.BitVector) 
+                                     , sequenceGapped ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , sequenceFinal :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect :: V.Vector StateCost 
                                      -- weight * V.sum localCostVect
@@ -221,7 +224,7 @@ type SimpleGraph = LG.Gr NameText Double
 --               vector is over blocks, then charactes and can have multiple for each character
 --               only important for dynamic (ie none-eact) characters whose costs depend on traversal focus
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector CharacterFoci, V.Vector (V.Vector CharInfo))
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
 
 -- | type RawGraph is input graphs with leaf and edge labels

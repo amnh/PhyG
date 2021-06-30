@@ -226,7 +226,7 @@ executable phyg
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
-                  DOSlim
+                  DirectOptimization.DOSlim
 
             
 library alphabet
