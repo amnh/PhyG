@@ -27,7 +27,7 @@ module Data.MetricRepresentation
   ( MetricRepresentation(..)
   , retreiveSCM
   , retreivePairwiseTCM
---  , retreiveThreewayTCM
+  , retreiveThreewayTCM
   , discreteMetricPairwiseLogic
   , firstLinearNormPairwiseLogic
   ) where
@@ -35,10 +35,8 @@ module Data.MetricRepresentation
 import Control.DeepSeq
 import Data.Binary
 import Data.Bits
-import Data.Foldable
-import Data.Ord         (comparing)
 import Data.TCM         as TCM
-import Data.TCM.Overlap (overlap2)
+import Data.TCM.Overlap
 import GHC.Generics
 
 
@@ -74,10 +72,7 @@ retreiveSCM LinearNorm             = \i j -> max i j - min i j
 -- Extract the "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
 retreivePairwiseTCM
-  :: ( FiniteBits c
---     , Bound c ~ Word
---     , Ranged c
-     )
+  :: FiniteBits c
   => MetricRepresentation (c -> c -> (c, Word))
   -> c
   -> c
@@ -87,15 +82,11 @@ retreivePairwiseTCM DiscreteMetric       = discreteMetricPairwiseLogic
 retreivePairwiseTCM LinearNorm           = firstLinearNormPairwiseLogic
 
 
-{-
 -- |
 -- Extract the threeway "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
 retreiveThreewayTCM
-  :: ( Bits c
-     , Bound c ~ Word
-     , Ranged c
-     )
+  :: FiniteBits c
   => MetricRepresentation (c -> c -> c -> (c, Word))
   -> c
   -> c
@@ -104,7 +95,6 @@ retreiveThreewayTCM
 retreiveThreewayTCM (ExplicitLayout _ f) = f
 retreiveThreewayTCM DiscreteMetric       =  discreteMetricThreewayLogic
 retreiveThreewayTCM LinearNorm           = firstLinearNormThreewayLogic
--}
 
 
 -- |
@@ -184,7 +174,16 @@ firstLinearNormPairwiseLogic
   => e
   -> e
   -> (e, Word)
-firstLinearNormPairwiseLogic = overlap2 (\i j -> max i j - min i j)
+firstLinearNormPairwiseLogic !x !y = overlap2 (\i j -> max i j - min i j) x y
+
+
+firstLinearNormThreewayLogic
+  :: FiniteBits e
+  => e
+  -> e
+  -> e
+  -> (e, Word)
+firstLinearNormThreewayLogic !x !y !z = overlap3 (\i j -> max i j - min i j) x y z
 
 
 {-
@@ -215,10 +214,8 @@ firstLinearNormPairwiseLogic !lhs !rhs = (fromRange newInterval, cost)
     cost
       | isOverlapping = 0
       | otherwise     = upperBound newInterval - lowerBound newInterval
--}
 
 
-{-
 firstLinearNormThreewayLogic
   :: ( Ord (Bound a)
      , Ranged a

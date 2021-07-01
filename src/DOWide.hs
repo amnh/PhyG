@@ -1,21 +1,14 @@
 module DOWide where
 
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-import Bio.Character.Encodable
-import Data.Alphabet
-import Data.Bits
-import Data.Foldable
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+import           Data.Bits
 import           Data.BitVector.LittleEndian (BitVector)
 import qualified Data.BitVector.LittleEndian as BV
-import           Data.List.NonEmpty  (NonEmpty(..))
-import qualified Data.List.NonEmpty  as NE
 import           Data.MetricRepresentation
 import           Data.Vector         (Vector, (!))
 import qualified Data.Vector         as  V
 import qualified Data.Vector.Unboxed as UV
 import           Data.Word
-import qualified SymMatrix           as SM
 
 
 wrapperSlimDO
@@ -26,7 +19,7 @@ wrapperSlimDO
 -- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
 wrapperSlimDO lhs rhs metric = (resultMedians, fromEnum resultCost)
   where
-    (resultCost, resultMedians) = wideDC2BVs (fromEnum n) <$> widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
+    (resultCost, resultMedians) = (\e@(c,_) -> wideDC2BVs (fromEnum n) <$> widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
 
     tcm = retreivePairwiseTCM metric
 
@@ -71,4 +64,4 @@ wideDC2BVs n (x,_,_) = V.generate (UV.length x) $ \i -> w2bv (x UV.! i)
         let f i a
               | w `testBit` i = a `setBit` i
               | otherwise     = a
-        in  foldr f (BV.fromNumber (toEnum n) 0) [0 .. n - 1]
+        in  foldr f (BV.fromNumber (toEnum n) (0 :: Word)) [0 .. n - 1]

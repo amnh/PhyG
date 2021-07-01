@@ -12,25 +12,21 @@ module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
   , measureAndUngapCharacters
   ) where
 
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
 import           Control.Monad                                  (unless, when)
-import           Control.Monad.Loops                            (whileM)
+import           Control.Monad.Loops                            (whileM_)
 import           Control.Monad.ST
 import           Data.Bits
-import           Data.Coerce
-import Data.Foldable
+import           Data.Foldable
 import           Data.IntMap          (IntMap)
 import qualified Data.IntMap          as IM
-import Data.Ord
+import           Data.Ord
 import           Data.STRef
 import           Data.Semigroup
-import           Data.Semigroup.Foldable
-import qualified Data.Vector                                    as EV
 import qualified Data.Vector.Unboxed.Mutable                    as MUV
-import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable                           as V
 import qualified Data.Vector.Storable.Mutable                   as MV
-import Data.Word
+import           Data.Word
 
 
 -- |
@@ -56,7 +52,7 @@ deleteGaps symbolCount c@(x,y,z)
               j' <- readSTRef j
               pure $ j' < charLen && x V.! j' == gap
         let g v = do
-              whileM isGapAtJ (modifySTRef j succ)
+              whileM_ isGapAtJ (modifySTRef j succ)
               j' <- readSTRef j
               modifySTRef j succ
               pure $ v V.! j'
@@ -97,8 +93,7 @@ deleteGaps symbolCount c@(x,y,z)
        readSTRef gapRefs
 
 
-isAlign, isDelete, isInsert, isGapped :: SlimDynamicCharacter -> Int -> Bool
-isGapped (_,y,z) i = y V.! i == 0 && z V.! i == 0
+isAlign, isDelete, isInsert :: SlimDynamicCharacter -> Int -> Bool
 isInsert (_,y,z) i = y V.! i /= 0 && z V.! i == 0
 isDelete (_,y,z) i = y V.! i == 0 && z V.! i /= 0
 isAlign  (_,y,z) i = y V.! i /= 0 && z V.! i /= 0
@@ -150,7 +145,7 @@ insertGaps symbolCount lGaps rGaps meds@(x,y,z)
             when (isAlign meds m || isInsert meds m) $ do
               modifySTRef rGap succ
 
-      let insertGapWith i e@(xe,ye,ze) gapRef gapVec = do
+      let insertGapWith i (xe,ye,ze) gapRef gapVec = do
             rg <- readSTRef gapRef
             v  <- if rg >= MUV.length gapVec then pure 0 else MUV.unsafeRead gapVec rg
             if   v == 0

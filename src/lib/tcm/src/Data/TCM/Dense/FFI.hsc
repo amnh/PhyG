@@ -463,19 +463,19 @@ performMatrixAllocation :: Word -> Word -> (Word -> Word -> Word) -> DenseTransi
 performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . withArray rowMajorList $ \allocedTCM -> do
         !ptr2D <- malloc :: IO (Ptr CostMatrix2d)
         !ptr3D <- malloc :: IO (Ptr CostMatrix3d)
-        !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM matrixDimension gapOpen
-        !_ <- setUpCostMatrix3dFn_c ptr3D allocedTCM matrixDimension gapOpen
+        !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM dimension gapOpen
+        !_ <- setUpCostMatrix3dFn_c ptr3D allocedTCM dimension gapOpen
         pure DenseTransitionCostMatrix
              { matrixDimension = alphabetSize
              , costMatrix2D    = ptr2D
              , costMatrix3D    = ptr3D
              }
     where
-        matrixDimension = coerceEnum alphabetSize
-        gapOpen         = coerceEnum openningCost
-        range           = [0 .. alphabetSize - 1]
+        dimension    = coerceEnum alphabetSize
+        gapOpen      = coerceEnum openningCost
+        range        = [0 .. alphabetSize - 1]
         -- This *should* be in row major order due to the manner in which list comprehensions are performed.
-        rowMajorList    = [ coerceEnum $ costFn i j | i <- range,  j <- range ]
+        rowMajorList = [ coerceEnum $ costFn i j | i <- range,  j <- range ]
 
 
 -- |

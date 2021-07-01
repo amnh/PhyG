@@ -1,8 +1,14 @@
 module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
   ( SlimDynamicCharacter
-  , smallAlphabetPairwiseDO
+  , slimPairwiseDO
   ) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
+
+slimPairwiseDO
+  :: DenseTransitionCostMatrix
+  -> SlimDynamicCharacter
+  -> SlimDynamicCharacter
+  -> (Word, SlimDynamicCharacter)
+slimPairwiseDO = smallAlphabetPairwiseDO

@@ -106,7 +106,8 @@ getDOMedian origLBV origRBV thisMatrix tcmDense tcmMemo thisType =
 
 --            (mediansFFI, costFFI)           = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
             (mediansFFI, costFFI)           = wrapperSlimDO lBV rBV thisMatrix tcmDense
-            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large     lBV rBV thisMatrix tcmMemo
+            (mediansLargeFFI, costLargeFFI) = wrapperWideDO lBV rBV thisMatrix tcmMemo
+--            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large     lBV rBV thisMatrix tcmMemo
         in
         if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI, costFFI)
         --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)

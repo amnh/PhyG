@@ -32,27 +32,17 @@ module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
 import Data.Coerce
---import Data.List            (intercalate)
---import Data.List.NonEmpty   (NonEmpty, fromList)
 import Data.MonoTraversable
-import Data.Semigroup
 import Data.TCM.Dense
+import           Data.Vector.Storable (Vector)
+import qualified Data.Vector.Storable as V
 import Foreign
---import Foreign.Ptr
---import Foreign.C.String
 import Foreign.C.Types
 import GHC.ForeignPtr
---import Foreign.ForeignPtr
---import Foreign.Marshal.Array
---import Foreign.StablePtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
 
-import           Data.Vector.Storable (Vector)
-import qualified Data.Vector.Storable as V
-import Data.Word
-
-#include "c_alignment_interface.h"
+#include "c_alignment_interface2.h"
 #include "c_code_alloc_setup.h"
 #include "costMatrix.h"
 #include "alignmentMatrices.h"
@@ -103,6 +93,7 @@ foreign import ccall unsafe "c_alignment_interface2.h cAlign2D"
       -> CSize     -- ^ cost
 
 
+{-
 foreign import ccall unsafe "c_alignment_interface2.h cAlignAffine2D"
 
     align2dAffineFn_c
@@ -116,6 +107,7 @@ foreign import ccall unsafe "c_alignment_interface2.h cAlignAffine2D"
       -> Ptr CostMatrix2d
       -> CInt      -- ^ compute medians
       -> CSize     -- ^ cost
+-}
 
 
 {-
@@ -195,14 +187,14 @@ algn2d
   -> SlimDynamicCharacter         -- ^ First  dynamic character
   -> SlimDynamicCharacter         -- ^ Second dynamic character
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians denseTCMs lhs@(char1,_,_) rhs@(char2,_,_) =
+algn2d computeUnion computeMedians denseTCMs lhs rhs =
 {-
     let (gapsChar1, ungappedChar1) = (\v@(y,x) -> trace ("CHAR 1: " <> show x <> "\ngaps: " <> show y) v) $ deleteGaps char1
         (gapsChar2, ungappedChar2) = (\v@(y,x) -> trace ("CHAR 2: " <> show x <> "\ngaps: " <> show y) v) $ deleteGaps char2
         (swapped, shorterChar, longerChar) = (\v@(s,_,_) -> trace ("SWAPPED: " <> show s) v) $ measureCharacters ungappedChar1 ungappedChar2
 -}
     let (swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters (coerceEnum symbolCount) lhs rhs
-        (alignmentCost, ungappedAlignment@(alignedMedian,alignedLesser,alignedLonger)) =
+        (alignmentCost, ungappedAlignment) =
           if      olength shorterChar == 0
           then if olength  longerChar == 0
                -- Niether character was Missing, but both are empty when gaps are removed
@@ -226,7 +218,6 @@ algn2d computeUnion computeMedians denseTCMs lhs@(char1,_,_) rhs@(char2,_,_) =
     in  (alignmentCost, alignmentContext)
   where
     symbolCount = matrixDimension denseTCMs
-    t x y = fst $ lookupPairwise denseTCMs x y
     f :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
     f lesser longer = unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
@@ -241,8 +232,8 @@ algn2d computeUnion computeMedians denseTCMs lhs@(char1,_,_) rhs@(char2,_,_) =
         strategy  <- getAlignmentStrategy <$> peek costStruct
         let medianOpt = coerceEnum computeMedians
         let !cost = case strategy of
-                      Affine -> {-# SCC align2dAffineFn_c #-}
-                        align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
+                      Affine -> {-# SCC affine_undefined #-}
+                        undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
                       _      -> {-# SCC align2dFn_c #-}
                         align2dFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct neverComputeOnlyGapped medianOpt (coerceEnum computeUnion)
 

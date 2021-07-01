@@ -33,12 +33,9 @@ import           Control.Monad.ST
 import           Data.Bits
 import           Data.DList                  (snoc)
 import           Data.Foldable
-import qualified Data.List.NonEmpty          as NE
 import           Data.Matrix.Unboxed         (Matrix, unsafeFreeze, unsafeIndex)
 import qualified Data.Matrix.Unboxed.Mutable as M
-import           Data.Maybe                  (fromMaybe)
 import           Data.MonoTraversable
-import           Data.STRef
 import           Data.Vector.Unboxed         (Vector,(!))
 import qualified Data.Vector.Unboxed         as  UV
 import qualified Data.Vector.Unboxed.Mutable as MUV
@@ -142,7 +139,7 @@ directOptimization
 directOptimization matrixFunction symbolCount overlapλ lhs rhs =
     let gap = bit $ fromEnum symbolCount :: Word64
         ~(swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters symbolCount lhs rhs
-        ~(alignmentCost, ungappedAlignment@(alignedMedian,alignedLesser,alignedLonger)) =
+        ~(alignmentCost, ungappedAlignment) =
             if      olength shorterChar == 0
             then if olength  longerChar == 0
                  -- Niether character was Missing, but both are empty when gaps are removed
