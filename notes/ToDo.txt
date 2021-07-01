@@ -151,14 +151,6 @@
 	No ancestors of network ancestor sister 
 	No descendants of network descendant sister
 
-39) add smart reroot to traversal
-	and only for dynamic characters
-	do regular traversal first
-		then reroot from that, bt only apply to dynamic
-		keep foci for preorder
-
-40) Do preorder with traversal foci
-
 41) For output diagnosis
 	rediagnose graph(s) wiht Naive data for more legible output
 
@@ -168,10 +160,6 @@
 
 44) expand read for wildcards
 	issue wirth modifier--needs to be propagated--ie "fasta"
-
-
-45) Tree lengths seem way off for primate data--maybe multiple counting?
-	One block bleeding into another?  Doesn't seem to affect doubling of data file
 
 46) need to remove blank lines from newick nbefore parse
 
@@ -202,3 +190,13 @@
 61) Create structures with best costs andtraveral foci for each non-exact charcater
 	to prepare for preorder step
 	all the book-keeping
+
+62) Change dynamic (non-exact) type to single "character" not vector
+	since each nonexact character needs to be multi-traversed
+
+63) create smart result multi-traverse 
+	best cost, traversal etc for each non-exact characrter
+
+64) Change type for phylogenetic graph 
+	blockfoci -> character display forest
+	this have correct traversal for preorder pass noexactr character by character

@@ -188,7 +188,7 @@ interUnion thisWeight leftChar rightChar =
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
                                       , sequencePrelim = V.empty
-                                      , sequenceGapped = V.empty
+                                      , sequenceGapped = (V.empty, V.empty, V.empty)
                                       , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
@@ -232,7 +232,7 @@ intervalAdd thisWeight leftChar rightChar =
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
                                       , sequencePrelim = V.empty
-                                      , sequenceGapped = V.empty
+                                      , sequenceGapped = (V.empty, V.empty, V.empty)
                                       , sequenceFinal = V.empty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
@@ -292,7 +292,7 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
                                       , matrixStatesPrelim = initialMatrixVector
                                       , matrixStatesFinal = V.empty
                                       , sequencePrelim = V.empty
-                                      , sequenceGapped = V.empty
+                                      , sequenceGapped = (V.empty, V.empty, V.empty)
                                       , sequenceFinal = V.empty
                                       , localCostVect = initialCostVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
@@ -310,10 +310,10 @@ getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.M
 getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else 
-    let resultVect = V.map (DOW.getDOMedian thisMatrix thisDenseMatrix thisMemoTCM thisType)  (V.zip  (sequencePrelim leftChar) (sequencePrelim rightChar))
-        newStateVect = V.map fst resultVect
-        newCostVect = V.map snd resultVect
-        newCost = V.sum $ V.map (thisWeight *) (V.map fromIntegral newCostVect)
+    let resultVect = DOW.getDOMedian thisMatrix thisDenseMatrix thisMemoTCM thisType ((sequencePrelim leftChar), (sequencePrelim rightChar))
+        newStateVect = fst resultVect
+        newCostVect = snd resultVect
+        newCost = (thisWeight *) (fromIntegral newCostVect)
         newCharcater = CharacterData {  stateBVPrelim = V.empty  
                                       , stateBVFinal = V.empty
                                       , rangePrelim = V.empty
@@ -321,9 +321,9 @@ getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar 
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
                                       , sequencePrelim = newStateVect
-                                      , sequenceGapped = V.empty
+                                      , sequenceGapped = (V.empty, V.empty, V.empty)
                                       , sequenceFinal = V.empty
-                                      , localCostVect = newCostVect
+                                      , localCostVect = V.singleton newCostVect
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
                                       }

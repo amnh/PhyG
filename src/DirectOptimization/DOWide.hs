@@ -1,4 +1,4 @@
-module DOWide where
+module DirectOptimization.DOWide where
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
 import           Data.Bits
@@ -17,9 +17,9 @@ wrapperSlimDO
   -> MetricRepresentation (Word64 -> Word64 -> (Word64, Word))
   -> (Vector BitVector, Int)
 -- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
-wrapperSlimDO lhs rhs metric = (resultMedians, fromEnum resultCost)
+wrapperSlimDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromEnum resultCost)
   where
-    (resultCost, resultMedians) = (\e@(c,_) -> wideDC2BVs (fromEnum n) <$> widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
+    (resultCost, resultMedians) = widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
 
     tcm = retreivePairwiseTCM metric
 

@@ -108,7 +108,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     let numNodes = length $ LG.nodes inGraph
     in
     -- isolated node -- throw error
-    if inNum == 0 || outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (LG.prettify inGraph) )
+    if inNum == 0 && outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (LG.prettify inGraph) )
 
     -- indegree 1 outdegree 1 node to contract
     else if inNum == 1 && outNum == 1 then
@@ -303,7 +303,7 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
   if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
-  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input garph in rerootPhylogeneticGraph"
+  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph"
   else 
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
         newSimpleGraph = rerootGraph rerootIndex inSimple
@@ -338,7 +338,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
           ++ (LG.prettify inDecGraph) ++ "\nRRG:" ++ ((LG.prettify newDecGraph)) ++ "\nNG " ++ (show newGraphCost) ++ " :" ++ (LG.prettify newDecGraph')
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, newCharacterFoci, charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
           
 
 

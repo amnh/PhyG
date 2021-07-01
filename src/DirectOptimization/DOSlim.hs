@@ -1,4 +1,4 @@
-module DOSlim where
+module DirectOptimization.DOSlim where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
 import Data.Bits
