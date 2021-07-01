@@ -27,7 +27,7 @@ module Data.MetricRepresentation
   ( MetricRepresentation(..)
   , retreiveSCM
   , retreivePairwiseTCM
-  , retreiveThreewayTCM
+--  , retreiveThreewayTCM
   , discreteMetricPairwiseLogic
   , firstLinearNormPairwiseLogic
   ) where
@@ -36,9 +36,9 @@ import Control.DeepSeq
 import Data.Binary
 import Data.Bits
 import Data.Foldable
-import Data.Ord        (comparing)
-import Data.Range
-import Data.TCM        as TCM
+import Data.Ord         (comparing)
+import Data.TCM         as TCM
+import Data.TCM.Overlap (overlap2)
 import GHC.Generics
 
 
@@ -74,9 +74,9 @@ retreiveSCM LinearNorm             = \i j -> max i j - min i j
 -- Extract the "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
 retreivePairwiseTCM
-  :: ( Bits c
-     , Bound c ~ Word
-     , Ranged c
+  :: ( FiniteBits c
+--     , Bound c ~ Word
+--     , Ranged c
      )
   => MetricRepresentation (c -> c -> (c, Word))
   -> c
@@ -87,6 +87,7 @@ retreivePairwiseTCM DiscreteMetric       = discreteMetricPairwiseLogic
 retreivePairwiseTCM LinearNorm           = firstLinearNormPairwiseLogic
 
 
+{-
 -- |
 -- Extract the threeway "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
@@ -103,16 +104,20 @@ retreiveThreewayTCM
 retreiveThreewayTCM (ExplicitLayout _ f) = f
 retreiveThreewayTCM DiscreteMetric       =  discreteMetricThreewayLogic
 retreiveThreewayTCM LinearNorm           = firstLinearNormThreewayLogic
+-}
 
 
 -- |
 -- Definition of the discrete metric.
 {-# SCC        discreteMetricPairwiseLogic #-}
 {-# INLINE     discreteMetricPairwiseLogic #-}
-{-# SPECIALISE discreteMetricPairwiseLogic :: Bits b => b              -> b              -> (b             , Word) #-}
-{-# SPECIALISE discreteMetricPairwiseLogic ::           Int            -> Int            -> (Int           , Word) #-}
-{-# SPECIALISE discreteMetricPairwiseLogic ::           Word           -> Word           -> (Word          , Word) #-}
-{-# SPECIALISE discreteMetricPairwiseLogic ::           Word8          -> Word8          -> (Word8         , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic :: Bits b => b      -> b      -> (b     , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Word   -> Word   -> (Word  , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Word8  -> Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Word16 -> Word16 -> (Word16, Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Word32 -> Word32 -> (Word32, Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           Word64 -> Word64 -> (Word64, Word) #-}
 discreteMetricPairwiseLogic
   :: ( Bits a
      , Num b
@@ -138,11 +143,13 @@ discreteMetricPairwiseLogic !lhs !rhs
 --
 {-# SCC        discreteMetricThreewayLogic #-}
 {-# INLINE     discreteMetricThreewayLogic #-}
-{-# SPECIALISE discreteMetricThreewayLogic :: Bits b => b              -> b              -> b              -> (b             , Word) #-}
---{-# SPECIALISE discreteMetricThreewayLogic ::           AmbiguityGroup -> AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word) #-}
-{-# SPECIALISE discreteMetricThreewayLogic ::           Int            -> Int            -> Int            -> (Int           , Word) #-}
-{-# SPECIALISE discreteMetricThreewayLogic ::           Word           -> Word           -> Word           -> (Word          , Word) #-}
-{-# SPECIALISE discreteMetricThreewayLogic ::           Word8          -> Word8          -> Word8          -> (Word8         , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic :: Bits b => b      -> b      -> b      -> (b     , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Int    -> Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Word   -> Word   -> Word   -> (Word  , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Word8  -> Word8  -> Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Word16 -> Word16 -> Word16 -> (Word16, Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Word32 -> Word32 -> Word32 -> (Word32, Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
 discreteMetricThreewayLogic
   :: ( Bits a
      , Num b
@@ -161,6 +168,26 @@ discreteMetricThreewayLogic !x !y !z
     !fullUnion        =  x        .|.  y        .|.  z
 
 
+-- |
+-- Definition of the L1 norm metric.
+{-# SCC        firstLinearNormPairwiseLogic #-}
+{-# INLINEABLE firstLinearNormPairwiseLogic #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic :: FiniteBits b => b      -> b      -> (b     , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word   -> Word   -> (Word  , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word8  -> Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word16 -> Word16 -> (Word16, Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word32 -> Word32 -> (Word32, Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word64 -> Word64 -> (Word64, Word) #-}
+firstLinearNormPairwiseLogic
+  :: FiniteBits e
+  => e
+  -> e
+  -> (e, Word)
+firstLinearNormPairwiseLogic = overlap2 (\i j -> max i j - min i j)
+
+
+{-
 -- |
 -- Definition of the L1 norm metric.
 firstLinearNormPairwiseLogic
@@ -188,8 +215,10 @@ firstLinearNormPairwiseLogic !lhs !rhs = (fromRange newInterval, cost)
     cost
       | isOverlapping = 0
       | otherwise     = upperBound newInterval - lowerBound newInterval
+-}
 
 
+{-
 firstLinearNormThreewayLogic
   :: ( Ord (Bound a)
      , Ranged a
@@ -242,3 +271,4 @@ firstLinearNormThreewayLogic !x !y !z
     getSmallestClosed i j k =
       let v = (i `intersection` j) `smallestClosed` k
       in  (fromRange v, upperBound v - lowerBound v)
+-}

@@ -92,15 +92,15 @@ foreign import ccall unsafe "c_alignment_interface2.h cAlign2D"
       :: Ptr CUInt -- ^ character1, input & output (lesser)
       -> Ptr CUInt -- ^ character2, input & output (longer)
       -> Ptr CUInt -- ^ gapped median output
-      -> Ptr CSize  -- ^ length median output
-      -> CSize      -- ^ size of each buffer
-      -> CSize      -- ^ length of character1
-      -> CSize      -- ^ length of character2
+      -> Ptr CSize -- ^ length median output
+      -> CSize     -- ^ size of each buffer
+      -> CSize     -- ^ length of character1
+      -> CSize     -- ^ length of character2
       -> Ptr CostMatrix2d
-      -> CInt       -- ^ compute ungapped & not   gapped medians
-      -> CInt       -- ^ compute   gapped & not ungapped medians
-      -> CInt       -- ^ compute union
-      -> CSize      -- ^ cost
+      -> CInt      -- ^ compute ungapped & not   gapped medians
+      -> CInt      -- ^ compute   gapped & not ungapped medians
+      -> CInt      -- ^ compute union
+      -> CSize     -- ^ cost
 
 
 foreign import ccall unsafe "c_alignment_interface2.h cAlignAffine2D"
@@ -109,13 +109,13 @@ foreign import ccall unsafe "c_alignment_interface2.h cAlignAffine2D"
       :: Ptr CUInt -- ^ character1, input & output (lesser)
       -> Ptr CUInt -- ^ character2, input & output (longer)
       -> Ptr CUInt -- ^ gapped median output
-      -> Ptr CSize  -- ^ length median output
-      -> CSize      -- ^ size of each buffer
-      -> CSize      -- ^ length of character1
-      -> CSize      -- ^ length of character2
+      -> Ptr CSize -- ^ length median output
+      -> CSize     -- ^ size of each buffer
+      -> CSize     -- ^ length of character1
+      -> CSize     -- ^ length of character2
       -> Ptr CostMatrix2d
-      -> CInt        -- ^ compute medians
-      -> CSize       -- ^ cost
+      -> CInt      -- ^ compute medians
+      -> CSize     -- ^ cost
 
 
 {-
