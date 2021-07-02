@@ -50,6 +50,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , contractOneOneEdges
                        , getNodeType
                        , convertDecoratedToSimpleGraph
+                       , graphCostFromNodes
+                       , createVertexDataOverBlocks
                        ) where
 
 import           Debug.Trace
@@ -303,7 +305,7 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) = 
   if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
-  else if inCost == 0 then error "Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph"
+  else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph") -- ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else 
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
         newSimpleGraph = rerootGraph rerootIndex inSimple
@@ -351,8 +353,9 @@ reOptimizeNodes :: V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode V
 reOptimizeNodes charInfoVectVect inGraph oldNodeList =
   if null oldNodeList then inGraph
   else 
+    -- make sure that nodes are optimized in correct order so that nodes are only reoptimized using updated children
+    -- this should really not have to happen--order should be determined a priori
     let curNode = head oldNodeList
-        -- debugging check of unoptimized nodes  if childern of cur node in list of ones yet to be done
         nodeChildren = LG.descendants inGraph (fst curNode)  -- should be 1 or 2, not zero since all leaves already in graph
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
@@ -366,45 +369,89 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             leftChildLabel = fromJust $ LG.lab inGraph leftChild
             rightChildLabel = fromJust $ LG.lab inGraph rightChild
             curnodeLabel = snd curNode
-            newVertexData = createVertexDataOverBlocksNonExact  (vertData leftChildLabel) (vertData  rightChildLabel) (vertData curnodeLabel) charInfoVectVect []
+            newVertexData = createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
+            --newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
         in
         --debug remove when not needed--checking to see if node should not be re optimized
         if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then 
           trace ("Children for vertex unchanged " ++ (show $ fst curNode))
           reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
         else 
-           let newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
+           let newCost =  if (length nodeChildren < 2) then 0 
+                          else V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
                newVertexLabel = VertexInfo {  index = fst curNode
-                                            , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
+                                            -- this bit labelling incorect for outdegree = 1, need to prepend bits
+                                            , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)  
                                             , parents = V.fromList $ LG.parents inGraph (fst curNode)
                                             , children = V.fromList nodeChildren
                                             , nodeType = nodeType curnodeLabel
                                             , vertName = vertName curnodeLabel
-                                            , vertData = V.map (V.map fst) newVertexData
+                                            , vertData = if (length nodeChildren < 2) then vertData leftChildLabel
+                                                         else V.map (V.map fst) newVertexData
                                             , vertexCost = newCost
-                                            , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                            , subGraphCost = if (length nodeChildren < 2) then subGraphCost leftChildLabel
+                                                             else (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                             }
                -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
                replacementEdges = (LG.inn inGraph (fst curNode)) ++ (LG.out inGraph (fst curNode))
                newGraph = LG.insEdges replacementEdges $ LG.insNode (fst curNode, newVertexLabel) $ LG.delNode (fst curNode) inGraph   
             in
+            --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
             reOptimizeNodes charInfoVectVect newGraph (tail oldNodeList)
 
 -- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and 
 -- extracts the quartet for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
-createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
+
+{-
+createVertexDataOverBlocksNonExact' :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksNonExact' leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData then 
+        -- trace ("Blocks: " ++ (show $ length curBlockData))
+        V.fromList $ reverse curBlockData
+    else
+        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian = M.median2NonExact firstBlock
+        in
+        trace ("making")
+        createVertexDataOverBlocksNonExact' (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+-}
+
+-- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and 
+-- extracts the quartet for each block and creates new block data for parent node (usually)
+-- not checking if vectors are equal in length
+-- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
+-- and and skips the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksNonExact leftBlockData rightBlockData  blockCharInfoVect curBlockData =
+    if V.null leftBlockData then 
+        -- trace ("Blocks: " ++ (show $ length curBlockData))
+        V.fromList $ reverse curBlockData
+    else
+        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian = M.median2NonExact firstBlock
+        in
+        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
+
+-- | createVertexDataOverBlocks takes data in blocks and block vector of char info and 
+-- extracts the triple for each block and creates new bloick data for parent node (usually)
+-- not checking if vectgors are equal in length
+createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then 
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
     else
-        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head existingBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
+        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
+            firstBlockMedian = M.median2 firstBlock
         in
-        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+        createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
+
+
 
 -- | makeCharFociVVV takes an edge and creates the Vector Vector Vector structure for that edge based
 -- on charInfo 
@@ -578,3 +625,11 @@ convertDecoratedToSimpleGraph inDec =
         simpleEdgeList = zip3 sourceList sinkList newEdgeLables
     in
     LG.mkGraph simpleNodes simpleEdgeList
+
+-- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
+--  of its nodes
+graphCostFromNodes :: DecoratedGraph -> Double
+graphCostFromNodes inGraph =
+  if LG.isEmpty inGraph then 0.0
+  else 
+    sum $ fmap vertexCost $ fmap snd $ LG.labNodes inGraph

@@ -197,6 +197,7 @@
 63) create smart result multi-traverse 
 	best cost, traversal etc for each non-exact characrter
 
-64) Change type for phylogenetic graph 
-	blockfoci -> character display forest
-	this have correct traversal for preorder pass noexactr character by character
+65) Remove Debug check on unchganged children in 
+	line 371 GraphOperations
+
+66) Check smart reroot for correct with exact characters

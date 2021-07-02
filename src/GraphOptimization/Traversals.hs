@@ -86,10 +86,12 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
 
             -- create list of multi-traversals with original rooting first
+            -- subsequent rerooting do not reoptimize exactr characters--they are taken from the fully labelled first input decorated graph
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
         in
+        --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
         --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
@@ -108,7 +110,7 @@ minimalReRootPhyloGraph inGraph nodesToRoot =
             nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
             newGraph = GO.rerootPhylogeneticGraph' inGraph firstRerootIndex
         in
-        -- trace ("This : " ++ (show firstRerootIndex) ++ " Next:" ++ show nextReroots)
+        --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
         newGraph : minimalReRootPhyloGraph newGraph nextReroots
 
 -- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
@@ -228,7 +230,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 leftChildLabel = fromJust $ LG.lab newSubTree leftChild
                 rightChildLabel = fromJust $ LG.lab newSubTree rightChild
                 
-                newCharData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                newCharData = GO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
@@ -267,19 +269,3 @@ preOrderTreeTraversal inGS inData inPGraph =
     else 
         inPGraph
         
--- | createVertexDataOverBlocks takes data in blocks and block vector of char info and 
--- extracts the triple for each block and creates new bloick data for parent node (usually)
--- not checking if vectgors are equal in length
-createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then 
-        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect) 
-            firstBlockMedian = M.median2 firstBlock
-        in
-        createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
---M.median2 $ V.zip3 (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo
-

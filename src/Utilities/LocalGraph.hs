@@ -238,7 +238,7 @@ isNetworkNode  inGraph inNode = (((G.indeg inGraph inNode) > 1) && ((G.outdeg in
 isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (((G.indeg inGraph inNode) == 1) && ((G.outdeg inGraph inNode) > 0))
 
--- getRoots retuirns list of graph roots (labelled)
+-- getRoots returns list of graph roots (labelled)
 getRoots :: Gr a b -> [LNode a]
 getRoots inGraph = 
     if isEmpty inGraph then []

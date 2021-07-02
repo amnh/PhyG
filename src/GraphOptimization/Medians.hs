@@ -74,8 +74,9 @@ median2 inData = V.map median2Single inData
 -- character for parallel fmap over all then parallelized by type and seqeunces
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
-median2NonExact :: V.Vector (CharacterData, CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
-median2NonExact inData = V.map median2SingleNonExact inData
+median2NonExact :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
+median2NonExact inData  = V.map median2SingleNonExact inData 
+    
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
@@ -124,23 +125,36 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
--- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
-median2SingleNonExact :: (CharacterData, CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
-median2SingleNonExact (firstVertChar, secondVertChar, existingVertChar, inCharInfo) = 
+-- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others. 
+median2SingleNonExact :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
+median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) = 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
         thisDenseMatrix = denseTCM inCharInfo
         thisTCMMemo = memoTCM inCharInfo
         thisActive = activity inCharInfo
+        dummyStaticCharacter = CharacterData {  stateBVPrelim = V.empty
+                                      , stateBVFinal = V.empty
+                                      , rangePrelim = V.empty
+                                      , rangeFinal = V.empty
+                                      , matrixStatesPrelim = V.empty
+                                      , matrixStatesFinal = V.empty
+                                      , sequencePrelim = V.empty
+                                      , sequenceGapped = (V.empty, V.empty, V.empty)
+                                      , sequenceFinal = V.empty
+                                      , localCostVect = V.singleton 0
+                                      , localCost = 0.0
+                                      , globalCost = 0.0
+                                      }
     in
-    if thisActive == False then (firstVertChar, 0)
+    if thisActive == False then (dummyStaticCharacter, 0)
       
-    else if thisType == Add then (existingVertChar, localCost  existingVertChar)
+    else if thisType == Add then (dummyStaticCharacter, 0)
 
-    else if thisType == NonAdd then (existingVertChar, localCost  existingVertChar)
+    else if thisType == NonAdd then (dummyStaticCharacter, 0)
 
-    else if thisType == Matrix then (existingVertChar, localCost  existingVertChar)
+    else if thisType == Matrix then (dummyStaticCharacter, 0)
 
     else if thisType `elem` [SmallAlphSeq, NucSeq] then 
       -- ffi to POY-C/PCG code
