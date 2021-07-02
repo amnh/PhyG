@@ -372,11 +372,13 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             newVertexData = createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
             --newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
         in
+        {-
         --debug remove when not needed--checking to see if node should not be re optimized
         if (sort nodeChildren) == (sort $ V.toList $ children curnodeLabel) then 
           trace ("Children for vertex unchanged " ++ (show $ fst curNode))
           reOptimizeNodes charInfoVectVect inGraph (tail oldNodeList)
         else 
+        -} 
            let newCost =  if (length nodeChildren < 2) then 0 
                           else V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
                newVertexLabel = VertexInfo {  index = fst curNode

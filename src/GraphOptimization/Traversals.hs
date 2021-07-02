@@ -80,23 +80,41 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
             -- minimal reoptimize with smart order to minimize node reoptimization
 
-            -- initial travesal based on global outgroup and the "next" traversla points as children of existing traversal
+            -- initial travesal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
             outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
 
             -- create list of multi-traversals with original rooting first
-            -- subsequent rerooting do not reoptimize exactr characters--they are taken from the fully labelled first input decorated graph
+            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
+            -- they are taken from the fully labelled first input decorated graph later when output graph created
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
+
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
+
+            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
+            --  travesal for exact charcaters (and costs) are the first of each least since exact onluy optimizaed for that 
+            --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+            -- are propagated to the Decorated graph field after the preorder pass.
+            graphWithBestAssignments = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph, -1.0, thd6 outgroupRootedPhyloGraph, [], [], six6 outgroupRootedPhyloGraph) 0 0
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
         --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
-        head minCostGraphListRecursive 
+        graphWithBestAssignments
+
+-- | setBestGraphAssignments take a list of Phylogenetics Graphs and an initial graph with counter as 7 fields
+--   and returns teh Phylogenetic graph with optimal exact an dnon-exact costs and travesal greaphs
+--   exact character and traversal graphs are taken as those of the head of the list
+setBestGraphAssignments :: [PhylogeneticGraph] -> (SimpleGraph, VertexCost, DecoratedGraph, [BlockDisplayForest], [[DecoratedGraph]], V.Vector (V.Vector CharInfo)) -> Int -> Int -> PhylogeneticGraph
+setBestGraphAssignments inGraphList (curSimpleGraph, curCost, curDecGraph, curBlockDisplayForestList, curTraversalGraphList, curCharInfo) blockIndex charIndex =
+    if null inGraphList then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    else 
+        head inGraphList   
+
 
 -- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully

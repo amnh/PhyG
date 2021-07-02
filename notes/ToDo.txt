@@ -194,10 +194,4 @@
 62) Change dynamic (non-exact) type to single "character" not vector
 	since each nonexact character needs to be multi-traversed
 
-63) create smart result multi-traverse 
-	best cost, traversal etc for each non-exact characrter
-
-65) Remove Debug check on unchganged children in 
-	line 371 GraphOperations
-
-66) Check smart reroot for correct with exact characters
+67) Book keeping aafter post order for best sorted phylogenetic graph
