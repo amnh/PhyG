@@ -135,7 +135,8 @@
 
 34) Test graph -> tree
 
-35) test contract edges
+35) test contract edges in input
+	a-x-b -> a-b
 
 36) test time consistancy
 	non overlap of "before" and "after" nodes
@@ -195,3 +196,9 @@
 	since each nonexact character needs to be multi-traversed
 
 67) Book keeping aafter post order for best sorted phylogenetic graph
+
+68) Alex nice tree rendering code
+
+69) Every tree node is an inflexion point in graph
+	for SPR/TBR/TF
+	
