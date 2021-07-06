@@ -72,7 +72,7 @@ retreiveSCM LinearNorm             = \i j -> max i j - min i j
 -- Extract the "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
 retreivePairwiseTCM
-  :: FiniteBits c
+  :: (FiniteBits c, Show c)
   => MetricRepresentation (c -> c -> (c, Word))
   -> c
   -> c
@@ -86,7 +86,7 @@ retreivePairwiseTCM LinearNorm           = firstLinearNormPairwiseLogic
 -- Extract the threeway "transition cost matrix" from a 'MetricRepresentation',
 -- using the elimination function.
 retreiveThreewayTCM
-  :: FiniteBits c
+  :: (FiniteBits c, Show c)
   => MetricRepresentation (c -> c -> c -> (c, Word))
   -> c
   -> c
@@ -162,7 +162,7 @@ discreteMetricThreewayLogic !x !y !z
 -- Definition of the L1 norm metric.
 {-# SCC        firstLinearNormPairwiseLogic #-}
 {-# INLINEABLE firstLinearNormPairwiseLogic #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic :: FiniteBits b => b      -> b      -> (b     , Word) #-}
+-- {-# SPECIALISE firstLinearNormPairwiseLogic :: FiniteBits b => b      -> b      -> (b     , Word) #-}
 {-# SPECIALISE firstLinearNormPairwiseLogic ::                 Int    -> Int    -> (Int   , Word) #-}
 {-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word8  -> Word8  -> (Word8 , Word) #-}
@@ -170,7 +170,7 @@ discreteMetricThreewayLogic !x !y !z
 {-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word32 -> Word32 -> (Word32, Word) #-}
 {-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word64 -> Word64 -> (Word64, Word) #-}
 firstLinearNormPairwiseLogic
-  :: FiniteBits e
+  :: (FiniteBits e, Show e)
   => e
   -> e
   -> (e, Word)
@@ -178,7 +178,7 @@ firstLinearNormPairwiseLogic !x !y = overlap2 (\i j -> max i j - min i j) x y
 
 
 firstLinearNormThreewayLogic
-  :: FiniteBits e
+  :: (FiniteBits e, Show e)
   => e
   -> e
   -> e

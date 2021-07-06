@@ -79,6 +79,7 @@ overlap sigma xs = go size maxBound zero
                                  GT -> (newCost, zero `setBit` i')
         in go i' minCost bits'
 
+    getDistance :: (FiniteBits e, Show e) => Word -> e -> Word
     getDistance i b = go' size (maxBound :: Word)
       where
         go' :: Int -> Word -> Word
@@ -91,7 +92,7 @@ overlap sigma xs = go size maxBound zero
 
 -- |
 -- Calculate the median between /two/ states.
-{-# INLINE overlap2 #-}
+{-# INLINE     overlap2 #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word8  -> Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word16 -> Word16 -> (Word16, Word) #-}
@@ -108,7 +109,7 @@ overlap2 sigma char1 char2 = overlap sigma $ char1 :| [char2]
 
 -- |
 -- Calculate the median between /three/ states.
-{-# INLINE overlap3 #-}
+{-# INLINE     overlap3 #-}
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word   -> Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word8  -> Word8  -> Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word16 -> Word16 -> Word16 -> (Word16, Word) #-}
