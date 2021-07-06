@@ -155,8 +155,9 @@ executable phyg
 
 
 -- delete these for OSX for linux static binaries
---  cc-options: -static
---  ld-options: -static -pthread
+  if !os(darwin)
+    cc-options: -static
+    ld-options: -static -pthread
 
   build-depends:  alphabet
                 , analysis
@@ -594,11 +595,14 @@ library tcm-memo
     lib/tcm-memo/src
 
   cc-options:       --std=c11
-
+  
   cxx-options:      --std=c++14
 
   -- This library is required for linking to the C++ standard template library.
-  extra-libraries:  stdc++
+  if os(darwin)
+    extra-libraries:  c++
+  else
+    extra-libraries:  stdc++
 
   hs-source-dirs:   lib/tcm-memo/ffi
 
