@@ -50,7 +50,7 @@ import Data.Word
 -- the two (non-overlapping) least cost pairs are A,C and T,G, then the return
 -- value is A,C,G,T.
 {-# INLINE overlap #-}
-{-# SPECIALISE overlap :: FiniteBits e => (Word -> Word -> Word) -> NonEmpty e -> (e, Word) #-}
+{-# SPECIALISE overlap :: (Show e, FiniteBits e) => (Word -> Word -> Word) -> NonEmpty e -> (e, Word) #-}
 {-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word   -> (Word  , Word) #-}
 {-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word16 -> (Word16, Word) #-}
@@ -58,6 +58,7 @@ import Data.Word
 {-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word64 -> (Word64, Word) #-}
 overlap
   :: ( FiniteBits e
+     , Show e
      , Foldable1 f
      , Functor f
      )
@@ -99,7 +100,9 @@ overlap sigma xs = go size maxBound zero
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word32 -> Word32 -> (Word32, Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word64 -> Word64 -> (Word64, Word) #-}
 overlap2
-  :: FiniteBits e
+  :: ( FiniteBits e
+     , Show e 
+     )
   => (Word -> Word -> Word)
   -> e
   -> e
@@ -116,7 +119,9 @@ overlap2 sigma char1 char2 = overlap sigma $ char1 :| [char2]
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word32 -> Word32 -> Word32 -> (Word32, Word) #-}
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
 overlap3
-  :: FiniteBits e
+  :: ( FiniteBits e
+     , Show e
+     )
   => (Word -> Word -> Word)
   -> e
   -> e
