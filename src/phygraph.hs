@@ -135,8 +135,13 @@ main =
       Execute any 'Block' change commands--make reBlockedNaiveData
     -}
 
+    -- Group Data--all nonadditives to single character, additives with same alphabet, convert 
+        -- Additive characters with alphabets < 64 to multiple binary nonadditive
+        -- all binary charcaters to nonadditive
+    let groupedData = naiveData
+
     -- Optimize Data
-    let optimizedData = naiveData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
+    let optimizedData = groupedData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
 
     -- Set global vaues before search--should be integrated with executing commands

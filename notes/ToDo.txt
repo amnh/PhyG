@@ -201,4 +201,5 @@
 
 69) Every tree node is an inflexion point in graph
 	for SPR/TBR/TF
-	
+
+70) Add Alex binary tree rendering for ascii output

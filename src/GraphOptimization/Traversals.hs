@@ -113,6 +113,8 @@ setBestGraphAssignments :: [PhylogeneticGraph] -> (SimpleGraph, VertexCost, Deco
 setBestGraphAssignments inGraphList (curSimpleGraph, curCost, curDecGraph, curBlockDisplayForestList, curTraversalGraphList, curCharInfo) blockIndex charIndex =
     if null inGraphList then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
+        -- Get best costs,  assignments, traversal tree(s) for each non-exact character, head for exact
+        -- Get total best cost
         head inGraphList   
 
 
