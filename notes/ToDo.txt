@@ -203,3 +203,7 @@
 	for SPR/TBR/TF
 
 70) Add Alex binary tree rendering for ascii output
+
+71) latex structure and all that stuff on how it works + haddock functions
+
+72) stylish and hlint source code

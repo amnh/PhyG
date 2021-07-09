@@ -50,6 +50,7 @@ import Debug.Trace
 import qualified GraphFormatUtilities as GFU
 import qualified GraphOptimization.Medians as M
 import qualified Graphs.GraphOperations  as GO
+import qualified SymMatrix as SM
 
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy  as T
@@ -66,6 +67,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
             {-
             -- brute force
+
             rootList = [0.. (( 2 * (V.length $ fst3 inData)) - 1)] -- need a smarter list going to adjecent edges
             rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
             rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
@@ -73,6 +75,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
             
             -- minimal reoptimize--but order naive
+
             rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' (head rerootedPhyloGraphList)) rootList
             minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
             minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
@@ -80,7 +83,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
             -- minimal reoptimize with smart order to minimize node reoptimization
 
-            -- initial travesal based on global outgroup and the "next" traversal points as children of existing traversal
+            -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
             outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
@@ -107,15 +110,73 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         graphWithBestAssignments
 
 -- | setBestGraphAssignments take a list of Phylogenetics Graphs and an initial graph with counter as 7 fields
---   and returns teh Phylogenetic graph with optimal exact an dnon-exact costs and travesal greaphs
+--   and returns the Phylogenetic graph with optimal exact an non-exact costs and traversal graphs
 --   exact character and traversal graphs are taken as those of the head of the list
+--   input simple and decotratoed graphs are unchanged in output.  The curBlockDisplayForestList and curTraversalGraphList 
+--   would be used for any pre-order traversals and assignments
+--   this version for input trees so curTraversalGraphList can be created from input Decorated Graphs and blockDisplayForwst are set as the same as well
+--   (would vary if softwired graph)
 setBestGraphAssignments :: [PhylogeneticGraph] -> (SimpleGraph, VertexCost, DecoratedGraph, [BlockDisplayForest], [[DecoratedGraph]], V.Vector (V.Vector CharInfo)) -> Int -> Int -> PhylogeneticGraph
 setBestGraphAssignments inGraphList (curSimpleGraph, curCost, curDecGraph, curBlockDisplayForestList, curTraversalGraphList, curCharInfo) blockIndex charIndex =
     if null inGraphList then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
-        -- Get best costs,  assignments, traversal tree(s) for each non-exact character, head for exact
+        -- Get list of best costs,  assignments, display graphs,  traversal tree(s) for each non-exact character, head for exact
         -- Get total best cost
+        let graphAllCharcaterData = getCharacterData "all" (head inGraphList)
+            graphNonExactCharacterData = fmap (getCharacterData "nonExact") (tail inGraphList)
+            -- extract best everyhting from (graphAllCharcaterData : graphNonExactCharacterData)
+        in
         head inGraphList   
+
+-- | getCharacterData takes a PhylogeneticGraph and extracts the summed root(s) cost for each character  
+-- if string argument specifies classes of characters "all" or "nonExact" (ie not Additive, Nonadditive, Matrix)
+-- retuns a list (over blocks) of a list (over charcaters) of tuples (charcater cost--summed roots, block display forest, character traversal graph)
+getCharacterData :: String -> PhylogeneticGraph -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]]
+getCharacterData charSet inGraph = 
+    if LG.isEmpty (fst6 inGraph) then []
+    else 
+        -- get info for all characters
+        let rootList = LG.getRoots (thd6 inGraph)
+
+            -- this for multiple roots in forest
+            rootVertexDataList = fmap vertData $ fmap snd rootList
+            rootVertexCostList = fmap (fmap (fmap globalCost)) rootVertexDataList
+            summedRootCostVect = foldl' (SM.zipWith (+)) (head rootVertexCostList) (tail rootVertexCostList)
+
+            -- tuple of epolcated vector of block display graph, vector of decorated graph, block charcater info, and block root costs
+            blockTupleVect = V.toList $ V.zip4 (V.replicate (V.length $ fft6 inGraph) $ fth6 inGraph) (fft6 inGraph) (six6 inGraph) summedRootCostVect
+        in
+        if null rootVertexDataList then error "Empty root list in getCharacterData"
+        else reverse $ fmap (getBlockCharData charSet) blockTupleVect
+
+
+-- | getBlockCharData takes a character set (as "all" characters or only "nonExact" ie not Add, NonAdd, Matrix),
+-- a list of root vertex vertData, and a triple of block data (DisplayForest, Character Decorated trees, character info),
+-- and a list ot root label data
+-- and returns a list of character information as a tuple of (cost, block display forest, traversal graph), one tuple per character
+-- the "character"  can be mulitple for "gropued" characters (exact) but are single "sequence" or
+-- other non-exact character types.
+-- if "nonExact" is spacified then 0 cost and empty graph are rturned for that character
+-- Does NOT check for activity of character
+getBlockCharData :: String -> (V.Vector BlockDisplayForest, V.Vector DecoratedGraph, V.Vector CharInfo, V.Vector VertexCost) -> [(VertexCost, DecoratedGraph, DecoratedGraph)]
+getBlockCharData charSet (inBlockDisplayForest, traversalGraphVect, charInfoVect, vertexRootCostVect) = 
+    if V.null inBlockDisplayForest then []
+    else 
+        let firstBDF = V.head inBlockDisplayForest
+            firstTG = V.head traversalGraphVect
+            firstCI = charType $ V.head charInfoVect
+            firstVRC = V.head vertexRootCostVect
+        in
+        if charSet == "all" then 
+            (firstVRC, firstBDF, firstTG) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect) 
+        else if charSet == "nonExact" then  
+            if firstCI `elem` nonExactCharacterTypes then 
+                (firstVRC, firstBDF, firstTG) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect) 
+            else 
+                (1/0 :: Double, LG.empty, LG.empty) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect)
+        else error ("Mispecified argument '" ++ charSet ++ "' in getBlockCharData")
+     
+
 
 
 -- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph

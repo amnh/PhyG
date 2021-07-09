@@ -75,13 +75,19 @@ data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
 data EdgeType = NetworkEdge | TreeEdge | PendantEdge
     deriving (Show, Eq)
 
--- | Cooamnd type structure
+-- | Command type structure
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
 data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq | MatrixApproxSmall | MatrixApproxLarge
     deriving (Read, Show, Eq)
 
+-- | types for character classes 
+nonExactCharacterTypes :: [CharType]
+nonExactCharacterTypes = [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]
+
+exactCharacterTypes :: [CharType]
+exactCharacterTypes = [Binary, Add, NonAdd,Matrix , MatrixApproxSmall, MatrixApproxLarge]
 
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types
@@ -174,6 +180,9 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
+-- | VertexBlockData vector over blocks of character data in block (Vector)
+type VertexBlockData = V.Vector (V.Vector CharacterData)
+
 -- | type vertex information
 data VertexInfo = VertexInfo { index :: Int  -- For accessing
                              , bvLabel :: NameBV -- For comparison of vertices subtrees, etc
@@ -218,11 +227,11 @@ type SimpleGraph = LG.Gr NameText Double
 --        1) "Simple" graph with fileds useful for outputting graphs  
 --        2) Graph optimality value or cost
 --        3) Decorated Graph with optimized vertex/Node data
---        4) Vector of display tree for each data Block 
+--        4) Vector of display trees for each data Block 
 --                  root and vertex costs not updated in rerooting so cannot be trusted
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
 --               vector is over blocks, then charactes and can have multiple for each character
---               only important for dynamic (ie none-eact) characters whose costs depend on traversal focus
+--               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
@@ -260,9 +269,5 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 --        2) vector of vertex data with vector of character data
 --        3) Vector of character information for characters in the block 
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
-
--- | VertexBlockData vector over blocks of character data in block (Vector)
-type VertexBlockData = V.Vector (V.Vector CharacterData)
-
 
 
