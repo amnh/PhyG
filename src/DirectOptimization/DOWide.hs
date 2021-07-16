@@ -14,9 +14,8 @@ import           Data.Word
 wrapperSlimDO
   :: Vector BitVector
   -> Vector BitVector
-  -> MetricRepresentation (Word64 -> Word64 -> (Word64, Word))
+  -> MetricRepresentation Word64
   -> (Vector BitVector, Int)
--- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
 wrapperSlimDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromEnum resultCost)
   where
     (resultCost, resultMedians) = widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
@@ -31,16 +30,6 @@ wrapperSlimDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromE
 
     lhsDC = bvs2WideDC lhs 
     rhsDC = bvs2WideDC rhs
-
-    
-{-    
-    getCost i j = 
-         let x = SM.getFullVects tcm
-         in  toEnum $ (x ! fromEnum i) ! fromEnum j
--}
-
---specializedAlphabetToDNA :: Alphabet String
---specializedAlphabetToDNA = fromSymbols $ show <$> (0 :: Word) :| [1 .. 4]
 
 
 bvs2WideDC :: V.Vector BitVector -> WideDynamicCharacter

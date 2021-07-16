@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Bio.Metadata.Dynamic.Internal
+-- Module      :  Data.TCM.Overlap
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -10,28 +10,17 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE DeriveAnyClass         #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE DerivingStrategies     #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MagicHash              #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE StrictData             #-}
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE UnboxedTuples          #-}
+{-# LANGUAGE Strict #-}
 
 module Data.TCM.Overlap
-  ( overlap
+  ( getBitBounds
+  , overlap
   , overlap2
   , overlap3
   ) where
 
 import Data.Bits
-import Data.Foldable.Custom
+import Data.Foldable
 import Data.List.NonEmpty      (NonEmpty(..))
 import Data.Semigroup
 import Data.Semigroup.Foldable
@@ -49,61 +38,69 @@ import Data.Word
 -- combinations, so for instance, if @ char1 == A,T @ and @ char2 == G,C @, and
 -- the two (non-overlapping) least cost pairs are A,C and T,G, then the return
 -- value is A,C,G,T.
-{-# INLINE overlap #-}
-{-# SPECIALISE overlap :: FiniteBits e => (Word -> Word -> Word) -> NonEmpty e -> (e, Word) #-}
-{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word   -> (Word  , Word) #-}
-{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word8  -> (Word8 , Word) #-}
-{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word16 -> (Word16, Word) #-}
-{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word32 -> (Word32, Word) #-}
-{-# SPECIALISE overlap :: (Word -> Word -> Word) -> NonEmpty Word64 -> (Word64, Word) #-}
+{-# INLINEABLE overlap #-}
+{-# SPECIALISE overlap :: (Foldable1 f, Functor f) => (Word -> Word -> Word) -> f        Word   -> (Word  , Word) #-}
+{-# SPECIALISE overlap :: (Foldable1 f, Functor f) => (Word -> Word -> Word) -> f        Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE overlap :: (Foldable1 f, Functor f) => (Word -> Word -> Word) -> f        Word16 -> (Word16, Word) #-}
+{-# SPECIALISE overlap :: (Foldable1 f, Functor f) => (Word -> Word -> Word) -> f        Word32 -> (Word32, Word) #-}
+{-# SPECIALISE overlap :: (Foldable1 f, Functor f) => (Word -> Word -> Word) -> f        Word64 -> (Word64, Word) #-}
+{-# SPECIALISE overlap :: FiniteBits b             => (Word -> Word -> Word) -> NonEmpty b      -> (b     , Word) #-}
+{-# SPECIALISE overlap ::                             (Word -> Word -> Word) -> NonEmpty Word   -> (Word  , Word) #-}
+{-# SPECIALISE overlap ::                             (Word -> Word -> Word) -> NonEmpty Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE overlap ::                             (Word -> Word -> Word) -> NonEmpty Word16 -> (Word16, Word) #-}
+{-# SPECIALISE overlap ::                             (Word -> Word -> Word) -> NonEmpty Word32 -> (Word32, Word) #-}
+{-# SPECIALISE overlap ::                             (Word -> Word -> Word) -> NonEmpty Word64 -> (Word64, Word) #-}
 overlap
-  :: ( FiniteBits e
+  :: ( FiniteBits b
      , Foldable1 f
      , Functor f
      )
   => (Word -> Word -> Word) -- ^ Symbol change matrix (SCM) to determine cost
-  -> f e                    -- ^ List of elements for of which to find the k-median and cost
-  -> (e, Word)              -- ^ K-median and cost
-overlap sigma xs = go size maxBound zero
+  -> f b                    -- ^ List of elements for of which to find the k-median and cost
+  -> (b, Word)              -- ^ K-median and cost
+overlap sigma xs = go (upper+1) maxBound zero
   where
-    (size, zero) = let wlog = getFirst $ foldMap1 First xs
-                   in  (finiteBitSize wlog, wlog `xor` wlog)
+    zero = let wlog = getFirst $ foldMap1 First xs
+           in  wlog `xor` wlog
+    (lower, upper) = getBitBounds xs
 
-    go 0 theCost bits = (bits, theCost)
+    go i theCost bits | i <= lower = (bits, theCost)
     go i oldCost bits =
         let i' = i - 1
-            newCost = sum' $ getDistance (toEnum i') <$> xs
+            newCost = foldl' (+) 0 $ getDistance i' <$> xs
             (minCost, bits') = case oldCost `compare` newCost of
-                                 EQ -> (oldCost, bits `setBit` i')
-                                 LT -> (oldCost, bits            )
-                                 GT -> (newCost, zero `setBit` i')
+                                 EQ -> (oldCost, bits `setBit` fromEnum i')
+                                 LT -> (oldCost, bits                     )
+                                 GT -> (newCost, zero `setBit` fromEnum i')
         in go i' minCost bits'
 
-    getDistance :: (FiniteBits e, Show e) => Word -> e -> Word
-    getDistance i b = go' size (maxBound :: Word)
+    getDistance :: FiniteBits b => Word -> b -> Word
+    getDistance i b = go' (start+1) (maxBound :: Word)
       where
-        go' :: Int -> Word -> Word
-        go' 0 a = a
+        (end, start) = getBitBounds $ b:|[]
+        go' :: Word -> Word -> Word
+        go' j a | j <= end = a
         go' j a =
           let j' = j - 1
-              a' = if b `testBit` j' then min a $ sigma i (toEnum j') else a
+              a' | b `testBit` fromEnum j' = min a $ sigma i j'
+                 | otherwise               = a
           in  go' j' a'
 
 
 -- |
 -- Calculate the median between /two/ states.
-{-# INLINE     overlap2 #-}
+{-# INLINEABLE overlap2 #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word8  -> Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word16 -> Word16 -> (Word16, Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word32 -> Word32 -> (Word32, Word) #-}
 {-# SPECIALISE overlap2 :: (Word -> Word -> Word) -> Word64 -> Word64 -> (Word64, Word) #-}
 overlap2
-  :: FiniteBits e
+  :: FiniteBits b
   => (Word -> Word -> Word)
-  -> e
-  -> e
-  -> (e, Word)
+  -> b
+  -> b
+  -> (b, Word)
 overlap2 sigma char1 char2 = overlap sigma $ char1 :| [char2]
 
 
@@ -116,10 +113,45 @@ overlap2 sigma char1 char2 = overlap sigma $ char1 :| [char2]
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word32 -> Word32 -> Word32 -> (Word32, Word) #-}
 {-# SPECIALISE overlap3 :: (Word -> Word -> Word) -> Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
 overlap3
-  :: FiniteBits e
+  :: FiniteBits b
   => (Word -> Word -> Word)
-  -> e
-  -> e
-  -> e
-  -> (e, Word)
+  -> b
+  -> b
+  -> b
+  -> (b, Word)
 overlap3 sigma char1 char2 char3 = overlap sigma $ char1 :| [char2, char3]
+
+
+-- |
+-- Gets the lowest set bit and the highest set bit in the collection.
+{-# INLINEABLE getBitBounds #-}
+{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word   -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word8  -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word16 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word32 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word64 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds :: FiniteBits b => NonEmpty b      -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 NonEmpty Word   -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 NonEmpty Word8  -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 NonEmpty Word16 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 NonEmpty Word32 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 NonEmpty Word64 -> (Word, Word) #-}
+getBitBounds
+  :: ( FiniteBits b
+     , Foldable1 f
+     )
+  => f b
+  -> (Word, Word)
+getBitBounds xs =
+    let wlog      = getFirst $ foldMap1 First xs
+        bitZero   = (wlog `xor` wlog) `setBit` 0
+        bigEndian = countLeadingZeros bitZero > 0 -- Check the endianness
+
+        (f,g) | bigEndian = (countTrailingZeros, countLeadingZeros )
+              | otherwise = (countLeadingZeros , countTrailingZeros)
+
+        lZeroes = getMin   $ foldMap1 (Min . f) xs
+        uZeroes = getMin   $ foldMap1 (Min . g) xs
+        lower   = toEnum     lZeroes
+        upper   = toEnum   $ finiteBitSize wlog - uZeroes - 1
+    in  (lower, upper)
