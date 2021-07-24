@@ -100,7 +100,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             --  travesal for exact charcaters (and costs) are the first of each least since exact onluy optimizaed for that 
             --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
-            graphWithBestAssignments = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph, -1.0, thd6 outgroupRootedPhyloGraph, [], [], six6 outgroupRootedPhyloGraph) 0 0
+            graphWithBestAssignments = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
@@ -116,8 +116,8 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 --   would be used for any pre-order traversals and assignments
 --   this version for input trees so curTraversalGraphList can be created from input Decorated Graphs and blockDisplayForwst are set as the same as well
 --   (would vary if softwired graph)
-setBestGraphAssignments :: [PhylogeneticGraph] -> (SimpleGraph, VertexCost, DecoratedGraph, [BlockDisplayForest], [[DecoratedGraph]], V.Vector (V.Vector CharInfo)) -> Int -> Int -> PhylogeneticGraph
-setBestGraphAssignments inGraphList (curSimpleGraph, curCost, curDecGraph, curBlockDisplayForestList, curTraversalGraphList, curCharInfo) blockIndex charIndex =
+setBestGraphAssignments :: [PhylogeneticGraph] -> SimpleGraph-> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> PhylogeneticGraph
+setBestGraphAssignments inGraphList curSimpleGraph curDecGraph curCharInfo  =
     if null inGraphList then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
         -- Get list of best costs,  assignments, display graphs,  traversal tree(s) for each non-exact character, head for exact
@@ -125,8 +125,10 @@ setBestGraphAssignments inGraphList (curSimpleGraph, curCost, curDecGraph, curBl
         let graphAllCharcaterData = getCharacterData "all" (head inGraphList)
             graphNonExactCharacterData = fmap (getCharacterData "nonExact") (tail inGraphList)
             -- extract best everyhting from (graphAllCharcaterData : graphNonExactCharacterData)
+            newGraph = createPhyloGeneticGraphFromBlockLists curSimpleGraph curDecGraph curCharInfo $ getBestFullBlockList (graphAllCharcaterData : graphNonExactCharacterData) []
         in
-        head inGraphList   
+        newGraph
+        -- head nGraphList   
 
 -- | getCharacterData takes a PhylogeneticGraph and extracts the summed root(s) cost for each character  
 -- if string argument specifies classes of characters "all" or "nonExact" (ie not Additive, Nonadditive, Matrix)
@@ -149,6 +151,60 @@ getCharacterData charSet inGraph =
         if null rootVertexDataList then error "Empty root list in getCharacterData"
         else reverse $ fmap (getBlockCharData charSet) blockTupleVect
 
+-- createPhyloGeneticGraphFromBlockLists takes a Phylogenetic graph and a list of blocks (list of characters) and creates
+-- a PhylogeneticGraph with correct costs and fields.
+createPhyloGeneticGraphFromBlockLists :: SimpleGraph -> DecoratedGraph -> (V.Vector (V.Vector CharInfo)) -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> PhylogeneticGraph
+createPhyloGeneticGraphFromBlockLists inSimpleGraph inDecoratedGraph inCharInfo fullBlockList = 
+    let newCost = sum $ fmap (sum . (fmap fst3)) fullBlockList
+        -- this greaph single graph per block although tracked for characters for ease of access
+        bestBlockDisplayList = V.fromList $ fmap (thd3 . head) fullBlockList
+        characterTraversalGraphs = V.fromList $ fmap (V.fromList . (fmap thd3)) fullBlockList
+    in
+    (inSimpleGraph, newCost, inDecoratedGraph, V.empty, characterTraversalGraphs, inCharInfo)
+
+-- getBestFullBlockList takes full graph list and optimizes each block of charcaters 
+-- called with null "best" []
+getBestFullBlockList :: [[[(VertexCost, DecoratedGraph, DecoratedGraph)]]] -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]]
+getBestFullBlockList inGraphList curBestBlockList = 
+    -- if gone though all charcters in the block--terminate
+    if null $ head inGraphList then reverse curBestBlockList
+    else 
+        let firstGraphBlock = fmap head inGraphList
+            bestBlock = getBestBlockofCharacters firstGraphBlock []
+        in
+        getBestFullBlockList inGraphList (bestBlock : curBestBlockList)
+
+-- getBestBlockofCharacters takes a list (over graphs) of a single block of characters (and current block list) 
+-- and returns a list of "best" (= lowest cost)
+-- character assignmentd for the elements of that block
+-- called with accumulator empty []
+getBestBlockofCharacters :: [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> [(VertexCost, DecoratedGraph, DecoratedGraph)] -> [(VertexCost, DecoratedGraph, DecoratedGraph)]
+getBestBlockofCharacters blockCharacterList curBestBlock = 
+    -- if gone though all charcters in the block--terminate
+    if null $ head blockCharacterList then reverse curBestBlock
+    else 
+        let graphBlockCharacterList = fmap head blockCharacterList
+            bestCharacterTriple = getBestCharacter graphBlockCharacterList (1/0 :: VertexCost, LG.empty, LG.empty)
+        in
+        getBestBlockofCharacters (fmap tail blockCharacterList) (bestCharacterTriple : curBestBlock) 
+        
+
+
+-- | getBestCharacter takes list of corresponding charcater triples (cost, Decorated Graph, Decorated Graph),
+-- a current best triple and returns a single triple of best (= lowest) cost with Decorated graphs 
+-- called with (1/0 :: VertexCost, LG.empty, LG.empty)
+-- the list is dues to a single charcater coming from multiple graphs
+-- NB--could be multiple best, but only taking one here (relevent to graph output in triple)
+getBestCharacter :: [(VertexCost, DecoratedGraph, DecoratedGraph)] -> (VertexCost, DecoratedGraph, DecoratedGraph) -> (VertexCost, DecoratedGraph, DecoratedGraph)
+getBestCharacter characterTripleList curBestTriple@(curBestCost, _, _) =
+    if null characterTripleList then 
+            if curBestCost == (1/0 :: VertexCost) then error "No best character cost found in getBestCharacter"
+            else curBestTriple
+    else 
+        let firstTriple@(firstCost, _, _) = head characterTripleList
+        in
+        if firstCost < curBestCost then getBestCharacter (tail characterTripleList) firstTriple
+        else getBestCharacter (tail characterTripleList) curBestTriple
 
 -- | getBlockCharData takes a character set (as "all" characters or only "nonExact" ie not Add, NonAdd, Matrix),
 -- a list of root vertex vertData, and a triple of block data (DisplayForest, Character Decorated trees, character info),
