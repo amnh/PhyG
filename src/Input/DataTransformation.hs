@@ -273,7 +273,7 @@ getMissingValue inChar
   | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognized")
 
 
--- | getStateBitVectorList takes teh alphabet of a character ([ShorText])
+-- | getStateBitVectorList takes the alphabet of a character ([ShorText])
 -- and returns bitvectors (with of size alphabet) for each state in order of states in alphabet
 getStateBitVectorList :: [ST.ShortText] -> V.Vector (ST.ShortText, BV.BitVector)
 getStateBitVectorList localStates =

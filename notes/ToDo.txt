@@ -207,3 +207,11 @@
 71) latex structure and all that stuff on how it works + haddock functions
 
 72) stylish and hlint source code
+
+73) Add include/remove terminals
+	"select()" command
+
+74) read rename file
+
+75) IPA with single '[' and ']' process correctly
+	resolve '{}' issue aal.fastc Bantu500
