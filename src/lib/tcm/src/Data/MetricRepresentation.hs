@@ -12,13 +12,10 @@
 
 {-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveFoldable     #-}
-{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE StrictData         #-}
 {-# LANGUAGE UnboxedSums        #-}
-
 
 module Data.MetricRepresentation
   ( -- * Smart Constructors

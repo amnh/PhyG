@@ -10,11 +10,10 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE Strict #-}
+{-# LANGUAGE Strict     #-}
 
 module Data.TCM.Overlap
-  ( getBitBounds
-  , overlap
+  ( overlap
   , overlap2
   , overlap3
   ) where
@@ -25,6 +24,14 @@ import Data.List.NonEmpty      (NonEmpty(..))
 import Data.Semigroup
 import Data.Semigroup.Foldable
 import Data.Word
+
+
+data  Bounds b
+    = Bounds
+    { lBound :: {-# UNPACK #-} Word
+    , uBound :: {-# UNPACK #-} Word
+    , bValue :: b
+    }
 
 
 -- |
@@ -60,26 +67,27 @@ overlap
   -> (b, Word)              -- ^ K-median and cost
 overlap sigma xs = go (upper+1) maxBound zero
   where
-    zero = let wlog = getFirst $ foldMap1 First xs
-           in  wlog `xor` wlog
-    (lower, upper) = getBitBounds xs
+    withBounds = getBitBounds <$> xs
+    lower = getMin $ foldMap1 (Min . lBound) withBounds
+    upper = getMax $ foldMap1 (Max . uBound) withBounds
+    zero  = let wlog = getFirst $ foldMap1 First xs
+            in  wlog `xor` wlog
 
     go i theCost bits | i <= lower = (bits, theCost)
     go i oldCost bits =
         let i' = i - 1
-            newCost = foldl' (+) 0 $ getDistance i' <$> xs
+            newCost = foldl' (+) 0 $ getDistance i' <$> withBounds
             (minCost, bits') = case oldCost `compare` newCost of
                                  EQ -> (oldCost, bits `setBit` fromEnum i')
                                  LT -> (oldCost, bits                     )
                                  GT -> (newCost, zero `setBit` fromEnum i')
         in go i' minCost bits'
 
-    getDistance :: FiniteBits b => Word -> b -> Word
-    getDistance i b = go' (start+1) (maxBound :: Word)
+    getDistance :: FiniteBits b => Word -> Bounds b -> Word
+    getDistance i (Bounds lo hi b) = go' (hi+1) (maxBound :: Word)
       where
-        (end, start) = getBitBounds $ b:|[]
         go' :: Word -> Word -> Word
-        go' j a | j <= end = a
+        go' j a | j <= lo = a
         go' j a =
           let j' = j - 1
               a' | b `testBit` fromEnum j' = min a $ sigma i j'
@@ -125,33 +133,30 @@ overlap3 sigma char1 char2 char3 = overlap sigma $ char1 :| [char2, char3]
 -- |
 -- Gets the lowest set bit and the highest set bit in the collection.
 {-# INLINEABLE getBitBounds #-}
-{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word   -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word8  -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word16 -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word32 -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds :: Foldable1  f => f        Word64 -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds :: FiniteBits b => NonEmpty b      -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds ::                 NonEmpty Word   -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds ::                 NonEmpty Word8  -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds ::                 NonEmpty Word16 -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds ::                 NonEmpty Word32 -> (Word, Word) #-}
-{-# SPECIALISE getBitBounds ::                 NonEmpty Word64 -> (Word, Word) #-}
+{-# SPECIALISE getBitBounds ::                 Word   -> Bounds Word   #-}
+{-# SPECIALISE getBitBounds ::                 Word8  -> Bounds Word8  #-}
+{-# SPECIALISE getBitBounds ::                 Word16 -> Bounds Word16 #-}
+{-# SPECIALISE getBitBounds ::                 Word32 -> Bounds Word32 #-}
+{-# SPECIALISE getBitBounds ::                 Word64 -> Bounds Word64 #-}
+{-# SPECIALISE getBitBounds :: FiniteBits b => b      -> Bounds b      #-}
+{-# SPECIALISE getBitBounds ::                 Word   -> Bounds Word   #-}
+{-# SPECIALISE getBitBounds ::                 Word8  -> Bounds Word8  #-}
+{-# SPECIALISE getBitBounds ::                 Word16 -> Bounds Word16 #-}
+{-# SPECIALISE getBitBounds ::                 Word32 -> Bounds Word32 #-}
+{-# SPECIALISE getBitBounds ::                 Word64 -> Bounds Word64 #-}
 getBitBounds
-  :: ( FiniteBits b
-     , Foldable1 f
-     )
-  => f b
-  -> (Word, Word)
-getBitBounds xs =
-    let wlog      = getFirst $ foldMap1 First xs
-        bitZero   = (wlog `xor` wlog) `setBit` 0
+  :: FiniteBits b
+  => b
+  -> Bounds b
+getBitBounds b =
+    let bitZero   = (b `xor` b) `setBit` 0
         bigEndian = countLeadingZeros bitZero > 0 -- Check the endianness
 
         (f,g) | bigEndian = (countTrailingZeros, countLeadingZeros )
               | otherwise = (countLeadingZeros , countTrailingZeros)
 
-        lZeroes = getMin   $ foldMap1 (Min . f) xs
-        uZeroes = getMin   $ foldMap1 (Min . g) xs
-        lower   = toEnum     lZeroes
-        upper   = toEnum   $ finiteBitSize wlog - uZeroes - 1
-    in  (lower, upper)
+        lZeroes = f b
+        uZeroes = g b
+        lower   = toEnum lZeroes
+        upper   = toEnum $ finiteBitSize b - uZeroes - 1
+    in  Bounds lower upper b
