@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+-- Module      :  Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -24,18 +24,19 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE UnboxedTuples       #-}
 
-module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
-  ( wideUkkonenDO
+module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
+  ( hugeUkkonenDO
   ) where
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal          (Direction(..))
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
 import           Control.Monad                                                            (unless, when)
 import           Control.Monad.Loops                                                      (iterateUntilM, whileM_)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
+import           Data.BitVector.LittleEndian
 import           Data.Bits
 import           Data.Foldable
 import           Data.Matrix.Unboxed                                                      (Matrix, unsafeFreeze)
@@ -43,9 +44,8 @@ import           Data.Matrix.Unboxed.Mutable                                    
 import qualified Data.Matrix.Unboxed.Mutable                                              as M
 import           Data.MonoTraversable
 import           Data.STRef
-import           Data.Vector.Unboxed                                                      (Vector, (!))
-import qualified Data.Vector.Unboxed                                                      as UV
-import           Data.Word
+import           Data.Vector                                                              (Vector, (!))
+import qualified Data.Vector                                                              as V
 
 
 -- |
@@ -55,27 +55,25 @@ import           Data.Word
 -- character with gaps included, the aligned version of the first input character,
 -- and the aligned version of the second input character. The process for this
 -- algorithm is to generate a traversal matrix, then perform a traceback.
-{-# SCC        wideUkkonenDO #-}
-{-# INLINEABLE wideUkkonenDO #-}
-wideUkkonenDO
-  :: Word8 -- ^ Alphbet size / symbol count
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> WideDynamicCharacter
-  -> WideDynamicCharacter
-  -> (Word, WideDynamicCharacter)
-wideUkkonenDO symbolCount overlapλ char1 char2
+{-# SCC        hugeUkkonenDO #-}
+{-# INLINEABLE hugeUkkonenDO #-}
+hugeUkkonenDO
+  :: (BitVector -> BitVector -> (BitVector, Word))
+  -> HugeDynamicCharacter
+  -> HugeDynamicCharacter
+  -> (Word, HugeDynamicCharacter)
+hugeUkkonenDO overlapλ char1 char2
   | noGainFromUkkonenMethod = buildFullMatrix
-  | otherwise               = directOptimization buildPartialMatrixMaybe symbolCount overlapλ char1 char2
+  | otherwise               = directOptimization buildPartialMatrixMaybe overlapλ char1 char2
   where
-    (_, (longer,_,_), (lesser,_,_)) = measureCharacters char1 char2
+    ~(_, gap, _, _, (lesser,_,_), (longer,_,_)) = measureAndUngapCharacters char1 char2
 
-    gap = bit . fromEnum $ symbolCount - 1
     cost x y = snd $ overlapλ x y
 
-    buildFullMatrix = wideSwappingDO symbolCount overlapλ char1 char2
+    buildFullMatrix = hugeSwappingDO overlapλ char1 char2
 
-    buildPartialMatrixMaybe :: Word8 -> (Word64 -> Word64 -> (Word64, Word)) -> Vector Word64 -> Vector Word64 -> (Word, Matrix Direction)
-    buildPartialMatrixMaybe = createUkkonenMethodMatrix coefficient gapsPresentInInputs
+    buildPartialMatrixMaybe :: (BitVector -> BitVector -> (BitVector, Word)) -> Vector BitVector -> Vector BitVector -> (Word, Matrix Direction)
+    buildPartialMatrixMaybe = createUkkonenMethodMatrix coefficient gapsPresentInInputs gap
 
     -- /O(1)/
     --
@@ -109,8 +107,8 @@ wideUkkonenDO symbolCount overlapλ char1 char2
                            || coefficient == 0
                            || gapsPresentInInputs >= longerLen
       where
-        longerLen = toEnum $ UV.length longer
-        lesserLen = toEnum $ UV.length lesser
+        longerLen = toEnum $ V.length longer
+        lesserLen = toEnum $ V.length lesser
 
     -- /O(2*(a - 1))/
     --
@@ -125,7 +123,7 @@ wideUkkonenDO symbolCount overlapλ char1 char2
     -- zero.
     coefficient = minimum $ indelCost <$> nonGapElements
       where
-        alphabetSize   = fromEnum symbolCount
+        alphabetSize   = fromEnum $ dimension gap
         nonGapElements = [ 0 .. alphabetSize - 2 ]
         indelCost i    = min (cost (bit i)  gap   )
                              (cost  gap    (bit i))
@@ -141,7 +139,7 @@ wideUkkonenDO symbolCount overlapλ char1 char2
       where
         char1Gaps = toEnum $ countGaps char1
         char2Gaps = toEnum $ countGaps char2
-        countGaps (x,_,_) = UV.length $ UV.filter hasGap x
+        countGaps (x,_,_) = V.length $ V.filter hasGap x
         hasGap b  = popCount (b .&. gap) > 0
 
 
@@ -160,17 +158,16 @@ wideUkkonenDO symbolCount overlapλ char1 char2
 createUkkonenMethodMatrix
   :: Word   -- ^ Coefficient value, representing the /minimum/ transition cost from a state to gap
   -> Word   -- ^ Gaps present in input
-  -> Word8  -- ^ Symbol count
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> Vector Word64 -- ^ Longer dynamic character
-  -> Vector Word64 -- ^ Shorter dynamic character
---  -> WideDynamicCharacter -- ^ Longer dynamic character
---  -> WideDynamicCharacter -- ^ Shorter dynamic character
+  -> BitVector
+  -> (BitVector -> BitVector -> (BitVector, Word))
+  -> Vector BitVector -- ^ Longer dynamic character
+  -> Vector BitVector -- ^ Shorter dynamic character
+--  -> HugeDynamicCharacter -- ^ Longer dynamic character
+--  -> HugeDynamicCharacter -- ^ Shorter dynamic character
   -> (Word, Matrix Direction)
-createUkkonenMethodMatrix minimumIndelCost gapsPresentInInputs symbolCount overlapλ longerTop lesserLeft = finalMatrix
+createUkkonenMethodMatrix minimumIndelCost gapsPresentInInputs gap overlapλ longerTop lesserLeft = finalMatrix
   where
     -- General values that need to be in scope for the recursive computations.
-    gap       = bit . fromEnum $ symbolCount - 1
     longerLen = olength longerTop
     lesserLen = olength lesserLeft
 
@@ -213,10 +210,10 @@ createUkkonenMethodMatrix minimumIndelCost gapsPresentInInputs symbolCount overl
 
 {-# SCC buildInitialBandedMatrix #-}
 buildInitialBandedMatrix
-  :: Word64        -- ^ Gap
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> Vector Word64 -- ^ Longer dynamic character
-  -> Vector Word64 -- ^ Shorter dynamic character
+  :: BitVector        -- ^ Gap
+  -> (BitVector -> BitVector -> (BitVector, Word))
+  -> Vector BitVector -- ^ Longer dynamic character
+  -> Vector BitVector -- ^ Shorter dynamic character
   -> Word
   -> ST s (MMatrix s Word, MMatrix s Direction)
 buildInitialBandedMatrix gap overlapλ longerTop lesserLeft o = fullMatrix
@@ -346,10 +343,10 @@ buildInitialBandedMatrix gap overlapλ longerTop lesserLeft o = fullMatrix
 --       * Needs to be computed
 --
 expandBandedMatrix
-  :: Word64
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> Vector Word64 -- ^ Longer dynamic character
-  -> Vector Word64 -- ^ Shorter dynamic character
+  :: BitVector
+  -> (BitVector -> BitVector -> (BitVector, Word))
+  -> Vector BitVector -- ^ Longer dynamic character
+  -> Vector BitVector -- ^ Shorter dynamic character
   -> MMatrix s Word
   -> MMatrix s Direction
   -> Word
@@ -661,16 +658,16 @@ edgeCellDefinitions
   :: PrimMonad m
   => MMatrix (PrimState m) Word
   -> MMatrix (PrimState m) Direction
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> (Word64 -> Word64 -> Word)
-  -> Vector Word64 -- ^ Longer dynamic character
-  -> Word64
+  -> (BitVector -> BitVector -> (BitVector, Word))
+  -> (BitVector -> BitVector -> Word)
+  -> Vector BitVector -- ^ Longer dynamic character
+  -> BitVector
   -> ( (Int, Int) -> (Word, Direction) -> m ()
-     , Word64 -> Word -> Int -> Int -> m (Word, Direction)
-     , Word64 -> Word -> Int -> Int -> m (Word, Direction)
-     , Word64 -> Word -> Int -> Int -> m (Word, Direction)
-     , Word64 -> Word -> Int -> Int -> m (Word, Direction)
-     , Word64 -> Word -> Int -> Int -> m (Word, Direction)
+     , BitVector -> Word -> Int -> Int -> m (Word, Direction)
+     , BitVector -> Word -> Int -> Int -> m (Word, Direction)
+     , BitVector -> Word -> Int -> Int -> m (Word, Direction)
+     , BitVector -> Word -> Int -> Int -> m (Word, Direction)
+     , BitVector -> Word -> Int -> Int -> m (Word, Direction)
      )
 edgeCellDefinitions mCost mDir overlapλ cost longerTop gap = (write, internalCell, leftColumn, leftBoundary, rightBoundary, rightColumn)
   where
@@ -743,11 +740,11 @@ edgeCellDefinitions mCost mDir overlapλ cost longerTop gap = (write, internalCe
 -- Produces a set of reusable values and  functions which are "constant" between
 -- different incarnations of the Ukkonen algorithms.
 ukkonenConstants
-  :: (Word64 -> Word64 -> (Word64, Word))
-  -> Vector Word64 -- ^ Longer dynamic character
-  -> Vector Word64 -- ^ Shorter dynamic character
+  :: (BitVector -> BitVector -> (BitVector, Word))
+  -> Vector BitVector -- ^ Longer dynamic character
+  -> Vector BitVector -- ^ Shorter dynamic character
   -> Word
-  -> (Int, Word64 -> Word64 -> Word, Int, Int, Int, Int)
+  -> (Int, BitVector -> BitVector -> Word, Int, Int, Int, Int)
 ukkonenConstants overlapλ lesserLeft longerTop o =
     (offset, cost, rows, cols, width, quasiDiagonalWidth)
   where

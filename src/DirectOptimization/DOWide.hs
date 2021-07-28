@@ -1,22 +1,22 @@
 module DirectOptimization.DOWide where
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+import           Data.BitVector.LittleEndian                                 (BitVector)
+import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Bits
-import           Data.BitVector.LittleEndian (BitVector)
-import qualified Data.BitVector.LittleEndian as BV
 import           Data.MetricRepresentation
-import           Data.Vector         (Vector, (!))
-import qualified Data.Vector         as  V
-import qualified Data.Vector.Unboxed as UV
+import           Data.Vector                                                 (Vector, (!))
+import qualified Data.Vector                                                 as V
+import qualified Data.Vector.Unboxed                                         as UV
 import           Data.Word
 
 
-wrapperSlimDO
+wrapperWideDO
   :: Vector BitVector
   -> Vector BitVector
   -> MetricRepresentation Word64
   -> (Vector BitVector, Int)
-wrapperSlimDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromEnum resultCost)
+wrapperWideDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromEnum resultCost)
   where
     (resultCost, resultMedians) = widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
 
@@ -28,7 +28,7 @@ wrapperSlimDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromE
                  _ -> BV.dimension $ V.head rhs
           _ -> BV.dimension $ V.head lhs
 
-    lhsDC = bvs2WideDC lhs 
+    lhsDC = bvs2WideDC lhs
     rhsDC = bvs2WideDC rhs
 
 
@@ -36,7 +36,7 @@ bvs2WideDC :: V.Vector BitVector -> WideDynamicCharacter
 bvs2WideDC v = (x,x,x)
   where
     x = UV.generate (V.length v) $ \i -> bv2w (v ! i)
-    
+
     bv2w :: BitVector -> Word64
     bv2w bv =
         let f i a

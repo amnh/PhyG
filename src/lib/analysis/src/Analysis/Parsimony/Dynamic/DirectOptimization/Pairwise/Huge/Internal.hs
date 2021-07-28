@@ -5,7 +5,7 @@
 
 {-# LANGUAGE Strict #-}
 
-module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
+module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
   ( deleteGaps
   , insertGaps
   , measureCharacters
@@ -16,6 +16,7 @@ import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicC
 import           Control.Monad                                                            (unless, when)
 import           Control.Monad.Loops                                                      (whileM_)
 import           Control.Monad.ST
+import           Data.BitVector.LittleEndian
 import           Data.Bits
 import           Data.Foldable
 import           Data.IntMap                                                              (IntMap)
@@ -23,9 +24,8 @@ import qualified Data.IntMap                                                    
 import           Data.Ord
 import           Data.STRef
 import           Data.Semigroup
-import qualified Data.Vector.Unboxed                                                      as V
-import qualified Data.Vector.Unboxed.Mutable                                              as MUV
-import           Data.Word
+import qualified Data.Vector                                                              as V
+import qualified Data.Vector.Mutable                                                      as MV
 
 
 -- |
@@ -36,15 +36,15 @@ import           Data.Word
 -- If the character contains /only/ gaps, a missing character is returned.
 {-# INLINEABLE deleteGaps #-}
 deleteGaps
-  :: Word8
-  -> WideDynamicCharacter
-  -> (IntMap Word, WideDynamicCharacter)
-deleteGaps symbolCount c@(x,y,z)
-  | V.null x    = (mempty,       c)
-  | null gaps   = (gaps,         c)
-  | newLen == 0 = (gaps,    mempty)
-  | otherwise   = (gaps, newVector)
+  :: HugeDynamicCharacter
+  -> (BitVector, IntMap Word, HugeDynamicCharacter)
+deleteGaps c@(x,y,z)
+  | V.null x    = (undefined, mempty,       c)
+  | null gaps   = (      gap, gaps,         c)
+  | newLen == 0 = (      gap, gaps,    mempty)
+  | otherwise   = (      gap, gaps, newVector)
   where
+    symbolCount = dimension $ V.head x
     newVector = runST $ do
         j <- newSTRef 0
         let isGapAtJ = do
@@ -92,52 +92,52 @@ deleteGaps symbolCount c@(x,y,z)
        readSTRef gapRefs
 
 
-isAlign, isDelete, isInsert :: WideDynamicCharacter -> Int -> Bool
-isInsert (_,y,z) i = y V.! i /= 0 && z V.! i == 0
-isDelete (_,y,z) i = y V.! i == 0 && z V.! i /= 0
-isAlign  (_,y,z) i = y V.! i /= 0 && z V.! i /= 0
+isAlign, isDelete, isInsert :: HugeDynamicCharacter -> Int -> Bool
+isInsert (_,a,b) i = let w = V.head a in let z = w `xor` w in a V.! i /= z && b V.! i == z
+isDelete (_,a,b) i = let w = V.head a in let z = w `xor` w in a V.! i == z && b V.! i /= z
+isAlign  (_,a,b) i = let w = V.head a in let z = w `xor` w in a V.! i /= z && b V.! i /= z
 
 
 -- |
 -- Adds gaps elements to the supplied character.
 insertGaps
-  :: Word8
+  :: BitVector
   -> IntMap Word
   -> IntMap Word
-  -> WideDynamicCharacter
-  -> WideDynamicCharacter
-insertGaps symbolCount lGaps rGaps meds@(x,y,z)
+  -> HugeDynamicCharacter
+  -> HugeDynamicCharacter
+insertGaps gap lGaps rGaps meds@(x,y,z)
   | null lGaps && null rGaps = meds -- No work needed
   | otherwise                = newVector
   where
-    gap      = bit . fromEnum $ symbolCount - 1
+    zero      = gap `xor` gap
     totalGaps = fromEnum . getSum . foldMap Sum
     gapVecLen = maybe 0 (succ . fst) . IM.lookupMax
     lGapCount = totalGaps lGaps
     rGapCount = totalGaps rGaps
     newLength = lGapCount + rGapCount + V.length x
 
-    ins = (gap, gap,   0)
-    del = (gap,   0, gap)
+    ins = (gap, gap , zero)
+    del = (gap, zero, gap )
 
     newVector = runST $ do
-      xVec <- MUV.unsafeNew newLength
-      yVec <- MUV.unsafeNew newLength
-      zVec <- MUV.unsafeNew newLength
-      lVec <- MUV.replicate (gapVecLen lGaps) 0
-      rVec <- MUV.replicate (gapVecLen rGaps) 0
+      xVec <- MV.unsafeNew newLength
+      yVec <- MV.unsafeNew newLength
+      zVec <- MV.unsafeNew newLength
+      lVec <- MV.replicate (gapVecLen lGaps) 0
+      rVec <- MV.replicate (gapVecLen rGaps) 0
       lGap <- newSTRef 0
       mPtr <- newSTRef 0
       rGap <- newSTRef 0
    -- Write out to the mutable vectors
-      for_ (IM.toAscList lGaps) $ uncurry (MUV.unsafeWrite lVec)
-      for_ (IM.toAscList rGaps) $ uncurry (MUV.unsafeWrite rVec)
+      for_ (IM.toAscList lGaps) $ uncurry (MV.unsafeWrite lVec)
+      for_ (IM.toAscList rGaps) $ uncurry (MV.unsafeWrite rVec)
 
       let align i = do
             m <- readSTRef mPtr
-            MUV.unsafeWrite xVec i $ x V.! m
-            MUV.unsafeWrite yVec i $ y V.! m
-            MUV.unsafeWrite zVec i $ z V.! m
+            MV.unsafeWrite xVec i $ x V.! m
+            MV.unsafeWrite yVec i $ y V.! m
+            MV.unsafeWrite zVec i $ z V.! m
             modifySTRef mPtr succ
             when (isAlign meds m || isDelete meds m) $ do
               modifySTRef lGap succ
@@ -146,13 +146,13 @@ insertGaps symbolCount lGaps rGaps meds@(x,y,z)
 
       let insertGapWith i (xe,ye,ze) gapRef gapVec = do
             rg <- readSTRef gapRef
-            v  <- if rg >= MUV.length gapVec then pure 0 else MUV.unsafeRead gapVec rg
+            v  <- if rg >= MV.length gapVec then pure 0 else MV.unsafeRead gapVec rg
             if   v == 0
             then pure False
-            else do MUV.unsafeWrite xVec i xe
-                    MUV.unsafeWrite yVec i ye
-                    MUV.unsafeWrite zVec i ze
-                    MUV.unsafeWrite gapVec rg $ v - 1
+            else do MV.unsafeWrite xVec i xe
+                    MV.unsafeWrite yVec i ye
+                    MV.unsafeWrite zVec i ze
+                    MV.unsafeWrite gapVec rg $ v - 1
                     pure True
 
       for_ [0 .. newLength - 1] $ \i -> do
@@ -182,9 +182,9 @@ insertGaps symbolCount lGaps rGaps meds@(x,y,z)
 -- Handles equality of inputs by /not/ swapping.
 {-# INLINEABLE measureCharacters #-}
 measureCharacters
-  :: WideDynamicCharacter
-  -> WideDynamicCharacter
-  -> (Ordering, WideDynamicCharacter, WideDynamicCharacter)
+  :: HugeDynamicCharacter
+  -> HugeDynamicCharacter
+  -> (Ordering, HugeDynamicCharacter, HugeDynamicCharacter)
 measureCharacters lhs@(lhsMedians,_,_) rhs@(rhsMedians,_,_)
   | lhsOrdering == GT = (lhsOrdering, rhs, lhs)
   | otherwise         = (lhsOrdering, lhs, rhs)
@@ -230,17 +230,16 @@ measureCharacters lhs@(lhsMedians,_,_) rhs@(rhsMedians,_,_)
 -- Handles equality of inputs by /not/ swapping.
 {-# INLINEABLE measureAndUngapCharacters #-}
 measureAndUngapCharacters
-  :: Word8
-  -> WideDynamicCharacter
-  -> WideDynamicCharacter
-  -> (Bool, IntMap Word, IntMap Word, WideDynamicCharacter, WideDynamicCharacter)
-measureAndUngapCharacters symbolCount char1 char2
-  | swapInputs = (True , gapsChar2, gapsChar1, ungappedChar2, ungappedChar1)
-  | otherwise  = (False, gapsChar1, gapsChar2, ungappedChar1, ungappedChar2)
+  :: HugeDynamicCharacter
+  -> HugeDynamicCharacter
+  -> (Bool, BitVector, IntMap Word, IntMap Word, HugeDynamicCharacter, HugeDynamicCharacter)
+measureAndUngapCharacters char1 char2
+  | swapInputs = (True , gap1, gapsChar2, gapsChar1, ungappedChar2, ungappedChar1)
+  | otherwise  = (False, gap2, gapsChar1, gapsChar2, ungappedChar1, ungappedChar2)
   where
     swapInputs = measure == GT
-    (gapsChar1, ungappedChar1) = deleteGaps symbolCount char1
-    (gapsChar2, ungappedChar2) = deleteGaps symbolCount char2
+    (gap1, gapsChar1, ungappedChar1) = deleteGaps char1
+    (gap2, gapsChar2, ungappedChar2) = deleteGaps char2
     (measure, _, _) =
         case measureCharacters ungappedChar1 ungappedChar2 of
           (EQ,_,_) -> measureCharacters char1 char2

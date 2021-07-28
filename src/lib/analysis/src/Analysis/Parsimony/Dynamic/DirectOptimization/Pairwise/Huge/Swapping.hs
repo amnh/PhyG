@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+-- Module      :  Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -20,26 +20,26 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE UnboxedTuples    #-}
 
-module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
-  ( wideSwappingDO
+module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
+  ( hugeSwappingDO
   , directOptimization
   , traceback
   ) where
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal          (Direction(..))
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
 import           Control.Monad.ST
+import           Data.BitVector.LittleEndian
 import           Data.Bits
 import           Data.DList                                                               (snoc)
 import           Data.Foldable
 import           Data.Matrix.Unboxed                                                      (Matrix, unsafeFreeze, unsafeIndex)
 import qualified Data.Matrix.Unboxed.Mutable                                              as M
 import           Data.MonoTraversable
-import           Data.Vector.Unboxed                                                      (Vector, (!))
-import qualified Data.Vector.Unboxed                                                      as UV
+import           Data.Vector                                                              (Vector, (!))
+import qualified Data.Vector                                                              as V
 import qualified Data.Vector.Unboxed.Mutable                                              as MUV
-import           Data.Word
 
 
 -- |
@@ -49,29 +49,28 @@ import           Data.Word
 -- character with gaps included, the aligned version of the first input character,
 -- and the aligned version of the second input character. The process for this
 -- algorithm is to generate a traversal matrix, then perform a traceback.
-{-# SCC        wideSwappingDO #-}
-{-# INLINEABLE wideSwappingDO #-}
-wideSwappingDO
-  :: Word8 -- ^ Alphbet size / symbol count
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> WideDynamicCharacter
-  -> WideDynamicCharacter
-  -> (Word, WideDynamicCharacter)
-wideSwappingDO = directOptimization buildDirectionMatrix
+{-# SCC        hugeSwappingDO #-}
+{-# INLINEABLE hugeSwappingDO #-}
+hugeSwappingDO
+  :: (BitVector -> BitVector -> (BitVector, Word))
+  -> HugeDynamicCharacter
+  -> HugeDynamicCharacter
+  -> (Word, HugeDynamicCharacter)
+hugeSwappingDO = directOptimization buildDirectionMatrix
 
 
 buildDirectionMatrix
-  :: Word8 -- ^ Alphbet size / symbol count
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> Vector Word64
-  -> Vector Word64
+  :: (BitVector -> BitVector -> (BitVector, Word))
+  -> Vector BitVector
+  -> Vector BitVector
   -> (Word, Matrix Direction)
-buildDirectionMatrix symbolCount overlapλ topChar leftChar = fullMatrix
+buildDirectionMatrix overlapλ topChar leftChar = fullMatrix
   where
-    cost x y   = snd $ overlapλ x y
-    gap        = bit . fromEnum $ symbolCount - 1
-    rows       = olength leftChar + 1
-    cols       = olength topChar  + 1
+    symbolCount = dimension $ V.head topChar
+    cost x y    = snd $ overlapλ x y
+    gap         = bit . fromEnum $ symbolCount - 1
+    rows        = olength leftChar + 1
+    cols        = olength topChar  + 1
 
     fullMatrix = runST $ do
       mDir <- M.new (rows, cols)
@@ -130,51 +129,50 @@ buildDirectionMatrix symbolCount overlapλ topChar leftChar = fullMatrix
 
 {-# SCC directOptimization #-}
 directOptimization
-  :: (Word8 -> (Word64 -> Word64 -> (Word64, Word)) -> Vector Word64 -> Vector Word64 -> (Word, Matrix Direction))
-  -> Word8
-  -> (Word64 -> Word64 -> (Word64, Word))
-  -> WideDynamicCharacter -- ^ Longer dynamic character
-  -> WideDynamicCharacter -- ^ Shorter dynamic character
-  -> (Word, WideDynamicCharacter)
-directOptimization matrixFunction symbolCount overlapλ lhs rhs =
-    let gap = bit $ fromEnum symbolCount :: Word64
-        ~(swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters symbolCount lhs rhs
+  :: ((BitVector -> BitVector -> (BitVector, Word)) -> Vector BitVector -> Vector BitVector -> (Word, Matrix Direction))
+  -> (BitVector -> BitVector -> (BitVector, Word))
+  -> HugeDynamicCharacter -- ^ Longer dynamic character
+  -> HugeDynamicCharacter -- ^ Shorter dynamic character
+  -> (Word, HugeDynamicCharacter)
+directOptimization matrixFunction overlapλ lhs rhs =
+    let ~(swapped, gap, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters lhs rhs
         ~(alignmentCost, ungappedAlignment) =
             if      olength shorterChar == 0
             then if olength  longerChar == 0
                  -- Niether character was Missing, but both are empty when gaps are removed
                  then (0, (mempty,mempty,mempty))
                  -- Niether character was Missing, but one of them is empty when gaps are removed
-                 else let vec = UV.generate (UV.length longerChar) $ \i -> fst (overlapλ (longerChar ! i) gap)
-                      in  (0, (vec, UV.replicate (UV.length longerChar) 0, longerChar))
+                 else let vec = V.generate (V.length longerChar) $ \i -> fst (overlapλ (longerChar ! i) gap)
+                      in  (0, (vec, V.replicate (V.length longerChar) (gap `xor` gap), longerChar))
                  -- Both have some non-gap elements, perform string alignment
-            else let (cost, traversalMatrix) =  matrixFunction symbolCount overlapλ longerChar shorterChar
+            else let (cost, traversalMatrix) = matrixFunction overlapλ longerChar shorterChar
                  in  (cost, traceback gap overlapλ traversalMatrix longerChar shorterChar)
         transformation    = if swapped then \(m,l,r) -> (m,r,l) else id
-        regappedAlignment = insertGaps symbolCount gapsLesser gapsLonger ungappedAlignment
+        regappedAlignment = insertGaps gap gapsLesser gapsLonger ungappedAlignment
         alignmentContext  = transformation regappedAlignment
     in  (alignmentCost, alignmentContext)
 
 
 {-# SCC traceback #-}
 traceback
-  :: Word64
-  -> (Word64 -> Word64 -> (Word64, Word))
+  :: BitVector
+  -> (BitVector -> BitVector -> (BitVector, Word))
   -> Matrix Direction
-  -> Vector Word64        -- ^ Longer dynamic character
-  -> Vector Word64        -- ^ Shorter dynamic character
-  -> WideDynamicCharacter -- ^ Resulting dynamic character
+  -> Vector BitVector     -- ^ Longer dynamic character
+  -> Vector BitVector     -- ^ Shorter dynamic character
+  -> HugeDynamicCharacter -- ^ Resulting dynamic character
 traceback gap overlapλ alignMatrix longerChar lesserChar = alignmentContext
   where
     f x y = fst $ overlapλ x y
 
     alignmentContext = dlistToDynamic $ go startPoint
-    dlistToDynamic = UV.unzip3 . UV.fromList . toList
+    dlistToDynamic   = V.unzip3 . V.fromList . toList
 
     longerLen = olength longerChar
     lesserLen = olength lesserChar
     rows      = lesserLen + 1
     cols      = longerLen + 1
+    zero      = gap `xor` gap
 
     startPoint = (rows - 1, cols - 1)
 
@@ -189,11 +187,11 @@ traceback gap overlapλ alignMatrix longerChar lesserChar = alignmentContext
                 case directionArrow of
                   LeftArrow -> let j' = j - 1
                                    y  = longerChar ! j'
-                                   e  = (f gap y, 0, y)
+                                   e  = (f gap y, zero,    y)
                                in  (# i , j', e #)
                   UpArrow   -> let i' = i - 1
                                    x  = lesserChar ! i'
-                                   e  = (f x gap, x, 0)
+                                   e  = (f x gap,    x, zero)
                                in  (# i', j , e #)
                   DiagArrow -> let i' = i - 1
                                    j' = j - 1

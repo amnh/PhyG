@@ -229,6 +229,7 @@ executable phyg
                   Utilities.TcmHash
                   DirectOptimization.DOSlim
                   DirectOptimization.DOWide
+                  DirectOptimization.DOHuge
 
             
 library alphabet
@@ -325,6 +326,8 @@ library analysis
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
+
     --Analysis.Parsimony.Fitch
     --Analysis.Parsimony.Sankoff
     --Analysis.Scoring
@@ -342,9 +345,13 @@ library analysis
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
+    
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix

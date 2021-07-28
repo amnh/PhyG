@@ -1,15 +1,15 @@
 module DirectOptimization.DOSlim where
 
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
-import Data.Bits
-import Data.TCM.Dense
-import           Data.BitVector.LittleEndian (BitVector)
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Vector (Vector, (!))
-import qualified Data.Vector  as V
-import qualified Data.Vector.Storable as SV
-import           Foreign.C.Types (CUInt)
-import qualified SymMatrix as SM
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
+import           Data.BitVector.LittleEndian                                 (BitVector)
+import qualified Data.BitVector.LittleEndian                                 as BV
+import           Data.Bits
+import           Data.TCM.Dense
+import           Data.Vector                                                 (Vector, (!))
+import qualified Data.Vector                                                 as V
+import qualified Data.Vector.Storable                                        as SV
+import           Foreign.C.Types                                             (CUInt)
+import qualified SymMatrix                                                   as SM
 
 
 wrapperSlimDO :: Vector BitVector -> Vector BitVector -> Vector (Vector Int) -> (Vector BitVector, Int)
@@ -18,10 +18,10 @@ wrapperSlimDO lhs rhs tcm = (resultMedians, fromEnum resultCost)
   where
     (resultCost, resultMedians) = slimDC2BVs 5 <$> slimPairwiseDO tcmDense lhsDC rhsDC
 
-    lhsDC = bvs2SlimDC lhs 
+    lhsDC = bvs2SlimDC lhs
     rhsDC = bvs2SlimDC rhs
     tcmDense = generateDenseTransitionCostMatrix 0 5 getCost
-    getCost i j = 
+    getCost i j =
          let x = SM.getFullVects tcm
          in  toEnum $ (x ! fromEnum i) ! fromEnum j
 
@@ -34,7 +34,7 @@ bvs2SlimDC :: V.Vector BitVector -> SlimDynamicCharacter
 bvs2SlimDC v = (x,x,x)
   where
     x = SV.generate (V.length v) $ \i -> bv2w (v ! i)
-    
+
     bv2w :: BitVector -> CUInt
     bv2w bv =
         let f i a
