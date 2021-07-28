@@ -46,6 +46,10 @@ import qualified SymMatrix as S
 import qualified Data.TCM.Dense as TCMD
 import qualified Data.MetricRepresentation as MR
 import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
+import Data.Word
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed as UV
+import Foreign.C.Types (CUInt)
 
 -- | Program Version
 pgVersion :: String
@@ -79,12 +83,12 @@ data EdgeType = NetworkEdge | TreeEdge | PendantEdge
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
-data CharType = Binary | Add | NonAdd | Matrix | SmallAlphSeq | NucSeq | AminoSeq | GenSeq | MatrixApproxSmall | MatrixApproxLarge
+data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | MatrixApproxSmall | MatrixApproxLarge
     deriving (Read, Show, Eq)
 
 -- | types for character classes 
 nonExactCharacterTypes :: [CharType]
-nonExactCharacterTypes = [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]
+nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
 
 exactCharacterTypes :: [CharType]
 exactCharacterTypes = [Binary, Add, NonAdd,Matrix , MatrixApproxSmall, MatrixApproxLarge]
@@ -113,9 +117,9 @@ data CharInfo = CharInfo { name :: NameText
                          , activity :: Bool
                          , weight :: Double
                          , costMatrix :: S.Matrix Int
-                         , denseTCM :: TCMD.DenseTransitionCostMatrix 
-                         , memoTCM :: MR.MetricRepresentation BV.BitVector
-                         --, memoTCM :: (BV.BitVector -> BV.BitVector -> (BV.BitVector, Word))
+                         , slimTCM :: TCMD.DenseTransitionCostMatrix 
+                         , wideTCM :: MR.MetricRepresentation Word64
+                         , hugeTCM :: MR.MetricRepresentation BV.BitVector
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool
                          } --deriving (Show, Eq)
@@ -163,10 +167,20 @@ data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple) 
                                      , matrixStatesFinal :: V.Vector (StateCost) 
                                      -- preliminary for m,ultiple seqeunce cahrs with same TCM 
-                                     , sequencePrelim :: V.Vector BV.BitVector
+                                     , slimPrelim :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , sequenceGapped ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , sequenceFinal :: V.Vector BV.BitVector
+                                     , slimGapped ::  (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , slimFinal  :: SV.Vector CUInt
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                     , widePrelim :: UV.Vector Word64
+                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     , wideGapped ::  (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , wideFinal :: UV.Vector Word64
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                     , hugePrelim :: V.Vector BV.BitVector
+                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     , hugeGapped ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeFinal :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect :: V.Vector StateCost 
                                      -- weight * V.sum localCostVect

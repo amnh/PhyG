@@ -120,9 +120,9 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
             --(mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in 
 
-        if (thisType == NucSeq || thisType == SmallAlphSeq) then(newMedianSmall, medianCostSmall) -- (newMedianLarge, medianCostLarge) -- 
-        else if (thisType == AminoSeq) then (newMedianMedium, medianCostMedium)
-        else if (thisType == GenSeq) then  (newMedianLarge, medianCostLarge)
+        if (thisType == NucSeq || thisType == SlimSeq) then(newMedianSmall, medianCostSmall) -- (newMedianLarge, medianCostLarge) -- 
+        else if (thisType == AminoSeq || thisType == WideSeq) then (newMedianMedium, medianCostMedium)
+        else if (thisType == HugeSeq) then  (newMedianLarge, medianCostLarge)
         else error "Unrecognized/Not implemented character type"
         --)
        

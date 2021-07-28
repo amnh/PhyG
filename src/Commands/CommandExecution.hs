@@ -46,6 +46,8 @@ import           Data.List
 import qualified Data.Text.Lazy as T
 import qualified Data.CSV as CSV
 import qualified Data.Vector as V
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
 import qualified Data.Text.Short as ST
 import qualified Graphs.GraphOperations as GO
 import           GraphFormatUtilities
@@ -323,12 +325,17 @@ makeCharLine (blockDatum, charInfo) =
         localAlphabet = fmap ST.toString $ alphabet charInfo
         isPrealigned = if prealigned charInfo == True then "Prealigned " 
                        else "" 
-        enhancedCharType = if localType `elem`  [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (isPrealigned ++ (show localType))
+        enhancedCharType = if localType `elem`  [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq] then (isPrealigned ++ (show localType))
                            else (show localType)
         (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum) 
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] then (concat $ V.map (U.bitVectToCharState localAlphabet) $ sequencePrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ sequenceFinal blockDatum)
+                                      else if localType `elem` [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq] 
+                                      then case localType of
+                                             x | x `elem` [SlimSeq, NucSeq  ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
+                                             x | x `elem` [WideSeq, AminoSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
+                                             _                                -> (   foldMap (U.bitVectToCharState localAlphabet) $ hugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ hugeFinal blockDatum)
+                                              
                                       else error ("Un-implemented data type " ++ show localType)
         in
         ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]

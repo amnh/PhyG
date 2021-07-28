@@ -48,6 +48,7 @@ module GraphOptimization.Medians  ( median2
 
 import           Types.Types
 import           Debug.Trace
+import Data.Foldable
 import qualified Data.Vector as V
 import qualified Data.BitVector.LittleEndian as BV
 --import qualified Data.BitVector as BV
@@ -60,6 +61,11 @@ import qualified Data.TCM.Dense as TCMD
 import qualified Data.MetricRepresentation as MR
 import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
 import Data.Bits ((.&.), (.|.))
+import Data.Word
+import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
+import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
+
 
 --import qualified Data.Alphabet as DALPH
 
@@ -86,8 +92,9 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
-        thisDenseMatrix = denseTCM inCharInfo
-        thisTCMMemo = memoTCM inCharInfo
+        thisSlimTCM = slimTCM inCharInfo
+        thisWideTCM = wideTCM inCharInfo
+        thisHugeTCM = hugeTCM inCharInfo
         thisActive = activity inCharInfo
     in
     if thisActive == False then (firstVertChar, 0)
@@ -107,14 +114,19 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SmallAlphSeq, NucSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq] then 
       -- ffi to POY-C/PCG code
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, GenSeq] then 
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+    else if thisType `elem` [AminoSeq, WideSeq] then 
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType == HugeSeq then 
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
@@ -131,8 +143,9 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
-        thisDenseMatrix = denseTCM inCharInfo
-        thisTCMMemo = memoTCM inCharInfo
+        thisSlimTCM = slimTCM inCharInfo
+        thisWideTCM = wideTCM inCharInfo
+        thisHugeTCM = hugeTCM inCharInfo
         thisActive = activity inCharInfo
         dummyStaticCharacter = CharacterData {  stateBVPrelim = V.empty
                                       , stateBVFinal = V.empty
@@ -140,9 +153,15 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
@@ -156,14 +175,14 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
 
     else if thisType == Matrix then (dummyStaticCharacter, 0)
 
-    else if thisType `elem` [SmallAlphSeq, NucSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq] then 
       -- ffi to POY-C/PCG code
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, GenSeq] then 
-      let newCharVect = getDOMedian thisWeight thisMatrix thisDenseMatrix thisTCMMemo thisType firstVertChar secondVertChar
+    else if thisType `elem` [AminoSeq, HugeSeq] then 
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
@@ -201,9 +220,15 @@ interUnion thisWeight leftChar rightChar =
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
@@ -245,9 +270,15 @@ intervalAdd thisWeight leftChar rightChar =
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
@@ -305,9 +336,15 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = initialMatrixVector
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = initialCostVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
                                       , globalCost = newCost 
@@ -318,31 +355,75 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
 
         newCharcater
 
--- | getDOMedian calls PCG/POY/C ffi to create sequcne median after some type wrangling
-getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.MetricRepresentation BV.BitVector
-              -> CharType -> CharacterData -> CharacterData -> CharacterData
-getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar rightChar =
-  if null thisMatrix then error "Null cost matrix in addMatrix"
-  else 
-    let resultVect = DOW.getDOMedian thisMatrix thisDenseMatrix thisMemoTCM thisType ((sequencePrelim leftChar), (sequencePrelim rightChar))
-        newStateVect = fst resultVect
-        newCostVect = snd resultVect
-        newCost = (thisWeight *) (fromIntegral newCostVect)
-        newCharcater = CharacterData {  stateBVPrelim = V.empty  
+-- | getDOMedian calls PCG/POY/C ffi to create sequence median after some type wrangling
+getDOMedian 
+  :: Double 
+  -> S.Matrix Int 
+  -> TCMD.DenseTransitionCostMatrix 
+  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation BV.BitVector
+  -> CharType 
+  -> CharacterData 
+  -> CharacterData 
+  -> CharacterData
+getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+  | null thisMatrix = error "Null cost matrix in addMatrix"
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData  
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData  
+  | thisType `elem` [HugeSeq]           = newHugeCharacterData
+  | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+  where
+    blankCharacterData = CharacterData {  stateBVPrelim = V.empty  
                                       , stateBVFinal = V.empty
                                       , rangePrelim = V.empty
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = newStateVect
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
-                                      , localCostVect = V.singleton newCostVect
-                                      , localCost = newCost
-                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
+                                      , localCostVect = mempty
+                                      , localCost = 0
+                                      , globalCost = 0
                                       }
-    in 
-    --trace ("Sequence: " ++ (show newStateVect) ++ " " ++ (show medianCost) ++ "\n" ++ (show $ stateBVPrelim leftChar) ++ "\n" ++ (show $ stateBVPrelim rightChar))
-    newCharcater
-    
+    newSlimCharacterData = 
+        let (cost, result@(resultMedians,_,_)) = slimPairwiseDO thisSlimTCM (slimPrelim leftChar,slimPrelim leftChar,slimPrelim leftChar) (slimPrelim rightChar,slimPrelim rightChar,slimPrelim rightChar)
+            newCost                    = thisWeight * (fromIntegral cost)
+            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
+        in  blankCharacterData 
+              { slimPrelim = resultMedians
+              , slimGapped = result
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }
   
+    newWideCharacterData = 
+        let (cost, result@(resultMedians,_,_)) = widePairwiseDO (toEnum $ length thisMatrix) (MR.retreivePairwiseTCM thisWideTCM) (widePrelim leftChar,widePrelim leftChar,widePrelim leftChar) (widePrelim rightChar,widePrelim rightChar,widePrelim rightChar)
+            newCost                    = thisWeight * (fromIntegral cost)
+            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
+        in  blankCharacterData 
+              { widePrelim = resultMedians
+              , wideGapped = result
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }
+
+    newHugeCharacterData = 
+        let (cost, result@(resultMedians,_,_)) = hugePairwiseDO (MR.retreivePairwiseTCM thisHugeTCM) (hugePrelim leftChar,hugePrelim leftChar,hugePrelim leftChar) (hugePrelim rightChar,hugePrelim rightChar,hugePrelim rightChar)
+            newCost                    = thisWeight * (fromIntegral cost)
+            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
+        in  blankCharacterData 
+              { hugePrelim = resultMedians
+              , hugeGapped = result
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }

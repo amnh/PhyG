@@ -44,7 +44,11 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Bio.Character.Encodable  -- this has DynamicCharacter reference
 import Data.Alphabet
+import Data.Alphabet.IUPAC
+import Data.Alphabet.Special
 import Data.Foldable
+import Data.Bits
+import qualified Data.Bimap as BM
 
 
 
@@ -72,8 +76,16 @@ convertVectorToDynamicCharacter inVector =
             | otherwise = f (n+1) xs
 
 -- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState :: [String] -> BV.BitVector -> String
-bitVectToCharState localAlphabet inBit = 
+bitVectToCharState :: Bits b => [String] -> b -> String
+bitVectToCharState localAlphabet bitValue
+  | isAlphabetDna       alphabet = fold $ iupacToDna       BM.!> observedSymbols
+  | isAlphabetAminoAcid alphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
+  | otherwise                    = intercalate "," $ toList observedSymbols
+  where
+    alphabet = fromSymbols localAlphabet
+    symbolCount     = length localAlphabet
+    observedSymbols = NE.fromList $ foldMap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. symbolCount - 1]
+{-}
     --if DNA use IUPAC ambiguity codes
     if localAlphabet == ["A","C","G","T","-"] then 
         let numBit = (BV.toUnsignedNumber inBit) 
@@ -119,3 +131,4 @@ bitVectToCharState localAlphabet inBit =
             intercalate "," stateList
 
 
+-}

@@ -52,7 +52,10 @@ import qualified SymMatrix as S
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified Input.DataTransformation as DT
+import           Control.DeepSeq
 import           Data.List
+import           Data.Bits
+import           Data.Hashable
 import qualified Data.TCM as TCM
 import qualified Data.TCM.Dense as TCMD
 import qualified Data.Vector as V
@@ -111,14 +114,15 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             sequenceData = getAlphabet [] $ concat $ fmap snd inData
             seqType = if dataType == "nucleotide" then NucSeq
                       else if dataType == "aminoacid" then AminoSeq
-                      else if dataType == "custom_alphabet" then GenSeq
+                      else if dataType == "custom_alphabet" then HugeSeq
                       else if (sequenceData `intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
                           ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
                       else if (sequenceData `intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
                           ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
                       -- can fit in byte with reasonable pre-calculation costs
-                      else if (length sequenceData) < 9 then SmallAlphSeq
-                      else GenSeq
+                      else if (length sequenceData) < 9 then SlimSeq
+                      else if (length sequenceData) < 65 then WideSeq
+                      else HugeSeq
             seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                        else if seqType == Binary then fmap ST.fromString ["0","1"]
@@ -128,30 +132,41 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
-            localDenseCostMatrix = if seqType == NucSeq || seqType == SmallAlphSeq then tcmDense
+            localDenseCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmDense
                                    else tcmNaught
+
+            (wideWeightFactor, localWideTCM)
+              | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+
+            (hugeWeightFactor, localHugeTCM)
+              | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, localCostMatrix)
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
 
             tcmWeightFactor = thd3 localTCM
             thisAlphabet = if null $ fst3 localTCM then seqAlphabet
                            else fst3 localTCM
-            (weightFactor, localMemoTCM) =  if (seqType == GenSeq || seqType == AminoSeq ) then getTCMMemo (thisAlphabet, localCostMatrix)
-                                            else getTCMMemo ([],S.empty)
 
-            defaultGenSeqCharInfo = CharInfo {
+            defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = if (seqType == GenSeq || seqType == AminoSeq) then weightFactor * tcmWeightFactor
-                                                else tcmWeightFactor
+                                     , weight = tcmWeightFactor * 
+                                                if (seqType == HugeSeq)
+                                                then fromRational hugeWeightFactor
+                                                else if seqType `elem` [WideSeq, AminoSeq]
+                                                then fromRational wideWeightFactor
+                                                else 1
                                      , costMatrix = localCostMatrix
-                                     , denseTCM = localDenseCostMatrix
-                                     , memoTCM = localMemoTCM
+                                     , slimTCM = localDenseCostMatrix
+                                     , wideTCM = localWideTCM
+                                     , hugeTCM = localHugeTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }
         in
-        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultGenSeqCharInfo
-        else trace ("Processing TCM data for file : "  ++ dataName) defaultGenSeqCharInfo
+        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
+        else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
         
     
 -- | getCost is helper function for generartion for a dense TCM
@@ -162,7 +177,7 @@ getCost localCM i j =
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
-getTCMMemo :: ([ST.ShortText], S.Matrix Int) -> (Double, MR.MetricRepresentation BV.BitVector) 
+getTCMMemo :: (FiniteBits b, Hashable b, NFData b) => ([ST.ShortText], S.Matrix Int) -> (Rational, MR.MetricRepresentation b) 
 getTCMMemo (inAlphabet, inMatrix) =
         let sigma i j = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
             memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
@@ -171,7 +186,7 @@ getTCMMemo (inAlphabet, inMatrix) =
             (weight, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         in  
         --trace (show (weight, tcm))
-        (fromRational weight, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
+        (weight, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
         
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
@@ -220,27 +235,55 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
             tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
             localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
                                    else tcmNaught
+            seqType =
+                case length thisAlphabet of
+                  n | n <=  8 -> SlimSeq
+                  n | n <= 64 -> WideSeq
+                  _           -> HugeSeq
 
-            (weightFactor, localMemoTCM) = if (length $ thisAlphabet) > 8 then getTCMMemo (thisAlphabet, inMatrix)
-                                           else getTCMMemo ([], S.empty)  --getTCMMemo (thisAlphabet, inMatrix) --getTCMMemo ([], S.empty) 
+            (wideWeightFactor, localWideTCM)
+              | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, inMatrix)
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
 
-            defaultGenSeqCharInfo = CharInfo {
-                                       charType = if (length $ thisAlphabet) < 9 then SmallAlphSeq
-                                                  else GenSeq
+            (hugeWeightFactor, localHugeTCM)
+              | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, inMatrix)
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+
+            defaultHugeSeqCharInfo = CharInfo {
+                                       charType = seqType
+                                     , activity = True
+                                     , weight = tcmWeightFactor * 
+                                                if   seqType == HugeSeq 
+                                                then fromRational hugeWeightFactor
+                                                else if seqType `elem` [WideSeq, AminoSeq]
+                                                then fromRational wideWeightFactor
+                                                else 1
+                                     , costMatrix = inMatrix
+                                     , slimTCM = localDenseCostMatrix
+                                     , wideTCM = localWideTCM
+                                     , hugeTCM = localHugeTCM
+                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
+                                     , alphabet = thisAlphabet
+                                     , prealigned = isPrealigned
+                                     }{-
+            defaultHugeSeqCharInfo = CharInfo 
+                                     { charType = if (length $ thisAlphabet) < 9 then SlimSeq
+                                                  else HugeSeq
                                      , activity = True
                                      , weight  = if (length $ thisAlphabet) > 8 then weightFactor * tcmWeightFactor
                                                 else tcmWeightFactor
                                      , costMatrix = inMatrix
-                                     , denseTCM = localDenseCostMatrix
-                                     , memoTCM = localMemoTCM
+                                     , slimTCM = localDenseCostMatrix
+                                     , wideTCM = localMemoTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }
+                                     -}
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show (thisAlphabet, inMatrix, tcmWeightFactor, weightFactor)) (
-        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultGenSeqCharInfo
-        else defaultGenSeqCharInfo
+        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
+        else defaultHugeSeqCharInfo
         --)
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present  

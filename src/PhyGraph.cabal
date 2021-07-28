@@ -194,6 +194,7 @@ executable phyg
                 , bv-little
                 , bits
                 , hashmap
+                , bimap
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions

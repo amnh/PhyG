@@ -46,16 +46,22 @@ module Input.DataTransformation ( renameData
 
 import qualified Data.Text.Lazy as T
 import           Types.Types
+import Data.Foldable
 import           Data.List
 import           Data.Maybe
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector    as V
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
+
 import qualified Data.Text.Short as ST
 --import qualified Data.Hashable as H
 import           Text.Read
 import           Debug.Trace
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import Foreign.C.Types
+import Data.Word
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
@@ -211,9 +217,15 @@ missingNonAdditive inCharInfo =
                                       , rangeFinal = V.empty
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
@@ -230,9 +242,15 @@ missingAdditive inCharInfo =
                                       , rangeFinal = missingRange
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
-                                      , sequencePrelim = V.empty
-                                      , sequenceGapped = (V.empty, V.empty, V.empty)
-                                      , sequenceFinal = V.empty
+                                      , slimPrelim = mempty
+                                      , slimGapped = (mempty, mempty, mempty)
+                                      , slimFinal = mempty
+                                      , widePrelim = mempty
+                                      , wideGapped = (mempty, mempty, mempty)
+                                      , wideFinal = mempty
+                                      , hugePrelim = mempty
+                                      , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
@@ -251,9 +269,15 @@ missingMatrix inCharInfo =
                                     , rangeFinal = V.empty
                                     , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
                                     , matrixStatesFinal = V.empty
-                                    , sequencePrelim = V.empty
-                                    , sequenceGapped = (V.empty, V.empty, V.empty)
-                                    , sequenceFinal = V.empty
+                                    , slimPrelim = mempty
+                                    , slimGapped = (mempty, mempty, mempty)
+                                    , slimFinal = mempty
+                                    , widePrelim = mempty
+                                    , wideGapped = (mempty, mempty, mempty)
+                                    , wideFinal = mempty
+                                    , hugePrelim = mempty
+                                    , hugeGapped = (mempty, mempty, mempty)
+                                    , hugeFinal = mempty
                                     , localCostVect = V.singleton 0
                                     , localCost = 0.0
                                     , globalCost = 0.0
@@ -266,7 +290,7 @@ missingMatrix inCharInfo =
 getMissingValue :: [CharInfo] -> [CharacterData] 
 getMissingValue inChar
   | null inChar = []
-  | (charType $ head inChar) `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq] = [] 
+  | (charType $ head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = [] 
   | (charType $ head inChar) == NonAdd = (missingNonAdditive  $ head inChar) : getMissingValue (tail inChar)
   | (charType $ head inChar) == Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
   | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
@@ -366,9 +390,15 @@ getSequenceChar nucBVPairVect stateList =
                                           , rangeFinal = V.empty
                                           , matrixStatesPrelim = V.empty
                                           , matrixStatesFinal = V.empty
-                                          , sequencePrelim = sequenceVect
-                                          , sequenceGapped = (V.empty, V.empty, V.empty)
-                                          , sequenceFinal = sequenceVect
+                                          , slimPrelim = mempty
+                                          , slimGapped = (mempty, mempty, mempty)
+                                          , slimFinal  = mempty
+                                          , widePrelim = mempty
+                                          , wideGapped = (mempty, mempty, mempty)
+                                          , wideFinal  = mempty
+                                          , hugePrelim = mempty
+                                          , hugeGapped = (mempty, mempty, mempty)
+                                          , hugeFinal  = mempty
                                           , localCostVect = V.singleton 0
                                           , localCost = 0.0
                                           , globalCost = 0.0
@@ -380,7 +410,7 @@ getSequenceChar nucBVPairVect stateList =
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
-getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVector
+getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CUInt, Word64, BV.BitVector)
 getGeneralBVCode bvCodeVect inState = 
     let inStateString = ST.toString inState
     in
@@ -388,7 +418,8 @@ getGeneralBVCode bvCodeVect inState =
         let newCode = V.find ((== inState).fst) bvCodeVect
         in
         if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
-        else snd $ fromJust newCode
+        else let x = snd $ fromJust newCode
+             in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x) 
     else 
         let statesStringList = words $ tail $ init inStateString
             stateList = fmap ST.fromString statesStringList
@@ -397,7 +428,7 @@ getGeneralBVCode bvCodeVect inState =
             ambiguousBVState = foldr1 (.|.) stateBVList
         in
         if Nothing `elem` maybeBVList then error ("Ambiguity grooup " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
-        else ambiguousBVState
+        else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, ambiguousBVState)
             where getBV s = (V.find ((== s).fst)) bvCodeVect
 
 -- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
@@ -405,18 +436,25 @@ getGeneralBVCode bvCodeVect inState =
 -- they need to be parsed and "or-ed" differently
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList = 
-        let stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
-            sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
-                           else V.empty
+        let cType = charType inCharInfo
+            stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
+            (slimVec, wideVec, hugeVec) = if (not $ null stateList) then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+                           else (mempty, mempty, mempty)
             newSequenceChar = CharacterData  {  stateBVPrelim = V.empty
                                               , stateBVFinal = V.empty
                                               , rangePrelim = V.empty
                                               , rangeFinal = V.empty
                                               , matrixStatesPrelim = V.empty
                                               , matrixStatesFinal = V.empty
-                                              , sequencePrelim = sequenceVect
-                                              , sequenceGapped = (V.empty, V.empty, V.empty)
-                                              , sequenceFinal = sequenceVect
+                                              , slimPrelim = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimFinal  = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                              , widePrelim = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideFinal  = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                              , hugePrelim = if cType `elem` [HugeSeq          ] then hugeVec else mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeFinal  = if cType `elem` [HugeSeq          ] then hugeVec else mempty
                                               , localCostVect = V.singleton 0
                                               , localCost = 0.0
                                               , globalCost = 0.0
@@ -569,9 +607,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                               , rangeFinal = V.empty
                                               , matrixStatesPrelim = V.empty
                                               , matrixStatesFinal = V.empty
-                                              , sequencePrelim = V.empty
-                                              , sequenceGapped = (V.empty, V.empty, V.empty)
-                                              , sequenceFinal = V.empty
+                                              , slimPrelim = mempty
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
                                               , localCostVect = V.singleton 0
                                               , localCost = 0.0
                                               , globalCost = 0.0
@@ -590,9 +634,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , rangeFinal = V.singleton (minRange, maxRange)
                                                   , matrixStatesPrelim = V.empty
                                                   , matrixStatesFinal = V.empty
-                                                  , sequencePrelim = V.empty
-                                                  , sequenceGapped = (V.empty, V.empty, V.empty)
-                                                  , sequenceFinal = V.empty
+                                                  , slimPrelim = mempty
+                                                  , slimGapped = (mempty, mempty, mempty)
+                                                  , slimFinal  = mempty
+                                                  , widePrelim = mempty
+                                                  , wideGapped = (mempty, mempty, mempty)
+                                                  , wideFinal  = mempty
+                                                  , hugePrelim = mempty
+                                                  , hugeGapped = (mempty, mempty, mempty)
+                                                  , hugeFinal  = mempty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0
                                                   , globalCost = 0.0
@@ -611,9 +661,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , rangeFinal = V.empty
                                                   , matrixStatesPrelim = V.singleton initialMatrixVector
                                                   , matrixStatesFinal = V.empty
-                                                  , sequencePrelim = V.empty
-                                                  , sequenceGapped = (V.empty, V.empty, V.empty)
-                                                  , sequenceFinal = V.empty
+                                                  , slimPrelim = mempty
+                                                  , slimGapped = (mempty, mempty, mempty)
+                                                  , slimFinal  = mempty
+                                                  , widePrelim = mempty
+                                                  , wideGapped = (mempty, mempty, mempty)
+                                                  , wideFinal  = mempty
+                                                  , hugePrelim = mempty
+                                                  , hugeGapped = (mempty, mempty, mempty)
+                                                  , hugeFinal  = mempty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0
                                                   , globalCost = 0.0
@@ -640,7 +696,7 @@ createLeafCharacter inCharInfoList rawDataList =
     else 
         let localCharType = charType $ head inCharInfoList
         in
-        if (length inCharInfoList == 1) &&  (localCharType `elem` [SmallAlphSeq, NucSeq, AminoSeq, GenSeq]) then
+        if (length inCharInfoList == 1) &&  (localCharType `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq]) then
             --trace ("Sequence character")
             if localCharType == NucSeq then getSequenceChar nucleotideBVPairs rawDataList --single state ambiguity codes
             else if localCharType == AminoSeq then getSequenceChar aminoAcidBVPairs rawDataList --single state ambiguity codes
