@@ -1,0 +1,12 @@
+-- Test "wide" alphabet sequences
+--read(fasta:"chel.fas")
+read("metazoa-aa-1.fas")
+read("metazoa-aa-2.fas")
+--read("louse.fastc")
+--read("woman.fastc")
+--set(outgroup:"ArabicAfroAsiatic")
+-- read ("louseWoman.tre")
+--read("mixed-all.tre")
+read("protein.tre")
+report("protein.dis.test.tre", graphs, newick, overwrite)
+report("protein.dis.test.csv", pairdist, overwrite)

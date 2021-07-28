@@ -1,0 +1,16 @@
+-- Format follow String:option | String : (String:option, string:option,..) recursively
+-- file names and partds in double quotes "bleh"
+-- (:Int are optional)
+
+--csv file for data input
+input:"mixed-all.dis.csv"
+outgroup :"ArabicAfroAsiatic"
+stub : "mixed-all"  -- inputFilename by default
+output : "mixed-all.tre" -- inputFilename.tre by default
+additionSequence : best
+firstPairChoice : Closest
+refinement : None 
+buildSet : best    -- keeping trees after initial Wagner build
+outputSet : best:1   -- keeping trees after refinement
+keepSet : first -- first | last | random -- to allow for random keeping of trees--problem is in termination not guaranteed used for refinement
+-- excludedTaxa : "namesToDelete.txt" -- taxa to be excluded from analysis after read in
