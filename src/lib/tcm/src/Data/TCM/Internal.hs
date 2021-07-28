@@ -15,7 +15,6 @@
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE Strict             #-}
-{-# LANGUAGE StrictData         #-}
 {-# LANGUAGE TypeFamilies       #-}
 
 module Data.TCM.Internal

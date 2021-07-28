@@ -67,9 +67,6 @@ import Data.Alphabet
 import Data.Foldable
 import Data.MetricRepresentation
 import Data.List.NonEmpty (NonEmpty(..))
- 
-
-
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -163,7 +160,7 @@ getCost localCM i j =
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
-getTCMMemo :: ([ST.ShortText], S.Matrix Int) -> (Double, MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word))) 
+getTCMMemo :: ([ST.ShortText], S.Matrix Int) -> (Double, MR.MetricRepresentation AG.AmbiguityGroup) 
 getTCMMemo (inAlphabet, inMatrix) =
         let sigma i j = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
             memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
@@ -172,7 +169,7 @@ getTCMMemo (inAlphabet, inMatrix) =
             (weight, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         in  
         --trace (show (weight, tcm))
-        (fromRational weight, ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue))
+        (fromRational weight, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
         
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors

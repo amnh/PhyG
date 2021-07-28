@@ -77,7 +77,7 @@ thesholdUKLength = 15
 -- changing types and checking for missing cases
 getDOMedian :: V.Vector  (V.Vector  Int) 
             -> TCMD.DenseTransitionCostMatrix 
-            -> MR.MetricRepresentation (AG.AmbiguityGroup -> AG.AmbiguityGroup -> (AG.AmbiguityGroup, Word)) 
+            -> MR.MetricRepresentation AG.AmbiguityGroup
             -> CharType -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) -> (V.Vector  BV.BitVector, Int)
 getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     -- missing data inputs

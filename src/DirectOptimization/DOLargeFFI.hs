@@ -27,7 +27,7 @@ import Debug.Trace
 
 
 wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
-                      -> MR.MetricRepresentation (AmbiguityGroup -> AmbiguityGroup -> (AmbiguityGroup, Word)) 
+                      -> MR.MetricRepresentation AmbiguityGroup
                       -> (Vector BV.BitVector, Int)
 wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = 
   --(resultingMedians, fromEnum resultCost)
@@ -49,7 +49,8 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo =
         tcmMemo' = 
             let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
-            in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
+            in  metricRepresentation tcm
+--            in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
         
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
         
