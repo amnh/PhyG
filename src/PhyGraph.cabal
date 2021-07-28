@@ -557,6 +557,8 @@ library tcm
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
+    hashable                 >= 1.3       && < 2.0,
+    hashtables               >= 1.2       && < 2.0,
     QuickCheck               >= 2.14      && < 3.0,
     mono-traversable         >= 1.0       && < 2.0,
     semigroupoids            >= 5.3       && < 5.4,
@@ -564,6 +566,7 @@ library tcm
     vector-binary-instances  >= 0.2.5     && < 1.0,
 
   exposed-modules:
+    Data.Hashable.Memoize
     Data.MetricRepresentation
     Data.TCM
     Data.TCM.Dense

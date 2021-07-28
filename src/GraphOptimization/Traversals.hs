@@ -127,8 +127,8 @@ setBestGraphAssignments inGraphList curSimpleGraph curDecGraph curCharInfo  =
             -- extract best everyhting from (graphAllCharcaterData : graphNonExactCharacterData)
             newGraph = createPhyloGeneticGraphFromBlockLists curSimpleGraph curDecGraph curCharInfo $ getBestFullBlockList (graphAllCharcaterData : graphNonExactCharacterData) []
         in
-        newGraph
-        -- head nGraphList   
+        -- newGraph
+        head inGraphList   
 
 -- | getCharacterData takes a PhylogeneticGraph and extracts the summed root(s) cost for each character  
 -- if string argument specifies classes of characters "all" or "nonExact" (ie not Additive, Nonadditive, Matrix)
