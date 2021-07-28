@@ -48,6 +48,7 @@ import Debug.Trace
 import Data.Int
 import qualified DirectOptimization.DOSmallFFI as DOSmallFFI
 import qualified DirectOptimization.DOLargeFFI as DOLargeFFI
+
 import qualified Utilities.Utilities  as U
 import qualified Data.Vector  as V
 --import qualified Data.BitVector  as BV
@@ -68,6 +69,12 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Types.Types
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 
+import qualified DirectOptimization.DOSlim as SLIM
+import qualified DirectOptimization.DOWide as WIDE
+import qualified DirectOptimization.DOHuge as HUGE
+
+
+
 -- | thesholdUKLength sets threshold for where its worth doing Ukkonen stuff
 -- short seqeuneces not worth it.  This should be tested empirically
 thesholdUKLength :: Int 
@@ -77,7 +84,7 @@ thesholdUKLength = 15
 -- changing types and checking for missing cases
 getDOMedian :: V.Vector  (V.Vector  Int) 
             -> TCMD.DenseTransitionCostMatrix 
-            -> MR.MetricRepresentation AG.AmbiguityGroup
+            -> MR.MetricRepresentation BV.BitVector
             -> CharType -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) -> (V.Vector  BV.BitVector, Int)
 getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     -- missing data inputs
@@ -100,20 +107,22 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
 
             --setting left most bit to 1 same purpose as inDelBit for Ukkonen--I thnik small error in this
             -- after bitvector change but Naive OK
-            (newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
-            (newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
-
-            (mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
-            mediansFFI' =  V.filter (/= gapCharBit) mediansFFI
+            --(newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
+            --(newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
+            (newMedianSmall, medianCostSmall) = SLIM.wrapperSlimDO lBV rBV thisMatrix
+            (newMedianMedium, medianCostMedium) = WIDE.wrapperWideDO lBV rBV tcmMemo
+            (newMedianLarge, medianCostLarge) = HUGE.wrapperHugeDO lBV rBV tcmMemo
+            
+            --(mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense
+            --mediansFFI' =  V.filter (/= gapCharBit) mediansFFI
 
             -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
-            (mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
+            --(mediansLargeFFI, costLargeFFI) = DOLargeFFI.wrapperPCG_DO_Large lBV rBV thisMatrix tcmMemo
         in 
 
-        if (thisType == NucSeq || thisType == SmallAlphSeq) then (mediansFFI', costFFI)-- (newMedianLarge, medianCostLarge) -- 
-        --if (thisType == NucSeq || thisType == SmallAlphSeq) then  (newMedianBV, medianCost64)
-        --else if (thisType == GenSeq || thisType == AminoSeq) then  (mediansLargeFFI, costLargeFFI) 
-        else if (thisType == GenSeq || thisType == AminoSeq) then  (newMedianLarge, medianCostLarge)
+        if (thisType == NucSeq || thisType == SmallAlphSeq) then(newMedianSmall, medianCostSmall) -- (newMedianLarge, medianCostLarge) -- 
+        else if (thisType == AminoSeq) then (newMedianMedium, medianCostMedium)
+        else if (thisType == GenSeq) then  (newMedianLarge, medianCostLarge)
         else error "Unrecognized/Not implemented character type"
         --)
        

@@ -219,7 +219,7 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
   where
     symbolCount = matrixDimension denseTCMs
     f :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
-    f lesser longer = unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
+    f lesser longer = {-# SCC f #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
         let longerLength = V.length longer
         -- Add two because the C code needs stupid gap prepended to each character.
@@ -237,7 +237,7 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
                       _      -> {-# SCC align2dFn_c #-}
                         align2dFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct neverComputeOnlyGapped medianOpt (coerceEnum computeUnion)
 
-        alignedLength <- coerce <$> peek resultLength
+        alignedLength <- {-# SCC alignedLength #-} coerce <$> peek resultLength
         let g = buildResult bufferLength (csi alignedLength)
         alignedLesser <- {-# SCC alignedLesser #-} g lesserBuffer
         alignedLonger <- {-# SCC alignedLonger #-} g longerBuffer

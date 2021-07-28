@@ -68,6 +68,8 @@ import Data.Foldable
 import Data.MetricRepresentation
 import Data.List.NonEmpty (NonEmpty(..))
 
+import qualified Data.BitVector.LittleEndian as BV
+
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 -- filters out '?' '[' and ']' adds in '-' for indel Gap
@@ -160,7 +162,7 @@ getCost localCM i j =
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
-getTCMMemo :: ([ST.ShortText], S.Matrix Int) -> (Double, MR.MetricRepresentation AG.AmbiguityGroup) 
+getTCMMemo :: ([ST.ShortText], S.Matrix Int) -> (Double, MR.MetricRepresentation BV.BitVector) 
 getTCMMemo (inAlphabet, inMatrix) =
         let sigma i j = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
             memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma

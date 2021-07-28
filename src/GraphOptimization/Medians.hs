@@ -319,7 +319,7 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         newCharcater
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequcne median after some type wrangling
-getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.MetricRepresentation AG.AmbiguityGroup
+getDOMedian ::  Double -> S.Matrix Int -> TCMD.DenseTransitionCostMatrix -> MR.MetricRepresentation BV.BitVector
               -> CharType -> CharacterData -> CharacterData -> CharacterData
 getDOMedian thisWeight thisMatrix thisDenseMatrix thisMemoTCM thisType leftChar rightChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"

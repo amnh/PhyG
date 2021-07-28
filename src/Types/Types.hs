@@ -114,7 +114,7 @@ data CharInfo = CharInfo { name :: NameText
                          , weight :: Double
                          , costMatrix :: S.Matrix Int
                          , denseTCM :: TCMD.DenseTransitionCostMatrix 
-                         , memoTCM :: MR.MetricRepresentation AG.AmbiguityGroup
+                         , memoTCM :: MR.MetricRepresentation BV.BitVector
                          --, memoTCM :: (BV.BitVector -> BV.BitVector -> (BV.BitVector, Word))
                          , alphabet :: [ST.ShortText]
                          , prealigned :: Bool

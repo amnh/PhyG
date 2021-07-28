@@ -48,16 +48,18 @@ deleteGaps symbolCount c@(x,y,z)
   where
     newVector = runST $ do
         j <- newSTRef 0
-        let isGapAtJ = do
+        let isGapAtJ = {-# SCC isGapAtJ #-} do
               j' <- readSTRef j
               pure $ j' < charLen && x V.! j' == gap
-        let g v = do
+        let g v = {-# SCC newVectorG #-} do
               whileM_ isGapAtJ (modifySTRef j succ)
               j' <- readSTRef j
               modifySTRef j succ
               pure $ v V.! j'
         x' <- V.generateM newLen $ const (g x)
+        writeSTRef j 0
         y' <- V.generateM newLen $ const (g y)
+        writeSTRef j 0
         z' <- V.generateM newLen $ const (g z)
         pure (x', y', z')
 
@@ -141,9 +143,9 @@ insertGaps symbolCount lGaps rGaps meds@(x,y,z)
             MV.unsafeWrite zVec i $ z V.! m
             modifySTRef mPtr succ
             when (isAlign meds m || isDelete meds m) $ do
-              modifySTRef lGap succ
-            when (isAlign meds m || isInsert meds m) $ do
               modifySTRef rGap succ
+            when (isAlign meds m || isInsert meds m) $ do
+              modifySTRef lGap succ
 
       let insertGapWith i (xe,ye,ze) gapRef gapVec = do
             rg <- readSTRef gapRef

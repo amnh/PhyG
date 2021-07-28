@@ -56,7 +56,9 @@ deleteGaps c@(x,y,z)
               modifySTRef j succ
               pure $ v V.! j'
         x' <- V.generateM newLen $ const (g x)
+        writeSTRef j 0
         y' <- V.generateM newLen $ const (g y)
+        writeSTRef j 0
         z' <- V.generateM newLen $ const (g z)
         pure (x', y', z')
 
@@ -120,7 +122,7 @@ insertGaps gap lGaps rGaps meds@(x,y,z)
     ins = (gap, gap , zero)
     del = (gap, zero, gap )
 
-    newVector = runST $ do
+    newVector = runST $ {-# SCC newVector #-} do
       xVec <- MV.unsafeNew newLength
       yVec <- MV.unsafeNew newLength
       zVec <- MV.unsafeNew newLength
@@ -133,18 +135,18 @@ insertGaps gap lGaps rGaps meds@(x,y,z)
       for_ (IM.toAscList lGaps) $ uncurry (MV.unsafeWrite lVec)
       for_ (IM.toAscList rGaps) $ uncurry (MV.unsafeWrite rVec)
 
-      let align i = do
+      let align i = {-# SCC align #-} do
             m <- readSTRef mPtr
             MV.unsafeWrite xVec i $ x V.! m
             MV.unsafeWrite yVec i $ y V.! m
             MV.unsafeWrite zVec i $ z V.! m
             modifySTRef mPtr succ
             when (isAlign meds m || isDelete meds m) $ do
-              modifySTRef lGap succ
-            when (isAlign meds m || isInsert meds m) $ do
               modifySTRef rGap succ
+            when (isAlign meds m || isInsert meds m) $ do
+              modifySTRef lGap succ
 
-      let insertGapWith i (xe,ye,ze) gapRef gapVec = do
+      let insertGapWith i (xe,ye,ze) gapRef gapVec = {-# SCC insertGapWith #-} do
             rg <- readSTRef gapRef
             v  <- if rg >= MV.length gapVec then pure 0 else MV.unsafeRead gapVec rg
             if   v == 0
