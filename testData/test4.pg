@@ -1,0 +1,10 @@
+-- Test command file
+read(fasta:"chel.fas")
+read("louse.fastc")
+read("woman.fastc")
+read("metazoa-aa-1.fas")
+read("metazoa-aa-2.fas")
+set(outgroup:"ArabicAfroAsiatic")
+read("mixed-all.tre")
+report("mixed-all.dis.test.tre", graphs, newick, overwrite)
+report("mixed-all.dis.test.csv", pairdist, overwrite)
