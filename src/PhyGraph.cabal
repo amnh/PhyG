@@ -70,9 +70,17 @@ common ffi-buildinfo
 common ghc-flags
 
   ghc-options:
---    -debug
 --    -rtsopts          
---    -g                    
+    -- Debugging flags
+    -debug
+    -g 
+    -ddump-stg
+    -ddump-cmm
+    -ddump-to-file   
+    -- -prof
+    -fprof-auto
+    -fprof-cafs  
+
     -- Optimization flags
     -O2
     -threaded
