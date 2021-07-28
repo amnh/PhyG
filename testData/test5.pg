@@ -1,4 +1,4 @@
--- Test command file
+-- Test "huge" alphabet sequences
 read("louse.fastc")
 read("woman.fastc")
 set(outgroup:"ArabicAfroAsiatic")
