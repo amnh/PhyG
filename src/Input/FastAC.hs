@@ -340,8 +340,8 @@ getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
-        -- removes ';' comments   
-        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
+        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--because of latexIPA encodings using ';'(and '$')
+        let fileContents =  unlines $ filter (not.null) $ lines fileContents'
         in 
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
         else 
