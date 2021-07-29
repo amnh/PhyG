@@ -68,6 +68,7 @@ import qualified Data.Text.Short as ST
 import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
+import qualified GeneralUtilities as GU
 
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
@@ -75,7 +76,7 @@ getTNTData :: String -> String -> RawData
 getTNTData inString fileName = 
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
-        let inString' = unlines $ filter ((>0).length) $ lines inString
+        let inString' = unlines $ filter ((>0).length) $ fmap GU.stripString $ lines inString
             inText = T.strip $ T.pack inString'
         in
         -- trace (show $ lines inString) (
@@ -116,7 +117,7 @@ getTNTData inString fileName =
                 -- trace ("Shorted data:" ++ show sortedData) (
                 --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                 if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
-                else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with varying numbers of chacters (should be "
+                else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of chacters (should be "
                     ++ show numChar ++ "):" ++ show  incorrectLengthList)
                 else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
                 else
