@@ -35,33 +35,34 @@ Portability :  portable (I hope)
 -}
 
 
-module Input.DataTransformation ( renameData
-                          , getDataTerminalNames
-                          , addMissingTerminalsToInput
-                          , checkDuplicatedTerminals
-                          , createNaiveData
-                          , createBVNames
-                          ) where
+module Input.DataTransformation
+  ( renameData
+  , getDataTerminalNames
+  , addMissingTerminalsToInput
+  , checkDuplicatedTerminals
+  , createNaiveData
+  , createBVNames
+  ) where
 
-
-import qualified Data.Text.Lazy as T
-import           Types.Types
-import Data.Foldable
-import           Data.List
+import           Data.Foldable
+import qualified Data.List                   as L
 import           Data.Maybe
+import qualified Data.Text.Lazy              as T
+import           Types.Types
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.Vector    as V
-import qualified Data.Vector.Storable as SV
-import qualified Data.Vector.Unboxed  as UV
+import qualified Data.Vector                 as V
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
 
-import qualified Data.Text.Short as ST
+import qualified Data.Text.Short             as ST
 --import qualified Data.Hashable as H
-import           Text.Read
+import           Data.Bits                   (shiftL, (.|.))
+import           Data.Word
 import           Debug.Trace
-import Data.Bits ((.&.), (.|.), shiftL, shiftR)
-import Foreign.C.Types
-import Data.Word
+import           Foreign.C.Types
+import           Text.Read
+
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
@@ -72,7 +73,7 @@ renameData newNamePairList inData =
       let terminalData =  fst inData
       in
       if null terminalData then inData
-      else 
+      else
           let newTerminalData = fmap (relabelterminalData newNamePairList) terminalData
           in
           (newTerminalData, snd inData)
@@ -80,43 +81,43 @@ renameData newNamePairList inData =
 -- | relabelterminalData takes a list of Text pairs and the terminals with the
 -- second name in the pairs is changed to the first
 relabelterminalData :: [(T.Text, T.Text)] -> TermData -> TermData
-relabelterminalData namePairList terminalData@(leafName, leafData) = 
+relabelterminalData namePairList terminalData@(leafName, leafData) =
      if null namePairList then terminalData
-     else 
-        let foundName = find ((== leafName) .snd) namePairList 
+     else
+        let foundName = find ((== leafName) .snd) namePairList
         in
-        if foundName == Nothing then 
-          --trace ("Not renaming " ++ (T.unpack leafName) ++ " " ++ show namePairList) 
+        if foundName == Nothing then
+          --trace ("Not renaming " ++ (T.unpack leafName) ++ " " ++ show namePairList)
           terminalData
-        else 
-          --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName)) 
+        else
+          --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName))
           (fst $ fromJust foundName, leafData)
 
 -- | getDataTerminalNames takes all input data and getss full terminal list
--- and adds missing data for trerminals not in input files 
+-- and adds missing data for trerminals not in input files
 getDataTerminalNames :: [RawData] -> [T.Text]
 getDataTerminalNames inDataList =
     if null inDataList then []
-    else 
-        sort $ nub $ fmap fst $ concat $ fmap fst inDataList
+    else
+        L.sort $ L.nub $ fmap fst $ concat $ fmap fst inDataList
 
--- | addMissingTerminalsToInput dataLeafNames renamedData 
+-- | addMissingTerminalsToInput dataLeafNames renamedData
 addMissingTerminalsToInput :: [T.Text] -> [TermData]-> RawData -> RawData
-addMissingTerminalsToInput dataLeafNames curTermData inData@(termDataList, charInfoList) = 
+addMissingTerminalsToInput dataLeafNames curTermData inData@(termDataList, charInfoList) =
     if null dataLeafNames then (reverse curTermData, charInfoList)
-    else 
+    else
         let firstLeafName = head dataLeafNames
             foundLeaf = find ((== firstLeafName) .fst)  termDataList
         in
-        if foundLeaf /= Nothing then addMissingTerminalsToInput (tail dataLeafNames) ((fromJust foundLeaf) : curTermData) inData 
-        else addMissingTerminalsToInput (tail dataLeafNames) ((firstLeafName, []) : curTermData) inData 
+        if foundLeaf /= Nothing then addMissingTerminalsToInput (tail dataLeafNames) ((fromJust foundLeaf) : curTermData) inData
+        else addMissingTerminalsToInput (tail dataLeafNames) ((firstLeafName, []) : curTermData) inData
 
 -- | checkDuplicatedTerminals takes list TermData and checks for repeated terminal names
-checkDuplicatedTerminals :: [TermData] -> (Bool, [T.Text]) 
+checkDuplicatedTerminals :: [TermData] -> (Bool, [T.Text])
 checkDuplicatedTerminals inData =
-    if null inData then (False, []) 
-    else 
-        let nameList = group $ sort $ fmap fst inData
+    if null inData then (False, [])
+    else
+        let nameList = L.group $ L.sort $ fmap fst inData
             dupList = filter ((>1).length) nameList
         in
         if null dupList then (False, [])
@@ -128,7 +129,7 @@ checkDuplicatedTerminals inData =
 joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
     if ((length $ head inFileLists) == 0) then []
-    else     
+    else
         let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
@@ -138,19 +139,19 @@ joinSortFileData inFileLists =
 -- unique, label invariant (but data related so arbitrary but consistent)
 -- Assumes the rawData come in sorted by the data reconciliation process
 -- These used for vertex labels, caching, left/right DO issues
--- CHANGED: to simple bitvector order since left right is determined 
+-- CHANGED: to simple bitvector order since left right is determined
 -- in the DO operations based on data so label invariant anyway
 
 createBVNames :: [RawData] -> [(T.Text, BV.BitVector)]
 createBVNames inDataList =
-    let rawDataList = fmap fst inDataList
-        textNameList = fmap fst $ head rawDataList
+    let rawDataList   = fmap fst inDataList
+        textNameList  = fmap fst $ head rawDataList
         textNameList' = fmap fst $ last rawDataList
         {-
         fileLeafCharList = fmap (fmap snd) rawDataList
         fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
         leafList = reverse $ joinSortFileData fileLeafList
-        leafHash = fmap H.hash leafList 
+        leafHash = fmap H.hash leafList
         leafHashPair = sortOn fst $ zip leafHash textNameList
         (_, leafReoderedList) = unzip leafHashPair
         leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
@@ -167,7 +168,7 @@ createBVNames inDataList =
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
 -- these data are organized into blocks (set to input filenames initially)
 -- and are bitvector coded, but are not organized by charcter type, packed ot
--- optimized in any other way (prealigned-> nonadd, Sankoff.  2 state sankoff to binary, 
+-- optimized in any other way (prealigned-> nonadd, Sankoff.  2 state sankoff to binary,
 -- constant characters skipped etc)
 -- these processes take place later
 -- these data can be input to any data optimization commands and are useful
@@ -175,62 +176,69 @@ createBVNames inDataList =
 -- the RawData is a list since it is organized by input file
 -- the list accumulator is to avoid Vector snoc/cons O(n)
 createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
-createNaiveData inDataList leafBitVectorNames curBlockData = 
-    if null inDataList then (V.fromList $ fmap fst leafBitVectorNames, V.fromList $ fmap snd leafBitVectorNames, V.fromList $ reverse curBlockData)
-    else 
+createNaiveData inDataList leafBitVectorNames curBlockData =
+    if null inDataList
+    then ( V.fromList $ fmap fst leafBitVectorNames
+         , V.fromList $ fmap snd leafBitVectorNames
+         , V.fromList $ reverse curBlockData
+         )
+    else
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
         if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
-        else 
+        else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
-            let thisBlockName = T.takeWhile (/= ':') $ name $ head firstCharInfo
+            let thisBlockName     = T.takeWhile (/= ':') $ name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
                 recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
-                thisBlockData = (thisBlockName, recodedCharacters, thisBlockCharInfo)
+                thisBlockData     = (thisBlockName, recodedCharacters, thisBlockCharInfo)
             in
             trace ("Recoding block: " ++ T.unpack thisBlockName)
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
 
+
 -- | recodeRawData takes the ShortText representation of character states/ranges etc
--- and recodes the apporpriate fields in CharacterData (from Types) 
+-- and recodes the apporpriate fields in CharacterData (from Types)
 -- the list accumulator is to avoid Vectotr cons/snoc O(n)
 -- differentiates between seqeunce type and others with char info
 recodeRawData :: [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
 recodeRawData inData inCharInfo curCharData =
     if null inData then V.fromList $ reverse $ fmap V.fromList curCharData
-    else 
+    else
         let firstData = head inData
             firstDataRecoded = createLeafCharacter inCharInfo firstData
         in
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
-        recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)  
+        recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)
+
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
-  let missingValue = CharacterData {    stateBVPrelim = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-                                      , stateBVFinal = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-                                      , rangePrelim = V.empty
-                                      , rangeFinal = V.empty
-                                      , matrixStatesPrelim = V.empty
-                                      , matrixStatesFinal = V.empty
-                                      , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = V.singleton 0
-                                      , localCost = 0.0
-                                      , globalCost = 0.0
-                                      }
-  in missingValue
+    CharacterData
+      { stateBVPrelim      = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
+      , stateBVFinal       = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
+      , rangePrelim        = mempty
+      , rangeFinal         = mempty
+      , matrixStatesPrelim = mempty
+      , matrixStatesFinal  = mempty
+      , slimPrelim         = mempty
+      , slimGapped         = (mempty, mempty, mempty)
+      , slimFinal          = mempty
+      , widePrelim         = mempty
+      , wideGapped         = (mempty, mempty, mempty)
+      , wideFinal          = mempty
+      , hugePrelim         = mempty
+      , hugeGapped         = (mempty, mempty, mempty)
+      , hugeFinal          = mempty
+      , localCostVect      = V.singleton 0
+      , localCost          = 0
+      , globalCost         = 0
+      }
+
 
 -- | missingAdditive is additive missing character value, all 1's based on alphabet size
 missingAdditive :: CharInfo -> CharacterData
@@ -282,17 +290,17 @@ missingMatrix inCharInfo =
                                     , localCost = 0.0
                                     , globalCost = 0.0
                                     }
-  in 
+  in
   --trace ("MM" ++ (show $ alphabet inCharInfo))
   missingValue
 
 -- | getMissingValue takes the charcater type ans returns the appropriate missineg data value
-getMissingValue :: [CharInfo] -> [CharacterData] 
+getMissingValue :: [CharInfo] -> [CharacterData]
 getMissingValue inChar
   | null inChar = []
-  | (charType $ head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = [] 
+  | (charType $ head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = []
   | (charType $ head inChar) == NonAdd = (missingNonAdditive  $ head inChar) : getMissingValue (tail inChar)
-  | (charType $ head inChar) == Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
+  | (charType $ head inChar) ==    Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
   | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
   | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognized")
 
@@ -302,7 +310,7 @@ getMissingValue inChar
 getStateBitVectorList :: [ST.ShortText] -> V.Vector (ST.ShortText, BV.BitVector)
 getStateBitVectorList localStates =
     if null localStates then error "Character with empty alphabet in getStateBitVectorList"
-    else 
+    else
         let stateIndexList = [0..((length localStates) - 1)]
             bitsOffList = replicate ((length localStates) - 1) False
             --bv1 = BV.bitVec (length localStates) (1 :: Integer)
@@ -316,10 +324,10 @@ getStateBitVectorList localStates =
 getNucleotideSequenceCodes :: [ST.ShortText]-> V.Vector (ST.ShortText, BV.BitVector)
 getNucleotideSequenceCodes localAlphabet  =
     let stateBVList = getStateBitVectorList localAlphabet
-        stateA = snd $ stateBVList V.! 0
-        stateC = snd $ stateBVList V.! 1
-        stateG = snd $ stateBVList V.! 2
-        stateT = snd $ stateBVList V.! 3
+        stateA   = snd $ stateBVList V.! 0
+        stateC   = snd $ stateBVList V.! 1
+        stateG   = snd $ stateBVList V.! 2
+        stateT   = snd $ stateBVList V.! 3
         stateGap = snd $ stateBVList V.! 4
         -- ambiguity codes
         pairR = (ST.singleton 'R',  stateA .|. stateG)
@@ -343,7 +351,7 @@ getNucleotideSequenceCodes localAlphabet  =
 -- | nucleotideBVPairs for recoding DNA sequences
 -- this done to insure not recalculating everything for each base
 nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
-nucleotideBVPairs = getNucleotideSequenceCodes (fmap ST.fromString ["A","C","G","T","-"]) 
+nucleotideBVPairs = getNucleotideSequenceCodes (fmap ST.fromString ["A","C","G","T","-"])
 
 
 -- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
@@ -368,50 +376,80 @@ getAminoAcidSequenceCodes localAlphabet  =
 aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
 aminoAcidBVPairs = getAminoAcidSequenceCodes (fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"])
 
+
 -- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state
 getBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVector
-getBVCode bvCodeVect inState = 
+getBVCode bvCodeVect inState =
     let newCode = V.find ((== inState).fst) bvCodeVect
     in
     if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
     else snd $ fromJust newCode
 
 
--- | getSequenceChar takes shortext list and converts to a Vector of bit vector coded states
--- in a CharacterData structure
-getSequenceChar :: V.Vector (ST.ShortText, BV.BitVector) -> [ST.ShortText] -> [CharacterData]
-getSequenceChar nucBVPairVect stateList =
-    let sequenceVect = if (not $ null stateList) then V.fromList $ fmap (getBVCode nucBVPairVect) stateList
-                       else V.empty
-        newSequenceChar = CharacterData  {  stateBVPrelim = V.empty
-                                          , stateBVFinal = V.empty
-                                          , rangePrelim = V.empty
-                                          , rangeFinal = V.empty
-                                          , matrixStatesPrelim = V.empty
-                                          , matrixStatesFinal = V.empty
-                                          , slimPrelim = mempty
-                                          , slimGapped = (mempty, mempty, mempty)
-                                          , slimFinal  = mempty
-                                          , widePrelim = mempty
-                                          , wideGapped = (mempty, mempty, mempty)
-                                          , wideFinal  = mempty
-                                          , hugePrelim = mempty
-                                          , hugeGapped = (mempty, mempty, mempty)
-                                          , hugeFinal  = mempty
-                                          , localCostVect = V.singleton 0
-                                          , localCost = 0.0
-                                          , globalCost = 0.0
-                                          }
-    in
-    --trace ("getSeqChar codes: " ++ (show nucBVPairVect) ++ " inChar: " ++ (show stateList) ++ "\n" ++ (show newSequenceChar))
-    [newSequenceChar]
+getNucleotideSequenceChar :: [ST.ShortText] -> [CharacterData]
+getNucleotideSequenceChar stateList =
+    let sequenceVect
+          | null stateList = mempty
+          | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
+        newSequenceChar =
+            CharacterData
+              {  stateBVPrelim     = mempty
+              , stateBVFinal       = mempty
+              , rangePrelim        = mempty
+              , rangeFinal         = mempty
+              , matrixStatesPrelim = mempty
+              , matrixStatesFinal  = mempty
+              , slimPrelim         = sequenceVect
+              , slimGapped         = (mempty, mempty, mempty)
+              , slimFinal          = sequenceVect
+              , widePrelim         = mempty
+              , wideGapped         = (mempty, mempty, mempty)
+              , wideFinal          = mempty
+              , hugePrelim         = mempty
+              , hugeGapped         = (mempty, mempty, mempty)
+              , hugeFinal          = mempty
+              , localCostVect      = V.singleton 0
+              , localCost          = 0
+              , globalCost         = 0
+              }
+    in [newSequenceChar]
+
+
+getAminoAcidSequenceChar :: [ST.ShortText] -> [CharacterData]
+getAminoAcidSequenceChar stateList =
+    let sequenceVect
+          | null stateList = mempty
+          | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
+        newSequenceChar =
+            CharacterData
+              {  stateBVPrelim     = mempty
+              , stateBVFinal       = mempty
+              , rangePrelim        = mempty
+              , rangeFinal         = mempty
+              , matrixStatesPrelim = mempty
+              , matrixStatesFinal  = mempty
+              , slimPrelim         = mempty
+              , slimGapped         = (mempty, mempty, mempty)
+              , slimFinal          = mempty
+              , widePrelim         = sequenceVect
+              , wideGapped         = (mempty, mempty, mempty)
+              , wideFinal          = sequenceVect
+              , hugePrelim         = mempty
+              , hugeGapped         = (mempty, mempty, mempty)
+              , hugeFinal          = mempty
+              , localCostVect      = V.singleton 0
+              , localCost          = 0
+              , globalCost         = 0
+              }
+    in [newSequenceChar]
+
 
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
 getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CUInt, Word64, BV.BitVector)
-getGeneralBVCode bvCodeVect inState = 
+getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
     in
     if '[' `notElem` inStateString then --single state
@@ -419,8 +457,8 @@ getGeneralBVCode bvCodeVect inState =
         in
         if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
         else let x = snd $ fromJust newCode
-             in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x) 
-    else 
+             in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+    else
         let statesStringList = words $ tail $ init inStateString
             stateList = fmap ST.fromString statesStringList
             maybeBVList =  fmap getBV stateList
@@ -435,46 +473,51 @@ getGeneralBVCode bvCodeVect inState =
 -- as bitvectors,.  Main difference with getSequenceChar is in dealing wioth ambiguities
 -- they need to be parsed and "or-ed" differently
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
-getGeneralSequenceChar inCharInfo stateList = 
+getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
             stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
-            (slimVec, wideVec, hugeVec) = if (not $ null stateList) then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
-                           else (mempty, mempty, mempty)
-            newSequenceChar = CharacterData  {  stateBVPrelim = V.empty
-                                              , stateBVFinal = V.empty
-                                              , rangePrelim = V.empty
-                                              , rangeFinal = V.empty
-                                              , matrixStatesPrelim = V.empty
-                                              , matrixStatesFinal = V.empty
-                                              , slimPrelim = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
-                                              , slimGapped = (mempty, mempty, mempty)
-                                              , slimFinal  = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
-                                              , widePrelim = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideFinal  = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
-                                              , hugePrelim = if cType `elem` [HugeSeq          ] then hugeVec else mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeFinal  = if cType `elem` [HugeSeq          ] then hugeVec else mempty
-                                              , localCostVect = V.singleton 0
-                                              , localCost = 0.0
-                                              , globalCost = 0.0
-                                              }
-        in
-        [newSequenceChar]
+            (slimVec, wideVec, hugeVec) =
+              if (not $ null stateList)
+              then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
+              else (mempty, mempty, mempty)
+            newSequenceChar =
+                CharacterData
+                { stateBVPrelim      = mempty
+                , stateBVFinal       = mempty
+                , rangePrelim        = mempty
+                , rangeFinal         = mempty
+                , matrixStatesPrelim = mempty
+                , matrixStatesFinal  = mempty
+                , slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                , slimGapped         = (mempty, mempty, mempty)
+                , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+
+                , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                , wideGapped         = (mempty, mempty, mempty)
+                , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+
+                , hugePrelim         = if cType `elem` [HugeSeq          ] then hugeVec else mempty
+                , hugeGapped         = (mempty, mempty, mempty)
+                , hugeFinal          = if cType `elem` [HugeSeq          ] then hugeVec else mempty
+                , localCostVect      = V.singleton 0
+                , localCost          = 0
+                , globalCost         = 0
+                }
+        in  [newSequenceChar]
 
 
 -- | getSingleStateBV takes a single state and retuerns its bitvector
 -- based on alphabet size--does not check if ambiguous--assumes single state
 getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
-getSingleStateBV localAlphabet localState = 
-    let stateIndex = findIndex (== localState) localAlphabet
+getSingleStateBV localAlphabet localState =
+    let stateIndex = L.findIndex (== localState) localAlphabet
         --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
         --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
         bv1 = BV.fromBits (True :  (replicate ((length localAlphabet) - 1) False))
         bvState = shiftL bv1 (fromJust stateIndex)
     in
-    if stateIndex ==  Nothing then 
-        if (localState `elem` (fmap ST.fromString ["?","-"])) then (BV.fromBits $ replicate (length $ localAlphabet) True) 
+    if stateIndex ==  Nothing then
+        if (localState `elem` (fmap ST.fromString ["?","-"])) then (BV.fromBits $ replicate (length $ localAlphabet) True)
         else error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
 
@@ -483,13 +526,13 @@ getSingleStateBV localAlphabet localState =
 getStateBitVector :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getStateBitVector localAlphabet localState  =
     if null localAlphabet then errorWithoutStackTrace "Character with empty alphabet--perhpas all missing(?) or inapplicable values (-)?"
-    else 
+    else
         let stateString = ST.toString localState
         in
         --single state
-        if '[' `notElem` stateString then getSingleStateBV localAlphabet localState 
+        if '[' `notElem` stateString then getSingleStateBV localAlphabet localState
         --Ambiguous/Polymorphic state
-        else 
+        else
             let statesStringList = words $ tail $ init stateString
                 stateList = fmap ST.fromString statesStringList
             in
@@ -499,36 +542,36 @@ getStateBitVector localAlphabet localState  =
 getMinMaxStates :: [String] -> (Int, Int) -> (Int, Int)
 getMinMaxStates inStateStringList (curMin, curMax) =
     if null inStateStringList then (curMin, curMax)
-    else 
+    else
         let firstString = head inStateStringList
         in
         -- missing data
         if firstString == "-" || firstString == "?" then getMinMaxStates (tail inStateStringList) (curMin, curMax)
         -- single state
-        else if '[' `notElem` firstString then 
+        else if '[' `notElem` firstString then
             let onlyInt = readMaybe firstString :: Maybe Int
             in
             if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ firstString)
-            else 
-                let minVal = if (fromJust onlyInt) < curMin then (fromJust onlyInt) 
+            else
+                let minVal = if (fromJust onlyInt) < curMin then (fromJust onlyInt)
                              else curMin
-                    maxVal = if (fromJust onlyInt) > curMax then (fromJust onlyInt) 
+                    maxVal = if (fromJust onlyInt) > curMax then (fromJust onlyInt)
                              else curMax
                 in
                 getMinMaxStates (tail inStateStringList) (minVal, maxVal)
 
         -- range of states
-        else 
+        else
             let statesStringList = words $ tail $ init firstString
                 stateInts = fmap readMaybe statesStringList :: [Maybe Int]
             in
             if Nothing `elem` stateInts then error ("Non-integer in range " ++ firstString)
-            else 
+            else
                 let localMin = minimum $ fmap fromJust stateInts
                     localMax = maximum $ fmap fromJust stateInts
-                    minVal = if localMin < curMin then localMin 
+                    minVal = if localMin < curMin then localMin
                              else curMin
-                    maxVal = if localMax >  curMax then localMax 
+                    maxVal = if localMax >  curMax then localMax
                              else curMax
                 in
                 getMinMaxStates (tail inStateStringList) (minVal, maxVal)
@@ -536,21 +579,21 @@ getMinMaxStates inStateStringList (curMin, curMax) =
 
 
 -- getIntRange takes the local states and returns the Integer range of an additive character
--- in principle allows for > 2 states 
+-- in principle allows for > 2 states
 getIntRange :: ST.ShortText -> [ST.ShortText] -> (Int, Int)
-getIntRange localState totalAlphabet = 
+getIntRange localState totalAlphabet =
     let stateString = ST.toString localState
         in
         --single state
         if (stateString == "?") || (stateString == "-") then getMinMaxStates (fmap ST.toString totalAlphabet) (maxBound :: Int, minBound :: Int)
 
-        else if '[' `notElem` stateString then 
+        else if '[' `notElem` stateString then
             let onlyInt = readMaybe stateString :: Maybe Int
             in
             if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ ST.toString localState)
             else (fromJust onlyInt, fromJust onlyInt)
         --Range of states
-        else 
+        else
             let statesStringList = words $ tail $ init stateString
                 stateInts = fmap readMaybe statesStringList :: [Maybe Int]
             in
@@ -561,7 +604,7 @@ getIntRange localState totalAlphabet =
 getTripleList :: MatrixTriple -> MatrixTriple -> [ST.ShortText] -> [ST.ShortText]-> [MatrixTriple]
 getTripleList hasState notHasState localAlphabet stateList =
     if null localAlphabet then []
-    else 
+    else
         let firstAlphState = head localAlphabet
         in
         if firstAlphState `elem` stateList then hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
@@ -569,17 +612,17 @@ getTripleList hasState notHasState localAlphabet stateList =
 
 -- | getInitialMatrixVector gets matric vector
 getInitialMatrixVector :: [ST.ShortText] -> ST.ShortText -> V.Vector MatrixTriple
-getInitialMatrixVector localAlphabet localState = 
+getInitialMatrixVector localAlphabet localState =
     let hasState = (0 :: StateCost , [] ,[])
         notHasState = (maxBound :: StateCost , [] ,[])
     in
     let stateString = ST.toString localState
         in
         --single state
-        if '[' `notElem` stateString then 
+        if '[' `notElem` stateString then
             V.fromList $ reverse $ getTripleList hasState notHasState localAlphabet [localState]
         -- polylorphic/ambiguous
-        else 
+        else
             let statesStringList = words $ tail $ init stateString
                 stateList = fmap ST.fromString statesStringList
             in
@@ -592,7 +635,7 @@ getInitialMatrixVector localAlphabet localState =
 getQualitativeCharacters :: [CharInfo] -> [ST.ShortText] -> [CharacterData] -> [CharacterData]
 getQualitativeCharacters inCharInfoList inStateList curCharList =
     if null inCharInfoList then reverse curCharList
-    else 
+    else
         let firstCharInfo = head inCharInfoList
             firstState = head inStateList
             firstCharType = charType firstCharInfo
@@ -624,9 +667,9 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Add then
-               if firstState == (ST.fromString "-1") then 
+               if firstState == (ST.fromString "-1") then
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingAdditive firstCharInfo) : curCharList)
-               else  
+               else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
                                                   , stateBVFinal = V.empty
@@ -650,10 +693,10 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
-        else if firstCharType == Matrix then 
-            if (firstState `elem` (fmap ST.fromString ["?","-"])) then 
+        else if firstCharType == Matrix then
+            if (firstState `elem` (fmap ST.fromString ["?","-"])) then
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingMatrix firstCharInfo) : curCharList)
-             else  
+             else
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
                     newCharacter = CharacterData {  stateBVPrelim = V.empty
                                                   , stateBVFinal = V.empty
@@ -683,30 +726,29 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
 
         else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
 
-        
-        
+
+
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
 createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
 createLeafCharacter inCharInfoList rawDataList =
-    if null inCharInfoList then error "Null data in charInfoList createLeafCharacter"
-    else if null rawDataList then
-        -- missing data
-        getMissingValue inCharInfoList
-    else 
-        let localCharType = charType $ head inCharInfoList
-        in
-        if (length inCharInfoList == 1) &&  (localCharType `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq]) then
-            --trace ("Sequence character")
-            if localCharType == NucSeq then getSequenceChar nucleotideBVPairs rawDataList --single state ambiguity codes
-            else if localCharType == AminoSeq then getSequenceChar aminoAcidBVPairs rawDataList --single state ambiguity codes
-            else -- non-IUPAC codes 
-                getGeneralSequenceChar (head inCharInfoList) rawDataList -- ambiguities different, and alphabet varies with character (potentially)
-        else 
-            if (length inCharInfoList /= length rawDataList) then error ("Mismatch in number of characters and character info")
-            else 
-                getQualitativeCharacters inCharInfoList rawDataList []
+    if      null inCharInfoList then
+            error "Null data in charInfoList createLeafCharacter"
 
+    else if null rawDataList    then  -- missing data
+            getMissingValue inCharInfoList
 
-
+    else let localCharType = charType $ head inCharInfoList
+         in if (length inCharInfoList == 1) then
+              case localCharType of
+                  NucSeq   -> getNucleotideSequenceChar rawDataList
+                  AminoSeq ->  getAminoAcidSequenceChar rawDataList
+                  -- ambiguities different, and alphabet varies with character (potentially)
+                  SlimSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                  WideSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                  HugeSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                  _        -> getQualitativeCharacters inCharInfoList rawDataList []
+           else if length inCharInfoList /= length rawDataList then
+                     error ("Mismatch in number of characters and character info")
+           else  getQualitativeCharacters inCharInfoList rawDataList []
 

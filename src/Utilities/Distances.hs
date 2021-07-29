@@ -39,14 +39,14 @@ module Utilities.Distances (getPairwiseDistances
                 , getPairwiseBlocDistance
                 ) where
 
-import           Types.Types
+import           Data.Foldable
+import qualified Data.Vector               as V
 import           Debug.Trace
-import qualified GraphOptimization.Medians as M
-import qualified SymMatrix as S
-import qualified Data.Vector as V
-import           Data.List
 import           GeneralUtilities
-import qualified ParallelUtilities as P
+import qualified GraphOptimization.Medians as M
+import qualified ParallelUtilities         as P
+import qualified SymMatrix                 as S
+import           Types.Types
 
 
 -- | getPairwiseDistances takes Processed data
@@ -57,17 +57,17 @@ getPairwiseDistances :: ProcessedData ->  [[VertexCost]]
 getPairwiseDistances (nameVect, _, blockDataVect) =
     if V.null nameVect then error "Null name vector in getPairwiseDistances"
     else if V.null blockDataVect then error "Null Block Data vector in getPairwiseDistances"
-    else 
-        let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect 
+    else
+        let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect
             summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
         in
-        trace ("Generating pairwise distances for " ++ (show $ V.length blockDataVect) ++ " character blocks") 
-        S.toFullLists summedBlock 
+        trace ("Generating pairwise distances for " ++ (show $ V.length blockDataVect) ++ " character blocks")
+        S.toFullLists summedBlock
 
 
 
 -- | getBlockDistance takes Block data and returns distance between
--- vertices based on block data  
+-- vertices based on block data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
 getBlockDistance :: BlockData -> (Int, Int) -> VertexCost
@@ -76,7 +76,7 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
     in
     pairCost
 
--- | getPairwiseBlocDistance returns pairwsie ditances among vertices for 
+-- | getPairwiseBlocDistance returns pairwsie ditances among vertices for
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
@@ -88,7 +88,7 @@ getPairwiseBlocDistance  numVerts inData =
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList
-    in 
+    in
     --trace ("NM:\n" ++ (show threeList) ++ "\n" ++(show $ S.toFullLists newMatrix))
     newMatrix
-    
+

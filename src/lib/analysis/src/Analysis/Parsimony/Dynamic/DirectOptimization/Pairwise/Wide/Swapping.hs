@@ -148,7 +148,7 @@ directOptimization matrixFunction symbolCount overlapλ lhs rhs =
                  else let vec = UV.generate (UV.length longerChar) $ \i -> fst (overlapλ (longerChar ! i) gap)
                       in  (0, (vec, UV.replicate (UV.length longerChar) 0, longerChar))
                  -- Both have some non-gap elements, perform string alignment
-            else let (cost, traversalMatrix) =  matrixFunction symbolCount overlapλ longerChar shorterChar
+            else let (cost, traversalMatrix) = matrixFunction symbolCount overlapλ longerChar shorterChar
                  in  (cost, traceback gap overlapλ traversalMatrix longerChar shorterChar)
         transformation    = if swapped then \(m,l,r) -> (m,r,l) else id
         regappedAlignment = insertGaps symbolCount gapsLesser gapsLonger ungappedAlignment

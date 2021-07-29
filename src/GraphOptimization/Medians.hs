@@ -46,49 +46,45 @@ module GraphOptimization.Medians  ( median2
                                   , median2SingleNonExact
                                   ) where
 
+import qualified Data.BitVector.LittleEndian                                 as BV
+import           Data.Foldable
+import qualified Data.Vector                                                 as V
 import           Types.Types
-import           Debug.Trace
-import Data.Foldable
-import qualified Data.Vector as V
-import qualified Data.BitVector.LittleEndian as BV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
 
-import qualified ParallelUtilities as P
-import qualified SymMatrix as S 
-import qualified DirectOptimization.DOWrapper as DOW
-import qualified Data.TCM.Dense as TCMD
-import qualified Data.MetricRepresentation as MR
-import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
-import Data.Bits ((.&.), (.|.))
-import Data.Word
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+import           Data.Bits                                                   ((.&.), (.|.))
+import qualified Data.MetricRepresentation                                   as MR
+import qualified Data.TCM.Dense                                              as TCMD
+import           Data.Word
+import qualified SymMatrix                                                   as S
 
 
 --import qualified Data.Alphabet as DALPH
 
--- | median2 takes the vectors of characters and applies media2 to each 
--- character 
+-- | median2 takes the vectors of characters and applies media2 to each
+-- character
 -- for parallel fmap over all then parallelized by type and seqeunces
 median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
 median2 inData = V.map median2Single inData
 
 
--- | median2NonExact takes the vectors of characters and applies median2NonExact to each 
+-- | median2NonExact takes the vectors of characters and applies median2NonExact to each
 -- character for parallel fmap over all then parallelized by type and seqeunces
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
--- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others. 
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2NonExact :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
-median2NonExact inData  = V.map median2SingleNonExact inData 
-    
+median2NonExact inData  = V.map median2SingleNonExact inData
+
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 median2Single :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
-median2Single (firstVertChar, secondVertChar, inCharInfo) = 
+median2Single (firstVertChar, secondVertChar, inCharInfo) =
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
@@ -98,34 +94,34 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
         thisActive = activity inCharInfo
     in
     if thisActive == False then (firstVertChar, 0)
-    else if thisType == Add then 
-        let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar 
+    else if thisType == Add then
+        let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType == NonAdd then 
-        let newCharVect = interUnion thisWeight firstVertChar secondVertChar 
+    else if thisType == NonAdd then
+        let newCharVect = interUnion thisWeight firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType == Matrix then 
-      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar 
+    else if thisType == Matrix then
+      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
         in
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq] then
       -- ffi to POY-C/PCG code
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, WideSeq] then 
+    else if thisType `elem` [AminoSeq, WideSeq] then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType == HugeSeq then 
+    else if thisType == HugeSeq then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
@@ -137,9 +133,9 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
--- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others. 
+-- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others.
 median2SingleNonExact :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
-median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) = 
+median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         thisMatrix = costMatrix inCharInfo
@@ -168,20 +164,20 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
                                       }
     in
     if thisActive == False then (dummyStaticCharacter, 0)
-      
+
     else if thisType == Add then (dummyStaticCharacter, 0)
 
     else if thisType == NonAdd then (dummyStaticCharacter, 0)
 
     else if thisType == Matrix then (dummyStaticCharacter, 0)
 
-    else if thisType `elem` [SlimSeq, NucSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq] then
       -- ffi to POY-C/PCG code
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, HugeSeq] then 
+    else if thisType `elem` [AminoSeq, HugeSeq] then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
@@ -231,19 +227,19 @@ interUnion thisWeight leftChar rightChar =
                                       , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
-                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
+                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
-    in 
-    
+    in
+
     --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
-    
+
     newCharcater
 
--- | getNewRange takes min and max range of two additive charcaters and returns 
+-- | getNewRange takes min and max range of two additive charcaters and returns
 -- a triple of (newMin, newMax, Cost)
 getNewRange :: (Int, Int, Int, Int) -> (Int, Int, Int)
-getNewRange inStuff@(lMin, lMax, rMin, rMax) = 
+getNewRange inStuff@(lMin, lMax, rMin, rMax) =
     -- subset
     if (rMin >= lMin) && (rMax <= lMax) then (rMin, rMax, 0)
     else if  (lMin >= rMin) && (lMax <= rMax) then (lMin, lMax, 0)
@@ -281,24 +277,24 @@ intervalAdd thisWeight leftChar rightChar =
                                       , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = newCost
-                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar) 
+                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
-    in 
-    
-    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar) 
+    in
+
+    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
      --   ++ (show newRangeCosts))
-    
+
     newCharcater
 
--- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state) 
+-- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state)
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
-getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex = 
+getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex =
    --trace (show thisMatrix ++ "\n" ++ (show  childVect) ++ "\n" ++ show (numStates, childState, stateIndex)) (
-   if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates) 
+   if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates)
    else
       let (childCost, _, _)  = V.head childVect
           childStateCost = if childCost /= (maxBound :: Int) then childCost + (thisMatrix S.! (childState, stateIndex))
-                           else (maxBound :: Int) 
+                           else (maxBound :: Int)
       in
       if childStateCost > bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) currentBestStates stateIndex
       else if childStateCost == bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) ((childStateCost, childState) : currentBestStates) stateIndex
@@ -306,31 +302,31 @@ getMinCostStates thisMatrix childVect bestCost numStates childState currentBestS
     --)
 
 
--- | getNewVector takes the vector of states and costs from teh child nodes and the 
+-- | getNewVector takes the vector of states and costs from teh child nodes and the
 -- cost matrix and calculates a new verctor n^2 in states
 getNewVector :: S.Matrix Int -> Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
 getNewVector thisMatrix  numStates (lChild, rChild) =
-  let newStates = [0..(numStates -1)] 
+  let newStates = [0..(numStates -1)]
       leftPairs = fmap (getMinCostStates thisMatrix lChild (maxBound :: Int) numStates 0 []) newStates
       rightPairs = fmap (getMinCostStates thisMatrix rChild (maxBound :: Int) numStates 0 []) newStates
-      stateCosts = zipWith (+) (fmap fst $ fmap head leftPairs) (fmap fst $ fmap head rightPairs) 
+      stateCosts = zipWith (+) (fmap fst $ fmap head leftPairs) (fmap fst $ fmap head rightPairs)
       newStateTripleList = zip3 stateCosts (fmap (fmap snd) leftPairs) (fmap (fmap snd) rightPairs)
   in
   V.fromList newStateTripleList
 
--- | addMatrix thisWeight thisMatrix firstVertChar secondVertChar 
--- assumes each character has asme cost matrix 
+-- | addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+-- assumes each character has asme cost matrix
 -- Need to add approximation ala DO tcm lookup later
 -- Local and global costs are based on current not necessaril;y optimal minimum cost states
 addMatrix :: Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
 addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
-  else 
-    let numStates = length thisMatrix 
-        initialMatrixVector = V.map (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar) 
+  else
+    let numStates = length thisMatrix
+        initialMatrixVector = V.map (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
         initialCostVector = V.map V.minimum $ V.map (V.map fst3) initialMatrixVector
         newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
-        newCharcater = CharacterData {  stateBVPrelim = V.empty  
+        newCharcater = CharacterData {  stateBVPrelim = V.empty
                                       , stateBVFinal = V.empty
                                       , rangePrelim = V.empty
                                       , rangeFinal = V.empty
@@ -347,82 +343,94 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
                                       , hugeFinal = mempty
                                       , localCostVect = initialCostVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
-                                      , globalCost = newCost 
+                                      , globalCost = newCost
                                       }
-        in 
+        in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
         newCharcater
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequence median after some type wrangling
-getDOMedian 
-  :: Double 
-  -> S.Matrix Int 
-  -> TCMD.DenseTransitionCostMatrix 
+getDOMedian
+  :: Double
+  -> S.Matrix Int
+  -> TCMD.DenseTransitionCostMatrix
   -> MR.MetricRepresentation Word64
   -> MR.MetricRepresentation BV.BitVector
-  -> CharType 
-  -> CharacterData 
-  -> CharacterData 
+  -> CharType
+  -> CharacterData
+  -> CharacterData
   -> CharacterData
 getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
   | null thisMatrix = error "Null cost matrix in addMatrix"
-  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData  
-  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData  
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
   | thisType `elem` [HugeSeq]           = newHugeCharacterData
   | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
   where
-    blankCharacterData = CharacterData {  stateBVPrelim = V.empty  
-                                      , stateBVFinal = V.empty
-                                      , rangePrelim = V.empty
-                                      , rangeFinal = V.empty
-                                      , matrixStatesPrelim = V.empty
-                                      , matrixStatesFinal = V.empty
-                                      , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = mempty
-                                      , localCost = 0
-                                      , globalCost = 0
-                                      }
-    newSlimCharacterData = 
-        let (cost, result@(resultMedians,_,_)) = slimPairwiseDO thisSlimTCM (slimPrelim leftChar,slimPrelim leftChar,slimPrelim leftChar) (slimPrelim rightChar,slimPrelim rightChar,slimPrelim rightChar)
-            newCost                    = thisWeight * (fromIntegral cost)
-            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
-        in  blankCharacterData 
-              { slimPrelim = resultMedians
-              , slimGapped = result
-              , localCostVect = V.singleton $ fromIntegral cost
-              , localCost  = newCost
-              , globalCost = subtreeCost
-              }
-  
-    newWideCharacterData = 
-        let (cost, result@(resultMedians,_,_)) = widePairwiseDO (toEnum $ length thisMatrix) (MR.retreivePairwiseTCM thisWideTCM) (widePrelim leftChar,widePrelim leftChar,widePrelim leftChar) (widePrelim rightChar,widePrelim rightChar,widePrelim rightChar)
-            newCost                    = thisWeight * (fromIntegral cost)
-            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
-        in  blankCharacterData 
-              { widePrelim = resultMedians
-              , wideGapped = result
+    blankCharacterData = CharacterData
+        { stateBVPrelim      = mempty
+        , stateBVFinal       = mempty
+        , rangePrelim        = mempty
+        , rangeFinal         = mempty
+        , matrixStatesPrelim = mempty
+        , matrixStatesFinal  = mempty
+        , slimPrelim         = mempty
+        , slimGapped         = (mempty, mempty, mempty)
+        , slimFinal          = mempty
+        , widePrelim         = mempty
+        , wideGapped         = (mempty, mempty, mempty)
+        , wideFinal          = mempty
+        , hugePrelim         = mempty
+        , hugeGapped         = (mempty, mempty, mempty)
+        , hugeFinal          = mempty
+        , localCostVect      = mempty
+        , localCost          = 0
+        , globalCost         = 0
+        }
+
+    newSlimCharacterData =
+        let newCost                 = thisWeight * (fromIntegral cost)
+            subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r@(medians,_,_)) = slimPairwiseDO
+                thisSlimTCM
+                (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
+                (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+        in  blankCharacterData
+              { slimPrelim = medians
+              , slimGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
 
-    newHugeCharacterData = 
-        let (cost, result@(resultMedians,_,_)) = hugePairwiseDO (MR.retreivePairwiseTCM thisHugeTCM) (hugePrelim leftChar,hugePrelim leftChar,hugePrelim leftChar) (hugePrelim rightChar,hugePrelim rightChar,hugePrelim rightChar)
-            newCost                    = thisWeight * (fromIntegral cost)
-            subtreeCost                = newCost + (globalCost leftChar) + (globalCost rightChar)
-        in  blankCharacterData 
-              { hugePrelim = resultMedians
-              , hugeGapped = result
+    newWideCharacterData =
+        let newCost                 = thisWeight * (fromIntegral cost)
+            subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r@(medians,_,_)) = widePairwiseDO
+                (toEnum $ length thisMatrix)
+                (MR.retreivePairwiseTCM thisWideTCM)
+                (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
+                (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
+        in  blankCharacterData
+              { widePrelim    = medians
+              , wideGapped    = r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newHugeCharacterData =
+        let newCost                 = thisWeight * (fromIntegral cost)
+            subtreeCost             = newCost + (globalCost leftChar) + (globalCost rightChar)
+            (cost, r@(medians,_,_)) = hugePairwiseDO
+                (MR.retreivePairwiseTCM thisHugeTCM)
+                (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
+                (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
+        in  blankCharacterData
+              { hugePrelim = medians
+              , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost

@@ -34,59 +34,63 @@ Portability :  portable (I hope)
 
 -}
 
+{-# LANGUAGE DerivingStrategies #-}
+
 module Types.Types where
 
-import qualified Data.Text.Lazy  as T
-import qualified Data.Text.Short as ST
-import qualified Utilities.LocalGraph as LG
---import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.Vector    as V
-import qualified SymMatrix as S 
-import qualified Data.TCM.Dense as TCMD
-import qualified Data.MetricRepresentation as MR
-import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
-import Data.Word
-import qualified Data.Vector.Storable as SV
-import qualified Data.Vector.Unboxed as UV
-import Foreign.C.Types (CUInt)
+import qualified Data.MetricRepresentation   as MR
+import qualified Data.TCM.Dense              as TCMD
+import qualified Data.Text.Lazy              as T
+import qualified Data.Text.Short             as ST
+import qualified Data.Vector                 as V
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
+import           Data.Word
+import           Foreign.C.Types             (CUInt)
+import qualified SymMatrix                   as S
+import qualified Utilities.LocalGraph        as LG
+
 
 -- | Program Version
 pgVersion :: String
 pgVersion = "0.1"
 
+
 -- | Types for timed searches
 type Days = Int
 type Hours = Int
 type Minutes = Int
-type Seconds = Int 
+type Seconds = Int
 type Time = (Days, Hours, Minutes, Seconds)
+
 
 -- | Command types
 -- data Argument = String | Double | Int | Bool | Time
---    deriving (Show, Eq)
+--    deriving stock (Show, Eq)
 type Argument = (String, String)
 
---For rename format rename:(a,b,c,...,y,z) => a-y renamed to z 
+
+--For rename format rename:(a,b,c,...,y,z) => a-y renamed to z
 data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename | Select
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 -- | Node variety
 data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
--- | Edge types 
+-- | Edge types
 data EdgeType = NetworkEdge | TreeEdge | PendantEdge
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 -- | Command type structure
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
 data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | MatrixApproxSmall | MatrixApproxLarge
-    deriving (Read, Show, Eq)
+    deriving stock (Read, Show, Eq)
 
--- | types for character classes 
+-- | types for character classes
 nonExactCharacterTypes :: [CharType]
 nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
 
@@ -98,38 +102,38 @@ exactCharacterTypes = [Binary, Add, NonAdd,Matrix , MatrixApproxSmall, MatrixApp
 -- 'Tree'  would be a single tree in the sense as produced by typical phylogentic
 --seqrch programs--no forests
 data GraphType = Tree | HardWired | SoftWired
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 -- | Optimality criterion sets the cost function for graphs and potentially models
-data OptimalityCriterion = Parsimony | PMDL 
-    deriving (Show, Eq)
+data OptimalityCriterion = Parsimony | PMDL
+    deriving stock (Show, Eq)
 
-data GlobalSettings = GlobalSettings { outgroupIndex :: Int -- Outgroup terminal index, default 0 (first input leaf)
-                                    , outGroupName :: T.Text -- Outgropu name
+data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup terminal index, default 0 (first input leaf)
+                                    , outGroupName        :: T.Text -- Outgropu name
                                     , optimalityCriterion :: OptimalityCriterion
-                                    , graphType :: GraphType
-                                    } deriving (Show, Eq)
+                                    , graphType           :: GraphType
+                                    } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
 -- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
-data CharInfo = CharInfo { name :: NameText
-                         , charType :: CharType
-                         , activity :: Bool
-                         , weight :: Double
+data CharInfo = CharInfo { name       :: NameText
+                         , charType   :: CharType
+                         , activity   :: Bool
+                         , weight     :: Double
                          , costMatrix :: S.Matrix Int
-                         , slimTCM :: TCMD.DenseTransitionCostMatrix 
-                         , wideTCM :: MR.MetricRepresentation Word64
-                         , hugeTCM :: MR.MetricRepresentation BV.BitVector
-                         , alphabet :: [ST.ShortText]
+                         , slimTCM    :: TCMD.DenseTransitionCostMatrix
+                         , wideTCM    :: MR.MetricRepresentation Word64
+                         , hugeTCM    :: MR.MetricRepresentation BV.BitVector
+                         , alphabet   :: [ST.ShortText]
                          , prealigned :: Bool
-                         } --deriving (Show, Eq)
+                         } deriving stock (Show, Eq)
 
 -- | Types for vertex information
 type VertexCost = Double
 type StateCost = Int
 type VertexIndex = Int
 
--- | index of child vertices 
+-- | index of child vertices
 type ChildStateIndex = Int
 
 -- | unique bitvector labelling for vertex based on descednent labellings
@@ -155,39 +159,39 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- for matrix/Saknoff characters-- Vector of vector of States
     --BUT all with same cost matrix/tcm
 -- sequence characters are a vector os bitvectors--so only a single seqeunce character
---  per "charctaer" this is so the multi-traversal can take place independently for each 
---  sequence charcater, creating a properly "rooted" tree/graph for each non-exact seqeunce character 
-data CharacterData = CharacterData {   stateBVPrelim :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx 
+--  per "charctaer" this is so the multi-traversal can take place independently for each
+--  sequence charcater, creating a properly "rooted" tree/graph for each non-exact seqeunce character
+data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
-                                     , stateBVFinal :: V.Vector BV.BitVector  
+                                     , stateBVFinal       :: V.Vector BV.BitVector
                                      -- for Additive
-                                     , rangePrelim :: V.Vector (Int, Int) 
-                                     , rangeFinal :: V.Vector (Int, Int) 
+                                     , rangePrelim        :: V.Vector (Int, Int)
+                                     , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with sme tcm
-                                     , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple) 
-                                     , matrixStatesFinal :: V.Vector (StateCost) 
-                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM 
-                                     , slimPrelim :: SV.Vector CUInt
+                                     , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
+                                     , matrixStatesFinal  :: V.Vector (StateCost)
+                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                                     , slimPrelim         :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , slimGapped ::  (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , slimFinal  :: SV.Vector CUInt
+                                     , slimGapped         ::  (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , slimFinal          :: SV.Vector CUInt
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                     , widePrelim :: UV.Vector Word64
+                                     , widePrelim         :: UV.Vector Word64
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , wideGapped ::  (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , wideFinal :: UV.Vector Word64
+                                     , wideGapped         ::  (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , wideFinal          :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                     , hugePrelim :: V.Vector BV.BitVector
+                                     , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , hugeGapped ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , hugeFinal :: V.Vector BV.BitVector
+                                     , hugeGapped         ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeFinal          :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                     , localCostVect :: V.Vector StateCost 
+                                     , localCostVect      :: V.Vector StateCost
                                      -- weight * V.sum localCostVect
-                                     , localCost :: VertexCost 
+                                     , localCost          :: VertexCost
                                      -- unclear if need vector version
-                                     , globalCost :: VertexCost 
-                                     } deriving (Show, Eq)
+                                     , globalCost         :: VertexCost
+                                     } deriving stock (Show, Eq)
 
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
@@ -198,50 +202,52 @@ type LeafData = (NameText, V.Vector CharacterData)
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
 -- | type vertex information
-data VertexInfo = VertexInfo { index :: Int  -- For accessing
-                             , bvLabel :: NameBV -- For comparison of vertices subtrees, etc
-                             , parents :: V.Vector Int --indegree indices
-                             , children :: V.Vector Int -- outdegree indices
-                             , nodeType :: NodeType -- root, leaf, network, tree
-                             , vertName :: NameText --Text name of vertex either input or HTU#
-                             , vertData :: VertexBlockData -- data as vector of blocks (each a vector of characters) 
-                             , vertexCost :: VertexCost -- local cost of vertex
+data VertexInfo = VertexInfo { index        :: Int  -- For accessing
+                             , bvLabel      :: NameBV -- For comparison of vertices subtrees, etc
+                             , parents      :: V.Vector Int --indegree indices
+                             , children     :: V.Vector Int -- outdegree indices
+                             , nodeType     :: NodeType -- root, leaf, network, tree
+                             , vertName     :: NameText --Text name of vertex either input or HTU#
+                             , vertData     :: VertexBlockData -- data as vector of blocks (each a vector of characters)
+                             , vertexCost   :: VertexCost -- local cost of vertex
                              , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
-                             } deriving (Show, Eq)
+                             } deriving stock (Show, Eq)
 
--- | type edge data, source and sink node indices are fst3 and snd3 fields. 
-data EdgeInfo = EdgeInfo { minLength :: Double
-                         , maxLength :: Double
-                         , edgeType  :: EdgeType
-                         } deriving (Show, Eq)
+-- | type edge data, source and sink node indices are fst3 and snd3 fields.
+data  EdgeInfo
+    = EdgeInfo
+    { minLength :: Double
+    , maxLength :: Double
+    , edgeType  :: EdgeType
+    } deriving stock (Show, Eq)
 
 -- | Type BLockDisplayTree is a Forest of tree components (indegree, outdegree) = (0,1|2),(1,2),(1,0)
 -- these are "resolved" from more general graphs
 -- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
-type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo 
+type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo
 type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
--- | Type CharacterFoci is a vector for each character (in a block usually) of a vector of edges 
+-- | Type CharacterFoci is a vector for each character (in a block usually) of a vector of edges
 -- (since there may be more than 1 "best" focus)
 -- static characters all are fine--so length 1 and default value
--- dynamic characters its the edge of traversal focus, a psuedo-root 
+-- dynamic characters its the edge of traversal focus, a psuedo-root
 type CharacterFoci = V.Vector (V.Vector LG.Edge)
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
 
 -- | Type phylogentic Graph is a graph with
--- cost, optimality value, 
+-- cost, optimality value,
 -- block display trees, character traversal "foci" (could have multiple)
 -- Data optimizations exist in Processed Data
 -- Question of wheterh traversal foci shold be in Graph or Data section
 -- for now in Graph but could easiily be moved to Processed data
 -- May need "EdgeData" like VertexData for heuristics.  UNclear if local scope during SPR/TBR will do it.
 --    Fields:
---        1) "Simple" graph with fileds useful for outputting graphs  
+--        1) "Simple" graph with fileds useful for outputting graphs
 --        2) Graph optimality value or cost
 --        3) Decorated Graph with optimized vertex/Node data
---        4) Vector of display trees for each data Block 
+--        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
 --               vector is over blocks, then charactes and can have multiple for each character
@@ -273,7 +279,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 --  Block data contain data fo all leaves and all characters in the block
 -- it is row, ie vertex dominant
 -- it has a bitvector name derived from leaf bitvector labels (union of children)
--- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees 
+-- the bitvector name can vary among blocks (for non-leaves) due to alternate display trees
 -- a vector of characterer data where assignments and costs reside, and a vector of character info
 -- leaves will alwasy be first (indices 0..n-1) for simpler updating of data during graph optimization
 -- NameText is the block label used for assignment and reporting output
@@ -281,7 +287,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 --    Fields:
 --        1) name of the block--intially taken from input filenames
 --        2) vector of vertex data with vector of character data
---        3) Vector of character information for characters in the block 
+--        3) Vector of character information for characters in the block
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 
 

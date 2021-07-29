@@ -49,23 +49,23 @@ Portability :  portable (I hope)
 module Commands.ProcessCommands  where
 
 import           Data.Char
-import           Data.List
-import           Debug.Trace
+import           Data.Foldable
+import qualified Data.List            as L
 import           Data.List.Split
 import           Data.Maybe
-
-import           Types.Types
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
+import           Types.Types
+
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
--- and adds those commands in place 
+-- and adds those commands in place
 -- ensures one command per line
 expandRunCommands :: [String] -> [String] -> IO [String]
 expandRunCommands curLines inLines =
     --trace ("EXP " ++ (show curLines) ++ show inLines) (
     if null inLines then return $ reverse curLines
-    else 
+    else
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
@@ -83,15 +83,16 @@ expandRunCommands curLines inLines =
              --)
         --)
 
+
 -- | splitCommandLine takes a line with potentially multiple commands and splits
 -- between the first command and all others.
 splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
-    else 
-        let firstPart = takeWhile (/= '(') inLine 
+    else
+        let firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
-            firstCommand = firstPart ++ parenPart 
+            firstCommand = firstPart ++ parenPart
             restPart = drop (length firstCommand) inLine
         in
         (firstCommand, restPart)
@@ -104,13 +105,14 @@ checkFileNames inName =
     else if last inName /= '"' then errorWithoutStackTrace ("Error: File name must be in double quotes (e): " ++ inName)
     else init $ tail inName
 
+
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
 -- commands in lines one to a line
 getCommandList  :: [String] -> [Command]
 getCommandList  rawContents =
     if null rawContents then errorWithoutStackTrace ("Error: Empty command file")
-    else 
+    else
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
             -- expand for read wildcards here--cretge a new, potentially longer list
             processedCommands = concat $ fmap parseCommand rawList
@@ -118,60 +120,63 @@ getCommandList  rawContents =
         --trace (show rawList)
         processedCommands
 
--- | removeComments deletes anyhting on line (including line) 
+
+-- | removeComments deletes anyhting on line (including line)
 -- after double dash "--"
 removeComments :: [String] -> [String]
 removeComments inLineList =
     if null inLineList then []
-    else 
+    else
         let firstLine = head inLineList
             firstTwo  = take 2 firstLine
         in
-        -- Comment line 
+        -- Comment line
         if firstTwo == "--" then removeComments $ tail inLineList
         -- Empty line
         else if null firstLine then removeComments $ tail inLineList
-        else 
+        else
             -- Remove commments from line to end
             let nonComment = head $ splitOn "--" firstLine
             in
             nonComment : (removeComments $ tail inLineList)
 
+
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
 allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support", "rename"]
 
+
 -- | getInstruction returns teh command type forom an input String
 -- all operations on lower case
-getInstruction :: String -> [String] -> Instruction 
-getInstruction inString possibleCommands 
+getInstruction :: String -> [String] -> Instruction
+getInstruction inString possibleCommands
     | null inString = error "Empty command String"
-    | (fmap toLower inString) == "read" = Read
-    | (fmap toLower inString) == "run" = Run
-    | (fmap toLower inString) == "build" = Build
-    | (fmap toLower inString) == "swap" = Swap
-    | (fmap toLower inString) == "refine" = Refine
-    | (fmap toLower inString) == "report" = Report
-    | (fmap toLower inString) == "set" = Set
+    | (fmap toLower inString) == "read"      = Read
+    | (fmap toLower inString) == "run"       = Run
+    | (fmap toLower inString) == "build"     = Build
+    | (fmap toLower inString) == "swap"      = Swap
+    | (fmap toLower inString) == "refine"    = Refine
+    | (fmap toLower inString) == "report"    = Report
+    | (fmap toLower inString) == "set"       = Set
     | (fmap toLower inString) == "transform" = Transform
-    | (fmap toLower inString) == "support" = Support
-    | (fmap toLower inString) == "rename" = Rename
-    | otherwise = 
+    | (fmap toLower inString) == "support"   = Support
+    | (fmap toLower inString) == "rename"    = Rename
+    | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
-        in
-        errorWithoutStackTrace ("\nError: Unrecognized command. By \'" ++ inString ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
+        in  errorWithoutStackTrace $ fold
+              ["\nError: Unrecognized command. By \'", inString, "\' did you mean \'", errorMatch, "\'?\n"]
 
-   
+
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
 -- asumes single command per line
 parseCommand :: String -> [Command]
 parseCommand inLine =
     if null inLine then []
-    else 
+    else
         let (firstString, restString) =  getSubCommand inLine False
             instructionString = takeWhile (/= '(') firstString --inLine
             -- this doesn not allow recursive multi-option arguments
-            -- NEED TO FIX 
+            -- NEED TO FIX
             -- make in to a more sophisticated split outside of parens
             argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
             instruction = getInstruction instructionString allowedCommandList
@@ -180,13 +185,14 @@ parseCommand inLine =
         --trace (instructionString ++ " " ++  show argList)
         (instruction, processedArg) : parseCommand restString
 
--- | getSubCommand takes a string ans extracts the first occurrence of the 
--- structure bleh(...), and splits the string on that, th esub command can contain 
+
+-- | getSubCommand takes a string ans extracts the first occurrence of the
+-- structure bleh(...), and splits the string on that, th esub command can contain
 -- parens and commas
 getSubCommand :: String -> Bool -> (String, String)
-getSubCommand inString hasComma = 
+getSubCommand inString hasComma =
     if null inString then ([],[])
-    else 
+    else
         let firstPart = takeWhile (/= '(') inString
             secondPart = dropWhile (/= '(') inString
             parenPart = getBalancedParenPart "" secondPart 0 0
@@ -195,47 +201,49 @@ getSubCommand inString hasComma =
         in
         (firstPart ++ parenPart, remainderPart)
 
+
 -- | getBalancedParenPart stakes a string starting with '(' and takes all
 -- characters until (and including) the balancing ')'
 -- call with  getBalancedParenPart "" inString 0 0
 getBalancedParenPart :: String -> String -> Int -> Int -> String
 getBalancedParenPart curString inString countLeft countRight =
     if null inString then reverse curString
-    else 
+    else
         let firstChar = head inString
         in
         if firstChar == '(' then getBalancedParenPart (firstChar : curString) (tail inString) (countLeft + 1) countRight
-        else if firstChar == ')' then 
+        else if firstChar == ')' then
             if countLeft == countRight + 1 then reverse (firstChar : curString)
             else getBalancedParenPart  (firstChar : curString) (tail inString) countLeft (countRight + 1)
         else getBalancedParenPart (firstChar : curString) (tail inString) countLeft countRight
-        
+
+
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
 -- these are eac pairs of an option string (could be null) and a subarguments String (also could be null)
-argumentSplitter :: String -> [(String, String)] 
+argumentSplitter :: String -> [(String, String)]
 argumentSplitter inString =
     if null inString then []
     else if (freeOfSimpleErrors inString) == False then errorWithoutStackTrace ("Error in command specification format")
-    else 
-        let commaIndex = if (elemIndex ',' inString) == Nothing then (maxBound :: Int) else fromJust (elemIndex ',' inString)
-            semiIndex = if (elemIndex ':' inString) == Nothing then (maxBound :: Int) else fromJust (elemIndex ':' inString)
-            leftParenIndex = if (elemIndex '(' inString) == Nothing then (maxBound :: Int) else fromJust (elemIndex '(' inString) 
+    else
+        let commaIndex = if (L.elemIndex ',' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex ',' inString)
+            semiIndex = if (L.elemIndex ':' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex ':' inString)
+            leftParenIndex = if (L.elemIndex '(' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex '(' inString)
             firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
         in
         -- simple no argument arg
-        if firstDivider == (maxBound :: Int) then 
-            if head inString == '"' then [([], inString)] 
+        if firstDivider == (maxBound :: Int) then
+            if head inString == '"' then [([], inString)]
             else [(inString, [])]
-        else if commaIndex == firstDivider then 
+        else if commaIndex == firstDivider then
             -- no arg
             if head (take firstDivider inString) == '"' then ([], (take firstDivider inString)) : argumentSplitter (drop (firstDivider + 1) inString)
             else ((take firstDivider inString), []) : argumentSplitter (drop (firstDivider + 1) inString)
         else if semiIndex == firstDivider then
             -- has arg after ':'
-            if inString !! (semiIndex + 1) == '(' then 
+            if inString !! (semiIndex + 1) == '(' then
                 (take firstDivider inString,(takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")")) : argumentSplitter (drop 2 $ dropWhile (/= ')') inString)
-            else 
+            else
                 let nextStuff =  dropWhile (/= ',') inString
                     remainder = if null nextStuff then [] else tail nextStuff
                 in
@@ -245,8 +253,9 @@ argumentSplitter inString =
             in
             (subCommand, []) : argumentSplitter remainderString
 
+
 -- | freeOfSimpleErrors take command string and checks for simple for atting errors
--- lack of separators ',' between args 
+-- lack of separators ',' between args
 -- add as new errors are found
 freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString =
@@ -257,30 +266,32 @@ freeOfSimpleErrors commandString =
     else if isSequentialSubsequence  [',','('] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
     else if isSequentialSubsequence  ['(',','] commandString then  errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
     --else if (last commandString) /= ')' then errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tMissing final ')'.")
-    else 
+    else
         let beforeDoubleQuotes = dropWhile (/= '"') commandString
         in
         if null beforeDoubleQuotes then True
             -- likely more conditions to develop
         else True
 
+
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
 parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
-parseCommandArg fullCommand instruction argList 
-    | instruction == Read = if (not $ null argList) then RIF.getReadArgs fullCommand argList 
-                            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes") 
+parseCommandArg fullCommand instruction argList
+    | instruction == Read = if (not $ null argList) then RIF.getReadArgs fullCommand argList
+                            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes")
     | otherwise = argList
+
 
 -- | movePrealignedTCM move prealigned and tcm commands to front of argument list
 movePrealignedTCM :: [Argument] -> [Argument]
 movePrealignedTCM inArgList =
     if null inArgList then []
-    else 
+    else
         let firstPart = filter ((== "prealigned").fst) inArgList
             secondPart = filter ((== "tcm").fst) inArgList
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
-        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file") 
+        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file")
         else (firstPart ++ secondPart ++ restPart)
-    
+

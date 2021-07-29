@@ -38,13 +38,9 @@ module Data.TCM.Dense.FFI
   ) where
 
 import Control.DeepSeq
+import Data.Foldable
 import Foreign
---import Foreign.Ptr
---import Foreign.C.String
 import Foreign.C.Types
---import Foreign.ForeignPtr
---import Foreign.Marshal.Array
---import Foreign.StablePtr
 import GHC.Generics     (Generic)
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
@@ -139,12 +135,23 @@ data  CostMatrix3d
 -- Exposed wrapper for C allocated cost matrix structs.
 data  DenseTransitionCostMatrix
     = DenseTransitionCostMatrix
-    { matrixDimension :: Word
-    , costMatrix2D    :: Ptr CostMatrix2d
-    , costMatrix3D    :: Ptr CostMatrix3d
+    { matrixDimension :: {-# UNPACK #-} !Word
+    , costMatrix2D    :: {-# UNPACK #-} !(Ptr CostMatrix2d)
+    , costMatrix3D    :: {-# UNPACK #-} !(Ptr CostMatrix3d)
     }
     deriving stock    (Eq, Generic)
     deriving anyclass (NFData)
+
+instance Show DenseTransitionCostMatrix where
+
+    show m =
+        let n = matrixDimension m
+        in  fold [ "Dense "
+                 ,  show n
+                 , "X"
+                 ,  show n
+                 , " Matrix"
+                 ]
 
 
 instance Show CostMatrix2d where

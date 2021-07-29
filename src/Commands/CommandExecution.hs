@@ -34,28 +34,30 @@ Portability :  portable (I hope)
 
 -}
 
-module Commands.CommandExecution ( executeCommands
-                                 , executeRenameCommands) where
+module Commands.CommandExecution
+  ( executeCommands
+  , executeRenameCommands
+  ) where
 
-import           Types.Types
+import qualified Data.CSV               as CSV
+import qualified Data.List              as L
+import           Data.Maybe
+import qualified Data.Text.Lazy         as T
+import qualified Data.Text.Short        as ST
+import qualified Data.Vector            as V
+import qualified Data.Vector.Storable   as SV
+import qualified Data.Vector.Unboxed    as UV
 import           Debug.Trace
 import           GeneralUtilities
-import           System.IO
-import           Data.Maybe
-import           Data.List
-import qualified Data.Text.Lazy as T
-import qualified Data.CSV as CSV
-import qualified Data.Vector as V
-import qualified Data.Vector.Storable as SV
-import qualified Data.Vector.Unboxed  as UV
-import qualified Data.Text.Short as ST
-import qualified Graphs.GraphOperations as GO
 import           GraphFormatUtilities
-import qualified Utilities.LocalGraph as LG
-import qualified Utilities.Utilities  as U
-import qualified Data.BitVector.LittleEndian as BV
+import qualified Graphs.GraphOperations as GO
+import           System.IO
+import           Types.Types
+import qualified Utilities.LocalGraph   as LG
+import qualified Utilities.Utilities    as U
 
--- | executeCommands reads iput files and returns raw data 
+
+-- | executeCommands reads iput files and returns raw data
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist commandList = do
@@ -66,7 +68,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist comm
         -- skip "Read" and "Rename "commands already processed
         if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
-        -- report command    
+        -- report command
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
@@ -80,7 +82,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist comm
             let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
             in
             executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist (tail commandList)
-        else 
+        else
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist (tail commandList)
 
 -- | setArgLIst contains valid 'set' arguments
@@ -97,15 +99,15 @@ setCommand argList globalSettings processedData =
 
     in
     if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ (show argList))
-    else 
-        if head commandList == "outgroup"  then 
+    else
+        if head commandList == "outgroup"  then
             let outTaxonName = T.pack $ filter (/= '"') $ head optionList
                 outTaxonIndex = V.elemIndex outTaxonName leafNameVect
 
             in
             if outTaxonIndex == Nothing then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ (T.unpack outTaxonName) ++ " not found in input leaf list" ++ (show $ fmap (T.unpack) leafNameVect))
             else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
-        else if head commandList == "graphtype"  then 
+        else if head commandList == "graphtype"  then
             let localGraphType = if (head optionList == "tree") then Tree
                                  else if (head optionList == "softwired") then SoftWired
                                  else if (head optionList == "hardwired") then HardWired
@@ -113,7 +115,7 @@ setCommand argList globalSettings processedData =
             in
             trace ("Graphtype set to " ++ (head optionList))
             (globalSettings {graphType = localGraphType}, processedData)
-        else if head commandList == "criterion"  then 
+        else if head commandList == "criterion"  then
             let localCriterion = if (head optionList == "parsimony") then Parsimony
                                  else if (head optionList == "pmdl") then PMDL
                                  else errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
@@ -124,7 +126,7 @@ setCommand argList globalSettings processedData =
 
 
 
-            
+
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
 reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis"]
@@ -133,18 +135,18 @@ reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick"
 checkCommandArgs :: String -> [String] -> [String] -> Bool
 checkCommandArgs commandString commandList permittedList =
     if null commandList then True
-    else 
+    else
         let firstCommand = head commandList
             foundCommand = firstCommand `elem` permittedList
         in
         if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
-        else 
+        else
             let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
             in
-            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n") 
+            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")
 
--- | reportCommand takes report options, current data and graphs and returns a 
--- (potentially large) String to print and the channel to print it to 
+-- | reportCommand takes report options, current data and graphs and returns a
+-- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs pairwiseDistanceMatrix =
@@ -152,25 +154,25 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
         commandList = filter (/= "") $ fmap fst argList
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ show outFileNameList)
-    else 
+    else
         let checkCommandList = checkCommandArgs "report" commandList reportArgList
-            outfileName = if null outFileNameList then "stderr" 
+            outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
                         else "append"
-            
+
         in
         -- error too harsh, lose everything else
         --if (null $ filter (/= "overwrite") $ filter (/= "append") commandList) then errorWithoutStackTrace ("Error: Missing 'report' option in " ++ show commandList)
-        --else 
+        --else
         if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in report: " ++ (show argList))
-        else 
+        else
             -- This for reconciled data
             if "crossrefs" `elem` commandList then
                 let dataString = CSV.genCsvFile $ getDataListList rawData processedData
-                in 
+                in
                 (dataString, outfileName, writeMode)
-            else if "data" `elem` commandList then 
+            else if "data" `elem` commandList then
                 let dataString = phyloDataToString 0 $ thd3 processedData
                     baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ thd3 processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
@@ -178,13 +180,13 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 (baseData ++ (CSV.genCsvFile $ charInfoFields : dataString), outfileName, writeMode)
             else if "diagnosis" `elem` commandList then
                 let dataString = CSV.genCsvFile $ concat $ fmap (getGraphDiagnosis processedData) $ zip curGraphs [0.. ((length curGraphs) - 1)]
-                in 
+                in
                 (dataString, outfileName, writeMode)
-            else if "graphs" `elem` commandList then 
+            else if "graphs" `elem` commandList then
                 -- need to specify -O option for multiple graphs
                 if "dot" `elem` commandList then
-                    let graphString = concat $ intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
-                    in 
+                    let graphString = concat $ L.intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
+                    in
                     (graphString, outfileName, writeMode)
                 else if "newick" `elem` commandList then
                     let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs))  True True
@@ -195,27 +197,27 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     in
                     (graphStringCost, outfileName, writeMode)
                 else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs 
-                    in 
+                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs
+                    in
                     (graphString, outfileName, writeMode)
                 else -- "dot" as default
                     let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
-                    in 
+                    in
                     (graphString, outfileName, writeMode)
             else if "pairdist" `elem` commandList then
-                let nameData = (intercalate "," $ V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
+                let nameData = (L.intercalate "," $ V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
-                in 
+                in
                 (nameData ++ dataString, outfileName, writeMode)
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
 
 -- | getDataListList returns a list of lists of Strings for data output as csv
--- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in 
+-- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
 -- input file
 getDataListList :: [RawData] -> ProcessedData -> [[String]]
-getDataListList inDataList processedData = 
+getDataListList inDataList processedData =
     if null inDataList then []
-    else 
+    else
         let fileNames = " " : (fmap (takeWhile (/= ':')) $ fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
             fullTaxList = V.toList $ fst3  processedData
             presenceAbsenceList = fmap (isThere inDataList) fullTaxList
@@ -224,7 +226,7 @@ getDataListList inDataList processedData =
         --trace (show fileNames)
         fileNames : fullMatrix
 
--- | isThere takes a list of Rawdata and reurns a String of + - 
+-- | isThere takes a list of Rawdata and reurns a String of + -
 isThere :: [RawData] -> T.Text -> [String]
 isThere inData inName =
     if null inData then []
@@ -237,16 +239,16 @@ isThere inData inName =
 -- | phyloDataToString converts RawData type to String
 -- for additive chars--multiply states by weight is < 1 when outputtting due to conversion on input
 phyloDataToString :: Int -> V.Vector BlockData -> [[String]]
-phyloDataToString charIndexStart inDataVect = 
+phyloDataToString charIndexStart inDataVect =
     if V.null inDataVect then []
-    else 
+    else
         let (blockName, _, charInfoVect) = V.head inDataVect
             charStrings = zipWith (:) (replicate (V.length charInfoVect) (T.unpack blockName)) (fmap getCharInfoStrings $ V.toList charInfoVect)
-            charNumberString = fmap show [charIndexStart..(charIndexStart + (length charStrings) - 1)] 
+            charNumberString = fmap show [charIndexStart..(charIndexStart + (length charStrings) - 1)]
             fullMatrix = zipWith (:) charNumberString charStrings
-        in 
+        in
         fullMatrix ++ phyloDataToString (charIndexStart + (length charStrings)) (V.tail inDataVect)
-    
+
 -- | getCharInfoStrings takes charInfo and returns list of Strings of fields
 getCharInfoStrings :: CharInfo -> [String]
 getCharInfoStrings inChar =
@@ -257,7 +259,7 @@ getCharInfoStrings inChar =
     in
     [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar) ++ [show $ costMatrix inChar]
 
--- | executeRenameCommands takes all the "Rename commands" pairs and 
+-- | executeRenameCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
 -- as Text
 executeRenameCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
@@ -268,7 +270,7 @@ executeRenameCommands curPairs commandList  =
 
         -- skip "Read" and "Rename "commands already processed
         if firstOption /= Rename then executeRenameCommands curPairs (tail commandList)
-        else 
+        else
             let newName = T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
                 newPairs = zip newNameList (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
@@ -278,11 +280,11 @@ executeRenameCommands curPairs commandList  =
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices
 getGraphDiagnosis :: ProcessedData -> (PhylogeneticGraph, Int) -> [[String]]
-getGraphDiagnosis inData (inGraph, graphIndex) = 
-    let decGraph = thd6 inGraph 
+getGraphDiagnosis inData (inGraph, graphIndex) =
+    let decGraph = thd6 inGraph
     in
     if LG.isEmpty decGraph then []
-    else 
+    else
         let vertexList = LG.labNodes decGraph
             edgeList = LG.labEdges decGraph
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
@@ -295,27 +297,27 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
 -- | getVertexCharInfo returns a list of list of Strings of vertex infomation
 -- one list for each character at the vertex
 getVertexCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
-getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert = 
+getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
     let leafParents = LG.parents inGraph (fst inVert)
-        parentNodes = if nodeType  (snd inVert) == RootNode then "None" 
-                     else if nodeType  (snd inVert) == LeafNode then show leafParents 
+        parentNodes = if nodeType  (snd inVert) == RootNode then "None"
+                     else if nodeType  (snd inVert) == LeafNode then show leafParents
                      else show $  parents  (snd inVert)
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
         basicInfoList = ["", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, "", "", "", "", "", show $ vertexCost (snd inVert)]
-        blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect 
+        blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
         blockInfoList = concat $ V.toList $ V.map getBlockList blockCharVect
     in
     basicInfoList : blockInfoList
 
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
 getBlockList :: (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
-getBlockList (blockName, blockDataVect, charInfoVect) = 
+getBlockList (blockName, blockDataVect, charInfoVect) =
     let firstLine = ["", "", "", "", "", "", T.unpack blockName]
         charlines = V.toList $ V.map makeCharLine (V.zip blockDataVect charInfoVect)
     in
     firstLine : charlines
 
--- | makeCharLine takes character data 
+-- | makeCharLine takes character data
 -- will be less legible for optimized data--so should use a diagnosis
 -- based on "naive" data for human legible output
 -- need to add back-converting to observed states using alphabet in charInfo
@@ -323,19 +325,19 @@ makeCharLine :: (CharacterData, CharInfo) -> [String]
 makeCharLine (blockDatum, charInfo) =
     let localType = charType charInfo
         localAlphabet = fmap ST.toString $ alphabet charInfo
-        isPrealigned = if prealigned charInfo == True then "Prealigned " 
-                       else "" 
+        isPrealigned = if prealigned charInfo == True then "Prealigned "
+                       else ""
         enhancedCharType = if localType `elem`  [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq] then (isPrealigned ++ (show localType))
                            else (show localType)
-        (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum) 
+        (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq] 
+                                      else if localType `elem` [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq]
                                       then case localType of
                                              x | x `elem` [SlimSeq, NucSeq  ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
                                              x | x `elem` [WideSeq, AminoSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
                                              _                                -> (   foldMap (U.bitVectToCharState localAlphabet) $ hugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ hugeFinal blockDatum)
-                                              
+
                                       else error ("Un-implemented data type " ++ show localType)
         in
         ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
@@ -343,12 +345,12 @@ makeCharLine (blockDatum, charInfo) =
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
-getEdgeInfo inEdge = 
+getEdgeInfo inEdge =
     ["", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge)]
 
 
 -- | executeSet processes the "set" command
 -- set command very general can set outgroup, optimality criterion, blocks
--- executeSet :: 
+-- executeSet ::
 
 

@@ -36,31 +36,29 @@ Portability :  portable (I hope)
 
 module Main where
 
---import           Debug.Trace
-import           System.IO
-import           System.Environment
-import           Data.List
-import           Types.Types
-import qualified Commands.ProcessCommands as PC
-import qualified Input.ReadInputFiles as RIF
+import qualified Commands.CommandExecution    as CE
+import qualified Commands.ProcessCommands     as PC
+import qualified Data.List                    as L
 import           GeneralUtilities
-import qualified Commands.CommandExecution as CE
-import qualified GraphFormatUtilities as GFU
-import qualified Input.DataTransformation as DT
-import qualified Utilities.Distances as D
-import qualified Graphs.GraphOperations as GO
+import qualified GraphFormatUtilities         as GFU
 import qualified GraphOptimization.Traversals as T
+import qualified Graphs.GraphOperations       as GO
+import qualified Input.DataTransformation     as DT
+import qualified Input.ReadInputFiles         as RIF
+import           System.Environment
+import           System.IO
+import           Types.Types
+import qualified Utilities.Distances          as D
 
 
 -- | main driver
 main :: IO ()
-main =
-  do
+main = do
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "under the 3-Clause BSD License.\n"
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
-    
+
     -- Process arguments--a single file containing commands
     args <- getArgs
 
@@ -69,16 +67,16 @@ main =
     hPutStrLn stderr $ head args
 
     -- System time for Random seed
-    timeD <- getSystemTimeSeconds 
+    timeD <- getSystemTimeSeconds
     hPutStrLn stderr ("Current time is " ++ show timeD)
-    
+
 
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
 
       -- Process so one command per line?
 
-    commandContents' <- PC.expandRunCommands [] (lines commandContents) 
+    commandContents' <- PC.expandRunCommands [] (lines commandContents)
     let thingsToDo' = PC.getCommandList  commandContents'
     -- mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
 
@@ -99,20 +97,20 @@ main =
     if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals")
     else hPutStrLn stderr ("No terminals to be renamed")
 
-    let renamedData = fmap (DT.renameData newNamePairList) rawData
-    let renamedGraphs =  fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
+    let renamedData   = fmap (DT.renameData newNamePairList) rawData
+    let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
-    let dataLeafNames = sort $ DT.getDataTerminalNames renamedData
+    let dataLeafNames = L.sort $ DT.getDataTerminalNames renamedData
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
     --hPutStrLn stderr (show $ fmap fst rawData)
 
-    
-    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData 
-    let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs  
+
+    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
+    let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs
     --hPutStrLn stderr (show $ fmap fst reconciledData)
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
@@ -124,18 +122,18 @@ main =
     let reconciledGraphs' = removeTaxaFromGraphs includeList reconciledData
     -}
 
-    -- Create unique bitvector names for leaf taxa.  
+    -- Create unique bitvector names for leaf taxa.
     let leafBitVectorNames = DT.createBVNames reconciledData
 
-    -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc) 
+    -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in charcater number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
-  
+
     {-To do
       Execute any 'Block' change commands--make reBlockedNaiveData
     -}
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet, convert 
+    -- Group Data--all nonadditives to single character, additives with same alphabet, convert
         -- Additive characters with alphabets < 64 to multiple binary nonadditive
         -- all binary charcaters to nonadditive
     let groupedData = naiveData
@@ -148,9 +146,9 @@ main =
     let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree}
     --hPutStrLn stderr (show defaultGlobalSettings)
 
-    let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename 
-    let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename 
-    
+    let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename
+    let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename
+
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] initialSetCommands
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
@@ -160,18 +158,18 @@ main =
     let pairDist = D.getPairwiseDistances optimizedData
     --hPutStrLn stderr (show pairDist)
 
-    
+
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+    (finalGraphList, _finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
 
     -- print global setting just to check
-    --hPutStrLn stderr (show finalGlobalSettings)
+    --hPutStrLn stderr (show _finalGlobalSettings)
 
     -- Final Stderr report
-    timeDN <- getSystemTimeSeconds 
+    timeDN <- getSystemTimeSeconds
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at minimum cost " ++ (show minCost) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
-    
+
 
 {-
     hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))

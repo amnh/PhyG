@@ -66,7 +66,13 @@ instance Eq (MetricRepresentation a) where
     (==)  DiscreteMetric         DiscreteMetric        = True
     (==)  LinearNorm             LinearNorm            = True
     (==) (ExplicitLayout x _ _) (ExplicitLayout y _ _) = x == y
-    (==) _ _ = False
+    (==) _ _                                           = False
+
+instance Show (MetricRepresentation a) where
+
+    show  DiscreteMetric        = "Discrete-Metric"
+    show  LinearNorm            = "1st-Linear-Norm"
+    show (ExplicitLayout _ _ _) = "General-Metric"
 
 
 -- |
@@ -77,27 +83,27 @@ discreteMetric = DiscreteMetric
 
 -- |
 -- Nullary constructor for the <https://en.wikipedia.org/wiki/Lp_space 1st linear norm>.
-linearNorm :: MetricRepresentation a 
+linearNorm :: MetricRepresentation a
 linearNorm = LinearNorm
 
 
 -- |
 -- General constructor for an arbitrary metric.
--- 
+--
 -- Performs memoization so repeated value queries are not recomputed.
-metricRepresentation 
+metricRepresentation
   :: ( FiniteBits a
      , Hashable a
      , NFData a
      )
-  => TCM 
+  => TCM
   -> MetricRepresentation a
 metricRepresentation tcm =
     let scm = makeSCM tcm
-    in  ExplicitLayout tcm 
-          (memoize2 (overlap2 scm)) 
+    in  ExplicitLayout tcm
+          (memoize2 (overlap2 scm))
           (memoize3 (overlap3 scm))
-    
+
 
 -- |
 -- Extract the "symbol change matrix" from a 'MetricRepresentation'.

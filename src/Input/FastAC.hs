@@ -40,52 +40,40 @@ TODO:
   Parallelize  median2Vect
 --}
 
-module Input.FastAC (   getFastA
-                , getFastaCharInfo
-                , getFastC
-                , getFastcCharInfo
-                ) where
+module Input.FastAC
+  ( getFastA
+  , getFastaCharInfo
+  , getFastC
+  , getFastcCharInfo
+  ) where
 
-import           Types.Types
-import           Debug.Trace
-import qualified SymMatrix as S 
-import qualified Data.Text.Lazy  as T
-import qualified Data.Text.Short as ST
-import qualified Input.DataTransformation as DT
 import           Control.DeepSeq
-import           Data.List
 import           Data.Bits
 import           Data.Hashable
-import qualified Data.TCM as TCM
-import qualified Data.TCM.Dense as TCMD
-import qualified Data.Vector as V
+import qualified Data.List                 as L
+import           Data.MetricRepresentation
 import qualified Data.MetricRepresentation as MR
-import qualified Bio.Character.Encodable.Dynamic.AmbiguityGroup as AG
-import Data.MetricRepresentation
-import qualified Data.TCM.Memoized.FFI as TCMFFI
-import GeneralUtilities
-
-import qualified Data.TCM.Memoized as TCMM
-import Data.Alphabet
-import Data.Foldable
-import Data.MetricRepresentation
-import Data.List.NonEmpty (NonEmpty(..))
-
-import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.TCM                  as TCM
+import qualified Data.TCM.Dense            as TCMD
+import qualified Data.Text.Lazy            as T
+import qualified Data.Text.Short           as ST
+import qualified Data.Vector               as V
+import           Debug.Trace
+import           GeneralUtilities
+import qualified Input.DataTransformation  as DT
+import qualified SymMatrix                 as S
+import           Types.Types
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 -- filters out '?' '[' and ']' adds in '-' for indel Gap
-getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
+getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText]
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]"]
-    in
-    if null inList then 
-        filter (`notElem` notAlphElement) $ fmap ST.fromString $ (sort curList) `union` ["-"]
-    else 
-        let firstChars = fmap (:[]) $ nub $ ST.toString $ head inList 
-        in
-        getAlphabet (firstChars `union` curList) (tail inList)
+    in  if   null inList
+        then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
+        else let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
+             in  getAlphabet (firstChars `L.union` curList) (tail inList)
 
 
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
@@ -94,7 +82,7 @@ generateDefaultMatrix :: [ST.ShortText] -> Int -> [[Int]]
 generateDefaultMatrix inAlph rowCount =
     if null inAlph then []
     else if rowCount == length inAlph then []
-    else 
+    else
         let firstPart = replicate rowCount 1
             thirdPart = replicate ((length inAlph) - rowCount - 1) 1
         in
@@ -104,24 +92,24 @@ generateDefaultMatrix inAlph rowCount =
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
 getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
-getFastaCharInfo inData dataName dataType isPrealigned localTCM = 
+getFastaCharInfo inData dataName dataType isPrealigned localTCM =
     if null inData then error "Empty inData in getFastaCharInfo"
-    else 
+    else
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
             aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
-            sequenceData = getAlphabet [] $ concat $ fmap snd inData
-            seqType = if dataType == "nucleotide" then NucSeq
-                      else if dataType == "aminoacid" then AminoSeq
-                      else if dataType == "custom_alphabet" then HugeSeq
-                      else if (sequenceData `intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
+            sequenceData = getAlphabet [] $ foldMap snd inData
+            seqType = if      dataType == "nucleotide"      then   NucSeq
+                      else if dataType == "aminoacid"       then AminoSeq
+                      else if dataType == "custom_alphabet" then  HugeSeq
+                      else if (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
                           ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-                      else if (sequenceData `intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName 
+                      else if (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
                           ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
                       -- can fit in byte with reasonable pre-calculation costs
-                      else if (length sequenceData) < 9 then SlimSeq
-                      else if (length sequenceData) < 65 then WideSeq
+                      else if (length sequenceData) <=  8 then SlimSeq
+                      else if (length sequenceData) <= 64 then WideSeq
                       else HugeSeq
             seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
@@ -131,17 +119,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                               else S.fromLists $ snd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
-            tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
+            tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
             localDenseCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmDense
                                    else tcmNaught
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             tcmWeightFactor = thd3 localTCM
             thisAlphabet = if null $ fst3 localTCM then seqAlphabet
@@ -150,7 +138,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = tcmWeightFactor * 
+                                     , weight = tcmWeightFactor *
                                                 if (seqType == HugeSeq)
                                                 then fromRational hugeWeightFactor
                                                 else if seqType `elem` [WideSeq, AminoSeq]
@@ -167,51 +155,51 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
         in
         if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
-        
-    
+
+
 -- | getCost is helper function for generartion for a dense TCM
-getCost :: S.Matrix Int -> Word -> Word -> Word     
-getCost localCM i j = 
+getCost :: S.Matrix Int -> Word -> Word -> Word
+getCost localCM i j =
     let x = S.getFullVects localCM
     in  toEnum $ (x V.! fromEnum i) V.! fromEnum j
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
-getTCMMemo :: (FiniteBits b, Hashable b, NFData b) => ([ST.ShortText], S.Matrix Int) -> (Rational, MR.MetricRepresentation b) 
-getTCMMemo (inAlphabet, inMatrix) =
-        let sigma i j = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
-            memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
-            arbitraryAlphabet :: Alphabet String
-            arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length inMatrix - 1]
-            (weight, tcm) = TCM.fromRows $ S.getFullVects inMatrix
-        in  
-        --trace (show (weight, tcm))
-        (weight, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
-        
+getTCMMemo
+  :: ( FiniteBits b
+     , Hashable b
+     , NFData b
+     )
+  => ([ST.ShortText], S.Matrix Int)
+  -> (Rational, MR.MetricRepresentation b)
+getTCMMemo (_inAlphabet, inMatrix) =
+        let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
+        in  (coefficient, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
+
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
--- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
+-- For both nonadditive and additve looks for [] to denote ambiguity and splits states
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
---  else if no spaces 
+--  else if no spaces
 --    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
 -- for additive charcaters if states are not nummerical then throuws an error
 getSequenceAphabet :: [ST.ShortText]  -> [ST.ShortText] -> [ST.ShortText]
-getSequenceAphabet newAlph inStates = 
-    if null inStates then 
+getSequenceAphabet newAlph inStates =
+    if null inStates then
         -- removes indel gap from alphabet if present and then (re) adds at end
-        (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
+        (filter (/= (ST.singleton '-')) $ L.sort $ L.nub newAlph) ++ [ST.singleton '-']
     else
         let firstState = ST.toString $ head inStates
         in
-        if (head firstState) /= '['  then 
+        if (head firstState) /= '['  then
             if (firstState `elem` ["?"]) then getSequenceAphabet  newAlph (tail inStates)
             else getSequenceAphabet ((head inStates) : newAlph) (tail inStates)
         else -- ambiguity
             let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
             in
-            getSequenceAphabet (newAmbigStates ++ newAlph) (tail inStates) 
+            getSequenceAphabet (newAmbigStates ++ newAlph) (tail inStates)
 
 
 -- | getFastcCharInfo get alphabet , names etc from processed fasta data
@@ -220,9 +208,9 @@ getSequenceAphabet newAlph inStates =
 
 --Not correct with default alphabet and matrix now after tcm recodeing added to loow for decmials I htink.
 getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
-getFastcCharInfo inData dataName isPrealigned localTCM = 
+getFastcCharInfo inData dataName isPrealigned localTCM =
     if null inData then error "Empty inData in getFastcCharInfo"
-    else 
+    else
         --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
         let thisAlphabet = if (not $ null $ fst3 localTCM)  then fst3 localTCM
                            else getSequenceAphabet [] $ concat $ fmap snd inData
@@ -232,7 +220,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
 
             -- not sure of this
-            tcmNaught = TCMD.generateDenseTransitionCostMatrix 0 0 (getCost V.empty)
+            tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
             localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
                                    else tcmNaught
             seqType =
@@ -243,17 +231,17 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0]]
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
                                      , activity = True
-                                     , weight = tcmWeightFactor * 
-                                                if   seqType == HugeSeq 
+                                     , weight = tcmWeightFactor *
+                                                if   seqType == HugeSeq
                                                 then fromRational hugeWeightFactor
                                                 else if seqType `elem` [WideSeq, AminoSeq]
                                                 then fromRational wideWeightFactor
@@ -266,7 +254,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }{-
-            defaultHugeSeqCharInfo = CharInfo 
+            defaultHugeSeqCharInfo = CharInfo
                                      { charType = if (length $ thisAlphabet) < 9 then SlimSeq
                                                   else HugeSeq
                                      , activity = True
@@ -286,36 +274,36 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
         else defaultHugeSeqCharInfo
         --)
 
--- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present  
+-- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
 
--- | getFastA processes fasta file 
+-- | getFastA processes fasta file
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> String -> [TermData] 
+getFastA :: String -> String -> String -> [TermData]
 getFastA modifier fileContents' fileName  =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
-    else 
-        -- removes ';' comments   
+    else
+        -- removes ';' comments
         let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
-        in 
+        in
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
-        else 
-            let terminalSplits = T.split (=='>') $ T.pack fileContents 
+        else
+            let terminalSplits = T.split (=='>') $ T.pack fileContents
                 pairData =  getRawDataPairsFastA modifier (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
             if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
-            else pairData 
-        
-       
-        
+            else pairData
+
+
+
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 getRawDataPairsFastA :: String -> [T.Text] -> [TermData]
 getRawDataPairsFastA modifier inTextList =
     if null inTextList then []
-    else 
+    else
         let firstText = head inTextList
             firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
@@ -328,62 +316,62 @@ getRawDataPairsFastA modifier inTextList =
         if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
         --)
-        
--- | getFastC processes fasta file 
+
+-- | getFastC processes fasta file
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
 -- NEED TO ADD AMBIGUITY
-getFastC :: String -> String -> String -> [TermData] 
+getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
-    else 
-        -- removes ';' comments   
+    else
+        -- removes ';' comments
         let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
-        in 
+        in
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
-        else 
-            let terminalSplits = T.split (=='>') $ T.pack fileContents 
+        else
+            let terminalSplits = T.split (=='>') $ T.pack fileContents
                 pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
             if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
             else pairData
-            
+
 -- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
-recodeFASTCAmbiguities :: String -> [TermData] -> [TermData] 
+recodeFASTCAmbiguities :: String -> [TermData] -> [TermData]
 recodeFASTCAmbiguities fileName inData =
     if null inData then []
-    else 
+    else
         let (firstName, firstData) = head inData
             newData = concatAmbig fileName firstData
-        in 
+        in
         (firstName, newData) : recodeFASTCAmbiguities fileName (tail inData)
 
 -- | concatAmbig takes a list of ShortText and concatanates ambiguyous states '['X Y Z...']' into a
 -- single Short Tex for later processing
-concatAmbig :: String -> [ST.ShortText] -> [ST.ShortText] 
-concatAmbig fileName inList = 
+concatAmbig :: String -> [ST.ShortText] -> [ST.ShortText]
+concatAmbig fileName inList =
     if null inList then []
-    else 
-        let firstGroup = ST.toString $ head inList 
+    else
+        let firstGroup = ST.toString $ head inList
         in
         -- not ambiguity group
         -- trace (firstGroup ++ show inList) (
         if null firstGroup then concatAmbig fileName (tail inList)
         else if head firstGroup /= '[' then (head inList) : concatAmbig fileName (tail inList)
-        else 
+        else
             let ambiguityGroup = (head inList) : getRestAmbiguityGroup fileName (tail inList)
             in
-            --trace (show ambiguityGroup) 
+            --trace (show ambiguityGroup)
             (ST.concat ambiguityGroup) : concatAmbig fileName (drop (length ambiguityGroup) inList)
             --)
 
 -- | getRestAmbiguityGroup takes a list of ShorText and keeps added them until one is found with ']'
 getRestAmbiguityGroup :: String -> [ST.ShortText] -> [ST.ShortText]
-getRestAmbiguityGroup fileName inList = 
+getRestAmbiguityGroup fileName inList =
     if null inList then errorWithoutStackTrace ("\n\n'Read' command error: fastc file " ++ fileName ++ " with unterminated ambiguity specification ']'")
-    else 
+    else
         let firstGroup = ST.toString $ head inList
         in
         if ']' `notElem` firstGroup then (ST.cons ' ' $ head inList) : getRestAmbiguityGroup fileName (tail inList)
@@ -394,7 +382,7 @@ getRestAmbiguityGroup fileName inList =
 getRawDataPairsFastC :: String -> [T.Text] -> [TermData]
 getRawDataPairsFastC modifier inTextList =
     if null inTextList then []
-    else 
+    else
         let firstText = head inTextList
             firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
@@ -404,4 +392,13 @@ getRawDataPairsFastC modifier inTextList =
         if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
         else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
         --
-        
+
+genDiscreteDenseOfDimension
+  :: Enum i
+  => i
+  -> TCMD.DenseTransitionCostMatrix
+genDiscreteDenseOfDimension d =
+  let n = toEnum $ fromEnum d
+      r = [0 .. n - 1]
+      m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
+  in  TCMD.generateDenseTransitionCostMatrix n n . getCost $ V.fromList <$> V.fromList m

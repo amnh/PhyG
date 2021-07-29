@@ -61,7 +61,7 @@ module Input.TNTUtilities  (getTNTData
 import           Types.Types
 import           Debug.Trace
 import           Data.Char
-import           Data.List
+import qualified Data.List as L
 import           Data.Maybe
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
@@ -92,14 +92,14 @@ getTNTData inString fileName =
                 numTax = read (T.unpack $ last $ T.words firstLine) :: Int
             in
             trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
-            let semiColonLineNumber = findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
+            let semiColonLineNumber = L.findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
             in
             if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
             else 
                 let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
                     charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                     numDataLines = length dataBlock
-                    (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                    (_interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                 in
                 -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                 if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
@@ -190,7 +190,7 @@ collectMultiCharAmbiguities fileName inStringList =
                 ambiguityStringList = firstStringList ++ [(head $ drop (length firstStringList) inStringList)]
             in
             --trace (show firstStringList ++ show ambiguityStringList ++ show (head $ drop (length firstStringList) inStringList))
-            (concat $ intersperse " " ambiguityStringList) : collectMultiCharAmbiguities fileName (drop (length $ ambiguityStringList) inStringList)
+            (concat $ L.intersperse " " ambiguityStringList) : collectMultiCharAmbiguities fileName (drop (length $ ambiguityStringList) inStringList)
         else firstString : collectMultiCharAmbiguities fileName (tail inStringList)
         --)
         
@@ -276,7 +276,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
     else 
         let charStatus =  head commandWordList
             scopeList = tail commandWordList
-            charIndices = nub $ sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
+            charIndices = L.nub $ L.sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
             updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
@@ -291,7 +291,7 @@ getCosts fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
     else 
         let scopeList =  takeWhile (/= (T.pack "=")) commandWordList
-            charIndices = nub $ sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
+            charIndices = L.nub $ L.sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
             (localAlphabet, localMatrix) = processCostsLine fileName $  tail $ dropWhile (/= (T.pack "=")) commandWordList
             updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 [] 
         in
@@ -306,7 +306,7 @@ processCostsLine :: String -> [T.Text] -> ([ST.ShortText],[[Int]])
 processCostsLine fileName wordList =
     if null wordList then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " costs processing error:  'costs' command without transfomation costs specified")
     else 
-        let localAlphabet = sort $ nub $ concat $ fmap getAlphabetElements wordList
+        let localAlphabet = L.sort $ L.nub $ concat $ fmap getAlphabetElements wordList
             transCosts = getTransformationCosts fileName localAlphabet wordList
             localMatrix = makeMatrix fileName localAlphabet transCosts
         in
@@ -359,9 +359,9 @@ getTransformationCosts fileName localAlphabet wordList =
                 newTripleList ++ getTransformationCosts fileName localAlphabet (drop 2 wordList)
             else 
                 -- states are characters (or multicharacters) 
-                let fromStateIndex = elemIndex (ST.fromText $ T.toStrict fromStateText) localAlphabet
-                    toStateIndex = elemIndex (ST.fromText $ T.toStrict toStateText) localAlphabet
-                    newTripleList = if symetricalOperator == Nothing then [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost)] 
+                let fromStateIndex = L.elemIndex (ST.fromText $ T.toStrict fromStateText) localAlphabet
+                    toStateIndex   = L.elemIndex (ST.fromText $ T.toStrict toStateText) localAlphabet
+                    newTripleList  = if symetricalOperator == Nothing then [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost)] 
                                     else  [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost), (fromJust toStateIndex, fromJust fromStateIndex, fromJust transCost)] 
                 in
                 if fromStateIndex == Nothing then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command " ++ (show $ T.unwords wordList) ++ " transformation state " ++ (T.unpack fromStateText) ++ " was not found in charcater alphabet " ++ show localAlphabet)
@@ -488,7 +488,7 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
 -- this could happen for a DNA character (ACGT-) with a martix specified of numerical values (01234)
 reconcileAlphabetAndCostMatrix :: String -> String -> [ST.ShortText] -> [ST.ShortText] -> [ST.ShortText]
 reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphabet = 
-    if intersect observedAlphabet inferredAlphabet == observedAlphabet then inferredAlphabet
+    if L.intersect observedAlphabet inferredAlphabet == observedAlphabet then inferredAlphabet
     else errorWithoutStackTrace ("Error: TNT file " ++ fileName ++ " character " ++ charName  ++ " Observed alphabet " ++ (show observedAlphabet) ++ " is incompatible with matrix specification states " ++ (show inferredAlphabet))
                               
 
@@ -500,9 +500,9 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo 
     if (null inCharInfo) && (null newCharInfo) then error "Empty inCharInfo on input in checkAndRecodeCharacterAlphabets"
     else if null inData then error "Empty inData in checkAndRecodeCharacterAlphabets"
     else if null inCharInfo then 
-        --trace (show $ transpose newData)
+        --trace (show $ L.transpose newData)
         -- (reverse $ fmap reverse newData, reverse newCharInfo)
-        (transpose $ reverse newData, reverse newCharInfo) 
+        (L.transpose $ reverse newData, reverse newCharInfo) 
         -- (reverse newData, reverse newCharInfo) 
     else 
         let firstColumn = fmap head inData
@@ -595,7 +595,7 @@ getDecimals inChar =
 -- for additive charcaters if states are not nummerical then throws an error
 getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType  -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
 getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates = 
-    if null inStates then ((sort $ nub newAlph), (reverse newStates))
+    if null inStates then ((L.sort $ L.nub newAlph), (reverse newStates))
     else
         let firstState = ST.toString $ head inStates
         in
@@ -628,7 +628,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                 else
-                    let newAmbigState =  ST.fromString $ '[' : (concat $ intersperse " " newStateNumberStringList) ++ "]"
+                    let newAmbigState =  ST.fromString $ '[' : (concat $ L.intersperse " " newStateNumberStringList) ++ "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals ((fmap ST.fromString newStateNumberStringList) ++ newAlph) (newAmbigState : newStates)
 
