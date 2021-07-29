@@ -76,6 +76,8 @@ import qualified Data.BitVector.LittleEndian as BV
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 -- filters out '?' '[' and ']' adds in '-' for indel Gap
+-- although with multicharacter alphabets that contain '[' or ']' this would be a problem,
+-- its only used for single character alphabets in fasta formats.
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]"]
@@ -201,12 +203,13 @@ getSequenceAphabet :: [ST.ShortText]  -> [ST.ShortText] -> [ST.ShortText]
 getSequenceAphabet newAlph inStates = 
     if null inStates then 
         -- removes indel gap from alphabet if present and then (re) adds at end
-        (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
+        -- (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
+        (sort $ nub newAlph) ++ [ST.singleton '-']
     else
         let firstState = ST.toString $ head inStates
         in
         if (head firstState) /= '['  then 
-            if (firstState `elem` ["?"]) then getSequenceAphabet  newAlph (tail inStates)
+            if (firstState `elem` ["?","-"]) then getSequenceAphabet  newAlph (tail inStates)
             else getSequenceAphabet ((head inStates) : newAlph) (tail inStates)
         else -- ambiguity
             let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
@@ -225,7 +228,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
     else 
         --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
         let thisAlphabet = if (not $ null $ fst3 localTCM)  then fst3 localTCM
-                           else getSequenceAphabet [] $ concat $ fmap snd inData
+                           else getSequenceAphabet [] $ concatMap snd inData
             inMatrix = if (not $ null $ fst3 localTCM) then S.fromLists $ snd3 localTCM
                        else S.fromLists $ generateDefaultMatrix thisAlphabet 0
             tcmWeightFactor = thd3 localTCM
@@ -281,10 +284,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      }
                                      -}
         in
-        --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show (thisAlphabet, inMatrix, tcmWeightFactor, weightFactor)) (
+        trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else defaultHugeSeqCharInfo
-        --)
+        )
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present  
 
@@ -398,10 +401,11 @@ getRawDataPairsFastC modifier inTextList =
         let firstText = head inTextList
             firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
-            firstDataNoGaps = fmap (T.filter (/= '-')) firstData
+            firstDataNoGaps = filter (/= (T.pack "-")) firstData
         in
+        --trace (show firstData) (
         -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
         if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
         else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
-        --
+        --)
         

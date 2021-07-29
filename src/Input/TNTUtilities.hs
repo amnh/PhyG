@@ -177,7 +177,7 @@ collectMultiCharAmbiguities fileName inStringList =
     else 
         let firstString = head inStringList
         in
-        --trace ("CMA " ++ firstString ++ " " ++ show inStringList) (
+        -- might be better to check for head and last [] for better error processing
         if ('[' `elem` firstString) && (']' `elem` firstString) then
             if '-' `elem`  firstString then 
                 let firstPart = takeWhile (/= '-') firstString
