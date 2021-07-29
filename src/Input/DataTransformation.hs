@@ -452,7 +452,8 @@ getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CU
 getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
     in
-    if '[' `notElem` inStateString then --single state
+    --if '[' `notElem` inStateString then --single state
+    if (head inStateString /= '[') && (last inStateString /= ']') then --single state
         let newCode = V.find ((== inState).fst) bvCodeVect
         in
         if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
@@ -465,7 +466,7 @@ getGeneralBVCode bvCodeVect inState =
             stateBVList = fmap snd $ fmap fromJust maybeBVList
             ambiguousBVState = foldr1 (.|.) stateBVList
         in
-        if Nothing `elem` maybeBVList then error ("Ambiguity grooup " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
+        if Nothing `elem` maybeBVList then error ("Ambiguity group " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
         else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, ambiguousBVState)
             where getBV s = (V.find ((== s).fst)) bvCodeVect
 
