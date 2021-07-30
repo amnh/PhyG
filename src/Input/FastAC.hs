@@ -53,6 +53,7 @@ import           Data.Hashable
 import qualified Data.List                 as L
 import           Data.MetricRepresentation
 import qualified Data.MetricRepresentation as MR
+import           Data.TCM                  (TCMDiagnosis(..), TCMStructure(..))
 import qualified Data.TCM                  as TCM
 import qualified Data.TCM.Dense            as TCMD
 import qualified Data.Text.Lazy            as T
@@ -174,8 +175,12 @@ getTCMMemo
   => ([ST.ShortText], S.Matrix Int)
   -> (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
-        let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
-        in  (coefficient, metricRepresentation tcm) --(TCMM.getMedianAndCost2D memoMatrixValue))
+    let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
+        metric = case tcmStructure $ TCM.diagnoseTcm tcm of
+                   NonAdditive -> discreteMetric 
+                   Additive    -> linearNorm
+                   _           -> metricRepresentation tcm
+    in (coefficient, metric)
 
 
 -- | getSequenceAphabet take a list of ShortText with inform ation and accumulatiors
