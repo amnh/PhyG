@@ -276,10 +276,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      }
                                      -}
         in
-        trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
+        --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else defaultHugeSeqCharInfo
-        )
+        --)
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
 
@@ -332,8 +332,9 @@ getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
-        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--because of latexIPA encodings using ';'(and '$')
-        let fileContents =  unlines $ filter (not.null) $ lines fileContents'
+        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
+        --  because of latexIPA encodings using ';'(and '$')
+        let fileContents =  unlines $ filter (not.null) $ filter ((/=';').head) $ lines fileContents'
         in 
         if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
         else

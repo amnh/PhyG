@@ -213,5 +213,9 @@
 
 74) read rename file
 
-75) IPA with single '[' and ']' process correctly
-	resolve '{}' issue aal.fastc Bantu500
+76) Fixed mixed character type counting errors
+	for tree and other pairs dist lengths
+
+77) Fix multitraversal "best" graph cost
+
+
