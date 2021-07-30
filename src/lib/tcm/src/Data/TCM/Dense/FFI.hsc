@@ -45,7 +45,7 @@ import GHC.Generics     (Generic)
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
 
--- import Debug.Trace
+import Debug.Trace
 
 
 #include "c_alignment_interface.h"
@@ -370,18 +370,17 @@ generateDenseTransitionCostMatrix affineCost alphabetSize costFunction =
 --
 -- _NOTE: /Only considers the first 8 bits of the elements!/_
 lookupPairwise
-  :: Bits b
-  => DenseTransitionCostMatrix
-  -> b
-  -> b
-  -> (b, Word)
+  :: DenseTransitionCostMatrix
+  -> CUInt
+  -> CUInt
+  -> (CUInt, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
     let dim = 1 `shiftL` (fromEnum (alphSize cm2d))
-    let off = toByteValue e1 * dim + toByteValue e2
+    let off = fromEnum e1 * dim + fromEnum e2
     cost <- peek $ advancePtr (bestCost cm2d) off
     med  <- peek $ advancePtr (medians  cm2d) off
-    let val = fromByteValue e1 $ fromEnum med
+    let val = toEnum $ fromEnum med
     pure (val, toEnum $ fromEnum cost)
 
 
@@ -392,19 +391,18 @@ lookupPairwise m e1 e2 = unsafePerformIO $ do
 --
 -- _NOTE: /Only considers the first 8 bits of the elements!/_
 lookupThreeway
-  :: Bits b
-  => DenseTransitionCostMatrix
-  -> b
-  -> b
-  -> b
-  -> (b, Word)
+  :: DenseTransitionCostMatrix
+  -> CUInt
+  -> CUInt
+  -> CUInt
+  -> (CUInt, Word)
 lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     cm3d <- peek $ costMatrix3D dtcm
     let dim = 1 `shiftL` (fromEnum (alphSize3D cm3d))
-    let off = toByteValue e1 * dim * dim + toByteValue e2 * dim + toByteValue e3
+    let off = fromEnum e1 * dim * dim + fromEnum e2 * dim + fromEnum e3
     cost <- peek $ advancePtr (bestCost3D cm3d) off
     med  <- peek $ advancePtr ( medians3D cm3d) off
-    let val = fromByteValue e1 $ fromEnum med
+    let val = toEnum $ fromEnum med
     pure (val, toEnum $ fromEnum cost)
 
 
@@ -415,38 +413,6 @@ lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
 getAlignmentStrategy :: CostMatrix2d -> AlignmentStrategy
 getAlignmentStrategy = toEnum . fromEnum . costModelType
 
-
--- |
--- /O(1)/
---
--- Retrieve the first 8 bits of the value.
---
--- Performs 8 individual bit checks.
-toByteValue :: Bits b => b -> Int
-toByteValue e = f 7
-  where
-    f !n
-      | n >= 0    = v + f (n-1)
-      | otherwise = 0
-      where
-        !v | e `testBit` n = 1 `shiftL` n
-           | otherwise     = 0
-
-
--- |
--- /O(1)/
---
--- Set the first 8 bits of the value.
---
--- Performs 8 individual bit sets.
-fromByteValue :: Bits b => b -> Int -> b
-fromByteValue x i = f 7 x
-  where
-    f !n b
-      | n < 0         = b
-      | i `testBit` n = f (n-1) $ b   `setBit` n 
-      | otherwise     = f (n-1) $ b `clearBit` n
-  
 
 -- |
 -- Set up and return a non-affine cost matrix

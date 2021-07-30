@@ -229,13 +229,24 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
         longerBuffer <- allocCharacterBuffer bufferLength longerLength longerPtr
         medianBuffer <- allocCharacterBuffer bufferLength            0   nullPtr
         resultLength <- malloc :: IO (Ptr CSize)
-        strategy  <- getAlignmentStrategy <$> peek costStruct
+        strategy     <- getAlignmentStrategy <$> peek costStruct
         let medianOpt = coerceEnum computeMedians
         let !cost = case strategy of
                       Affine -> {-# SCC affine_undefined #-}
                         undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
                       _      -> {-# SCC align2dFn_c #-}
-                        align2dFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct neverComputeOnlyGapped medianOpt (coerceEnum computeUnion)
+                        align2dFn_c
+                          lesserBuffer
+                          longerBuffer
+                          medianBuffer
+                          resultLength
+                          (ics bufferLength)
+                          (ics lesserLength)
+                          (ics longerLength)
+                          costStruct
+                          neverComputeOnlyGapped
+                          medianOpt
+                          (coerceEnum computeUnion)
 
         alignedLength <- {-# SCC alignedLength #-} coerce <$> peek resultLength
         let g = buildResult bufferLength (csi alignedLength)
@@ -348,26 +359,42 @@ algn3d char1 char2 char3 mismatchCost openningGapCost indelCost denseTCMs = hand
 
 -- |
 -- Allocates space for an align_io struct to be sent to C.
-allocCharacterBuffer :: Int -> Int  -> Ptr CUInt -> IO (Ptr CUInt)
+allocCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Ptr CUInt)
 allocCharacterBuffer maxSize elemCount elements = do
     let e   = min maxSize elemCount
-    buffer <- mallocBytes maxSize
-    let ref = plusPtr buffer . fromEnum $ maxSize - e
+    buffer <- mallocArray maxSize
+    let off = maxSize - e
+    let ref = advancePtr buffer off
     copyArray ref elements e
-    pure $ coerce buffer
+{-
+    putStr "Alloc Inputs:\n"
+    print maxSize
+    print elemCount
+    print =<< peekArray elemCount elements
+    putStr "Alloc Outputs:\n"
+    print e
+    print off
+    print =<< peekArray maxSize buffer
+-}
+    pure buffer
 
 
 buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 buildResult bufferLength alignedLength alignedBuffer = do
+{-
+    print bufferLength
+    print alignedLength
+    print =<< peekArray bufferLength alignedBuffer
+-}
     let e   = min bufferLength alignedLength
-    vector <- mallocBytes e
-    let ref = plusPtr alignedBuffer . fromEnum $ bufferLength - e
+    let off = bufferLength - e
+    let ref = advancePtr alignedBuffer off 
+    vector <- mallocArray alignedLength
     copyArray vector ref e
     free alignedBuffer
-    fPtr <- newConcForeignPtr vector (free vector)
-    let y = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
-    pure $ coerce y
-
+    fPtr   <- newConcForeignPtr vector (free vector)
+    let res = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
+    pure res
 
 {-
 -- |

@@ -10,7 +10,7 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE Strict     #-}
+{-# LANGUAGE Strict #-}
 
 module Data.TCM.Overlap
   ( overlap
@@ -30,7 +30,7 @@ data  Bounds b
     = Bounds
     { lBound :: {-# UNPACK #-} Word
     , uBound :: {-# UNPACK #-} Word
-    , bValue :: b
+    , _value :: b
     }
 
 

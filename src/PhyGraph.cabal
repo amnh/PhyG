@@ -41,8 +41,8 @@ extra-source-files:
 common ffi-buildinfo
 
   cc-options:
-    --std=c11
-
+    -rdynamic --std=c11
+ 
   hs-source-dirs:
     ffi
 
@@ -79,7 +79,8 @@ common ghc-flags
     -ddump-to-file   
     -- -prof
     -fprof-auto
-    -fprof-cafs  
+    -fprof-cafs
+    -optc -rdynamic          
 
     -- Optimization flags
     -O2
@@ -228,11 +229,11 @@ executable phyg
                   Utilities.LocalSequence
                   DirectOptimization.DOUkkonenSequence
                   DirectOptimization.DOUkkonenSequenceInt64
-                  DirectOptimization.DOWrapper
+--                  DirectOptimization.DOWrapper
                   DirectOptimization.NaiveDOSequence
                   Graphs.GraphOperations
-                  DirectOptimization.DOSmallFFI
-                  DirectOptimization.DOLargeFFI
+--                  DirectOptimization.DOSmallFFI
+--                  DirectOptimization.DOLargeFFI
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
@@ -332,7 +333,7 @@ library analysis
     --Analysis.Distance
     --Analysis.Parsimony.Additive
     --Analysis.Parsimony.Dynamic.DirectOptimization
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
@@ -346,12 +347,12 @@ library analysis
     --Analysis.Parsimony.Additive.Internal
     --Analysis.Parsimony.Dynamic.DirectOptimization.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
     --Analysis.Parsimony.Fitch.Internal
     --Analysis.Parsimony.Sankoff.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
@@ -361,9 +362,9 @@ library analysis
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
     
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace            
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
@@ -436,7 +437,7 @@ library data-structures
 --    Bio.Character.Decoration.NonMetric
     Bio.Character.Encodable
     Bio.Character.Encodable.Dynamic.AmbiguityGroup
---    Bio.Character.Encodable.Continuous
+    Bio.Character.Encodable.Continuous
 --    Bio.Metadata
 --    Bio.Metadata.Continuous
 --    Bio.Metadata.Discrete

@@ -1,65 +1,67 @@
 module DirectOptimization.DOLargeFFI where
 
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
-import Bio.Character.Encodable
+import           Bio.Character.Encodable
+import qualified Data.BitVector.LittleEndian as BV
+import           Data.MetricRepresentation
+import qualified Data.MetricRepresentation   as MR
+import           Data.Vector                 (Vector, (!))
+import qualified SymMatrix                   as SM
+{-
 import Data.Alphabet
 import Data.Foldable
-import Data.MetricRepresentation
 import qualified Data.TCM as TCM
 import qualified Data.TCM.Memoized as TCMM
 --import qualified Data.BitVector as BV
-import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
-import qualified SymMatrix as SM
-import qualified Data.MetricRepresentation as MR
 import Utilities.Utilities
 import GeneralUtilities
 
 import Debug.Trace
-
+-}
 
 -- Problems with tcmMemo FFI calls--erratic/inconsistent behavior
 -- could be due to issues with IO and such
-            
 
 
-wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int 
+
+wrapperPCG_DO_Large :: Vector BV.BitVector -> Vector BV.BitVector -> SM.Matrix Int
                       -> MR.MetricRepresentation AmbiguityGroup
                       -> (Vector BV.BitVector, Int)
-wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo = 
+wrapperPCG_DO_Large _ _ _ _ = undefined
+{-
+wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo =
   --(resultingMedians, fromEnum resultCost)
-  (snd4 $ dynamicCharacterTo3Vector resultFFI, fromEnum resultCost)  
+  (snd4 $ dynamicCharacterTo3Vector resultFFI, fromEnum resultCost)
     where
         (resultCost, resultFFI) = unboxedUkkonenFullSpaceDO (retreivePairwiseTCM tcmMemo') lhsDC rhsDC
 
         bitStreams = decodeStream arbitraryAlphabet resultFFI
 
         resultingMedians = V.fromList . toList $ fmap (BV.fromBits . g 0 . toList) bitStreams
-        
+
         {-
-        lhsDC = buildDC lhs 
+        lhsDC = buildDC lhs
         rhsDC = buildDC rhs
         -}
         lhsDC = convertVectorToDynamicCharacter lhs
         rhsDC = convertVectorToDynamicCharacter rhs
-        
-        tcmMemo' = 
+
+        tcmMemo' =
             let sigma i j       = toEnum . fromEnum $ tcm TCM.! (fromEnum i, fromEnum j)
                 memoMatrixValue = TCMM.generateMemoizedTransitionCostMatrix (toEnum $ length arbitraryAlphabet) sigma
             in  metricRepresentation tcm
 --            in  ExplicitLayout tcm (TCMM.getMedianAndCost2D memoMatrixValue)
-        
+
         (weight, tcm) = TCM.fromRows $ SM.getFullVects tcmVect
-        
-        
+
+
 
         buildDC :: Vector BV.BitVector -> DynamicCharacter
         buildDC = encodeStream arbitraryAlphabet . fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList  . toList
-        
-        
+
+
         f :: Word -> [Bool] -> [String]
         f _ [] = []
         f n (x:xs)
@@ -73,7 +75,8 @@ wrapperPCG_DO_Large lhs rhs tcmVect tcmMemo =
           | fromEnum n >= length tcmVect = []
           | read x == n = True  : g (n+1)    xs
           | otherwise   = False : g (n+1) (x:xs)
-        
+
 
         arbitraryAlphabet :: Alphabet String
         arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. length tcmVect - 1]
+-}

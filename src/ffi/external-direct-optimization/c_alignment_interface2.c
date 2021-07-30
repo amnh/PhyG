@@ -12,14 +12,75 @@
 #include "dyn_character.h"
 #include "ukkCommon.h"
 
+/*
+#define UNW_LOCAL_ONLY
+#include <execinfo.h>
+#include <signal.h>
+#include <unistd.h>
+#include <libunwind.h>
+
+
+// Call this function to get a backtrace.
+void backtrace_custom() {
+  unw_cursor_t cursor;
+  unw_context_t context;
+
+  // Initialize cursor to current frame for local unwinding.
+  unw_getcontext(&context);
+  unw_init_local(&cursor, &context);
+
+  // Unwind frames one by one, going up the frame stack.
+  while (unw_step(&cursor) > 0) {
+    unw_word_t offset, pc;
+    unw_get_reg(&cursor, UNW_REG_IP, &pc);
+    if (pc == 0) {
+      break;
+    }
+    printf("0x%lx:", pc);
+
+    char sym[256];
+    if (unw_get_proc_name(&cursor, sym, sizeof(sym), &offset) == 0) {
+      printf(" (%s+0x%lx)\n", sym, offset);
+    } else {
+      printf(" -- error: unable to obtain symbol name for this frame\n");
+    }
+  }
+}
+
+
+void handler(int sig) {
+  void *array[10];
+  size_t size;
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+
+  char **strings;
+  size_t i;
+
+  strings = backtrace_symbols (array, size);
+  printf ("Obtained %zd stack frames.\n", size);
+  for (i = 0; i < size; i++)
+     printf ("%s\n", strings[i]);
+
+  free (strings);
+  backtrace_custom();
+
+  exit(1);
+} 
+*/
+
+
 /** 
  * Takes three byte arrays, each of equal length. The length of the arrays are equal to 'allocationLen'.
  * Takes a pointer to an integer, this integer will store the resulting alignment length after execution.
  * Takes the lengths of the two input characters.
  **/
 size_t cAlign2D
-  ( elem_t             *lesser
-  , elem_t             *longer
+  ( elem_t             *lesserInput
+  , elem_t             *longerInput
   , elem_t             *outputMedian
   , size_t             *outputLength
   , const size_t        allocationLen
@@ -31,7 +92,10 @@ size_t cAlign2D
   , const int           getUnion
   )
 {
-/*
+  //signal(SIGSEGV, handler);
+  //signal(SIGABRT, handler);
+  
+  /*
     if (DEBUG_ALGN) {
         printf("\n\nalign2d char1 input:\n");
         printf("\ninput char 1:");
@@ -41,34 +105,33 @@ size_t cAlign2D
     }
 */
 
-    /*** Most character allocation is now done on Haskell side, but these two are local. ***/
-    /*** longChar and shortChar will both have pointers into the input characters, so don't need to be initialized separately ***/
-    dyn_character_t *retLongChar  = dyn_char_alloc(allocationLen);
-    dyn_character_t *retShortChar = dyn_char_alloc(allocationLen);
-    dyn_character_t *longChar     = dyn_char_alloc(0);
-    dyn_character_t *shortChar    = dyn_char_alloc(0);
-    size_t alphabetSize = costMtx2d->alphSize;
+    size_t           alphabetSize  = costMtx2d->alphSize;
+    /*** tmpLesserChar and tmpLongerChar will both have pointers into the input characters, 
+         so don't need to be initialized separately 
+     ***/
+    dyn_character_t *tmpLesserChar = dyn_char_alloc(0);
+    dyn_character_t *tmpLongerChar = dyn_char_alloc(0);
 
-    stringToDynChar(shortChar, lesser, allocationLen, lesserLen, alphabetSize);
-    stringToDynChar( longChar, longer, allocationLen, longerLen, alphabetSize);
+    stringToDynChar(tmpLesserChar, lesserInput, allocationLen, lesserLen, alphabetSize);
+    stringToDynChar(tmpLongerChar, longerInput, allocationLen, longerLen, alphabetSize);
 
     if (DEBUG_ALGN) {
         printf("\nafter copying, char 1:\n");
-        dyn_char_print(longChar);
+        dyn_char_print(tmpLongerChar);
         printf("\nafter copying, char 2:\n");
-        dyn_char_print(shortChar);
+        dyn_char_print(tmpLesserChar);
     }
     alignment_matrices_t *algnMtxs2d = malloc( sizeof(alignment_matrices_t) );
     assert( algnMtxs2d != NULL && "2D alignment matrices could not be allocated." );
 
-    initializeAlignmentMtx( algnMtxs2d, longChar->len, shortChar->len, alphabetSize );
+    initializeAlignmentMtx( algnMtxs2d, tmpLongerChar->len, tmpLesserChar->len, alphabetSize );
 
     // deltawh is for use in Ukonnen, it gives the current necessary width of the Ukk matrix.
     // The following calculation to compute deltawh, which increases the matrix height or width in algn_nw_2d,
     // was pulled from POY ML code.
     int deltawh     = 0;
-    int diff        = longChar->len - shortChar->len;
-    int lower_limit = .1 * longChar->len;
+    int diff        = tmpLongerChar->len - tmpLesserChar->len;
+    int lower_limit = .1 * tmpLongerChar->len;
 
     if (deltawh) {
         deltawh = diff < lower_limit ? lower_limit : deltawh;
@@ -76,39 +139,52 @@ size_t cAlign2D
         deltawh = diff < lower_limit ? lower_limit / 2 : 2;
     }
 
-    int algnCost = algn_nw_2d( shortChar, longChar, costMtx2d, algnMtxs2d, deltawh );
+    int algnCost = algn_nw_2d( tmpLesserChar, tmpLongerChar, costMtx2d, algnMtxs2d, deltawh );
 
     if (getGapped || getUngapped || getUnion) {
         //printf("Before backtrace.\n"), fflush(stdout);
-        algn_backtrace_2d( shortChar, longChar, retShortChar, retLongChar, algnMtxs2d, costMtx2d, 0, 0 );
+      
+        /*** Most character allocation is now done on Haskell side, 
+             but these three are local, temporary buffers. 
+         ***/
+        dyn_character_t *retLesserChar = dyn_char_alloc(allocationLen);
+        dyn_character_t *retLongerChar = dyn_char_alloc(allocationLen);
+        dyn_character_t    *medianChar = dyn_char_alloc(allocationLen);
+        
+        algn_backtrace_2d( tmpLesserChar, tmpLongerChar, retLesserChar, retLongerChar, algnMtxs2d, costMtx2d, 0, 0 );
 
-        dyn_character_t *medianChar = dyn_char_alloc( allocationLen );
         if (getUngapped) {
-            algn_get_median_2d_no_gaps(   retShortChar, retLongChar, costMtx2d, medianChar );
+            algn_get_median_2d_no_gaps(   retLesserChar, retLongerChar, costMtx2d, medianChar );
         }
         if (getGapped && !getUnion) {
-            algn_get_median_2d_with_gaps( retShortChar, retLongChar, costMtx2d, medianChar );
+            algn_get_median_2d_with_gaps( retLesserChar, retLongerChar, costMtx2d, medianChar );
         }
         if (getUnion) {
-            algn_union(                   retShortChar, retLongChar, medianChar );
+            algn_union(                   retLesserChar, retLongerChar, medianChar );
         }
-        dynCharToString( longer,  retLongChar, allocationLen, 1 );
-        dynCharToString( lesser, retShortChar, allocationLen, 1 );
-        dynCharToString( outputMedian, medianChar, allocationLen, 1 );
+
+        // Copy alignment results to output buffers
+        memcpy( lesserInput, retLesserChar->array_head, allocationLen * sizeof(elem_t));
+        memcpy( longerInput, retLongerChar->array_head, allocationLen * sizeof(elem_t));
+        memcpy(outputMedian,    medianChar->array_head, allocationLen * sizeof(elem_t));
         *outputLength = medianChar->len;
+
+        // Free temporary buffers
+        dyn_char_free( retLongerChar );
+        if (NULL != retLongerChar) free(retLongerChar);
+        dyn_char_free( retLesserChar );
+        if (NULL != retLesserChar) free(retLesserChar);
         dyn_char_free( medianChar );
         if (NULL != medianChar) free(medianChar);
     }
 
     freeNWMtx( algnMtxs2d );
-    dyn_char_free( retLongChar );
-    if (NULL != retLongChar) free(retLongChar);
-    dyn_char_free( retShortChar );
-    if (NULL != retShortChar) free(retShortChar);
 
     // Shouldn't have to free the whole structs here because they just pointed into the retChars.
-    if (NULL !=  longChar) free( longChar);
-    if (NULL != shortChar) free(shortChar);
+    //dyn_char_free( tmpLongerChar );
+    if (NULL != tmpLongerChar) free(tmpLongerChar);
+    //dyn_char_free( tmpLesserChar );
+    if (NULL != tmpLesserChar) free(tmpLesserChar);
 
     return algnCost;
 
@@ -142,34 +218,34 @@ size_t cAlignAffine2D
               *lesser;
 
     // Most character allocation is now done on Haskell side, but these two are local.
-    // longChar and shortChar will both have pointers into the input characters, so don't need to be initialized separately
-    dyn_character_t *longChar     = dyn_char_alloc(0);
-    dyn_character_t *shortChar    = dyn_char_alloc(0);
-    dyn_character_t *retLongChar  = dyn_char_alloc(allocationLen);
-    dyn_character_t *retShortChar = dyn_char_alloc(allocationLen);
+    // tmpLongerChar and tmpLesserChar will both have pointers into the input characters, so don't need to be initialized separately
+    dyn_character_t *tmpLongerChar     = dyn_char_alloc(0);
+    dyn_character_t *tmpLesserChar    = dyn_char_alloc(0);
+    dyn_character_t *retLongerChar  = dyn_char_alloc(allocationLen);
+    dyn_character_t *retLesserChar = dyn_char_alloc(allocationLen);
 
     size_t alphabetSize = costMtx2d_affine->alphSize;
 
     if (inputChar1_aio->length >= inputChar2_aio->length) {
-        stringToDynChar(longChar, inputChar1_aio, alphabetSize);
+        stringToDynChar(tmpLongerChar, inputChar1_aio, alphabetSize);
         longer = inputChar1_aio;
 
-        stringToDynChar(shortChar, inputChar2_aio, alphabetSize);
+        stringToDynChar(tmpLesserChar, inputChar2_aio, alphabetSize);
         lesser = inputChar2_aio;
 
     } else {
-        stringToDynChar(longChar, inputChar2_aio, alphabetSize);
+        stringToDynChar(tmpLongerChar, inputChar2_aio, alphabetSize);
         longer = inputChar2_aio;
 
-        stringToDynChar(shortChar, inputChar1_aio, alphabetSize);
+        stringToDynChar(tmpLesserChar, inputChar1_aio, alphabetSize);
         lesser = inputChar1_aio;
     }
 
     if (DEBUG_ALGN) {
         printf("\nafter copying, char 1:\n");
-        dyn_char_print(longChar);
+        dyn_char_print(tmpLongerChar);
         printf("\nafter copying, char 2:\n");
-        dyn_char_print(shortChar);
+        dyn_char_print(tmpLesserChar);
     }
 
     // TODO: document these variables
@@ -190,15 +266,15 @@ size_t cAlignAffine2D
     alignment_matrices_t *algnMtxs2dAffine = malloc( sizeof(alignment_matrices_t) );
     assert( algnMtxs2dAffine != NULL && "Can't allocate 2D affine alignment matrices." );
 
-    initializeAlignmentMtx(algnMtxs2dAffine, longChar->len, shortChar->len, alphabetSize );
+    initializeAlignmentMtx(algnMtxs2dAffine, tmpLongerChar->len, tmpLesserChar->len, alphabetSize );
     // printf("Jut initialized alignment matrices.\n");
-    lenLongerChar = longChar->len;
+    lenLongerChar = tmpLongerChar->len;
 
     matrix_2d  = algnMtxs2dAffine->algn_costMtx;
     precalcMtx = algnMtxs2dAffine->algn_precalcMtx;
 
 
-    algnMtx_precalc_4algn_2d( algnMtxs2dAffine, costMtx2d_affine, longChar );
+    algnMtx_precalc_4algn_2d( algnMtxs2dAffine, costMtx2d_affine, tmpLongerChar );
 
 
     // here and in algn.c, "block" refers to a block of gaps, so close_block_diagonal is the cost to
@@ -220,8 +296,8 @@ size_t cAlignAffine2D
     // TODO: consider moving all of this into algn.
     //       the following three fns were initially not declared in algn.h
     algn_initialize_matrices_affine ( costMtx2d_affine->gap_open_cost
-                          , shortChar
-                          , longChar
+                          , tmpLesserChar
+                          , tmpLongerChar
                           , costMtx2d_affine
                           , close_block_diagonal
                           , extend_block_diagonal
@@ -232,10 +308,10 @@ size_t cAlignAffine2D
                           , precalcMtx
                                     );
 
-    int algnCost = algn_fill_plane_2d_affine( shortChar
-                                  , longChar
-                                  , shortChar->len - 1  // -1 because of a loop condition in algn_fill_plane_2d_affine
-                                  , longChar->len  - 1  // -1 because of a loop condition in algn_fill_plane_2d_affine
+    int algnCost = algn_fill_plane_2d_affine( tmpLesserChar
+                                  , tmpLongerChar
+                                  , tmpLesserChar->len - 1  // -1 because of a loop condition in algn_fill_plane_2d_affine
+                                  , tmpLongerChar->len  - 1  // -1 because of a loop condition in algn_fill_plane_2d_affine
                                   , final_cost_matrix
                                   , direction_matrix
                                   , costMtx2d_affine
@@ -252,21 +328,21 @@ size_t cAlignAffine2D
         dyn_character_t *ungappedMedianChar = dyn_char_alloc(allocationLen);
         dyn_character_t *gappedMedianChar   = dyn_char_alloc(allocationLen);
 
-        algn_backtrace_affine( shortChar
-                   , longChar
+        algn_backtrace_affine( tmpLesserChar
+                   , tmpLongerChar
                    , direction_matrix
                    , ungappedMedianChar
                    , gappedMedianChar
-                   , retShortChar
-                   , retLongChar
+                   , retLesserChar
+                   , retLongerChar
                    , costMtx2d_affine
                              );
 
         dynCharToString( ungappedOutput_aio, ungappedMedianChar, 1 );
         dynCharToString( gappedOutput_aio,   gappedMedianChar, 1 );
 
-        dynCharToString( longer,  retLongChar, 1 );
-        dynCharToString( lesser, retShortChar, 1 );
+        dynCharToString( longer,  retLongerChar, 1 );
+        dynCharToString( lesser, retLesserChar, 1 );
 
         dyn_char_free(ungappedMedianChar);
         if (NULL != ungappedMedianChar) free(ungappedMedianChar);
@@ -276,14 +352,14 @@ size_t cAlignAffine2D
 
     freeNWMtx(algnMtxs2dAffine);
     // Can't free these structs internals because they're pointing into inputChar1_aio and inputChar2_aio
-    // dyn_char_free(longChar);
-    // dyn_char_free(shortChar);
-    if (NULL != longChar) free(longChar);
-    if (NULL != shortChar) free(shortChar);
-    dyn_char_free(retLongChar);
-    if (NULL != retLongChar) free(retLongChar);
-    dyn_char_free(retShortChar);
-    if (NULL != retShortChar) free(retShortChar);
+    // dyn_char_free(tmpLongerChar);
+    // dyn_char_free(tmpLesserChar);
+    if (NULL != tmpLongerChar) free(tmpLongerChar);
+    if (NULL != tmpLesserChar) free(tmpLesserChar);
+    dyn_char_free(retLongerChar);
+    if (NULL != retLongerChar) free(retLongerChar);
+    dyn_char_free(retLesserChar);
+    if (NULL != retLesserChar) free(retLesserChar);
 
     return algnCost;
 }
@@ -377,6 +453,7 @@ cAlign3D( char          *inputChar1_aio
 }
 */
 
+
 void stringToDynChar
   ( dyn_character_t *retChar
   ,       elem_t    *input
@@ -398,6 +475,7 @@ void stringToDynChar
     *retChar->char_begin = ((elem_t) 1) << (alphabetSize - 1);   //Prepend a gap to the array.
     retChar->len++;
 }
+
 
 /*
 void alignIOtoCharacters_t( characters_t *output

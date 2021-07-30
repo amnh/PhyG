@@ -363,10 +363,10 @@ void
 cm_print_matrix_3d (unsigned int *costMatrix, size_t costMatrixDimension)
 {
 
-    for (size_t i = 0; i < costMatrixDimension; i++) {
+    for (size_t i = 1; i < costMatrixDimension; i++) {
         //fprintf(stdout,"%zu: ", i);
-        for (size_t j = 0; j < costMatrixDimension; j++) {
-            for (size_t k = 0; k < costMatrixDimension; k++) {
+        for (size_t j = 1; j < costMatrixDimension; j++) {
+            for (size_t k = 1; k < costMatrixDimension; k++) {
                 printf ("%4d", costMatrix[cm_calc_cost_position_3d(i, j, k, costMatrixDimension)]);
             }
             printf ("\n");
