@@ -50,6 +50,7 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
 
+import qualified Utilities.Utilities          as U
 
 -- | main driver
 main :: IO ()
@@ -86,8 +87,8 @@ main = do
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
-    let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
@@ -104,14 +105,27 @@ main = do
 
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
-    let dataLeafNames = L.sort $ DT.getDataTerminalNames renamedData
+        -- get taxa to include in analysis
+    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++show terminalsToInclude)
+    else hPutStrLn stderr ("")   
+    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++show terminalsToExclude)
+    else hPutStrLn stderr ("")
+
+    -- Uses names form terminal list if non-null, and remove exckuded terminals
+    let dataLeafNames' = if (not $ null terminalsToInclude) then L.sort $ L.nub terminalsToInclude
+                        else L.sort $ DT.getDataTerminalNames renamedData
+    let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
     --hPutStrLn stderr (show $ fmap fst rawData)
 
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs
-    --hPutStrLn stderr (show $ fmap fst reconciledData)
+    
+    -- Check to see if there are taxa without any observations. Would become total wildcards
+    let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
+    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are input taxa without any data: " ++ (concatMap show $ fmap fst taxaDataSizeList) ++ "\n")
+    else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
     let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs

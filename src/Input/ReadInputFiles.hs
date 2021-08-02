@@ -41,7 +41,7 @@ Functions to peform the input file reading for PhyG
 module Input.ReadInputFiles
 (  executeReadCommands
  , getReadArgs
- , extractDataGraphPair
+ , extractInputTuple
  , expandReadCommands
 ) where
 
@@ -97,22 +97,24 @@ Added strictness on read so could close files after reading to
    closing them is not an issue
 -}
 
--- | extractDataGraphPair  takes the list of pairs from mapped executeReadCommands
+-- | extractInputTuple  takes the list of pairs from mapped executeReadCommands
 -- and returns ([RawData], [SimpleGraph])
-extractDataGraphPair :: [([RawData], [SimpleGraph])] -> ([RawData], [SimpleGraph])
-extractDataGraphPair dataGraphList =
-    let (inDataList, inGraphList) = unzip dataGraphList
+extractInputTuple :: [([RawData], [SimpleGraph], [NameText], [NameText])] -> ([RawData], [SimpleGraph], [NameText], [NameText])
+extractInputTuple dataGraphList =
+    let (inDataList, inGraphList, inTerminalsList, inExcludeList) = L.unzip4 dataGraphList
         rawData   = concat inDataList
-        rawGraphs = concat inGraphList
-    in  (rawData, rawGraphs)
+        rawGraphs = concat inGraphList 
+        rawTerminals = concat inTerminalsList
+        excludeTerminals = concat inExcludeList
+    in  (rawData, rawGraphs, rawTerminals, excludeTerminals)
 
 
--- | executeReadCommands reads iput files and returns raw data
+-- | executeReadCommands reads iput files and returns raw data, input graphs, and terminal taxa to include
 -- assumes that "prealigned" and "tcm:File" are the first arguments if they are specified
--- so that they can apply to all teh files in the command without order depence
-executeReadCommands :: [RawData] -> [SimpleGraph] -> Bool -> ([ST.ShortText], [[Int]], Double) -> [Argument] -> IO ([RawData], [SimpleGraph])
-executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
-    if null argList then return (curData, curGraphs)
+-- so that they can apply to all the files in the command without order depence
+executeReadCommands :: [RawData] -> [SimpleGraph] -> [NameText] -> [NameText] -> Bool -> ([ST.ShortText], [[Int]], Double) -> [Argument] -> IO ([RawData], [SimpleGraph], [NameText], [NameText])
+executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned tcmPair argList = do
+    if null argList then return (curData, curGraphs, curTerminals, curExcludeList)
     else do
         let isPrealigned' = if isPrealigned then True
                             else if ("prealigned" `elem`  (fmap fst argList)) then True
@@ -120,7 +122,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
         let (firstOption, firstFile) = head argList
         -- Check for prealigned
         if firstOption == "prealigned" then
-            executeReadCommands curData curGraphs isPrealigned' tcmPair (tail argList)
+            executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
         else do
             fileHandle <- openFile  firstFile ReadMode
             canBeReadFrom <- hIsReadable fileHandle
@@ -138,7 +140,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                 else hPutStr stderr ""
                 let hasCycles = GFU.cyclic inputDot
                 if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                else executeReadCommands curData (inputDot : curGraphs) isPrealigned' tcmPair (tail argList)
+                else executeReadCommands curData (inputDot : curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
             -- not "dot" files
             else do
                 -- destroys lazyness but allows closing right away
@@ -151,7 +153,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                     if firstOption == "tcm" then
                         let newTCMPair = processTCMContents fileContents firstFile
                         in
-                        executeReadCommands curData curGraphs isPrealigned' newTCMPair (tail argList)
+                        executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned' newTCMPair (tail argList)
                     else if null firstOption then
                         let firstChar = head $ dropWhile (== ' ') fileContents
                         in
@@ -168,7 +170,7 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                             else hPutStr stderr ""
                             let hasCycles = GFU.cyclic inputDot
                             if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                            else executeReadCommands curData (inputDot : curGraphs) isPrealigned' tcmPair (tail argList)
+                            else executeReadCommands curData (inputDot : curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                         else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
                             let thisGraphList = getFENewickGraph fileContents
                                 hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
@@ -176,17 +178,18 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                             in
                             if (not $ null hasLoops) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
                             else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                            else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
+                            else executeReadCommands curData (thisGraphList ++ curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
 
                         else if toLower firstChar == 'x' then
                             let tntData = TNT.getTNTData fileContents firstFile
                             in
                             trace ("\tTrying to parse " ++ firstFile ++ " as TNT")
-                            executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                            executeReadCommands (tntData : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                         else
                             let fileContents' =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents
                             in
-                              if (head $ dropWhile (== ' ') fileContents') == '>' then
+                              if null (dropWhile (== ' ') fileContents') then errorWithoutStackTrace ("Null file '" ++ firstFile ++ "' input")
+                              else if (head $ dropWhile (== ' ') fileContents') == '>' then
                                 let secondLine = head $ tail $ lines fileContents'
                                     numSpaces = length $ L.elemIndices ' ' secondLine
                                     -- numWords = length $ words secondLine
@@ -196,14 +199,14 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                                     let fastcData = FAC.getFastC firstOption fileContents firstFile
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in
-                                    trace ("\tTrying to parse " ++ firstFile ++ " as fastc")
-                                    executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                                    trace ("\tTrying to parse " ++ firstFile ++ " as fastc--this may cause an error if fasta with spaces. If so, specify fasta on input.")
+                                    executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                                 else
                                     let fastaData = FAC.getFastA  firstOption fileContents firstFile
                                         fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
-                                    executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                                    executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
 
                         else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
                     -- fasta
@@ -211,19 +214,19 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                         let fastaData = FAC.getFastA  firstOption fileContents firstFile
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                         in
-                        executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                        executeReadCommands ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if (firstOption `elem` ["fastc", "custom_alphabet"])  then
                         let fastcData = FAC.getFastC firstOption fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
-                        executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs isPrealigned' tcmPair (tail argList)
+                        executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                     -- tnt
                     else if firstOption == "tnt" then
                         let tntData = TNT.getTNTData fileContents firstFile
                         in
-                        executeReadCommands (tntData : curData) curGraphs isPrealigned' tcmPair (tail argList)
-                    else if firstOption == "prealigned" then executeReadCommands curData curGraphs isPrealigned' tcmPair (tail argList)
+                        executeReadCommands (tntData : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
+                    else if firstOption == "prealigned" then executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                     -- FENEwick
                     else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then
                         let thisGraphList = getFENewickGraph fileContents
@@ -232,14 +235,23 @@ executeReadCommands curData curGraphs isPrealigned tcmPair argList = do
                         in
                         if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
                         else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
-                        else executeReadCommands curData (thisGraphList ++ curGraphs) isPrealigned' tcmPair (tail argList)
+                        else executeReadCommands curData (thisGraphList ++ curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
+                    -- reding terminals list to include--must be "new" names if taxa are renamed
+                    else if (firstOption `elem` ["terminals", "include"])  then
+                        let terminalsList = fmap T.pack $ words fileContents
+                        in 
+                        executeReadCommands curData curGraphs (terminalsList ++ curTerminals) curExcludeList isPrealigned' tcmPair (tail argList)
+                    else if (firstOption `elem` ["exclude"])  then
+                        let excludeList = fmap T.pack $ words fileContents
+                        in 
+                        executeReadCommands curData curGraphs curTerminals (excludeList ++ curExcludeList) isPrealigned' tcmPair (tail argList)
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
 readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick"]
+    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check

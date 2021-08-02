@@ -49,6 +49,9 @@ import Data.Alphabet.Special
 import Data.Foldable
 import Data.Bits
 import qualified Data.Bimap as BM
+import Types.Types
+import qualified Data.Text.Short             as ST
+
 
 
 
@@ -132,3 +135,13 @@ bitVectToCharState localAlphabet bitValue
 
 
 -}
+
+-- | filledDataFields takes rawData and checks taxon to see what percent
+-- "characters" are found.
+-- call with (0,0)
+filledDataFields :: (Int, Int) -> TermData -> (NameText, Int, Int)
+filledDataFields (hasData, totalData) (taxName, taxData) =
+    if null taxData then (taxName, hasData, totalData)
+    else 
+        if (ST.length $ head taxData) == 0 then filledDataFields (hasData, 1 + totalData) (taxName, tail taxData)
+        else filledDataFields (1 + hasData, 1 + totalData) (taxName, tail taxData)

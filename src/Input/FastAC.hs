@@ -332,19 +332,26 @@ getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
+        let fileContentLines = fmap stripString $ lines fileContents'
+        in
+        if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+            ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
-        let fileContents =  unlines $ filter (not.null) $ filter ((/=';').head) $ lines fileContents'
-        in 
-        if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
-        else
-            let terminalSplits = T.split (=='>') $ T.pack fileContents
-                pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
-                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
-            in
-            -- tail because initial split will an empty text
-            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
-            else pairData
+        else 
+            let fileContents = unlines $ filter (not.null) $ filter ((/=';').head) fileContentLines
+            in 
+            if null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+                ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+            else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+            else
+                let terminalSplits = T.split (=='>') $ T.pack fileContents
+                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
+                    (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+                in
+                -- tail because initial split will an empty text
+                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                else pairData
 
 -- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
 recodeFASTCAmbiguities :: String -> [TermData] -> [TermData]

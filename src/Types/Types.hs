@@ -256,9 +256,6 @@ type SimpleGraph = LG.Gr NameText Double
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
 
--- | type RawGraph is input graphs with leaf and edge labels
--- need to establish this later
--- type LabelledGraph =  LG.Gr a b
 -- | RawData type processed from input to be passed to characterData
 -- to recode into usable form
 -- the format is tuple of a list of taxon-data list tuples and charinfo list.

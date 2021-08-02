@@ -211,7 +211,7 @@
 73) Add include/remove terminals
 	"select()" command
 
-74) read rename file
+74) read and fix rename file
 
 76) Fixed mixed character type counting errors
 	for tree and other pairs dist lengths

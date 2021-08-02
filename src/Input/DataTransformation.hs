@@ -93,8 +93,8 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
           --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName))
           (fst $ fromJust foundName, leafData)
 
--- | getDataTerminalNames takes all input data and getss full terminal list
--- and adds missing data for trerminals not in input files
+-- | getDataTerminalNames takes all input data and gets full terminal list
+-- and adds missing data for terminals not in input files
 getDataTerminalNames :: [RawData] -> [T.Text]
 getDataTerminalNames inDataList =
     if null inDataList then []
