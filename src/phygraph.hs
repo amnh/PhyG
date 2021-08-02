@@ -95,7 +95,7 @@ main = do
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameCommands [] thingsToDo
-    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals")
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals" ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawData
@@ -174,7 +174,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

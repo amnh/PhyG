@@ -60,6 +60,7 @@ import           System.IO
 import qualified System.Path.Glob           as SPG
 import           Types.Types
 import qualified Utilities.LocalGraph       as LG
+import qualified Utilities.Utilities        as U
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -238,11 +239,11 @@ executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned t
                         else executeReadCommands curData (thisGraphList ++ curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                     -- reding terminals list to include--must be "new" names if taxa are renamed
                     else if (firstOption `elem` ["terminals", "include"])  then
-                        let terminalsList = fmap T.pack $ words fileContents
+                        let terminalsList = fmap T.pack $ words $ unlines $ U.stripComments $ lines fileContents
                         in 
                         executeReadCommands curData curGraphs (terminalsList ++ curTerminals) curExcludeList isPrealigned' tcmPair (tail argList)
                     else if (firstOption `elem` ["exclude"])  then
-                        let excludeList = fmap T.pack $ words fileContents
+                        let excludeList = fmap T.pack $ words $ unlines $ U.stripComments $ lines fileContents
                         in 
                         executeReadCommands curData curGraphs curTerminals (excludeList ++ curExcludeList) isPrealigned' tcmPair (tail argList)
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")

@@ -208,14 +208,9 @@
 
 72) stylish and hlint source code
 
-73) Add include/remove terminals
-	"select()" command
-
-74) read and fix rename file
-
 76) Fixed mixed character type counting errors
 	for tree and other pairs dist lengths
 
 77) Fix multitraversal "best" graph cost
 
-
+78) Crossrefs needs to be based on porcessed data, not raw data

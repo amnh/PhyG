@@ -51,6 +51,7 @@ import Data.Bits
 import qualified Data.Bimap as BM
 import Types.Types
 import qualified Data.Text.Short             as ST
+import qualified GeneralUtilities as GU
 
 
 
@@ -145,3 +146,17 @@ filledDataFields (hasData, totalData) (taxName, taxData) =
     else 
         if (ST.length $ head taxData) == 0 then filledDataFields (hasData, 1 + totalData) (taxName, tail taxData)
         else filledDataFields (1 + hasData, 1 + totalData) (taxName, tail taxData)
+
+-- | stripComments removes all lines that being with "--" haskell stype comments
+-- needs to be reversed on return to maintain order.
+stripComments :: [String] -> [String]
+stripComments inStringList =
+    if null inStringList then []
+    else 
+        let strippedLine = GU.stripString $ head inStringList
+        in
+        if null strippedLine then stripComments $ tail inStringList 
+        else if length strippedLine < 2 then strippedLine : (stripComments $ tail inStringList) 
+        else 
+            if "--" == take 2 strippedLine then (stripComments $ tail inStringList)
+            else strippedLine : (stripComments $ tail inStringList)
