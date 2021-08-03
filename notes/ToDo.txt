@@ -220,7 +220,5 @@
 
 80) Error thrown by test1.pg
 
-81) Trace down prelude no head error for chel.fas
-
 
 
