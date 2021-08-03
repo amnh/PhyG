@@ -213,4 +213,14 @@
 
 77) Fix multitraversal "best" graph cost
 
-78) Crossrefs needs to be based on porcessed data, not raw data
+78) Crossrefs needs to be based on processed data, not raw data
+
+79)  Add '#'  POY-style blocking code
+	For sure fastc, fasta?
+
+80) Error thrown by test1.pg
+
+81) Trace down prelude no head error for chel.fas
+
+
+

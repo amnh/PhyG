@@ -200,7 +200,7 @@ executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned t
                                     let fastcData = FAC.getFastC firstOption fileContents firstFile
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in
-                                    trace ("\tTrying to parse " ++ firstFile ++ " as fastc--this may cause an error if fasta with spaces. If so, specify fasta on input.")
+                                    trace ("\tTrying to parse " ++ firstFile ++ " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                                 else
                                     let fastaData = FAC.getFastA  firstOption fileContents firstFile
