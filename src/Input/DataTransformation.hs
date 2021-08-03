@@ -62,6 +62,7 @@ import           Data.Word
 import           Debug.Trace
 import           Foreign.C.Types
 import           Text.Read
+import qualified Data.Char as C
 
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
@@ -87,7 +88,7 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
         let foundName = find ((== leafName) .snd) namePairList
         in
         if foundName == Nothing then
-          --trace ("Not renaming " ++ (T.unpack leafName) ++ " " ++ show namePairList)
+          --trace ("Not renaming " ++ (T.unpack leafName)) --  ++ " " ++ show namePairList)
           terminalData
         else
           --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName))

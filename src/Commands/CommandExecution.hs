@@ -55,6 +55,8 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
+import qualified Data.Char as C
+
 
 
 -- | executeCommands reads iput files and returns raw data
@@ -271,9 +273,10 @@ executeRenameCommands curPairs commandList  =
         -- skip "Read" and "Rename "commands already processed
         if firstOption /= Rename then executeRenameCommands curPairs (tail commandList)
         else
-            let newName = T.filter (/= '"') $ T.pack $ snd $ head firstArgs
+            let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
-                newPairs = zip newNameList (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
+                oldNameList = (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
+                newPairs = zip newNameList oldNameList
             in
             executeRenameCommands (curPairs ++ newPairs) (tail commandList)
 

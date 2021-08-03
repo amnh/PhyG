@@ -51,6 +51,7 @@ import qualified Data.Graph.Inductive.Basic as B
 import qualified Data.List                  as L
 import qualified Data.Text.Lazy             as T
 import qualified Data.Text.Short            as ST
+import qualified Data.Char as C
 import           Debug.Trace
 import qualified GeneralUtilities           as GU
 import qualified GraphFormatUtilities       as GFU
@@ -239,11 +240,11 @@ executeReadCommands curData curGraphs curTerminals curExcludeList isPrealigned t
                         else executeReadCommands curData (thisGraphList ++ curGraphs) curTerminals curExcludeList isPrealigned' tcmPair (tail argList)
                     -- reding terminals list to include--must be "new" names if taxa are renamed
                     else if (firstOption `elem` ["terminals", "include"])  then
-                        let terminalsList = fmap T.pack $ words $ unlines $ U.stripComments $ lines fileContents
-                        in 
+                        let terminalsList = fmap T.pack $ fmap (filter (/= '"')) $ fmap (filter C.isPrint) $ words $ unlines $ U.stripComments $ lines fileContents
+                        in
                         executeReadCommands curData curGraphs (terminalsList ++ curTerminals) curExcludeList isPrealigned' tcmPair (tail argList)
                     else if (firstOption `elem` ["exclude"])  then
-                        let excludeList = fmap T.pack $ words $ unlines $ U.stripComments $ lines fileContents
+                        let excludeList = fmap T.pack $ fmap (filter (/= '"')) $ fmap (filter C.isPrint) $ words $ unlines $ U.stripComments $ lines fileContents
                         in 
                         executeReadCommands curData curGraphs curTerminals (excludeList ++ curExcludeList) isPrealigned' tcmPair (tail argList)
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")

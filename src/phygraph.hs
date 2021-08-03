@@ -49,6 +49,7 @@ import           System.Environment
 import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
+import qualified Data.Text.Lazy              as Text
 
 import qualified Utilities.Utilities          as U
 
@@ -95,7 +96,7 @@ main = do
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameCommands [] thingsToDo
-    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals" ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawData
@@ -124,7 +125,8 @@ main = do
     
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
-    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are input taxa without any data: " ++ (concatMap show $ fmap fst taxaDataSizeList) ++ "\n")
+    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are input taxa without any data: " 
+            ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
     else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent

@@ -64,6 +64,7 @@ import           GeneralUtilities
 import qualified Input.DataTransformation  as DT
 import qualified SymMatrix                 as S
 import           Types.Types
+import qualified Data.Char as C
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -312,7 +313,7 @@ getRawDataPairsFastA modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstData
@@ -399,7 +400,7 @@ getRawDataPairsFastC modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = filter (/= (T.pack "-")) firstData
         in

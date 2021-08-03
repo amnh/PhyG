@@ -208,7 +208,7 @@
 
 72) stylish and hlint source code
 
-76) Fixed mixed character type counting errors
+76) Fix mixed character type counting errors
 	for tree and other pairs dist lengths
 
 77) Fix multitraversal "best" graph cost
@@ -219,6 +219,9 @@
 	For sure fastc, fasta?
 
 80) Error thrown by test1.pg
+	on 15" laptop
 
+
+81) Filter data for isPrint ?
 
 

@@ -61,6 +61,7 @@ module Input.TNTUtilities  (getTNTData
 import           Types.Types
 import           Debug.Trace
 import           Data.Char
+import qualified Data.Char as C
 import qualified Data.List as L
 import           Data.Maybe
 import qualified Data.Text.Lazy  as T
@@ -123,7 +124,7 @@ getTNTData inString fileName =
                 else
                     -- check non-Additive alphabet to be numbers
                     -- integerize and reweight additive chars (including in ambiguities)
-                    let curNames = fmap fst sortedData
+                    let curNames = fmap (T.filter (/= '"')) $ fmap (T.filter C.isPrint) $ fmap fst sortedData
                         curData = fmap snd sortedData
                         (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
                     in
