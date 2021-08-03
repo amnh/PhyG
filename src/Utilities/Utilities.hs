@@ -52,8 +52,22 @@ import qualified Data.Bimap as BM
 import Types.Types
 import qualified Data.Text.Short             as ST
 import qualified GeneralUtilities as GU
+-- import Debug.Trace
 
 
+-- | splitOnShortTextList takes a ShortText divider and splits a list of ShortText on 
+-- that ShortText divider consuming it akin to Text.splitOn
+splitOnShortTextList :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
+splitOnShortTextList partitionST stList =
+    if null stList then []
+    else 
+        let firstPart = takeWhile (/= partitionST) stList
+            restList = dropWhile (/= partitionST) stList
+        in
+        if restList == [partitionST] then restList : [[(ST.fromString "ENDENDENDEND")]]
+        else if (not $ null restList) then firstPart : splitOnShortTextList partitionST (tail restList)
+        else firstPart : []
+        
 
 
 -- | dynamicCharacterTo3Vector takes a DYnamicCharacter and returns three Vectors

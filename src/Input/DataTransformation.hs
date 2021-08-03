@@ -42,6 +42,7 @@ module Input.DataTransformation
   , checkDuplicatedTerminals
   , createNaiveData
   , createBVNames
+  , partitionSequences
   ) where
 
 import           Data.Foldable
@@ -62,7 +63,79 @@ import           Data.Word
 import           Debug.Trace
 import           Foreign.C.Types
 import           Text.Read
-import qualified Data.Char as C
+import qualified Utilities.Utilities as U
+import Debug.Trace
+
+
+-- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
+-- and divides the seqeunces into corresponding partitions.  Replicate character info appending
+-- a number to character name
+-- assumes that input rawdata are a single character (as in form a single file) for sequence data
+partitionSequences :: ST.ShortText -> [RawData] -> [RawData] 
+partitionSequences partChar inDataList =
+    if null inDataList then []
+    else 
+        let firstRawData@(taxDataList, charInfoList) = head inDataList
+        in
+        -- for raw seqeunce data this will always be a single character
+        if length charInfoList > 1 then firstRawData : (partitionSequences partChar (tail inDataList))
+
+        -- no recoding of non-sequence data
+        else if (charType $ head charInfoList) `notElem` [SlimSeq, WideSeq, NucSeq, AminoSeq] then firstRawData : (partitionSequences partChar (tail inDataList))
+
+        -- is sequence data type
+        else 
+            let (leafNameList, leafDataList) = unzip taxDataList
+                partitionCharList = fmap (U.splitOnShortTextList partChar) leafDataList
+                partitionCharListByPartiion = makePartitionList partitionCharList
+                firstPartNumber = length $ head partitionCharList
+                allSame = filter (== firstPartNumber) $ fmap length $ tail partitionCharList
+                pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
+            in
+
+            -- check partition numbers consistent + 1 because of tail
+            if (((length allSame) + 1) /= length partitionCharList) then errorWithoutStackTrace ("Number of sequence partions not consistent in " ++ (T.unpack $ name $ head charInfoList) ++ " " ++ show pairPartitions)
+            
+            -- if single partition then nothing to do
+            else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
+
+            -- split data
+            else 
+                trace ("Partitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " pieces") (
+                let newCharInfoListList = makeNewCharInfoListList firstPartNumber (head charInfoList)
+                    newDataPairs = fmap (zip leafNameList) partitionCharListByPartiion
+                    newRawData = zip newDataPairs newCharInfoListList
+                in
+                trace (" NRD " ++ show newRawData)
+                newRawData ++ (partitionSequences partChar (tail inDataList))
+                )
+
+-- | makePartitionList take list by taxon and retuns list by partition
+makePartitionList :: [[[ST.ShortText]]] -> [[[ST.ShortText]]]
+makePartitionList inListList =
+    if null inListList then []
+    else 
+        let firstParList = fmap head inListList
+        in
+        firstParList : makePartitionList (fmap tail inListList)
+
+-- | makeNewCharInfoListList take an existing charInfo and replaictes it replacing teh "name" of each one
+-- by appending an index.  THis to be used to split sequence charcaters in partitionSequences
+makeNewCharInfoListList :: Int -> CharInfo -> [[CharInfo]]
+makeNewCharInfoListList numPartitions oldCharInfo =
+    let newNameIndexList = fmap show [0..(numPartitions - 1)]
+        newCharInfoList = fmap (makeNewCharInfoName oldCharInfo) newNameIndexList
+    in
+    fmap (: []) newCharInfoList
+ 
+-- | makeNewCharInfoName takes oldCharInfo and changes name to input Text 
+makeNewCharInfoName :: CharInfo -> String -> CharInfo
+makeNewCharInfoName oldCharInfo newName = 
+    let oldName = T.unpack $ name  oldCharInfo
+        newCharInfo = oldCharInfo {name = T.pack (oldName ++ newName)}
+    in
+    trace ((oldName ++ newName) ++ " " ++ show  newCharInfo)
+    newCharInfo
 
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)

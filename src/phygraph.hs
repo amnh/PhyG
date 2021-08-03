@@ -50,7 +50,7 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Data.Text.Lazy              as Text
-
+import qualified Data.Text.Short             as ST
 import qualified Utilities.Utilities          as U
 
 -- | main driver
@@ -94,12 +94,15 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
+    -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
+    let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
+
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameCommands [] thingsToDo
     if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
-    let renamedData   = fmap (DT.renameData newNamePairList) rawData
+    let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
@@ -117,7 +120,6 @@ main = do
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
-    --hPutStrLn stderr (show $ fmap fst rawData)
 
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
@@ -186,9 +188,3 @@ main = do
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at minimum cost " ++ (show minCost) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
 
-
-{-
-    hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))
-    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ fmap snd rawData))
-
--}

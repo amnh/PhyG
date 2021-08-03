@@ -197,8 +197,6 @@
 
 67) Book keeping aafter post order for best sorted phylogenetic graph
 
-68) Alex nice tree rendering code
-
 69) Every tree node is an inflexion point in graph
 	for SPR/TBR/TF
 
@@ -213,8 +211,6 @@
 
 77) Fix multitraversal "best" graph cost
 
-78) Crossrefs needs to be based on processed data, not raw data
-
 79)  Add '#'  POY-style blocking code
 	For sure fastc, fasta?
 
@@ -224,4 +220,8 @@
 
 81) Filter data for isPrint ?
 
+
+82) Prune taxa from graphs (in fgl) based on taxa included
+
+83) Parallelize data processing
 
