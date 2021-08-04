@@ -65,6 +65,7 @@ import           Foreign.C.Types
 import           Text.Read
 import qualified Utilities.Utilities as U
 import Debug.Trace
+import GeneralUtilities
 
 
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
@@ -86,8 +87,8 @@ partitionSequences partChar inDataList =
         -- is sequence data type
         else 
             let (leafNameList, leafDataList) = unzip taxDataList
-                partitionCharList = fmap (U.splitOnShortTextList partChar) leafDataList
-                partitionCharListByPartiion = makePartitionList partitionCharList
+                partitionCharList = fmap (U.splitSequence partChar) leafDataList
+                partitionCharListByPartition = makePartitionList partitionCharList
                 firstPartNumber = length $ head partitionCharList
                 allSame = filter (== firstPartNumber) $ fmap length $ tail partitionCharList
                 pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
@@ -101,19 +102,36 @@ partitionSequences partChar inDataList =
 
             -- split data
             else 
-                trace ("Partitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " pieces") (
-                let newCharInfoListList = makeNewCharInfoListList firstPartNumber (head charInfoList)
-                    newDataPairs = fmap (zip leafNameList) partitionCharListByPartiion
-                    newRawData = zip newDataPairs newCharInfoListList
+                trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " pieces\n") (
+                
+                let leafNameListList = replicate firstPartNumber leafNameList
+                    --leafDataListList = replicate firstPartNumber leafDataList
+                    leafDataListList = fmap (fmap (filter (/= (ST.fromString "#")))) partitionCharListByPartition
+                    charInfoListList = replicate firstPartNumber charInfoList
+                    newTermDataList = joinLists leafNameListList leafDataListList
+                    newRawDataList = zip newTermDataList charInfoListList
                 in
-                trace (" NRD " ++ show newRawData)
-                newRawData ++ (partitionSequences partChar (tail inDataList))
+                --trace (" NCI " ++ (show $ newTermDataList))
+                newRawDataList ++ (partitionSequences partChar (tail inDataList))
+                
+                --firstRawData : (partitionSequences partChar (tail inDataList))
                 )
+
+-- | joinLists takes two lists of lists (of same length) and zips the 
+-- heads of each, then continues till all joined
+joinLists :: [[a]] -> [[b]] -> [[(a,b)]]
+joinLists listA listB = 
+    if length listA /= length listB then error ("Input lists not equal " ++ show (length listA, length listB))
+    else if null listA then []
+    else 
+        let firstList = zip (head listA) (head listB)
+        in
+        firstList : joinLists (tail listA) (tail listB)
 
 -- | makePartitionList take list by taxon and retuns list by partition
 makePartitionList :: [[[ST.ShortText]]] -> [[[ST.ShortText]]]
 makePartitionList inListList =
-    if null inListList then []
+    if null $ head inListList then []
     else 
         let firstParList = fmap head inListList
         in
@@ -264,13 +282,28 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
-            let thisBlockName     = T.takeWhile (/= ':') $ name $ head firstCharInfo
+            let thisBlockName     = name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
                 recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
-                thisBlockData     = (thisBlockName, recodedCharacters, thisBlockCharInfo)
+                previousBlockName = if (not $ null curBlockData) then fst3 $ head curBlockData
+                                    else T.empty
+                thisBlockName' = if ((T.takeWhile (/= ':')) previousBlockName) /= ((T.takeWhile (/= ':')) thisBlockName) then thisBlockName
+                                 else 
+                                    let oldSuffix = (T.dropWhile (/= ':')) previousBlockName
+                                        indexSuffix = if T.null oldSuffix then T.pack ":0"
+                                                      else 
+                                                        let oldIndex = readMaybe (T.unpack $ T.tail oldSuffix) :: Maybe Int
+                                                            newIndex = 1 + (fromJust oldIndex)
+                                                        in
+                                                        if oldIndex == Nothing then error "Bad suffix in createNaiveData"
+                                                        else T.pack (":" ++ show newIndex)
+                                    in
+                                    T.append ((T.takeWhile (/= ':')) thisBlockName)  indexSuffix
+                thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
+                
             in
-            trace ("Recoding block: " ++ T.unpack thisBlockName)
+            trace ("Recoding block: " ++ T.unpack thisBlockName')
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
 
 

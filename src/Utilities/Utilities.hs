@@ -55,18 +55,18 @@ import qualified GeneralUtilities as GU
 -- import Debug.Trace
 
 
--- | splitOnShortTextList takes a ShortText divider and splits a list of ShortText on 
+-- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
-splitOnShortTextList :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
-splitOnShortTextList partitionST stList =
+splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
+splitSequence partitionST stList =
     if null stList then []
     else 
         let firstPart = takeWhile (/= partitionST) stList
             restList = dropWhile (/= partitionST) stList
         in
-        if restList == [partitionST] then restList : [[(ST.fromString "ENDENDENDEND")]]
-        else if (not $ null restList) then firstPart : splitOnShortTextList partitionST (tail restList)
-        else firstPart : []
+        if restList == [partitionST] then firstPart : [[(ST.fromString "#")]]
+        else if (not $ null restList) then firstPart : splitSequence partitionST (tail restList)
+        else [firstPart]
         
 
 

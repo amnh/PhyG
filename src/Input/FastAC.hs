@@ -72,7 +72,7 @@ import qualified Data.Char as C
 -- its only used for single character alphabets in fasta formats.
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
-    let notAlphElement = fmap ST.fromString ["?", "[", "]"]
+    let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]
     in  if   null inList
         then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
         else let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
