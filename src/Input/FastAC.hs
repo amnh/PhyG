@@ -70,6 +70,7 @@ import qualified Data.Char as C
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 -- although with multicharacter alphabets that contain '[' or ']' this would be a problem,
 -- its only used for single character alphabets in fasta formats.
+-- '#' for partitions in fasta sequences
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]

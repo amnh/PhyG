@@ -88,8 +88,8 @@ main = do
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
-    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude) = RIF.extractInputTuple dataGraphList
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
@@ -98,7 +98,7 @@ main = do
     let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
 
     -- Process Rename Commands
-    newNamePairList <- CE.executeRenameCommands [] thingsToDo
+    newNamePairList <- CE.executeRenameCommands renameFilePairs thingsToDo
     if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
@@ -127,7 +127,7 @@ main = do
     
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
-    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are input taxa without any data: " 
+    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are taxa without any data: " 
             ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
     else hPutStrLn stderr "All taxa contain data"
 

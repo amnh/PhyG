@@ -95,14 +95,14 @@ partitionSequences partChar inDataList =
             in
 
             -- check partition numbers consistent + 1 because of tail
-            if (((length allSame) + 1) /= length partitionCharList) then errorWithoutStackTrace ("Number of sequence partions not consistent in " ++ (T.unpack $ name $ head charInfoList) ++ " " ++ show pairPartitions)
+            if (((length allSame) + 1) /= length partitionCharList) then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ (T.unpack $ name $ head charInfoList) ++ " " ++ show pairPartitions)
             
             -- if single partition then nothing to do
             else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
 
             -- split data
             else 
-                trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " pieces\n") (
+                trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " segments\n") (
                 
                 let leafNameListList = replicate firstPartNumber leafNameList
                     --leafDataListList = replicate firstPartNumber leafDataList

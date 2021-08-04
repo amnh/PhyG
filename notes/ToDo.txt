@@ -211,9 +211,6 @@
 
 77) Fix multitraversal "best" graph cost
 
-79)  Add '#'  POY-style blocking code
-	For sure fastc, fasta?
-
 80) Error thrown by test1.pg
 	on 15" laptop
 
@@ -224,4 +221,7 @@
 82) Prune taxa from graphs (in fgl) based on taxa included
 
 83) Parallelize data processing
+
+85) Name glob other input file names
+
 
