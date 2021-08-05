@@ -212,7 +212,16 @@
 77) Fix multitraversal "best" graph cost
 
 80) Error thrown by test1.pg
-	on 15" laptop
+	-- Test command file
+read (fasta:"IE.MT.fasta", prealigned)
+read("louse.fastc", tcm:"louse-11.tcm")
+read(newick:"test-1.tre")
+read("test.dot")
+run ("rename.txt", "readsome.txt")
+rename ("Aromanian-renamed", "Aromanian", "Baromanian")
+report("test.txt",data)
+report(data) report("test2.txt", data)
+report(data, "test.txt", append)%    
 
 
 81) Filter data for isPrint ?
