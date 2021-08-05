@@ -120,7 +120,7 @@ partitionSequences partChar inDataList =
                     charInfoListList = replicate firstPartNumber charInfoList
                     newRawDataList = zip newTermDataList' charInfoListList
                 in
-                trace (" NCI " ++ (show $ newTermDataList'))
+                --trace (" NCI " ++ (show $ newTermDataList'))
                 newRawDataList ++ (partitionSequences partChar (tail inDataList))
                 
                 --firstRawData : (partitionSequences partChar (tail inDataList))
@@ -135,7 +135,7 @@ removeTaxaWithNoData inTermData =
     else 
         let newData = filter ((not . null).snd) inTermData
         in
-        trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
+        --trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
         newData
 
 -- | joinLists takes two lists of lists (of same length) and zips the 
