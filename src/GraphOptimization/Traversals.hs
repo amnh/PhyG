@@ -104,7 +104,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
-        --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
+        trace ("Min graph cost :" ++ show minCostRecursive ++ " from " ++ (show $ fmap snd6 recursiveRerootList))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
         graphWithBestAssignments
@@ -127,8 +127,8 @@ setBestGraphAssignments inGraphList curSimpleGraph curDecGraph curCharInfo  =
             -- extract best everyhting from (graphAllCharcaterData : graphNonExactCharacterData)
             newGraph = createPhyloGeneticGraphFromBlockLists curSimpleGraph curDecGraph curCharInfo $ getBestFullBlockList (graphAllCharcaterData : graphNonExactCharacterData) []
         in
-        -- newGraph
-        head inGraphList   
+        newGraph
+        --head inGraphList   
 
 -- | getCharacterData takes a PhylogeneticGraph and extracts the summed root(s) cost for each character  
 -- if string argument specifies classes of characters "all" or "nonExact" (ie not Additive, Nonadditive, Matrix)

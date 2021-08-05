@@ -104,18 +104,39 @@ partitionSequences partChar inDataList =
             else 
                 trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " segments\n") (
                 
+                -- make new structures to create RawData list
                 let leafNameListList = replicate firstPartNumber leafNameList
-                    --leafDataListList = replicate firstPartNumber leafDataList
+
+                    -- these filtered from terminal partitions 
                     leafDataListList = fmap (fmap (filter (/= (ST.fromString "#")))) partitionCharListByPartition
-                    charInfoListList = replicate firstPartNumber charInfoList
+
+                    -- create TermData
                     newTermDataList = joinLists leafNameListList leafDataListList
-                    newRawDataList = zip newTermDataList charInfoListList
+
+                    -- filter out taxa with empty data-- so can be reconciled proerly later
+                    newTermDataList' = fmap removeTaxaWithNoData newTermDataList
+
+                    -- create final [RawData]
+                    charInfoListList = replicate firstPartNumber charInfoList
+                    newRawDataList = zip newTermDataList' charInfoListList
                 in
-                --trace (" NCI " ++ (show $ newTermDataList))
+                trace (" NCI " ++ (show $ newTermDataList'))
                 newRawDataList ++ (partitionSequences partChar (tail inDataList))
                 
                 --firstRawData : (partitionSequences partChar (tail inDataList))
                 )
+
+-- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
+-- these can be created from paritioning sequences where there are no data in a 
+-- partitition.  This allows for data reconciliation/renaming later.
+removeTaxaWithNoData :: [TermData] -> [TermData]
+removeTaxaWithNoData inTermData =
+    if null inTermData then []
+    else 
+        let newData = filter ((not . null).snd) inTermData
+        in
+        trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
+        newData
 
 -- | joinLists takes two lists of lists (of same length) and zips the 
 -- heads of each, then continues till all joined
