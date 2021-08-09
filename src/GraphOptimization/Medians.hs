@@ -50,13 +50,15 @@ import qualified Data.BitVector.LittleEndian                                 as 
 import           Data.Foldable
 import qualified Data.Vector                                                 as V
 import           Types.Types
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-import           Data.Bits                                                   ((.&.), (.|.))
+import           Data.Bits                                                   (bit, (.&.), (.|.))
 import qualified Data.MetricRepresentation                                   as MR
 import qualified Data.TCM.Dense                                              as TCMD
 import           Data.Word
@@ -177,7 +179,12 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, HugeSeq] then
+    else if thisType `elem` [AminoSeq, WideSeq] then
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType == HugeSeq then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
@@ -397,8 +404,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 thisSlimTCM
                 (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
                 (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { slimPrelim = medians
+              { slimPrelim = SV.filter (/= nakedGap) medians
               , slimGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -413,8 +421,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
+            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { widePrelim    = medians
+              { widePrelim    = UV.filter (/= nakedGap) medians
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -428,8 +437,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
+            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { hugePrelim = medians
+              { hugePrelim = V.filter (/= nakedGap) medians
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost

@@ -85,11 +85,14 @@ thesholdUKLength = 15
 getDOMedian :: V.Vector  (V.Vector  Int)
             -> TCMD.DenseTransitionCostMatrix
             -> MR.MetricRepresentation BV.BitVector
-            -> CharType -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) -> (V.Vector  BV.BitVector, Int)
+            -> CharType 
+            -> (V.Vector  BV.BitVector, V.Vector  BV.BitVector) 
+            -> (V.Vector  BV.BitVector, Int)
 getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
     -- missing data inputs
-    if V.null origLBV then (origRBV, 0)
-    else if V.null origRBV then (origLBV, 0)
+    if V.null origLBV && V.null origRBV then  trace ("MBoth")(V.null, 0)
+    else if V.null origLBV then trace ("ML") (origRBV, 0)
+    else if V.null origRBV then trace ("MR")(origLBV, 0)
     else
         -- not missing
         -- get inDelCost
@@ -109,8 +112,8 @@ getDOMedian thisMatrix tcmDense tcmMemo thisType (origLBV, origRBV) =
             -- after bitvector change but Naive OK
             --(newMedianSmall, medianCostSmall) = DKS.ukkonenDO lBV rBV inDelCost
             --(newMedianLarge, medianCostLarge) = NS.naiveDO lBV rBV inDelCost
-            (newMedianSmall, medianCostSmall) = SLIM.wrapperSlimDO lBV rBV thisMatrix
-            (newMedianMedium, medianCostMedium) = WIDE.wrapperWideDO lBV rBV tcmMemo
+            (newMedianSmall, medianCostSmall) = SLIM.wrapperSlimDO lBV rBV tcmDense
+            (newMedianMedium, medianCostMedium) = WIDE.wrapperWideDO lBV rBV tcmMemo -- tcmMemo
             (newMedianLarge, medianCostLarge) = HUGE.wrapperHugeDO lBV rBV tcmMemo
 
             --(mediansFFI, costFFI) = DOSmallFFI.wrapperPCG_DO_Small_FFI lBV rBV thisMatrix tcmDense

@@ -12,6 +12,23 @@ import           Foreign.C.Types                                             (CU
 import qualified SymMatrix                                                   as SM
 
 
+wrapperSlimDO :: Vector BitVector -> Vector BitVector -> DenseTransitionCostMatrix -> (Vector BitVector, Int)
+
+-- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
+wrapperSlimDO lhs rhs tcmDense = (resultMedians, fromEnum resultCost)
+  where
+    (resultCost, resultMedians) = slimDC2BVs 5 <$> slimPairwiseDO tcmDense lhsDC rhsDC
+
+    lhsDC = bvs2SlimDC lhs
+    rhsDC = bvs2SlimDC rhs
+    {-}
+    tcmDense = generateDenseTransitionCostMatrix 0 5 getCost
+    getCost i j =
+         let x = SM.getFullVects tcm
+         in  toEnum $ (x ! fromEnum i) ! fromEnum j
+         -}
+
+{-
 wrapperSlimDO :: Vector BitVector -> Vector BitVector -> Vector (Vector Int) -> (Vector BitVector, Int)
 -- wrapperPCG_DO_FFI lhs rhs tcm | trace (show tcm) False= undefined
 wrapperSlimDO lhs rhs tcm = (resultMedians, fromEnum resultCost)
@@ -25,7 +42,7 @@ wrapperSlimDO lhs rhs tcm = (resultMedians, fromEnum resultCost)
          let x = SM.getFullVects tcm
          in  toEnum $ (x ! fromEnum i) ! fromEnum j
 
-
+-}
 --specializedAlphabetToDNA :: Alphabet String
 --specializedAlphabetToDNA = fromSymbols $ show <$> (0 :: Word) :| [1 .. 4]
 

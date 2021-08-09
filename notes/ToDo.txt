@@ -233,4 +233,8 @@ report(data, "test.txt", append)%
 
 85) Name glob other input file names
 
+86) Fix alphabet ouptu in ndiagnose to be single column
+
+88) propagate correct charcater types to slim and wide to avoid conversion
+
 
