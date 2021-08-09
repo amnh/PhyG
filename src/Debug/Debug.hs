@@ -39,3 +39,11 @@ Portability :  portable (I hope)
 module Debug.Debug where
 
 import           Types.Types
+import Data.List
+
+debugZip :: [a] -> [b] -> [(a,b)]
+debugZip la lb = 
+  if length la /= length lb then error ("Zip arguments not equal in length: " ++ show (length la, length lb))
+  else if null la then error ("First list null in debugZip")
+  else if null lb then error ("Second list null in debugZip")  
+  else zip la lb  
