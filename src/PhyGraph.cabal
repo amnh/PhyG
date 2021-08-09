@@ -241,6 +241,7 @@ executable phyg
                   DirectOptimization.DOSlim
                   DirectOptimization.DOWide
                   DirectOptimization.DOHuge
+                  Debug.Debug
 
             
 library alphabet
