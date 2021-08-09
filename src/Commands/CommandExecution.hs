@@ -292,7 +292,7 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
             edgeList = LG.labEdges decGraph
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
             vertexInfoList =  concat $ fmap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
-            edgeHeaderList = [[""],["", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length"]]
+            edgeHeaderList = [[" "],[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
         in
         [topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeHeaderList ++ edgeInfoList
@@ -306,7 +306,7 @@ getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
                      else if nodeType  (snd inVert) == LeafNode then show leafParents
                      else show $  parents  (snd inVert)
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
-        basicInfoList = ["", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, "", "", "", "", "", show $ vertexCost (snd inVert)]
+        basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ", " ", " ", " ", " ", show $ vertexCost (snd inVert)]
         blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
         blockInfoList = concat $ V.toList $ V.map getBlockList blockCharVect
     in
@@ -315,7 +315,7 @@ getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
 getBlockList :: (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
 getBlockList (blockName, blockDataVect, charInfoVect) =
-    let firstLine = ["", "", "", "", "", "", T.unpack blockName]
+    let firstLine = [" ", " ", " ", " ", " ", " ", T.unpack blockName]
         charlines = V.toList $ V.map makeCharLine (V.zip blockDataVect charInfoVect)
     in
     firstLine : charlines
@@ -345,13 +345,13 @@ makeCharLine (blockDatum, charInfo) =
                                              _                                -> error ("Un-implemented data type " ++ show localType)
                                       else error ("Un-implemented data type " ++ show localType)
         in
-        ["", "", "", "", "", "", "", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
+        [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
 getEdgeInfo inEdge =
-    ["", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge)]
+    [" ", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge)]
 
 
 -- | executeSet processes the "set" command

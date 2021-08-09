@@ -237,4 +237,7 @@ report(data, "test.txt", append)%
 
 88) propagate correct charcater types to slim and wide to avoid conversion
 
+81) Check all command execution for correctness before execution.
+	except perhaps filenames?
+
 

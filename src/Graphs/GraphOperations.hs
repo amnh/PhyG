@@ -431,8 +431,12 @@ createVertexDataOverBlocksNonExact leftBlockData rightBlockData  blockCharInfoVe
         -- trace ("Blocks: " ++ (show $ length curBlockData))
         V.fromList $ reverse curBlockData
     else
-        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
+        let leftBlockLength = length $ V.head leftBlockData
+            rightBlockLength =  length $ V.head rightBlockData
+            firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
+                               else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
+                               else M.median2NonExact firstBlock
         in
         createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
@@ -446,8 +450,14 @@ createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlo
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
     else
-        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2 firstBlock
+        let leftBlockLength = length $ V.head leftBlockData
+            rightBlockLength =  length $ V.head rightBlockData
+            firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+
+            -- missing data cases first or zip defaults to zero length
+            firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
+                               else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
+                               else M.median2 firstBlock
         in
         createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 

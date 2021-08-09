@@ -299,13 +299,13 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
+        if null firstCharInfo then trace ("Empty CharInfo") createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
             let thisBlockName     = name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
-                recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
+                recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
                 previousBlockName = if (not $ null curBlockData) then fst3 $ head curBlockData
                                     else T.empty
@@ -332,15 +332,16 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
 -- and recodes the apporpriate fields in CharacterData (from Types)
 -- the list accumulator is to avoid Vectotr cons/snoc O(n)
 -- differentiates between seqeunce type and others with char info
-recodeRawData :: [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
-recodeRawData inData inCharInfo curCharData =
-    if null inData then V.fromList $ reverse $ fmap V.fromList curCharData
+recodeRawData :: [NameText] -> [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
+recodeRawData inTaxNames inData inCharInfo curCharData =
+    if null inTaxNames then V.fromList $ reverse $ fmap V.fromList curCharData
     else
         let firstData = head inData
             firstDataRecoded = createLeafCharacter inCharInfo firstData
         in
+        --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
-        recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)
+        recodeRawData (tail inTaxNames) (tail inData) inCharInfo (firstDataRecoded : curCharData)
 
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
