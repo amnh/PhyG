@@ -100,7 +100,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             --  travesal for exact charcaters (and costs) are the first of each least since exact onluy optimizaed for that 
             --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
-            graphWithBestAssignments = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
+            graphWithBestAssignments  = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
+            --graphWithBestAssignments' = setBetterGraphAssignments (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)

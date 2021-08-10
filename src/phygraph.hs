@@ -80,13 +80,13 @@ main = do
 
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
     let thingsToDo' = PC.getCommandList  commandContents'
-    mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
+    --mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
 
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
-    hPutStrLn stderr (show $ concat expandedReadCommands)
+    --hPutStrLn stderr (show $ concat expandedReadCommands)
 
     dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs) = RIF.extractInputTuple dataGraphList

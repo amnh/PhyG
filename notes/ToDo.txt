@@ -220,7 +220,7 @@
 
 85) Name glob other input file names
 
-86) Fix alphabet ouptu in ndiagnose to be single column
+86) Fix alphabet outout in diagnose to be single column
 
 88) propagate correct charcater types to slim and wide to avoid conversion
 
@@ -228,6 +228,14 @@
 	except perhaps filenames
 	
 82) Need to add prealigned charcater/DO like
+	recode to matrix?  Approx matrix?
+
+
+83) Ensure 1:1 and 1:n are dfauilting to bit operations in DOs
+
+84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
+	had to replace Alex code in report do to empty list issues
+	
 
 
 

@@ -289,13 +289,11 @@ movePrealignedTCM :: [Argument] -> [Argument]
 movePrealignedTCM inArgList =
     if null inArgList then []
     else
-        --trace ("Inb: " ++ show inArgList) (
         let firstPart = filter ((== "prealigned").fst) inArgList
             secondPart = filter ((== "tcm").fst) inArgList
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
         if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file")
-        else --trace ("AL:" ++ (show $ firstPart ++ secondPart ++ restPart)) 
-        (firstPart ++ secondPart ++ restPart) 
-        --)
+        else (firstPart ++ secondPart ++ restPart) 
+        
         

@@ -93,7 +93,7 @@ ladderizeGraph' inGraph nodeList =
           let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
           in
           ladderizeGraph' newGraph (LG.nodes newGraph)
-        --)
+        
 
 -- | resolveNode takes a graph and node and inbound edgelist and outbound edge list
 -- and converts node to one of (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)
@@ -299,7 +299,7 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 --   graphs only) is also rerooted, and
 --   Character foci set to the new root edge
 --   NB--Uses calls to rerootGraph since traversals are for different graphs so wouldn't save
---   much time by consolidating--also since labels are all different--can'treuse alot of info
+--   much time by consolidating--also since labels are all different--can't re-use alot of info
 --   from graph to graph.
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) =
@@ -315,10 +315,10 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
         (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
+
         -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
-        -- reoptimizedNodes = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
+        -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
         newDecGraph' = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
-        -- newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
 
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
@@ -326,6 +326,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
                                     else V.map (rerootGraph rerootIndex) blockDisplayForestVect
+
         -- the edge the rerooting was switched to (vect vect vect)
         newRootOrigEdge = head $ LG.inn inSimple rerootIndex
         newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
@@ -400,52 +401,20 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
             reOptimizeNodes charInfoVectVect newGraph (tail oldNodeList)
 
--- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and
--- extracts the quartet for each block and creates new block data for parent node (usually)
+
+-- | createVertexDataOverBlocks is aprtial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
+createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
+
+-- | createVertexDataOverBlocksNonExact is aprtial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
+createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
+
+-- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)  
+-- and only non-exact (basically sequence) characters based on the median function passed
+-- The function takes data in blocks and block vector of char info and
+-- extracts the triple for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
--- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-
-{-
-createVertexDataOverBlocksNonExact' :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact' leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then
-        -- trace ("Blocks: " ++ (show $ length curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
-        in
-        trace ("making")
-        createVertexDataOverBlocksNonExact' (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
--}
-
--- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and
--- extracts the quartet for each block and creates new block data for parent node (usually)
--- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
--- and and skips the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact leftBlockData rightBlockData  blockCharInfoVect curBlockData =
-    if V.null leftBlockData then
-        -- trace ("Blocks: " ++ (show $ length curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let leftBlockLength = length $ V.head leftBlockData
-            rightBlockLength =  length $ V.head rightBlockData
-            firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
-                               else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-                               else M.median2NonExact firstBlock
-        in
-        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
-
--- | createVertexDataOverBlocks takes data in blocks and block vector of char info and
--- extracts the triple for each block and creates new bloick data for parent node (usually)
--- not checking if vectgors are equal in length
-createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
+generalCreateVertexDataOverBlocks :: (V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)) -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
@@ -457,12 +426,9 @@ createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlo
             -- missing data cases first or zip defaults to zero length
             firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
                                else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-                               else M.median2 firstBlock
+                               else medianFunction firstBlock
         in
-        createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
-
-
+        generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 -- | makeCharFociVVV takes an edge and creates the Vector Vector Vector structure for that edge based
 -- on charInfo
