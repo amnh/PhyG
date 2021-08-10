@@ -52,6 +52,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , convertDecoratedToSimpleGraph
                        , graphCostFromNodes
                        , createVertexDataOverBlocks
+                       , divideDecoratedGraphByBlockAndCharacter
                        ) where
 
 import           Data.Bits                 ((.&.), (.|.))
@@ -340,7 +341,8 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
           ++ (LG.prettify inDecGraph) ++ "\nRRG:" ++ ((LG.prettify newDecGraph)) ++ "\nNG " ++ (show newGraphCost) ++ " :" ++ (LG.prettify newDecGraph')
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
+          -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, divideDecoratedGraphByBlockAndCharacter newDecGraph', charInfoVectVect)
 
 
 
@@ -402,7 +404,7 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             reOptimizeNodes charInfoVectVect newGraph (tail oldNodeList)
 
 
--- | createVertexDataOverBlocks is aprtial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
+-- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
 createVertexDataOverBlocks :: VertexBlockData
                            -> VertexBlockData
                            -> V.Vector (V.Vector CharInfo)
@@ -410,7 +412,7 @@ createVertexDataOverBlocks :: VertexBlockData
                            -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
 
--- | createVertexDataOverBlocksNonExact is aprtial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
+-- | createVertexDataOverBlocksNonExact is a partial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
 createVertexDataOverBlocksNonExact :: VertexBlockData
                                    -> VertexBlockData
                                    -> V.Vector (V.Vector CharInfo)
@@ -625,3 +627,82 @@ graphCostFromNodes inGraph =
   if LG.isEmpty inGraph then 0.0
   else
     sum $ fmap vertexCost $ fmap snd $ LG.labNodes inGraph
+
+-- | divideDecoratedGraphByBlockAndCharacter takes a DecoratedGraph with (potentially) multiple blocks
+-- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
+-- over blocks and characyets with the same graph, but only a single block and character for each graph
+-- this to be used to create the "best" cost over alternate graph traversals
+-- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+divideDecoratedGraphByBlockAndCharacter :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacter inGraph = 
+  if LG.isEmpty inGraph then V.empty
+  else 
+    let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
+        blockGraphList = V.fromList $ fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
+        characterGraphList = V.map makeCharacterGraph blockGraphList
+    in
+    trace ("Blocks " ++ show numBlocks) 
+    characterGraphList
+
+-- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
+-- only data from the input block index
+pullBlock :: DecoratedGraph -> Int -> DecoratedGraph
+pullBlock inGraph blockIndex =
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inGraph
+        blockNodeLabelList = fmap (makeBlockNodeLabels blockIndex) inNodeLabelList
+    in
+    LG.mkGraph (zip inNodeIndexList blockNodeLabelList) (LG.labEdges inGraph)
+
+-- | makeBlockNodeLabels takes a block index and an orginal nodel label
+-- and cretes a new list of a singleton block from the input block index
+makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
+makeBlockNodeLabels blockIndex inVertexInfo =
+  let newVertexData = (vertData inVertexInfo) V.! blockIndex
+      newVertexCost = V.sum $ fmap localCost newVertexData
+      newsubGraphCost = V.sum $ fmap globalCost newVertexData
+  in
+  inVertexInfo { vertData     = V.singleton newVertexData
+               , vertexCost   = newVertexCost
+               , subGraphCost = newsubGraphCost
+               }
+
+-- | makeCharacterGraph takes a blockGraph and creates a vector of character graphs
+-- each with a single block and single character 
+-- updating costs
+makeCharacterGraph :: DecoratedGraph -> V.Vector DecoratedGraph
+makeCharacterGraph inBlockGraph =
+  if LG.isEmpty inBlockGraph then V.empty
+  else 
+    let numCharacters =  V.length $ V.head $ vertData $ snd $ head $ LG.labNodes inBlockGraph
+        characterGraphList = fmap (pullCharacter inBlockGraph) [0.. (numCharacters - 1)]
+    in
+    if (V.length $ vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
+    else 
+      trace ("Chars: " ++ show numCharacters)
+      V.fromList characterGraphList
+
+-- | pullCharacter takes a DecoratedGraph with a single block and
+-- creates a new DecoratedGraph with a single character form the input index
+pullCharacter :: DecoratedGraph -> Int -> DecoratedGraph
+pullCharacter inBlockGraph characterIndex =
+  if LG.isEmpty inBlockGraph then LG.empty
+  else 
+    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inBlockGraph
+        characterLabelList = fmap (makeCharacterLabels characterIndex) inNodeLabelList
+    in
+    LG.mkGraph (zip inNodeIndexList characterLabelList) (LG.labEdges inBlockGraph)
+
+-- | makeCharacterLabels pulls the index character label form the singleton block (via head)
+-- and creates a singleton character label, updateing costs to that of the character
+makeCharacterLabels :: Int -> VertexInfo -> VertexInfo
+makeCharacterLabels characterIndex inVertexInfo =
+  let newVertexData = (V.head $ vertData inVertexInfo) V.! characterIndex
+      newVertexCost = localCost newVertexData
+      newSubGraphCost = globalCost newVertexData
+  in
+  inVertexInfo { vertData     = V.singleton $ V.singleton newVertexData
+               , vertexCost   = newVertexCost
+               , subGraphCost = newSubGraphCost
+               }

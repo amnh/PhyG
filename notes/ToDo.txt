@@ -235,8 +235,11 @@
 
 84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
 	had to replace Alex code in report do to empty list issues
-	
 
+85) CHeck reroot best greaph stuff with exact characters
 
+86) suspect that there is a block data hierarchy issue that is not properlyt organized that will come
+	out when soft-wired greaphs are implemented
+	Current codes are assuming a single graph/tree for blocks
 
 

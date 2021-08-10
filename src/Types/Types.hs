@@ -52,10 +52,14 @@ import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
 
 
+-- | Debug Flag
+isDebug :: Bool
+isDebug = True
+
+
 -- | Program Version
 pgVersion :: String
 pgVersion = "0.1"
-
 
 -- | Types for timed searches
 type Days = Int
@@ -250,8 +254,9 @@ type SimpleGraph = LG.Gr NameText Double
 --        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
---               vector is over blocks, then charactes and can have multiple for each character
+--               vector is over blocks, then charactes (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
+--               one graph per charcater  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
