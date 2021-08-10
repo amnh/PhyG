@@ -101,15 +101,20 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
             graphWithBestAssignments  = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
-            --graphWithBestAssignments' = setBetterGraphAssignments (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+            graphWithBestAssignments' = setBetterGraphAssignment (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
-        trace ("Min graph cost :" ++ show minCostRecursive ++ " from " ++ (show $ fmap snd6 recursiveRerootList))
+        trace ("Min graph cost :" ++ show minCostRecursive ++ " from " ++ (show $ fmap snd6 recursiveRerootList) ++ "\nMerged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
         graphWithBestAssignments
+
+-- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
+-- with traversal focus etc to get best overall graph
+setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
+setBetterGraphAssignment firstGraph secondGraph = firstGraph
 
 -- | setBestGraphAssignments take a list of Phylogenetics Graphs and an initial graph with counter as 7 fields
 --   and returns the Phylogenetic graph with optimal exact an non-exact costs and traversal graphs

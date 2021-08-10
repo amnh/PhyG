@@ -403,9 +403,19 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
 
 
 -- | createVertexDataOverBlocks is aprtial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
+createVertexDataOverBlocks :: VertexBlockData
+                           -> VertexBlockData
+                           -> V.Vector (V.Vector CharInfo)
+                           -> [V.Vector (CharacterData, VertexCost)]
+                           -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
 
 -- | createVertexDataOverBlocksNonExact is aprtial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
+createVertexDataOverBlocksNonExact :: VertexBlockData
+                                   -> VertexBlockData
+                                   -> V.Vector (V.Vector CharInfo)
+                                   -> [V.Vector (CharacterData, VertexCost)]
+                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
 
 -- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)  
@@ -413,7 +423,12 @@ createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
-generalCreateVertexDataOverBlocks :: (V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)) -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
+generalCreateVertexDataOverBlocks :: (V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)) 
+                                  -> VertexBlockData 
+                                  -> VertexBlockData 
+                                  -> V.Vector (V.Vector CharInfo) 
+                                  -> [V.Vector (CharacterData, VertexCost)] 
+                                  -> V.Vector (V.Vector (CharacterData, VertexCost))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
