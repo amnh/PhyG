@@ -156,7 +156,7 @@ getCharacterData charSet inGraph =
 createPhyloGeneticGraphFromBlockLists :: SimpleGraph -> DecoratedGraph -> (V.Vector (V.Vector CharInfo)) -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> PhylogeneticGraph
 createPhyloGeneticGraphFromBlockLists inSimpleGraph inDecoratedGraph inCharInfo fullBlockList = 
     let newCost = sum $ fmap (sum . (fmap fst3)) fullBlockList
-        -- this greaph single graph per block although tracked for characters for ease of access
+        -- this graph single graph per block although tracked for characters for ease of access
         bestBlockDisplayList = V.fromList $ fmap (thd3 . head) fullBlockList
         characterTraversalGraphs = V.fromList $ fmap (V.fromList . (fmap thd3)) fullBlockList
     in

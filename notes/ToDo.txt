@@ -211,19 +211,6 @@
 
 77) Fix multitraversal "best" graph cost
 
-80) Error thrown by test1.pg
-	-- Test command file
-read (fasta:"IE.MT.fasta", prealigned)
-read("louse.fastc", tcm:"louse-11.tcm")
-read(newick:"test-1.tre")
-read("test.dot")
-run ("rename.txt", "readsome.txt")
-rename ("Aromanian-renamed", "Aromanian", "Baromanian")
-report("test.txt",data)
-report(data) report("test2.txt", data)
-report(data, "test.txt", append)%    
-
-
 81) Filter data for isPrint ?
 
 
@@ -238,6 +225,10 @@ report(data, "test.txt", append)%
 88) propagate correct charcater types to slim and wide to avoid conversion
 
 81) Check all command execution for correctness before execution.
-	except perhaps filenames?
+	except perhaps filenames
+	
+82) Need to add prealigned charcater/DO like
+
+
 
 

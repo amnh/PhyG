@@ -231,7 +231,7 @@ executable phyg
                   DirectOptimization.DOUkkonenSequence
                   DirectOptimization.DOUkkonenSequenceInt64
 --                  DirectOptimization.DOWrapper
-                  DirectOptimization.NaiveDOSequence
+--                  DirectOptimization.NaiveDOSequence
                   Graphs.GraphOperations
 --                  DirectOptimization.DOSmallFFI
 --                  DirectOptimization.DOLargeFFI

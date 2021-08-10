@@ -68,7 +68,7 @@ import qualified Utilities.Utilities        as U
 -- read command can have multiple file names
 expandReadCommands ::  [Command] -> Command -> IO [Command]
 expandReadCommands _newReadList inCommand@(commandType, argList) =
-    let fileNames = fmap snd argList
+    let fileNames = filter (/= "") $ fmap snd argList
         modifierList = fmap fst argList
     in
     if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ (show inCommand))
@@ -119,6 +119,7 @@ executeReadCommands :: [RawData] -> [SimpleGraph] -> [NameText] -> [NameText] ->
 executeReadCommands curData curGraphs curTerminals curExcludeList curRenamePairs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs)
     else do
+        hPutStrLn stderr (show argList)
         let isPrealigned' = if isPrealigned then True
                             else if ("prealigned" `elem`  (fmap fst argList)) then True
                             else False
