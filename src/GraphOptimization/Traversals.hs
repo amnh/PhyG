@@ -129,10 +129,12 @@ setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, f
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else 
+        trace ("(" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
         let (mergedBlockVect, costVector) = V.unzip $ fmap makeBetterBlock (D.debugVectorZip fTraversal sTraversal)
         in
-        trace ("(" ++ (show fCost) ++ "," ++ (show sCost) ++ ")->" ++ (show $ V.sum costVector))
+        trace ("\t->" ++ (show $ V.sum costVector))
         (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
+        )
         
 -- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each 
 -- character.  This can be a single sequence or series of exact characters
@@ -448,7 +450,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             -- trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " 
               --  ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
             -- (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, V.replicate (length blockCharInfo) (V.singleton newGraph), blockCharInfo)
-            trace (show $ V.length $ GO.divideDecoratedGraphByBlockAndCharacter newGraph) 
+            trace ("New vertData "show $ fmap V.length vertData) 
             -- (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, V.singleton (V.singleton newGraph), blockCharInfo)
             (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)

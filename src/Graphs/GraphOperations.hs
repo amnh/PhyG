@@ -641,7 +641,7 @@ divideDecoratedGraphByBlockAndCharacter inGraph =
         blockGraphList = V.fromList $ fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
         characterGraphList = V.map makeCharacterGraph blockGraphList
     in
-    trace ("Blocks " ++ show numBlocks) 
+    trace (show inGraph ++ "\n" ++ "Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph)) 
     characterGraphList
 
 -- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
@@ -663,6 +663,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
       newVertexCost = V.sum $ fmap localCost newVertexData
       newsubGraphCost = V.sum $ fmap globalCost newVertexData
   in
+  trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
   inVertexInfo { vertData     = V.singleton newVertexData
                , vertexCost   = newVertexCost
                , subGraphCost = newsubGraphCost

@@ -291,7 +291,8 @@ createBVNames inDataList =
 createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
 createNaiveData inDataList leafBitVectorNames curBlockData =
     if null inDataList
-    then ( V.fromList $ fmap fst leafBitVectorNames
+    then --trace ("Naive data with " ++ (show $ length curBlockData) ++ " blocks and " ++ (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) ++ " characters")
+         ( V.fromList $ fmap fst leafBitVectorNames
          , V.fromList $ fmap snd leafBitVectorNames
          , V.fromList $ reverse curBlockData
          )

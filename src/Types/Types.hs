@@ -271,10 +271,10 @@ type RawData = ([TermData], [CharInfo])
 -- can be input to functions
 -- based on "blocks" that follow same display tree (soft-wired network)
 -- each block has a set of characters (for each vertex eventually) and character info
--- the vector of T.Text are teh names--leaves form input, internal HTU ++ (show index)
+-- the vector of T.Text are the names--leaves form input, internal HTU ++ (show index)
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
--- "Naive" "Opyimized" and "Transformed" darta are this type after differnet processing steps
+-- "Naive" "Optimized" and "Transformed" darta are this type after different processing steps
 type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 
 -- | Block data  is the basic data unit that is optimized on a display tree
@@ -288,7 +288,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 -- Initially set to input filename of character
 --    Fields:
 --        1) name of the block--intially taken from input filenames
---        2) vector of vertex data with vector of character data
+--        2) vector of vertex/leaf data with vector of character data for each node
 --        3) Vector of character information for characters in the block
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 
