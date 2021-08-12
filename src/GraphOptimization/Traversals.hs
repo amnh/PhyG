@@ -57,6 +57,7 @@ import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
 import Debug.Debug as D
+import Utilities.Utilities as U
 
 -- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
@@ -129,12 +130,13 @@ setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, f
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else 
-        trace ("(" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ) -- ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
+        --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ) ( -- ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
         let (mergedBlockVect, costVector) = V.unzip $ fmap makeBetterBlock (D.debugVectorZip fTraversal sTraversal)
         in
-        trace ("\t->" ++ (show $ V.sum costVector))
+         --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ") ->" ++ (show $ V.sum costVector) ++ " nt:" ++ (show $ length fTraversal)
+         --   ++ "length blocks " ++ (show $ fmap length fTraversal))
         (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
-        )
+        --)
         
 -- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each 
 -- character.  This can be a single sequence or series of exact characters
@@ -156,12 +158,12 @@ chooseBetterCharacter (firstGraph, secondGraph) =
         let firstGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots firstGraph
             secondGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots secondGraph
         in
-        trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
+        -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
         if firstGraphCost == 0 then (secondGraph, secondGraphCost) 
         else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
         else if firstGraphCost < secondGraphCost then (firstGraph, firstGraphCost)
         else (secondGraph, secondGraphCost) 
-        )
+        --)
 
 -- |makeBetterBlock setBestGraphAssignments take a list of Phylogenetics Graphs and an initial graph with counter as 7 fields
 --   and returns the Phylogenetic graph with optimal exact an non-exact costs and traversal graphs
@@ -379,7 +381,7 @@ getVirtualRootEdge inGraph inNode =
         -- this really shouldn't be used but in recursion for traversal may be needed
         if LG.isLeaf inGraph inNode then (head parentList, inNode)
         else 
-            if length childList /= 2 then error ("Root node with /= 2 childern in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
+            if length childList /= 2 then error ("Root node with /= 2 children in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
             else (head childList, last childList)
 
 
@@ -443,15 +445,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
-            -- return new graph
-            --trace ("Node stuff: " ++ show (curNode, index leftChildLabel, index rightChildLabel)) -- , vertData leftChildLabel, vertData  rightChildLabel, V.map (V.map fst) newCharData))
-            --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
-               -- ++ (show $ V.map (V.map snd) newCharData)) (
-            -- trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " 
-              --  ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
-            -- (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, V.replicate (length blockCharInfo) (V.singleton newGraph), blockCharInfo)
-            trace ("New vertData "show $ fmap V.length vertData) 
-            -- (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, V.singleton (V.singleton newGraph), blockCharInfo)
+            -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
+
             (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)
             

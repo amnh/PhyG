@@ -638,11 +638,11 @@ divideDecoratedGraphByBlockAndCharacter inGraph =
   if LG.isEmpty inGraph then V.empty
   else 
     let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
-        blockGraphList = V.fromList $ fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
-        characterGraphList = V.map makeCharacterGraph blockGraphList
+        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
+        characterGraphList = fmap makeCharacterGraph blockGraphList
     in
-    trace (show inGraph ++ "\n" ++ "Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph)) 
-    characterGraphList
+    -- trace ("Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph)) 
+    V.fromList characterGraphList
 
 -- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
 -- only data from the input block index
@@ -663,7 +663,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
       newVertexCost = V.sum $ fmap localCost newVertexData
       newsubGraphCost = V.sum $ fmap globalCost newVertexData
   in
-  trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
+  -- trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
   inVertexInfo { vertData     = V.singleton newVertexData
                , vertexCost   = newVertexCost
                , subGraphCost = newsubGraphCost
@@ -677,33 +677,36 @@ makeCharacterGraph inBlockGraph =
   if LG.isEmpty inBlockGraph then V.empty
   else 
     let numCharacters =  V.length $ V.head $ vertData $ snd $ head $ LG.labNodes inBlockGraph
-        characterGraphList = fmap (pullCharacter inBlockGraph) [0.. (numCharacters - 1)]
+        characterGraphList = if (numCharacters > 0) then fmap (pullCharacter False inBlockGraph) [0.. (numCharacters - 1)]
+                             -- missing data
+                             else [pullCharacter True inBlockGraph 0]
     in
     if (V.length $ vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
     else 
-      trace ("Chars: " ++ show numCharacters)
+      -- trace ("Chars: " ++ show numCharacters)
       V.fromList characterGraphList
 
 -- | pullCharacter takes a DecoratedGraph with a single block and
 -- creates a new DecoratedGraph with a single character form the input index
-pullCharacter :: DecoratedGraph -> Int -> DecoratedGraph
-pullCharacter inBlockGraph characterIndex =
+pullCharacter :: Bool -> DecoratedGraph -> Int -> DecoratedGraph
+pullCharacter isMissing inBlockGraph characterIndex =
   if LG.isEmpty inBlockGraph then LG.empty
   else 
     let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inBlockGraph
-        characterLabelList = fmap (makeCharacterLabels characterIndex) inNodeLabelList
+        characterLabelList = fmap (makeCharacterLabels isMissing characterIndex) inNodeLabelList
     in
     LG.mkGraph (zip inNodeIndexList characterLabelList) (LG.labEdges inBlockGraph)
 
 -- | makeCharacterLabels pulls the index character label form the singleton block (via head)
 -- and creates a singleton character label, updateing costs to that of the character
-makeCharacterLabels :: Int -> VertexInfo -> VertexInfo
-makeCharacterLabels characterIndex inVertexInfo =
+makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
+makeCharacterLabels isMissing characterIndex inVertexInfo =
   let newVertexData = (V.head $ vertData inVertexInfo) V.! characterIndex
       newVertexCost = localCost newVertexData
       newSubGraphCost = globalCost newVertexData
   in
-  inVertexInfo { vertData     = V.singleton $ V.singleton newVertexData
+  inVertexInfo { vertData     = if (not isMissing) then V.singleton $ V.singleton newVertexData
+                                else V.singleton V.empty
                , vertexCost   = newVertexCost
                , subGraphCost = newSubGraphCost
                }

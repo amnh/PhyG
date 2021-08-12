@@ -53,6 +53,7 @@ import Types.Types
 import qualified Data.Text.Short             as ST
 import qualified GeneralUtilities as GU
 import Debug.Trace
+import qualified Utilities.LocalGraph as LG
 
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
@@ -188,3 +189,17 @@ stripComments inStringList =
         else 
             if "--" == take 2 strippedLine then (stripComments $ tail inStringList)
             else strippedLine : (stripComments $ tail inStringList)
+
+-- | getDecoratedGraphBlockCharInformation takes decorated graph and reports number of blosk and size of each
+getDecoratedGraphBlockCharInformation :: DecoratedGraph -> ((Int, Int), [V.Vector Int])
+getDecoratedGraphBlockCharInformation inGraph =
+    if LG.isEmpty inGraph then ((0,0), [])
+    else
+        -- get a vertices from graph and take their information
+        let inVertDataList = fmap vertData $ fmap snd $ LG.labNodes inGraph 
+            blockNumMax = maximum $ fmap length inVertDataList
+            blocknumMin = minimum $ fmap length inVertDataList
+            blockLengthList = fmap (fmap length) inVertDataList
+        in
+        ((blockNumMax, blocknumMin), blockLengthList)
+
