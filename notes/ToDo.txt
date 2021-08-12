@@ -188,14 +188,8 @@
 
 58) reverse cross ref loci ?
 
-61) Create structures with best costs andtraveral foci for each non-exact charcater
-	to prepare for preorder step
-	all the book-keeping
-
 62) Change dynamic (non-exact) type to single "character" not vector
 	since each nonexact character needs to be multi-traversed
-
-67) Book keeping aafter post order for best sorted phylogenetic graph
 
 69) Every tree node is an inflexion point in graph
 	for SPR/TBR/TF
@@ -206,23 +200,15 @@
 
 72) stylish and hlint source code
 
-76) Fix mixed character type counting errors
-	for tree and other pairs dist lengths
-
-77) Fix multitraversal "best" graph cost
-
 81) Filter data for isPrint ?
-
 
 82) Prune taxa from graphs (in fgl) based on taxa included
 
 83) Parallelize data processing
 
-85) Name glob other input file names
+85) Name glob other input file names--rename files etc
 
 86) Fix alphabet outout in diagnose to be single column
-
-88) propagate correct charcater types to slim and wide to avoid conversion
 
 81) Check all command execution for correctness before execution.
 	except perhaps filenames
@@ -230,16 +216,15 @@
 82) Need to add prealigned charcater/DO like
 	recode to matrix?  Approx matrix?
 
-
 83) Ensure 1:1 and 1:n are dfauilting to bit operations in DOs
+	Taking a very long time 
 
 84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
 	had to replace Alex code in report do to empty list issues
 
-85) CHeck reroot best greaph stuff with exact characters
+85) Check reroot best greaph stuff with exact characters
 
-86) suspect that there is a block data hierarchy issue that is not properlyt organized that will come
-	out when soft-wired greaphs are implemented
-	Current codes are assuming a single graph/tree for blocks
+87) Test matrix characters optimization and costs
 
+88) add logic instead of multiplication for weight factor in graph cost
 

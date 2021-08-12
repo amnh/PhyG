@@ -108,7 +108,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
-        trace ("Min graph cost :" ++ show minCostRecursive ++ " from " ++ (show $ fmap snd6 recursiveRerootList) ++ "\nMerged :" ++ (show $ snd6 graphWithBestAssignments'))
+        --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
         graphWithBestAssignments'

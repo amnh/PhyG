@@ -43,6 +43,7 @@ module Input.DataTransformation
   , createNaiveData
   , createBVNames
   , partitionSequences
+  , groupDataByType
   ) where
 
 import           Data.Foldable
@@ -64,8 +65,63 @@ import           Debug.Trace
 import           Foreign.C.Types
 import           Text.Read
 import qualified Utilities.Utilities as U
-import Debug.Trace
-import GeneralUtilities
+import           Debug.Trace
+import           GeneralUtilities
+
+-- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
+-- with characters reorganized (within blocks) 
+    -- all non-additive (with same weight) merged to a single vector character 
+    -- all additive with same alphabet (ie numberical) recoded to single vector
+    -- all matrix characters with same costmatrix recoded to single charcater
+    -- removes innactive characters
+groupDataByType :: ProcessedData -> ProcessedData
+groupDataByType inData@(nameVect, nameBVVect, blockDataVect) = 
+    (nameVect, nameBVVect, V.map (organizeBlockData [] [] [] [] []) blockDataVect)
+
+-- | organizeBlockData takes a BlockData element and organizes its character by charctaer type
+-- to single add, non-add, matrix, non-exact charcaters are left as is due to their need for 
+-- individual traversal graphs
+-- second elemnt of tuple is a vector over taxa (leaves on input) with
+-- a character vector for each leaf/taxon-- basically a mtrix with taxon rows and character columns
+-- the character info vector is same size as one for each leaf
+-- the first 4 args are accumulators for the character types.  MAtrix type is list of list since can have multiple
+-- matrices.  All non-Exact are in same pile.  
+-- characters with weight > 1 are recoded as multiples of same character, if weight non-integer geoes into teh "unchanged" pile
+-- when bit packed later (if non-additive) will have only log 64 operations impact
+-- the pairs for some data types are to keep track of things that vary--like matrices, non-integer weights etc
+organizeBlockData :: [[CharacterData]] 
+                  -> [[CharacterData]] 
+                  -> [([[CharacterData]], CharInfo)] 
+                  -> [([CharacterData], CharInfo)] 
+                  -> [CharInfo] 
+                  -> BlockData 
+                  -> BlockData
+organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList newCharInfo inBlockData@(blockNamne, characterDataVectVect, charInfoVect) =
+    if null charInfoVect then 
+        -- concatenate all new characters, reverse (for good measure), and convert to vectors
+        -- with unrecoded non-Exact charcaters and new CharInfo vector (reversed)
+        -- need to make sure the character info is in the order of return types--nonAdd, Add, Matrix etc
+        {-Will need a function to add all this stuff back together
+        (blockNamne, newCharacterVector, newCharInfoVect)
+        -}
+        inBlockData
+    else 
+        -- proceed charcater by character increasing accumulators and consuming character data vector and character infoVect
+        -- maybe only accumulate for matrix and non additives? 
+        let firstCharacter = V.head charInfoVect
+            fCharType = charType firstCharacter
+            fCharWeight = weight firstCharacter
+            intWeight = doubleAsInt fCharWeight
+            fCharMatrix = costMatrix firstCharacter
+            fCharActivity = activity firstCharacter
+            firstCharacterTaxa = fmap V.head characterDataVectVect
+        in
+        if fCharActivity == False then organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList newCharInfo (blockNamne, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+        else if (intWeight == Nothing) || (fCharType `notElem` exactCharacterTypes) then 
+            -- add to unchanged pile
+            let currentUnchangedChar = (V.toList $ fmap V.head characterDataVectVect, firstCharacter) 
+            in organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedChar : unchangedCharList) newCharInfo (blockNamne, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
+        else inBlockData
 
 
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY

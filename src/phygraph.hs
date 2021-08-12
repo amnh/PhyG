@@ -151,12 +151,14 @@ main = do
       Execute any 'Block' change commands--make reBlockedNaiveData
     -}
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet, convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-        -- all binary charcaters to nonadditive
-    let groupedData = naiveData
+    -- Group Data--all nonadditives to single character, additives with same alphabet, 
+    let groupedData = DT.groupDataByType naiveData
 
-    -- Optimize Data
+    -- Optimize Data convert
+        -- Additive characters with alphabets < 64 to multiple binary nonadditive
+        -- all binary characters to nonadditive
+        -- matrix 2 states to non-additive with weight
+        -- bitPack non-additive
     let optimizedData = groupedData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
 
