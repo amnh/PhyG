@@ -129,7 +129,7 @@ setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, f
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else 
-        trace ("(" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
+        trace ("(" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ) -- ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
         let (mergedBlockVect, costVector) = V.unzip $ fmap makeBetterBlock (D.debugVectorZip fTraversal sTraversal)
         in
         trace ("\t->" ++ (show $ V.sum costVector))
