@@ -119,7 +119,10 @@ data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup ter
                                     } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
--- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
+-- null values for these are in Input.FastAC.hs
+--  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
+--  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
                          , activity   :: Bool
@@ -171,17 +174,17 @@ data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVect
                                      -- for Additive
                                      , rangePrelim        :: V.Vector (Int, Int)
                                      , rangeFinal         :: V.Vector (Int, Int)
-                                     -- for multiple Sankoff/Matrix with sme tcm
+                                     -- for multiple Sankoff/Matrix with slim tcm
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
                                      , matrixStatesFinal  :: V.Vector (StateCost)
-                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                                     -- preliminary for m,ultiple seqeunce chars with same TCM
                                      , slimPrelim         :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
                                      , slimGapped         ::  (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimFinal          :: SV.Vector CUInt
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , widePrelim         :: UV.Vector Word64
-                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     -- gapped median of left, right, and preliminary used in preorder pass
                                      , wideGapped         ::  (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideFinal          :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)

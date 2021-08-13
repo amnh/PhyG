@@ -158,6 +158,7 @@ main = do
         -- Additive characters with alphabets < 64 to multiple binary nonadditive
         -- all binary characters to nonadditive
         -- matrix 2 states to non-additive with weight
+        -- prealigned to non-additive or matrix
         -- bitPack non-additive
     let optimizedData = groupedData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
