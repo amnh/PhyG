@@ -159,65 +159,144 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
 -- and character Information vector
 -- these only bupdate preliminary of their type--meant to happen before decoration processes
 makeNewCharacterData :: [([CharacterData], CharInfo)] 
-                  -> [([CharacterData], CharInfo)] 
-                  -> [([[CharacterData]], CharInfo)] 
-                  -> [([CharacterData], CharInfo)]
-                  -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+                     -> [([CharacterData], CharInfo)] 
+                     -> [([[CharacterData]], CharInfo)] 
+                     -> [([CharacterData], CharInfo)]
+                     -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
     -- Non-Additive Characters
-    let emptyCharacter = { stateBVPrelim      :: mempty  -- preliminary for Non-additive chars, Sankoff Approx
-                         , stateBVFinal       :: mempty
+    let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
+                         , stateBVFinal       = mempty
                          -- for Additive
-                         , rangePrelim        :: mempty
-                         , rangeFinal         :: mempty
+                         , rangePrelim        = mempty
+                         , rangeFinal         = mempty
                          -- for multiple Sankoff/Matrix with sme tcm
-                         , matrixStatesPrelim :: mempty
-                         , matrixStatesFinal  :: mempty
+                         , matrixStatesPrelim = mempty
+                         , matrixStatesFinal  = mempty
                          -- preliminary for m,ultiple seqeunce cahrs with same TCM
-                         , slimPrelim         :: mempty
+                         , slimPrelim         = mempty
                          -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , slimGapped         :: (mempty, mempty, mempty)
-                         , slimFinal          :: mempty
-                         , vector of individual character costs (Can be used in reweighting-ratchet)
-                         , widePrelim         :: mempty
+                         , slimGapped         = (mempty, mempty, mempty)
+                         , slimFinal          = mempty
                          -- gapped median of left, right, and preliminary used in preorder pass
-                         , wideGapped         :: (mempty, mempty, mempty)
-                         , wideFinal          :: mempty
+                         , widePrelim         = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , wideGapped         = (mempty, mempty, mempty)
+                         , wideFinal          = mempty
                          -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , hugePrelim         :: V.Vector BV.BitVector
+                         , hugePrelim         = mempty
                          -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , hugeGapped         :: (mempty, mempty, mempty)
-                         , hugeFinal          :: mempty
+                         , hugeGapped         = (mempty, mempty, mempty)
+                         , hugeFinal          = mempty
                          -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , localCostVect      :: mempty
+                         , localCostVect      = mempty
                          -- weight * V.sum localCostVect
-                         , localCost          :: 0
+                         , localCost          = 0
                          -- unclear if need vector version
-                         , globalCost         :: 0
+                         , globalCost         = 0
                          } 
 
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
-        nonAddCharInfo = (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
+        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
 
-        (addCharacter, addCharInfo) = combineAdditveCharacters addCharList
-        (matrixCharacters, matrixCharInfoList) = combineMatrixCharacters matrixCharListList
-        (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList
+        addCharacter = combineAdditveCharacters addCharList emptyCharacter []
+        addCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedAdditiveCharacters"}
+
+        (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
+        
+        (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList 
+
+        newCharacterList = [V.fromList nonAddCharacter, V.fromList addCharacter] ++ (fmap V.fromList matrixCharacters) ++ (fmap V.fromList unchangedCharacters)
+
     in
-    (V.fromList [nonAddCharacter, addCharacter] ++ matrixCharacters ++ unchangedCharacters), V.fromList ([nonAddCharInfo, addCharInfo] ++ matrixCharInfoList ++ unchangeCharacterInfoList))
+    -- this part wrong
+    (V.fromList newCharacterList, V.concat [nonAddCharInfo, addCharInfo, V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList])
 
--- | combineNonAdditveCharacters takes a list of character data with singleton non-additive characters and puts them together in asingle character
-combineNonAdditveCharacters :: [([CharacterData], CharInfo)] -> CharacterData -> [[BV.BitVector] -> CharacterData
+-- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
+-- each character "type" (based on matrix) can have 1 or more characters 
+mergeMatrixCharacters :: [([[CharacterData]], CharInfo)] -> CharacterData -> ([[CharacterData]], [CharInfo])
+mergeMatrixCharacters inMatrixCharListList charTemplate =
+    -- should probably reverse the characters to maintian similar ordering to input
+    let (charDataList, charInfoList) = unzip inMatrixCharListList
+        combinedMatrixCharList = fmap (combineMatrixCharacters charTemplate []) charDataList
+    in
+    (fmap reverse combinedMatrixCharList, charInfoList)
+
+-- | combineMatrixCharacters takes all matrix characters with same cost matrix and combines into
+-- a single character with vector of original characters
+combineMatrixCharacters :: CharacterData -> [[V.Vector MatrixTriple]] -> [[CharacterData]] -> [CharacterData]
+combineMatrixCharacters charTemplate currentTripleList inMatrixCharDataList =
+   if null inMatrixCharDataList then 
+      -- create character vector for preliminary states concatenating by taxon
+      let taxRowCharList = L.transpose currentTripleList
+          newCharacterData = fmap (makeMatrixCharacterList charTemplate) taxRowCharList
+      in
+      newCharacterData
+   else 
+        -- first Character
+        let charDataList = head inMatrixCharDataList
+            prelimTripleList = fmap V.head $ fmap matrixStatesPrelim charDataList
+        in
+        combineMatrixCharacters charTemplate (prelimTripleList : currentTripleList) (tail inMatrixCharDataList) 
+
+-- | makeMatrixCharacterList takes a taxon list of matrix characters 
+-- and converts to single vector and makes new character for the taxon
+makeMatrixCharacterList :: CharacterData -> [V.Vector MatrixTriple] -> CharacterData
+makeMatrixCharacterList charTemplate tripleList = charTemplate {matrixStatesPrelim = V.fromList tripleList}
+
+-- | combineNonAdditveCharacters takes a list of character data with singleton non-additive characters and puts 
+-- them together in a single character for each taxon
+combineNonAdditveCharacters :: [([CharacterData], CharInfo)] -> CharacterData -> [[BV.BitVector]] -> [CharacterData]
 combineNonAdditveCharacters nonAddCharList charTemplate currentBVList =
     if null nonAddCharList then
-        -- create character vector for preliminary states concateeating by taxon
-        
+        -- create character vector for preliminary states concatenating by taxon
+        -- single created and redone twice with prepend no need to reverse (that there really is anyway)
+        let taxRowCharList = L.transpose currentBVList
+            newCharacterData = fmap (makeNonAddCharacterList charTemplate) taxRowCharList
+        in
+        newCharacterData
+    else 
         -- first Character
-    let (charDataList, _) = head nonAddCharList
-        prelimBVList = fmap V.head $ fmap stateBVPrelim charDataList
-    in
-    combineNonAdditveCharacters (tail) nonAddCharList charTemplate (prelimBVList : currentBVList)
+        let (charDataList, _) = head nonAddCharList
+            prelimBVList = fmap V.head $ fmap stateBVPrelim charDataList
+        in
+        combineNonAdditveCharacters (tail nonAddCharList) charTemplate (prelimBVList : currentBVList)
 
+-- | combineAdditveCharacters takes a list of character data with singleton non-additive characters and puts 
+-- them together in a single character for each taxon
+combineAdditveCharacters :: [([CharacterData], CharInfo)] -> CharacterData -> [[(Int, Int)]] -> [CharacterData]
+combineAdditveCharacters addCharList charTemplate currentRangeList =
+    if null addCharList then
+        -- create character vector for preliminary states concatenating by taxon
+        -- single created and redone twice with prepend no need to reverse (that there really is anyway)
+        let taxRowCharList = L.transpose currentRangeList
+            newCharacterData = fmap (makeAddCharacterList charTemplate) taxRowCharList
+        in
+        newCharacterData
+    else 
+        -- first Character
+        let (charDataList, _) = head addCharList
+            prelimRangeList = fmap V.head $ fmap rangePrelim charDataList
+        in
+        combineAdditveCharacters (tail addCharList) charTemplate (prelimRangeList : currentRangeList)
 
+-- | makeNonAddCharacterList takes a taxon list of characters 
+-- convertes chars to single vector and makes new character for the taxon
+makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = V.fromList bvList}
+
+-- | makeAddCharacterList takes a taxon list of characters 
+-- to single vector and makes new character for the taxon
+makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = V.fromList rangeList}
+
+-- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
+-- reversing to keep original order
+combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
+combineUnchangedCharacters matrixCharListList = 
+    let (newCharList, newCharInfoList) = unzip matrixCharListList
+    in 
+    (reverse newCharList, reverse newCharInfoList)
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters 
 -- replicates character by integer weight 
