@@ -37,7 +37,7 @@ Portability :  portable (I hope)
 module Utilities.Utilities  where
 
 import qualified Data.Vector as V
-
+import           Data.Maybe
 import           Data.List
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
@@ -203,3 +203,18 @@ getDecoratedGraphBlockCharInformation inGraph =
         in
         ((blockNumMax, blocknumMin), blockLengthList)
 
+-- | vectMaybeHead takes a vector and returns JUst V.head if not V.empty
+-- Nothing otherwise
+vectMaybeHead :: V.Vector a -> Maybe a
+vectMaybeHead inVect =
+    if V.null inVect then Nothing
+    else Just (V.head inVect)
+
+-- vectResolveMaybe takes a Vector of Maybe a 
+-- and returns Just a or V.empty
+vectResolveMaybe :: (Eq a) => V.Vector (Maybe a) -> V.Vector a
+vectResolveMaybe inVect = 
+    trace ("VRM " ++ (show $ length inVect)) (
+    if V.head inVect == Nothing then V.empty
+    else V.singleton $ fromJust $ V.head inVect
+    )

@@ -231,4 +231,10 @@
 89) Add tests--integration most likely
 	What systems?
 
+90) Change partition names/character names for cross-references output
+
+91) Text reorganiztion with matrix characters wiht differnet matrices
+
+92) add functinoality (basicaly for missing data) for multiple non-exact charcaters
+	in a single block--eg linguistic, autosomal
 	

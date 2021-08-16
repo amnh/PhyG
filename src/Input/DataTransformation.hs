@@ -77,7 +77,13 @@ import qualified SymMatrix                   as S
     -- removes innactive characters
 groupDataByType :: ProcessedData -> ProcessedData
 groupDataByType inData@(nameVect, nameBVVect, blockDataVect) = 
-    (nameVect, nameBVVect, V.map (organizeBlockData [] [] [] []) blockDataVect)
+    trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)) (
+    let organizedBlockData =  V.map (organizeBlockData [] [] [] []) blockDataVect
+    in
+    trace ("After Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
+    (nameVect, nameBVVect, organizedBlockData)
+    )
+
 
 -- | organizeBlockData takes a BlockData element and organizes its character by character type
 -- to single add, non-add, matrix, non-exact characters (and those with non-integer weights) are left as is due to their need for 
@@ -97,15 +103,24 @@ organizeBlockData :: [([CharacterData], CharInfo)]
                   -> BlockData 
                   -> BlockData
 organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList inBlockData@(blockName, characterDataVectVect, charInfoVect) =
-    if null charInfoVect then 
+    -- Bit ofg a cop out but not managing the missing data in blocks thing for multiple non-exact in block
+    -- need to add multiple non-exact in block
+    let blockChars01 = fmap ((< 2) . V.length) characterDataVectVect
+        all01 = foldl'  (&&) True (V.toList blockChars01)
+    in 
+    if all01 then inBlockData
+    else if null charInfoVect then 
         -- concatenate all new characters, reverse (for good measure), and convert to vectors
         -- with unrecoded non-Exact charcaters and new CharInfo vector (reversed)
         -- need to make sure the character info is in the order of return types--nonAdd, Add, Matrix etc
         {-Will need a function to add all this stuff back together
         (blockNamne, newCharacterVector, newCharInfoVect)
         -}
+        --trace ("New Char lengths :" ++ (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
         let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList
-        in (blockName, newCharDataVectVect, newCharInfoVect)
+        in 
+        (blockName, newCharDataVectVect, newCharInfoVect)
+        -- )
     else 
         -- proceed charcater by character increasing accumulators and consuming character data vector and character infoVect
         -- maybe only accumulate for matrix and non additives? 
@@ -115,32 +130,48 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
             intWeight = doubleAsInt fCharWeight
             fCharMatrix = costMatrix firstCharacter
             fCharActivity = activity firstCharacter
-            firstCharacterTaxa = fmap V.head characterDataVectVect
+            firstCharacterTaxa = fmap characterHeadOrEmpty characterDataVectVect
         in
+        -- trace ("FCT: " ++ (show $ length firstCharacterTaxa) ++ " " ++ (show characterDataVectVect)) (
+        --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
         -- remove inactive characters
-        if fCharActivity == False then organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+        if fCharActivity == False then 
+            trace ("Innactive") 
+            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
 
         -- place non-exact and non-integer weight characters in unchangedCharList
-        else if (intWeight == Nothing) || (fCharType `notElem` exactCharacterTypes) then 
+        else if (intWeight == Nothing) then 
             -- add to unchanged pile
-            let currentUnchangedCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter) 
-            in organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
+            let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter) 
+                
+            in 
+            -- trace ("Unchanged character:" ++ (show $ length $ fst currentUnchangedCharacter) ++ " Name:" ++ (T.unpack $ name firstCharacter) ++ " " ++ (show (charType firstCharacter))
+            --    ++ " " ++ (show $ fst currentUnchangedCharacter)) 
+            trace ("Character Weight non-integer:" ++ show fCharWeight) 
+            organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
+            
 
+        else if (fCharType `notElem` exactCharacterTypes) 
+            then errorWithoutStackTrace "Blocks with more than one Non-Exact Character not yet implemented"
         -- non-additive characters
         else if fCharType == NonAdd then 
             let replicateNumber = fromJust intWeight
                 currentNonAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
-            in  
+            in 
+            trace ("Non-Additive") (
             if (replicateNumber == 1) then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
             else organizeBlockData ((replicate replicateNumber currentNonAdditiveCharacter) ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            )
 
         -- additive characters    
         else if fCharType == Add then  
             let replicateNumber = fromJust intWeight
                 currentAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
             in  
+            trace ("Additive") (
             if (replicateNumber == 1) then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)  
             else organizeBlockData nonAddCharList ((replicate replicateNumber currentAdditiveCharacter) ++ addCharList) matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            )
 
         -- matrix characters--more complex since need to check for matrix identity
         else if fCharType == Matrix then  
@@ -148,10 +179,13 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                 currentMatrixCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
                 newMatrixCharacterList = addMatrixCharacter matrixCharListList fCharMatrix currentMatrixCharacter replicateNumber
             in
+            trace ("Matrix") (
             organizeBlockData nonAddCharList addCharList newMatrixCharacterList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            )
 
         -- error in thype
         else error ("Unrecognized/nont implemented charcter type: " ++ show fCharType)
+        -- )
 
 -- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
 -- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
@@ -164,7 +198,6 @@ makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
-    -- Non-Additive Characters
     let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
                          , stateBVFinal       = mempty
                          -- for Additive
@@ -196,21 +229,40 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedChar
                          , globalCost         = 0
                          } 
 
+        -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
         nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
+        (nonAddCharacter', nonAddCharInfo') = if (null nonAddCharacter) then ([], V.empty)
+                                              else (nonAddCharacter, nonAddCharInfo)
 
+        -- Additive Characters
         addCharacter = combineAdditveCharacters addCharList emptyCharacter []
         addCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedAdditiveCharacters"}
-
+        (addCharacter', addCharInfo') = if (null addCharacter) then ([], V.empty)
+                                        else (addCharacter, addCharInfo)
+        -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
         
+        -- Unchanged characters 
         (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList 
+        
+        
 
-        newCharacterList = [V.fromList nonAddCharacter, V.fromList addCharacter] ++ (fmap V.fromList matrixCharacters) ++ (fmap V.fromList unchangedCharacters)
+        newCharacterList = [V.fromList nonAddCharacter', V.fromList addCharacter'] ++ (fmap V.fromList matrixCharacters) ++ (fmap emptyCharacterSingletonVectorToEmpty $ fmap V.fromList unchangedCharacters)
 
     in
-    -- this part wrong
-    (V.fromList newCharacterList, V.concat [nonAddCharInfo, addCharInfo, V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList])
+    trace ("UC:" ++ (show $ fmap length unchangedCharacters ) ) -- ++ " H: " ++ (show $ head unchangedCharacters) ++ " L: " ++ (show $ last unchangedCharacters)) -- ++ " " ++ show unchangedCharacters)
+    --trace ("In unchanged: " ++ (show $ length unchangedCharList) ++ " New Characters:" ++ (show $ length $ V.fromList newCharacterList) ++ " " ++ (show $ length $ V.concat [nonAddCharInfo', addCharInfo', V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList]) ++ "\n" ++ (show $ (length nonAddCharacter', length addCharacter', fmap length matrixCharacters, length unchangedCharacters)) )
+    (V.fromList newCharacterList, V.concat [nonAddCharInfo', addCharInfo', V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList])
+
+-- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
+-- reversing to keep original order
+combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
+combineUnchangedCharacters matrixCharListList = 
+    let (newCharList, newCharInfoList) = unzip matrixCharListList
+    in 
+    -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
+    (L.transpose newCharList, newCharInfoList)
 
 -- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
 -- each character "type" (based on matrix) can have 1 or more characters 
@@ -289,14 +341,6 @@ makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = V.fr
 -- to single vector and makes new character for the taxon
 makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
 makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = V.fromList rangeList}
-
--- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
--- reversing to keep original order
-combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
-combineUnchangedCharacters matrixCharListList = 
-    let (newCharList, newCharInfoList) = unzip matrixCharListList
-    in 
-    (reverse newCharList, reverse newCharInfoList)
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters 
 -- replicates character by integer weight 
@@ -1144,3 +1188,77 @@ createLeafCharacter inCharInfoList rawDataList =
                      error ("Mismatch in number of characters and character info")
            else  getQualitativeCharacters inCharInfoList rawDataList []
 
+
+-- | characterHeadOrEmpty takes a vector of charcaters and returns hgead if not null or empty character otherwise
+characterHeadOrEmpty :: V.Vector CharacterData -> CharacterData
+characterHeadOrEmpty inVect =
+    let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
+                         , stateBVFinal       = mempty
+                         -- for Additive
+                         , rangePrelim        = mempty
+                         , rangeFinal         = mempty
+                         -- for multiple Sankoff/Matrix with sme tcm
+                         , matrixStatesPrelim = mempty
+                         , matrixStatesFinal  = mempty
+                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                         , slimPrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , slimGapped         = (mempty, mempty, mempty)
+                         , slimFinal          = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , widePrelim         = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , wideGapped         = (mempty, mempty, mempty)
+                         , wideFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , hugePrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , hugeGapped         = (mempty, mempty, mempty)
+                         , hugeFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , localCostVect      = mempty
+                         -- weight * V.sum localCostVect
+                         , localCost          = 0
+                         -- unclear if need vector version
+                         , globalCost         = 0
+                         } 
+    in
+    if V.null inVect then emptyCharacter
+    else V.head inVect
+    
+-- | emptyCharacterSingletonVectorToEmpty
+emptyCharacterSingletonVectorToEmpty :: V.Vector CharacterData -> V.Vector CharacterData
+emptyCharacterSingletonVectorToEmpty inVect =
+    let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
+                         , stateBVFinal       = mempty
+                         -- for Additive
+                         , rangePrelim        = mempty
+                         , rangeFinal         = mempty
+                         -- for multiple Sankoff/Matrix with sme tcm
+                         , matrixStatesPrelim = mempty
+                         , matrixStatesFinal  = mempty
+                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                         , slimPrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , slimGapped         = (mempty, mempty, mempty)
+                         , slimFinal          = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , widePrelim         = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , wideGapped         = (mempty, mempty, mempty)
+                         , wideFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , hugePrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , hugeGapped         = (mempty, mempty, mempty)
+                         , hugeFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , localCostVect      = mempty
+                         -- weight * V.sum localCostVect
+                         , localCost          = 0
+                         -- unclear if need vector version
+                         , globalCost         = 0
+                         } 
+    in
+    if inVect == V.singleton emptyCharacter then V.empty
+    else inVect

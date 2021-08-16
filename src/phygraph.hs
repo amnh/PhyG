@@ -149,6 +149,7 @@ main = do
 
     {-To do
       Execute any 'Block' change commands--make reBlockedNaiveData
+      Before organizing data by type since within blocks
     -}
 
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
