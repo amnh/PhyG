@@ -233,8 +233,18 @@
 
 90) Change partition names/character names for cross-references output
 
-91) Text reorganiztion with matrix characters wiht differnet matrices
+91) Text reorganiztion with matrix characters wiht different matrices
 
 92) add functinoality (basicaly for missing data) for multiple non-exact charcaters
 	in a single block--eg linguistic, autosomal
+	The current issue is that when using lists (from Vectors) missing seqeunce characters are stored as [].
+	This causes problems adding lists togething when extracting the "column" of teh charater that would be 
+	prepended (and later reversed) to the next sequence charcater in that block etc.  One posible soluiotn might be to 
+	del with them as vectors.  Also cons and snoc are less efficient--but still likeli have the issue of 
+	V.empty for missin and consing two of them still gets you a singel V.empty--and similar problems with
+	taxa that have a mix of observed and missing characters.  Perhpas change type of missing from [] to "missing charcater"
+	Character record type or Maybe Character, or a field in Character, or tuples or somehting.  Should not
+	be a problem for exact charcaters since there is an explicit value for missing for add/non-add/matrix
+
+
 	
