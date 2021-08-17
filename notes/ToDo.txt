@@ -250,4 +250,6 @@
 	be a problem for exact charcaters since there is an explicit value for missing for add/non-add/matrix
 
 
-93) Short circuit for exact only on reroot
+94) Add remove constant charcaters in organize
+
+

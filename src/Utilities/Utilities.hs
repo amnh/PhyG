@@ -242,3 +242,10 @@ getNumberExactCharacters blockDataVect =
             nonExactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
         in
         nonExactChars + getNumberExactCharacters (V.tail blockDataVect)
+
+-- | safeVectorHead safe vector head--throws error if null
+safeVectorHead :: V.Vector a -> a
+safeVectorHead inVect =
+    if V.null inVect then error "Empty vector in safeVectorHead"
+    else V.head inVect
+

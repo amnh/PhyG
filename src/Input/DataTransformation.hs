@@ -135,7 +135,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
             intWeight = doubleAsInt fCharWeight
             fCharMatrix = costMatrix firstCharacter
             fCharActivity = activity firstCharacter
-            firstCharacterTaxa = fmap V.head characterDataVectVect
+            firstCharacterTaxa = fmap U.safeVectorHead characterDataVectVect
         in
         -- trace ("FCT: " ++ (show $ length firstCharacterTaxa) ++ " " ++ (show characterDataVectVect)) (
         --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
