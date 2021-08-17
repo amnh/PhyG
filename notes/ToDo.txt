@@ -235,7 +235,10 @@
 
 91) Text reorganiztion with matrix characters wiht different matrices
 
-92) add functinoality (basicaly for missing data) for multiple non-exact charcaters
+92) add functinoality (basicaly for missing data) for multiple non-exact characters
+	
+	This will be nnecessary with "block" set issues or can be delayed iuntil block manupulations are implemented
+
 	in a single block--eg linguistic, autosomal
 	The current issue is that when using lists (from Vectors) missing seqeunce characters are stored as [].
 	This causes problems adding lists togething when extracting the "column" of teh charater that would be 
