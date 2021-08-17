@@ -77,13 +77,22 @@ import qualified SymMatrix                   as S
     -- removes innactive characters
 groupDataByType :: ProcessedData -> ProcessedData
 groupDataByType inData@(nameVect, nameBVVect, blockDataVect) = 
-    trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)) (
-    let organizedBlockData =  V.map (organizeBlockData [] [] [] []) blockDataVect
+    let organizedBlockData =  V.map organizeBlockData' blockDataVect
     in
-    trace ("After Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
+    trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
+        ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
     (nameVect, nameBVVect, organizedBlockData)
-    )
-
+    
+-- | organizeBlockData' shortcircuits nonExact data types in a block to avoid logic in organizeBlockData
+-- should be removed when have better teatment of missing non-exact data and block options
+organizeBlockData' :: BlockData -> BlockData
+organizeBlockData' localBlockData = 
+    let numExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
+        numNonExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
+    in
+    if (numExactChars == 0) && (numNonExactChars == 1) then localBlockData
+    else if (numExactChars > 0) && (numNonExactChars == 1) then error "This can't happen untile block set implemented"
+    else organizeBlockData [] [] [] [] localBlockData
 
 -- | organizeBlockData takes a BlockData element and organizes its character by character type
 -- to single add, non-add, matrix, non-exact characters (and those with non-integer weights) are left as is due to their need for 
@@ -105,11 +114,7 @@ organizeBlockData :: [([CharacterData], CharInfo)]
 organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList inBlockData@(blockName, characterDataVectVect, charInfoVect) =
     -- Bit ofg a cop out but not managing the missing data in blocks thing for multiple non-exact in block
     -- need to add multiple non-exact in block
-    let blockChars01 = fmap ((< 2) . V.length) characterDataVectVect
-        all01 = foldl'  (&&) True (V.toList blockChars01)
-    in 
-    if all01 then inBlockData
-    else if null charInfoVect then 
+    if null charInfoVect then 
         -- concatenate all new characters, reverse (for good measure), and convert to vectors
         -- with unrecoded non-Exact charcaters and new CharInfo vector (reversed)
         -- need to make sure the character info is in the order of return types--nonAdd, Add, Matrix etc
@@ -232,13 +237,13 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedChar
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
         nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
-        (nonAddCharacter', nonAddCharInfo') = if (null nonAddCharacter) then ([], V.empty)
+        (nonAddCharacter', nonAddCharInfo') = if (null nonAddCharList) then ([], V.empty)
                                               else (nonAddCharacter, nonAddCharInfo)
 
         -- Additive Characters
         addCharacter = combineAdditveCharacters addCharList emptyCharacter []
-        addCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedAdditiveCharacters"}
-        (addCharacter', addCharInfo') = if (null addCharacter) then ([], V.empty)
+        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters"}
+        (addCharacter', addCharInfo') = if (null addCharList) then ([], V.empty)
                                         else (addCharacter, addCharInfo)
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
@@ -248,21 +253,47 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedChar
         
         
 
-        newCharacterList = [V.fromList nonAddCharacter', V.fromList addCharacter'] ++ (fmap V.fromList matrixCharacters) ++ (fmap emptyCharacterSingletonVectorToEmpty $ fmap V.fromList unchangedCharacters)
+        newCharacterList = [V.fromList nonAddCharacter', V.fromList addCharacter'] ++ (fmap V.fromList matrixCharacters) -- ++ (fmap emptyCharacterSingletonVectorToEmpty $ fmap V.fromList unchangedCharacters)
+
+        
+        
+        -- buildList incrementally
+        newCharacterList' = if null nonAddCharacter then []
+                            else [V.fromList nonAddCharacter]
+        newCharacterList'' = if (null addCharacter) then newCharacterList'
+                             else (V.fromList addCharacter) : newCharacterList'
+        newCharacterList''' = newCharacterList'' ++ (fmap V.fromList matrixCharacters)
+
+        newChararacterInfoList' = if null nonAddCharacter then []
+                                  else [nonAddCharInfo]
+        newChararacterInfoList'' = if null addCharacter then newChararacterInfoList'
+                                  else addCharInfo : newChararacterInfoList'
+        newChararacterInfoList''' = newChararacterInfoList'' ++ (fmap V.singleton matrixCharInfoList)
+                
+
+        -- newChararacterInfoList'
+        newChararacterInfoList = [nonAddCharInfo', addCharInfo', V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList]
+
+        
 
     in
-    trace ("UC:" ++ (show $ fmap length unchangedCharacters ) ) -- ++ " H: " ++ (show $ head unchangedCharacters) ++ " L: " ++ (show $ last unchangedCharacters)) -- ++ " " ++ show unchangedCharacters)
-    --trace ("In unchanged: " ++ (show $ length unchangedCharList) ++ " New Characters:" ++ (show $ length $ V.fromList newCharacterList) ++ " " ++ (show $ length $ V.concat [nonAddCharInfo', addCharInfo', V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList]) ++ "\n" ++ (show $ (length nonAddCharacter', length addCharacter', fmap length matrixCharacters, length unchangedCharacters)) )
-    (V.fromList newCharacterList, V.concat [nonAddCharInfo', addCharInfo', V.fromList matrixCharInfoList, V.fromList unchangeCharacterInfoList])
+    trace ("Recoded Non-Additive: " ++ (show $ length nonAddCharList) ++ "->" ++ (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
+        ++ " Additive: " ++ (show $ length addCharList) ++ "->" ++ (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
+        ++ " Matrix " ++ (show  $length matrixCharListList) ++ "->" ++ (show $ length matrixCharacters)
+        ++ " total list: " ++ (show (length newCharacterList''', fmap length newCharacterList''')) ++ " CI " ++ (show $ length newChararacterInfoList'''))
+    
+    (V.fromList $ fmap V.fromList $ L.transpose $ fmap V.toList newCharacterList''', V.concat newChararacterInfoList''')
 
 -- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
 -- reversing to keep original order
 combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
-combineUnchangedCharacters matrixCharListList = 
-    let (newCharList, newCharInfoList) = unzip matrixCharListList
-    in 
-    -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
-    (L.transpose newCharList, newCharInfoList)
+combineUnchangedCharacters unchangedCharListList = 
+    if null unchangedCharListList then ([], [])
+    else
+        let (newCharList, newCharInfoList) = unzip unchangedCharListList
+        in 
+        -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
+        (L.transpose newCharList, newCharInfoList)
 
 -- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
 -- each character "type" (based on matrix) can have 1 or more characters 

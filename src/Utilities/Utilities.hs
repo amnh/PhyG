@@ -218,3 +218,27 @@ vectResolveMaybe inVect =
     if V.head inVect == Nothing then V.empty
     else V.singleton $ fromJust $ V.head inVect
     )
+
+-- | getNumberNonExactCharacters takes processed data and returns the number of non-exact characters
+-- ised to special case datasets with limited non-exact characters
+getNumberNonExactCharacters :: V.Vector BlockData -> Int
+getNumberNonExactCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else 
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            nonExactChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
+        in
+        nonExactChars + getNumberNonExactCharacters (V.tail blockDataVect)
+
+-- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
+-- ised to special case datasets with limited non-exact characters
+getNumberExactCharacters :: V.Vector BlockData -> Int
+getNumberExactCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else 
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            nonExactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
+        in
+        nonExactChars + getNumberExactCharacters (V.tail blockDataVect)

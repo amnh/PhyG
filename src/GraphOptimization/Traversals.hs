@@ -67,6 +67,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
     else 
         let leafGraph = makeLeafGraph inData
 
+            -- for special casing of nonexact and single exact characters
+            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+
             {-
             -- brute force
 
@@ -111,7 +114,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
-        graphWithBestAssignments'
+        if nonExactChars == 0 then outgroupRootedPhyloGraph
+        else if nonExactChars == 1 then head minCostGraphListRecursive
+        else graphWithBestAssignments'
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
@@ -209,6 +214,7 @@ makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertex nameVect bvNameVect inData localIndex =
+    --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData 
         thisData = V.map (V.! localIndex) centralData
         newVertex = VertexInfo  { index = localIndex
@@ -224,6 +230,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
         in
         -- trace (show (length thisData) ++ (show $ fmap length thisData))
         (localIndex, newVertex)
+        --)
 
 -- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
 -- vi post-order traversal, yields cost as well
