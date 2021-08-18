@@ -135,13 +135,20 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
             intWeight = doubleAsInt fCharWeight
             fCharMatrix = costMatrix firstCharacter
             fCharActivity = activity firstCharacter
+            fAlphabet = alphabet firstCharacter
             firstCharacterTaxa = fmap U.safeVectorHead characterDataVectVect
         in
         -- trace ("FCT: " ++ (show $ length firstCharacterTaxa) ++ " " ++ (show characterDataVectVect)) (
         --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
+        
         -- remove inactive characters
         if fCharActivity == False then 
             -- trace ("Innactive") 
+            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+
+        -- remove constant/missing characters
+        -- <2 becasue could be 0 for all missing (could happen with reduced dataset)
+        else if length fAlphabet < 2 then 
             organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
 
         -- place non-exact and non-integer weight characters in unchangedCharList
