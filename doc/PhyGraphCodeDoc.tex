@@ -53,113 +53,36 @@
 	\tableofcontents
 	\newpage
 	\section{Introduction}
-	This is the initial version of documentation for the program PhylogeneticGraph (\texttt{PhyG}).  This program is designed to produce phylogenetic graphs from input data and graphs via heuristic searching of general phylogenetic graph space.
+	This document contains descriptions of algorithms, procedures, data structures and other aspects of the 
+	source code documentation for the program PhylogeneticGraph (\texttt{PhyG}).  
 	
-	 \texttt{PhyG} is a sucessor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, containing much of its functionality but extended to broader classes of input data and phylogenetic graphs.
-	The phylogenetic graph inputs and outputs of \texttt{PhyG} include not only trees, but other forms including forests and both
-	soft and hard-wired networks.
-	
-	
-	
-	\section{Overview of program use}
-	At present, \texttt{PhyG} is operated solely via command-line interface. 
-	
-	Commands are entered via a scriptfile that contains commands, which may themselves contain references to other script files.
-	These commands specify input files, output files and formats, graph type and search parameters. 
-	
-	\bigskip
-	\texttt{phyg script.pg}
+	 \texttt{PhyG} is a sucessor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, 
+	 although a ``complete'' Haskell rewrite, optimized C (and even some assembler) was ported over from POY for pairwise alignment of small alphabet (<8)
+	 sequences.  These functions are access via the Haskell FFI.
 	
 	
-	\section{QuickStart}
-		\subsection{Requirements}
-		\subsection{Obtaining and Installing \texttt{PhyG}}
-			All source code, precompiled binaries, test data, and documentation are available from \url{https://githib.com/wardwheeler/PhyGraph}.
+	
+	\section{Overview of Code base}
+	Source code structure.
+	
+	
 		
+	\section {Command Parsing}
 	
-	\section {Commands}
-		\subsection{Command Structure}
-		\subsection{Commands}
-			\subsubsection{read}
-			\subsubsection{rename}
-			\subsubsection{report}
+	\section{Post-Order Graph Traversal}
+		\subsection{Trees}
+	
+	\section{Pre-Order Graph Traversal}
+		\subsection{Trees}
+		Final state assignments of root vertices are set to the preliminary, post-order state.
 		
-	
-	\section{Input Data Formats}
-		Any character names in input files are (for now) ignored and internal names are created
-		by appending the character number in its file to the filename as in "fileName:0".
-		Qualitative data, and prealigned data include their index in their input files and unaligned 
-		data are treated as a single character.
-		\subsection{fasta}
-			Single character sequence input \citep{PearsonandLipman1988}.
-		\subsection{fastc}
-			Multicharacter sequence input.  \citep{WheelerandWashburn2019}.
-		\subsection{\texttt{TNT}}
-		The TNT \citep{Goloboffetal2008} format is accepted here for specification of qualitative, measurement, and prealigned molecular 
-		sequence data.  \texttt{PhyG} does not parse all the diversity of options that can be specified in \texttt{TNT} input files.
-		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
-		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
-		')' sets to non-additive, if wantadditive then need to reset to additive after\\
-		character state designations single characters\\
-		continuous and other multicharacter states--can be read, abinguitess or ranges (unlike tnt for continuous) are 
-		in squarebraskets with period as in [X.Y]\\
-		- ans ? are always missing/inapplicable.  If DNA are not coded ACGT- => 01234 but left as lettes,
-		then to include gaps as a 5th state, just include another character, such the letter 'O' that is not an IUPAC ambiguity code for DNA (or amino acids for that matter) as an additional state.  This can be used for matrix/Sankoff matrices as well.
-		Amino acid sequences would be processed in the same way.  Including gaps as information requires
-		an extra state (such as letter 'O').\\ 
-		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
-		between them.\\
-		Continuous characters must be numbers only (float fine) and declares by cccode command as 
-		``additive'', otherwise the number will be treated as non-additive character states. \\
-		nonAdd polymorphisms  are [X.Y]--unless  additive '-' for range\\
-		can't have '.' in multichar state (or single for that matter)\\
-		Inherent ordering of DNA and AMino Acid codes is alphabetical (e.g. A,C,G,T.`-')
-	
-	\section{Input Graph Formats}
-	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
-	and Forest Enhanced Newick (defined by \citealp{WheelerPhyloSuperGraphs}) formats.
-	
-	Quickly, Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for forests of components, each
-	of which is represented by an ENewick string.  The ENewick components are surrounded by `$<$' and '$>$'.
-	As in $<$(A, (B,C)); (D,(E,F));$>$.  Groups may be shared among ENewick components.
-	
-	
-	\section{Output Graph Formats}
-	Graph outputs can be in either Graphviz `dot' or FEN formats.  Dot files can be visualized in a variety of ways 
-	using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety of other formats. FEN outputs of 
-	single trees (ie forest with a single component) are rendered as enewick.  Newick files can be visualized in a 
-	large number of programs (e.g. FigTree; \url{http://tree.bio.ed.ac.uk/software/figtree/}, Dendroscope; 
-	\url{https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}). 	
-	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, creating a new node as parent to that leaf
-	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf.  
-	\bigskip
-	\\Example dot command line: \\dot -Tpdf myDotFile.dot $>$ myDotFile.pdf\\
-	
-	Mulitple ``dot'' graphs can be output in a single file.  To create pdf and 
-	other formats the commandline would be (these files are named and numbered automatically):\\\\dot -Tpdf -O myDotFile.dot\\
-	
-	For some reason on OSX the `pdf' option does not seem to work.  You can use `-Tps2' and that will generate a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
-	
-	\section{Command options}
-	There are only a few program options that require specification.  There are defaults for all but input graphs.  
-	Parameters are given with options in a range `a to b' (a-b) with any value in the interval, or alternates `a or b' (a|b). File options require a valid filename.
-	For input graphs, wildcards are allowed (ie `*' and `?').  All commands are followed by a colon `:' before the option with no spaces.  Capitalization (for commands, but not filenames) is ignored.  Commands can be in any order (or entered from a file as stdin `$<$ filename).
-	
-	
 
-	
-	The program requires at least one input graph file and at least two input graphs (they could be in the same file).
-
-	
-	\section{Program Use}
-	The program is invoked from the command-line as in:\\
-	PhyGraph commandFile\\
-	
-	
 	\subsection{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
+	
+	Parallel code options are set using a parmap-type strategy throughout the code.  The basic definitions of this functionality are found in ParallelUtilities.hs
 	
 	\section*{Acknowledgments}
 	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
