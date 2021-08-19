@@ -249,7 +249,13 @@
 	Character record type or Maybe Character, or a field in Character, or tuples or somehting.  Should not
 	be a problem for exact charcaters since there is an explicit value for missing for add/non-add/matrix
 
+95)  Pre-order make sure there is a tree for each charecta and excat same root as Decorated graph
 
-94) Add remove constant charcaters in organize
 
+96) set vertex info with union of vertices for later heuristics?
+	Would have to have somehting akin to vertData (VertexBlockData = V.Vector (V.Vector CharacterData)) 
+	and access to CharInfo--all in phylogenetic graph
+	But might be a problem with rearrangements, with edges and vertices coming and going.  Maybe not.
+
+97) Whidden eta l 2009 2010 for fast SPR tre distance FPT
 
