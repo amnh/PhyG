@@ -56,6 +56,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char as C
+import qualified Search.Build           as B
 
 
 
@@ -84,8 +85,11 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist comm
             let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
             in
             executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist (tail commandList)
-        else
-            executeCommands globalSettings rawData processedData curGraphs pairwiseDist (tail commandList)
+        else if firstOption == Build then
+            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist
+            in
+            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail commandList)
+        else error "Command not recognized/implemented"
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
@@ -96,7 +100,7 @@ setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, 
 setCommand argList globalSettings processedData =
     let commandList = filter (/= "") $ fmap fst argList
         optionList = filter (/= "") $ fmap snd argList
-        checkCommandList = checkCommandArgs "set" commandList setArgList
+        checkCommandList = U.checkCommandArgs "set" commandList setArgList
         leafNameVect = fst3 processedData
 
     in
@@ -133,20 +137,6 @@ setCommand argList globalSettings processedData =
 reportArgList :: [String]
 reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis"]
 
--- | checkCommandArgs takes comamnd and args and verifies that they are in list
-checkCommandArgs :: String -> [String] -> [String] -> Bool
-checkCommandArgs commandString commandList permittedList =
-    if null commandList then True
-    else
-        let firstCommand = head commandList
-            foundCommand = firstCommand `elem` permittedList
-        in
-        if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
-        else
-            let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
-            in
-            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")
-
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
@@ -157,7 +147,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ show outFileNameList)
     else
-        let checkCommandList = checkCommandArgs "report" commandList reportArgList
+        let checkCommandList = U.checkCommandArgs "report" commandList reportArgList
             outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"

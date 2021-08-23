@@ -50,8 +50,8 @@ import           Debug.Trace
 import           GeneralUtilities
 import           ParallelUtilities
 import qualified SymMatrix                   as M
-import           Types
-import           Utilities
+import           Types.DistanceTypes
+import           Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
 import qualified Data.Vector as LS
 

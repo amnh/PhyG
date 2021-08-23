@@ -53,6 +53,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , graphCostFromNodes
                        , createVertexDataOverBlocks
                        , divideDecoratedGraphByBlockAndCharacter
+                       , switchRootTree
+                       , dichotomizeRoot
                        ) where
 
 import           Data.Bits                 ((.&.), (.|.))
@@ -67,6 +69,7 @@ import qualified GraphOptimization.Medians as M
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
 import qualified Utilities.LocalSequence   as LS
+import Debug.Debug
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
@@ -710,3 +713,66 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
                , vertexCost   = newVertexCost
                , subGraphCost = newSubGraphCost
                }
+
+-- | switchRootTree takes a new root vertex index of a tree and switches the existing root (and all relevent edges) 
+-- to new index
+switchRootTree :: (Show a, Show b) => Int -> LG.Gr a b -> LG.Gr a b
+switchRootTree newRootIndex inGraph =
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let rootList = LG.getRoots inGraph
+        (newRootCurInEdges, newRootCurOutEdges) = LG.getInOutEdges inGraph newRootIndex
+        oldRootEdges = LG.out inGraph $ fst $ head rootList
+
+    in
+    -- not a directed tree
+    if length rootList /= 1 then error ("Graph input to switchRootTree is not a tree--not single root:" ++ (show rootList))
+
+    -- same root
+    else if newRootIndex == (fst $ head rootList) then inGraph
+    else
+        -- create new edges and delete the old ones
+        let newEdgesToAdd = fmap (flipVertices (fst $ head rootList) newRootIndex) (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges)
+        in
+        LG.insEdges newEdgesToAdd $ LG.delLEdges (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges) inGraph
+
+-- | flipVertices takes an old vertex index and a new vertex index and inserts one for the other 
+-- in a labelled edge
+flipVertices ::(Show b) => Int -> Int ->  LG.LEdge b -> LG.LEdge b
+flipVertices a b (u,v,l) = 
+  let newU = if u == a then b
+             else if u == b then a
+             else u
+      newV = if v == a then b
+            else if v == b then a
+            else v
+  in
+  -- trace (show (u,v,l) ++ "->" ++ show (newU, newV, l))
+  (newU, newV, l)
+
+-- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
+dichotomizeRoot :: Int -> SimpleGraph -> SimpleGraph
+dichotomizeRoot outgroupIndex inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let rootList = LG.getRoots inGraph
+        currentRoot = fst $ head rootList
+        rootEdgeList = LG.out inGraph $ currentRoot
+    in
+    -- not a tree error
+    if (length rootList /= 1) then error ("Graph input to dichotomizeRoot is not a tree--not single root:" ++ (show rootList))
+
+    -- nothing to do 
+    else if (length rootEdgeList < 3) then inGraph
+    else 
+      let numVertices = length $ LG.nodes inGraph
+          newNode = (numVertices, T.pack $ show numVertices)
+          edgesToDelete = filter ((/=outgroupIndex) . snd3) rootEdgeList
+          newEdgeDestinations = fmap snd3 edgesToDelete
+          newEdgeStarts = replicate (length newEdgeDestinations) numVertices
+          newEdgeLabels = replicate (length newEdgeDestinations) 0.0
+          newEdgesNewNode = debugZip3 newEdgeStarts newEdgeDestinations newEdgeLabels
+          newRootEdge = (currentRoot, numVertices, 0.0)
+      in
+      LG.delLEdges edgesToDelete $ LG.insEdges (newRootEdge : newEdgesNewNode) $ LG.insNode newNode inGraph
+

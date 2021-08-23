@@ -46,7 +46,7 @@ import           Debug.Trace
 import           ParallelUtilities
 import qualified SymMatrix               as M
 import           Types.DistanceTypes
-import           Utilities
+import           Utilities.DistanceUtilities
 import qualified Search.DistanceWagner           as W
 --import qualified LocalSequence as LS
 import qualified Data.Vector as LS

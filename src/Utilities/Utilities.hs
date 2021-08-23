@@ -249,3 +249,17 @@ safeVectorHead inVect =
     if V.null inVect then error "Empty vector in safeVectorHead"
     else V.head inVect
 
+
+-- | checkCommandArgs takes comamnd and args and verifies that they are in list
+checkCommandArgs :: String -> [String] -> [String] -> Bool
+checkCommandArgs commandString commandList permittedList =
+    if null commandList then True
+    else
+        let firstCommand = head commandList
+            foundCommand = firstCommand `elem` permittedList
+        in
+        if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
+        else
+            let errorMatch = snd $ GU.getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
+            in
+            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")

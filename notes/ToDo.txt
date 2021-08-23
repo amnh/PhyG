@@ -295,3 +295,9 @@ https://hackage.haskell.org/package/diagrams-contrib-0.1.0.0/docs/Diagrams-TwoD-
 
 Write LGGraph -> Data.Tree and use 	https://hackage.haskell.org/package/tree-render-text-0.4.0.0/docs/Data-Tree-Render-Text.html
 to render--would have repeated subtrees after network vertex
+
+99) Error in tree length for distance trees
+	caused likely by flipVertices and/or dichotomizeRoot
+	Check by looking at ouput dot format
+
+	

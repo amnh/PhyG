@@ -144,7 +144,7 @@ removeComments inLineList =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support", "rename"]
+allowedCommandList = ["read", "build", "run", "report", "set", "rename"]
 
 
 -- | getInstruction returns teh command type forom an input String

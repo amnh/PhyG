@@ -196,7 +196,8 @@ executable phyg
                 , bits
                 , hashmap
                 , bimap
-                
+                , logfloat
+                , random-shuffle
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions
@@ -242,6 +243,11 @@ executable phyg
                   DirectOptimization.DOWide
                   DirectOptimization.DOHuge
                   Debug.Debug
+                  Search.Build
+                  Search.DistanceWagner
+                  Search.DistanceMethods
+                  Utilities.DistanceUtilities
+                  Types.DistanceTypes
 
             
 library alphabet

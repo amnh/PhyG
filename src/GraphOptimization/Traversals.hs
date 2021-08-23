@@ -246,7 +246,12 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
         --trace ("It Begins at " ++ show rootIndex) (
-        if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
+        if not $ LG.isRoot inGraph rootIndex then 
+            let localRootList = fmap fst $ LG.getRoots inGraph
+                localRootEdges = concatMap (LG.out inGraph) localRootList
+                currentRootEdges = LG.out inGraph rootIndex
+            in
+            error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
         -- )
 
