@@ -305,5 +305,6 @@ to render--would have repeated subtrees after network vertex
 101) Dashes in tgnt files--option?
 	Document
 
-	
+102 ) partitioned data in blocks fix for traversal multiple sequence
+	Taran data
 

@@ -91,7 +91,9 @@ organizeBlockData' localBlockData =
         numNonExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
     in
     if (numExactChars == 0) && (numNonExactChars == 1) then localBlockData
-    else if (numExactChars > 0) && (numNonExactChars == 1) then error "This can't happen untile block set implemented"
+        -- fix for now for partiioned data
+    else if (numExactChars == 0) && (numNonExactChars > 1) then localBlockData
+    else if (numExactChars > 0) && (numNonExactChars == 1) then error "This can't happen until block set implemented"
     else organizeBlockData [] [] [] [] localBlockData
 
 -- | organizeBlockData takes a BlockData element and organizes its character by character type
