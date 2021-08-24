@@ -193,7 +193,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVect
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
                                      , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , hygeAlignment      :: V.Vector BV.BitVector
+                                     , hugeAlignment      :: V.Vector BV.BitVector
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
