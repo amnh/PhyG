@@ -322,3 +322,8 @@ to render--would have repeated subtrees after network vertex
 
 106) filter fasrtcv raw data C.isPrint--aftert fix median huge issue
 
+107) Graphical profiling
+
+	profiteur phyg.prof (from +RTS -p after --enable-profiling)
+	xdg-open phyg.prof.html
+	
