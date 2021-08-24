@@ -300,4 +300,10 @@ to render--would have repeated subtrees after network vertex
 	caused likely by flipVertices and/or dichotomizeRoot
 	Check by looking at ouput dot format
 
+100)  Randomize list of additions--ST monad and return pure?
+
+101) Dashes in tgnt files--option?
+	Document
+
 	
+
