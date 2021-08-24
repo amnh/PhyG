@@ -225,6 +225,9 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , name = T.empty
                                 , alphabet = []
                                 , prealigned = True
+                                --- , slimTCM    = 
+                                -- , wideTCM    = metricRepresentation <$> TCM.fromRows [[0::Word]]
+                                -- , hugeTCM    = metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number

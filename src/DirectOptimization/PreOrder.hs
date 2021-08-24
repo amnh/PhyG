@@ -21,9 +21,9 @@ preOrderLogic
   => Word
   -> Bool
   -> (v a, v a, v a) -- ^ Parent Final       Alignment
-  -> (v a, v a, v a) -- ^ Parent Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Final       Alignment
+  -> (v a, v a, v a) -- ^ Parent Preliminary Context (Gapped triple)
+  -> (v a, v a, v a) -- ^ Child  Preliminary Context (Gapped triple)
+  -> (v a, v a, v a) -- ^ Child  Final       Alignment (Gapped tripple--then filter 0/gap for final state)
 preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext = GV.unzip3 cAlignment
   where
     wlog  = x ! 0

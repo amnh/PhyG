@@ -410,6 +410,7 @@ getRawDataPairsFastC modifier inTextList =
         if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
         else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
 
+-- | add to tnt
 genDiscreteDenseOfDimension
   :: Enum i
   => i

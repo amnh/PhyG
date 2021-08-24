@@ -308,3 +308,13 @@ to render--would have repeated subtrees after network vertex
 102 ) partitioned data in blocks fix for traversal multiple sequence
 	Taran data
 
+103) Pre-order
+	Symbol count is length of alphabet (toEnum $ length alphabet)
+	isLeft 
+		-- either modify postorder 
+		-- or be consistemt on left/right children as in DOMedian left right
+			use Bitvector of vertex
+
+
+104) label invariven data has-> bv label
+

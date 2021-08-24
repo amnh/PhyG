@@ -462,7 +462,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               , globalCost = subtreeCost
               }
 
-
+-- | createUngappedMedianSequence enter symb olCount (symbols from alphabet) and context
 createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
