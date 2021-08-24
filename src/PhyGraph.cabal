@@ -240,6 +240,7 @@ executable phyg
                   DirectOptimization.DOSlim
                   DirectOptimization.DOWide
                   DirectOptimization.DOHuge
+                  DirectOptimization.PreOrder
 
             
 library alphabet
