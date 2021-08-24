@@ -49,7 +49,9 @@ import           System.Environment
 import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
-
+import qualified Data.Text.Lazy              as Text
+import qualified Data.Text.Short             as ST
+import qualified Utilities.Utilities          as U
 
 -- | main driver
 main :: IO ()
@@ -78,7 +80,7 @@ main = do
 
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
     let thingsToDo' = PC.getCommandList  commandContents'
-    -- mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
+    --mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
 
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards
@@ -86,32 +88,48 @@ main = do
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
-    let (rawData, rawGraphs) = RIF.extractDataGraphPair dataGraphList
+    dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
+    -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
+    let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
+
     -- Process Rename Commands
-    newNamePairList <- CE.executeRenameCommands [] thingsToDo
-    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals")
+    newNamePairList <- CE.executeRenameCommands renameFilePairs thingsToDo
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
-    let renamedData   = fmap (DT.renameData newNamePairList) rawData
+    let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
 
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
-    let dataLeafNames = L.sort $ DT.getDataTerminalNames renamedData
+        -- get taxa to include in analysis
+    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++show terminalsToInclude)
+    else hPutStrLn stderr ("")   
+    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++show terminalsToExclude)
+    else hPutStrLn stderr ("")
+
+    -- Uses names form terminal list if non-null, and remove exckuded terminals
+    let dataLeafNames' = if (not $ null terminalsToInclude) then L.sort $ L.nub terminalsToInclude
+                        else L.sort $ DT.getDataTerminalNames renamedData
+    let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
-    --hPutStrLn stderr (show $ fmap fst rawData)
 
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs
-    --hPutStrLn stderr (show $ fmap fst reconciledData)
+    
+    -- Check to see if there are taxa without any observations. Would become total wildcards
+    let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
+    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are taxa without any data: " 
+            ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
+    else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
     let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs
@@ -126,19 +144,23 @@ main = do
     let leafBitVectorNames = DT.createBVNames reconciledData
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
-    -- Need to check data for equal in charcater number
+    -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
     {-To do
       Execute any 'Block' change commands--make reBlockedNaiveData
+      Before organizing data by type since within blocks
     -}
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet, convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-        -- all binary charcaters to nonadditive
-    let groupedData = naiveData
+    -- Group Data--all nonadditives to single character, additives with same alphabet, 
+    let groupedData = DT.groupDataByType naiveData
 
-    -- Optimize Data
+    -- Optimize Data convert
+        -- Additive characters with alphabets < 64 to multiple binary nonadditive
+        -- all binary characters to nonadditive
+        -- matrix 2 states to non-additive with weight
+        -- prealigned to non-additive or matrix
+        -- bitPack non-additive
     let optimizedData = groupedData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
 
 
@@ -160,7 +182,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
@@ -170,9 +192,3 @@ main = do
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at minimum cost " ++ (show minCost) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
 
-
-{-
-    hPutStrLn stderr ("\tData for " ++ (show $ fmap length $ fst $ head rawData))
-    hPutStrLn stderr ("\tAlp[habet] for " ++ (show  $ fmap snd rawData))
-
--}

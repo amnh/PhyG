@@ -196,6 +196,8 @@ executable phyg
                 , bits
                 , hashmap
                 , bimap
+                , logfloat
+                , random-shuffle
                 
                -- currently doesn't compile but could be useful
                -- lots of good functions
@@ -229,11 +231,7 @@ executable phyg
                   Utilities.LocalSequence
                   DirectOptimization.DOUkkonenSequence
                   DirectOptimization.DOUkkonenSequenceInt64
---                  DirectOptimization.DOWrapper
-                  DirectOptimization.NaiveDOSequence
                   Graphs.GraphOperations
---                  DirectOptimization.DOSmallFFI
---                  DirectOptimization.DOLargeFFI
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
@@ -241,6 +239,12 @@ executable phyg
                   DirectOptimization.DOWide
                   DirectOptimization.DOHuge
                   DirectOptimization.PreOrder
+                  Debug.Debug
+                  Search.Build
+                  Search.DistanceWagner
+                  Search.DistanceMethods
+                  Utilities.DistanceUtilities
+                  Types.DistanceTypes
 
             
 library alphabet

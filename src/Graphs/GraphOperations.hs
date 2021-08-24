@@ -52,6 +52,9 @@ module Graphs.GraphOperations ( ladderizeGraph
                        , convertDecoratedToSimpleGraph
                        , graphCostFromNodes
                        , createVertexDataOverBlocks
+                       , divideDecoratedGraphByBlockAndCharacter
+                       , switchRootTree
+                       , dichotomizeRoot
                        ) where
 
 import           Data.Bits                 ((.&.), (.|.))
@@ -66,6 +69,7 @@ import qualified GraphOptimization.Medians as M
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
 import qualified Utilities.LocalSequence   as LS
+import Debug.Debug
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
@@ -93,7 +97,7 @@ ladderizeGraph' inGraph nodeList =
           let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
           in
           ladderizeGraph' newGraph (LG.nodes newGraph)
-        --)
+        
 
 -- | resolveNode takes a graph and node and inbound edgelist and outbound edge list
 -- and converts node to one of (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)
@@ -299,12 +303,12 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 --   graphs only) is also rerooted, and
 --   Character foci set to the new root edge
 --   NB--Uses calls to rerootGraph since traversals are for different graphs so wouldn't save
---   much time by consolidating--also since labels are all different--can'treuse alot of info
+--   much time by consolidating--also since labels are all different--can't re-use alot of info
 --   from graph to graph.
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, blockDisplayForestVect, inFociVect, charInfoVectVect) =
   if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
-  else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph") -- ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
+  --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
         newSimpleGraph = rerootGraph rerootIndex inSimple
@@ -315,10 +319,10 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
         (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
+
         -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
-        -- reoptimizedNodes = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
+        -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
         newDecGraph' = reOptimizeNodes charInfoVectVect newDecGraph (reverse nodesToOptimize)
-        -- newDecGraph' =  LG.insNodes reoptimizedNodes $ LG.delNodes (fmap fst nodesToOptimize) newDecGraph
 
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
@@ -326,6 +330,7 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
                                     else V.map (rerootGraph rerootIndex) blockDisplayForestVect
+
         -- the edge the rerooting was switched to (vect vect vect)
         newRootOrigEdge = head $ LG.inn inSimple rerootIndex
         newCharacterFoci = makeCharFociVVV (LG.toEdge newRootOrigEdge) (V.map V.length charInfoVectVect)
@@ -339,7 +344,8 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, inCost, inDecGraph, bl
           ++ (LG.prettify inDecGraph) ++ "\nRRG:" ++ ((LG.prettify newDecGraph)) ++ "\nNG " ++ (show newGraphCost) ++ " :" ++ (LG.prettify newDecGraph')
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
+          -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, divideDecoratedGraphByBlockAndCharacter newDecGraph', charInfoVectVect)
 
 
 
@@ -400,59 +406,49 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
             --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
             reOptimizeNodes charInfoVectVect newGraph (tail oldNodeList)
 
--- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and
--- extracts the quartet for each block and creates new block data for parent node (usually)
+
+-- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
+createVertexDataOverBlocks :: VertexBlockData
+                           -> VertexBlockData
+                           -> V.Vector (V.Vector CharInfo)
+                           -> [V.Vector (CharacterData, VertexCost)]
+                           -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
+
+-- | createVertexDataOverBlocksNonExact is a partial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
+createVertexDataOverBlocksNonExact :: VertexBlockData
+                                   -> VertexBlockData
+                                   -> V.Vector (V.Vector CharInfo)
+                                   -> [V.Vector (CharacterData, VertexCost)]
+                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
+
+-- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)  
+-- and only non-exact (basically sequence) characters based on the median function passed
+-- The function takes data in blocks and block vector of char info and
+-- extracts the triple for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
--- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-
-{-
-createVertexDataOverBlocksNonExact' :: VertexBlockData -> VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact' leftBlockData rightBlockData existingBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then
-        -- trace ("Blocks: " ++ (show $ length curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let firstBlock = V.zip4 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
-        in
-        trace ("making")
-        createVertexDataOverBlocksNonExact' (V.tail leftBlockData) (V.tail rightBlockData) (V.tail existingBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
--}
-
--- | createVertexDataOverBlocksNonExact takes data in blocks and block vector of char info and
--- extracts the quartet for each block and creates new block data for parent node (usually)
--- not checking if vectors are equal in length
--- this only reoptimized the nonexact characters (sequence characters for now, perhpas others later)
--- and and skips the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-createVertexDataOverBlocksNonExact :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact leftBlockData rightBlockData  blockCharInfoVect curBlockData =
-    if V.null leftBlockData then
-        -- trace ("Blocks: " ++ (show $ length curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2NonExact firstBlock
-        in
-        createVertexDataOverBlocksNonExact (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
-
--- | createVertexDataOverBlocks takes data in blocks and block vector of char info and
--- extracts the triple for each block and creates new bloick data for parent node (usually)
--- not checking if vectgors are equal in length
-createVertexDataOverBlocks :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> [V.Vector (CharacterData, VertexCost)] -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
+generalCreateVertexDataOverBlocks :: (V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)) 
+                                  -> VertexBlockData 
+                                  -> VertexBlockData 
+                                  -> V.Vector (V.Vector CharInfo) 
+                                  -> [V.Vector (CharacterData, VertexCost)] 
+                                  -> V.Vector (V.Vector (CharacterData, VertexCost))
+generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
     else
-        let firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            firstBlockMedian = M.median2 firstBlock
+        let leftBlockLength = length $ V.head leftBlockData
+            rightBlockLength =  length $ V.head rightBlockData
+            firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+
+            -- missing data cases first or zip defaults to zero length
+            firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
+                               else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
+                               else medianFunction firstBlock
         in
-        createVertexDataOverBlocks (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
-
-
+        generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 -- | makeCharFociVVV takes an edge and creates the Vector Vector Vector structure for that edge based
 -- on charInfo
@@ -634,3 +630,149 @@ graphCostFromNodes inGraph =
   if LG.isEmpty inGraph then 0.0
   else
     sum $ fmap vertexCost $ fmap snd $ LG.labNodes inGraph
+
+-- | divideDecoratedGraphByBlockAndCharacter takes a DecoratedGraph with (potentially) multiple blocks
+-- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
+-- over blocks and characyets with the same graph, but only a single block and character for each graph
+-- this to be used to create the "best" cost over alternate graph traversals
+-- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+divideDecoratedGraphByBlockAndCharacter :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacter inGraph = 
+  if LG.isEmpty inGraph then V.empty
+  else 
+    let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
+        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
+        characterGraphList = fmap makeCharacterGraph blockGraphList
+    in
+    -- trace ("Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph)) 
+    V.fromList characterGraphList
+
+-- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
+-- only data from the input block index
+pullBlock :: DecoratedGraph -> Int -> DecoratedGraph
+pullBlock inGraph blockIndex =
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inGraph
+        blockNodeLabelList = fmap (makeBlockNodeLabels blockIndex) inNodeLabelList
+    in
+    LG.mkGraph (zip inNodeIndexList blockNodeLabelList) (LG.labEdges inGraph)
+
+-- | makeBlockNodeLabels takes a block index and an orginal nodel label
+-- and cretes a new list of a singleton block from the input block index
+makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
+makeBlockNodeLabels blockIndex inVertexInfo =
+  let newVertexData = (vertData inVertexInfo) V.! blockIndex
+      newVertexCost = V.sum $ fmap localCost newVertexData
+      newsubGraphCost = V.sum $ fmap globalCost newVertexData
+  in
+  -- trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
+  inVertexInfo { vertData     = V.singleton newVertexData
+               , vertexCost   = newVertexCost
+               , subGraphCost = newsubGraphCost
+               }
+
+-- | makeCharacterGraph takes a blockGraph and creates a vector of character graphs
+-- each with a single block and single character 
+-- updating costs
+makeCharacterGraph :: DecoratedGraph -> V.Vector DecoratedGraph
+makeCharacterGraph inBlockGraph =
+  if LG.isEmpty inBlockGraph then V.empty
+  else 
+    let numCharacters =  V.length $ V.head $ vertData $ snd $ head $ LG.labNodes inBlockGraph
+        characterGraphList = if (numCharacters > 0) then fmap (pullCharacter False inBlockGraph) [0.. (numCharacters - 1)]
+                             -- missing data
+                             else [pullCharacter True inBlockGraph 0]
+    in
+    if (V.length $ vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
+    else 
+      -- trace ("Chars: " ++ show numCharacters)
+      V.fromList characterGraphList
+
+-- | pullCharacter takes a DecoratedGraph with a single block and
+-- creates a new DecoratedGraph with a single character form the input index
+pullCharacter :: Bool -> DecoratedGraph -> Int -> DecoratedGraph
+pullCharacter isMissing inBlockGraph characterIndex =
+  if LG.isEmpty inBlockGraph then LG.empty
+  else 
+    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inBlockGraph
+        characterLabelList = fmap (makeCharacterLabels isMissing characterIndex) inNodeLabelList
+    in
+    LG.mkGraph (zip inNodeIndexList characterLabelList) (LG.labEdges inBlockGraph)
+
+-- | makeCharacterLabels pulls the index character label form the singleton block (via head)
+-- and creates a singleton character label, updateing costs to that of the character
+makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
+makeCharacterLabels isMissing characterIndex inVertexInfo =
+  let newVertexData = (V.head $ vertData inVertexInfo) V.! characterIndex
+      newVertexCost = localCost newVertexData
+      newSubGraphCost = globalCost newVertexData
+  in
+  inVertexInfo { vertData     = if (not isMissing) then V.singleton $ V.singleton newVertexData
+                                else V.singleton V.empty
+               , vertexCost   = newVertexCost
+               , subGraphCost = newSubGraphCost
+               }
+
+-- | switchRootTree takes a new root vertex index of a tree and switches the existing root (and all relevent edges) 
+-- to new index
+switchRootTree :: (Show a, Show b) => Int -> LG.Gr a b -> LG.Gr a b
+switchRootTree newRootIndex inGraph =
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let rootList = LG.getRoots inGraph
+        (newRootCurInEdges, newRootCurOutEdges) = LG.getInOutEdges inGraph newRootIndex
+        oldRootEdges = LG.out inGraph $ fst $ head rootList
+
+    in
+    -- not a directed tree
+    if length rootList /= 1 then error ("Graph input to switchRootTree is not a tree--not single root:" ++ (show rootList))
+
+    -- same root
+    else if newRootIndex == (fst $ head rootList) then inGraph
+    else
+        -- create new edges and delete the old ones
+        let newEdgesToAdd = fmap (flipVertices (fst $ head rootList) newRootIndex) (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges)
+        in
+        LG.insEdges newEdgesToAdd $ LG.delLEdges (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges) inGraph
+
+-- | flipVertices takes an old vertex index and a new vertex index and inserts one for the other 
+-- in a labelled edge
+flipVertices ::(Show b) => Int -> Int ->  LG.LEdge b -> LG.LEdge b
+flipVertices a b (u,v,l) = 
+  let newU = if u == a then b
+             else if u == b then a
+             else u
+      newV = if v == a then b
+            else if v == b then a
+            else v
+  in
+  -- trace (show (u,v,l) ++ "->" ++ show (newU, newV, l))
+  (newU, newV, l)
+
+-- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
+dichotomizeRoot :: Int -> SimpleGraph -> SimpleGraph
+dichotomizeRoot outgroupIndex inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let rootList = LG.getRoots inGraph
+        currentRoot = fst $ head rootList
+        rootEdgeList = LG.out inGraph $ currentRoot
+    in
+    -- not a tree error
+    if (length rootList /= 1) then error ("Graph input to dichotomizeRoot is not a tree--not single root:" ++ (show rootList))
+
+    -- nothing to do 
+    else if (length rootEdgeList < 3) then inGraph
+    else 
+      let numVertices = length $ LG.nodes inGraph
+          newNode = (numVertices, T.pack $ show numVertices)
+          edgesToDelete = filter ((/=outgroupIndex) . snd3) rootEdgeList
+          newEdgeDestinations = fmap snd3 edgesToDelete
+          newEdgeStarts = replicate (length newEdgeDestinations) numVertices
+          newEdgeLabels = replicate (length newEdgeDestinations) 0.0
+          newEdgesNewNode = debugZip3 newEdgeStarts newEdgeDestinations newEdgeLabels
+          newRootEdge = (currentRoot, numVertices, 0.0)
+      in
+      LG.delLEdges edgesToDelete $ LG.insEdges (newRootEdge : newEdgesNewNode) $ LG.insNode newNode inGraph
+

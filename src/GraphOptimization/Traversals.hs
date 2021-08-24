@@ -56,6 +56,8 @@ import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy  as T
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe
+import Debug.Debug as D
+import Utilities.Utilities as U
 
 -- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
@@ -64,6 +66,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
     else 
         let leafGraph = makeLeafGraph inData
+
+            -- for special casing of nonexact and single exact characters
+            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
 
             {-
             -- brute force
@@ -100,140 +105,74 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             --  travesal for exact charcaters (and costs) are the first of each least since exact onluy optimizaed for that 
             --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
-            graphWithBestAssignments = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
+            --graphWithBestAssignments  = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
+            graphWithBestAssignments' = foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
         --trace ("Initial Children: " ++ show childrenOfRoot)
-        --trace (show minCost ++ ":" ++ (show $ sort $ fmap snd6 rerootedPhyloGraphList) ++ "\n" ++
+        --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
-        graphWithBestAssignments
+        if nonExactChars == 0 then outgroupRootedPhyloGraph
+        else if nonExactChars == 1 then head minCostGraphListRecursive
+        else graphWithBestAssignments'
 
--- | setBestGraphAssignments take a list of Phylogenetics Graphs and an initial graph with counter as 7 fields
---   and returns the Phylogenetic graph with optimal exact an non-exact costs and traversal graphs
---   exact character and traversal graphs are taken as those of the head of the list
---   input simple and decotratoed graphs are unchanged in output.  The curBlockDisplayForestList and curTraversalGraphList 
---   would be used for any pre-order traversals and assignments
---   this version for input trees so curTraversalGraphList can be created from input Decorated Graphs and blockDisplayForwst are set as the same as well
---   (would vary if softwired graph)
-setBestGraphAssignments :: [PhylogeneticGraph] -> SimpleGraph-> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> PhylogeneticGraph
-setBestGraphAssignments inGraphList curSimpleGraph curDecGraph curCharInfo  =
-    if null inGraphList then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+-- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
+-- with traversal focus etc to get best overall graph
+-- since this is meant to work with graphs that have or do not have reoptimized exact (=static-Add/NonAdd/MAtrix) characters 
+-- the criterion is lower cost character is taken, unless the cost is zero, then non-zero is taken
+-- this function is expected to be used in a fild over a list of graphs
+-- the basic comparison is over teh costs of the root(s) cost for each  of the character decorated (traversal) graphs
+
+--May change
+-- assumes that a single decorated graph comes in for each Phylogenetic graph from the fully and reroot optimize (V.singleton (V.singleton DecGraph))
+-- and goes through the block-character-cost data and reassigns based on that creating a (potentially unique) decorated graph for each character in each block.
+-- postorder assignments in traversal set of block character trees are NOT propagated back to first decorated graph.  For now,
+-- this is becasue teh postoder assignment there isn't that useful (could be later for some things--fusing, SPR) but the traversal graphs
+-- are used for the pre-order final assignments whic will be propagated back to set those of the 3rd filed decorated graph
+
+-- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
+-- unclear how hardwired will be affected
+setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
+setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, sCost, sDecGraph, _, sTraversal, _) =
+    if LG.isEmpty fDecGraph then secondGraph
+    else if LG.isEmpty sDecGraph then firstGraph
     else 
-        -- Get list of best costs,  assignments, display graphs,  traversal tree(s) for each non-exact character, head for exact
-        -- Get total best cost
-        let graphAllCharcaterData = getCharacterData "all" (head inGraphList)
-            graphNonExactCharacterData = fmap (getCharacterData "nonExact") (tail inGraphList)
-            -- extract best everyhting from (graphAllCharcaterData : graphNonExactCharacterData)
-            newGraph = createPhyloGeneticGraphFromBlockLists curSimpleGraph curDecGraph curCharInfo $ getBestFullBlockList (graphAllCharcaterData : graphNonExactCharacterData) []
+        --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ) ( -- ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
+        let (mergedBlockVect, costVector) = V.unzip $ fmap makeBetterBlock (D.debugVectorZip fTraversal sTraversal)
         in
-        -- newGraph
-        head inGraphList   
-
--- | getCharacterData takes a PhylogeneticGraph and extracts the summed root(s) cost for each character  
--- if string argument specifies classes of characters "all" or "nonExact" (ie not Additive, Nonadditive, Matrix)
--- retuns a list (over blocks) of a list (over charcaters) of tuples (charcater cost--summed roots, block display forest, character traversal graph)
-getCharacterData :: String -> PhylogeneticGraph -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]]
-getCharacterData charSet inGraph = 
-    if LG.isEmpty (fst6 inGraph) then []
-    else 
-        -- get info for all characters
-        let rootList = LG.getRoots (thd6 inGraph)
-
-            -- this for multiple roots in forest
-            rootVertexDataList = fmap vertData $ fmap snd rootList
-            rootVertexCostList = fmap (fmap (fmap globalCost)) rootVertexDataList
-            summedRootCostVect = foldl' (SM.zipWith (+)) (head rootVertexCostList) (tail rootVertexCostList)
-
-            -- tuple of epolcated vector of block display graph, vector of decorated graph, block charcater info, and block root costs
-            blockTupleVect = V.toList $ V.zip4 (V.replicate (V.length $ fft6 inGraph) $ fth6 inGraph) (fft6 inGraph) (six6 inGraph) summedRootCostVect
-        in
-        if null rootVertexDataList then error "Empty root list in getCharacterData"
-        else reverse $ fmap (getBlockCharData charSet) blockTupleVect
-
--- createPhyloGeneticGraphFromBlockLists takes a Phylogenetic graph and a list of blocks (list of characters) and creates
--- a PhylogeneticGraph with correct costs and fields.
-createPhyloGeneticGraphFromBlockLists :: SimpleGraph -> DecoratedGraph -> (V.Vector (V.Vector CharInfo)) -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> PhylogeneticGraph
-createPhyloGeneticGraphFromBlockLists inSimpleGraph inDecoratedGraph inCharInfo fullBlockList = 
-    let newCost = sum $ fmap (sum . (fmap fst3)) fullBlockList
-        -- this greaph single graph per block although tracked for characters for ease of access
-        bestBlockDisplayList = V.fromList $ fmap (thd3 . head) fullBlockList
-        characterTraversalGraphs = V.fromList $ fmap (V.fromList . (fmap thd3)) fullBlockList
-    in
-    (inSimpleGraph, newCost, inDecoratedGraph, V.empty, characterTraversalGraphs, inCharInfo)
-
--- getBestFullBlockList takes full graph list and optimizes each block of charcaters 
--- called with null "best" []
-getBestFullBlockList :: [[[(VertexCost, DecoratedGraph, DecoratedGraph)]]] -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> [[(VertexCost, DecoratedGraph, DecoratedGraph)]]
-getBestFullBlockList inGraphList curBestBlockList = 
-    -- if gone though all charcters in the block--terminate
-    if null $ head inGraphList then reverse curBestBlockList
-    else 
-        let firstGraphBlock = fmap head inGraphList
-            bestBlock = getBestBlockofCharacters firstGraphBlock []
-        in
-        getBestFullBlockList inGraphList (bestBlock : curBestBlockList)
-
--- getBestBlockofCharacters takes a list (over graphs) of a single block of characters (and current block list) 
--- and returns a list of "best" (= lowest cost)
--- character assignmentd for the elements of that block
--- called with accumulator empty []
-getBestBlockofCharacters :: [[(VertexCost, DecoratedGraph, DecoratedGraph)]] -> [(VertexCost, DecoratedGraph, DecoratedGraph)] -> [(VertexCost, DecoratedGraph, DecoratedGraph)]
-getBestBlockofCharacters blockCharacterList curBestBlock = 
-    -- if gone though all charcters in the block--terminate
-    if null $ head blockCharacterList then reverse curBestBlock
-    else 
-        let graphBlockCharacterList = fmap head blockCharacterList
-            bestCharacterTriple = getBestCharacter graphBlockCharacterList (1/0 :: VertexCost, LG.empty, LG.empty)
-        in
-        getBestBlockofCharacters (fmap tail blockCharacterList) (bestCharacterTriple : curBestBlock) 
+         --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ") ->" ++ (show $ V.sum costVector) ++ " nt:" ++ (show $ length fTraversal)
+         --   ++ "length blocks " ++ (show $ fmap length fTraversal))
+        (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
+        --)
         
+-- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each 
+-- character.  This can be a single sequence or series of exact characters
+-- the function applies a character cost comparison to get the better 
+makeBetterBlock :: ((V.Vector DecoratedGraph), (V.Vector DecoratedGraph)) -> ((V.Vector DecoratedGraph), VertexCost)
+makeBetterBlock (firstBlockGraphVect, secondBlockGraphVect) = 
+    let (mergedCharacterVect, costVector) = V.unzip $ fmap chooseBetterCharacter (D.debugVectorZip firstBlockGraphVect secondBlockGraphVect)
+    in
+    (mergedCharacterVect, V.sum costVector)
 
-
--- | getBestCharacter takes list of corresponding charcater triples (cost, Decorated Graph, Decorated Graph),
--- a current best triple and returns a single triple of best (= lowest) cost with Decorated graphs 
--- called with (1/0 :: VertexCost, LG.empty, LG.empty)
--- the list is dues to a single charcater coming from multiple graphs
--- NB--could be multiple best, but only taking one here (relevent to graph output in triple)
-getBestCharacter :: [(VertexCost, DecoratedGraph, DecoratedGraph)] -> (VertexCost, DecoratedGraph, DecoratedGraph) -> (VertexCost, DecoratedGraph, DecoratedGraph)
-getBestCharacter characterTripleList curBestTriple@(curBestCost, _, _) =
-    if null characterTripleList then 
-            if curBestCost == (1/0 :: VertexCost) then error "No best character cost found in getBestCharacter"
-            else curBestTriple
-    else 
-        let firstTriple@(firstCost, _, _) = head characterTripleList
+-- | chooseBetterCharacter takes a pair of character decorated graphs and chooses teh "better" one as in lower cost, or non-zero cost
+--  if one is zer (for exact characters) and returns the better character and cost
+--  graph can have multiple roots
+chooseBetterCharacter :: (DecoratedGraph, DecoratedGraph) -> (DecoratedGraph, VertexCost)
+chooseBetterCharacter (firstGraph, secondGraph) =
+    if LG.isEmpty firstGraph then error "Empty first graph in chooseBetterCharacter"
+    else if LG.isEmpty secondGraph then error "Empty second graph in chooseBetterCharacter"
+    else    
+        let firstGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots firstGraph
+            secondGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots secondGraph
         in
-        if firstCost < curBestCost then getBestCharacter (tail characterTripleList) firstTriple
-        else getBestCharacter (tail characterTripleList) curBestTriple
-
--- | getBlockCharData takes a character set (as "all" characters or only "nonExact" ie not Add, NonAdd, Matrix),
--- a list of root vertex vertData, and a triple of block data (DisplayForest, Character Decorated trees, character info),
--- and a list ot root label data
--- and returns a list of character information as a tuple of (cost, block display forest, traversal graph), one tuple per character
--- the "character"  can be mulitple for "gropued" characters (exact) but are single "sequence" or
--- other non-exact character types.
--- if "nonExact" is spacified then 0 cost and empty graph are rturned for that character
--- Does NOT check for activity of character
-getBlockCharData :: String -> (V.Vector BlockDisplayForest, V.Vector DecoratedGraph, V.Vector CharInfo, V.Vector VertexCost) -> [(VertexCost, DecoratedGraph, DecoratedGraph)]
-getBlockCharData charSet (inBlockDisplayForest, traversalGraphVect, charInfoVect, vertexRootCostVect) = 
-    if V.null inBlockDisplayForest then []
-    else 
-        let firstBDF = V.head inBlockDisplayForest
-            firstTG = V.head traversalGraphVect
-            firstCI = charType $ V.head charInfoVect
-            firstVRC = V.head vertexRootCostVect
-        in
-        if charSet == "all" then 
-            (firstVRC, firstBDF, firstTG) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect) 
-        else if charSet == "nonExact" then  
-            if firstCI `elem` nonExactCharacterTypes then 
-                (firstVRC, firstBDF, firstTG) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect) 
-            else 
-                (1/0 :: Double, LG.empty, LG.empty) : getBlockCharData charSet (V.tail inBlockDisplayForest, V.tail traversalGraphVect, V.tail charInfoVect, V.tail vertexRootCostVect)
-        else error ("Mispecified argument '" ++ charSet ++ "' in getBlockCharData")
-     
-
-
+        -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
+        if firstGraphCost == 0 then (secondGraph, secondGraphCost) 
+        else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
+        else if firstGraphCost < secondGraphCost then (firstGraph, firstGraphCost)
+        else (secondGraph, secondGraphCost) 
+        --)
 
 -- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully
@@ -275,6 +214,7 @@ makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertex nameVect bvNameVect inData localIndex =
+    --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData 
         thisData = V.map (V.! localIndex) centralData
         newVertex = VertexInfo  { index = localIndex
@@ -290,8 +230,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
         in
         -- trace (show (length thisData) ++ (show $ fmap length thisData))
         (localIndex, newVertex)
-
-
+        --)
 
 -- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
 -- vi post-order traversal, yields cost as well
@@ -307,7 +246,12 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
         --trace ("It Begins at " ++ show rootIndex) (
-        if not $ LG.isRoot inGraph rootIndex then error ("Index "  ++ (show rootIndex) ++ " not root in graph:\n" ++ (GFU.showGraph inGraph))
+        if not $ LG.isRoot inGraph rootIndex then 
+            let localRootList = fmap fst $ LG.getRoots inGraph
+                localRootEdges = concatMap (LG.out inGraph) localRootList
+                currentRootEdges = LG.out inGraph rootIndex
+            in
+            error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
         -- )
 
@@ -325,7 +269,7 @@ getVirtualRootEdge inGraph inNode =
         -- this really shouldn't be used but in recursion for traversal may be needed
         if LG.isLeaf inGraph inNode then (head parentList, inNode)
         else 
-            if length childList /= 2 then error ("Root node with /= 2 childern in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
+            if length childList /= 2 then error ("Root node with /= 2 children in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
             else (head childList, last childList)
 
 
@@ -342,7 +286,9 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.empty, V.replicate (length blockCharInfo) (V.singleton curDecGraph), blockCharInfo)
+        else 
+            -- (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.singleton curDecGraph, V.replicate (length blockCharInfo) (V.singleton curDecGraph), blockCharInfo)
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.singleton curDecGraph, V.singleton (V.singleton curDecGraph), blockCharInfo)
 
     -- Need to make node
     else 
@@ -387,13 +333,9 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
             in
-            -- return new graph
-            --trace ("Node stuff: " ++ show (curNode, index leftChildLabel, index rightChildLabel)) -- , vertData leftChildLabel, vertData  rightChildLabel, V.map (V.map fst) newCharData))
-            --trace ("Chars: " ++ (show $ V.length  $ vertData $ fromJust $ LG.lab newSubTree leftChild) ++ " " ++ (show $ fmap V.length $ vertData $ fromJust $ LG.lab newSubTree leftChild)
-               -- ++ (show $ V.map (V.map snd) newCharData)) (
-            -- trace ("Node " ++ (show curNode) ++ " Cost: " ++ (show $ subGraphCost newVertex) ++ " " 
-              --  ++ show ((subGraphCost $ fromJust $ LG.lab newSubTree leftChild), (subGraphCost $ fromJust $ LG.lab newSubTree rightChild), newCost))
-            (simpleGraph, (subGraphCost newVertex), newGraph, V.empty, V.empty, blockCharInfo)
+            -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
+
+            (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)
             
 

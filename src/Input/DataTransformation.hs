@@ -42,6 +42,8 @@ module Input.DataTransformation
   , checkDuplicatedTerminals
   , createNaiveData
   , createBVNames
+  , partitionSequences
+  , groupDataByType
   ) where
 
 import           Data.Foldable
@@ -62,6 +64,455 @@ import           Data.Word
 import           Debug.Trace
 import           Foreign.C.Types
 import           Text.Read
+import qualified Utilities.Utilities as U
+import           Debug.Trace
+import           GeneralUtilities
+import qualified SymMatrix                   as S
+
+-- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
+-- with characters reorganized (within blocks) 
+    -- all non-additive (with same weight) merged to a single vector character 
+    -- all additive with same alphabet (ie numberical) recoded to single vector
+    -- all matrix characters with same costmatrix recoded to single charcater
+    -- removes innactive characters
+groupDataByType :: ProcessedData -> ProcessedData
+groupDataByType inData@(nameVect, nameBVVect, blockDataVect) = 
+    let organizedBlockData =  V.map organizeBlockData' blockDataVect
+    in
+    -- trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
+    --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
+    (nameVect, nameBVVect, organizedBlockData)
+    
+-- | organizeBlockData' shortcircuits nonExact data types in a block to avoid logic in organizeBlockData
+-- should be removed when have better teatment of missing non-exact data and block options
+organizeBlockData' :: BlockData -> BlockData
+organizeBlockData' localBlockData = 
+    let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
+        numNonExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
+    in
+    if (numExactChars == 0) && (numNonExactChars == 1) then localBlockData
+        -- fix for now for partiioned data
+    else if (numExactChars == 0) then localBlockData
+    else if (numExactChars > 0) && (numNonExactChars > 0) then error "This can't happen until block set implemented"
+    else organizeBlockData [] [] [] [] localBlockData
+
+-- | organizeBlockData takes a BlockData element and organizes its character by character type
+-- to single add, non-add, matrix, non-exact characters (and those with non-integer weights) are left as is due to their need for 
+-- individual traversal graphs
+-- second element of tuple is a vector over taxa (leaves on input) with
+-- a character vector for each leaf/taxon-- basically a matrix with taxon rows and character columns
+-- the character info vector is same size as one for each leaf
+-- the first 4 args are accumulators for the character types.  Matrix type is list of list since can have multiple
+-- matrices.  All non-Exact are in same pile.  
+-- characters with weight > 1 are recoded as multiples of same character, if weight non-integer geoes into the "unchanged" pile
+-- when bit packed later (if non-additive) will have only log 64 operations impact
+-- the pairs for some data types are to keep track of things that vary--like matrices and non-exact charcater information
+organizeBlockData :: [([CharacterData], CharInfo)] 
+                  -> [([CharacterData], CharInfo)] 
+                  -> [([[CharacterData]], CharInfo)] 
+                  -> [([CharacterData], CharInfo)]
+                  -> BlockData 
+                  -> BlockData
+organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList inBlockData@(blockName, characterDataVectVect, charInfoVect) =
+    -- Bit ofg a cop out but not managing the missing data in blocks thing for multiple non-exact in block
+    -- need to add multiple non-exact in block
+    if null charInfoVect then 
+        -- concatenate all new characters, reverse (for good measure), and convert to vectors
+        -- with unrecoded non-Exact charcaters and new CharInfo vector (reversed)
+        -- need to make sure the character info is in the order of return types--nonAdd, Add, Matrix etc
+        {-Will need a function to add all this stuff back together
+        (blockNamne, newCharacterVector, newCharInfoVect)
+        -}
+        --trace ("New Char lengths :" ++ (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
+        let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList
+        in 
+        (blockName, newCharDataVectVect, newCharInfoVect)
+        -- )
+    else 
+        -- proceed charcater by character increasing accumulators and consuming character data vector and character infoVect
+        -- maybe only accumulate for matrix and non additives? 
+        let firstCharacter = V.head charInfoVect
+            fCharType = charType firstCharacter
+            fCharWeight = weight firstCharacter
+            intWeight = doubleAsInt fCharWeight
+            fCharMatrix = costMatrix firstCharacter
+            fCharActivity = activity firstCharacter
+            fAlphabet = alphabet firstCharacter
+            firstCharacterTaxa = fmap U.safeVectorHead characterDataVectVect
+        in
+        -- trace ("FCT: " ++ (show $ length firstCharacterTaxa) ++ " " ++ (show characterDataVectVect)) (
+        --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
+        
+        -- remove inactive characters
+        if fCharActivity == False then 
+            -- trace ("Innactive") 
+            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+
+        -- remove constant/missing characters
+        -- <2 becasue could be 0 for all missing (could happen with reduced dataset)
+        else if length fAlphabet < 2 then 
+            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+
+        -- place non-exact and non-integer weight characters in unchangedCharList
+        else if (intWeight == Nothing) then 
+            -- add to unchanged pile
+            let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter) 
+                
+            in 
+            -- trace ("Unchanged character:" ++ (show $ length $ fst currentUnchangedCharacter) ++ " Name:" ++ (T.unpack $ name firstCharacter) ++ " " ++ (show (charType firstCharacter))
+            --    ++ " " ++ (show $ fst currentUnchangedCharacter)) 
+            -- trace ("Character Weight non-integer:" ++ show fCharWeight) 
+            organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
+            
+        -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since miossing character will be empoty and throw an error on V.head
+        else if (fCharType `notElem` exactCharacterTypes) 
+            then errorWithoutStackTrace "Blocks with more than one Non-Exact Character not yet implemented"
+
+        -- non-additive characters
+        else if fCharType == NonAdd then 
+            let replicateNumber = fromJust intWeight
+                currentNonAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+            in 
+            -- trace ("Non-Additive") (
+            if (replicateNumber == 1) then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect) 
+            else organizeBlockData ((replicate replicateNumber currentNonAdditiveCharacter) ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            -- )
+
+        -- additive characters    
+        else if fCharType == Add then  
+            let replicateNumber = fromJust intWeight
+                currentAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+            in  
+            -- trace ("Additive") (
+            if (replicateNumber == 1) then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)  
+            else organizeBlockData nonAddCharList ((replicate replicateNumber currentAdditiveCharacter) ++ addCharList) matrixCharListList unchangedCharList  (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            -- )
+
+        -- matrix characters--more complex since need to check for matrix identity
+        else if fCharType == Matrix then  
+            let replicateNumber = fromJust intWeight
+                currentMatrixCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+                newMatrixCharacterList = addMatrixCharacter matrixCharListList fCharMatrix currentMatrixCharacter replicateNumber
+            in
+            -- trace ("Matrix") (
+            organizeBlockData nonAddCharList addCharList newMatrixCharacterList unchangedCharList (blockName, (V.map V.tail characterDataVectVect), V.tail charInfoVect)
+            -- )
+
+        -- error in thype
+        else error ("Unrecognized/nont implemented charcter type: " ++ show fCharType)
+        -- )
+
+-- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
+-- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
+-- non-exact charcaters and those with non-integer weights
+-- and character Information vector
+-- these only bupdate preliminary of their type--meant to happen before decoration processes
+makeNewCharacterData :: [([CharacterData], CharInfo)] 
+                     -> [([CharacterData], CharInfo)] 
+                     -> [([[CharacterData]], CharInfo)] 
+                     -> [([CharacterData], CharInfo)]
+                     -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
+    let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
+                         , stateBVFinal       = mempty
+                         -- for Additive
+                         , rangePrelim        = mempty
+                         , rangeFinal         = mempty
+                         -- for multiple Sankoff/Matrix with sme tcm
+                         , matrixStatesPrelim = mempty
+                         , matrixStatesFinal  = mempty
+                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                         , slimPrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , slimGapped         = (mempty, mempty, mempty)
+                         , slimAlignment      = (mempty, mempty, mempty)
+                         , slimFinal          = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , widePrelim         = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , wideGapped         = (mempty, mempty, mempty)
+                         , wideAlignment      = (mempty, mempty, mempty)
+                         , wideFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , hugePrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , hugeGapped         = (mempty, mempty, mempty)
+                         , hugeAlignment      = (mempty, mempty, mempty)
+                         , hugeFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , localCostVect      = mempty
+                         -- weight * V.sum localCostVect
+                         , localCost          = 0
+                         -- unclear if need vector version
+                         , globalCost         = 0
+                         } 
+
+        -- Non-Additive Characters
+        nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
+        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
+        (nonAddCharacter', nonAddCharInfo') = if (null nonAddCharList) then ([], V.empty)
+                                              else (nonAddCharacter, nonAddCharInfo)
+
+        -- Additive Characters
+        addCharacter = combineAdditveCharacters addCharList emptyCharacter []
+        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters"}
+        (addCharacter', addCharInfo') = if (null addCharList) then ([], V.empty)
+                                        else (addCharacter, addCharInfo)
+        -- Matrix Characters
+        (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
+        
+        -- Unchanged characters 
+        (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList 
+        
+        -- buildList incrementally
+        newCharacterList' = if null nonAddCharacter then []
+                            else [nonAddCharacter]
+        newCharacterList'' = if (null addCharacter) then newCharacterList'
+                             else (addCharacter) : newCharacterList'
+        newCharacterList''' = newCharacterList'' ++ (matrixCharacters)
+
+        newChararacterInfoList' = if null nonAddCharacter then []
+                                  else [nonAddCharInfo]
+        newChararacterInfoList'' = if null addCharacter then newChararacterInfoList'
+                                  else addCharInfo : newChararacterInfoList'
+        newChararacterInfoList''' = newChararacterInfoList'' ++ (fmap V.singleton matrixCharInfoList)
+        
+    in
+    {-
+    trace ("Recoded Non-Additive: " ++ (show $ length nonAddCharList) ++ "->" ++ (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
+        ++ " Additive: " ++ (show $ length addCharList) ++ "->" ++ (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
+        ++ " Matrix " ++ (show  $length matrixCharListList) ++ "->" ++ (show $ length matrixCharacters)
+        ++ " total list: " ++ (show (length newCharacterList''', fmap length newCharacterList''')) ++ " CI " ++ (show $ length newChararacterInfoList'''))
+    -}
+    (V.fromList $ fmap V.fromList $ L.transpose newCharacterList''', V.concat newChararacterInfoList''')
+
+-- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
+-- reversing to keep original order
+combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
+combineUnchangedCharacters unchangedCharListList = 
+    if null unchangedCharListList then ([], [])
+    else
+        let (newCharList, newCharInfoList) = unzip unchangedCharListList
+        in 
+        -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
+        (L.transpose newCharList, newCharInfoList)
+
+-- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
+-- each character "type" (based on matrix) can have 1 or more characters 
+mergeMatrixCharacters :: [([[CharacterData]], CharInfo)] -> CharacterData -> ([[CharacterData]], [CharInfo])
+mergeMatrixCharacters inMatrixCharListList charTemplate =
+    -- should probably reverse the characters to maintian similar ordering to input
+    let (charDataList, charInfoList) = unzip inMatrixCharListList
+        combinedMatrixCharList = fmap (combineMatrixCharacters charTemplate []) charDataList
+    in
+    (fmap reverse combinedMatrixCharList, charInfoList)
+
+-- | combineMatrixCharacters takes all matrix characters with same cost matrix and combines into
+-- a single character with vector of original characters
+combineMatrixCharacters :: CharacterData -> [[V.Vector MatrixTriple]] -> [[CharacterData]] -> [CharacterData]
+combineMatrixCharacters charTemplate currentTripleList inMatrixCharDataList =
+   if null inMatrixCharDataList then 
+      -- create character vector for preliminary states concatenating by taxon
+      let taxRowCharList = L.transpose currentTripleList
+          newCharacterData = fmap (makeMatrixCharacterList charTemplate) taxRowCharList
+      in
+      newCharacterData
+   else 
+        -- first Character
+        let charDataList = head inMatrixCharDataList
+            prelimTripleList = fmap V.head $ fmap matrixStatesPrelim charDataList
+        in
+        combineMatrixCharacters charTemplate (prelimTripleList : currentTripleList) (tail inMatrixCharDataList) 
+
+-- | makeMatrixCharacterList takes a taxon list of matrix characters 
+-- and converts to single vector and makes new character for the taxon
+makeMatrixCharacterList :: CharacterData -> [V.Vector MatrixTriple] -> CharacterData
+makeMatrixCharacterList charTemplate tripleList = charTemplate {matrixStatesPrelim = V.fromList tripleList}
+
+-- | combineNonAdditveCharacters takes a list of character data with singleton non-additive characters and puts 
+-- them together in a single character for each taxon
+combineNonAdditveCharacters :: [([CharacterData], CharInfo)] -> CharacterData -> [[BV.BitVector]] -> [CharacterData]
+combineNonAdditveCharacters nonAddCharList charTemplate currentBVList =
+    if null nonAddCharList then
+        -- create character vector for preliminary states concatenating by taxon
+        -- single created and redone twice with prepend no need to reverse (that there really is anyway)
+        let taxRowCharList = L.transpose currentBVList
+            newCharacterData = fmap (makeNonAddCharacterList charTemplate) taxRowCharList
+        in
+        newCharacterData
+    else 
+        -- first Character
+        let (charDataList, _) = head nonAddCharList
+            prelimBVList = fmap V.head $ fmap stateBVPrelim charDataList
+        in
+        combineNonAdditveCharacters (tail nonAddCharList) charTemplate (prelimBVList : currentBVList)
+
+-- | combineAdditveCharacters takes a list of character data with singleton non-additive characters and puts 
+-- them together in a single character for each taxon
+combineAdditveCharacters :: [([CharacterData], CharInfo)] -> CharacterData -> [[(Int, Int)]] -> [CharacterData]
+combineAdditveCharacters addCharList charTemplate currentRangeList =
+    if null addCharList then
+        -- create character vector for preliminary states concatenating by taxon
+        -- single created and redone twice with prepend no need to reverse (that there really is anyway)
+        let taxRowCharList = L.transpose currentRangeList
+            newCharacterData = fmap (makeAddCharacterList charTemplate) taxRowCharList
+        in
+        newCharacterData
+    else 
+        -- first Character
+        let (charDataList, _) = head addCharList
+            prelimRangeList = fmap V.head $ fmap rangePrelim charDataList
+        in
+        combineAdditveCharacters (tail addCharList) charTemplate (prelimRangeList : currentRangeList)
+
+-- | makeNonAddCharacterList takes a taxon list of characters 
+-- convertes chars to single vector and makes new character for the taxon
+makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = V.fromList bvList}
+
+-- | makeAddCharacterList takes a taxon list of characters 
+-- to single vector and makes new character for the taxon
+makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = V.fromList rangeList}
+
+-- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters 
+-- replicates character by integer weight 
+addMatrixCharacter :: [([[CharacterData]], CharInfo)] -> S.Matrix Int -> ([CharacterData], CharInfo)-> Int -> [([[CharacterData]], CharInfo)] 
+addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacter replicateNumber =
+    if null inMatrixCharacterList then
+        -- didn't find a match --so need to add new type to list of matrix character types
+        if replicateNumber == 1 then 
+                [([(fst currentMatrixCharacter)], snd currentMatrixCharacter)]
+
+            else
+                [((replicate replicateNumber $ fst currentMatrixCharacter), snd currentMatrixCharacter)]       
+
+    else    
+        let firstList@(firstMatrixCharList, localCharInfo) = head inMatrixCharacterList
+            firstMatrix = costMatrix localCharInfo
+        in
+
+        -- matrices match--so correct matrix character type
+        if firstMatrix == currentCostMatrix then 
+            if replicateNumber == 1 then 
+                ((fst currentMatrixCharacter) : firstMatrixCharList, localCharInfo) : (tail inMatrixCharacterList)
+
+            else
+                ((replicate replicateNumber $ fst currentMatrixCharacter) ++ firstMatrixCharList, localCharInfo) : (tail inMatrixCharacterList)
+
+        -- matrices don't match so recurse to next one
+        else firstList : addMatrixCharacter (tail inMatrixCharacterList) currentCostMatrix currentMatrixCharacter replicateNumber 
+
+
+
+
+-- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
+-- and divides the seqeunces into corresponding partitions.  Replicate character info appending
+-- a number to character name
+-- assumes that input rawdata are a single character (as in form a single file) for sequence data
+partitionSequences :: ST.ShortText -> [RawData] -> [RawData] 
+partitionSequences partChar inDataList =
+    if null inDataList then []
+    else 
+        let firstRawData@(taxDataList, charInfoList) = head inDataList
+        in
+        -- for raw seqeunce data this will always be a single character
+        if length charInfoList > 1 then firstRawData : (partitionSequences partChar (tail inDataList))
+
+        -- no recoding of non-sequence data
+        else if (charType $ head charInfoList) `notElem` [SlimSeq, WideSeq, NucSeq, AminoSeq] then firstRawData : (partitionSequences partChar (tail inDataList))
+
+        -- is sequence data type
+        else 
+            let (leafNameList, leafDataList) = unzip taxDataList
+                partitionCharList = fmap (U.splitSequence partChar) leafDataList
+                partitionCharListByPartition = makePartitionList partitionCharList
+                firstPartNumber = length $ head partitionCharList
+                allSame = filter (== firstPartNumber) $ fmap length $ tail partitionCharList
+                pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
+            in
+
+            -- check partition numbers consistent + 1 because of tail
+            if (((length allSame) + 1) /= length partitionCharList) then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ (T.unpack $ name $ head charInfoList) ++ " " ++ show pairPartitions)
+            
+            -- if single partition then nothing to do
+            else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
+
+            -- split data
+            else 
+                trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " segments\n") (
+                
+                -- make new structures to create RawData list
+                let leafNameListList = replicate firstPartNumber leafNameList
+
+                    -- these filtered from terminal partitions 
+                    leafDataListList = fmap (fmap (filter (/= (ST.fromString "#")))) partitionCharListByPartition
+
+                    -- create TermData
+                    newTermDataList = joinLists leafNameListList leafDataListList
+
+                    -- filter out taxa with empty data-- so can be reconciled proerly later
+                    newTermDataList' = fmap removeTaxaWithNoData newTermDataList
+
+                    -- create final [RawData]
+                    charInfoListList = replicate firstPartNumber charInfoList
+                    newRawDataList = zip newTermDataList' charInfoListList
+                in
+                --trace (" NCI " ++ (show $ newTermDataList'))
+                newRawDataList ++ (partitionSequences partChar (tail inDataList))
+                
+                --firstRawData : (partitionSequences partChar (tail inDataList))
+                )
+
+-- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
+-- these can be created from paritioning sequences where there are no data in a 
+-- partitition.  This allows for data reconciliation/renaming later.
+removeTaxaWithNoData :: [TermData] -> [TermData]
+removeTaxaWithNoData inTermData =
+    if null inTermData then []
+    else 
+        let newData = filter ((not . null).snd) inTermData
+        in
+        --trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
+        newData
+
+-- | joinLists takes two lists of lists (of same length) and zips the 
+-- heads of each, then continues till all joined
+joinLists :: [[a]] -> [[b]] -> [[(a,b)]]
+joinLists listA listB = 
+    if length listA /= length listB then error ("Input lists not equal " ++ show (length listA, length listB))
+    else if null listA then []
+    else 
+        let firstList = zip (head listA) (head listB)
+        in
+        firstList : joinLists (tail listA) (tail listB)
+
+-- | makePartitionList take list by taxon and retuns list by partition
+makePartitionList :: [[[ST.ShortText]]] -> [[[ST.ShortText]]]
+makePartitionList inListList =
+    if null $ head inListList then []
+    else 
+        let firstParList = fmap head inListList
+        in
+        firstParList : makePartitionList (fmap tail inListList)
+
+-- | makeNewCharInfoListList take an existing charInfo and replaictes it replacing teh "name" of each one
+-- by appending an index.  THis to be used to split sequence charcaters in partitionSequences
+makeNewCharInfoListList :: Int -> CharInfo -> [[CharInfo]]
+makeNewCharInfoListList numPartitions oldCharInfo =
+    let newNameIndexList = fmap show [0..(numPartitions - 1)]
+        newCharInfoList = fmap (makeNewCharInfoName oldCharInfo) newNameIndexList
+    in
+    fmap (: []) newCharInfoList
+ 
+-- | makeNewCharInfoName takes oldCharInfo and changes name to input Text 
+makeNewCharInfoName :: CharInfo -> String -> CharInfo
+makeNewCharInfoName oldCharInfo newName = 
+    let oldName = T.unpack $ name  oldCharInfo
+        newCharInfo = oldCharInfo {name = T.pack (oldName ++ newName)}
+    in
+    trace ((oldName ++ newName) ++ " " ++ show  newCharInfo)
+    newCharInfo
 
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
@@ -87,14 +538,14 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
         let foundName = find ((== leafName) .snd) namePairList
         in
         if foundName == Nothing then
-          --trace ("Not renaming " ++ (T.unpack leafName) ++ " " ++ show namePairList)
+          --trace ("Not renaming " ++ (T.unpack leafName)) --  ++ " " ++ show namePairList)
           terminalData
         else
           --trace ("Renaming " ++ (T.unpack leafName) ++ " to " ++ (T.unpack $ fst $ fromJust foundName))
           (fst $ fromJust foundName, leafData)
 
--- | getDataTerminalNames takes all input data and getss full terminal list
--- and adds missing data for trerminals not in input files
+-- | getDataTerminalNames takes all input data and gets full terminal list
+-- and adds missing data for terminals not in input files
 getDataTerminalNames :: [RawData] -> [T.Text]
 getDataTerminalNames inDataList =
     if null inDataList then []
@@ -178,7 +629,8 @@ createBVNames inDataList =
 createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
 createNaiveData inDataList leafBitVectorNames curBlockData =
     if null inDataList
-    then ( V.fromList $ fmap fst leafBitVectorNames
+    then --trace ("Naive data with " ++ (show $ length curBlockData) ++ " blocks and " ++ (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) ++ " characters")
+         ( V.fromList $ fmap fst leafBitVectorNames
          , V.fromList $ fmap snd leafBitVectorNames
          , V.fromList $ reverse curBlockData
          )
@@ -186,17 +638,32 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
+        if null firstCharInfo then trace ("Empty CharInfo") createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
-            let thisBlockName     = T.takeWhile (/= ':') $ name $ head firstCharInfo
+            let thisBlockName     = name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
-                recodedCharacters = recodeRawData (fmap snd firstData) firstCharInfo []
+                recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
-                thisBlockData     = (thisBlockName, recodedCharacters, thisBlockCharInfo)
+                previousBlockName = if (not $ null curBlockData) then fst3 $ head curBlockData
+                                    else T.empty
+                thisBlockName' = if ((T.takeWhile (/= ':')) previousBlockName) /= ((T.takeWhile (/= ':')) thisBlockName) then thisBlockName
+                                 else 
+                                    let oldSuffix = (T.dropWhile (/= ':')) previousBlockName
+                                        indexSuffix = if T.null oldSuffix then T.pack ":0"
+                                                      else 
+                                                        let oldIndex = readMaybe (T.unpack $ T.tail oldSuffix) :: Maybe Int
+                                                            newIndex = 1 + (fromJust oldIndex)
+                                                        in
+                                                        if oldIndex == Nothing then error "Bad suffix in createNaiveData"
+                                                        else T.pack (":" ++ show newIndex)
+                                    in
+                                    T.append ((T.takeWhile (/= ':')) thisBlockName)  indexSuffix
+                thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
+                
             in
-            trace ("Recoding block: " ++ T.unpack thisBlockName)
+            trace ("Recoding block: " ++ T.unpack thisBlockName')
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
 
 
@@ -204,15 +671,16 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
 -- and recodes the apporpriate fields in CharacterData (from Types)
 -- the list accumulator is to avoid Vectotr cons/snoc O(n)
 -- differentiates between seqeunce type and others with char info
-recodeRawData :: [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
-recodeRawData inData inCharInfo curCharData =
-    if null inData then V.fromList $ reverse $ fmap V.fromList curCharData
+recodeRawData :: [NameText] -> [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
+recodeRawData inTaxNames inData inCharInfo curCharData =
+    if null inTaxNames then V.fromList $ reverse $ fmap V.fromList curCharData
     else
         let firstData = head inData
             firstDataRecoded = createLeafCharacter inCharInfo firstData
         in
+        --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
-        recodeRawData (tail inData) inCharInfo (firstDataRecoded : curCharData)
+        recodeRawData (tail inTaxNames) (tail inData) inCharInfo (firstDataRecoded : curCharData)
 
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
@@ -227,12 +695,15 @@ missingNonAdditive inCharInfo =
       , matrixStatesFinal  = mempty
       , slimPrelim         = mempty
       , slimGapped         = (mempty, mempty, mempty)
+      , slimAlignment      = (mempty, mempty, mempty)
       , slimFinal          = mempty
       , widePrelim         = mempty
       , wideGapped         = (mempty, mempty, mempty)
+      , wideAlignment      = (mempty, mempty, mempty)
       , wideFinal          = mempty
       , hugePrelim         = mempty
       , hugeGapped         = (mempty, mempty, mempty)
+      , hugeAlignment      = (mempty, mempty, mempty)
       , hugeFinal          = mempty
       , localCostVect      = V.singleton 0
       , localCost          = 0
@@ -252,12 +723,15 @@ missingAdditive inCharInfo =
                                       , matrixStatesFinal = V.empty
                                       , slimPrelim = mempty
                                       , slimGapped = (mempty, mempty, mempty)
+                                      , slimAlignment = (mempty, mempty, mempty)
                                       , slimFinal = mempty
                                       , widePrelim = mempty
                                       , wideGapped = (mempty, mempty, mempty)
+                                      , wideAlignment      = (mempty, mempty, mempty)
                                       , wideFinal = mempty
                                       , hugePrelim = mempty
                                       , hugeGapped = (mempty, mempty, mempty)
+                                      , hugeAlignment      = (mempty, mempty, mempty)
                                       , hugeFinal = mempty
                                       , localCostVect = V.singleton 0
                                       , localCost = 0.0
@@ -279,12 +753,15 @@ missingMatrix inCharInfo =
                                     , matrixStatesFinal = V.empty
                                     , slimPrelim = mempty
                                     , slimGapped = (mempty, mempty, mempty)
+                                    , slimAlignment = (mempty, mempty, mempty)
                                     , slimFinal = mempty
                                     , widePrelim = mempty
                                     , wideGapped = (mempty, mempty, mempty)
+                                    , wideAlignment = (mempty, mempty, mempty)
                                     , wideFinal = mempty
                                     , hugePrelim = mempty
                                     , hugeGapped = (mempty, mempty, mempty)
+                                    , hugeAlignment = (mempty, mempty, mempty)
                                     , hugeFinal = mempty
                                     , localCostVect = V.singleton 0
                                     , localCost = 0.0
@@ -402,12 +879,15 @@ getNucleotideSequenceChar stateList =
               , matrixStatesFinal  = mempty
               , slimPrelim         = sequenceVect
               , slimGapped         = (mempty, mempty, mempty)
+              , slimAlignment     = (mempty, mempty, mempty)
               , slimFinal          = sequenceVect
               , widePrelim         = mempty
               , wideGapped         = (mempty, mempty, mempty)
+              , wideAlignment     = (mempty, mempty, mempty)
               , wideFinal          = mempty
               , hugePrelim         = mempty
               , hugeGapped         = (mempty, mempty, mempty)
+              , hugeAlignment     = (mempty, mempty, mempty)
               , hugeFinal          = mempty
               , localCostVect      = V.singleton 0
               , localCost          = 0
@@ -431,12 +911,15 @@ getAminoAcidSequenceChar stateList =
               , matrixStatesFinal  = mempty
               , slimPrelim         = mempty
               , slimGapped         = (mempty, mempty, mempty)
+              , slimAlignment     = (mempty, mempty, mempty)
               , slimFinal          = mempty
               , widePrelim         = sequenceVect
               , wideGapped         = (mempty, mempty, mempty)
+              , wideAlignment     = (mempty, mempty, mempty)
               , wideFinal          = sequenceVect
               , hugePrelim         = mempty
               , hugeGapped         = (mempty, mempty, mempty)
+              , hugeAlignment     = (mempty, mempty, mempty)
               , hugeFinal          = mempty
               , localCostVect      = V.singleton 0
               , localCost          = 0
@@ -491,14 +974,17 @@ getGeneralSequenceChar inCharInfo stateList =
                 , matrixStatesFinal  = mempty
                 , slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
                 , slimGapped         = (mempty, mempty, mempty)
+                , slimAlignment     = (mempty, mempty, mempty)
                 , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
 
                 , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
                 , wideGapped         = (mempty, mempty, mempty)
+                , wideAlignment     = (mempty, mempty, mempty)
                 , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
 
                 , hugePrelim         = if cType `elem` [HugeSeq          ] then hugeVec else mempty
                 , hugeGapped         = (mempty, mempty, mempty)
+                , hugeAlignment     = (mempty, mempty, mempty)
                 , hugeFinal          = if cType `elem` [HugeSeq          ] then hugeVec else mempty
                 , localCostVect      = V.singleton 0
                 , localCost          = 0
@@ -653,12 +1139,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                               , matrixStatesFinal = V.empty
                                               , slimPrelim = mempty
                                               , slimGapped = (mempty, mempty, mempty)
+                                              , slimAlignment     = (mempty, mempty, mempty)
                                               , slimFinal  = mempty
                                               , widePrelim = mempty
                                               , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
                                               , wideFinal  = mempty
                                               , hugePrelim = mempty
                                               , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
                                               , hugeFinal  = mempty
                                               , localCostVect = V.singleton 0
                                               , localCost = 0.0
@@ -680,12 +1169,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , matrixStatesFinal = V.empty
                                                   , slimPrelim = mempty
                                                   , slimGapped = (mempty, mempty, mempty)
+                                                  , slimAlignment     = (mempty, mempty, mempty)
                                                   , slimFinal  = mempty
                                                   , widePrelim = mempty
                                                   , wideGapped = (mempty, mempty, mempty)
+                                                  , wideAlignment     = (mempty, mempty, mempty)
                                                   , wideFinal  = mempty
                                                   , hugePrelim = mempty
                                                   , hugeGapped = (mempty, mempty, mempty)
+                                                  , hugeAlignment     = (mempty, mempty, mempty)
                                                   , hugeFinal  = mempty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0
@@ -707,12 +1199,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , matrixStatesFinal = V.empty
                                                   , slimPrelim = mempty
                                                   , slimGapped = (mempty, mempty, mempty)
+                                                  , slimAlignment     = (mempty, mempty, mempty)
                                                   , slimFinal  = mempty
                                                   , widePrelim = mempty
                                                   , wideGapped = (mempty, mempty, mempty)
+                                                  , wideAlignment     = (mempty, mempty, mempty)
                                                   , wideFinal  = mempty
                                                   , hugePrelim = mempty
                                                   , hugeGapped = (mempty, mempty, mempty)
+                                                  , hugeAlignment     = (mempty, mempty, mempty)
                                                   , hugeFinal  = mempty
                                                   , localCostVect = V.singleton 0
                                                   , localCost = 0.0

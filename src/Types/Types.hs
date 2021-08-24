@@ -52,10 +52,14 @@ import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
 
 
+-- | Debug Flag
+isDebug :: Bool
+isDebug = True
+
+
 -- | Program Version
 pgVersion :: String
 pgVersion = "0.1"
-
 
 -- | Types for timed searches
 type Days = Int
@@ -115,7 +119,10 @@ data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup ter
                                     } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
--- will likely add full (for small alphabets) and hashMap (for large alphabets) tcm's here
+-- null values for these are in Input.FastAC.hs
+--  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
+--  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
                          , activity   :: Bool
@@ -167,23 +174,26 @@ data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVect
                                      -- for Additive
                                      , rangePrelim        :: V.Vector (Int, Int)
                                      , rangeFinal         :: V.Vector (Int, Int)
-                                     -- for multiple Sankoff/Matrix with sme tcm
+                                     -- for multiple Sankoff/Matrix with slim tcm
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
                                      , matrixStatesFinal  :: V.Vector (StateCost)
-                                     -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                                     -- preliminary for m,ultiple seqeunce chars with same TCM
                                      , slimPrelim         :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , slimGapped         ::  (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , slimGapped         :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , slimAlignment      :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimFinal          :: SV.Vector CUInt
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , widePrelim         :: UV.Vector Word64
-                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , wideGapped         ::  (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     -- gapped median of left, right, and preliminary used in preorder pass
+                                     , wideGapped         :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , wideAlignment      :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideFinal          :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                     , hugeGapped         ::  (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeAlignment      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
@@ -250,15 +260,13 @@ type SimpleGraph = LG.Gr NameText Double
 --        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
 --        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
---               vector is over blocks, then charactes and can have multiple for each character
+--               vector is over blocks, then charactes (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
+--               one graph per charcater  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
 
--- | type RawGraph is input graphs with leaf and edge labels
--- need to establish this later
--- type LabelledGraph =  LG.Gr a b
 -- | RawData type processed from input to be passed to characterData
 -- to recode into usable form
 -- the format is tuple of a list of taxon-data list tuples and charinfo list.
@@ -269,10 +277,10 @@ type RawData = ([TermData], [CharInfo])
 -- can be input to functions
 -- based on "blocks" that follow same display tree (soft-wired network)
 -- each block has a set of characters (for each vertex eventually) and character info
--- the vector of T.Text are teh names--leaves form input, internal HTU ++ (show index)
+-- the vector of T.Text are the names--leaves form input, internal HTU ++ (show index)
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
--- "Naive" "Opyimized" and "Transformed" darta are this type after differnet processing steps
+-- "Naive" "Optimized" and "Transformed" darta are this type after different processing steps
 type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 
 -- | Block data  is the basic data unit that is optimized on a display tree
@@ -286,7 +294,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 -- Initially set to input filename of character
 --    Fields:
 --        1) name of the block--intially taken from input filenames
---        2) vector of vertex data with vector of character data
+--        2) vector of vertex/leaf data with vector of character data for each node
 --        3) Vector of character information for characters in the block
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 

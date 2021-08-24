@@ -188,16 +188,8 @@
 
 58) reverse cross ref loci ?
 
-61) Create structures with best costs andtraveral foci for each non-exact charcater
-	to prepare for preorder step
-	all the book-keeping
-
 62) Change dynamic (non-exact) type to single "character" not vector
 	since each nonexact character needs to be multi-traversed
-
-67) Book keeping aafter post order for best sorted phylogenetic graph
-
-68) Alex nice tree rendering code
 
 69) Every tree node is an inflexion point in graph
 	for SPR/TBR/TF
@@ -208,10 +200,111 @@
 
 72) stylish and hlint source code
 
-73) Add include/remove terminals
-	"select()" command
+81) Filter data for isPrint ?
 
-74) read rename file
+82) Prune taxa from graphs (in fgl) based on taxa included
 
-75) IPA with single '[' and ']' process correctly
-	resolve '{}' issue aal.fastc Bantu500
+83) Parallelize data processing
+
+85) Name glob other input file names--rename files etc
+
+86) Fix alphabet outout in diagnose to be single column
+
+81) Check all command execution for correctness before execution.
+	except perhaps filenames
+	
+82) Need to add prealigned charcater/DO like
+	recode to matrix?  Approx matrix?
+
+83) Ensure 1:1 and 1:n are dfauilting to bit operations in DOs
+	Taking a very long time 
+
+84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
+	had to replace Alex code in report do to empty list issues
+
+85) Check reroot best greaph stuff with exact characters
+
+87) Test matrix characters optimization and costs
+
+88) add logic instead of multiplication for weight factor in graph cost
+
+89) Add tests--integration most likely
+	What systems?
+
+90) Change partition names/character names for cross-references output
+
+91) Text reorganiztion with matrix characters wiht different matrices
+
+92) add functinoality (basicaly for missing data) for multiple non-exact characters
+	
+	This will be nnecessary with "block" set issues or can be delayed iuntil block manupulations are implemented
+
+	in a single block--eg linguistic, autosomal
+	The current issue is that when using lists (from Vectors) missing seqeunce characters are stored as [].
+	This causes problems adding lists togething when extracting the "column" of teh charater that would be 
+	prepended (and later reversed) to the next sequence charcater in that block etc.  One posible soluiotn might be to 
+	del with them as vectors.  Also cons and snoc are less efficient--but still likeli have the issue of 
+	V.empty for missin and consing two of them still gets you a singel V.empty--and similar problems with
+	taxa that have a mix of observed and missing characters.  Perhpas change type of missing from [] to "missing charcater"
+	Character record type or Maybe Character, or a field in Character, or tuples or somehting.  Should not
+	be a problem for exact charcaters since there is an explicit value for missing for add/non-add/matrix
+
+95)  Pre-order make sure there is a tree for each charecta and excat same root as Decorated graph
+
+
+96) set vertex info with union of vertices for later heuristics?
+	Would have to have somehting akin to vertData (VertexBlockData = V.Vector (V.Vector CharacterData)) 
+	and access to CharInfo--all in phylogenetic graph
+	But might be a problem with rearrangements, with edges and vertices coming and going.  Maybe not.
+
+97) Whidden eta l 2009 2010 for fast SPR tre distance FPT
+
+98) Tree rendering
+	Alex's code
+	https://hackage.haskell.org/package/tree-render-text-0.4.0.0/docs/Data-Tree-Render-Text.html
+		Based on Data.Tree
+		
+		import Data.Tree
+			import Data.Tree.Render.Text
+
+			tree :: Tree String
+			tree
+			  = Node "Add"
+			    [ Node "Add"
+			      [ Node "0" []
+			      , Node "Mul"
+			        [ Node "1" []
+			        , Node "2" []
+			        ]
+			      ]
+			    , Node "Neg"
+			      [ Node "Max"
+			        [ Node "3" []
+			        , Node "4" []
+			        , Node "5" []
+			        , Node "Var"
+			          [ Node "x" []
+			          ]
+			        , Node "6" []
+			        ]
+			      ]
+			    ]
+
+https://hackage.haskell.org/package/tree-view-0.5.1/docs/Data-Tree-View.html
+https://hackage.haskell.org/package/diagrams-contrib-0.1.0.0/docs/Diagrams-TwoD-Layout-Tree.html
+
+Write LGGraph -> Data.Tree and use 	https://hackage.haskell.org/package/tree-render-text-0.4.0.0/docs/Data-Tree-Render-Text.html
+to render--would have repeated subtrees after network vertex
+
+99) Error in tree length for distance trees
+	caused likely by flipVertices and/or dichotomizeRoot
+	Check by looking at ouput dot format
+
+100)  Randomize list of additions--ST monad and return pure?
+
+101) Dashes in tgnt files--option?
+	Document
+
+102 ) partitioned data in blocks fix for traversal multiple sequence
+	Taran data
+

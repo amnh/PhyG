@@ -56,6 +56,7 @@ import           Data.Maybe
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
+import           Debug.Trace
 
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
@@ -136,14 +137,14 @@ removeComments inLineList =
         else if null firstLine then removeComments $ tail inLineList
         else
             -- Remove commments from line to end
-            let nonComment = head $ splitOn "--" firstLine
+            let nonComment = filter isPrint $ head $ splitOn "--" firstLine
             in
             nonComment : (removeComments $ tail inLineList)
 
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "swap", "refine", "run", "report", "set", "transform", "support", "rename"]
+allowedCommandList = ["read", "build", "run", "report", "set", "rename"]
 
 
 -- | getInstruction returns teh command type forom an input String
@@ -293,5 +294,6 @@ movePrealignedTCM inArgList =
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
         if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file")
-        else (firstPart ++ secondPart ++ restPart)
-
+        else (firstPart ++ secondPart ++ restPart) 
+        
+        

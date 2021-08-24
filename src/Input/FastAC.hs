@@ -64,14 +64,16 @@ import           GeneralUtilities
 import qualified Input.DataTransformation  as DT
 import qualified SymMatrix                 as S
 import           Types.Types
+import qualified Data.Char as C
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 -- although with multicharacter alphabets that contain '[' or ']' this would be a problem,
 -- its only used for single character alphabets in fasta formats.
+-- '#' for partitions in fasta sequences
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
-    let notAlphElement = fmap ST.fromString ["?", "[", "]"]
+    let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]
     in  if   null inList
         then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
         else let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
@@ -276,10 +278,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      }
                                      -}
         in
-        trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
+        --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else defaultHugeSeqCharInfo
-        )
+        --)
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
 
@@ -312,7 +314,7 @@ getRawDataPairsFastA modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstData
@@ -332,19 +334,27 @@ getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
     if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
     else 
-        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--because of latexIPA encodings using ';'(and '$')
-        let fileContents =  unlines $ filter (not.null) $ lines fileContents'
-        in 
-        if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
-        else
-            let terminalSplits = T.split (=='>') $ T.pack fileContents
-                pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
-                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
-            in
-            -- tail because initial split will an empty text
-            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
-            else pairData
-
+        let fileContentLines = filter (not.null) $ fmap stripString $ lines fileContents'
+        in
+        if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+            ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
+        --  because of latexIPA encodings using ';'(and '$')
+        else 
+            let fileContents = unlines $ filter ((/=';').head) fileContentLines
+            in 
+            if null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+                ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+            else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+            else
+                let terminalSplits = T.split (=='>') $ T.pack fileContents
+                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
+                    (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+                in
+                -- tail because initial split will an empty text
+                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                else pairData
+        
 -- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
 recodeFASTCAmbiguities :: String -> [TermData] -> [TermData]
 recodeFASTCAmbiguities fileName inData =
@@ -391,7 +401,7 @@ getRawDataPairsFastC modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = filter (/= (T.pack "-")) firstData
         in

@@ -46,17 +46,21 @@ module GraphOptimization.Medians  ( median2
                                   , median2SingleNonExact
                                   ) where
 
+import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
 import qualified Data.Vector                                                 as V
 import           Types.Types
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
+import qualified Data.Vector.Generic  as GV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-import           Data.Bits                                                   ((.&.), (.|.))
+import           Data.Bits                                                   (bit, (.&.), (.|.))
 import qualified Data.MetricRepresentation                                   as MR
 import qualified Data.TCM.Dense                                              as TCMD
 import           Data.Word
@@ -151,14 +155,17 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
                                       , matrixStatesFinal = V.empty
                                       , slimPrelim = mempty
                                       , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = V.singleton 0
+                                              , slimAlignment     = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
+                                              , localCostVect = V.singleton 0
                                       , localCost = 0.0
                                       , globalCost = 0.0
                                       }
@@ -177,7 +184,12 @@ median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
       in
       (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [AminoSeq, HugeSeq] then
+    else if thisType `elem` [AminoSeq, WideSeq] then
+      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType == HugeSeq then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
@@ -217,15 +229,18 @@ interUnion thisWeight leftChar rightChar =
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
                                       , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = V.singleton 0
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimAlignment     = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
+                                              , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
@@ -267,15 +282,18 @@ intervalAdd thisWeight leftChar rightChar =
                                       , matrixStatesPrelim = V.empty
                                       , matrixStatesFinal = V.empty
                                       , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = V.singleton 0
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimAlignment     = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
+                                              , localCostVect = V.singleton 0
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
@@ -333,15 +351,18 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
                                       , matrixStatesPrelim = initialMatrixVector
                                       , matrixStatesFinal = V.empty
                                       , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                      , slimFinal = mempty
-                                      , widePrelim = mempty
-                                      , wideGapped = (mempty, mempty, mempty)
-                                      , wideFinal = mempty
-                                      , hugePrelim = mempty
-                                      , hugeGapped = (mempty, mempty, mempty)
-                                      , hugeFinal = mempty
-                                      , localCostVect = initialCostVector
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimAlignment     = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
+                                              , localCostVect = initialCostVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
                                       , globalCost = newCost
                                       }
@@ -376,19 +397,24 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         , rangeFinal         = mempty
         , matrixStatesPrelim = mempty
         , matrixStatesFinal  = mempty
-        , slimPrelim         = mempty
-        , slimGapped         = (mempty, mempty, mempty)
-        , slimFinal          = mempty
-        , widePrelim         = mempty
-        , wideGapped         = (mempty, mempty, mempty)
-        , wideFinal          = mempty
-        , hugePrelim         = mempty
-        , hugeGapped         = (mempty, mempty, mempty)
-        , hugeFinal          = mempty
-        , localCostVect      = mempty
+        , slimPrelim = mempty
+                                              , slimGapped = (mempty, mempty, mempty)
+                                              , slimAlignment     = (mempty, mempty, mempty)
+                                              , slimFinal  = mempty
+                                              , widePrelim = mempty
+                                              , wideGapped = (mempty, mempty, mempty)
+                                              , wideAlignment     = (mempty, mempty, mempty)
+                                              , wideFinal  = mempty
+                                              , hugePrelim = mempty
+                                              , hugeGapped = (mempty, mempty, mempty)
+                                              , hugeAlignment     = (mempty, mempty, mempty)
+                                              , hugeFinal  = mempty
+                                              , localCostVect      = mempty
         , localCost          = 0
         , globalCost         = 0
         }
+
+    symbolCount = length thisMatrix
 
     newSlimCharacterData =
         let newCost                 = thisWeight * (fromIntegral cost)
@@ -398,7 +424,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
                 (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
         in  blankCharacterData
-              { slimPrelim = medians
+              { slimPrelim = createUngappedMedianSequence symbolCount r
               , slimGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -414,7 +440,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
         in  blankCharacterData
-              { widePrelim    = medians
+              { widePrelim    = createUngappedMedianSequence symbolCount r
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -429,9 +455,16 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
         in  blankCharacterData
-              { hugePrelim = medians
+              { hugePrelim = createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
+
+
+createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
+  where
+    gap = bit $ symbols - 1
+    f i e = e == gap || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)

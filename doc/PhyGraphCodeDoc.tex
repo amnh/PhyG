@@ -1,0 +1,101 @@
+\documentclass[11pt]{article}
+\usepackage{longtable}
+\usepackage{color}
+\usepackage{tabu}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{graphicx}
+%\usepackage{subfigure}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+\usepackage{fullpage}
+%\bibliographystyle{plain}
+\bibliographystyle{cbe}
+\usepackage{algorithmic}
+\usepackage[vlined,ruled]{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
+\usepackage[nottoc,numbib]{tocbibind}
+
+\let \oriAlgorithm=\algorithm%
+\renewcommand{\algorithm}[2]{%
+	\oriAlgorithm%
+	\SetAlgoLined%
+	\DontPrintSemicolon%
+	\SetKwComment{Comment}{$\triangleright\ $}{}%
+	\TitleOfAlgo{ #1 }%
+	\caption{ #2 }%
+}%
+\newcommand*{\Set}[2]{ #1 $\gets$ #2 \;}
+\newcommand*{\SetC}[3]{ #1 $\gets$ #2 \Comment*[r]{#3}}
+\newcommand*{\ForC}[3]{\For(\Comment*[f]{#2}){#1}{#3}}
+
+\begin{document}
+	%\firstpage{1}
+	
+	\title{PhylogeneticGraph\\Program Documentation\\Version 0.1}
+	%\subtitle{Program Documentation\\Version 0.1}
+	\author{Ward C. Wheeler\\
+		Division of Invertebrate Zoology,\\ American Museum of Natural History,\\ 200 Central Park West, New York, NY, 10024, USA;\\wheeler@amnh.org}
+	
+	
+	\maketitle
+%	\begin{center}
+%		Running Title: {PhyGraph Version 0.1}
+%	\end{center}
+	\newpage
+	
+	\tableofcontents
+	\newpage
+	\section{Introduction}
+	This document contains descriptions of algorithms, procedures, data structures and other aspects of the 
+	source code documentation for the program PhylogeneticGraph (\texttt{PhyG}).  
+	
+	 \texttt{PhyG} is a sucessor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, 
+	 although a ``complete'' Haskell rewrite, optimized C (and even some assembler) was ported over from POY for pairwise alignment of small alphabet (<8)
+	 sequences.  These functions are access via the Haskell FFI.
+	
+	
+	
+	\section{Overview of Code base}
+	Source code structure.
+	
+	
+		
+	\section {Command Parsing}
+	
+	\section{Post-Order Graph Traversal}
+		\subsection{Trees}
+		A decorated Graph (tree) is created for each character for each block for the graph.  For exact characters, where no addition traversals are required, 
+		the specified or default
+		outgroup sets the direction of the graph.  For non-exact (e.g. sequence) characters the best traversal rooting is stored for each character in each block
+		although the cost of the graph is recalculated based on the best traversal (over all edges in the graph), the preliminary (post-order) states are not propagated back
+		to the decorated graph (third field of phylogenetic graph).  After the pre-order pass, the final states are propagated back.
+		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+	
+	\section{Pre-Order Graph Traversal}
+		\subsection{Trees}
+		Final state assignments of root vertices are set to the preliminary, post-order state.
+		Final  states are propagated back to the decorated graph (third field of phylogenetic graph).
+		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+
+	\subsection{Execution in Parallel}
+	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
+	\\
+	PhyGraph +RTS -N4 -RTS other options...  \\
+	
+	Parallel code options are set using a parmap-type strategy throughout the code.  The basic definitions of this functionality are found in ParallelUtilities.hs
+	
+	\section*{Acknowledgments}
+	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
+	
+	\newpage
+	%\bibliography{big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+\end{document}

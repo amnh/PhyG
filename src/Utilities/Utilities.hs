@@ -37,7 +37,7 @@ Portability :  portable (I hope)
 module Utilities.Utilities  where
 
 import qualified Data.Vector as V
-
+import           Data.Maybe
 import           Data.List
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
@@ -49,7 +49,26 @@ import Data.Alphabet.Special
 import Data.Foldable
 import Data.Bits
 import qualified Data.Bimap as BM
+import Types.Types
+import qualified Data.Text.Short             as ST
+import qualified GeneralUtilities as GU
+import Debug.Trace
+import qualified Utilities.LocalGraph as LG
 
+
+-- | splitSequence takes a ShortText divider and splits a list of ShortText on 
+-- that ShortText divider consuming it akin to Text.splitOn
+splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
+splitSequence partitionST stList =
+    if null stList then []
+    else 
+        let firstPart = takeWhile (/= partitionST) stList
+            restList = dropWhile (/= partitionST) stList
+        in
+        if restList == [partitionST] then firstPart : [[(ST.fromString "#")]]
+        else if (not $ null restList) then firstPart : splitSequence partitionST (tail restList)
+        else [firstPart]
+        
 
 
 -- | dynamicCharacterTo3Vector takes a DYnamicCharacter and returns three Vectors
@@ -75,16 +94,30 @@ convertVectorToDynamicCharacter inVector =
             | x = show n : f (n+1) xs
             | otherwise = f (n+1) xs
 
+
+bitVectToCharState :: (Show b, Bits b) => [String] -> b -> String
+bitVectToCharState localAlphabet bitValue =
+    let bitList = fmap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. (length localAlphabet) - 1]
+        bitBoolPairList = zip bitList localAlphabet
+        (_, stateList) = unzip $ filter ((/= []) .fst) bitBoolPairList
+    in
+    intercalate "," stateList
+
+
+ 
+
 -- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState :: Bits b => [String] -> b -> String
-bitVectToCharState localAlphabet bitValue
-  | isAlphabetDna       alphabet = fold $ iupacToDna       BM.!> observedSymbols
-  | isAlphabetAminoAcid alphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
-  | otherwise                    = intercalate "," $ toList observedSymbols
+bitVectToCharState' :: (Show b, Bits b) => [String] -> b -> String
+bitVectToCharState' localAlphabet bitValue =
+  if isAlphabetDna       alphabet then fold $ iupacToDna       BM.!> observedSymbols
+  else if isAlphabetAminoAcid alphabet then  fold $ iupacToAminoAcid BM.!> observedSymbols
+  else intercalate "," $ toList observedSymbols
+  
   where
     alphabet = fromSymbols localAlphabet
     symbolCount     = length localAlphabet
     observedSymbols = NE.fromList $ foldMap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. symbolCount - 1]
+
 {-}
     --if DNA use IUPAC ambiguity codes
     if localAlphabet == ["A","C","G","T","-"] then 
@@ -132,3 +165,101 @@ bitVectToCharState localAlphabet bitValue
 
 
 -}
+
+-- | filledDataFields takes rawData and checks taxon to see what percent
+-- "characters" are found.
+-- call with (0,0)
+filledDataFields :: (Int, Int) -> TermData -> (NameText, Int, Int)
+filledDataFields (hasData, totalData) (taxName, taxData) =
+    if null taxData then (taxName, hasData, totalData)
+    else 
+        if (ST.length $ head taxData) == 0 then filledDataFields (hasData, 1 + totalData) (taxName, tail taxData)
+        else filledDataFields (1 + hasData, 1 + totalData) (taxName, tail taxData)
+
+-- | stripComments removes all lines that being with "--" haskell stype comments
+-- needs to be reversed on return to maintain order.
+stripComments :: [String] -> [String]
+stripComments inStringList =
+    if null inStringList then []
+    else 
+        let strippedLine = GU.stripString $ head inStringList
+        in
+        if null strippedLine then stripComments $ tail inStringList 
+        else if length strippedLine < 2 then strippedLine : (stripComments $ tail inStringList) 
+        else 
+            if "--" == take 2 strippedLine then (stripComments $ tail inStringList)
+            else strippedLine : (stripComments $ tail inStringList)
+
+-- | getDecoratedGraphBlockCharInformation takes decorated graph and reports number of blosk and size of each
+getDecoratedGraphBlockCharInformation :: DecoratedGraph -> ((Int, Int), [V.Vector Int])
+getDecoratedGraphBlockCharInformation inGraph =
+    if LG.isEmpty inGraph then ((0,0), [])
+    else
+        -- get a vertices from graph and take their information
+        let inVertDataList = fmap vertData $ fmap snd $ LG.labNodes inGraph 
+            blockNumMax = maximum $ fmap length inVertDataList
+            blocknumMin = minimum $ fmap length inVertDataList
+            blockLengthList = fmap (fmap length) inVertDataList
+        in
+        ((blockNumMax, blocknumMin), blockLengthList)
+
+-- | vectMaybeHead takes a vector and returns JUst V.head if not V.empty
+-- Nothing otherwise
+vectMaybeHead :: V.Vector a -> Maybe a
+vectMaybeHead inVect =
+    if V.null inVect then Nothing
+    else Just (V.head inVect)
+
+-- vectResolveMaybe takes a Vector of Maybe a 
+-- and returns Just a or V.empty
+vectResolveMaybe :: (Eq a) => V.Vector (Maybe a) -> V.Vector a
+vectResolveMaybe inVect = 
+    trace ("VRM " ++ (show $ length inVect)) (
+    if V.head inVect == Nothing then V.empty
+    else V.singleton $ fromJust $ V.head inVect
+    )
+
+-- | getNumberNonExactCharacters takes processed data and returns the number of non-exact characters
+-- ised to special case datasets with limited non-exact characters
+getNumberNonExactCharacters :: V.Vector BlockData -> Int
+getNumberNonExactCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else 
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            nonExactChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
+        in
+        nonExactChars + getNumberNonExactCharacters (V.tail blockDataVect)
+
+-- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
+-- ised to special case datasets with limited non-exact characters
+getNumberExactCharacters :: V.Vector BlockData -> Int
+getNumberExactCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else 
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            nonExactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
+        in
+        nonExactChars + getNumberExactCharacters (V.tail blockDataVect)
+
+-- | safeVectorHead safe vector head--throws error if null
+safeVectorHead :: V.Vector a -> a
+safeVectorHead inVect =
+    if V.null inVect then error "Empty vector in safeVectorHead"
+    else V.head inVect
+
+
+-- | checkCommandArgs takes comamnd and args and verifies that they are in list
+checkCommandArgs :: String -> [String] -> [String] -> Bool
+checkCommandArgs commandString commandList permittedList =
+    if null commandList then True
+    else
+        let firstCommand = head commandList
+            foundCommand = firstCommand `elem` permittedList
+        in
+        if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
+        else
+            let errorMatch = snd $ GU.getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
+            in
+            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")
