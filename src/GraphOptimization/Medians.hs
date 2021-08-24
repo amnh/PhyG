@@ -46,12 +46,14 @@ module GraphOptimization.Medians  ( median2
                                   , median2SingleNonExact
                                   ) where
 
+import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
 import qualified Data.Vector                                                 as V
 import           Types.Types
 import qualified Data.Vector.Storable as SV
 import qualified Data.Vector.Unboxed  as UV
+import qualified Data.Vector.Generic  as GV
 --import qualified Data.BitVector as BV
 import           GeneralUtilities
 
@@ -412,6 +414,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         , globalCost         = 0
         }
 
+    symbolCount = length thisMatrix
+
     newSlimCharacterData =
         let newCost                 = thisWeight * (fromIntegral cost)
             subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
@@ -419,9 +423,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 thisSlimTCM
                 (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
                 (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
-            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { slimPrelim = SV.filter (/= nakedGap) medians
+              { slimPrelim = createUngappedMedianSequence symbolCount r
               , slimGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -436,9 +439,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
-            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { widePrelim    = UV.filter (/= nakedGap) medians
+              { widePrelim    = createUngappedMedianSequence symbolCount r
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -452,11 +454,17 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
-            nakedGap = bit . fromEnum $ (length thisMatrix) - 1
         in  blankCharacterData
-              { hugePrelim = V.filter (/= nakedGap) medians
+              { hugePrelim = createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
+
+
+createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
+  where
+    gap = bit $ symbols - 1
+    f i e = e == gap || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
