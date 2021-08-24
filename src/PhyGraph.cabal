@@ -231,11 +231,7 @@ executable phyg
                   Utilities.LocalSequence
                   DirectOptimization.DOUkkonenSequence
                   DirectOptimization.DOUkkonenSequenceInt64
---                  DirectOptimization.DOWrapper
---                  DirectOptimization.NaiveDOSequence
                   Graphs.GraphOperations
---                  DirectOptimization.DOSmallFFI
---                  DirectOptimization.DOLargeFFI
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
