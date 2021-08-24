@@ -181,19 +181,19 @@ data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVect
                                      , slimPrelim         :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
                                      , slimGapped         :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , slimAlignment      :: SV.Vector CUInt
+                                     , slimAlignment      :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimFinal          :: SV.Vector CUInt
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , widePrelim         :: UV.Vector Word64
                                      -- gapped median of left, right, and preliminary used in preorder pass
                                      , wideGapped         :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , wideAlignment      :: UV.Vector Word64
+                                     , wideAlignment      :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideFinal          :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
                                      , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , hugeAlignment      :: V.Vector BV.BitVector
+                                     , hugeAlignment      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
