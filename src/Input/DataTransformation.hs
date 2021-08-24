@@ -87,13 +87,13 @@ groupDataByType inData@(nameVect, nameBVVect, blockDataVect) =
 -- should be removed when have better teatment of missing non-exact data and block options
 organizeBlockData' :: BlockData -> BlockData
 organizeBlockData' localBlockData = 
-    let numExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
-        numNonExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
+    let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
+        numNonExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
     in
     if (numExactChars == 0) && (numNonExactChars == 1) then localBlockData
         -- fix for now for partiioned data
-    else if (numExactChars == 0) && (numNonExactChars > 1) then localBlockData
-    else if (numExactChars > 0) && (numNonExactChars == 1) then error "This can't happen until block set implemented"
+    else if (numExactChars == 0) then localBlockData
+    else if (numExactChars > 0) && (numNonExactChars > 0) then error "This can't happen until block set implemented"
     else organizeBlockData [] [] [] [] localBlockData
 
 -- | organizeBlockData takes a BlockData element and organizes its character by character type
