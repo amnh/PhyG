@@ -64,11 +64,11 @@ isAlignedAt (_,y,z) i =
 
 
 isDeletedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
+  i < GV.length y && popCount (y ! i) /= 0 && popCount (z ! i) == 0
 
 
 isInsertedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
+  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) /= 0
 
 
 isGappedAt (_,y,z) i =
