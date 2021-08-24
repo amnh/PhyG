@@ -74,10 +74,11 @@ import qualified Data.Char as C
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]
-    in  if   null inList
-        then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
-        else let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
-             in  getAlphabet (firstChars `L.union` curList) (tail inList)
+    in  
+    if null inList then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
+    else 
+        let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
+        in  getAlphabet (firstChars `L.union` curList) (tail inList)
 
 
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
@@ -104,17 +105,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ foldMap snd inData
-            seqType = if      dataType == "nucleotide"      then   NucSeq
-                      else if dataType == "aminoacid"       then AminoSeq
-                      else if dataType == "custom_alphabet" then  HugeSeq
+            seqType = if      dataType == "nucleotide"      then  trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
+                      else if dataType == "aminoacid"       then  trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
+                      else if dataType == "custom_alphabet" then  trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
                       else if (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
                           ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
                       else if (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
                           ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
                       -- can fit in byte with reasonable pre-calculation costs
-                      else if (length sequenceData) <=  8 then SlimSeq
-                      else if (length sequenceData) <= 64 then WideSeq
-                      else HugeSeq
+                      else if (length sequenceData) <=  8 then trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
+                      else if (length sequenceData) <= 64 then trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
+                      else trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
             seqAlphabet = if seqType == NucSeq then fmap ST.fromString ["A","C","G","T","-"]
                        else if seqType == AminoSeq then fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                        else if seqType == Binary then fmap ST.fromString ["0","1"]
@@ -315,7 +316,7 @@ getRawDataPairsFastA modifier inTextList =
     else
         let firstText = head inTextList
             firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
-            firstData = T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
+            firstData = T.filter (C.isPrint) $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstData
             firstDataNoGapsSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstDataNoGaps

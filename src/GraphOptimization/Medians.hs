@@ -65,7 +65,7 @@ import qualified Data.MetricRepresentation                                   as 
 import qualified Data.TCM.Dense                                              as TCMD
 import           Data.Word
 import qualified SymMatrix                                                   as S
-
+import Debug.Trace
 
 --import qualified Data.Alphabet as DALPH
 
@@ -415,7 +415,6 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         }
 
     symbolCount = length thisMatrix
-
     newSlimCharacterData =
         let newCost                 = thisWeight * (fromIntegral cost)
             subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
@@ -455,7 +454,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
         in  blankCharacterData
-              { hugePrelim = createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (`notElem` [(getGap symbolCount), zeroBits]) medians-- createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -467,4 +466,9 @@ createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
-    f i e = e == gap || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+    f i e = e == gap  || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+
+-- | getGap determines gap value from symbol set
+getGap :: (Eq a, FiniteBits a) => Int -> a
+getGap symbols = bit $ symbols - 1
+  

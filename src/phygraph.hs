@@ -190,5 +190,6 @@ main = do
     -- Final Stderr report
     timeDN <- getSystemTimeSeconds
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at minimum cost " ++ (show minCost) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
+    let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
 

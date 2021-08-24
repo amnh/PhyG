@@ -110,7 +110,8 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances =
          in
          if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
          else 
-            trace (show inArgs ++ " Yielded " ++ (show $ length treeList''') ++ " trees") treeList'''
+            -- trace (show inArgs ++ " Yielded " ++ (show $ length treeList''') ++ " trees") 
+            treeList'''
       else 
          -- character build 
          errorWithoutStackTrace ("Character-based graph builds not yet implemented" ++ show inArgs)
