@@ -454,7 +454,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
         in  blankCharacterData
-              { hugePrelim = GV.filter (`notElem` [(getGap symbolCount), zeroBits]) medians-- createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (/= (getGap symbolCount)) medians-- createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
