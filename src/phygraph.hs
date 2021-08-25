@@ -70,7 +70,8 @@ main = do
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
-    hPutStrLn stderr ("Current time is " ++ show timeD)
+    -- hPutStrLn stderr ("Current time is " ++ show timeD)
+    let seedList = randomIntList timeD
 
 
     -- Process commands to get list of actions
@@ -172,17 +173,16 @@ main = do
     let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] initialSetCommands
+    (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList initialSetCommands
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
-    --let inputGraphList = map (T.fullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
-    --hPutStrLn stderr (show pairDist)
-
+    
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist commandsAfterInitialDiagnose
+    (finalGraphList, finalGlobalSettings) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist seedList commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

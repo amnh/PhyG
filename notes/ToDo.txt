@@ -326,4 +326,18 @@ to render--would have repeated subtrees after network vertex
 
 	profiteur phyg.prof (from +RTS -p after --enable-profiling)
 	xdg-open phyg.prof.html
-	
+
+	^C only 1 time to get prof info if not complete
+
+108) read distance?
+	name issues etc.
+
+109) BV left/right
+
+110) data hash bv
+
+111) select
+
+112) random seed based on time passed as infinite list.
+
+113) IA  branche info for all collepsing branchlengths etc

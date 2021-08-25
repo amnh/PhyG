@@ -62,8 +62,8 @@ import qualified Search.Build           as B
 
 -- | executeCommands reads iput files and returns raw data
 -- need to close files after read
-executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
-executeCommands globalSettings rawData processedData curGraphs pairwiseDist commandList = do
+executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
+executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList commandList = do
     if null commandList then return (curGraphs, globalSettings)
     else do
         let (firstOption, firstArgs) = head commandList
@@ -80,15 +80,15 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist comm
             else if writeMode == "overwrite" then writeFile outFile reportString
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
-            executeCommands globalSettings rawData processedData curGraphs pairwiseDist (tail commandList)
+            executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Set then
             let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
             in
-            executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist (tail commandList)
+            executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Build then
-            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist
+            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
             in
-            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail commandList)
+            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         else error "Command not recognized/implemented"
 
 -- | setArgLIst contains valid 'set' arguments

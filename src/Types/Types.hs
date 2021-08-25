@@ -54,7 +54,7 @@ import qualified Utilities.LocalGraph        as LG
 
 -- | Debug Flag
 isDebug :: Bool
-isDebug = True
+isDebug = False
 
 
 -- | Program Version

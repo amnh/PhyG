@@ -247,10 +247,12 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
         newEdgeVect = edgeVect V.++ V.fromList [newEdgeI, newEdgeJ]
     in
     --trace (M.showMatrixNicely newLittleDMatrix ++ "\n" ++ M.showMatrixNicely bigDMatrix)
-    let progress = show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+    let progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
-    trace (takeWhile (/='.') progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
-    addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    if (last progress == '0') then 
+      trace (progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
+      addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
 -- | addTaxaWPGMA perfomrs recursive reduction of distance matrix until all internal vertices are created
@@ -277,10 +279,12 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
         newEdgeVect = edgeVect V.++ V.fromList [newEdgeI, newEdgeJ]
     in
     --trace (M.showMatrixNicely distMatrix)
-    let progress = show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+    let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
-    trace (takeWhile (/='.') progress ++ "%")
-    addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    if (last progress == '0') then
+      trace (progress ++ "%")
+      addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
 -- | pickUpdateMatrixWPGMA takes d matrix, pickes closesst based on d

@@ -161,10 +161,12 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
       (firstLeafCost, _, _, _ ) = V.head addPosVect -- To initialize below
       (_, newTree, newLeavesToAdd, augmentedDistMatrix) = getBestLeafAdd (V.tail addPosVect) firstLeafCost (V.head addPosVect)
   in
-  let progress = show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
+  let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
   in
-  trace (takeWhile (/='.') progress ++ "%")
-  wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
+  if (last progress == '0') then 
+      trace (progress ++ "%")
+      wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
+  else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
 
 
 -- | calculateWagnerTrees takes an input distance matrix (and options later) and returns
@@ -864,7 +866,7 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
    else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees)
         ) -- )
 
--- | performRefinement takes input trees in TRE and Newick format and performs differnt forma of tree refinement
+-- | performRefinement takes input trees in TRE and Newick format and performs different forms of tree refinement
 -- at present just OTU (remove leaves and re-add), SPR and TBR
 performRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> [TreeWithData]
 performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
