@@ -69,6 +69,7 @@ import qualified GraphOptimization.Medians as M
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
 import qualified Utilities.LocalSequence   as LS
+import qualified Utilities.Utilities       as U
 import Debug.Debug
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
@@ -371,8 +372,11 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
     else
         let leftChild = (head nodeChildren)
             rightChild = (last nodeChildren)
-            leftChildLabel = fromJust $ LG.lab inGraph leftChild
-            rightChildLabel = fromJust $ LG.lab inGraph rightChild
+            -- leftChildLabel = fromJust $ LG.lab inGraph leftChild
+            -- rightChildLabel = fromJust $ LG.lab inGraph rightChild
+
+            -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+            (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab inGraph leftChild, fromJust $ LG.lab inGraph rightChild)
             curnodeLabel = snd curNode
             newVertexData = createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
             --newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []

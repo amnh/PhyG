@@ -875,7 +875,10 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
     let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees' = getGeneralSwap "otu" reAddTerminals saveMethod keepMethod leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if not (null newTrees') then newTrees'
+    if refinement == "best:1" then 
+      if not $ null newTrees then newTrees
+      else [inTree]
+    else if not (null newTrees') then newTrees'
     else
       trace "OTU swap did not find any new trees"
       [inTree]
@@ -884,7 +887,10 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
         newTrees' = getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees'' = getGeneralSwap "spr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if not (null newTrees'') then newTrees''
+    if saveMethod == "best:1" then  
+      if not $ null newTrees' then newTrees'
+      else [inTree]
+    else if not (null newTrees'') then newTrees''
     else
       trace "SPR swap did not find any new trees"
       [inTree]
@@ -894,7 +900,10 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
         newTrees'' = getGeneralSwapSteepestOne "tbr" doSPRTBRSteep leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees''' = getGeneralSwap "tbr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees'' [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if not (null newTrees''') then newTrees'''
+    if saveMethod == "best:1" then 
+      if not $ null newTrees' then newTrees''
+      else [inTree]
+    else if not (null newTrees''') then newTrees'''
     else
       trace "TBR swap did not find any new trees"
       [inTree]

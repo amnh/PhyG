@@ -310,8 +310,11 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             -- make node from children and new edges to children
             -- median2 takes characters in blocks--but for tree really all same block
             let newSubTree = thd6 $ rightLeftChildTree
-                leftChildLabel = fromJust $ LG.lab newSubTree leftChild
-                rightChildLabel = fromJust $ LG.lab newSubTree rightChild
+                -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
+                -- rightChildLabel = fromJust $ LG.lab newSubTree rightChild
+
+                -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
                 
                 newCharData = GO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData

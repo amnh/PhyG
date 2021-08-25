@@ -58,7 +58,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 
 import qualified Data.Text.Short             as ST
---import qualified Data.Hashable as H
+import qualified Data.Hashable as H
 import           Data.Bits                   (shiftL, (.|.))
 import           Data.Word
 import           Debug.Trace
@@ -574,47 +574,45 @@ checkDuplicatedTerminals inData =
         if null dupList then (False, [])
         else (True, fmap head dupList)
 
-{-Used in data hash to create bitvectors for taxa--removed
 -- | joinSortFileData takes list if list of short text and merges line by line to joing leaf states
 -- and sorts the result
 joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
     if ((length $ head inFileLists) == 0) then []
     else
-        let firstLeaf = sort $ ST.toString $ ST.concat $ fmap head inFileLists
+        let firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
--}
+
 
 -- | createBVNames takes input data, sorts the raw data, hashes, sorts those to create
 -- unique, label invariant (but data related so arbitrary but consistent)
 -- Assumes the rawData come in sorted by the data reconciliation process
 -- These used for vertex labels, caching, left/right DO issues
--- CHANGED: to simple bitvector order since left right is determined
--- in the DO operations based on data so label invariant anyway
-
 createBVNames :: [RawData] -> [(T.Text, BV.BitVector)]
 createBVNames inDataList =
     let rawDataList   = fmap fst inDataList
         textNameList  = fmap fst $ head rawDataList
         textNameList' = fmap fst $ last rawDataList
-        {-
+        
         fileLeafCharList = fmap (fmap snd) rawDataList
         fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
         leafList = reverse $ joinSortFileData fileLeafList
         leafHash = fmap H.hash leafList
-        leafHashPair = sortOn fst $ zip leafHash textNameList
+        leafHashPair = L.sortOn fst $ zip leafHash [0..((length textNameList) - 1)] -- textNameList
         (_, leafReoderedList) = unzip leafHashPair
-        leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
-        (nameList, intList) = unzip leafOrder
-        -}
+        -- leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
+        -- (nameList, intList) = unzip leafOrder
+        
         --bv1 = BV.bitVec (length textNameList) (1 :: Integer)
         boolList = replicate ((length textNameList) - 1) False
         bv1 = BV.fromBits $ True : boolList
-        bvList = fmap (shiftL bv1) [0..((length textNameList) - 1)]
+        bvList = fmap (shiftL bv1) leafReoderedList -- [0..((length textNameList) - 1)]
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
-    else zip textNameList bvList
+    else 
+        -- trace (show $ fmap BV.toBits bvList) 
+        zip textNameList bvList
 
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
 -- these data are organized into blocks (set to input filenames initially)

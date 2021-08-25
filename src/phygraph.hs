@@ -49,8 +49,8 @@ import           System.Environment
 import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
-import qualified Data.Text.Lazy              as Text
-import qualified Data.Text.Short             as ST
+import qualified Data.Text.Lazy               as Text
+import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
 
 -- | main driver

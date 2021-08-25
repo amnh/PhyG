@@ -263,3 +263,15 @@ checkCommandArgs commandString commandList permittedList =
             let errorMatch = snd $ GU.getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
             in
             errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")
+
+-- | get leftRightChilLabelBV takes a pair of vertex labels and returns left and right
+-- based on their bitvector representation.  This ensures left/right consistancey in
+-- pre and postoder passes, and with bitvectors of leaves determined by data hash,
+-- ensures label invariance with repect to leaves 
+leftRightChildLabelBV :: (VertexInfo, VertexInfo) -> (VertexInfo, VertexInfo)
+leftRightChildLabelBV inPair@(firstNode, secondNode) =
+    let firstLabel  = bvLabel firstNode
+        secondLabel = bvLabel secondNode
+    in
+    if firstLabel > secondLabel then (secondNode, firstNode)
+    else inPair
