@@ -162,6 +162,7 @@ getInstruction inString possibleCommands
     | (fmap toLower inString) == "transform" = Transform
     | (fmap toLower inString) == "support"   = Support
     | (fmap toLower inString) == "rename"    = Rename
+    | (fmap toLower inString) == "select"    = Select
     | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in  errorWithoutStackTrace $ fold

@@ -275,3 +275,4 @@ leftRightChildLabelBV inPair@(firstNode, secondNode) =
     in
     if firstLabel > secondLabel then (secondNode, firstNode)
     else inPair
+

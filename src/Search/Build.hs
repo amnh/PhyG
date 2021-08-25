@@ -90,7 +90,7 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
           keepPairList = filter ((=="best").fst) lcArgList
           numToSave = if length keepPairList > 1 then 
                               errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " ++ show inArgs)
-                          else if null repPairList then numReplicates
+                          else if null keepPairList then numReplicates
                           else readMaybe (snd $ head keepPairList) :: Maybe Int
 
       in

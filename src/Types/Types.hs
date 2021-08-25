@@ -61,6 +61,10 @@ isDebug = False
 pgVersion :: String
 pgVersion = "0.1"
 
+-- | used for comparing graph costs and edge lengths that are Double
+epsilon :: Double
+epsilon = 0.0001
+
 -- | Types for timed searches
 type Days = Int
 type Hours = Int
