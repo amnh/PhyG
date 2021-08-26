@@ -363,7 +363,7 @@ selectArgList = ["best", "all", "unique", "random"]
 -- uses selectListCostPairs in GeneralUtilities
 selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph] 
 selectPhylogeneticGraph inArgs seed curGraphs =
-    trace (show inArgs) (
+    -- trace (show inArgs) (
     if null curGraphs then []
     else 
         let fstArgList = fmap (fmap C.toLower) $ fmap fst inArgs
@@ -403,7 +403,7 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                          take (fromJust numberToKeep) $ shuffledGraphs
                     -- defualt is best and unique
                     else filter ((== minGraphCost).snd6) uniqueGraphList
-                    )
+                    -- )
 
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]

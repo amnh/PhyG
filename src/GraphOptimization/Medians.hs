@@ -453,8 +453,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
+            gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { hugePrelim = GV.filter (/= (getGap symbolCount)) medians-- createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (notGapNought gapChar) medians-- createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -471,4 +472,14 @@ createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
 -- | getGap determines gap value from symbol set
 getGap :: (Eq a, FiniteBits a) => Int -> a
 getGap symbols = bit $ symbols - 1
-  
+
+-- | notGapNought returns False if gap or all zero birtvector
+-- otherwise True
+notGapNought :: BV.BitVector -> BV.BitVector -> Bool
+notGapNought gapChar inVal =
+    if inVal == gapChar then False
+    else (not . BV.isZeroVector) inVal
+
+-- | getGapBV determines gap value from symbol set
+getGapBV :: Int -> BV.BitVector 
+getGapBV symbols = bit $ symbols - 1
