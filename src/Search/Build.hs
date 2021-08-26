@@ -134,12 +134,6 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
          -- character build 
          errorWithoutStackTrace ("Character-based graph builds not yet implemented" ++ show inArgs)
       
-
-
-
-
-
-
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
 distanceWagner :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph

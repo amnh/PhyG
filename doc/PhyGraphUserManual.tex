@@ -35,6 +35,8 @@
 \newcommand*{\SetC}[3]{ #1 $\gets$ #2 \Comment*[r]{#3}}
 \newcommand*{\ForC}[3]{\For(\Comment*[f]{#2}){#1}{#3}}
 
+\setcounter{tocdepth}{2} 
+
 \begin{document}
 	%\firstpage{1}
 	
@@ -75,16 +77,7 @@
 		\subsection{Requirements}
 		\subsection{Obtaining and Installing \texttt{PhyG}}
 			All source code, precompiled binaries, test data, and documentation are available from \url{https://githib.com/wardwheeler/PhyGraph}.
-		
-	
-	\section {Commands}
-		\subsection{Command Structure}
-		\subsection{Commands}
-			\subsubsection{read}
-			\subsubsection{rename}
-			\subsubsection{report}
-		
-	
+
 	\section{Input Data Formats}
 		Any character names in input files are (for now) ignored and internal names are created
 		by appending the character number in its file to the filename as in "fileName:0".
@@ -154,6 +147,141 @@
 	\section{Program Use}
 	The program is invoked from the command-line as in:\\
 	PhyGraph commandFile\\
+	
+	\section{Commands}
+		\subsection{Command Structure}
+		Commands and arguments are case insensitive with the exception of filename specifications, which are also 
+		always in double quotes (\texttt{"fileName"}).  Commands are specified with mandatory parentheses \texttt{`()'} which may be empty or
+		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{':'}.  Command arguments are not 
+		order dependent.
+		
+		\bigskip
+		\texttt{command(argument, option:argument, option:argument...)}
+	
+	\subsection{Build}
+		\subsection{Syntax}
+		\texttt{build(arg0, arg1:option, ...)}
+		\subsubsection{Description}
+		Builds initial graphs.  Most options (with the exception of the $O(n^3)$ distance based \texttt{dWag} option and character based \texttt{bWag})
+		are $O(n^2)$.  Builds may be based on character methods or those based on distance methods.  Distance methods are considerably faster 
+		(lower constant factor), but approximate in terms of character-based methods.  Refinement (branch swapping) can be specified
+		for distance builds.  Given the large time burden, distance refinement is usually not time effective \citep{Wheeler2021}.
+		\subsubsection{Arguments}
+		\texttt{distance} Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis for tree construction.
+		
+		\noindent \texttt{dWag} Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to add at each step, 
+		yielding a single tree.  Time complexity of $O(n^3)$.
+		
+		\smallskip
+		\noindent \texttt{rWag} Performs randoms addition sequence distance Wagner builds, yielding a multiple trees determined 
+		by argument \texttt{replicates:m}.  Time complexity of $O(m \times n^2)$.
+		
+		\smallskip		
+		\noindent \texttt{nj} Performs Neighbor-Joining build \citep{Saitou1987}, yielding a single tree.  Time complexity of $O(n^3)$.
+		
+		\smallskip		
+		\noindent \texttt{wpgma} Performs Weighted Pair Group Method with Arithmetic Mean build \citep{SokalandMichener1958}, 
+		yielding a single tree.  Time complexity of $O(n^2)$.
+		
+		\smallskip		
+		\noindent \texttt{replicates:n}  Applies only to rWag.  Specifies the number of random addition sequences performed. 
+		
+		\smallskip		
+		\noindent \texttt{best:n} Applies only to rWag.  Specifies the number of trees retained after rWag builds, selecting 
+		the best trees in terms of distance cost.  The options can be used to reduce
+		the number of trees retained for refinement or returned for further analysis.  
+		
+		\smallskip		
+		\noindent \texttt{none} No refinement (OTU,SPR,TBR) is performed after distance builds.
+		
+		\smallskip		
+		\noindent \texttt{otu} Specifies that OTU refinement \citep{Wheeler2021} is performed after distance builds.
+		
+		\smallskip		
+		\noindent \texttt{spr} Specifies that SPR refinement \citep{Dayhoff1969} is performed after distance builds.
+
+		\smallskip		
+		\noindent \texttt{tbr} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed after distance builds.
+
+		\subsubsection{Defaults}
+		\texttt{build(distance, dwag)}
+		\subsubsection{Examples}
+		\begin{itemize}
+			\item{\texttt{build(distance, dWag, nj, wpgma)}\\Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and a WPGMA tree.}
+			\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence  Wagner builds and returns  
+			10 of lowest distance cost.}
+			\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best 10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
+		10 of lowest distance cost.}
+		
+	\subsection{Read}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+
+	\subsection{Refine}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Rename}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Report}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Run}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Select}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Set}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Support}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+		
+	\subsection{Swap} 
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
+	
+	\subsection{Transform}
+		\subsection{Syntax}
+		\subsubsection{Description}
+		\subsubsection{Arguments}
+		\subsubsection{Defaults}
+		\subsubsection{Examples}
 	
 	
 	\subsection{Execution in Parallel}

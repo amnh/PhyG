@@ -332,12 +332,11 @@ to render--would have repeated subtrees after network vertex
 108) read distance?
 	name issues etc.
 
-109) BV left/right
-
-110) data hash bv
-
-111) select
-
-112) random seed based on time passed as infinite list.
-
 113) IA  branche info for all collepsing branchlengths etc
+
+114)  Add block PhylogeenticGraph for rees as same as Decorated Graph
+
+115) Check dependence of tree root on num OTUs
+		forest obviously no
+
+		

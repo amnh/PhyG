@@ -286,9 +286,9 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else 
-            -- (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.singleton curDecGraph, V.replicate (length blockCharInfo) (V.singleton curDecGraph), blockCharInfo)
-            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.singleton curDecGraph, V.singleton (V.singleton curDecGraph), blockCharInfo)
+        else
+            --  replicating curaDecGraph with number opf blocks--but all the same for tree 
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.replicate (length blockCharInfo) curDecGraph, V.singleton (V.singleton curDecGraph), blockCharInfo)
 
     -- Need to make node
     else 
@@ -338,7 +338,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             in
             -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
 
-            (simpleGraph, (subGraphCost newVertex), newGraph, V.singleton curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
+            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)
             
 
