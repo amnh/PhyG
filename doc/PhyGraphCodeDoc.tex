@@ -77,12 +77,20 @@
 		although the cost of the graph is recalculated based on the best traversal (over all edges in the graph), the preliminary (post-order) states are not propagated back
 		to the decorated graph (third field of phylogenetic graph).  After the pre-order pass, the final states are propagated back.
 		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+		
+			Preliminary states (post-order) are determined for exact and non-exact characters as in \cite{Wheeler2012}.
 	
 	\section{Pre-Order Graph Traversal}
 		\subsection{Trees}
 		Final state assignments of root vertices are set to the preliminary, post-order state.
 		Final  states are propagated back to the decorated graph (third field of phylogenetic graph).
 		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+		
+		Final states (pre-order) are determined for exact and non-exact characters as in \cite{Wheeler2012}.  Currently final states for 
+		non-exact characters (e.g. sequence) are set as the median between the gapped preliminary state of the vertex and the final state of its parent
+		(for a tree), `extra' gaps in preliminary state are propagated to the gaped left and right descendant sequences, left, right, and parent final sequences
+		should now line up and a 3-median can be calculated.
+		
 
 	\subsection{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\

@@ -159,7 +159,7 @@
 		\texttt{command(argument, option:argument, option:argument...)}
 	
 	\subsection{Build}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\texttt{build(arg0, arg1:option, ...)}
 		\subsubsection{Description}
 		Builds initial graphs.  Most options (with the exception of the $O(n^3)$ distance based \texttt{dWag} option and character based \texttt{bWag})
@@ -210,81 +210,81 @@
 			\item{\texttt{build(distance, dWag, nj, wpgma)}\\Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and a WPGMA tree.}
 			\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence  Wagner builds and returns  
 			10 of lowest distance cost.}
-			\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best 10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
+			\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
 		10 of lowest distance cost.}
-		
+		\end{itemize}
 	\subsection{Read}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 
-	\subsection{Refine}
-		\subsection{Syntax}
-		\subsubsection{Description}
-		\subsubsection{Arguments}
-		\subsubsection{Defaults}
-		\subsubsection{Examples}
+%	\subsection{Refine}
+%		\subsubsection{Syntax}
+%		\subsubsection{Description}
+%		\subsubsection{Arguments}
+%		\subsubsection{Defaults}
+%		\subsubsection{Examples}
 	
 	\subsection{Rename}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 	
 	\subsection{Report}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 	
 	\subsection{Run}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 	
 	\subsection{Select}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 	
 	\subsection{Set}
-		\subsection{Syntax}
+		\subsubsection{Syntax}
 		\subsubsection{Description}
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
 		\subsubsection{Examples}
 	
-	\subsection{Support}
-		\subsection{Syntax}
-		\subsubsection{Description}
-		\subsubsection{Arguments}
-		\subsubsection{Defaults}
-		\subsubsection{Examples}
-		
-	\subsection{Swap} 
-		\subsection{Syntax}
-		\subsubsection{Description}
-		\subsubsection{Arguments}
-		\subsubsection{Defaults}
-		\subsubsection{Examples}
+%	\subsection{Support}
+%		\subsubsection{Syntax}
+%		\subsubsection{Description}
+%		\subsubsection{Arguments}
+%		\subsubsection{Defaults}
+%		\subsubsection{Examples}
+%		
+%	\subsection{Swap} 
+%		\subsubsection{Syntax}
+%		\subsubsection{Description}
+%		\subsubsection{Arguments}
+%		\subsubsection{Defaults}
+%		\subsubsection{Examples}
+%	
+%	\subsection{Transform}
+%		\subsubsection{Syntax}
+%		\subsubsection{Description}
+%		\subsubsection{Arguments}
+%		\subsubsection{Defaults}
+%		\subsubsection{Examples}
+%	
 	
-	\subsection{Transform}
-		\subsection{Syntax}
-		\subsubsection{Description}
-		\subsubsection{Arguments}
-		\subsubsection{Defaults}
-		\subsubsection{Examples}
-	
-	
-	\subsection{Execution in Parallel}
+	\section{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
