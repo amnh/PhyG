@@ -46,21 +46,20 @@ import qualified GraphOptimization.Traversals as T
 
 import qualified Data.Text.Lazy              as TL
 import Types.Types
-import qualified Utilities.LocalGraph as LG
 import qualified ParallelUtilities            as PU
-import Debug.Trace
 import Utilities.Utilities as U
 import qualified Utilities.DistanceUtilities as DU
 import qualified SymMatrix               as M
 import           Data.Maybe
 import           Text.Read
 import           Data.Char
-import           Data.List
+import qualified Data.List               as L
 import qualified Data.Vector             as V
 import qualified Search.DistanceMethods  as DM
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
 import qualified Search.DistanceWagner   as DW
+--import Debug.Trace
 
 
 -- | buildArgList is the list of valid build arguments
@@ -73,7 +72,6 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
    let fstArgList = fmap (fmap toLower) $ fmap fst inArgs
        sndArgList = fmap (fmap toLower) $ fmap snd inArgs
        lcArgList = zip fstArgList sndArgList
-       commandList = filter (/= "") fstArgList
        checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
    in
    -- check for valid command options
@@ -137,42 +135,42 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
 distanceWagner :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
-distanceWagner inGS inData leafNames distMatrix outgroupIndex refinement =
-   let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupIndex "best" []
-       distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupIndex distWagTree 
-       distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupIndex (snd4 distWagTree')
+distanceWagner inGS inData leafNames distMatrix outgroupValue refinement =
+   let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" []
+       distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree 
+       distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
    in
-   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupIndex $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
 
 -- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
 -- random addition sequence Wagner trees fully decorated tree (as Graph)
 randomizedDistanceWagner :: GlobalSettings -> ProcessedData ->  V.Vector String -> M.Matrix Double -> Int -> Int -> Int -> Int -> String -> [PhylogeneticGraph]
-randomizedDistanceWagner inGS inData leafNames distMatrix outgroupIndex numReplicates seed numToKeep refinement =
+randomizedDistanceWagner inGS inData leafNames distMatrix outgroupValue numReplicates seed numToKeep refinement =
    let randomizedAdditionSequences = fmap V.fromList $ shuffleInt seed numReplicates [0..(length leafNames - 1)] 
-       randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupIndex "random" randomizedAdditionSequences
-       randomizedAdditionWagnerTreeList' = take numToKeep $ sortOn thd4 randomizedAdditionWagnerTreeList
-       randomizedAdditionWagnerTreeList'' = fmap head $ PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupIndex) randomizedAdditionWagnerTreeList'
-       randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupIndex . snd4) randomizedAdditionWagnerTreeList''
+       randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
+       randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
+       randomizedAdditionWagnerTreeList'' = fmap head $ PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
+       randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
    in
-   fmap (T.multiTraverseFullyLabelGraph inGS inData) $ fmap (GO.dichotomizeRoot outgroupIndex) $ fmap (GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+   fmap (T.multiTraverseFullyLabelGraph inGS inData) $ fmap (GO.dichotomizeRoot outgroupValue) $ fmap (GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
 
 -- | neighborJoin takes Processed data and pairwise distance matrix and returns
 -- Neighbor-Joining tree as fully decorated tree (as Graph)
 neighborJoin :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
-neighborJoin inGS inData leafNames distMatrix outgroupIndex refinement =
-   let njTree = DM.neighborJoining leafNames distMatrix outgroupIndex 
-       njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupIndex njTree
-       njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupIndex (snd4 njTree')
+neighborJoin inGS inData leafNames distMatrix outgroupValue refinement =
+   let njTree = DM.neighborJoining leafNames distMatrix outgroupValue 
+       njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
+       njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
    in
-   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupIndex $ GO.switchRootTree (length leafNames) njSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
 
 -- | wPGMA takes Processed data and pairwise distance matrix and returns
 -- WPGMA tree as fully decorated tree (as Graph)
 -- since root index not nOTUs as with other tres--chanegd as with dWag and NJ to make consistent.
 wPGMA :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
-wPGMA inGS inData leafNames distMatrix outgroupIndex refinement =
-   let wpgmaTree = DM.wPGMA leafNames distMatrix outgroupIndex 
-       wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupIndex wpgmaTree
-       wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupIndex (snd4 wpgmaTree')
+wPGMA inGS inData leafNames distMatrix outgroupValue refinement =
+   let wpgmaTree = DM.wPGMA leafNames distMatrix outgroupValue 
+       wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
+       wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
    in
-   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupIndex $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)

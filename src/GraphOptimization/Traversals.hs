@@ -64,7 +64,7 @@ import Utilities.Utilities as U
 -- does not yet minimize over characters to get multi-min
 multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelGraph inGS inData inGraph =
-    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else 
         let leafGraph = makeLeafGraph inData
 
@@ -179,7 +179,7 @@ minimalReRootPhyloGraph inGraph nodesToRoot =
 -- fully label the graph and return a PhylogeenticGraph
 fullyLabelGraph :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
 fullyLabelGraph inGS inData leafGraph inGraph = 
-    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else 
         let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
             preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
@@ -224,7 +224,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
 -- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
 postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGraph inGraph = 
-    if LG.isEmpty inGraph then (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves  
         let rootIndex = V.length $ fst3 inData
@@ -338,7 +338,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- invafiant that root is HTU !! nLeaves?
 preOrderTreeTraversal :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS inData inPGraph = 
-    if LG.isEmpty (thd6 inPGraph) then (fst6 inPGraph, 0.0, LG.empty, V.empty, V.empty, V.empty)
+    if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
         inPGraph
         

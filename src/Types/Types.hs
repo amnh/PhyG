@@ -180,7 +180,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVect
                                      , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with slim tcm
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
-                                     , matrixStatesFinal  :: V.Vector (StateCost)
+                                     , matrixStatesFinal  :: V.Vector (V.Vector MatrixTriple)
                                      -- preliminary for m,ultiple seqeunce chars with same TCM
                                      , slimPrelim         :: SV.Vector CUInt
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
@@ -271,6 +271,9 @@ type SimpleGraph = LG.Gr NameText Double
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
+-- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
+emptyPhylogeneticGraph :: PhylogeneticGraph
+emptyPhylogeneticGraph = (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
 
 -- | RawData type processed from input to be passed to characterData
 -- to recode into usable form

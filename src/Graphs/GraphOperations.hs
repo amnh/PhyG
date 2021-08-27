@@ -41,17 +41,17 @@ TODO:
 --}
 
 module Graphs.GraphOperations ( ladderizeGraph
-                       , verifyTimeConsistency
-                       , rerootGraph
-                       , rerootGraph'
-                       , generateDisplayTrees
-                       , contractOneOneEdges
-                       , getNodeType
-                       , convertDecoratedToSimpleGraph
-                       , graphCostFromNodes
-                       , switchRootTree
-                       , dichotomizeRoot
-                       ) where
+                               , verifyTimeConsistency
+                               , rerootGraph
+                               , rerootGraph'
+                               , generateDisplayTrees
+                               , contractOneOneEdges
+                               , getNodeType
+                               , convertDecoratedToSimpleGraph
+                               , graphCostFromNodes
+                               , switchRootTree
+                               , dichotomizeRoot
+                               ) where
 
 import           Data.Bits                 ((.&.), (.|.))
 import           Data.List

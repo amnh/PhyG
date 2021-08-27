@@ -309,8 +309,9 @@ to render--would have repeated subtrees after network vertex
 	Taran data
 
 103) Pre-order
+	Feilds are in order of (median, left, right)
 	Symbol count is length of alphabet (toEnum $ length alphabet)
-	isLeft 
+	isLeft (as in is leftChild really leftChild)
 		-- either modify postorder 
 		-- or be consistemt on left/right children as in DOMedian left right
 			use Bitvector of vertex
@@ -330,7 +331,8 @@ to render--would have repeated subtrees after network vertex
 	^C only 1 time to get prof info if not complete
 
 108) read distance?
-	name issues etc.
+	name, data issues etc.
+	if null data could just return distance costs
 
 113) IA  branche info for all collepsing branchlengths etc
 
@@ -345,3 +347,8 @@ to render--would have repeated subtrees after network vertex
 	add arg for nonexactg stuff
 
 118) Clean up warnings
+
+119) in make median--for final as well--need to check that nought
+	for parents not child (check paper)
+
+
