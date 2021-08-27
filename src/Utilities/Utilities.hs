@@ -38,11 +38,11 @@ module Utilities.Utilities  where
 
 import qualified Data.Vector as V
 import           Data.Maybe
-import           Data.List
+import           Data.List (intercalate)
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-import Bio.Character.Encodable  -- this has DynamicCharacter reference
+import Bio.Character.Encodable.Dynamic  -- this has DynamicCharacter reference
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special

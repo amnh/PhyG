@@ -46,9 +46,6 @@ module GraphOptimization.Medians  ( median2
                                   , median2SingleNonExact
                                   ) where
 
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
@@ -57,6 +54,7 @@ import qualified Data.TCM.Dense                                              as 
 import qualified Data.Vector                                                 as V
 import qualified Data.Vector.Generic                                         as GV
 import           Data.Word
+import           DirectOptimization.Pairwise
 import           GeneralUtilities
 import qualified SymMatrix                                                   as S
 import           Types.Types

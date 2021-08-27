@@ -169,10 +169,9 @@ executable phyg
     ld-options: -static -pthread
 
   build-depends:  alphabet
-                , analysis
-                , data-structures
+                , dynamic-character
+                , dynamic-character-deprecated
                 , tcm
-                , tcm-memo
                 , base >=4.10
                 , containers >=0.6
                 , graphviz
@@ -229,16 +228,10 @@ executable phyg
                   GraphOptimization.Medians
                   Input.FastAC
                   Utilities.LocalSequence
---                  DirectOptimization.DOUkkonenSequence
---                  DirectOptimization.DOUkkonenSequenceInt64
                   Graphs.GraphOperations
                   Utilities.Utilities
                   GraphOptimization.Traversals
                   Utilities.TcmHash
-                  DirectOptimization.DOSlim
-                  DirectOptimization.DOWide
-                  DirectOptimization.DOHuge
-                  DirectOptimization.PreOrder
                   Debug.Debug
                   Search.Build
                   Search.DistanceWagner
@@ -288,12 +281,12 @@ library alphabet
     Data.Alphabet.Internal      
 
 
--- Library for performing parsimony analysis.
+-- Library for performing string alignment on dynamic characters.
 
 -- Provides various metrics for scoring static characters and
 -- performing string alignment on dynamic characters.
 
-library analysis
+library dynamic-character
 
   import:
     ffi-buildinfo,
@@ -304,78 +297,37 @@ library analysis
     Haskell2010
 
   hs-source-dirs:
-    lib/analysis/src
+    lib/dynamic-character
 
   build-depends:
-    data-structures,
-    exportable,
     tcm,
-    tcm-memo,
     utility,
     base                     >= 4.11      && < 5.0,
     bv-little,
-    clustering               >= 0.4       && < 0.5,
     containers               >= 0.6.2     && < 1.0,
-    data-default             >= 0.5.2     && < 0.8,
     dlist                    >= 0.8       && < 1.0,
-    keys                     >= 3.12      && < 4.0,
-    lens                     >= 4.18      && < 6.0,
     matrices                 >= 0.5       && < 1.0,            
     monad-loops              >= 0.4       && < 1.0,
-    mono-traversable         >= 1.0       && < 2.0,
     mtl                      >= 2.2.2     && < 3.0,
-    parallel                 >= 3.2       && < 4.0,
     primitive                >= 0.7.1     && < 1.0,
-    unordered-containers     >= 0.2.10    && < 1.0,
-    semigroupoids            >= 5.3       && < 5.4,
     vector                   >= 0.12.0.3  && < 0.13,
-    vector-builder           >= 0.3.7     && < 0.4,
-    vector-instances         >= 3.4       && < 3.5,
 
   exposed-modules:
-    --Analysis.Clustering
-    --Analysis.Clustering.Hierarchical
-    --Analysis.Distance
-    --Analysis.Parsimony.Additive
-    --Analysis.Parsimony.Dynamic.DirectOptimization
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
-    --Analysis.Parsimony.Fitch
-    --Analysis.Parsimony.Sankoff
-    --Analysis.Scoring
-    --Analysis.TotalEdgeCost
+    Bio.DynamicCharacter
+    DirectOptimization.Pairwise
+    DirectOptimization.Pairwise.Slim
+    DirectOptimization.Pairwise.Wide
+    DirectOptimization.Pairwise.Huge
+    DirectOptimization.PreOrder
 
   other-modules:
-    --Analysis.Parsimony.Additive.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Swapping
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
-    --Analysis.Parsimony.Fitch.Internal
-    --Analysis.Parsimony.Sankoff.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
-    
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace            
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
+    DirectOptimization.Pairwise.Internal
+    DirectOptimization.Pairwise.Swapping
+    DirectOptimization.Pairwise.Slim.FFI
+    DirectOptimization.Pairwise.Ukkonen
 
 
-library data-structures
+library dynamic-character-deprecated
 
   import:
     ghc-flags,
@@ -385,17 +337,11 @@ library data-structures
     Haskell2010
 
   hs-source-dirs:
-    lib/data-structures/src
+    lib/dynamic-character-deprecated/src
 
   build-depends:
     alphabet,
---    character-name,
---    evaluation,
-    exportable,
---    file-source,
---    serialize,
     tcm,
-    tcm-memo,
     utility,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
@@ -403,7 +349,6 @@ library data-structures
     binary-instances         >= 1         && < 2.0,
     bv-little                >= 1.0.1     && < 2.0,
     bv-little:instances      >= 1.0.1     && < 2.0,
---    concurrent-hashtable     >= 0.1.8     && < 2.0,
     containers               >= 0.6.2     && < 1.0,
     data-default             >= 0.5.2     && < 0.8,
     deepseq                  >= 1.4       && < 2.0,
@@ -431,124 +376,16 @@ library data-structures
     xml                      >= 1.3.14    && < 1.4,
 
   exposed-modules:
---    Bio.Character
---    Bio.Character.Decoration.Additive
---    Bio.Character.Decoration.Continuous
---    Bio.Character.Decoration.Discrete
---    Bio.Character.Decoration.Discrete.Class
---    Bio.Character.Decoration.Dynamic
---    Bio.Character.Decoration.Fitch
---    Bio.Character.Decoration.Metric
---    Bio.Character.Decoration.NonMetric
-    Bio.Character.Encodable
+    Bio.Character.Encodable.Dynamic
     Bio.Character.Encodable.Dynamic.AmbiguityGroup
-    Bio.Character.Encodable.Continuous
---    Bio.Metadata
---    Bio.Metadata.Continuous
---    Bio.Metadata.Discrete
---    Bio.Metadata.DiscreteWithTCM
---    Bio.Metadata.Dynamic
---    Bio.Metadata.Metric
---    Bio.Sequence
---    Bio.Sequence.Block
---    Bio.Sequence.Character
---    Bio.Sequence.Metadata
---    Bio.Graph
---    Bio.Graph.Component
---    Bio.Graph.Constructions
---    Bio.Graph.LeafSet
---    Bio.Graph.Node
---    Bio.Graph.Node.Context
---    Bio.Graph.PhylogeneticDAG
---    Bio.Graph.PhylogeneticDAG.Substitute
---    Bio.Graph.ReferenceDAG
---    Bio.Graph.ReferenceDAG.Internal
---    Bio.Graph.ReferenceDAG.Network
---    Bio.Graph.ReferenceDAG.Traversal
---    Bio.Graph.ReferenceDAG.Utility
---    Bio.Graph.Solution
---    Data.EdgeLength
---    Data.Hashable.Memoize              
---    Data.NodeLabel
---    Data.TopologyRepresentation
---    Test.Custom.NucleotideSequence
 
   other-modules:
---    Bio.Character.Decoration.Additive.Class
---    Bio.Character.Decoration.Additive.Internal
---    Bio.Character.Decoration.Continuous.Class
---    Bio.Character.Decoration.Continuous.Internal
---    Bio.Character.Decoration.Dynamic.Class
---    Bio.Character.Decoration.Dynamic.Internal
---    Bio.Character.Decoration.Fitch.Class
---    Bio.Character.Decoration.Fitch.Internal
---    Bio.Character.Decoration.Metric.Class
---    Bio.Character.Decoration.Metric.Internal
---    Bio.Character.Decoration.NonMetric.Class
---    Bio.Character.Decoration.NonMetric.Internal
---    Bio.Character.Decoration.Shared
-    Bio.Character.Encodable.Continuous.Class
-    Bio.Character.Encodable.Continuous.Internal
-    Bio.Character.Encodable.Dynamic
---    Bio.Character.Encodable.Dynamic.AmbiguityGroup
     Bio.Character.Encodable.Dynamic.Class
     Bio.Character.Encodable.Dynamic.Element
     Bio.Character.Encodable.Dynamic.Internal
     Bio.Character.Encodable.Internal
-    Bio.Character.Encodable.Static
-    Bio.Character.Encodable.Static.Class
-    Bio.Character.Encodable.Static.Internal
     Bio.Character.Encodable.Stream
---    Bio.Metadata.General
---    Bio.Metadata.General.Class
---    Bio.Metadata.General.Internal
---    Bio.Metadata.Discrete.Class
---    Bio.Metadata.Discrete.Internal
---    Bio.Metadata.DiscreteWithTCM.Class
---    Bio.Metadata.DiscreteWithTCM.Internal
---    Bio.Metadata.Dynamic.Class
---    Bio.Metadata.Dynamic.Internal
---    Bio.Metadata.Metric.Class
---    Bio.Metadata.Metric.Internal
---    Bio.Graph.BinaryRenderingTree
---    Bio.Graph.Forest
---    Bio.Graph.Node.Internal
---    Bio.Graph.PhylogeneticDAG.Internal
---    Bio.Graph.PhylogeneticDAG.NetworkEdgeQuantification
---    Bio.Graph.PhylogeneticDAG.DynamicCharacterRerooting
---    Bio.Graph.PhylogeneticDAG.Postorder
---    Bio.Graph.PhylogeneticDAG.Preorder
---    Bio.Graph.PhylogeneticDAG.Reification
---    Bio.Sequence.Block.Builder
---    Bio.Sequence.Block.Character
---    Bio.Sequence.Block.Internal
---    Bio.Sequence.Block.Metadata
---    Bio.Sequence.Internal
---    Data.EdgeSet
 
-library exportable
-
-  import:
-    ghc-flags,
-    language-specs,
-
-
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
-   lib/exportable/src
-
-  build-depends:
-    base                     >= 4.11      && < 5.0,
-    lens                     >= 4.18      && < 6.0,
-    mono-traversable         >= 1.0       && < 2.0,
-
-  exposed-modules:
-    Bio.Character.Exportable
-
-  other-modules:
-    Bio.Character.Exportable.Class
 
 -- Library for working with TCMs and SCMs in various representations.
 
@@ -571,9 +408,6 @@ library tcm
     lib/tcm/src
 
   build-depends:
-    exportable,
---    serialize,
-    tcm-memo,
     utility,
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
@@ -599,69 +433,68 @@ library tcm
     Data.TCM.Internal
 
 
-
 -- A binding to a C++ hashtable for thread-safe memoization.
 
 -- This package is designed to provide a thread safe binding to a "pure"
 -- memoization of two-way and three-way Sankoff character cost and median
 -- computations.
 
-library tcm-memo
-
-  import:
-    ffi-buildinfo,
-    ghc-flags,
-    language-specs,
-
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
-    lib/tcm-memo/src
-
-  cc-options:       --std=c11
-  
-  cxx-options:      --std=c++14
-
-  -- This library is required for linking to the C++ standard template library.
-  if os(darwin)
-    extra-libraries:  c++
-  else
-    extra-libraries:  stdc++
-
-  hs-source-dirs:   lib/tcm-memo/ffi
-
-  c-sources:
-    ffi/memoized-tcm/costMatrixWrapper.c
-    ffi/memoized-tcm/dynamicCharacterOperations.c
-
-  cxx-sources:
-    ffi/memoized-tcm/costMatrix_2d.cpp
-    ffi/memoized-tcm/costMatrix_3d.cpp
-
-  -- Here we list all directories that contain C & C++ header files that the FFI
-  -- tools will need to locate when preprocessing the C files. Without listing
-  -- the directories containing the C header files here, the FFI preprocessor
-  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
-  -- that the parent directory of the nessicary C & C++ header files must be
-  -- specified. The preprocessor will not recursively look in subdirectories for
-  -- header files!
-  include-dirs:
-    ffi/memoized-tcm
-
-  build-depends:
-    exportable,
-    base                     >= 4.11      && < 5.0,
-    deepseq                  >= 1.4       && < 2.0,
-    QuickCheck               >= 2.14      && < 3.0,
-
-  exposed-modules:
-    Data.TCM.Memoized
-    Data.TCM.Memoized.Types
-    Data.TCM.Memoized.FFI
-
-  other-modules:
-  --  Data.TCM.Memoized.FFI
+--library tcm-memo
+--
+--  import:
+--    ffi-buildinfo,
+--    ghc-flags,
+--    language-specs,
+--
+--  default-language:
+--    Haskell2010
+--
+--  hs-source-dirs:
+--    lib/tcm-memo/src
+--
+--  cc-options:       --std=c11
+--  
+--  cxx-options:      --std=c++14
+--
+--  -- This library is required for linking to the C++ standard template library.
+--  if os(darwin)
+--    extra-libraries:  c++
+--  else
+--    extra-libraries:  stdc++
+--
+--  hs-source-dirs:   lib/tcm-memo/ffi
+--
+--  c-sources:
+--    ffi/memoized-tcm/costMatrixWrapper.c
+--    ffi/memoized-tcm/dynamicCharacterOperations.c
+--
+--  cxx-sources:
+--    ffi/memoized-tcm/costMatrix_2d.cpp
+--    ffi/memoized-tcm/costMatrix_3d.cpp
+--
+--  -- Here we list all directories that contain C & C++ header files that the FFI
+--  -- tools will need to locate when preprocessing the C files. Without listing
+--  -- the directories containing the C header files here, the FFI preprocessor
+--  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
+--  -- that the parent directory of the nessicary C & C++ header files must be
+--  -- specified. The preprocessor will not recursively look in subdirectories for
+--  -- header files!
+--  include-dirs:
+--    ffi/memoized-tcm
+--
+--  build-depends:
+--    exportable,
+--    base                     >= 4.11      && < 5.0,
+--    deepseq                  >= 1.4       && < 2.0,
+--    QuickCheck               >= 2.14      && < 3.0,
+--
+--  exposed-modules:
+--    Data.TCM.Memoized
+--    Data.TCM.Memoized.Types
+--    Data.TCM.Memoized.FFI
+--
+--  other-modules:
+--  --  Data.TCM.Memoized.FFI
 
 
 -- Collection of utility functions and data structures
