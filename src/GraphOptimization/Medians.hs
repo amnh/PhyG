@@ -57,6 +57,8 @@ import           Data.Word
 import           DirectOptimization.Pairwise
 import           GeneralUtilities
 import qualified SymMatrix                                                   as S
+import           Types.Types
+
 
 --import qualified Data.Alphabet as DALPH
 
@@ -449,7 +451,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             coefficient = MR.minInDelCost thisHugeTCM
             gapState    = bit $ symbolCount - 1
             subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
-            (cost, r)   = hugePairwiseDO
+            (cost, r@(medians,_,_))   = hugePairwiseDO
                 coefficient
                 gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
@@ -457,20 +459,15 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
             gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { hugePrelim = GV.filter (notGapNought gapChar) medians-- createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (notGapNought gapChar) medians -- createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
 
-<<<<<<< HEAD
 -- | createUngappedMedianSequence enter symb olCount (symbols from alphabet) and context
-createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
-=======
-
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
->>>>>>> refactor-alignment
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
