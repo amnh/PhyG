@@ -152,12 +152,12 @@ data  TCMStructure
 data  TCMDiagnosis
     = TCMDiagnosis
     { factoredWeight :: Int          -- ^ The multiplicative constant factor of a
-                                    --   'TCM'. Minimum value of the
-                                    --   multiplicative identity /one/.
+                                     --   'TCM'. Minimum value of the
+                                     --   multiplicative identity /one/.
     , factoredTcm    :: TCM          -- ^ The new 'TCM' with each value divided by
-                                    --   the 'factoredWeight'.
+                                     --   the 'factoredWeight'.
     , tcmStructure   :: TCMStructure -- ^ The most restrictive present in the
-                                    --   'factoredTcm'.
+                                     --   'factoredTcm'.
     }
     deriving stock    (Data, Eq, Generic, Show, Typeable)
     deriving anyclass (NFData)
