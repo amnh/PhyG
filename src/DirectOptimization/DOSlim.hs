@@ -9,7 +9,6 @@ import           Data.Vector                                                 (Ve
 import qualified Data.Vector                                                 as V
 import qualified Data.Vector.Storable                                        as SV
 import           Foreign.C.Types                                             (CUInt)
-import qualified SymMatrix                                                   as SM
 
 
 wrapperSlimDO :: Vector BitVector -> Vector BitVector -> DenseTransitionCostMatrix -> (Vector BitVector, Int)

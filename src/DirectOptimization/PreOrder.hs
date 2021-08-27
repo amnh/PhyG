@@ -2,21 +2,26 @@
 
 module DirectOptimization.PreOrder where
 
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
+import           Control.Monad
 import           Control.Monad.ST
 import           Data.Bits
 import           Data.Vector.Generic (Vector, (!))
 import qualified Data.Vector.Generic as GV
-import           Data.Functor
+import qualified Data.Vector.Generic.Mutable as MGV
 import           Data.STRef
 
 
 -- |
 -- Faithful translation of Algorithm 8 (Non-root Node Alignment) from the
 -- "Efficient Implied Alignment" paper found at <https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2> 
+{-# INLINEABLE preOrderLogic #-}
+{-# SPECIALISE preOrderLogic :: Word -> Bool -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
+{-# SPECIALISE preOrderLogic :: Word -> Bool -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter #-}
+{-# SPECIALISE preOrderLogic :: Word -> Bool -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
 preOrderLogic
   :: ( FiniteBits a
      , Vector v a
-     , Vector v (a, a, a)
      )
   => Word
   -> Bool
@@ -24,32 +29,50 @@ preOrderLogic
   -> (v a, v a, v a) -- ^ Parent Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Final       Alignment
-preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext = GV.unzip3 cAlignment
+preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,ys,zs) = cAlignment
   where
     wlog  = x ! 0
     zero  = wlog `xor` wlog
-    gap   = (bit . fromEnum $ symbolCount - 1, zero, zero)
+    gap   = bit . fromEnum $ symbolCount - 1
     paLen = lengthSeq pAlignment
     ccLen = lengthSeq cContext
+    
     cAlignment = runST $ do
-      j' <- newSTRef 0
-      k' <- newSTRef 0
-      let go  i = do
-              k <- readSTRef k'
-              if   k > ccLen || pAlignment `isGappedAt` i
-              then pure gap
-              else do
-                  j <- readSTRef j'
-                  modifySTRef j' succ
-                  if    pAlignment `isAlignedAt` i
-                    || (    isLeftChild && pAlignment `isDeletedAt`  i && pContext `isDeletedAt`  j)
-                    || (not isLeftChild && pAlignment `isInsertedAt` i && pContext `isInsertedAt` j)
-                  then modifySTRef k' succ $> cContext `indexSeq` k
-                  else pure gap
+      j'  <- newSTRef 0
+      k'  <- newSTRef 0
+      xs' <- MGV.unsafeNew paLen
+      ys' <- MGV.unsafeNew paLen
+      zs' <- MGV.unsafeNew paLen
+      
+      let gapAt i = do
+            MGV.basicUnsafeWrite xs' i gap
+            MGV.basicUnsafeWrite ys' i zero
+            MGV.basicUnsafeWrite zs' i zero
 
-      GV.generateM paLen go 
+      let setAt k i = do
+            MGV.basicUnsafeWrite xs' i $ xs ! k
+            MGV.basicUnsafeWrite ys' i $ ys ! k
+            MGV.basicUnsafeWrite zs' i $ zs ! k
+          
+      forM_ [0 .. paLen - 1] $ \i -> do
+          k <- readSTRef k'
+          if   k > ccLen || pAlignment `isGapped` i
+          then gapAt i
+          else do
+              j <- readSTRef j'
+              modifySTRef j' succ
+              if    pAlignment `isAlign` i
+                || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
+                || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
+              then modifySTRef k' succ *> (k `setAt` i)
+              else gapAt i
+
+      (,,) <$> GV.basicUnsafeFreeze xs'
+           <*> GV.basicUnsafeFreeze ys'
+           <*> GV.basicUnsafeFreeze zs'
 
 
+{-
 isAlignedAt, isInsertedAt, isDeletedAt, isGappedAt
   :: ( FiniteBits a
      , Vector v a
@@ -73,6 +96,7 @@ isInsertedAt (_,y,z) i =
 
 isGappedAt (_,y,z) i =
   i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
+-}
 
 
 indexSeq

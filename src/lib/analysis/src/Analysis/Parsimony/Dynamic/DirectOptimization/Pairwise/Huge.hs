@@ -1,16 +1,18 @@
 module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
   ( HugeDynamicCharacter
+  , HugeState
   , hugePairwiseDO
   ) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
-import Data.BitVector.LittleEndian
+import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
 
 
 hugePairwiseDO
-  :: (BitVector -> BitVector -> (BitVector, Word))
+  :: Word
+  -> HugeState
+  -> (HugeState -> HugeState -> (HugeState, Word))
   -> HugeDynamicCharacter
   -> HugeDynamicCharacter
   -> (Word, HugeDynamicCharacter)
-hugePairwiseDO = hugeUkkonenDO
+hugePairwiseDO = ukkonenDO

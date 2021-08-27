@@ -1,6 +1,7 @@
 module DirectOptimization.DOWide where
 
 import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
+--import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen2
 import           Control.Arrow (first)
 import           Data.BitVector.LittleEndian                                 (BitVector)
 import qualified Data.BitVector.LittleEndian                                 as BV
@@ -15,14 +16,18 @@ import           Data.Word
 wrapperWideDO
   :: Vector BitVector
   -> Vector BitVector
-  -> MetricRepresentation BV.BitVector  --Word64
+  -> MetricRepresentation BitVector  --Word64
   -> (Vector BitVector, Int)
 wrapperWideDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromEnum resultCost)
   where
-    (resultCost, resultMedians) = widePairwiseDO (fromIntegral n) tcm lhsDC rhsDC
+    (resultCost, resultMedians) = widePairwiseDO (minInDelCost metric) gap tcm lhsDC rhsDC
+--    (resultCost, resultMedians) = ukkonenDO (minInDelCost metric) gap tcm lhsDC rhsDC
+
+    gap = bit . fromEnum $ n - 1
 
     tcm :: Word64 -> Word64 -> (Word64, Word)
     tcm x y = first BV.toUnsignedNumber $ (retreivePairwiseTCM metric) (BV.fromNumber 64 x) (BV.fromNumber 64 y)
+
 
     n = case length lhs of
           0 -> case length rhs of
@@ -32,6 +37,7 @@ wrapperWideDO lhs rhs metric = (wideDC2BVs (fromIntegral n) resultMedians, fromE
 
     lhsDC = bvs2WideDC lhs
     rhsDC = bvs2WideDC rhs
+
 
 bvs2WideDC :: V.Vector BitVector -> WideDynamicCharacter
 bvs2WideDC v = (x,x,x)

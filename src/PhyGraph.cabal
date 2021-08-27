@@ -229,8 +229,8 @@ executable phyg
                   GraphOptimization.Medians
                   Input.FastAC
                   Utilities.LocalSequence
-                  DirectOptimization.DOUkkonenSequence
-                  DirectOptimization.DOUkkonenSequenceInt64
+--                  DirectOptimization.DOUkkonenSequence
+--                  DirectOptimization.DOUkkonenSequenceInt64
                   Graphs.GraphOperations
                   Utilities.Utilities
                   GraphOptimization.Traversals
@@ -339,10 +339,10 @@ library analysis
     --Analysis.Parsimony.Additive
     --Analysis.Parsimony.Dynamic.DirectOptimization
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
-
     --Analysis.Parsimony.Fitch
     --Analysis.Parsimony.Sankoff
     --Analysis.Scoring
@@ -352,27 +352,27 @@ library analysis
     --Analysis.Parsimony.Additive.Internal
     --Analysis.Parsimony.Dynamic.DirectOptimization.Internal
     Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
-    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Internal
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Swapping
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
+    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
     --Analysis.Parsimony.Fitch.Internal
     --Analysis.Parsimony.Sankoff.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.FFI
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.NeedlemanWunsch
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Internal
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Swapping
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge.Ukkonen
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Internal
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Swapping
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide.Ukkonen
     
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Ukkonen.Ribbon
     --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedFullMatrix
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace            
-    Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedSwapping
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenFullSpace            
+    --Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.UnboxedUkkonenSwapping
 
 
 library data-structures

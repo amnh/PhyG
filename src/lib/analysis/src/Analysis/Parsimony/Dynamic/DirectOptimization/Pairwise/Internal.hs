@@ -8,55 +8,57 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- Defines the primitive operations for standard Needleman-Wunsch and Ukkonen
--- algorithms for performing a direct optimization heuristic alignment between
--- two dynamic characters.
+-- Direct optimization pairwise alignment using the Needleman-Wunsch algorithm.
+-- These functions will allocate an M * N matrix.
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE ApplicativeDo    #-}
+{-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE Strict           #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE UnboxedTuples    #-}
+
 
 module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
   ( Cost
   , Direction(..)
-  , DOCharConstraint
-  , MatrixConstraint
-  , MatrixFunction
-  , NeedlemanWunchMatrix
   , OverlapFunction
-  -- * Direct Optimization primitive construction functions
-  , directOptimization
-  , handleMissingCharacter
-  , handleMissingCharacterThreeway
+    -- * General pre-processing
+  , deleteGaps
+  , insertGaps
   , measureCharacters
   , measureAndUngapCharacters
-  , needlemanWunschDefinition
---  , renderCostMatrix
---  , traceback
+    -- * Alignment
+  , directOptimization
+  , traceback
   ) where
 
-import           Bio.Character.Encodable
-import           Control.Monad.State.Strict
-import           Data.DList                  (snoc)
+import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
+import           Control.Monad                                                            (unless, when)
+import           Control.Monad.Loops                                                      (whileM_)
+import           Control.Monad.ST
+import           Data.Bits
+import           Data.DList                                                               (snoc)
 import           Data.Foldable
-import           Data.IntMap                 (IntMap)
-import           Data.Key
-import qualified Data.List.NonEmpty          as NE
-import           Data.Matrix.NotStupid       (Matrix)
-import           Data.Maybe                  (fromMaybe)
-import           Data.MonoTraversable
+import           Data.IntMap                                                              (IntMap)
+import qualified Data.IntMap                                                              as IM
+import           Data.Matrix.Unboxed                                                      (Matrix, unsafeIndex)
 import           Data.Ord
-import qualified Data.Vector.Generic         as G
-import qualified Data.Vector.Generic.Mutable as M
-import qualified Data.Vector.Primitive       as P
-import qualified Data.Vector.Unboxed         as U
-import           Data.Word                   (Word8)
+import           Data.STRef
+import           Data.Semigroup
+import qualified Data.Vector                                                              as V
+import           Data.Vector.Generic                                                      (Vector, (!))
+import qualified Data.Vector.Generic                                                      as GV
+import qualified Data.Vector.Generic.Mutable                                              as MGV
+import qualified Data.Vector.Primitive                                                    as PV
+import qualified Data.Vector.Unboxed                                                      as UV
+import qualified Data.Vector.Unboxed.Mutable                                              as MUV
+import           Data.Word                                                               (Word8)
 import           Numeric.Extended.Natural
-import           Prelude                     hiding (lookup, zipWith)
 
 
 -- |
@@ -91,104 +93,80 @@ type Cost = ExtendedNatural
 
 
 -- |
--- A representation of an alignment matrix for DO.
--- The matrix itself stores tuples of the cost and direction at that position.
--- We also store a vector of characters that are generated.
-type NeedlemanWunchMatrix = Matrix (Cost, Direction)
-
-
--- |
--- Constraints on the input dynamic characters that direct optimization requires
--- to operate.
-type DOCharConstraint s = (EncodableDynamicCharacter s, EncodableDynamicCharacterElement (Element s), Ord (Element s), Ord (Subcomponent (Element s)), Show s {- , Show (Element s) , Show s, Show (Element s), Integral (Element s) -})
-
-
--- |
--- Constraints on the type of structure a "matrix" exposes to be used in rendering
--- and traceback functions.
-type MatrixConstraint m = (Foldable m, Functor m, Indexable m, Key m ~ (Int, Int))
-
-
--- |
--- A parameterized function to generate an alignment matrix.
-type MatrixFunction m s = OverlapFunction (Subcomponent (Element s)) -> s -> s -> m (Cost, Direction)
-
-
--- |
 -- A generalized function representation: the "overlap" between dynamic character
 -- elements, supplying the corresponding median and cost to align the two
 -- characters.
 type OverlapFunction e = e -> e -> (e, Word)
 
 
-newtype instance U.MVector s Direction = MV_Direction (P.MVector s Word8)
+newtype instance UV.MVector s Direction = MV_Direction (PV.MVector s Word8)
 
 
-newtype instance U.Vector   Direction  = V_Direction  (P.Vector    Word8)
+newtype instance UV.Vector   Direction  = V_Direction  (PV.Vector    Word8)
 
 
-instance U.Unbox Direction
+instance UV.Unbox Direction
 
 
-instance M.MVector U.MVector Direction where
+instance MGV.MVector UV.MVector Direction where
 
     {-# INLINE basicLength #-}
-    basicLength (MV_Direction v) = M.basicLength v
+    basicLength (MV_Direction v) = MGV.basicLength v
 
     {-# INLINE basicUnsafeSlice #-}
-    basicUnsafeSlice i n (MV_Direction v) = MV_Direction $ M.basicUnsafeSlice i n v
+    basicUnsafeSlice i n (MV_Direction v) = MV_Direction $ MGV.basicUnsafeSlice i n v
 
     {-# INLINE basicOverlaps #-}
-    basicOverlaps (MV_Direction v1) (MV_Direction v2) = M.basicOverlaps v1 v2
+    basicOverlaps (MV_Direction v1) (MV_Direction v2) = MGV.basicOverlaps v1 v2
 
     {-# INLINE basicUnsafeNew #-}
-    basicUnsafeNew n = MV_Direction <$> M.basicUnsafeNew n
+    basicUnsafeNew n = MV_Direction <$> MGV.basicUnsafeNew n
 
     {-# INLINE basicInitialize #-}
-    basicInitialize (MV_Direction v) = M.basicInitialize v
+    basicInitialize (MV_Direction v) = MGV.basicInitialize v
 
     {-# INLINE basicUnsafeReplicate #-}
-    basicUnsafeReplicate n x = MV_Direction <$> M.basicUnsafeReplicate n (fromDirection x)
+    basicUnsafeReplicate n x = MV_Direction <$> MGV.basicUnsafeReplicate n (fromDirection x)
 
     {-# INLINE basicUnsafeRead #-}
-    basicUnsafeRead (MV_Direction v) i = toDirection <$> M.basicUnsafeRead v i
+    basicUnsafeRead (MV_Direction v) i = toDirection <$> MGV.basicUnsafeRead v i
 
     {-# INLINE basicUnsafeWrite #-}
-    basicUnsafeWrite (MV_Direction v) i x = M.basicUnsafeWrite v i (fromDirection x)
+    basicUnsafeWrite (MV_Direction v) i x = MGV.basicUnsafeWrite v i (fromDirection x)
 
     {-# INLINE basicClear #-}
-    basicClear (MV_Direction v) = M.basicClear v
+    basicClear (MV_Direction v) = MGV.basicClear v
 
     {-# INLINE basicSet #-}
-    basicSet (MV_Direction v) x = M.basicSet v (fromDirection x)
+    basicSet (MV_Direction v) x = MGV.basicSet v (fromDirection x)
 
     {-# INLINE basicUnsafeCopy #-}
-    basicUnsafeCopy (MV_Direction v1) (MV_Direction v2) = M.basicUnsafeCopy v1 v2
+    basicUnsafeCopy (MV_Direction v1) (MV_Direction v2) = MGV.basicUnsafeCopy v1 v2
 
-    basicUnsafeMove (MV_Direction v1) (MV_Direction v2) = M.basicUnsafeMove v1 v2
+    basicUnsafeMove (MV_Direction v1) (MV_Direction v2) = MGV.basicUnsafeMove v1 v2
 
     {-# INLINE basicUnsafeGrow #-}
-    basicUnsafeGrow (MV_Direction v) n = MV_Direction <$> M.basicUnsafeGrow v n
+    basicUnsafeGrow (MV_Direction v) n = MV_Direction <$> MGV.basicUnsafeGrow v n
 
 
-instance G.Vector U.Vector Direction where
+instance GV.Vector UV.Vector Direction where
 
     {-# INLINE basicUnsafeFreeze #-}
-    basicUnsafeFreeze (MV_Direction v) = V_Direction <$> G.basicUnsafeFreeze v
+    basicUnsafeFreeze (MV_Direction v) = V_Direction <$> GV.basicUnsafeFreeze v
 
     {-# INLINE basicUnsafeThaw #-}
-    basicUnsafeThaw (V_Direction v) = MV_Direction <$> G.basicUnsafeThaw v
+    basicUnsafeThaw (V_Direction v) = MV_Direction <$> GV.basicUnsafeThaw v
 
     {-# INLINE basicLength #-}
-    basicLength (V_Direction v) = G.basicLength v
+    basicLength (V_Direction v) = GV.basicLength v
 
     {-# INLINE basicUnsafeSlice #-}
-    basicUnsafeSlice i n (V_Direction v) = V_Direction $ G.basicUnsafeSlice i n v
+    basicUnsafeSlice i n (V_Direction v) = V_Direction $ GV.basicUnsafeSlice i n v
 
     {-# INLINE basicUnsafeIndexM #-}
-    basicUnsafeIndexM (V_Direction v) i = toDirection <$> G.basicUnsafeIndexM v i
+    basicUnsafeIndexM (V_Direction v) i = toDirection <$> GV.basicUnsafeIndexM v i
 
-    basicUnsafeCopy (MV_Direction mv) (V_Direction v) = G.basicUnsafeCopy mv v
+    basicUnsafeCopy (MV_Direction mv) (V_Direction v) = GV.basicUnsafeCopy mv v
 
     {-# INLINE elemseq #-}
     elemseq _ = seq
@@ -202,91 +180,193 @@ instance Show Direction where
 
 
 -- |
--- Wraps the primitive operations in this module to a cohesive operation that is
--- parameterized by an 'OverlapFunction'.
+-- Strips the gap elements from the supplied character.
 --
--- Reused internally by different implementations.
-{-# SCC directOptimization #-}
-{-# INLINE directOptimization #-}
--- {-# SPECIALISE directOptimization :: MatrixConstraint m => DynamicCharacter -> DynamicCharacter -> OverlapFunction DynamicCharacterElement -> MatrixFunction m DynamicCharacter -> (Word, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter) #-}
-directOptimization
-  :: ( DOCharConstraint s
-     , MatrixConstraint m
+-- Remembers the locations of the gap characters that were deleted
+--
+-- If the character contains /only/ gaps, a missing character is returned.
+{-# INLINEABLE deleteGaps #-}
+{-# SPECIALISE deleteGaps :: SlimState -> SlimDynamicCharacter -> (IntMap Word, SlimDynamicCharacter) #-}
+{-# SPECIALISE deleteGaps :: WideState -> WideDynamicCharacter -> (IntMap Word, WideDynamicCharacter) #-}
+{-# SPECIALISE deleteGaps :: HugeState -> HugeDynamicCharacter -> (IntMap Word, HugeDynamicCharacter) #-}
+deleteGaps
+  :: ( Ord a
+     , Vector v a
      )
-  => OverlapFunction (Subcomponent (Element s))
-  -> s
-  -> s
-  -> MatrixFunction m s
-  -> (Word, s)
-directOptimization overlapλ char1 char2 matrixFunction =
-    let (swapped, gapsLesser, gapsLonger, shorterChar, longerChar) = measureAndUngapCharacters char1 char2
-        (alignmentCost, ungappedAlignment) =
-          if      olength shorterChar == 0
-          then if olength  longerChar == 0
-               -- Neither character was Missing, but both are empty when gaps are removed
-               then (0, toMissing char1)
-               -- Neither character was Missing, but one of them is empty when gaps are removed
-               else let gap = getMedian $ gapOfStream char1
-                        f x = let m = getMedian x in deleteElement (fst $ overlapλ m gap) m
-                    in  (0, omap f longerChar)
-               -- Both have some non-gap elements, perform string alignment
-          else let traversalMatrix = matrixFunction overlapλ longerChar shorterChar
-               in  traceback overlapλ traversalMatrix longerChar shorterChar
-        transformation    = if swapped then omap swapContext else id
-        regappedAlignment = insertGaps gapsLesser gapsLonger ungappedAlignment
-        alignmentContext  = transformation regappedAlignment
-    in  handleMissingCharacter char1 char2 (alignmentCost, alignmentContext)
+  => a               -- ^ Gap state
+  -> (v a, v a, v a) -- ^ Dynamic character
+  -> (IntMap Word, (v a, v a, v a))
+deleteGaps gap c@(x,y,z)
+  | GV.null x    = (mempty,       c)
+  | null gaps   = (gaps,         c)
+  | newLen == 0 = (gaps,   missing)
+  | otherwise   = (gaps, newVector)
+  where
+    missing   = (GV.empty, GV.empty, GV.empty)
+    newVector = runST $ do
+        j <- newSTRef 0
+        let isGapAtJ = do
+              j' <- readSTRef j
+              pure $ j' < charLen && x ! j' == gap
+        let g v = do
+              whileM_ isGapAtJ (modifySTRef j succ)
+              j' <- readSTRef j
+              modifySTRef j succ
+              pure $ v ! j'
+        x' <- GV.generateM newLen $ const (g x)
+        writeSTRef j 0
+        y' <- GV.generateM newLen $ const (g y)
+        writeSTRef j 0
+        z' <- GV.generateM newLen $ const (g z)
+        pure (x', y', z')
+
+    gapCount = fromEnum . getSum $ foldMap Sum gaps
+    charLen  = GV.length x
+    newLen   = charLen - gapCount
+
+    gaps = IM.fromDistinctAscList $ reverse refs
+    refs = runST $ do
+       nonGaps <- newSTRef 0
+       prevGap <- newSTRef False
+       gapLen  <- newSTRef 0
+       gapRefs <- newSTRef []
+
+       let handleGapBefore op = do
+               gapBefore <- readSTRef prevGap
+               when gapBefore $ do
+                 j <- readSTRef nonGaps
+                 g <- readSTRef gapLen
+                 modifySTRef gapRefs ( (j,g): )
+                 op
+
+       for_ [0 .. charLen - 1] $ \i ->
+          if x ! i == gap
+          then modifySTRef gapLen succ *> writeSTRef prevGap True
+          else do handleGapBefore $ do
+                    writeSTRef  gapLen 0
+                    writeSTRef prevGap False
+                  modifySTRef nonGaps succ
+
+       handleGapBefore $ pure ()
+       readSTRef gapRefs
 
 
 -- |
--- A generalized function to handle missing dynamic characters.
---
--- Intended to be reused by multiple, differing implementations.
-{-# INLINE handleMissingCharacter #-}
-{-# SPECIALISE handleMissingCharacter :: DynamicCharacter -> DynamicCharacter -> (Word, DynamicCharacter) -> (Word, DynamicCharacter) #-}
-handleMissingCharacter
-  :: PossiblyMissingCharacter s
-  => s
-  -> s
-  -> (Word, s)
-  -> (Word, s)
-handleMissingCharacter lhs rhs v =
-    -- Appropriately handle missing data:
-    case (isMissing lhs, isMissing rhs) of
-      (True , True ) -> (0, lhs)
-      (True , False) -> (0, rhs)
-      (False, True ) -> (0, lhs)
-      (False, False) -> v
+-- Adds gaps elements to the supplied character.
+{-# INLINEABLE insertGaps #-}
+{-# SPECIALISE insertGaps :: SlimState -> IntMap Word -> IntMap Word -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
+{-# SPECIALISE insertGaps :: WideState -> IntMap Word -> IntMap Word -> WideDynamicCharacter -> WideDynamicCharacter #-}
+{-# SPECIALISE insertGaps :: HugeState -> IntMap Word -> IntMap Word -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
+insertGaps
+  :: ( FiniteBits a
+     , Vector v a
+     )
+  => a               -- ^ Gap state
+  -> IntMap Word     -- ^ Removed gap references from "left"  (shorter) dynamic character
+  -> IntMap Word     -- ^ Removed gap references from "right" (larger)  dynamic character
+  -> (v a, v a, v a) -- ^ Alignment context to have gap references inserted
+  -> (v a, v a, v a) -- ^ Fully gapped alignment context
+insertGaps gap lGaps rGaps meds@(x,y,z)
+  | null lGaps && null rGaps = meds -- No work needed
+  | otherwise                = newVector
+  where
+    zero      = gap `xor` gap
+    totalGaps = fromEnum . getSum . foldMap Sum
+    gapVecLen = maybe 0 (succ . fst) . IM.lookupMax
+    lGapCount = totalGaps lGaps
+    rGapCount = totalGaps rGaps
+    newLength = lGapCount + rGapCount + GV.length x
+
+    ins = (gap,  gap, zero)
+    del = (gap, zero,  gap)
+
+    newVector = runST $ do
+      xVec <- MGV.unsafeNew newLength
+      yVec <- MGV.unsafeNew newLength
+      zVec <- MGV.unsafeNew newLength
+      lVec <- MUV.replicate (gapVecLen lGaps) 0
+      rVec <- MUV.replicate (gapVecLen rGaps) 0
+      lGap <- newSTRef 0
+      mPtr <- newSTRef 0
+      rGap <- newSTRef 0
+   -- Write out to the mutable vectors
+      for_ (IM.toAscList lGaps) $ uncurry (MUV.unsafeWrite lVec)
+      for_ (IM.toAscList rGaps) $ uncurry (MUV.unsafeWrite rVec)
+
+      let align i = do
+            m <- readSTRef mPtr
+            MGV.unsafeWrite xVec i $ x ! m
+            MGV.unsafeWrite yVec i $ y ! m
+            MGV.unsafeWrite zVec i $ z ! m
+            modifySTRef mPtr succ
+            when (isAlign meds m || isDelete meds m) $ do
+              modifySTRef rGap succ
+            when (isAlign meds m || isInsert meds m) $ do
+              modifySTRef lGap succ
+
+      let insertGapWith i (xe,ye,ze) gapRef gapVec = do
+            rg <- readSTRef gapRef
+            v  <- if rg >= MGV.length gapVec then pure 0 else MGV.unsafeRead gapVec rg
+            if   v == 0
+            then pure False
+            else do MGV.unsafeWrite xVec i xe
+                    MGV.unsafeWrite yVec i ye
+                    MGV.unsafeWrite zVec i ze
+                    MGV.unsafeWrite gapVec rg $ v - 1
+                    pure True
+
+      for_ [0 .. newLength - 1] $ \i -> do
+           written <- insertGapWith i ins lGap lVec
+           unless written $ do
+             written' <- insertGapWith i del rGap rVec
+             unless written' $ align i
+
+      x' <- GV.unsafeFreeze xVec
+      y' <- GV.unsafeFreeze yVec
+      z' <- GV.unsafeFreeze zVec
+      pure (x', y', z')
 
 
--- |
--- As `handleMissingCharacter`, but with three inputs.
---
--- For use in FFI 3D calls to C.
-{-# INLINE handleMissingCharacterThreeway #-}
-{-# SPECIALISE handleMissingCharacterThreeway :: (DynamicCharacter -> DynamicCharacter -> (Word, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter)) -> DynamicCharacter -> DynamicCharacter -> DynamicCharacter -> (Word, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter) -> (Word, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter) #-}
-handleMissingCharacterThreeway
-  :: PossiblyMissingCharacter s
-  => (s -> s -> (Word, s, s, s, s)) -- fn takes two inputs, gives back cost, ungapped, gapped, two alignments
-  -> s
-  -> s
-  -> s
-  -> (Word, s, s, s, s, s)
-  -> (Word, s, s, s, s, s)
-handleMissingCharacterThreeway f a b c v =
-    -- Appropriately handle missing data:
-    case (isMissing a, isMissing b, isMissing c) of
-      (True , True , True ) -> (0, a, a, a, b, c) --WLOG. return cost = 0
-      (True , True , False) -> (0, c, c, c, c, c)
-      (True , False, True ) -> (0, b, b, b, b, b)
-      (True , False, False) -> let (cost, ungapd, gapd, lhs, rhs) = f b c
-                               in  (cost, ungapd, gapd, undefined, lhs, rhs)
-      (False, True , True ) -> (0, a, a, a, a, a)
-      (False, True , False) -> let (cost, ungapd, gapd, lhs, rhs) = f a c
-                               in  (cost, ungapd, gapd, lhs, undefined, rhs)
-      (False, False, True ) -> let (cost, ungapd, gapd, lhs, rhs) = f a b
-                               in  (cost, ungapd, gapd, lhs, rhs, undefined)
-      (False, False, False) -> v
+{-# SCC directOptimization #-}
+{-# INLINEABLE directOptimization #-}
+{-# SPECIALISE directOptimization :: (WideState -> (WideState -> WideState -> (WideState, Word)) -> UV.Vector WideState -> UV.Vector WideState -> (Word, Matrix Direction)) -> WideState -> (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: (HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, Matrix Direction)) -> HugeState -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+directOptimization
+  :: ( FiniteBits a
+     , Ord a
+     , Ord (v a)
+     , Vector v a
+     , Vector v (a, a, a)
+     )
+  => (a -> (a -> a -> (a, Word)) -> v a -> v a -> (Word, Matrix Direction))
+  -> a                     -- ^ Gap state
+  -> (a -> a -> (a, Word)) -- ^ Metric for coputing state distance and median state
+  -> (v a, v a, v a)       -- ^ Longer  dynamic character
+  -> (v a, v a, v a)       -- ^ Shorter dynamic character
+  -> (Word, (v a, v a, v a))
+directOptimization matrixFunction gap overlapλ lhs rhs =
+  case (isMissing lhs, isMissing rhs) of
+    (True , True ) -> (0, lhs)
+    (True , False) -> (0, rhs)
+    (False, True ) -> (0, lhs)
+    (False, False) ->
+      let ~(swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters gap lhs rhs
+          ~(alignmentCost, ungappedAlignment) =
+              if      GV.length shorterChar == 0
+              then if GV.length  longerChar == 0
+                   -- Niether character was Missing, but both are empty when gaps are removed
+                   then (0, (GV.empty, GV.empty, GV.empty))
+                   -- Niether character was Missing, but one of them is empty when gaps are removed
+                   else let len = GV.length longerChar
+                            vec = GV.generate len $ \i -> fst (overlapλ (longerChar ! i) gap)
+                        in  (0, (vec, GV.replicate len (gap `xor` gap), longerChar))
+                   -- Both have some non-gap elements, perform string alignment
+              else let (cost, traversalMatrix) = matrixFunction gap overlapλ longerChar shorterChar
+                   in  (cost, traceback gap overlapλ traversalMatrix longerChar shorterChar)
+          transformation    = if swapped then \(m,l,r) -> (m,r,l) else id
+          regappedAlignment = insertGaps gap gapsLesser gapsLonger ungappedAlignment
+          alignmentContext  = transformation regappedAlignment
+      in  (alignmentCost, alignmentContext)
 
 
 -- |
@@ -302,46 +382,40 @@ handleMissingCharacterThreeway f a b c v =
 -- character as longer.
 --
 -- Handles equality of inputs by /not/ swapping.
-{-# INLINE measureCharacters #-}
-{-# SPECIALISE measureCharacters :: DynamicCharacter -> DynamicCharacter -> (Ordering, DynamicCharacter, DynamicCharacter) #-}
+{-# INLINEABLE measureCharacters #-}
+{-# SPECIALISE measureCharacters :: SlimDynamicCharacter -> SlimDynamicCharacter -> (Ordering, SlimDynamicCharacter, SlimDynamicCharacter) #-}
+{-# SPECIALISE measureCharacters :: WideDynamicCharacter -> WideDynamicCharacter -> (Ordering, WideDynamicCharacter, WideDynamicCharacter) #-}
+{-# SPECIALISE measureCharacters :: HugeDynamicCharacter -> HugeDynamicCharacter -> (Ordering, HugeDynamicCharacter, HugeDynamicCharacter) #-}
 measureCharacters
-  :: ( EncodableDynamicCharacterElement (Element s)
-     , MonoFoldable s
-     , Ord (Element s)
-     , Ord (Subcomponent (Element s))
+  :: ( Ord (v a)
+     , Vector v a
      )
-  => s
-  -> s
-  -> (Ordering, s, s)
-measureCharacters lhs rhs
+  => (v a, v a, v a)
+  -> (v a, v a, v a)
+  -> (Ordering, (v a, v a, v a), (v a, v a, v a))
+measureCharacters lhs@(lhsMedians,_,_) rhs@(rhsMedians,_,_)
   | lhsOrdering == GT = (lhsOrdering, rhs, lhs)
   | otherwise         = (lhsOrdering, lhs, rhs)
   where
     lhsOrdering =
         -- First, compare inputs by length.
-        case comparing olength lhs rhs of
+        case comparing GV.length lhsMedians rhsMedians of
           -- If the inputs are equal length,
           -- Then compare by the (arbitrary) lexicographical ordering of the median states.
-          EQ -> let x = otoList lhs
-                    y = otoList rhs
-                    f = fmap getMedian
-                in  case f x `compare` f y of
-                      -- If the input median states have the same ordering,
-                      -- Lastly, we compare by the lexicographic ordering of the "tagged triples."
-                      --
-                      -- If they are equal after this step,
-                      -- Then the inputs are representationally equal.
-                      -- Actually, honest to goodness 100% equal!
-                      EQ -> x `compare` y
-                      v  -> v
+          EQ -> case lhsMedians `compare` rhsMedians of
+                  -- If the input median states have the same ordering,
+                  -- Lastly, we compare by the lexicographic ordering of the "tagged triples."
+                  --
+                  -- If they are equal after this step,
+                  -- Then the inputs are representationally equal.
+                  -- Actually, honest to goodness 100% equal!
+                  EQ -> lhs `compare` rhs
+                  v  -> v
           v  -> v
 
 
 -- |
--- /O(1)/ for input characters of differing lengths
---
--- /O(k)/ for input characters of equal length, where /k/ is the shared prefix of
--- both characters.
+-- /O(n)/
 --
 -- Considers the median values of the characters, ignores the left/right tagging.
 --
@@ -359,69 +433,85 @@ measureCharacters lhs rhs
 -- character as longer.
 --
 -- Handles equality of inputs by /not/ swapping.
-{-# INLINE measureAndUngapCharacters #-}
-{-# SPECIALISE measureAndUngapCharacters :: DynamicCharacter -> DynamicCharacter -> (Bool, IntMap Word, IntMap Word, DynamicCharacter, DynamicCharacter) #-}
+{-# INLINEABLE measureAndUngapCharacters #-}
+{-# SPECIALISE measureAndUngapCharacters :: SlimState -> SlimDynamicCharacter -> SlimDynamicCharacter -> (Bool, IntMap Word, IntMap Word, SlimDynamicCharacter, SlimDynamicCharacter) #-}
+{-# SPECIALISE measureAndUngapCharacters :: WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Bool, IntMap Word, IntMap Word, WideDynamicCharacter, WideDynamicCharacter) #-}
+{-# SPECIALISE measureAndUngapCharacters :: HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Bool, IntMap Word, IntMap Word, HugeDynamicCharacter, HugeDynamicCharacter) #-}
 measureAndUngapCharacters
-  :: ( EncodableDynamicCharacter s
-     , Ord (Subcomponent (Element s))
+  :: ( Ord a
+     , Ord (v a)
+     , Vector v a
      )
-  => s
-  -> s
-  -> (Bool, IntMap Word, IntMap Word, s, s)
-measureAndUngapCharacters char1 char2
+  => a                -- ^ Gap state
+  -> (v a, v a, v a)  -- ^ First  dynamic character
+  -> (v a, v a, v a)  -- ^ Second dynamic character
+  -> (Bool, IntMap Word, IntMap Word, (v a, v a, v a), (v a, v a, v a))
+measureAndUngapCharacters gap char1 char2
   | swapInputs = (True , gapsChar2, gapsChar1, ungappedChar2, ungappedChar1)
   | otherwise  = (False, gapsChar1, gapsChar2, ungappedChar1, ungappedChar2)
   where
     swapInputs = measure == GT
-    (gapsChar1, ungappedChar1) = deleteGaps char1
-    (gapsChar2, ungappedChar2) = deleteGaps char2
+    (gapsChar1, ungappedChar1) = deleteGaps gap char1
+    (gapsChar2, ungappedChar2) = deleteGaps gap char2
     (measure, _, _) =
         case measureCharacters ungappedChar1 ungappedChar2 of
           (EQ,_,_) -> measureCharacters char1 char2
           x        -> x
 
 
--- |
--- Internal generator function for the matrices based on the Needleman-Wunsch
--- definition described in their paper.
-{-# INLINE needlemanWunschDefinition #-}
--- {-# SPECIALISE needlemanWunschDefinition :: (Indexable f, Key f ~ (Int, Int)) => DynamicCharacter -> DynamicCharacter -> OverlapFunction DynamicCharacterElement -> f (Cost, Direction, DynamicCharacterElement) -> (Int, Int) -> (Cost, Direction, DynamicCharacterElement) #-}
-needlemanWunschDefinition
-  :: ( DOCharConstraint s
-     , Indexable f
-     , Key f ~ (Int, Int)
+{-# SCC traceback #-}
+{-# INLINEABLE traceback #-}
+{-# SPECIALISE traceback :: WideState -> (WideState -> WideState -> (WideState, Word)) -> Matrix Direction -> UV.Vector WideState -> UV.Vector WideState -> WideDynamicCharacter #-}
+{-# SPECIALISE traceback :: HugeState -> (HugeState -> HugeState -> (HugeState, Word)) -> Matrix Direction ->  V.Vector HugeState ->  V.Vector HugeState -> HugeDynamicCharacter #-}
+traceback
+  :: ( Bits a
+     , Vector v a
+     , Vector v (a, a, a)
      )
-  => OverlapFunction (Subcomponent (Element s))
-  -> s
-  -> s
-  -> f (Cost, Direction)
-  -> (Int, Int)
-  -> (Cost, Direction)
-needlemanWunschDefinition overlapFunction topChar leftChar memo p@(row, col)
-  | p == (0,0) = (      0, DiagArrow)
-  | otherwise  = (minCost,    minDir)
+  => a
+  -> (a -> a -> (a, Word))
+  -> Matrix Direction
+  -> v a -- ^ Longer  dynamic character states
+  -> v a -- ^ Shorter dynamic character states
+  -> (v a, v a, v a) -- ^ Resulting dynamic character alignment context
+traceback gap overlapλ alignMatrix longerChar lesserChar = alignmentContext
   where
-    -- | Lookup with a default value of infinite cost.
-    {-# INLINE (!?) #-}
-    (!?) m k = fromMaybe (infinity, DiagArrow) $ k `lookup` m
+    f x y = fst $ overlapλ x y
 
-    gap                   = gapOfStream topChar
-    gapGroup              = getMedian gap
-    topElement            = getMedian . fromMaybe gap $  topChar `lookupStream` (col - 1)
-    leftElement           = getMedian . fromMaybe gap $ leftChar `lookupStream` (row - 1)
-    (leftwardValue, _)    = memo !? (row    , col - 1)
-    (diagonalValue, _)    = memo !? (row - 1, col - 1)
-    (  upwardValue, _)    = memo !? (row - 1, col    )
-    (_, rightOverlapCost) = fromFinite <$> overlapFunction topElement  gapGroup
-    (_,  diagOverlapCost) = fromFinite <$> overlapFunction topElement  leftElement
-    (_,  downOverlapCost) = fromFinite <$> overlapFunction gapGroup    leftElement
-    rightCost             = rightOverlapCost + leftwardValue
-    diagCost              =  diagOverlapCost + diagonalValue
-    downCost              =  downOverlapCost +   upwardValue
-    (minCost, minDir)     = minimum [ (diagCost , DiagArrow)
-                                    , (rightCost, LeftArrow)
-                                    , (downCost , UpArrow  )
-                                    ]
+    alignmentContext = dlistToDynamic $ go startPoint
+    dlistToDynamic   = GV.unzip3 . GV.fromList . toList
+
+    longerLen  = GV.length longerChar
+    lesserLen  = GV.length lesserChar
+    rows       = lesserLen + 1
+    cols       = longerLen + 1
+    zero       = gap `xor` gap
+    startPoint = (rows - 1, cols - 1)
+
+    go p@(~(i, j))
+      | p == (0,0) = mempty
+      | otherwise  =
+        let previousSequence = go (row', col')
+
+            directionArrow = unsafeIndex alignMatrix p
+
+            (# row', col', localContext #) =
+                case directionArrow of
+                  LeftArrow -> let j' = j - 1
+                                   y  = longerChar ! j'
+                                   e  = (f gap y, zero,    y)
+                               in  (# i , j', e #)
+                  UpArrow   -> let i' = i - 1
+                                   x  = lesserChar ! i'
+                                   e  = (f x gap,    x, zero)
+                               in  (# i', j , e #)
+                  DiagArrow -> let i' = i - 1
+                                   j' = j - 1
+                                   x  = lesserChar ! i'
+                                   y  = longerChar ! j'
+                                   e  = (f x y, x, y)
+                               in  (# i', j', e #)
+        in  previousSequence `snoc` localContext
 
 
 {--
@@ -514,86 +604,6 @@ renderCostMatrix lhs rhs mtx = unlines
       where
         len = length e
 --}
-
-
--- |
--- Performs the traceback of an 'NeedlemanWunchMatrix'.
---
--- Takes in an 'NeedlemanWunchMatrix', two 'EncodableDynamicCharacter's and returns an
--- aligned 'EncodableDynamicCharacter', as well as the aligned versions of the
--- two inputs. Essentially does the second step of Needleman-Wunsch, following
--- the arrows from the bottom right corner, accumulating the sequences as it goes,
--- but returns three alignments: the left character, the right character, and the
--- parent. The child alignments *should* be biased toward the shorter of the two
--- dynamic characters.
-{-# INLINE traceback #-}
--- {-# SPECIALISE traceback :: (Indexable f, Key f ~ (Int, Int)) => f (Cost, Direction, DynamicCharacterElement) -> DynamicCharacter -> DynamicCharacter -> (Word, DynamicCharacter, DynamicCharacter, DynamicCharacter, DynamicCharacter) #-}
-traceback :: ( DOCharConstraint s
---             , Foldable f
---             , Functor f
-             , Indexable f
-             , Key f ~ (Int, Int)
-             )
-          => OverlapFunction (Subcomponent (Element s))
-          -> f (Cost, Direction)
-          -> s
-          -> s
-          -> (Word, s)
---traceback _ alignMatrix longerChar lesserChar | trace (renderCostMatrix longerChar lesserChar alignMatrix) False = undefined
-traceback overlapFunction alignMatrix longerChar lesserChar = (finalCost, alignmentContext)
-  where
-    f x y = fst $ overlapFunction x y
-    finalCost = unsafeToFinite cost
-
-    alignmentContext = dlistToDynamic $ go lastCell
-    lastCell  = (row, col)
-    (cost, _) = alignMatrix ! lastCell
-
-    dlistToDynamic = constructDynamic . NE.fromList . toList
-
-    col = olength longerChar
-    row = olength lesserChar
-    gap = getMedian $ gapOfStream longerChar
-
-    go p@(i, j)
-      | p == (0,0) = mempty
-      | otherwise  = previousSequence `snoc` localContext
-      where
-        previousSequence = go (row', col')
-
-        (_, directionArrow) = alignMatrix ! p
-
-        (row', col', localContext) =
-            case directionArrow of
-              LeftArrow -> let j' = j-1
-                               y  = getMedian $ longerChar `indexStream` j'
-                               e  = deleteElement (f gap y) y
-                           in (i , j', e)
-              UpArrow   -> let i' = i-1
-                               x  = getMedian $ lesserChar `indexStream` i'
-                               e  = insertElement (f x gap) x
-                           in (i', j , e)
-              DiagArrow -> let i' = i-1
-                               j' = j-1
-                               x  = getMedian $ lesserChar `indexStream` i'
-                               y  = getMedian $ longerChar `indexStream` j'
-                               e  = alignElement (f x y) x y
-                           in (i', j', e)
-
-
-{-
-{-# INLINE getMinimalCostDirection #-}
-{-# SPECIALISE getMinimalCostDirection :: (Cost, DynamicCharacterElement) -> (Cost, DynamicCharacterElement) -> (Cost, DynamicCharacterElement) -> (Cost, DynamicCharacterElement, Direction) #-}
-getMinimalCostDirection :: (EncodableStreamElement e, Ord c) => (c, e) -> (c, e) -> (c, e) -> (c, e, Direction)
-getMinimalCostDirection (diagCost, diagChar) (rightCost, rightChar) (downCost,  downChar) =
-    minimumBy (comparing (\(c,d) -> (c,d)))
-      [ (diagCost , DiagArrow)
-      , (rightCost, LeftArrow)
-      , (downCost , UpArrow  )
-      ]
-  where
-    gap = getGapElement diagChar
--}
 
 
 {-# INLINE fromDirection #-}

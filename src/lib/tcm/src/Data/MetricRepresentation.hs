@@ -24,6 +24,8 @@ module Data.MetricRepresentation
   , linearNorm
   , metricRepresentation
     -- * Accessors
+  , minInDelCost
+  , maxInDelCost
   , retreiveSCM
   , retreivePairwiseTCM
   , retreiveThreewayTCM
@@ -36,7 +38,7 @@ import Data.Binary
 import Data.Bits
 import Data.Hashable
 import Data.Hashable.Memoize
-import Data.TCM              (TCM, (!))
+import Data.TCM              (TCM, (!), size)
 import Data.TCM.Overlap
 import GHC.Generics
 
@@ -54,7 +56,7 @@ import GHC.Generics
 -- Use the elimination functions 'retreiveSCM', 'retreivePairwiseTCM', and 'retreiveThreewayTCM'
 -- to the retrieve the desired functions.
 data  MetricRepresentation a
-    = ExplicitLayout {-# UNPACK #-} !TCM !(a -> a -> (a, Word)) !(a -> a -> a -> (a, Word))
+    = ExplicitLayout {-# UNPACK #-} !TCM {-# UNPACK #-} !Word {-# UNPACK #-} !Word !(a -> a -> (a, Word)) !(a -> a -> a -> (a, Word))
     | DiscreteMetric
     | LinearNorm
     deriving stock    (Generic)
@@ -63,16 +65,16 @@ data  MetricRepresentation a
 
 instance Eq (MetricRepresentation a) where
 
-    (==)  DiscreteMetric         DiscreteMetric        = True
-    (==)  LinearNorm             LinearNorm            = True
-    (==) (ExplicitLayout x _ _) (ExplicitLayout y _ _) = x == y
-    (==) _ _                                           = False
+    (==)  DiscreteMetric             DiscreteMetric            = True
+    (==)  LinearNorm                 LinearNorm                = True
+    (==) (ExplicitLayout x _ _ _ _) (ExplicitLayout y _ _ _ _) = x == y
+    (==) _ _                                                   = False
 
 instance Show (MetricRepresentation a) where
 
-    show  DiscreteMetric        = "Discrete-Metric"
-    show  LinearNorm            = "1st-Linear-Norm"
-    show (ExplicitLayout _ _ _) = "General-Metric"
+    show  DiscreteMetric            = "Discrete-Metric"
+    show  LinearNorm                = "1st-Linear-Norm"
+    show (ExplicitLayout _ _ _ _ _) = "General-Metric"
 
 
 -- |
@@ -100,17 +102,56 @@ metricRepresentation
   -> MetricRepresentation a
 metricRepresentation tcm =
     let scm = makeSCM tcm
-    in  ExplicitLayout tcm
+    in  ExplicitLayout tcm minInDel maxInDel
           (memoize2 (overlap2 scm))
           (memoize3 (overlap3 scm))
+  where
+    -- /O(2*(a - 1))/
+    --
+    -- This was taken from Ukkonen's original 1985 paper wherein the coefficient
+    -- delta @(Δ)@ was defined by the minimum transition cost from any symbol in
+    -- the alphabet @(Σ)@ to the gap symbol @'-'@.
+    --
+    -- If there is any transition to a gap from a non-gap for which the cost is
+    -- zero, then this coefficient will be zero. This leaves us with no way to
+    -- determine if optimality is preserved, and the Ukkonen algorithm will hang.
+    -- Consequently, we do not perform Ukkonen's algorithm if the coefficient is
+    -- zero.
+    minInDel       = toEnum . fromEnum . minimum $ inDelCost min <$> nonGapElements
+    maxInDel       = toEnum . fromEnum . maximum $ inDelCost max <$> nonGapElements
+    alphabetSize   = size tcm
+    gap            = alphabetSize - 1
+    nonGapElements = [ 0 .. alphabetSize - 2 ]                                                                    
+    inDelCost f i  = f (tcm ! (i  , gap))
+                       (tcm ! (gap,   i))
+
+
+-- |
+-- /O(1)/
+--
+-- Extract the /minimum/ cost between a non-gap symbol and the gap symbol.
+minInDelCost :: MetricRepresentation a -> Word
+minInDelCost  DiscreteMetric = 1
+minInDelCost  LinearNorm     = 1
+minInDelCost (ExplicitLayout _ x _ _ _) = x
+
+
+-- |
+-- /O(1)/
+--
+-- Extract the /maximum/ cost between a non-gap symbol and the gap symbol.
+maxInDelCost :: MetricRepresentation a -> Word
+maxInDelCost  DiscreteMetric = 1
+maxInDelCost  LinearNorm     = 1
+maxInDelCost (ExplicitLayout _ _ x _ _) = x
 
 
 -- |
 -- Extract the "symbol change matrix" from a 'MetricRepresentation'.
 retreiveSCM :: MetricRepresentation a -> Word -> Word -> Word
-retreiveSCM (ExplicitLayout tcm _ _) = makeSCM tcm
-retreiveSCM DiscreteMetric           = \i j -> if i == j then 0 else 1
-retreiveSCM LinearNorm               = l1normMetric
+retreiveSCM (ExplicitLayout tcm _ _ _ _) = makeSCM tcm
+retreiveSCM DiscreteMetric               = \i j -> if i == j then 0 else 1
+retreiveSCM LinearNorm                   = l1normMetric
 
 
 -- |
@@ -122,9 +163,9 @@ retreivePairwiseTCM
   -> a
   -> a
   -> (a, Word)
-retreivePairwiseTCM (ExplicitLayout _ f _) = f
-retreivePairwiseTCM DiscreteMetric         =  discreteMetricPairwiseLogic
-retreivePairwiseTCM LinearNorm             = firstLinearNormPairwiseLogic
+retreivePairwiseTCM (ExplicitLayout _ _ _ f _) = f
+retreivePairwiseTCM DiscreteMetric             =  discreteMetricPairwiseLogic
+retreivePairwiseTCM LinearNorm                 = firstLinearNormPairwiseLogic
 
 
 -- |
@@ -137,9 +178,9 @@ retreiveThreewayTCM
   -> a
   -> a
   -> (a, Word)
-retreiveThreewayTCM (ExplicitLayout _ _ f) = f
-retreiveThreewayTCM DiscreteMetric         =  discreteMetricThreewayLogic
-retreiveThreewayTCM LinearNorm             = firstLinearNormThreewayLogic
+retreiveThreewayTCM (ExplicitLayout _ _ _ _ f) = f
+retreiveThreewayTCM DiscreteMetric             =  discreteMetricThreewayLogic
+retreiveThreewayTCM LinearNorm                 = firstLinearNormThreewayLogic
 
 
 -- |

@@ -30,7 +30,7 @@ module Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.FFI
   ) where
 
 import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.DynamicCharacter2
-import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim.Internal
+import Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Internal
 import Data.Coerce
 import Data.MonoTraversable
 import Data.TCM.Dense
