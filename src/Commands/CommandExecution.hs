@@ -431,8 +431,3 @@ getNonZeroEdges inGraph =
         in
         (L.sortOn fst3 nonZeroEdgeList, inGraph)
 
-
-
---            minCostGraphListRecursive = filter ((== minCostRecursive).snd6)
-
--- selectListCostPairs compFun pairList optionList numToKeep seed = 

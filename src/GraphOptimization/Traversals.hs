@@ -50,6 +50,7 @@ import Debug.Trace
 import qualified GraphFormatUtilities as GFU
 import qualified GraphOptimization.Medians as M
 import qualified Graphs.GraphOperations  as GO
+import qualified GraphOptimization.PostOrderFunctions as PO
 import qualified SymMatrix as SM
 
 import qualified Data.BitVector.LittleEndian as BV
@@ -70,27 +71,11 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             -- for special casing of nonexact and single exact characters
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
 
-            {-
-            -- brute force
-
-            rootList = [0.. (( 2 * (V.length $ fst3 inData)) - 1)] -- need a smarter list going to adjecent edges
-            rerootSimpleList = fmap (GO.rerootGraph' inGraph) rootList
-            rerootedPhyloGraphList = fmap (fullyLabelGraph inGS inData leafGraph) rerootSimpleList --  (take 1 rerootSimpleList)
-            minCost = minimum $ fmap snd6 rerootedPhyloGraphList
-            minCostGraphList = filter ((== minCost).snd6) rerootedPhyloGraphList
-            
-            -- minimal reoptimize--but order naive
-
-            rerootPhyloGraphListDirect = fmap (GO.rerootPhylogeneticGraph' (head rerootedPhyloGraphList)) rootList
-            minCostDirect = minimum $ fmap snd6 rerootPhyloGraphListDirect
-            minCostGraphListDirect = filter ((== minCost).snd6) rerootPhyloGraphListDirect
-            -}
-
             -- minimal reoptimize with smart order to minimize node reoptimization
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
-            outgroupRootedPhyloGraph = fullyLabelGraph inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
+            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
 
             -- create list of multi-traversals with original rooting first
@@ -174,17 +159,18 @@ chooseBetterCharacter (firstGraph, secondGraph) =
         else (secondGraph, secondGraphCost) 
         --)
 
--- | minimalReRootPhyloGraph takes an inialtial fully labelled phylogenetic graph
+-- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully
 -- reoptimizing the minimum number of vertices each time (2) but could be more depending
 -- on graph topology
+-- NB--only deals with post-order assignments
 minimalReRootPhyloGraph :: PhylogeneticGraph -> [LG.Node] -> [PhylogeneticGraph]
 minimalReRootPhyloGraph inGraph nodesToRoot =
     if null nodesToRoot then []
     else 
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
-            newGraph = GO.rerootPhylogeneticGraph' inGraph firstRerootIndex
+            newGraph = PO.rerootPhylogeneticGraph' inGraph firstRerootIndex
         in
         --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
         newGraph : minimalReRootPhyloGraph newGraph nextReroots
@@ -316,7 +302,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                 (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
                 
-                newCharData = GO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                newCharData = PO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
@@ -338,12 +324,17 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             in
             -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
 
-            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) curDecGraph, GO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
+            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) curDecGraph, PO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)
             
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
--- and returns a full labbels with 'final' assignments
+-- and returns a full labels with 'final' assignments based on character decorated graphs
+-- created postorder (5th of 6 fields).  The final states are propagated back to the second field
+-- DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
+-- ie postorder--since tjhose are traversal specific
+-- the charcater speciofic decorated graphs have appropriate post and pre-order assignments
+-- the traversal begins at the root (for a tree) and proceeds to leaves.
 -- invafiant that root is HTU !! nLeaves?
 preOrderTreeTraversal :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS inData inPGraph = 

@@ -71,13 +71,14 @@ import Debug.Trace
 
 -- | median2 takes the vectors of characters and applies media2 to each
 -- character
--- for parallel fmap over all then parallelized by type and seqeunces
+-- for parallel fmap over all then parallelized by type and sequences
+-- used for distances and post-order assignments
 median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
 median2 inData = V.map median2Single inData
 
 
 -- | median2NonExact takes the vectors of characters and applies median2NonExact to each
--- character for parallel fmap over all then parallelized by type and seqeunces
+-- character for parallel fmap over all then parallelized by type and sequences
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2NonExact :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
@@ -87,6 +88,7 @@ median2NonExact inData  = V.map median2SingleNonExact inData
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- used for post-order assignments
 median2Single :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
 median2Single (firstVertChar, secondVertChar, inCharInfo) =
     let thisType = charType inCharInfo

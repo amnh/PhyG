@@ -154,15 +154,15 @@ type ChildStateIndex = Int
 -- will need a map from NameBV to T.Text name (or not)
 type NameBV = BV.BitVector
 
--- | Human legibale name for vertices, charcaters, and Blocks
+-- | Human legibale name for vertices, characters, and Blocks
 type NameText = T.Text
 
--- | TYpes for Matrix/Sankoff charcaters
+-- | TYpes for Matrix/Sankoff characters
     -- Triple contains infor from left and right child--could be only one
     -- use fst then
 type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 
--- Only date here that varies by vertex, rest inglobal charcater info
+-- Only date here that varies by vertex, rest inglobal character info
 -- vectors so all data of single type can be grouped together
 -- will need to add masks for bit-packing non-additive chars
 -- may have to add single assignment for hardwired and IP optimization
@@ -171,7 +171,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
     --BUT all with same cost matrix/tcm
 -- sequence characters are a vector os bitvectors--so only a single seqeunce character
 --  per "charctaer" this is so the multi-traversal can take place independently for each
---  sequence charcater, creating a properly "rooted" tree/graph for each non-exact seqeunce character
+--  sequence character, creating a properly "rooted" tree/graph for each non-exact seqeunce character
 data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector
@@ -213,6 +213,7 @@ type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)
 
 -- | VertexBlockData vector over blocks of character data in block (Vector)
+-- blocks of character data for  a given vertex
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
 -- | type vertex information
@@ -263,10 +264,10 @@ type SimpleGraph = LG.Gr NameText Double
 --        3) Decorated Graph with optimized vertex/Node data
 --        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
---        5) Vector of traversal foci for each character (Blocks -> Vector of Chars -> Vector of traversal edges)
---               vector is over blocks, then charactes (could have have multiple for each character, but only single tracked here)
+--        5) Vector of traversal foci for each character (Vector of Blocks -> Vector of Characters, a single tree for each character)
+--               vector is over blocks, then characters (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
---               one graph per charcater  
+--               one graph per character  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 

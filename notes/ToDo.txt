@@ -339,4 +339,9 @@ to render--would have repeated subtrees after network vertex
 115) Check dependence of tree root on num OTUs
 		forest obviously no
 
-		
+116) refactor command checking code at begining of commands 
+
+117) refactor median2,noneexact, M2Single/nonexact
+	add arg for nonexactg stuff
+
+118) Clean up warnings

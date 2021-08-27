@@ -213,39 +213,42 @@ executable phyg
   hs-source-dirs: .  
                   ../../PhyloLibs
   
-  other-modules:  GraphFormatUtilities
-                  ParallelUtilities
-                  GeneralUtilities
-                  Commands.ProcessCommands
-                  Types.Types
-                  Input.ReadInputFiles
-                  Utilities.LocalGraph
-                  Input.TNTUtilities
+  other-modules:  Commands.ProcessCommands
                   Commands.CommandExecution
-                  Input.DataTransformation
-                  Cyclic
-                  SymMatrix
-                  Utilities.Distances
-                  GraphOptimization.Medians
-                  Input.FastAC
-                  Utilities.LocalSequence
-                  DirectOptimization.DOUkkonenSequence
-                  DirectOptimization.DOUkkonenSequenceInt64
-                  Graphs.GraphOperations
-                  Utilities.Utilities
-                  GraphOptimization.Traversals
-                  Utilities.TcmHash
+                  Debug.Debug
                   DirectOptimization.DOSlim
                   DirectOptimization.DOWide
                   DirectOptimization.DOHuge
                   DirectOptimization.PreOrder
-                  Debug.Debug
+                  DirectOptimization.DOUkkonenSequence
+                  DirectOptimization.DOUkkonenSequenceInt64
+                  Graphs.GraphOperations
+                  GraphFormatUtilities
+                  GraphOptimization.Medians
+                  GraphOptimization.Traversals
+                  GraphOptimization.PostOrderFunctions
+                  GraphOptimization.PreOrderFunctions
+                  Input.DataTransformation
+                  Input.FastAC
+                  Input.ReadInputFiles
+                  Input.TNTUtilities
                   Search.Build
                   Search.DistanceWagner
                   Search.DistanceMethods
-                  Utilities.DistanceUtilities
+                  Types.Types
                   Types.DistanceTypes
-
+                  Utilities.Distances
+                  Utilities.DistanceUtilities
+                  Utilities.LocalGraph
+                  Utilities.LocalSequence
+                  Utilities.Utilities
+                  Utilities.TcmHash
+                  -- From PhyloLibs
+                  Cyclic
+                  GeneralUtilities
+                  ParallelUtilities
+                  SymMatrix
+                  
             
 library alphabet
 
