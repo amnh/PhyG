@@ -351,4 +351,8 @@ to render--would have repeated subtrees after network vertex
 119) in make median--for final as well--need to check that nought
 	for parents not child (check paper)
 
+120) Still issue with filtering gapps in median for huge sequnecs 
+	teh abtracted function removes nearly everyhhting so have null medians for alot of HTUs
+	
+
 

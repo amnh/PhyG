@@ -240,9 +240,9 @@ setFinalHTU inData@(childChar, parentChar, charInfo) =
    else if localCharType == HugeSeq then 
       let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount True (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
           --  should be like slim and wide--but useing second becuae of error on post order for huge characters
-          -- finalNoGaps = M.createUngappedMedianSequence symbolCount finalGapped
           gapChar = M.getGapBV (fromEnum symbolCount)
-          finalNoGaps = GV.filter (M.notGapNought gapChar) finalGField
+          finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
+          --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
 
       in
       childChar {hugeFinal = finalNoGaps, hugeAlignment = finalGapped}

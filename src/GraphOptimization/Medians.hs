@@ -455,6 +455,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             gapState    = bit $ symbolCount - 1
             subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
             (cost, r@(medians,_,_))   = hugePairwiseDO
+            -- (cost, r)   = hugePairwiseDO
                 coefficient
                 gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
@@ -462,7 +463,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
             gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { hugePrelim = GV.filter (notGapNought gapChar) medians -- createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (notGapNought gapChar) medians -- 
+                -- hugePrelim = createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -475,6 +477,8 @@ createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
     f i e = e == gap  || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+
+
 
 -- | getGap determines gap value from symbol set
 getGap :: (Eq a, FiniteBits a) => Int -> a
