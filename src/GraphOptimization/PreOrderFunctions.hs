@@ -47,6 +47,7 @@ import qualified DirectOptimization.PreOrder as DOP
 import qualified GraphOptimization.Medians as M
 import qualified Data.Vector.Generic  as GV
 import qualified Data.Vector                                                 as V
+import qualified Data.BitVector.LittleEndian as BV
 
 
 
@@ -86,42 +87,33 @@ setFinal :: NodeType -> (CharacterData, CharacterData, CharInfo) -> CharacterDat
 setFinal childType inData@(childChar, parentChar, charInfo) =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
-       nonAddPrelim = stateBVPrelim childChar
-       addPrelim = rangePrelim childChar
-       matrixPrelim = matrixStatesPrelim childChar
-       localSlimPrelim = slimPrelim childChar
-       localSlimAlignment = slimGapped childChar
-       localWidePrelim = widePrelim childChar
-       localWideAlignment = wideGapped childChar
-       localHugePrelim = hugePrelim childChar 
-       localHugeAlignment = hugeGapped childChar
    in
 
    -- Three cases, Root, leaf, HTU
    if childType == RootNode then 
 
-      if localCharType == Add then childChar {stateBVFinal = fst3 nonAddPrelim}
+      if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {rangeFinal = fst3 addPrelim}
+      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixPrelim}
+      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixStatesPrelim childChar}
 
       -- need to set both final and alignment for sequence characters
-      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then childChar {slimFinal = localSlimPrelim, slimAlignment = localSlimAlignment}
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
          
-      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then childChar {wideFinal = localWidePrelim, wideAlignment = localWideAlignment}
+      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then childChar {wideFinal = widePrelim childChar, wideAlignment = wideGapped childChar}
          
-      else if localCharType == HugeSeq then childChar {hugeFinal = localHugePrelim, hugeAlignment = localHugeAlignment}
+      else if localCharType == HugeSeq then childChar {hugeFinal = hugePrelim childChar, hugeAlignment = hugeGapped childChar}
          
       else error ("UNrecognized/implemented charcater type: " ++ show localCharType)
 
    else if childType == LeafNode then 
 
-      if localCharType == Add then childChar {stateBVFinal = fst3 nonAddPrelim}
+      if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {rangeFinal = fst3 addPrelim}
+      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixPrelim}
+      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixStatesPrelim childChar}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
@@ -149,18 +141,24 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    else if childType == TreeNode then
-
+      
       if localCharType == Add then 
-      -- add logic for pre-order
-      childChar {stateBVFinal = fst3 nonAddPrelim}
+         -- add logic for pre-order
+         let finalAssignment = additivePreorder (rangePrelim childChar) (rangeFinal parentChar)
+         in
+         childChar {rangeFinal = finalAssignment}
 
       else if localCharType == NonAdd then 
          -- add logic for pre-order
-         childChar {rangeFinal = fst3 addPrelim}
+         let finalAssignment = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
+         in
+         childChar {stateBVFinal = finalAssignment}
 
       else if localCharType == Matrix then 
          -- add logic for pre-order
-         childChar {matrixStatesFinal = matrixPrelim}
+         let finalAssignment = matrixPreorder (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
+         in
+         childChar {matrixStatesFinal = finalAssignment}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
@@ -189,3 +187,50 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
 
+
+-- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
+-- final states of parent to create preorder final states of child
+additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int)) -> V.Vector (Int, Int) ->  V.Vector (Int, Int) 
+additivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
+   if null nodePrelim then mempty
+   else 
+      let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
+      in
+      fmap makeAdditiveCharacterFinal allFour
+
+-- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
+-- final states of parent to create preorder final states of child
+nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
+nonAdditivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
+   if null nodePrelim then mempty
+   else 
+      let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
+      in
+      fmap makeNonAdditiveCharacterFinal allFour
+
+
+-- | matrixPreorder assigment akes preliminary matrix states of child (= current vertex) and
+-- final states of parent to create preorder final states of child
+matrixPreorder :: V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple)
+matrixPreorder nodePrelim parentFinal =
+   if null nodePrelim then mempty
+   else 
+      let bothTwo = D.debugVectorZip nodePrelim parentFinal
+      in
+      fmap makeMatrixCharacterFinal bothTwo
+
+
+-- | makeAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
+-- and constructs final state assignment
+makeAdditiveCharacterFinal :: ((Int, Int), (Int, Int), (Int, Int), (Int, Int)) -> (Int, Int)
+makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = nodePrelim
+
+-- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
+-- and constructs final state assignment
+makeNonAdditiveCharacterFinal :: (BV.BitVector, BV.BitVector, BV.BitVector, BV.BitVector) -> BV.BitVector
+makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = nodePrelim
+
+-- | makeMatrixCharacterFinal vertex preliminaryand parent final state
+-- and constructs final state assignment
+makeMatrixCharacterFinal :: (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
+makeMatrixCharacterFinal inData@(nodePrelim, parentFinal) = nodePrelim

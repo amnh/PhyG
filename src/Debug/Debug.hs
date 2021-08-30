@@ -82,3 +82,14 @@ debugVectorZip3 la lb lc =
      else if V.null lc then error ("Third vector null in debugZip3 " ++ show (V.length la, V.length lb, V.length lc))  
      else V.zip3 la lb  lc
 
+debugVectorZip4 :: V.Vector a -> V.Vector b -> V.Vector c -> V.Vector d -> V.Vector (a,b,c,d)
+debugVectorZip4 la lb lc ld = 
+  if not isDebug then V.zip4 la lb lc ld
+  else
+     if (V.length la /= V.length lb) || (V.length la /= V.length lc) || (V.length la /= V.length ld) || (V.length lb /= V.length lc) || (V.length lb /= V.length ld) || (V.length lc /= V.length ld) then error ("Zip3 arguments not equal in length: " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
+     else if V.null la then error ("First vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
+     else if V.null lb then error ("Second vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))  
+     else if V.null lc then error ("Third vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))  
+     else if V.null ld then error ("Fourth vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))  
+     else V.zip4 la lb  lc ld
+

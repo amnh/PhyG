@@ -353,6 +353,10 @@ to render--would have repeated subtrees after network vertex
 
 120) Still issue with filtering gapps in median for huge sequnecs 
 	teh abtracted function removes nearly everyhhting so have null medians for alot of HTUs
-	
 
+
+121) Verify unique tree output for same length
+
+122) get branch lenghths on preorder pass for collapsing later
+	also--perhaps edge vertex states?
 
