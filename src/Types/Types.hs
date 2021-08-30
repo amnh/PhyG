@@ -239,6 +239,7 @@ data  EdgeInfo
     = EdgeInfo
     { minLength :: Double
     , maxLength :: Double
+    , midRangeLength :: Double
     , edgeType  :: EdgeType
     } deriving stock (Show, Eq)
 

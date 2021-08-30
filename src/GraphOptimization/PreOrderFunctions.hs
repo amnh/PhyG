@@ -48,6 +48,9 @@ import qualified GraphOptimization.Medians as M
 import qualified Data.Vector.Generic  as GV
 import qualified Data.Vector                                                 as V
 import qualified Data.BitVector.LittleEndian as BV
+import           Data.Bits                 ((.&.), (.|.))
+import           Data.Maybe
+import qualified Data.List as L
 
 
 
@@ -96,7 +99,7 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
 
       else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixStatesPrelim childChar}
+      else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (localCostVect childChar) (matrixStatesPrelim childChar)}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
@@ -223,14 +226,122 @@ matrixPreorder nodePrelim parentFinal =
 -- | makeAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
 makeAdditiveCharacterFinal :: ((Int, Int), (Int, Int), (Int, Int), (Int, Int)) -> (Int, Int)
-makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = nodePrelim
+makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = 
+   -- From Wheeler (20012) after Goloboff (1993) 
+   let interNodeParent = intervalIntersection nodePrelim parentFinal
+   in
+   -- Rule 1
+   if (interNodeParent /= Nothing) && (fromJust interNodeParent == parentFinal) then parentFinal
+   -- Rule 2
+   else if ((leftChild `intervalUnion` rightChild) `intervalIntersection` parentFinal) /= Nothing then
+      let xFactor = ((leftChild `intervalUnion` rightChild) `intervalUnion` nodePrelim) `intervalIntersection` parentFinal
+      in
+      if xFactor == Nothing then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show inData)
+      else 
+         if (fromJust xFactor) `intervalIntersection` nodePrelim /= Nothing then fromJust xFactor
+         else lciClosest (fromJust xFactor) nodePrelim
+
+   -- Rule 3
+   else 
+      let unionLR = leftChild `intervalUnion` rightChild
+          closestPtoA = stateFirstClosestToSecond nodePrelim parentFinal
+          closestULRtoA = stateFirstClosestToSecond unionLR parentFinal
+      in
+      (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA)
+
+-- | stateFirstClosestToSecond takes teh states of the first interval and finds the state wiht smallest distance 
+-- to either state in the second
+ -- assumes a <= b, x<= y
+stateFirstClosestToSecond :: (Int, Int) -> (Int, Int) -> Int
+stateFirstClosestToSecond firstInt@(a,b) secondInt@(x,y) =
+   let distASecond = if x > b then x - a
+                     else if y < a then a - y
+                     else error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+       distBSecond = if x > b then x - b
+                     else if y < a then b - y
+                     else error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+   in
+   if distASecond < distBSecond then a
+   else b
+
+-- | lciClosest returns thhe "largest closed interval" between the first interval
+-- and the closest state in the second interval
+ -- assumes a <= b, x<= y
+lciClosest :: (Int, Int) -> (Int, Int) -> (Int, Int)
+lciClosest xFactor@(a,b) nodePrelim@(x,y) = 
+   if x > b then (a,x)
+   else if y < a then (y,b)
+   else error ("I don't think this should happen in lciClosest" ++ show (a,b,x,y))
+
+ -- | intervalIntersection is bit-analogue intersection for additive character operations
+ -- takes two intervals and returnas intesection
+ -- Nothing signifies an empty intersection
+ -- assumes a <= b, x<= y
+intervalIntersection :: (Int, Int) -> (Int, Int) -> Maybe (Int, Int)
+intervalIntersection (a,b) (x,y) = 
+   let newPair = (max a x, min b y)
+   in
+   if max a x > min b y then Nothing
+   else Just newPair
+
+  
+-- | intervalUnion is bit-analogue union for additive character operations
+-- takes two intervals and returnas union
+ -- assumes a <= b, x<= y
+intervalUnion :: (Int, Int) -> (Int, Int) -> (Int, Int)
+intervalUnion (a,b) (x,y) = (min a x, max b y)
+
+-- | largestClosedInterval is the maximum interval created from two intervals
+largestClosedInterval :: (Int, Int) -> (Int, Int) -> (Int, Int)
+largestClosedInterval = intervalUnion
 
 -- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
 makeNonAdditiveCharacterFinal :: (BV.BitVector, BV.BitVector, BV.BitVector, BV.BitVector) -> BV.BitVector
-makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = nodePrelim
+makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = 
+   -- From Wheeler (2012) after Fitch (1971)
+   if (nodePrelim .&. parentFinal) == parentFinal then parentFinal
+   else if (leftChild .|. rightChild) == nodePrelim then nodePrelim .|. parentFinal 
+   else nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
 
--- | makeMatrixCharacterFinal vertex preliminaryand parent final state
+-- | makeMatrixCharacterFinal vertex preliminaryavnd parent final state
 -- and constructs final state assignment
+-- really just tracks the states on a traceback and sets the cost to maxBound:: Int for states not in the traceback
+-- path
 makeMatrixCharacterFinal :: (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-makeMatrixCharacterFinal inData@(nodePrelim, parentFinal) = nodePrelim
+makeMatrixCharacterFinal inData@(nodePrelim, parentFinal) = 
+   let numStates = length nodePrelim
+       stateIndexList = V.fromList [0..(numStates - 1)]
+       (stateCostList, stateLeftChildList, stateRightChildList) = V.unzip3 parentFinal
+       allFour = D.debugVectorZip4 stateCostList stateLeftChildList stateRightChildList stateIndexList
+       bestParentFour = V.filter ((/= (maxBound :: StateCost)). fst4) allFour
+       bestPrelimStates = L.nub $ concat $ fmap snd4 bestParentFour
+       finalBestTriple = fmap (setCostsAndStates bestPrelimStates) allFour
+   in
+   finalBestTriple
+
+-- | setCostsAndStates takes a list of states that are in teh set of 'best' and a four-tuple
+-- of a matrix triple annd a fourth field of the state index
+-- if the state is in the list of `best' indices it is kept and not if it isn't
+setCostsAndStates :: [Int] -> (StateCost, [ChildStateIndex], [ChildStateIndex], Int) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
+setCostsAndStates bestPrelimStates inQuad@(cost, leftChildState, rightChildStates, stateIndex) = 
+   if stateIndex `elem` bestPrelimStates then (cost, leftChildState, rightChildStates)
+   else (maxBound :: StateCost, leftChildState, rightChildStates)
+
+
+
+-- | setMinCostStatesMatrix  sets teh cost of non-minimal cost states to maxBounnd :: StateCost (Int) 
+setMinCostStatesMatrix ::  V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
+setMinCostStatesMatrix inCostVect inStateVect = 
+   fmap nonMinCostStatesToMaxCost $ D.debugVectorZip inCostVect inStateVect
+
+-- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple 
+-- retiurns a new character with the states cost either the minium value or maxBound iof not
+-- this only really useful at root--other vertices minimu costs may not be paert of the
+-- miniumm cost assignment, but may be useful heuristically
+nonMinCostStatesToMaxCost :: (StateCost, V.Vector MatrixTriple) -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost (minStateCost, tripleVect) = 
+   fmap (modifyStateCost minStateCost) tripleVect
+      where
+         modifyStateCost d (a,b,c) = if a == d then (a,b,c)
+                                   else (maxBound :: StateCost ,b,c)

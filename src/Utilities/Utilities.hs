@@ -56,6 +56,7 @@ import Debug.Trace
 import qualified Utilities.LocalGraph as LG
 
 
+
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
 splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]

@@ -52,31 +52,6 @@
 	But basically--anyhting that returns a tree will have to return potentially updated
 	CharInfo wrt hashMap
 
-12) Modify DO functions to return additional fields
-	For post order, return postorder median2D, "gapped" median2D, "gapped" left and right children
-	For preorder:
-		Do DO pairwise based on "gqpped" preliminary state, BUT
-		traceback based on "gapped" children (same length as gapped preliminary)
-		Can apply tcmDense3 (or hashMap for general seqeunces) on traceback to
-		parent, gapped children during traceback to get "final" assignment 
-
-		traceback produce a list of 3-tuples gapped children and preliminary,
-		filter gaps out of preliinary for that field (keep gapped too),
-		Convert to Vector so cheaper cons
-
-		Maybe try to remove the Vector "cons" and make it work on lists
-		to have O(1) prepend only previous row has index access--and that is n ot random
-		but only one previous so probbaly could be done as a list 
-		Perhaps better with Data.Sequence, constant time pre/append
-		random access min (i, n-i) so OK for first r seond element--
-		still should deal with head tail of previous row for contant access,
-		and input data wold have to be vector because they are somehwt random,
-		but that cold be worked around as well if need be.
-
-		So could use Data.Sequence for interna NW matrix, but vectors for seqeunces--basically 
-		avoiding all teh O(n) cons-ing
-
-		Would have to write own unZip4 but that's not so bad
 
 13) For pre-order 
 	input left and right Vectors of vectors--one will have length 1 (parent), the other length
@@ -106,22 +81,6 @@
 25) Special case tcmMemo sub/inDel?
 	need to check tcmMemo  very slow for sub/indel only
 	ensure its actually updating and not recreating every time
-
-26) Special case costonly for C-FFI
-	New wrapper for C-FFI with alternate input output types
-	Triple of vectors as opposed to vector (NE) of triples 
-	Will want to do this to make traversals etc more 
-	maintainable
-
-	For now profile the conversion functions to see how
-	much time suck they are (prob little)
-
-27) Check if DO swap is necessary maybe done by ffi
-	Not necessary for large-Naive DO.
-
-30) Fix small (?) error in UkkonenDO for BitVector and Int64
-	for possibility of long large alphabet sequences
-		Check 1:1 versus 1:2 first
 
 31) Modify charInfo to have gapped, left gapped, right gapped triple
 
@@ -359,4 +318,8 @@ to render--would have repeated subtrees after network vertex
 
 122) get branch lenghths on preorder pass for collapsing later
 	also--perhaps edge vertex states?
+
+123) add single assignment and singal assignment edge weights
+	Can be added later if needed for outpu display or lengths
+	or could use average of min and max as a placeholder for now
 

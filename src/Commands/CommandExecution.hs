@@ -358,8 +358,8 @@ getEdgeInfo inEdge =
 selectArgList :: [String]
 selectArgList = ["best", "all", "unique", "random"]
 
--- | selectPhylogeneticGraph takes  a SERIES OF arguments and an input list ot PhylogeneticGraphs
--- and retursn or filters that list based on options.
+-- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
+-- and returns or filters that list based on options.
 -- uses selectListCostPairs in GeneralUtilities
 selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph] 
 selectPhylogeneticGraph inArgs seed curGraphs =
@@ -405,6 +405,7 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                     else filter ((== minGraphCost).snd6) uniqueGraphList
                     -- )
 
+-- | could use FGL '==' ?
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
 getUniqueGraphs inGraphPairList currentUniquePairs =
