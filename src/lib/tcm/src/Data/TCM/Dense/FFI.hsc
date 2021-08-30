@@ -45,8 +45,6 @@ import GHC.Generics     (Generic)
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
 
-import Debug.Trace
-
 
 #include "c_alignment_interface.h"
 #include "c_code_alloc_setup.h"
@@ -433,7 +431,8 @@ getCostMatrix2dAffine = performMatrixAllocation
 -- |
 -- Perform the allocation of the dense TCM
 performMatrixAllocation :: Word -> Word -> (Word -> Word -> Word) -> DenseTransitionCostMatrix
-performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . withArray rowMajorList $ \allocedTCM -> do
+performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . withArray rowMajorList $
+    \allocedTCM -> do
         !ptr2D <- malloc :: IO (Ptr CostMatrix2d)
         !ptr3D <- malloc :: IO (Ptr CostMatrix3d)
         !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM dimension gapOpen
@@ -443,12 +442,12 @@ performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . wit
              , costMatrix2D    = ptr2D
              , costMatrix3D    = ptr3D
              }
-    where
-        dimension    = coerceEnum alphabetSize
-        gapOpen      = coerceEnum openningCost
-        range        = [0 .. alphabetSize - 1]
-        -- This *should* be in row major order due to the manner in which list comprehensions are performed.
-        rowMajorList = [ coerceEnum $ costFn i j | i <- range,  j <- range ]
+  where
+    dimension    = coerceEnum alphabetSize
+    gapOpen      = coerceEnum openningCost
+    range        = [0 .. alphabetSize - 1]
+    -- This *should* be in row major order due to the manner in which list comprehensions are performed.
+    rowMajorList = [ coerceEnum $ costFn i j | i <- range,  j <- range ]
 
 
 -- |

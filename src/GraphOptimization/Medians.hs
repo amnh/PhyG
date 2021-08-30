@@ -52,23 +52,16 @@ module GraphOptimization.Medians  ( median2
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
-import qualified Data.Vector                                                 as V
-import           Types.Types
-import qualified Data.Vector.Storable as SV
-import qualified Data.Vector.Unboxed  as UV
-import qualified Data.Vector.Generic  as GV
---import qualified Data.BitVector as BV
-import           GeneralUtilities
-
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Huge
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Slim
-import           Analysis.Parsimony.Dynamic.DirectOptimization.Pairwise.Wide
-import           Data.Bits                                                   (bit, (.&.), (.|.))
 import qualified Data.MetricRepresentation                                   as MR
 import qualified Data.TCM.Dense                                              as TCMD
+import qualified Data.Vector                                                 as V
+import qualified Data.Vector.Generic                                         as GV
 import           Data.Word
+import           DirectOptimization.Pairwise
+import           GeneralUtilities
 import qualified SymMatrix                                                   as S
-import Debug.Trace
+import           Types.Types
+
 
 --import qualified Data.Alphabet as DALPH
 
@@ -94,13 +87,13 @@ median2NonExact inData  = V.map median2SingleNonExact inData
 -- used for post-order assignments
 median2Single :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
 median2Single (firstVertChar, secondVertChar, inCharInfo) =
-    let thisType = charType inCharInfo
-        thisWeight = weight inCharInfo
-        thisMatrix = costMatrix inCharInfo
+    let thisType    = charType inCharInfo
+        thisWeight  = weight inCharInfo
+        thisMatrix  = costMatrix inCharInfo
         thisSlimTCM = slimTCM inCharInfo
         thisWideTCM = wideTCM inCharInfo
         thisHugeTCM = hugeTCM inCharInfo
-        thisActive = activity inCharInfo
+        thisActive  = activity inCharInfo
     in
     if thisActive == False then (firstVertChar, 0)
     else if thisType == Add then
@@ -145,35 +138,37 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 -- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others.
 median2SingleNonExact :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
 median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
-    let thisType = charType inCharInfo
-        thisWeight = weight inCharInfo
-        thisMatrix = costMatrix inCharInfo
+    let thisType    = charType inCharInfo
+        thisWeight  = weight inCharInfo
+        thisMatrix  = costMatrix inCharInfo
         thisSlimTCM = slimTCM inCharInfo
         thisWideTCM = wideTCM inCharInfo
         thisHugeTCM = hugeTCM inCharInfo
-        thisActive = activity inCharInfo
-        dummyStaticCharacter = CharacterData {  stateBVPrelim = V.empty
-                                      , stateBVFinal = V.empty
-                                      , rangePrelim = V.empty
-                                      , rangeFinal = V.empty
-                                      , matrixStatesPrelim = V.empty
-                                      , matrixStatesFinal = V.empty
-                                      , slimPrelim = mempty
-                                      , slimGapped = (mempty, mempty, mempty)
-                                              , slimAlignment     = (mempty, mempty, mempty)
-                                              , slimFinal  = mempty
-                                              , widePrelim = mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideAlignment     = (mempty, mempty, mempty)
-                                              , wideFinal  = mempty
-                                              , hugePrelim = mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeAlignment     = (mempty, mempty, mempty)
-                                              , hugeFinal  = mempty
-                                              , localCostVect = V.singleton 0
-                                      , localCost = 0.0
-                                      , globalCost = 0.0
-                                      }
+        thisActive  = activity inCharInfo
+        dummyStaticCharacter =
+            CharacterData
+            { stateBVPrelim = V.empty
+            , stateBVFinal  = V.empty
+            , rangePrelim   = V.empty
+            , rangeFinal    = V.empty
+            , matrixStatesPrelim = V.empty
+            , matrixStatesFinal  = V.empty
+            , slimPrelim    = mempty
+            , slimGapped    = (mempty, mempty, mempty)
+            , slimAlignment = (mempty, mempty, mempty)
+            , slimFinal     = mempty
+            , widePrelim    = mempty
+            , wideGapped    = (mempty, mempty, mempty)
+            , wideAlignment = (mempty, mempty, mempty)
+            , wideFinal     = mempty
+            , hugePrelim    = mempty
+            , hugeGapped    = (mempty, mempty, mempty)
+            , hugeAlignment = (mempty, mempty, mempty)
+            , hugeFinal     = mempty
+            , localCostVect = V.singleton 0
+            , localCost     = 0.0
+            , globalCost    = 0.0
+            }
     in
     if thisActive == False then (dummyStaticCharacter, 0)
 
@@ -421,25 +416,28 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 
     symbolCount = length thisMatrix
     newSlimCharacterData =
-        let newCost                 = thisWeight * (fromIntegral cost)
-            subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
-            (cost, r@(medians,_,_)) = slimPairwiseDO
+        let newCost     = thisWeight * (fromIntegral cost)
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = slimPairwiseDO
                 thisSlimTCM
                 (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
                 (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
         in  blankCharacterData
-              { slimPrelim = createUngappedMedianSequence symbolCount r
-              , slimGapped = r
+              { slimPrelim    = createUngappedMedianSequence symbolCount r
+              , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
-              , localCost  = newCost
-              , globalCost = subtreeCost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
               }
 
     newWideCharacterData =
-        let newCost                 = thisWeight * (fromIntegral cost)
-            subtreeCost             = sum [ newCost, globalCost leftChar, globalCost rightChar]
-            (cost, r@(medians,_,_)) = widePairwiseDO
-                (toEnum $ length thisMatrix)
+        let newCost     = thisWeight * (fromIntegral cost)
+            coefficient = MR.minInDelCost thisWideTCM
+            gapState    = bit $ symbolCount - 1
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = widePairwiseDO
+                coefficient
+                gapState
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
@@ -452,15 +450,19 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               }
 
     newHugeCharacterData =
-        let newCost                 = thisWeight * (fromIntegral cost)
-            subtreeCost             = newCost + (globalCost leftChar) + (globalCost rightChar)
-            (cost, r@(medians,_,_)) = hugePairwiseDO
+        let newCost     = thisWeight * (fromIntegral cost)
+            coefficient = MR.minInDelCost thisHugeTCM
+            gapState    = bit $ symbolCount - 1
+            subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
+            (cost, r@(medians,_,_))   = hugePairwiseDO
+                coefficient
+                gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
             gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { hugePrelim = GV.filter (notGapNought gapChar) medians-- createUngappedMedianSequence symbolCount r
+              { hugePrelim = GV.filter (notGapNought gapChar) medians -- createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -468,7 +470,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               }
 
 -- | createUngappedMedianSequence enter symb olCount (symbols from alphabet) and context
-createUngappedMedianSequence :: (Eq a, FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
