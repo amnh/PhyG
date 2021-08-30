@@ -213,10 +213,10 @@ makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
-    let emptyCharacter = CharacterData { stateBVPrelim = mempty  -- preliminary for Non-additive chars, Sankoff Approx
+    let emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
                          , stateBVFinal       = mempty
                          -- for Additive
-                         , rangePrelim        = mempty
+                         , rangePrelim        = (mempty, mempty, mempty)
                          , rangeFinal         = mempty
                          -- for multiple Sankoff/Matrix with sme tcm
                          , matrixStatesPrelim = mempty
@@ -343,7 +343,7 @@ combineNonAdditveCharacters nonAddCharList charTemplate currentBVList =
     else 
         -- first Character
         let (charDataList, _) = head nonAddCharList
-            prelimBVList = fmap V.head $ fmap stateBVPrelim charDataList
+            prelimBVList = fmap V.head $ fmap fst3 $ fmap stateBVPrelim charDataList
         in
         combineNonAdditveCharacters (tail nonAddCharList) charTemplate (prelimBVList : currentBVList)
 
@@ -361,19 +361,21 @@ combineAdditveCharacters addCharList charTemplate currentRangeList =
     else 
         -- first Character
         let (charDataList, _) = head addCharList
-            prelimRangeList = fmap V.head $ fmap rangePrelim charDataList
+            prelimRangeList = fmap V.head $ fmap fst3 $ fmap rangePrelim charDataList
         in
         combineAdditveCharacters (tail addCharList) charTemplate (prelimRangeList : currentRangeList)
 
 -- | makeNonAddCharacterList takes a taxon list of characters 
 -- convertes chars to single vector and makes new character for the taxon
+-- assums a leaf so snd and 3rd fileds are mempty
 makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
-makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = V.fromList bvList}
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (V.fromList bvList, mempty, mempty)}
 
 -- | makeAddCharacterList takes a taxon list of characters 
 -- to single vector and makes new character for the taxon
+-- assums a leaf so snd and 3rd fileds are mempty
 makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
-makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = V.fromList rangeList}
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (V.fromList rangeList, mempty, mempty)}
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters 
 -- replicates character by integer weight 
@@ -685,9 +687,9 @@ recodeRawData inTaxNames inData inCharInfo curCharData =
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
     CharacterData
-      { stateBVPrelim      = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
+      { stateBVPrelim      = (V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True), mempty, mempty)
       , stateBVFinal       = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-      , rangePrelim        = mempty
+      , rangePrelim        = (mempty, mempty, mempty)
       , rangeFinal         = mempty
       , matrixStatesPrelim = mempty
       , matrixStatesFinal  = mempty
@@ -713,12 +715,12 @@ missingNonAdditive inCharInfo =
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
   let missingRange = V.zip (V.singleton (read (ST.toString $ head $ alphabet inCharInfo) :: Int)) (V.singleton (read (ST.toString $ last $ alphabet inCharInfo) :: Int))
-      missingValue = CharacterData {    stateBVPrelim = V.empty
+      missingValue = CharacterData {    stateBVPrelim = (mempty, mempty, mempty)
                                       , stateBVFinal = V.empty
-                                      , rangePrelim = missingRange
-                                      , rangeFinal = missingRange
-                                      , matrixStatesPrelim = V.empty
-                                      , matrixStatesFinal = V.empty
+                                      , rangePrelim = (missingRange, mempty, mempty)
+                                      , rangeFinal = mempty
+                                      , matrixStatesPrelim = mempty
+                                      , matrixStatesFinal = mempty
                                       , slimPrelim = mempty
                                       , slimGapped = (mempty, mempty, mempty)
                                       , slimAlignment = (mempty, mempty, mempty)
@@ -743,10 +745,10 @@ missingMatrix :: CharInfo -> CharacterData
 missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0 :: StateCost , [] ,[])
-      missingValue = CharacterData  { stateBVPrelim = V.empty
-                                    , stateBVFinal = V.empty
-                                    , rangePrelim = V.empty
-                                    , rangeFinal = V.empty
+      missingValue = CharacterData  { stateBVPrelim = (mempty, mempty, mempty)
+                                    , stateBVFinal = mempty
+                                    , rangePrelim = (mempty, mempty, mempty)
+                                    , rangeFinal = mempty
                                     , matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
                                     , matrixStatesFinal = V.empty
                                     , slimPrelim = mempty
@@ -869,9 +871,9 @@ getNucleotideSequenceChar stateList =
           | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
         newSequenceChar =
             CharacterData
-              {  stateBVPrelim     = mempty
+              {  stateBVPrelim     = (mempty, mempty, mempty)
               , stateBVFinal       = mempty
-              , rangePrelim        = mempty
+              , rangePrelim        = (mempty, mempty, mempty)
               , rangeFinal         = mempty
               , matrixStatesPrelim = mempty
               , matrixStatesFinal  = mempty
@@ -901,9 +903,9 @@ getAminoAcidSequenceChar stateList =
           | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
         newSequenceChar =
             CharacterData
-              {  stateBVPrelim     = mempty
+              {  stateBVPrelim     = (mempty, mempty, mempty)
               , stateBVFinal       = mempty
-              , rangePrelim        = mempty
+              , rangePrelim        = (mempty, mempty, mempty)
               , rangeFinal         = mempty
               , matrixStatesPrelim = mempty
               , matrixStatesFinal  = mempty
@@ -964,9 +966,9 @@ getGeneralSequenceChar inCharInfo stateList =
               else (mempty, mempty, mempty)
             newSequenceChar =
                 CharacterData
-                { stateBVPrelim      = mempty
+                { stateBVPrelim      = (mempty, mempty, mempty)
                 , stateBVFinal       = mempty
-                , rangePrelim        = mempty
+                , rangePrelim        = (mempty, mempty, mempty)
                 , rangeFinal         = mempty
                 , matrixStatesPrelim = mempty
                 , matrixStatesFinal  = mempty
@@ -1129,12 +1131,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         --single state
         if firstCharType == NonAdd then
             let stateBV = getStateBitVector (alphabet firstCharInfo) firstState
-                newCharacter = CharacterData {  stateBVPrelim = V.singleton stateBV
-                                              , stateBVFinal = V.singleton stateBV
-                                              , rangePrelim = V.empty
-                                              , rangeFinal = V.empty
-                                              , matrixStatesPrelim = V.empty
-                                              , matrixStatesFinal = V.empty
+                newCharacter = CharacterData {  stateBVPrelim = (V.singleton stateBV, mempty, mempty)
+                                              , stateBVFinal = mempty
+                                              , rangePrelim = (mempty, mempty, mempty)
+                                              , rangeFinal = mempty
+                                              , matrixStatesPrelim = mempty
+                                              , matrixStatesFinal = mempty
                                               , slimPrelim = mempty
                                               , slimGapped = (mempty, mempty, mempty)
                                               , slimAlignment     = (mempty, mempty, mempty)
@@ -1159,12 +1161,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingAdditive firstCharInfo) : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = CharacterData {  stateBVPrelim = V.empty
-                                                  , stateBVFinal = V.empty
-                                                  , rangePrelim = V.singleton (minRange, maxRange)
-                                                  , rangeFinal = V.singleton (minRange, maxRange)
-                                                  , matrixStatesPrelim = V.empty
-                                                  , matrixStatesFinal = V.empty
+                    newCharacter = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
+                                                  , stateBVFinal = mempty
+                                                  , rangePrelim = (V.singleton (minRange, maxRange), mempty, mempty)
+                                                  , rangeFinal = mempty
+                                                  , matrixStatesPrelim = mempty
+                                                  , matrixStatesFinal = mempty
                                                   , slimPrelim = mempty
                                                   , slimGapped = (mempty, mempty, mempty)
                                                   , slimAlignment     = (mempty, mempty, mempty)
@@ -1189,12 +1191,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingMatrix firstCharInfo) : curCharList)
              else
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
-                    newCharacter = CharacterData {  stateBVPrelim = V.empty
+                    newCharacter = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
                                                   , stateBVFinal = V.empty
-                                                  , rangePrelim = V.empty
+                                                  , rangePrelim = (mempty, mempty, mempty)
                                                   , rangeFinal = V.empty
                                                   , matrixStatesPrelim = V.singleton initialMatrixVector
-                                                  , matrixStatesFinal = V.empty
+                                                  , matrixStatesFinal = mempty
                                                   , slimPrelim = mempty
                                                   , slimGapped = (mempty, mempty, mempty)
                                                   , slimAlignment     = (mempty, mempty, mempty)

@@ -160,6 +160,9 @@ type NameText = T.Text
 -- | TYpes for Matrix/Sankoff characters
     -- Triple contains infor from left and right child--could be only one
     -- use fst then
+    -- finals state alsovector of triple--but need to keep min cost
+    -- for final assignments
+    -- filter by local costVect to get 'best' states an each node
 type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 
 -- Only date here that varies by vertex, rest inglobal character info
@@ -169,14 +172,17 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
 -- for matrix/Saknoff characters-- Vector of vector of States
     --BUT all with same cost matrix/tcm
--- sequence characters are a vector os bitvectors--so only a single seqeunce character
+-- triples (add, no-add, seqeunce) are to keep children of vertex states for pre-order pass 
+-- order is always (median, left parent median, right parent median)
+-- do noit need for matrix since up pass is a traceback from parent
+-- sequence characters are a vector of bitvectors--so only a single seqeunce character
 --  per "charctaer" this is so the multi-traversal can take place independently for each
 --  sequence character, creating a properly "rooted" tree/graph for each non-exact seqeunce character
-data CharacterData = CharacterData {   stateBVPrelim      :: V.Vector BV.BitVector  -- preliminary for Non-additive chars, Sankoff Approx
+data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector
                                      -- for Additive
-                                     , rangePrelim        :: V.Vector (Int, Int)
+                                     , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with slim tcm
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
