@@ -50,6 +50,7 @@ import qualified GraphFormatUtilities as GFU
 -- import qualified GraphOptimization.Medians as M
 import qualified Graphs.GraphOperations  as GO
 import qualified GraphOptimization.PostOrderFunctions as PO
+import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import qualified SymMatrix as SM
 -- import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy  as T
@@ -367,10 +368,52 @@ doBlockTraversal :: V.Vector (V.Vector CharInfo) -> V.Vector DecoratedGraph -> V
 doBlockTraversal inCharInfoVV traversalDecoratedVect =
     fmap (doCharacterTraversal inCharInfoVV) traversalDecoratedVect
 
--- | doCharacterTraversal 
+-- | doCharacterTraversal perfoms preorder traversal on single character tree
 doCharacterTraversal ::  V.Vector (V.Vector CharInfo) -> DecoratedGraph -> DecoratedGraph 
-doCharacterTraversal inCharInfoVV inGraph = 
-    inGraph
+doCharacterTraversal inCharInfoVV inGraph =
+    -- find root--index should = number of leaves 
+    let rootVertexList = LG.getRoots inGraph
+        (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
+        rootIndex = fst $ head rootVertexList
+        inEdgeList = LG.labEdges inGraph
+    in
+    -- remove these two lines if working
+    if length rootVertexList /= 1 then error ("Root number not = 1 in doCharacterTraversal" ++ show (rootVertexList))
+    else if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length rootVertexList))
+    else 
+        -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
+        let rootLabel = snd $ head rootVertexList
+            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfoVV
+            rootChildren =LG.labDescendants inGraph (head rootVertexList)
+            newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
+            rootChildrenPairs = zip rootChildren $ replicate (length rootChildren) newRootNode
+            upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfoVV
+        in
+        -- hope this is the most efficient way since all nodes have been remade
+        LG.mkGraph upDatedNodes inEdgeList
+
+-- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a lits of updated nodes
+-- the input nodes are relabelled by preorder functions and added to teh list of processednodes and recursed to their children
+-- nodes are retuned in reverse order at they are made--not sure if this will affect graph identity or indexing
+makeFinalAndChildren :: DecoratedGraph 
+                     -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] 
+                     -> [LG.LNode VertexInfo] 
+                     -> V.Vector (V.Vector CharInfo) 
+                     -> [LG.LNode VertexInfo]
+makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
+    if null nodesToUpdate then updatedNodes
+    else 
+        let (firstNode, firstParent) = head nodesToUpdate
+            firstLabel = snd firstNode
+            firstNodeType = nodeType firstLabel
+            firstVertData = vertData firstLabel
+            firstParentVertData = vertData $ snd firstParent
+            firstChildren = LG.labDescendants inGraph firstNode
+            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfoVV
+            newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
+            childrenPairs = zip firstChildren $ replicate (length firstChildren) newFirstNode
+        in
+        makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfoVV
 
 -- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 
 -- preorder character states from individual character trees.  Exact characters (Add, nonAdd, matrix) postorder
@@ -405,9 +448,10 @@ updateEdgeInfo inGraph (uNode, vNode, edgeLabel) =
         (uNode, vNode, newEdgeLabel)
         
 -- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
+-- basically a min/max distance between the two
 getEdgeWeight :: DecoratedGraph -> (Int, Int) -> (VertexCost, VertexCost)
 getEdgeWeight inGraph (uNode, vNode) = 
     if LG.isEmpty inGraph then error "Empty graph in getEdgeWeight"
     else 
-        (1.0, 1.0)
+        (1.0, 3.0)
         

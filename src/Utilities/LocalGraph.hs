@@ -156,10 +156,21 @@ out inGraph inNode = G.out inGraph inNode
 parents :: Gr a b -> Node -> [Node]
 parents inGraph inNode = fmap fst3 $ G.inn inGraph inNode
 
-
 -- | descendants of unlabelled node
 descendants :: Gr a b -> Node -> [Node]
 descendants inGraph inNode = fmap snd3 $ G.out inGraph inNode
+
+-- | labDescendants labelled descendents of labelled node
+labDescendants :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+labDescendants inGraph inNode = 
+    let nodeList = fmap snd3 $ G.out inGraph (fst inNode)
+        maybeLabelList = fmap (lab inGraph) nodeList
+        nothingList = filter (== Nothing) maybeLabelList
+        labelList = fmap fromJust maybeLabelList
+        labNodeList = zip nodeList labelList
+    in
+    if (not $ null nothingList) then error "UNlabeled nodes in labDescendants" 
+    else labNodeList
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
