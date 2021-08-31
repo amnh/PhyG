@@ -237,9 +237,9 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data  EdgeInfo
     = EdgeInfo
-    { minLength :: Double
-    , maxLength :: Double
-    , midRangeLength :: Double
+    { minLength :: VertexCost
+    , maxLength :: VertexCost
+    , midRangeLength :: VertexCost
     , edgeType  :: EdgeType
     } deriving stock (Show, Eq)
 

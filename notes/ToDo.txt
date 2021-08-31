@@ -323,3 +323,5 @@ to render--would have repeated subtrees after network vertex
 	Can be added later if needed for outpu display or lengths
 	or could use average of min and max as a placeholder for now
 
+124) Test tree length on small huge alphabet tree
+

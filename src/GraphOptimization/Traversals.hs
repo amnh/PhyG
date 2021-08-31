@@ -42,23 +42,22 @@ module GraphOptimization.Traversals ( fullyLabelGraph
                                     ) where
 
 import           Types.Types
-import Data.List
+import qualified Data.List as L
 import qualified Data.Vector as V
 import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
-import Debug.Trace
 import qualified GraphFormatUtilities as GFU
-import qualified GraphOptimization.Medians as M
+-- import qualified GraphOptimization.Medians as M
 import qualified Graphs.GraphOperations  as GO
 import qualified GraphOptimization.PostOrderFunctions as PO
-import qualified SymMatrix as SM
-
-import qualified Data.BitVector.LittleEndian as BV
+-- import qualified SymMatrix as SM
+-- import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy  as T
-import Data.Bits ((.&.), (.|.))
+import Data.Bits ((.|.))
 import Data.Maybe
 import Debug.Debug as D
 import Utilities.Utilities as U
+-- import Debug.Trace
 
 -- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
@@ -81,17 +80,20 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             -- create list of multi-traversals with original rooting first
             -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
             -- they are taken from the fully labelled first input decorated graph later when output graph created
+            -- it is important that teh first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd filed.  This can be used for incremental
+            -- optimization to get log n initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
 
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
-            --  travesal for exact charcaters (and costs) are the first of each least since exact onluy optimizaed for that 
+            --  travesal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
             --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
             --graphWithBestAssignments  = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
-            graphWithBestAssignments' = foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
         in
         --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
@@ -107,20 +109,24 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 -- with traversal focus etc to get best overall graph
 -- since this is meant to work with graphs that have or do not have reoptimized exact (=static-Add/NonAdd/MAtrix) characters 
 -- the criterion is lower cost character is taken, unless the cost is zero, then non-zero is taken
--- this function is expected to be used in a fild over a list of graphs
--- the basic comparison is over teh costs of the root(s) cost for each  of the character decorated (traversal) graphs
+-- this function is expected to be used in a fold over a list of graphs
+-- the basic comparison is over the costs of the root(s) cost for each  of the character decorated (traversal) graphs
 
 --May change
 -- assumes that a single decorated graph comes in for each Phylogenetic graph from the fully and reroot optimize (V.singleton (V.singleton DecGraph))
--- and goes through the block-character-cost data and reassigns based on that creating a (potentially unique) decorated graph for each character in each block.
--- postorder assignments in traversal set of block character trees are NOT propagated back to first decorated graph.  For now,
--- this is becasue teh postoder assignment there isn't that useful (could be later for some things--fusing, SPR) but the traversal graphs
+-- and goes through the block-character-cost data and reassigns based on that creating a unique (although there could be more than one) decorated 
+-- graph for each character in each block.
+-- postorder assignments in traversal set of block character trees are NOT propagated back to first decorated graph. 
+-- the thrid field of phylogenetic Graph is set to the 3rd fiuled of the first of two inputs--so if startiong fold with outgroup
+-- rooted graph--that is waht stays which can be used as a preorder graph for incremental optimization
+-- when perfoming that sort of operation
+-- The traversal graphs
 -- are used for the pre-order final assignments whic will be propagated back to set those of the 3rd filed decorated graph
 
 -- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
 -- unclear how hardwired will be affected
 setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
-setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, sCost, sDecGraph, _, sTraversal, _) =
+setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else 
@@ -182,7 +188,7 @@ fullyLabelGraph inGS inData leafGraph inGraph =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else 
         let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
-            preOrderTree = preOrderTreeTraversal inGS inData postOrderTree
+            preOrderTree = preOrderTreeTraversal postOrderTree
         in
         preOrderTree
 
@@ -190,7 +196,7 @@ fullyLabelGraph inGS inData leafGraph inGraph =
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
 makeLeafGraph :: ProcessedData -> DecoratedGraph
-makeLeafGraph inData@(nameVect, bvNameVect, blocDataVect) =
+makeLeafGraph (nameVect, bvNameVect, blocDataVect) =
     if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
     else 
         let leafVertexList = V.toList $ V.map (makeLeafVertex nameVect bvNameVect blocDataVect) (V.fromList [0.. (V.length nameVect) - 1])
@@ -223,12 +229,12 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGraph inGraph = 
+postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph = 
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves  
         let rootIndex = V.length $ fst3 inData
-            blockCharInfo = V.map thd3 blocDataVect
+            blockCharInfo = V.map thd3 blockDataVect
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
         --trace ("It Begins at " ++ show rootIndex) (
@@ -240,10 +246,12 @@ postOrderTreeTraversal inGS inData@(nameVect, bvNameVect, blocDataVect) leafGrap
             error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
         -- )
+{-
+Was used in postDecorateTree, but removed 
 
 -- | getVirtualRootEdge cretes tehe virtual edge that would have existed to crete that node rott
 -- the ide is that if the tree had been rooted somewhere else -- what edge would have existied and was
--- "divided" to crete this node.  This is used for individual charcater graph traversal foci
+-- "divided" to crete this node.  This is used for individual character graph traversal foci
 -- edge is basically undirected since orientation is unknown
 getVirtualRootEdge :: (Show a, Show b) => LG.Gr a b -> LG.Node -> LG.Edge
 getVirtualRootEdge inGraph inNode = 
@@ -257,7 +265,7 @@ getVirtualRootEdge inGraph inNode =
         else 
             if length childList /= 2 then error ("Root node with /= 2 children in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
             else (head childList, last childList)
-
+-}
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
@@ -269,7 +277,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         let nodeLabel = LG.lab curDecGraph curNode
             -- identify/create the virtual edge this node would have been created from
             -- this for traversal focus use for character 
-            impliedRootEdge = getVirtualRootEdge curDecGraph curNode
+            -- impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else
@@ -316,6 +324,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                         }   
                 newEdgesLabel = EdgeInfo {    minLength = newCost / 2.0
                                             , maxLength = newCost / 2.0
+                                            , midRangeLength = newCost / 2.0
                                             , edgeType = TreeEdge
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
@@ -330,15 +339,75 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labels with 'final' assignments based on character decorated graphs
--- created postorder (5th of 6 fields).  The final states are propagated back to the second field
+-- created postorder (5th of 6 fields).  
+-- the preorder states are creted by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
+-- these are by block and character,  Exact charcaters are vectors of standard characters and each seqeunce (non-exact) 
+-- has its own traversal graph. These should be treees here (could be forests later) and should all have same root (number taxa)
+-- but worth checking to make sure.
+-- these were creted by "splitting" them after preorder 
+-- The final states are propagated back to the second field
 -- DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
--- ie postorder--since tjhose are traversal specific
--- the charcater speciofic decorated graphs have appropriate post and pre-order assignments
+-- ie postorder--since those are traversal specific
+-- the character speciofic decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
--- invafiant that root is HTU !! nLeaves?
-preOrderTreeTraversal :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS inData inPGraph = 
+preOrderTreeTraversal :: PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
-        inPGraph
+        -- mapped recursive call over blkocks, later characters
+        let preOrderBlockVect = fmap (doBlockTraversal inCharInfoVV) blockCharacterDecoratedVV
+            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inDecorated 
+        in
+        (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+
+        
+-- | doBlockTraversal takes a block of postorder decorated character trees character info  
+-- could be moved up preOrderTreeTraversal, but to like this for legibility
+doBlockTraversal :: V.Vector (V.Vector CharInfo) -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversal inCharInfoVV traversalDecoratedVect =
+    fmap (doCharacterTraversal inCharInfoVV) traversalDecoratedVect
+
+-- | doCharacterTraversal 
+doCharacterTraversal ::  V.Vector (V.Vector CharInfo) -> DecoratedGraph -> DecoratedGraph 
+doCharacterTraversal inCharInfoVV inGraph = 
+    inGraph
+
+-- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 
+-- preorder character states from individual character trees.  Exact characters (Add, nonAdd, matrix) postorder
+-- states should be based on the outgroup rooted tree.  
+-- root should be median of finals of two descendets--for non-exact based on final 'alignments' field with gaps filtered
+assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> DecoratedGraph -> DecoratedGraph
+assignPreorderStatesAndEdges preOrderBlockTreeVV inGraph =
+    if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
+    else 
+        let newGraph = inGraph -- process preorder assignments for each vertex
+            inEdgeList = LG.labEdges newGraph
+            inNodeList = LG.labNodes newGraph
+            newEdgeList = fmap (updateEdgeInfo newGraph) inEdgeList
+        in
+        LG.mkGraph inNodeList newEdgeList
+
+-- | updateEdgeInfo takes a Decorated graph--fully labelled post and preorder and and edge and 
+-- gets edge info--basically lengths
+updateEdgeInfo :: DecoratedGraph -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo 
+updateEdgeInfo inGraph (uNode, vNode, edgeLabel) =
+    if LG.isEmpty inGraph then error "Empty graph in updateEdgeInfo"
+    else 
+        let (minW, maxW) = getEdgeWeight inGraph (uNode, vNode)
+            midW = (minW + maxW) / 2.0
+            localEdgeType = edgeType edgeLabel
+            newEdgeLabel = EdgeInfo { minLength = minW
+                                    , maxLength = maxW
+                                    , midRangeLength = midW
+                                    , edgeType  = localEdgeType
+                                    }
+        in
+        (uNode, vNode, newEdgeLabel)
+        
+-- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
+getEdgeWeight :: DecoratedGraph -> (Int, Int) -> (VertexCost, VertexCost)
+getEdgeWeight inGraph (uNode, vNode) = 
+    if LG.isEmpty inGraph then error "Empty graph in getEdgeWeight"
+    else 
+        (1.0, 1.0)
         

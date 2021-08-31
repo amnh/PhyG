@@ -34,6 +34,10 @@ Portability :  portable (I hope)
 
 -}
 
+{-
+ToDo:
+   Add parallel optimization overblocks and characters?
+-}
 
 
 module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
