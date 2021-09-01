@@ -325,3 +325,7 @@ to render--would have repeated subtrees after network vertex
 
 124) Test tree length on small huge alphabet tree
 
+125) For cehcking indexing after preorder--
+	print children and parent node indices to maek sure still same
+
+	
