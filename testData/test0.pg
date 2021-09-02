@@ -1,0 +1,8 @@
+-- Test command file
+--read ("test0.fas")
+read("test0.ss")
+read ("test.tre")
+set (outgroup:"one")
+report("test-out.tre", graphs, newick, overwrite)
+report("test-data.csv", data,overwrite)
+report("test-diag.csv", diagnosis, overwrite)
