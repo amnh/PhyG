@@ -450,7 +450,7 @@ assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
             newNodeList' = (fst rootNode, newRootLabel) : (filter ((/= (fst rootNode)).fst) newNodeList)
 
             -- update edge labels
-            newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn $ fst newNodeList')) postOrderEdgeList
+            newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList')) postOrderEdgeList
             
         in
         -- make new graph
@@ -463,10 +463,10 @@ chooseNewRootLabel :: [LG.LNode VertexInfo] -> VertexInfo
 chooseNewRootLabel rootChildren =
     if null rootChildren then error "NUll children of root in chooseNewRootLabel"
     else 
-        let (_, childLeafList) = unzip $ filter ((==LeafNode).fst) $ zip (fmap nodeType rootChildren) rootChildren
+        let (_, childLeafList) = unzip $ filter ((==LeafNode).fst) $ zip (fmap nodeType $ fmap snd rootChildren) rootChildren
         in
-        if not & null childLeafList then vertexInfo $ head childLeafList
-        else vertexInfo $ head rootChildren
+        if not $ null childLeafList then snd $ head childLeafList
+        else snd $ head rootChildren
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
 -- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.
@@ -483,7 +483,7 @@ updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
 -- | updateVertexBlock takes a block of vertex data and updates preorder states of charactes via fmap
 updateVertexBlock :: Int -> (V.Vector DecoratedGraph, V.Vector CharacterData, V.Vector CharInfo, Int) -> V.Vector CharacterData 
 updateVertexBlock nodeIndex (blockTraversalTreeV, nodeCharacterDataV, charInfoV, blockIndex) =
-    let characterIndexVect = V.fromList [0..((length $ inCharInfoV) - 1)]
+    let characterIndexVect = V.fromList [0..((length $ charInfoV) - 1)]
     in
     fmap (updatePreorderCharacter nodeIndex blockIndex) $ D.debugVectorZip4 blockTraversalTreeV nodeCharacterDataV charInfoV characterIndexVect
 
@@ -504,23 +504,23 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType =
     if localCharType == Add then
         postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
     
-    else localCharType == NonAdd then
+    else if localCharType == NonAdd then
         postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
     
-    else localCharType == Matrix then
+    else if localCharType == Matrix then
         postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
     
-    else (localCharType == SlimSeq || localCharType == NucSeq) then
+    else if (localCharType == SlimSeq || localCharType == NucSeq) then
         postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
                            , slimFinal = slimFinal preOrderCharacter
                            }
     
-    else (localCharType == WideSeq || localCharType == AminoSeq) then
+    else if (localCharType == WideSeq || localCharType == AminoSeq) then
         postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
                            , wideFinal = wideFinal preOrderCharacter
                            }
 
-    else localCharType == HugeSeq then
+    else if localCharType == HugeSeq then
         postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
                            , hugeFinal = hugeFinal preOrderCharacter
                            }
@@ -534,7 +534,7 @@ updateEdgeInfo :: V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo)
 updateEdgeInfo  inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
     if V.null nodeVector then error "Empty node list in updateEdgeInfo"
     else 
-        let (minW, maxW) = getEdgeWeight nodeVector (uNode, vNode)
+        let (minW, maxW) = getEdgeWeight inCharInfoVV nodeVector (uNode, vNode)
             midW = (minW + maxW) / 2.0
             localEdgeType = edgeType edgeLabel
             newEdgeLabel = EdgeInfo { minLength = minW
@@ -547,7 +547,7 @@ updateEdgeInfo  inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
         
 -- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
 -- basically a min/max distance between the two
-getEdgeWeight ::   V.Vector (V.Vector CharInfo) -> V.Vector (LG.LEdge EdgeInfo) -> (Int, Int) -> (VertexCost, VertexCost)
+getEdgeWeight ::   V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
 getEdgeWeight inCharInfoVV nodeVector (uNode, vNode) = 
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else 
@@ -560,9 +560,9 @@ getEdgeWeight inCharInfoVV nodeVector (uNode, vNode) =
         (minCost, maxCost)
         
 -- | getBlockCostPairs takes a block of two nodes and character infomation and returns the min and max block branch costs
-getBlockCostPairs :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
-getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV = 
-    let characterCostPairs = fmap getCharacterDist $ D.debugVectorZip3 uNodeCharDataV vNodeCharDataV inCharInfoV
+getBlockCostPairs :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) -> (VertexCost, VertexCost)
+getBlockCostPairs (uNodeCharDataV, vNodeCharDataV, charInfoV) = 
+    let characterCostPairs = fmap getCharacterDist $ D.debugVectorZip3 uNodeCharDataV vNodeCharDataV charInfoV
         minCost = sum $ fmap fst characterCostPairs
         maxCost = sum $ fmap snd characterCostPairs
     in
@@ -570,60 +570,61 @@ getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV =
 
 -- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
 -- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
-getCharacterDist :: CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
-getCharacterDist uCharacter vCharacter charInfo =
+getCharacterDist :: (CharacterData, CharacterData, CharInfo) -> (VertexCost, VertexCost)
+getCharacterDist (uCharacter, vCharacter, charInfo) =
     let thisWeight = weight charInfo
-        thisMatrix = costMatrix charInfo 
+        thisMatrix = costMatrix charInfo
+        thisCharType = charType charInfo
     in
-    if localCharType == Add then
-        let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter
-            maxDiff = sum $ fmap maxIntervalDiff $ D.debugVectorZip (fmap rangeFinal uCharacter) (fmap rangeFinal vCharacter)
-            maxCost = weight * (fromIntegral maxDiff)
+    if thisCharType == Add then
+        let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
+            maxDiff = V.sum $ fmap maxIntervalDiff $ D.debugVectorZip (rangeFinal uCharacter) (rangeFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
 
         
-    else if localCharType == NonAdd then
-        let minCost = localCost M.interUnion thisWeight uCharacter vCharacter
-            maxDiff = length $ filter (==False) $ V.zipWith (==) (fmap stateBVFinal uCharacter) (fmap stateBVFinal vCharacter)
-            maxCost = weight * (fromIntegral maxDiff)
+    else if thisCharType == NonAdd then
+        let minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
+            maxDiff = length $ V.filter (==False) $ V.zipWith (==) (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
     
-    else if localCharType == Matrix then
-        let minCost = localCost M.addMatrix thisWeight thisMatrix uCharacter vCharacter
-            maxDiff = sum $ fmap (maxMatrixDiff thisMatrix) $ D.debugVectorZip (fmap matrixStatesFinal uCharacter) (fmap matrixStatesFinal vCharacter)
-            maxCost = weight * (fromIntegral maxDiff)
+    else if thisCharType == Matrix then
+        let minCost = localCost (M.addMatrix thisWeight thisMatrix uCharacter vCharacter)
+            maxDiff = V.sum $ fmap (maxMatrixDiff thisMatrix) $ D.debugVectorZip (matrixStatesFinal uCharacter) (matrixStatesFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
 
 
-    else if (localCharType == SlimSeq || localCharType == NucSeq) then
-        let minMaxDiffList = VG.toList $ fmap (slimSequenceDiff thisMatrix (length thisMatrix)) $ VG.zip (fmap slimAlignment uCharacter) (fmap slimAlignment vCharacter)
+    else if (thisCharType == SlimSeq || thisCharType == NucSeq) then
+        let minMaxDiffList = fmap (generalSequenceDiff thisMatrix (length thisMatrix)) $ zip (GV.toList $ fst3 $ slimAlignment uCharacter) (GV.toList $ fst3 $ slimAlignment vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
-            minCost = weight * (fromIntegral $ sum minDiff)
-            maxCost = weight * (fromIntegral $ sum maxDiff)
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
         in
         (minCost, maxCost)
         
     
-    else if (localCharType == WideSeq || localCharType == AminoSeq) then
-        let minMaxDiffList = VG.toList $ fmap (wideSequenceDiff thisMatrix (length thisMatrix)) $ VG.zip (fmap wideAlignment uCharacter) (fmap wideAlignment vCharacter)
+    else if (thisCharType == WideSeq || thisCharType == AminoSeq) then
+        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (fst3 $ wideAlignment uCharacter) (fst3 $ wideAlignment vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
-            minCost = weight * (fromIntegral $ sum minDiff)
-            maxCost = weight * (fromIntegral $ sum maxDiff)
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
         in
         (minCost, maxCost)
 
-    else if localCharType == HugeSeq then
-        let minMaxDiffList = VG.toList $ fmap (hugeSequenceDiff thisMatrix (length thisMatrix)) $ VG.zip (fmap hugeAlignment uCharacter) (fmap hugeAlignment vCharacter)
+    else if thisCharType == HugeSeq then
+        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (fst3 $ hugeAlignment uCharacter) (fst3 $ hugeAlignment vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
-            minCost = weight * (fromIntegral $ sum minDiff)
-            maxCost = weight * (fromIntegral $ sum maxDiff)
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
         in
         (minCost, maxCost)
 
-    else error ("Character type unimplemented : " ++ show localCharType)
+    else error ("Character type unimplemented : " ++ show thisCharType)
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
@@ -635,23 +636,23 @@ maxIntervalDiff ((a,b), (x,y)) =
     max upper lower 
 
 -- | maxMatrixDiff takes two matrices and calculates the maximum state differnce between the two
-maxMatrixDiff :: S.Matrix Int -> V.Vector MatrixTriple -> V.Vector MatrixTriple -> Int
-maxMatrixDiff costMatrix uStatesV vStatesV =
+maxMatrixDiff :: S.Matrix Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> Int
+maxMatrixDiff costMatrix (uStatesV, vStatesV) =
     let numStates = length costMatrix
-        uCostMax = maximum $ filter (/= maxBound :: StateCost) $ fmap fst uStatesV
-        uCostMin = minimum $ fmap fst uStatesV
-        vCostMax = maximum $ filter (/= maxBound :: StateCost) $ fmap fst vStatesV
-        vCostMin = minimum $ fmap fst vStatesV
+        uCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 uStatesV
+        uCostMin = minimum $ fmap fst3 uStatesV
+        vCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 vStatesV
+        vCostMin = minimum $ fmap fst3 vStatesV
     in
     max (uCostMax - vCostMin) (vCostMax - uCostMin)
 
 
 -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
 -- cost differences using matrix values
-generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
-generalSequenceDiff thisMatrix numStates uState vState = 
-    let uStateList = fmap snd $ filter (== True) $ zip (fmap testBit uState [0.. numStates - 1]) [0.. numStates - 1]
-        vStateList = fmap snd $ filter (== True) $ zip (fmap testBit vState [0.. numStates - 1]) [0.. numStates - 1]    
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> (a, a) -> (Int, Int)
+generalSequenceDiff thisMatrix numStates (uState, vState) = 
+    let uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState) [0.. numStates - 1]) [0.. numStates - 1]
+        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState) [0.. numStates - 1]) [0.. numStates - 1]    
         uvCombinations = cartProd uStateList uStateList
         costOfPairs = fmap (thisMatrix S.!) uvCombinations
     in

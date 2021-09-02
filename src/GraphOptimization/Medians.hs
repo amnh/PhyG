@@ -47,6 +47,9 @@ module GraphOptimization.Medians  ( median2
                                   , createUngappedMedianSequence
                                   , notGapNought
                                   , getGapBV
+                                  , intervalAdd
+                                  , interUnion
+                                  , addMatrix
                                   ) where
 
 import           Data.Bits
