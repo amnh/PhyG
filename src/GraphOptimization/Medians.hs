@@ -46,7 +46,7 @@ module GraphOptimization.Medians  ( median2
                                   , median2SingleNonExact
                                   , createUngappedMedianSequence
                                   , notGapNought
-                                  , getGapBV
+                                  -- , getGapBV
                                   , intervalAdd
                                   , interUnion
                                   , addMatrix
@@ -427,8 +427,10 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 thisSlimTCM
                 (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
                 (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+            --gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { slimPrelim    = createUngappedMedianSequence symbolCount r
+              { --slimPrelim    = GV.filter (notGapNought gapChar) medians
+                slimPrelim    = createUngappedMedianSequence symbolCount r
               , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -446,8 +448,10 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
+            --gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { widePrelim    = createUngappedMedianSequence symbolCount r
+              { --widePrelim    = GV.filter (notGapNought gapChar) medians
+                widePrelim    = createUngappedMedianSequence symbolCount r
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -459,43 +463,52 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             coefficient = MR.minInDelCost thisHugeTCM
             gapState    = bit $ symbolCount - 1
             subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
-            (cost, r@(medians,_,_))   = hugePairwiseDO
+            (cost, r)   = hugePairwiseDO
             -- (cost, r)   = hugePairwiseDO
                 coefficient
                 gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
-            gapChar = getGapBV symbolCount
+            --gapChar = getGap symbolCount
         in  blankCharacterData
-              { hugePrelim = GV.filter (notGapNought gapChar) medians -- 
-                -- hugePrelim = createUngappedMedianSequence symbolCount r
+              { --hugePrelim = GV.filter (notGapNought gapChar) medians -- 
+                hugePrelim = createUngappedMedianSequence symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
 
+{- 
+-- Creating null medians
 -- | createUngappedMedianSequence enter symb olCount (symbols from alphabet) and context
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
     f i e = e == gap  || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+-}
 
+-- | createUngappedMedianSequence enter symbolCount (symbols from alphabet) and context
+createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequence symbols (m,_,_) = GV.filter (notGapNought gapChar) m
+  where
+    gapChar = bit $ symbols - 1
 
+-- | notGapNought returns False if gap or all zero birtvector
+-- otherwise True
+notGapNought :: (FiniteBits a) => a -> a -> Bool -- BV.BitVector -> BV.BitVector -> Bool
+notGapNought gapChar inVal =
+    if inVal == gapChar then False
+    else not (popCount inVal == 0)
 
+{-
 -- | getGap determines gap value from symbol set
 getGap :: (Eq a, FiniteBits a) => Int -> a
 getGap symbols = bit $ symbols - 1
 
--- | notGapNought returns False if gap or all zero birtvector
--- otherwise True
-notGapNought :: BV.BitVector -> BV.BitVector -> Bool
-notGapNought gapChar inVal =
-    if inVal == gapChar then False
-    else (not . BV.isZeroVector) inVal
-
 -- | getGapBV determines gap value from symbol set
-getGapBV :: Int -> BV.BitVector 
+getGapBV :: (FiniteBits a) => Int -> a -- BV.BitVector 
 getGapBV symbols = bit $ symbols - 1
+-}

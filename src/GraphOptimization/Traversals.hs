@@ -34,11 +34,11 @@ Portability :  portable (I hope)
 
 -}
 
-module GraphOptimization.Traversals ( fullyLabelGraph
-                                    , postOrderTreeTraversal
+module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , preOrderTreeTraversal
                                     , makeLeafGraph
                                     , multiTraverseFullyLabelGraph
+                                    , fullyLabelGraphWithoutMultiTraversal
                                     ) where
 
 import           Types.Types
@@ -59,14 +59,9 @@ import Data.Maybe
 import Debug.Debug as D
 import Utilities.Utilities as U
 import qualified GraphOptimization.Medians as M
-import           Foreign.C.Types             (CUInt)
 import qualified SymMatrix                   as S
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
 import qualified Data.Vector.Generic         as GV
-import qualified Data.BitVector.LittleEndian as BV
-
--- import Debug.Trace
+import Debug.Trace
 
 -- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
@@ -110,9 +105,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
-        if nonExactChars == 0 then outgroupRootedPhyloGraph
-        else if nonExactChars == 1 then head minCostGraphListRecursive
-        else graphWithBestAssignments'
+        if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
+        else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
+        else preOrderTreeTraversal graphWithBestAssignments'
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
@@ -190,10 +185,11 @@ minimalReRootPhyloGraph inGraph nodesToRoot =
         --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
         newGraph : minimalReRootPhyloGraph newGraph nextReroots
 
--- | fullyLabelGraph takes an unlabelled "simple' graph, performs post and preorder passes to 
--- fully label the graph and return a PhylogeenticGraph
-fullyLabelGraph :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-fullyLabelGraph inGS inData leafGraph inGraph = 
+-- | fullyLabelGraphWithoutMultiTraversal takes an unlabelled "simple' graph, performs post and preorder passes to 
+-- fully label the graph and return a PhylogenticGraph
+-- this does no rerooting to imporve score
+fullyLabelGraphWithoutMultiTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+fullyLabelGraphWithoutMultiTraversal inGS inData leafGraph inGraph = 
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else 
         let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
@@ -363,12 +359,13 @@ preOrderTreeTraversal :: PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
+        trace ("In PreOrder") (
         -- mapped recursive call over blkocks, later characters
         let preOrderBlockVect = fmap (doBlockTraversal inCharInfoVV) blockCharacterDecoratedVV
             fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
         in
         (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-
+        )
         
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
@@ -434,6 +431,7 @@ assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (
 assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else 
+        trace ("In assign") (
         let postOrderNodes = LG.labNodes inGraph
             postOrderEdgeList = LG.labEdges inGraph
 
@@ -455,6 +453,7 @@ assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
         in
         -- make new graph
         LG.mkGraph newNodeList' newEdgeList
+        )
 
 -- | chooseNewRootLabel takes list of labeled nodes (children of root) and returns a leaf if one is a leaf
 -- otherwise the first child.  This to avoid root branch length problems created by preorder pass over travesals.
@@ -593,7 +592,7 @@ getCharacterDist (uCharacter, vCharacter, charInfo) =
     
     else if thisCharType == Matrix then
         let minCost = localCost (M.addMatrix thisWeight thisMatrix uCharacter vCharacter)
-            maxDiff = V.sum $ fmap (maxMatrixDiff thisMatrix) $ D.debugVectorZip (matrixStatesFinal uCharacter) (matrixStatesFinal vCharacter)
+            maxDiff = V.sum $ fmap maxMatrixDiff  $ D.debugVectorZip (matrixStatesFinal uCharacter) (matrixStatesFinal vCharacter)
             maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
@@ -636,10 +635,9 @@ maxIntervalDiff ((a,b), (x,y)) =
     max upper lower 
 
 -- | maxMatrixDiff takes two matrices and calculates the maximum state differnce between the two
-maxMatrixDiff :: S.Matrix Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> Int
-maxMatrixDiff costMatrix (uStatesV, vStatesV) =
-    let numStates = length costMatrix
-        uCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 uStatesV
+maxMatrixDiff :: (V.Vector MatrixTriple, V.Vector MatrixTriple) -> Int
+maxMatrixDiff (uStatesV, vStatesV) =
+    let uCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 uStatesV
         uCostMin = minimum $ fmap fst3 uStatesV
         vCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 vStatesV
         vCostMin = minimum $ fmap fst3 vStatesV
@@ -653,7 +651,7 @@ generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> (a, a) -> (Int, 
 generalSequenceDiff thisMatrix numStates (uState, vState) = 
     let uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState) [0.. numStates - 1]) [0.. numStates - 1]
         vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState) [0.. numStates - 1]) [0.. numStates - 1]    
-        uvCombinations = cartProd uStateList uStateList
+        uvCombinations = cartProd uStateList vStateList
         costOfPairs = fmap (thisMatrix S.!) uvCombinations
     in
     (minimum costOfPairs, maximum costOfPairs)

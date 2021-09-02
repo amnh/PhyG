@@ -328,4 +328,8 @@ to render--would have repeated subtrees after network vertex
 125) For cehcking indexing after preorder--
 	print children and parent node indices to maek sure still same
 
+126) newick output has repeated basla node taxon name.
+
+127) root "first" taxon--first after reordering
+	so based on lexical sorting
 	

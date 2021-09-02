@@ -55,6 +55,7 @@ import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits                 ((.&.), (.|.))
 import           Data.Maybe
 import qualified Data.List as L
+import Debug.Trace
 
 
 
@@ -106,7 +107,9 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
       else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (localCostVect childChar) (matrixStatesPrelim childChar)}
 
       -- need to set both final and alignment for sequence characters
-      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
+         trace ("root " ++ show (slimPrelim childChar, slimGapped childChar)) 
+         childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then childChar {wideFinal = widePrelim childChar, wideAlignment = wideGapped childChar}
          
@@ -125,25 +128,26 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount True (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
          in
-         childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
+         trace ("Leaf " ++ show (slimPrelim childChar, finalGapped))
+         childChar {slimFinal = slimPrelim childChar, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount True (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
          in
-         childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
+         childChar {wideFinal = widePrelim childChar, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
          let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount True (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              --  should be like slim and wide--but useing second because of error on post order for huge characters
-             -- finalNoGaps = M.createUngappedMedianSequence symbolCount finalGapped
-             gapChar = M.getGapBV (fromEnum symbolCount)
-             finalNoGaps = GV.filter (M.notGapNought gapChar) finalGField
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             -- gapChar = M.getGapBV (fromEnum symbolCount)
+             -- finalNoGaps = GV.filter (M.notGapNought gapChar) finalGField
 
          in
-         childChar {hugeFinal = finalNoGaps, hugeAlignment = finalGapped}
+         childChar {hugeFinal = hugePrelim childChar, hugeAlignment = finalGapped}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -171,7 +175,8 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount True (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
-         in
+         in 
+         trace ("HTU " ++ show (finalNoGaps, finalGapped)) 
          childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
@@ -183,9 +188,9 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
       else if localCharType == HugeSeq then 
          let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount True (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              --  should be like slim and wide--but useing second becuae of error on post order for huge characters
-             gapChar = M.getGapBV (fromEnum symbolCount)
-             finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
-             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
+             --gapChar = M.getGapBV (fromEnum symbolCount)
+             --finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
+             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
 
          in
          childChar {hugeFinal = finalNoGaps, hugeAlignment = finalGapped}
