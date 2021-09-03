@@ -313,7 +313,7 @@ intervalAdd thisWeight leftChar rightChar =
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
 getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex =
    --trace (show thisMatrix ++ "\n" ++ (show  childVect) ++ "\n" ++ show (numStates, childState, stateIndex)) (
-   if childState == numStates then reverse (filter ((== bestCost).fst) currentBestStates)
+   if V.null childVect then reverse (filter ((== bestCost).fst) currentBestStates)
    else
       let (childCost, _, _)  = V.head childVect
           childStateCost = if childCost /= (maxBound :: Int) then childCost + (thisMatrix S.! (childState, stateIndex))
@@ -346,8 +346,8 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else
     let numStates = length thisMatrix
-        initialMatrixVector = V.map (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
-        initialCostVector = V.map V.minimum $ V.map (V.map fst3) initialMatrixVector
+        initialMatrixVector = fmap (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
+        initialCostVector = fmap V.minimum $ fmap (fmap fst3) initialMatrixVector
         newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
         newCharcater = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
                                       , stateBVFinal = mempty

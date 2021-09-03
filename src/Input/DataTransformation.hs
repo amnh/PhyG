@@ -305,7 +305,7 @@ mergeMatrixCharacters inMatrixCharListList charTemplate =
     let (charDataList, charInfoList) = unzip inMatrixCharListList
         combinedMatrixCharList = fmap (combineMatrixCharacters charTemplate []) charDataList
     in
-    (fmap reverse combinedMatrixCharList, charInfoList)
+    (combinedMatrixCharList, charInfoList)
 
 -- | combineMatrixCharacters takes all matrix characters with same cost matrix and combines into
 -- a single character with vector of original characters
@@ -1094,7 +1094,9 @@ getTripleList hasState notHasState localAlphabet stateList =
     else
         let firstAlphState = head localAlphabet
         in
-        if firstAlphState `elem` stateList then hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
+        if firstAlphState `elem` stateList then 
+            trace ("State " ++ show firstAlphState ++ " in " ++ show localAlphabet)
+            hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
         else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
 
 -- | getInitialMatrixVector gets matric vector
@@ -1107,13 +1109,14 @@ getInitialMatrixVector localAlphabet localState =
         in
         --single state
         if '[' `notElem` stateString then
-            V.fromList $ reverse $ getTripleList hasState notHasState localAlphabet [localState]
+            trace (show $ V.fromList $ getTripleList hasState notHasState localAlphabet [localState])
+            V.fromList $ getTripleList hasState notHasState localAlphabet [localState]
         -- polylorphic/ambiguous
         else
             let statesStringList = words $ tail $ init stateString
                 stateList = fmap ST.fromString statesStringList
             in
-            V.fromList $ reverse $ getTripleList hasState notHasState localAlphabet stateList
+            V.fromList $ getTripleList hasState notHasState localAlphabet stateList
 
 -- | getQualitativeCharacters processes non-sequence characters (non-additive, additive, sankoff/matrix)
 -- and recodes returning list of encoded characters
@@ -1214,11 +1217,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , globalCost = 0.0
                                                   }
             in
+            trace (show initialMatrixVector) (
             --trace ((show $ alphabet firstCharInfo) ++ " " ++ (ST.toString firstState)) (
             --trace ("GQC " ++ (T.unpack $ name firstCharInfo) ++ (show $ alphabet firstCharInfo) ++ " " ++ (show $ costMatrix firstCharInfo)) (
             if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
             else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
-            --)
+            )
 
         else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
 

@@ -57,6 +57,7 @@ import qualified Utilities.LocalGraph as LG
 
 
 
+
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
 splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
@@ -269,6 +270,7 @@ checkCommandArgs commandString commandList permittedList =
 -- based on their bitvector representation.  This ensures left/right consistancey in
 -- pre and postoder passes, and with bitvectors of leaves determined by data hash,
 -- ensures label invariance with repect to leaves 
+-- larger bitvector goes second (bigge)
 leftRightChildLabelBV :: (VertexInfo, VertexInfo) -> (VertexInfo, VertexInfo)
 leftRightChildLabelBV inPair@(firstNode, secondNode) =
     let firstLabel  = bvLabel firstNode

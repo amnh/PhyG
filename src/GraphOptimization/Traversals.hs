@@ -313,6 +313,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 -- rightChildLabel = fromJust $ LG.lab newSubTree rightChild
 
                 -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                -- larger bitvector is Right, smaller or equal Left 
                 (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
                 
                 newCharData = PO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
@@ -393,10 +394,15 @@ doCharacterTraversal inCharInfoVV inGraph =
     else 
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         let rootLabel = snd $ head rootVertexList
-            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfoVV
+            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfoVV True
             rootChildren =LG.labDescendants inGraph (head rootVertexList)
+
+            -- this assumes two children
+            rootChildrenBV = fmap bvLabel $ fmap snd rootChildren
+            rootChildrenIsLeft = if (rootChildrenBV !! 0) > (rootChildrenBV !! 1) then [False, True]
+                                 else [True, False]
             newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
-            rootChildrenPairs = zip rootChildren $ replicate (length rootChildren) newRootNode
+            rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
             upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfoVV
         in
         -- hope this is the most efficient way since all nodes have been remade
@@ -406,22 +412,26 @@ doCharacterTraversal inCharInfoVV inGraph =
 -- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
 -- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
 makeFinalAndChildren :: DecoratedGraph 
-                     -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] 
+                     -> [(LG.LNode VertexInfo, LG.LNode VertexInfo, Bool)] 
                      -> [LG.LNode VertexInfo] 
                      -> V.Vector (V.Vector CharInfo) 
                      -> [LG.LNode VertexInfo]
 makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
     if null nodesToUpdate then updatedNodes
     else 
-        let (firstNode, firstParent) = head nodesToUpdate
+        let (firstNode, firstParent, isLeft) = head nodesToUpdate
             firstLabel = snd firstNode
             firstNodeType = nodeType firstLabel
             firstVertData = vertData firstLabel
             firstParentVertData = vertData $ snd firstParent
             firstChildren = LG.labDescendants inGraph firstNode
-            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfoVV
+            -- this assumes two children
+            firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
+            firstChildrenIsLeft = if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
+                                 else [True, False]
+            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfoVV isLeft
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
-            childrenPairs = zip firstChildren $ replicate (length firstChildren) newFirstNode
+            childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
         makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfoVV
 

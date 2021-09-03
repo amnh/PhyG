@@ -67,21 +67,22 @@ createFinalAssignmentOverBlocks :: NodeType
                                 -> VertexBlockData 
                                 -> VertexBlockData 
                                 -> V.Vector (V.Vector CharInfo) 
+                                -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks childType childBlockData parentBlockData blockCharInfoVect =
+createFinalAssignmentOverBlocks childType childBlockData parentBlockData blockCharInfoVect isLeft =
    -- if root or leaf final assignment <- preliminary asssignment
    let childParentBlockCharInfoTriple = D.debugVectorZip3 childBlockData parentBlockData blockCharInfoVect
        rootBlockPair = D.debugVectorZip childBlockData blockCharInfoVect
    in
-   fmap (assignFinal childType) childParentBlockCharInfoTriple
+   fmap (assignFinal childType isLeft) childParentBlockCharInfoTriple
 
   -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
-assignFinal :: NodeType -> (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo)-> V.Vector CharacterData
-assignFinal childType inTriple@(childCharacterVect, parentCharacterVect, charInfoVect) =
+assignFinal :: NodeType -> Bool -> (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo)-> V.Vector CharacterData
+assignFinal childType isLeft inTriple@(childCharacterVect, parentCharacterVect, charInfoVect) =
    let childCharInfoTripleList = D.debugVectorZip3 childCharacterVect parentCharacterVect charInfoVect
    in
-   fmap (setFinal childType) childCharInfoTripleList
+   fmap (setFinal childType isLeft) childCharInfoTripleList
 
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
@@ -91,8 +92,8 @@ assignFinal childType inTriple@(childCharacterVect, parentCharacterVect, charInf
 -- non exact charcaters are vectors of characters of same type
 -- this does the same things for seqeunce types, but also 
 -- performs preorder logic for exact characters
-setFinal :: NodeType -> (CharacterData, CharacterData, CharInfo) -> CharacterData
-setFinal childType inData@(childChar, parentChar, charInfo) =
+setFinal :: NodeType -> Bool -> (CharacterData, CharacterData, CharInfo) -> CharacterData
+setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
    in
@@ -169,26 +170,26 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
 
       else if localCharType == Matrix then 
          -- add logic for pre-order
-         let finalAssignment = matrixPreorder (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
+         let finalAssignment = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
          in
          childChar {matrixStatesFinal = finalAssignment}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         let finalGapped = DOP.preOrderLogic symbolCount True (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
          in 
          trace ("HTU " ++ show (finalNoGaps, finalGapped)) 
          childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
-         let finalGapped = DOP.preOrderLogic symbolCount True (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+         let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
          in
          childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
-         let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount True (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              --  should be like slim and wide--but useing second becuae of error on post order for huge characters
              --gapChar = M.getGapBV (fromEnum symbolCount)
              --finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
@@ -225,13 +226,14 @@ nonAdditivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
 
 -- | matrixPreorder assigment akes preliminary matrix states of child (= current vertex) and
 -- final states of parent to create preorder final states of child
-matrixPreorder :: V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple)
-matrixPreorder nodePrelim parentFinal =
+-- th eboolean says whether the node is a 'left' node or right based on bitvetor label
+matrixPreorder :: Bool -> V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector MatrixTriple)
+matrixPreorder isLeft nodePrelim parentFinal =
    if null nodePrelim then mempty
    else 
       let bothTwo = D.debugVectorZip nodePrelim parentFinal
       in
-      fmap makeMatrixCharacterFinal bothTwo
+      fmap (makeMatrixCharacterFinal isLeft) bothTwo
 
 
 -- | makeAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
@@ -336,15 +338,19 @@ makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentF
 -- and constructs final state assignment
 -- really just tracks the states on a traceback and sets the cost to maxBound:: Int for states not in the traceback
 -- path
-makeMatrixCharacterFinal :: (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-makeMatrixCharacterFinal inData@(nodePrelim, parentFinal) = 
+-- Bool for left right node
+makeMatrixCharacterFinal :: Bool -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
+makeMatrixCharacterFinal isLeft inData@(nodePrelim, parentFinal) = 
    let numStates = length nodePrelim
        stateIndexList = V.fromList [0..(numStates - 1)]
        (stateCostList, stateLeftChildList, stateRightChildList) = V.unzip3 parentFinal
-       allFour = D.debugVectorZip4 stateCostList stateLeftChildList stateRightChildList stateIndexList
-       bestParentFour = V.filter ((/= (maxBound :: StateCost)). fst4) allFour
-       bestPrelimStates = L.nub $ concat $ fmap snd4 bestParentFour
-       finalBestTriple = fmap (setCostsAndStates bestPrelimStates) allFour
+       (prelimStateCostList, prelimStateLeftChildList, prelimStateRightChildList) = V.unzip3 nodePrelim
+       allThree = if isLeft then D.debugVectorZip3 stateCostList stateLeftChildList stateIndexList
+                  else D.debugVectorZip3 stateCostList stateRightChildList stateIndexList
+       bestParentThree = V.filter ((/= (maxBound :: StateCost)). fst3) allThree
+       bestPrelimStates = L.sort $ L.nub $ concat $ fmap snd3 bestParentThree
+       allFour = D.debugVectorZip4 prelimStateCostList  prelimStateLeftChildList prelimStateRightChildList stateIndexList
+       finalBestTriple = V.filter ((/= (maxBound :: StateCost)).fst3) $ fmap (setCostsAndStates bestPrelimStates) allFour
    in
    finalBestTriple
 
@@ -353,7 +359,7 @@ makeMatrixCharacterFinal inData@(nodePrelim, parentFinal) =
 -- if the state is in the list of `best' indices it is kept and not if it isn't
 setCostsAndStates :: [Int] -> (StateCost, [ChildStateIndex], [ChildStateIndex], Int) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
 setCostsAndStates bestPrelimStates inQuad@(cost, leftChildState, rightChildStates, stateIndex) = 
-   if stateIndex `elem` bestPrelimStates then (cost, leftChildState, rightChildStates)
+   if stateIndex `elem` bestPrelimStates then (stateIndex, leftChildState, rightChildStates)
    else (maxBound :: StateCost, leftChildState, rightChildStates)
 
 
@@ -361,15 +367,17 @@ setCostsAndStates bestPrelimStates inQuad@(cost, leftChildState, rightChildState
 -- | setMinCostStatesMatrix  sets teh cost of non-minimal cost states to maxBounnd :: StateCost (Int) 
 setMinCostStatesMatrix ::  V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
 setMinCostStatesMatrix inCostVect inStateVect = 
-   fmap nonMinCostStatesToMaxCost $ D.debugVectorZip inCostVect inStateVect
+    fmap (V.filter ((/= (maxBound :: StateCost)).fst3))$ fmap nonMinCostStatesToMaxCost $ D.debugVectorZip3 inCostVect inStateVect (V.fromList [0.. (length inCostVect - 1)])
 
 -- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple 
 -- retiurns a new character with the states cost either the minium value or maxBound iof not
 -- this only really useful at root--other vertices minimu costs may not be paert of the
 -- miniumm cost assignment, but may be useful heuristically
-nonMinCostStatesToMaxCost :: (StateCost, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-nonMinCostStatesToMaxCost (minStateCost, tripleVect) = 
-   fmap (modifyStateCost minStateCost) tripleVect
+nonMinCostStatesToMaxCost :: (StateCost, V.Vector MatrixTriple, Int) -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost (minStateCost, tripleVect, stateIndex) = 
+   fmap (modifyStateCost minStateCost stateIndex) tripleVect 
       where
-         modifyStateCost d (a,b,c) = if a == d then (a,b,c)
+         modifyStateCost d e (a,b,c) = if a == d then (e,b,c)
                                    else (maxBound :: StateCost ,b,c)
+
+
