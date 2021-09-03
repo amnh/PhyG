@@ -279,12 +279,16 @@ getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
 getCCodes fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
     else 
-        let charStatus =  head commandWordList
-            scopeList = tail commandWordList
+        let charStatus =  if (T.length (head commandWordList) == 1) then head commandWordList
+                          else T.singleton $ T.head $ head commandWordList
+            scopeList = if (T.length (head commandWordList) == 1) then tail commandWordList
+                        else (T.tail $ head commandWordList) : (tail commandWordList)
             charIndices = L.nub $ L.sort $ concat $ fmap (scopeToIndex fileName charNumber) scopeList
             updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
+        --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " character status processing error:  option not recognized/implemented " ++ (T.unpack charStatus))
+        --else 
         updatedCharInfo
 
 -- | getCosts takes a line from TNT and modifies characters according to cc-code option

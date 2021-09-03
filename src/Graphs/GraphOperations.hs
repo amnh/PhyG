@@ -51,10 +51,11 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , graphCostFromNodes
                                , switchRootTree
                                , dichotomizeRoot
+                               , showDecGraphs
                                ) where
 
 import           Data.Bits                 ((.&.), (.|.))
-import           Data.List
+import qualified Data.List                 as L
 import           Data.Maybe
 import qualified Data.Text.Lazy            as T
 import qualified Data.Vector               as V
@@ -407,12 +408,12 @@ checkCompatible inNodeListList =
     let firstList = head inNodeListList
         compatibleList = fmap (interCheck firstList) (tail inNodeListList)
     in
-    if (not $ foldl' (&&) True compatibleList) then False
+    if (not $ L.foldl' (&&) True compatibleList) then False
     else checkCompatible (tail inNodeListList)
 
   where
     interCheck a b =
-      let c = a `intersect` b
+      let c = a `L.intersect` b
       in
       if null c then True
       else if (c == a) || (c == b) then True
@@ -440,7 +441,7 @@ convertDecoratedToSimpleGraph inDec =
         decEdgeList = LG.labEdges inDec
         sourceList = fmap fst3 decEdgeList
         sinkList = fmap snd3 decEdgeList
-        newEdgeLables = fmap minLength $ fmap thd3 decEdgeList
+        newEdgeLables = fmap midRangeLength $ fmap thd3 decEdgeList
         simpleEdgeList = zip3 sourceList sinkList newEdgeLables
     in
     LG.mkGraph simpleNodes simpleEdgeList
@@ -515,3 +516,9 @@ dichotomizeRoot outgroupIndex inGraph =
       in
       LG.delLEdges edgesToDelete $ LG.insEdges (newRootEdge : newEdgesNewNode) $ LG.insNode newNode inGraph
 
+-- | showBlockGraphs takes a vector of vector of DecoratedGraphs and converte and prettifies outputting a String
+showDecGraphs :: V.Vector (V.Vector DecoratedGraph) -> String
+showDecGraphs inDecVV = 
+    if V.null inDecVV then []
+    else
+        concat $ fmap concat $ V.toList $ fmap V.toList $ fmap (fmap LG.prettify) $ fmap (fmap convertDecoratedToSimpleGraph) inDecVV

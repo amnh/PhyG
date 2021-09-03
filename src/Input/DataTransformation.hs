@@ -1192,9 +1192,9 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
              else
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
                     newCharacter = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
-                                                  , stateBVFinal = V.empty
+                                                  , stateBVFinal = mempty
                                                   , rangePrelim = (mempty, mempty, mempty)
-                                                  , rangeFinal = V.empty
+                                                  , rangeFinal = mempty
                                                   , matrixStatesPrelim = V.singleton initialMatrixVector
                                                   , matrixStatesFinal = mempty
                                                   , slimPrelim = mempty

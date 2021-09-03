@@ -331,5 +331,4 @@ to render--would have repeated subtrees after network vertex
 126) newick output has repeated basla node taxon name.
 
 127) root "first" taxon--first after reordering
-	so based on lexical sorting
-	
+	so based on lexical sorting.  IS this ok?

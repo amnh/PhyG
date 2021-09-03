@@ -287,7 +287,7 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
             edgeList = LG.labEdges decGraph
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
             vertexInfoList =  concat $ fmap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
-            edgeHeaderList = [[" "],[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length"]]
+            edgeHeaderList = [[" "],[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
         in
         [topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeHeaderList ++ edgeInfoList
@@ -346,7 +346,7 @@ makeCharLine (blockDatum, charInfo) =
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
 getEdgeInfo inEdge =
-    [" ", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge)]
+    [" ", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge), show $ midRangeLength (thd3 inEdge)]
 
 
 -- | executeSet processes the "set" command

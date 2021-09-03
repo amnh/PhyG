@@ -100,7 +100,9 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
    -- Three cases, Root, leaf, HTU
    if childType == RootNode then 
 
-      if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
+      if localCharType == Add then 
+         --trace ("Root " ++ show (fst3 $ rangePrelim childChar))
+         childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
       else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
@@ -108,14 +110,14 @@ setFinal childType inData@(childChar, parentChar, charInfo) =
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         trace ("root " ++ show (slimPrelim childChar, slimGapped childChar)) 
+         --trace ("root " ++ show (slimPrelim childChar, slimGapped childChar)) 
          childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then childChar {wideFinal = widePrelim childChar, wideAlignment = wideGapped childChar}
          
       else if localCharType == HugeSeq then childChar {hugeFinal = hugePrelim childChar, hugeAlignment = hugeGapped childChar}
          
-      else error ("UNrecognized/implemented charcater type: " ++ show localCharType)
+      else error ("Unrecognized/implemented charcater type: " ++ show localCharType)
 
    else if childType == LeafNode then 
 
@@ -239,16 +241,23 @@ makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFina
    -- From Wheeler (20012) after Goloboff (1993) 
    let interNodeParent = intervalIntersection nodePrelim parentFinal
    in
+   -- trace (show inData) (
    -- Rule 1
-   if (interNodeParent /= Nothing) && (fromJust interNodeParent == parentFinal) then parentFinal
+   if (interNodeParent /= Nothing) && (fromJust interNodeParent == parentFinal) then 
+      -- trace ("R1 " ++ show parentFinal) 
+      parentFinal
    -- Rule 2
    else if ((leftChild `intervalUnion` rightChild) `intervalIntersection` parentFinal) /= Nothing then
       let xFactor = ((leftChild `intervalUnion` rightChild) `intervalUnion` nodePrelim) `intervalIntersection` parentFinal
       in
       if xFactor == Nothing then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show inData)
       else 
-         if (fromJust xFactor) `intervalIntersection` nodePrelim /= Nothing then fromJust xFactor
-         else lciClosest (fromJust xFactor) nodePrelim
+         if (fromJust xFactor) `intervalIntersection` nodePrelim /= Nothing then 
+            -- trace ("R2a " ++ show (fromJust xFactor)) 
+            fromJust xFactor
+         else 
+            -- trace ("Rb " ++ show (lciClosest (fromJust xFactor) nodePrelim)) 
+            lciClosest (fromJust xFactor) nodePrelim
 
    -- Rule 3
    else 
@@ -256,7 +265,9 @@ makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFina
           closestPtoA = stateFirstClosestToSecond nodePrelim parentFinal
           closestULRtoA = stateFirstClosestToSecond unionLR parentFinal
       in
+      -- trace ("R3 " ++ show (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA)) 
       (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA)
+   -- )
 
 -- | stateFirstClosestToSecond takes teh states of the first interval and finds the state wiht smallest distance 
 -- to either state in the second
@@ -270,7 +281,7 @@ stateFirstClosestToSecond firstInt@(a,b) secondInt@(x,y) =
                      else if y < a then b - y
                      else error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
    in
-   if distASecond < distBSecond then a
+   if distASecond <= distBSecond then a
    else b
 
 -- | lciClosest returns thhe "largest closed interval" between the first interval
@@ -309,9 +320,17 @@ largestClosedInterval = intervalUnion
 makeNonAdditiveCharacterFinal :: (BV.BitVector, BV.BitVector, BV.BitVector, BV.BitVector) -> BV.BitVector
 makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = 
    -- From Wheeler (2012) after Fitch (1971)
-   if (nodePrelim .&. parentFinal) == parentFinal then parentFinal
-   else if (leftChild .|. rightChild) == nodePrelim then nodePrelim .|. parentFinal 
-   else nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
+   trace (show inData) (
+   if (nodePrelim .&. parentFinal) == parentFinal then 
+      --trace ("R1 " ++ show parentFinal) 
+      parentFinal
+   else if (BV.isZeroVector (leftChild .&. rightChild)) && (leftChild .|. rightChild) == nodePrelim then 
+      --trace ("R2 " ++ show (nodePrelim .|. parentFinal)) 
+      nodePrelim .|. parentFinal 
+   else 
+      -- trace ("R3 " ++ show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal))) 
+      nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
+   )
 
 -- | makeMatrixCharacterFinal vertex preliminaryavnd parent final state
 -- and constructs final state assignment

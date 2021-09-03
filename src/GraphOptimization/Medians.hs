@@ -309,7 +309,7 @@ intervalAdd thisWeight leftChar rightChar =
 
     newCharcater
 
--- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (toitalCost, best child state)
+-- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (totalCost, best child state)
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
 getMinCostStates thisMatrix childVect bestCost numStates childState currentBestStates stateIndex =
    --trace (show thisMatrix ++ "\n" ++ (show  childVect) ++ "\n" ++ show (numStates, childState, stateIndex)) (
@@ -322,10 +322,10 @@ getMinCostStates thisMatrix childVect bestCost numStates childState currentBestS
       if childStateCost > bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) currentBestStates stateIndex
       else if childStateCost == bestCost then getMinCostStates thisMatrix (V.tail childVect) bestCost numStates (childState + 1) ((childStateCost, childState) : currentBestStates) stateIndex
       else getMinCostStates thisMatrix (V.tail childVect) childStateCost numStates (childState + 1) [(childStateCost, childState)] stateIndex
-    --)
+    -- )
 
 
--- | getNewVector takes the vector of states and costs from teh child nodes and the
+-- | getNewVector takes the vector of states and costs from the child nodes and the
 -- cost matrix and calculates a new verctor n^2 in states
 getNewVector :: S.Matrix Int -> Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
 getNewVector thisMatrix  numStates (lChild, rChild) =
@@ -337,8 +337,8 @@ getNewVector thisMatrix  numStates (lChild, rChild) =
   in
   V.fromList newStateTripleList
 
--- | addMatrix thisWeight thisMatrix firstVertChar secondVertChar
--- assumes each character has asme cost matrix
+-- | addMatrix thisWeight thisMatrix firstVertChar secondVertChar matrix character
+-- assumes each character has same cost matrix
 -- Need to add approximation ala DO tcm lookup later
 -- Local and global costs are based on current not necessaril;y optimal minimum cost states
 addMatrix :: Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
@@ -389,7 +389,7 @@ getDOMedian
   -> CharacterData
   -> CharacterData
 getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
-  | null thisMatrix = error "Null cost matrix in addMatrix"
+  | null thisMatrix = error "Null cost matrix in getDOMedian"
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
   | thisType `elem` [HugeSeq]           = newHugeCharacterData

@@ -338,7 +338,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             in
             -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
 
-            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) curDecGraph, PO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
+            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) newGraph, PO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
             --)
             
 
@@ -359,13 +359,17 @@ preOrderTreeTraversal :: PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
-        trace ("In PreOrder") (
+        -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let preOrderBlockVect = fmap (doBlockTraversal inCharInfoVV) blockCharacterDecoratedVV
-            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
+            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated inCost
         in
+        let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
+            blockPre = GO.showDecGraphs preOrderBlockVect
+        in
+        -- trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
         (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-        )
+        --)
         
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
@@ -427,45 +431,64 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
 -- root should be median of finals of two descendets--for non-exact based on final 'alignments' field with gaps filtered
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
-assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> DecoratedGraph
-assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
+-- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
+assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> VertexCost -> DecoratedGraph
+assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph graphCost =
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else 
-        trace ("In assign") (
+        -- trace ("In assign") (
         let postOrderNodes = LG.labNodes inGraph
             postOrderEdgeList = LG.labEdges inGraph
 
             -- update node labels
             newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
             
+            {-This code will set root final (and preliminary as well) to outgroup final
             --  remake root from two descendants-- assign one of two descendants
             -- if one is a terminal that then left
             rootNode = head $ LG.getRoots inGraph
-            rootChildren = LG.labDescendants inGraph rootNode
-            newRootLabel = chooseNewRootLabel rootChildren
+            rootChildrenIndices = LG.descendants inGraph (fst rootNode)
+            rootChildren = filter ((`elem` rootChildrenIndices).fst) newNodeList
+            newRootLabel = makeNewRootLabel rootChildren graphCost (snd rootNode) 
 
             -- remove old root node and add new
             newNodeList' = (fst rootNode, newRootLabel) : (filter ((/= (fst rootNode)).fst) newNodeList)
-
+            
             -- update edge labels
             newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList')) postOrderEdgeList
-            
+            -}
+            newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
         in
         -- make new graph
-        LG.mkGraph newNodeList' newEdgeList
-        )
+        -- LG.mkGraph newNodeList' newEdgeList
+        LG.mkGraph newNodeList newEdgeList
+        -- )
 
--- | chooseNewRootLabel takes list of labeled nodes (children of root) and returns a leaf if one is a leaf
--- otherwise the first child.  This to avoid root branch length problems created by preorder pass over travesals.
+-- | makeNewRootLabel takes list of labeled nodes (children of root) and sets te hroot data to the leaf data if one is a leaf
+-- otherwise the vertData of the first child.  This to avoid root branch length problems created by preorder pass over travesals.
 -- This will result in one edge being zero length--more properly reflecting the edge-as-root idea.
-chooseNewRootLabel :: [LG.LNode VertexInfo] -> VertexInfo
-chooseNewRootLabel rootChildren =
-    if null rootChildren then error "NUll children of root in chooseNewRootLabel"
+-- need to update only final states.  
+makeNewRootLabel :: [LG.LNode VertexInfo] -> VertexCost -> VertexInfo -> VertexInfo
+makeNewRootLabel rootChildren graphCost inRootInfo =
+    if null rootChildren then error "Null children of root in chooseNewRootLabel"
     else 
         let (_, childLeafList) = unzip $ filter ((==LeafNode).fst) $ zip (fmap nodeType $ fmap snd rootChildren) rootChildren
         in
-        if not $ null childLeafList then snd $ head childLeafList
-        else snd $ head rootChildren
+        if not $ null childLeafList then 
+            let childLeafData = snd $ head childLeafList
+            in
+            -- trace (show $ vertData childLeafData)
+            inRootInfo { vertData = vertData childLeafData
+                       , vertexCost = 0.0
+                       , subGraphCost = graphCost
+                       }
+        else 
+            let childLeafData = snd $ head rootChildren
+            in
+            inRootInfo { vertData = vertData childLeafData
+                       , vertexCost = 0.0
+                       , subGraphCost = graphCost
+                       }
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
 -- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.
