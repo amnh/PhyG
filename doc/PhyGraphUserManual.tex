@@ -204,15 +204,15 @@
 		\noindent \texttt{tbr} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed after distance builds.
 
 		\subsubsection{Defaults}
-		\texttt{build(distance, dwag)}
+			\texttt{build(distance, dwag)}
 		\subsubsection{Examples}
-		\begin{itemize}
-			\item{\texttt{build(distance, dWag, nj, wpgma)}\\Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and a WPGMA tree.}
-			\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence  Wagner builds and returns  
+			\begin{itemize}
+				\item{\texttt{build(distance, dWag, nj, wpgma)}\\Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and a WPGMA tree.}
+				\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence  Wagner builds and returns  
+				10 of lowest distance cost.}
+				\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
 			10 of lowest distance cost.}
-			\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
-		10 of lowest distance cost.}
-		\end{itemize}
+			\end{itemize}
 	\subsection{Read}
 		\subsubsection{Syntax}
 		\subsubsection{Description}
@@ -250,18 +250,43 @@
 	
 	\subsection{Select}
 		\subsubsection{Syntax}
+			\texttt{set(arg0:option, arg1:option, ...)}
 		\subsubsection{Description}
+			The command is used to set the method and number of graphs to be saved at any point.
+			When multiple graphs are present, the \texttt{select} command will specify which of the graphs to
+			keep for further analysis or reporting.
 		\subsubsection{Arguments}
+			\noindent \texttt{all} Keeps all graphs.
+		
+			\smallskip		
+			\noindent	\noindent \texttt{best} Keeps graphs of best optimality value.
+			
+			\smallskip		
+			\noindent \texttt{random} Keeps graphs chosen at random.
+			
+			\smallskip		
+			\noindent \texttt{arg:n} Keeps up to \texttt{n} graphs determined by the argument.
 		\subsubsection{Defaults}
+			\texttt{select()} Keeps all unique graphs of best optimality value.
 		\subsubsection{Examples}
-	
+				\begin{itemize}
+					\item{\texttt{select(random:10)} Keeps up to 10 graphs, selected at random.}
+					\item{\texttt{select(best:10)} Keeps up to 10 graphs of best optimality value.}
+			\end{itemize}
 	\subsection{Set}
 		\subsubsection{Syntax}
+				\texttt{set(arg0:option, arg1:option, ...)}
 		\subsubsection{Description}
+		The command specifies a number of global values and options include outgroup, graph type and optimality criterion.
 		\subsubsection{Arguments}
 		\subsubsection{Defaults}
+		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
+		renaming and taxon inclusion/exclusion. For this reason, it is best to specify an outgroup explicitly.
+		The default optimality criterion is \texttt{parsimony} and the default graph type is \texttt{tree}.
 		\subsubsection{Examples}
-	
+			\begin{itemize}
+					\item{\texttt{set(optimality:parsimony)}}
+			\end{itemize}
 %	\subsection{Support}
 %		\subsubsection{Syntax}
 %		\subsubsection{Description}
