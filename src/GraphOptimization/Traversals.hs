@@ -624,8 +624,10 @@ getCharacterDist (uCharacter, vCharacter, charInfo) =
         (minCost, maxCost)
     
     else if thisCharType == Matrix then
-        let minCost = localCost (M.addMatrix thisWeight thisMatrix uCharacter vCharacter)
-            maxDiff = V.sum $ fmap maxMatrixDiff  $ D.debugVectorZip (matrixStatesFinal uCharacter) (matrixStatesFinal vCharacter)
+        let minMaxListList= fmap (minMaxMatrixDiff thisMatrix) $ D.debugVectorZip (fmap (fmap fst3) $ matrixStatesFinal uCharacter) (fmap (fmap fst3) $ matrixStatesFinal vCharacter)
+            minDiff = V.sum $ fmap fst minMaxListList
+            maxDiff = V.sum $ fmap snd minMaxListList
+            minCost = thisWeight * (fromIntegral minDiff)
             maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
@@ -667,15 +669,17 @@ maxIntervalDiff ((a,b), (x,y)) =
     in
     max upper lower 
 
--- | maxMatrixDiff takes two matrices and calculates the maximum state differnce between the two
-maxMatrixDiff :: (V.Vector MatrixTriple, V.Vector MatrixTriple) -> Int
-maxMatrixDiff (uStatesV, vStatesV) =
-    let uCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 uStatesV
-        uCostMin = minimum $ fmap fst3 uStatesV
-        vCostMax = maximum $ V.filter (/= (maxBound :: StateCost)) $ fmap fst3 vStatesV
-        vCostMin = minimum $ fmap fst3 vStatesV
-    in
-    max (uCostMax - vCostMin) (vCostMax - uCostMin)
+-- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost 
+-- between the two
+minMaxMatrixDiff :: S.Matrix Int -> (V.Vector Int, V.Vector Int) -> (Int, Int)
+minMaxMatrixDiff costMatrix (uStatesV, vStatesV) =
+    let statePairs = (V.toList uStatesV, V.toList vStatesV)
+        cartesianPairs = cartProdPair statePairs
+        costList = fmap (costMatrix S.!) cartesianPairs
+    in 
+    --trace (show cartesianPairs  ++ " " ++ show costList) 
+    (minimum costList, maximum costList)
+   
 
 
 -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
