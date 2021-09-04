@@ -126,7 +126,8 @@ setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
 
       else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = matrixStatesPrelim childChar}
+      else if localCharType == Matrix then 
+         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
