@@ -107,7 +107,7 @@ setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
 
       else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (localCostVect childChar) (matrixStatesPrelim childChar)}
+      else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
@@ -364,20 +364,23 @@ setCostsAndStates bestPrelimStates inQuad@(cost, leftChildState, rightChildState
 
 
 
--- | setMinCostStatesMatrix  sets teh cost of non-minimal cost states to maxBounnd :: StateCost (Int) 
-setMinCostStatesMatrix ::  V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
-setMinCostStatesMatrix inCostVect inStateVect = 
-    fmap (V.filter ((/= (maxBound :: StateCost)).fst3))$ fmap nonMinCostStatesToMaxCost $ D.debugVectorZip3 inCostVect inStateVect (V.fromList [0.. (length inCostVect - 1)])
+-- | setMinCostStatesMatrix  sets the cost of non-minimal cost states to maxBounnd :: StateCost (Int) 
+setMinCostStatesMatrix ::  Int -> V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
+setMinCostStatesMatrix numStates inCostVect inStateVect = 
+    fmap (V.filter ((/= (maxBound :: StateCost)).fst3)) $ fmap (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) $ D.debugVectorZip inCostVect inStateVect 
 
 -- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple 
 -- retiurns a new character with the states cost either the minium value or maxBound iof not
 -- this only really useful at root--other vertices minimu costs may not be paert of the
 -- miniumm cost assignment, but may be useful heuristically
-nonMinCostStatesToMaxCost :: (StateCost, V.Vector MatrixTriple, Int) -> V.Vector MatrixTriple
-nonMinCostStatesToMaxCost (minStateCost, tripleVect, stateIndex) = 
-   fmap (modifyStateCost minStateCost stateIndex) tripleVect 
+nonMinCostStatesToMaxCost :: V.Vector StateCost -> (StateCost, V.Vector MatrixTriple) -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost stateIndexList (minStateCost, tripleVect) = 
+   let result = fmap (modifyStateCost minStateCost) $ V.zip tripleVect stateIndexList
+   in 
+   -- trace ((show stateIndexList) ++ " " ++ (show $ V.zip tripleVect stateIndexList))
+   result
       where
-         modifyStateCost d e (a,b,c) = if a == d then (e,b,c)
-                                   else (maxBound :: StateCost ,b,c)
+         modifyStateCost d ((a,b,c), e) = if a == d then (e,b,c)
+                                          else (maxBound :: StateCost ,b,c)
 
 

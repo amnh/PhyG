@@ -1095,7 +1095,7 @@ getTripleList hasState notHasState localAlphabet stateList =
         let firstAlphState = head localAlphabet
         in
         if firstAlphState `elem` stateList then 
-            trace ("State " ++ show firstAlphState ++ " in " ++ show localAlphabet)
+            -- trace ("State " ++ show firstAlphState ++ " in " ++ show localAlphabet)
             hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
         else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
 
@@ -1109,7 +1109,7 @@ getInitialMatrixVector localAlphabet localState =
         in
         --single state
         if '[' `notElem` stateString then
-            trace (show $ V.fromList $ getTripleList hasState notHasState localAlphabet [localState])
+           --  trace (show $ V.fromList $ getTripleList hasState notHasState localAlphabet [localState])
             V.fromList $ getTripleList hasState notHasState localAlphabet [localState]
         -- polylorphic/ambiguous
         else
@@ -1217,12 +1217,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                                   , globalCost = 0.0
                                                   }
             in
-            trace (show initialMatrixVector) (
+            -- trace (show initialMatrixVector) (
             --trace ((show $ alphabet firstCharInfo) ++ " " ++ (ST.toString firstState)) (
             --trace ("GQC " ++ (T.unpack $ name firstCharInfo) ++ (show $ alphabet firstCharInfo) ++ " " ++ (show $ costMatrix firstCharInfo)) (
             if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
             else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
-            )
+            -- )
 
         else error ("Character type " ++ show firstCharType ++ " not recongnized/implemented")
 
