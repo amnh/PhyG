@@ -70,7 +70,11 @@ import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
 import qualified GeneralUtilities as GU
-import Data.Maybe
+import           Data.MetricRepresentation
+import qualified Data.TCM                  as TCM
+import qualified Input.FastAC  as FAC
+
+
 
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
@@ -88,23 +92,11 @@ getTNTData inString fileName =
                 quotedMessage = if singleQuotes == 0 then T.pack "No TNT title message" 
                               else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
                               else (T.split (== '\'') inText) !! 1
-                --restFile = tail $ T.lines $ (T.split (== '\'') inText) !! 2
-                -- restFile' = T.words $ (T.split (== '\'') inText) !! 2
                 (firstNum, secondNum, remainderText) = removeNCharNTax $ (T.split (== '\'') inText) !! 2
                 numCharM = readMaybe (T.unpack firstNum) :: Maybe Int 
                 numTaxM = readMaybe (T.unpack secondNum) :: Maybe Int
                 restFile = filter ((>0). T.length) $ T.lines remainderText
                 
-                {-
-                numCharM = readMaybe (T.unpack $ head restFile') :: Maybe Int 
-                numTaxM = readMaybe (T.unpack (restFile' !! 1)) :: Maybe Int
-                restFile = T.lines $ T.unwords $ drop 2 restFile'
-                -}
-                {-
-                firstLine = head restFile
-                numCharM = readMaybe (T.unpack $ head $ T.words firstLine) :: Maybe Int 
-                numTaxM = readMaybe (T.unpack $ last $ T.words firstLine) :: Maybe Int
-                -}
                 numChar = fromJust numCharM
                 numTax = fromJust numTaxM
             in
@@ -122,7 +114,7 @@ getTNTData inString fileName =
                     let dataBlock = filter ((>0).T.length) $ take (fromJust semiColonLineNumber) restFile
                         charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
-                        (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        (_, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
                     -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                     if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
@@ -259,9 +251,9 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , name = T.empty
                                 , alphabet = []
                                 , prealigned = True
-                                --- , slimTCM    = 
-                                -- , wideTCM    = metricRepresentation <$> TCM.fromRows [[0::Word]]
-                                -- , hugeTCM    = metricRepresentation <$> TCM.fromRows [[0::Word]]
+                                , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
+                                , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
+                                , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
@@ -386,7 +378,9 @@ getTransformationCosts fileName localAlphabet wordList =
     if null wordList then []
     else if length wordList == 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " ccode processing error:  'costs' command imporperly formated (transformation and costs in pairs)")
     else 
-        let [transText, costText] = take 2 wordList
+        let -- wordlist must be >= 2 due to above tests
+            transText = head wordList  
+            costText = wordList !! 1
             transCost = readMaybe (T.unpack costText) :: Maybe Int
             directedOperator = T.find (== '>') transText
             symetricalOperator = T.find (== '/') transText

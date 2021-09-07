@@ -45,6 +45,7 @@ module Input.FastAC
   , getFastaCharInfo
   , getFastC
   , getFastcCharInfo
+  , genDiscreteDenseOfDimension
   ) where
 
 import           Control.DeepSeq
