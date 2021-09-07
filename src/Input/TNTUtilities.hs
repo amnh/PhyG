@@ -78,40 +78,51 @@ getTNTData :: String -> String -> RawData
 getTNTData inString fileName = 
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
-        let inString' = unlines $ filter ((>0).length) $ fmap GU.stripString $ lines (filter C.isPrint inString)
+        let inString' = unlines $ filter ((>0).length) $ fmap GU.stripString $ lines inString
             inText = T.strip $ T.pack inString'
         in
-        -- trace (show $ lines inString) (
         if (toLower $ T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else 
             -- look for quoted message
             let singleQuotes = T.count (T.pack "'") inText
                 quotedMessage = if singleQuotes == 0 then T.pack "No TNT title message" 
-                                else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
-                                else (T.split (== '\'') inText) !! 1
-                restFile =  if (not $ T.null quotedMessage) then T.lines $ T.tail $ T.dropWhile (/='\'') $ T.tail $ T.dropWhile (/='\'') inText
-                            else T.lines $ T.dropWhile C.isLetter inText
+                              else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
+                              else (T.split (== '\'') inText) !! 1
+                --restFile = tail $ T.lines $ (T.split (== '\'') inText) !! 2
+                -- restFile' = T.words $ (T.split (== '\'') inText) !! 2
+                (firstNum, secondNum, remainderText) = removeNCharNTax $ (T.split (== '\'') inText) !! 2
+                numCharM = readMaybe (T.unpack firstNum) :: Maybe Int 
+                numTaxM = readMaybe (T.unpack secondNum) :: Maybe Int
+                restFile = filter ((>0). T.length) $ T.lines remainderText
+                
+                {-
+                numCharM = readMaybe (T.unpack $ head restFile') :: Maybe Int 
+                numTaxM = readMaybe (T.unpack (restFile' !! 1)) :: Maybe Int
+                restFile = T.lines $ T.unwords $ drop 2 restFile'
+                -}
+                {-
                 firstLine = head restFile
                 numCharM = readMaybe (T.unpack $ head $ T.words firstLine) :: Maybe Int 
                 numTaxM = readMaybe (T.unpack $ last $ T.words firstLine) :: Maybe Int
+                -}
                 numChar = fromJust numCharM
                 numTax = fromJust numTaxM
             in
+            -- trace (show quotedMessage ++ " " ++ (show remainderText) ++ "\n" ++ show restFile) (
             if T.null inText then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--empty TNT contents")
             else if null restFile then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--empty TNT contents after first line")
-            else if numCharM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of characers:" ++ show (T.unpack $ head $ T.words firstLine))
-            else if numTaxM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of taxa:" ++ show (T.unpack $ last $ T.words firstLine))
-                
-            else
+            else if numCharM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of characters:" ++ show (T.unpack firstNum))
+            else if numTaxM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of taxa:" ++ show (T.unpack secondNum))
+            else    
                 trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
                 let semiColonLineNumber = L.findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
                 in
                 if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
                 else 
-                    let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
-                        charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
+                    let dataBlock = filter ((>0).T.length) $ take (fromJust semiColonLineNumber) restFile
+                        charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
-                        (_interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
                     -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
                     if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
@@ -128,7 +139,7 @@ getTNTData inString fileName =
                     -- trace ("Shorted data:" ++ show sortedData) (
                     --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                     if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
-                    else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of chacters (should be "
+                    else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of characters (should be "
                         ++ show numChar ++ "):" ++ show  incorrectLengthList)
                     else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
                     else
@@ -140,7 +151,20 @@ getTNTData inString fileName =
                         in
                         -- trace (show (curNames, curData'))
                         (zip curNames curData',charInfoData')
-                    ) -- )))
+                    ) --))
+
+-- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
+-- lines later
+removeNCharNTax :: T.Text -> (T.Text, T.Text, T.Text) 
+removeNCharNTax inText = 
+    let noLeadingSpaces = T.dropWhile (not . C.isDigit) inText
+        nCharacters = T.takeWhile C.isDigit noLeadingSpaces
+        remainder = T.dropWhile C.isDigit noLeadingSpaces
+        noLeadingSpaces' = T.dropWhile (not . C.isDigit) remainder
+        nTaxa = T.takeWhile C.isDigit noLeadingSpaces'
+        remainder' = T.dropWhile C.isDigit noLeadingSpaces'
+    in
+    (nCharacters, nTaxa, remainder')
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 -- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
@@ -258,8 +282,12 @@ getTNTCharInfo :: String -> Int -> [CharInfo] -> [T.Text] -> [CharInfo]
 getTNTCharInfo fileName charNumber curCharInfo inLines =
     if null inLines then curCharInfo
     else 
-        let firstLine = T.strip $ head inLines
+        let firstLine' = T.strip $ head inLines
+            multipleCommandsInLine = fmap T.reverse $ fmap (T.cons ';') $ fmap T.reverse $ filter ((>0).T.length) $ fmap T.strip $ T.splitOn (T.pack ";") firstLine'
+            firstLine = head multipleCommandsInLine
+
         in
+        -- trace (show multipleCommandsInLine) (
         if T.null firstLine then getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
         -- hit 'proc /;' line at end
         else if T.head firstLine == 'p' then curCharInfo
@@ -275,16 +303,18 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
             in
             if  (command2 /= (T.pack "cc")) && (command2 /= (T.pack "co")) then 
                  trace ("\n\nWarning: TNT input file " ++ fileName ++ " unrecognized/not implemented command ignored : " ++ T.unpack firstLine)
-                 getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
-            else getTNTCharInfo fileName charNumber localCharInfo' (tail inLines)
+                 getTNTCharInfo fileName charNumber curCharInfo ((tail multipleCommandsInLine) ++ (tail inLines))
+            else getTNTCharInfo fileName charNumber localCharInfo' ((tail multipleCommandsInLine) ++ (tail inLines))
+            -- )
 
 -- | ccodeChars are the TNT ccode control characters
 ccodeChars :: [Char]
 ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
 
--- | getCCodes takes aline form TNT and modifies charac ters according to cc-code option
+-- | getCCodes takes aline form TNT and modifies characters according to cc-code option
 -- assumes single command (ccodeChars) per line
 -- could sort and num so only hit each char once--but would be n^2 then.
+-- teh sinfglton stuff for compount things like "+."
 getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo] 
 getCCodes fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
@@ -300,6 +330,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " character status processing error:  option not recognized/implemented " ++ (T.unpack charStatus))
         --else 
         updatedCharInfo
+
 
 -- | getCosts takes a line from TNT and modifies characters according to cc-code option
 -- command format : costs A.B = X/Y Z U>V Q;
