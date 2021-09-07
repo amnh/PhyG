@@ -41,7 +41,7 @@ isAlign, isDelete, isInsert, isGapped :: (FiniteBits a, Vector v a) => (v a, v a
 isAlign  (_,y,z) i = i < GV.length y && popCount (y ! i) /= 0 && popCount (z ! i) /= 0
 isDelete (_,y,z) i = i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) /= 0
 isInsert (_,y,z) i = i < GV.length y && popCount (y ! i) /= 0 && popCount (z ! i) == 0
-isGapped (_,y,z) i = i < GV.length y && popCount (y ! i) /= 0 && popCount (z ! i) /= 0
+isGapped (_,y,z) i = i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
 
 
 {-# INLINEABLE isMissing #-}

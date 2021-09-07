@@ -64,39 +64,12 @@ preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,y
               if    pAlignment `isAlign` i
                 || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
                 || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-              then modifySTRef k' succ *> (k `setAt` i)
-              else gapAt i
+              then gapAt i
+              else modifySTRef k' succ *> (k `setAt` i)
 
       (,,) <$> GV.basicUnsafeFreeze xs'
            <*> GV.basicUnsafeFreeze ys'
            <*> GV.basicUnsafeFreeze zs'
-
-
-{-
-isAlignedAt, isInsertedAt, isDeletedAt, isGappedAt
-  :: ( FiniteBits a
-     , Vector v a
-     )
-  => (v a, v a, v a)
-  -> Int
-  -> Bool
-
-
-isAlignedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) /= 0 && popCount (z ! i) /= 0
-
-
-isDeletedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
-
-
-isInsertedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
-
-
-isGappedAt (_,y,z) i =
-  i < GV.length y && popCount (y ! i) == 0 && popCount (z ! i) == 0
--}
 
 
 indexSeq
