@@ -430,7 +430,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --slimPrelim    = GV.filter (notGapNought gapChar) medians
-                slimPrelim    = createUngappedMedianSequence symbolCount r
+                slimPrelim    = createUngappedMedianSequencePostOrder symbolCount r
               , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -451,7 +451,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --widePrelim    = GV.filter (notGapNought gapChar) medians
-                widePrelim    = createUngappedMedianSequence symbolCount r
+                widePrelim    = createUngappedMedianSequencePostOrder symbolCount r
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -473,7 +473,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             --gapChar = getGap symbolCount
         in  blankCharacterData
               { --hugePrelim = GV.filter (notGapNought gapChar) medians -- 
-                hugePrelim = createUngappedMedianSequence symbolCount r
+                hugePrelim = createUngappedMedianSequencePostOrder symbolCount r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
@@ -490,11 +490,30 @@ createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
     f i e = e == gap  || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
 -}
 
+-- Creating null medians
+-- | createUngappedMedianSequence enter symb olCount (symbols from alphabet) and context
+createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
+  where
+    gap = bit $ symbols - 1
+    f i e = e /= gap || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+
+
+-- | createUngappedMedianSequencePostOrder enter symb olCount (symbols from alphabet) and context
+createUngappedMedianSequencePostOrder :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
+createUngappedMedianSequencePostOrder symbols (m,l,r) = GV.ifilter f m
+  where
+    gap = bit $ symbols - 1
+    f i e = e /= gap -- || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+
+
+{-
 -- | createUngappedMedianSequence enter symbolCount (symbols from alphabet) and context
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence symbols (m,_,_) = GV.filter (notGapNought gapChar) m
   where
     gapChar = bit $ symbols - 1
+-}
 
 -- | notGapNought returns False if gap or all zero birtvector
 -- otherwise True

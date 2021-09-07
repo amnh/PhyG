@@ -106,7 +106,11 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
         if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
-        else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
+            
+        -- for testing 
+        else if nonExactChars == 1 then preOrderTreeTraversal outgroupRootedPhyloGraph
+        -- else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
+        
         else preOrderTreeTraversal graphWithBestAssignments'
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
