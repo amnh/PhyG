@@ -1,4 +1,4 @@
-1) add tnt fasta/c tcm stuff and -? to docs
+ 1) add tnt fasta/c tcm stuff and -? to docs
 	Source docs
 	User docs
 
@@ -332,3 +332,8 @@ to render--would have repeated subtrees after network vertex
 
 127) root "first" taxon--first after reordering
 	so based on lexical sorting.  IS this ok?
+
+128) Process single line multiple cc commands in TNT
+	Comment on first line etc
+	no proces after proc;/ (only take in that stuff")
+	

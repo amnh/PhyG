@@ -70,6 +70,7 @@ import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
 import qualified GeneralUtilities as GU
+import Data.Maybe
 
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
@@ -77,7 +78,7 @@ getTNTData :: String -> String -> RawData
 getTNTData inString fileName = 
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else 
-        let inString' = unlines $ filter ((>0).length) $ fmap GU.stripString $ lines inString
+        let inString' = unlines $ filter ((>0).length) $ fmap GU.stripString $ lines (filter C.isPrint inString)
             inText = T.strip $ T.pack inString'
         in
         -- trace (show $ lines inString) (
@@ -86,51 +87,60 @@ getTNTData inString fileName =
             -- look for quoted message
             let singleQuotes = T.count (T.pack "'") inText
                 quotedMessage = if singleQuotes == 0 then T.pack "No TNT title message" 
-                              else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
-                              else (T.split (== '\'') inText) !! 1
-                restFile = tail $ T.lines $ (T.split (== '\'') inText) !! 2
+                                else if singleQuotes > 2 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--too many single quotes in title")
+                                else (T.split (== '\'') inText) !! 1
+                restFile =  if (not $ T.null quotedMessage) then T.lines $ T.tail $ T.dropWhile (/='\'') $ T.tail $ T.dropWhile (/='\'') inText
+                            else T.lines $ T.dropWhile C.isLetter inText
                 firstLine = head restFile
-                numChar = read (T.unpack $ head $ T.words firstLine) :: Int 
-                numTax = read (T.unpack $ last $ T.words firstLine) :: Int
+                numCharM = readMaybe (T.unpack $ head $ T.words firstLine) :: Maybe Int 
+                numTaxM = readMaybe (T.unpack $ last $ T.words firstLine) :: Maybe Int
+                numChar = fromJust numCharM
+                numTax = fromJust numTaxM
             in
-            trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
-            let semiColonLineNumber = L.findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
-            in
-            if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
-            else 
-                let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
-                    charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
-                    numDataLines = length dataBlock
-                    (_interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+            if T.null inText then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--empty TNT contents")
+            else if null restFile then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--empty TNT contents after first line")
+            else if numCharM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of characers:" ++ show (T.unpack $ head $ T.words firstLine))
+            else if numTaxM == Nothing then errorWithoutStackTrace ("n\nTNT input file " ++ fileName ++ " processing error--number of taxa:" ++ show (T.unpack $ last $ T.words firstLine))
+                
+            else
+                trace ("\nTNT file file " ++ fileName ++ " message : " ++ (T.unpack quotedMessage) ++ " with " ++ (show numTax) ++ " taxa and " ++ (show numChar) ++ " characters") (
+                let semiColonLineNumber = L.findIndex ((== ';').(T.head)) restFile -- (== T.pack ";") restFile
                 in
-                -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
-                if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
+                if semiColonLineNumber == Nothing then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
                 else 
-                    let sortedData = glueInterleave fileName dataBlock numTax numChar []
-                        charNumberList = fmap length $ fmap snd sortedData
-                        nameLengthList = zip (fmap fst sortedData) charNumberList
-                        incorrectLengthList = filter ((/= numChar).snd) nameLengthList
-                        (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
-                        renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
-                        charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
-                        checkInfo = (length charInfoData) == numChar
-                in
-                -- trace ("Shorted data:" ++ show sortedData) (
-                --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
-                if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
-                else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of chacters (should be "
-                    ++ show numChar ++ "):" ++ show  incorrectLengthList)
-                else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
-                else
-                    -- check non-Additive alphabet to be numbers
-                    -- integerize and reweight additive chars (including in ambiguities)
-                    let curNames = fmap (T.filter (/= '"')) $ fmap (T.filter C.isPrint) $ fmap fst sortedData
-                        curData = fmap snd sortedData
-                        (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
+                    let dataBlock = filter ((>0).T.length) $ tail $ take (fromJust semiColonLineNumber) restFile
+                        charInfoBlock = filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
+                        numDataLines = length dataBlock
+                        (_interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
-                    -- trace (show (curNames, curData'))
-                    (zip curNames curData',charInfoData')
-                ) -- )))
+                    -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
+                    if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
+                    else 
+                        let sortedData = glueInterleave fileName dataBlock numTax numChar []
+                            charNumberList = fmap length $ fmap snd sortedData
+                            nameLengthList = zip (fmap fst sortedData) charNumberList
+                            incorrectLengthList = filter ((/= numChar).snd) nameLengthList
+                            (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
+                            renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
+                            charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
+                            checkInfo = (length charInfoData) == numChar
+                    in
+                    -- trace ("Shorted data:" ++ show sortedData) (
+                    --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
+                    if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ (show $ length charInfoData))
+                    else if (not $ null incorrectLengthList) then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of chacters (should be "
+                        ++ show numChar ++ "):" ++ show  incorrectLengthList)
+                    else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                    else
+                        -- check non-Additive alphabet to be numbers
+                        -- integerize and reweight additive chars (including in ambiguities)
+                        let curNames = fmap (T.filter (/= '"')) $ fmap (T.filter C.isPrint) $ fmap fst sortedData
+                            curData = fmap snd sortedData
+                            (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
+                        in
+                        -- trace (show (curNames, curData'))
+                        (zip curNames curData',charInfoData')
+                    ) -- )))
                        
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
 -- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
