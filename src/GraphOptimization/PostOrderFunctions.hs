@@ -46,7 +46,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , divideDecoratedGraphByBlockAndCharacter
                                              ) where
 
-import           Data.Bits                 ((.&.), (.|.))
+import           Data.Bits                 ((.|.))
 import           Data.Maybe
 import qualified Data.Vector               as V
 import qualified GraphOptimization.Medians as M
