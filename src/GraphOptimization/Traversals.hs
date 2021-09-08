@@ -111,7 +111,8 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         else if nonExactChars == 1 then preOrderTreeTraversal outgroupRootedPhyloGraph
         -- else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
         
-        else preOrderTreeTraversal graphWithBestAssignments'
+        else preOrderTreeTraversal outgroupRootedPhyloGraph
+       -- else preOrderTreeTraversal graphWithBestAssignments'
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
