@@ -496,7 +496,7 @@ createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v 
 createUngappedMedianSequence symbols (m,l,r) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
-    f i e = e /= gap || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
+    f i e = e /= gap -- || (popCount (l GV.! i) == 0 && popCount (r GV.! i) == 0)
 
 
 -- | createUngappedMedianSequencePostOrder enter symb olCount (symbols from alphabet) and context

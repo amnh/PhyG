@@ -109,15 +109,15 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
         -- for debugging
         --trace ("Top " ++ (show $ fmap (fmap charType) $ six6 outgroupRootedPhyloGraph))
-        preOrderTreeTraversal outgroupRootedPhyloGraph
-        {- 
+        -- preOrderTreeTraversal outgroupRootedPhyloGraph
+        
         -- special cases that don't require all the work
         if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
             
         else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
         
         else preOrderTreeTraversal graphWithBestAssignments'
-        -}
+        
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph

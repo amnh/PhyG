@@ -135,20 +135,20 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
              finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
-         trace ("Leaf " ++ show (slimPrelim childChar, finalNoGaps, finalAlignment, slimGapped childChar, slimAlignment parentChar))
-         childChar {slimFinal = finalNoGaps, slimAlignment = finalAlignment}
+         trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
+         childChar {slimFinal = slimPrelim childChar, slimAlignment = finalAlignment}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
-         childChar {wideFinal = finalNoGaps, wideAlignment = finalAlignment}
+         childChar {wideFinal = widePrelim childChar, wideAlignment = finalAlignment}
          
       else if localCharType == HugeSeq then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
-         childChar {hugeFinal = finalNoGaps, hugeAlignment = finalAlignment}
+         childChar {hugeFinal = hugePrelim childChar, hugeAlignment = finalAlignment}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
