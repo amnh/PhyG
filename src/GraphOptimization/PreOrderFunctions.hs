@@ -44,12 +44,10 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             ) where
 
 import           Types.Types
-import qualified Utilities.LocalGraph as LG
 import GeneralUtilities
 import qualified Debug.Debug as D
 import qualified DirectOptimization.PreOrder as DOP
 import qualified GraphOptimization.Medians as M
-import qualified Data.Vector.Generic  as GV
 import qualified Data.Vector                                                 as V
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits                 ((.&.), (.|.))
@@ -66,24 +64,25 @@ import Debug.Trace
 createFinalAssignmentOverBlocks :: NodeType
                                 -> VertexBlockData 
                                 -> VertexBlockData 
-                                -> V.Vector (V.Vector CharInfo) 
+                                -> CharInfo 
                                 -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks childType childBlockData parentBlockData blockCharInfoVect isLeft =
+createFinalAssignmentOverBlocks childType childBlockData parentBlockData charInfo isLeft =
    -- if root or leaf final assignment <- preliminary asssignment
-   let childParentBlockCharInfoTriple = D.debugVectorZip3 childBlockData parentBlockData blockCharInfoVect
-       rootBlockPair = D.debugVectorZip childBlockData blockCharInfoVect
+   let childParentBlockCharInfoTriple = D.debugVectorZip childBlockData parentBlockData 
+       --rootBlockPair = D.debugVectorZip childBlockData blockCharInfoVect
    in
-   fmap (assignFinal childType isLeft) childParentBlockCharInfoTriple
+   --trace ("cFAOB:" ++ (show $ charType charInfo)) 
+   fmap (assignFinal childType isLeft charInfo) childParentBlockCharInfoTriple
 
   -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
-assignFinal :: NodeType -> Bool -> (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo)-> V.Vector CharacterData
-assignFinal childType isLeft inTriple@(childCharacterVect, parentCharacterVect, charInfoVect) =
-   let childCharInfoTripleList = D.debugVectorZip3 childCharacterVect parentCharacterVect charInfoVect
+assignFinal :: NodeType -> Bool -> CharInfo -> (V.Vector CharacterData, V.Vector CharacterData)-> V.Vector CharacterData
+assignFinal childType isLeft charInfo (childCharacterVect, parentCharacterVect) =
+   let childParentPairList = D.debugVectorZip childCharacterVect parentCharacterVect 
    in
-   fmap (setFinal childType isLeft) childCharInfoTripleList
-
+   --trace ("aF:" ++ (show $ charType charInfo) ++ " c: " ++ (show childCharacterVect) ++ " p: " ++ (show parentCharacterVect)) 
+   fmap (setFinal childType isLeft charInfo) childParentPairList
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
@@ -92,12 +91,11 @@ assignFinal childType isLeft inTriple@(childCharacterVect, parentCharacterVect, 
 -- non exact charcaters are vectors of characters of same type
 -- this does the same things for seqeunce types, but also 
 -- performs preorder logic for exact characters
-setFinal :: NodeType -> Bool -> (CharacterData, CharacterData, CharInfo) -> CharacterData
-setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
+setFinal :: NodeType -> Bool -> CharInfo -> (CharacterData, CharacterData) -> CharacterData
+setFinal childType isLeft charInfo (childChar, parentChar) =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
    in
-
    -- Three cases, Root, leaf, HTU
    if childType == RootNode then 
 
@@ -189,7 +187,7 @@ setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
          childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
-         let finalGapped@(finalGField, _, _) = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              --  should be like slim and wide--but useing second becuae of error on post order for huge characters
              --gapChar = M.getGapBV (fromEnum symbolCount)
              --finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
@@ -201,12 +199,12 @@ setFinal childType isLeft inData@(childChar, parentChar, charInfo) =
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
-
+   
 
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int)) -> V.Vector (Int, Int) ->  V.Vector (Int, Int) 
-additivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
+additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else 
       let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
@@ -216,7 +214,7 @@ additivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
 -- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
-nonAdditivePreorder vertexData@(nodePrelim, leftChild, rightChild) parentFinal =
+nonAdditivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else 
       let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
@@ -275,7 +273,7 @@ makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFina
 -- to either state in the second
  -- assumes a <= b, x<= y
 stateFirstClosestToSecond :: (Int, Int) -> (Int, Int) -> Int
-stateFirstClosestToSecond firstInt@(a,b) secondInt@(x,y) =
+stateFirstClosestToSecond (a,b) (x,y) =
    let distASecond = if x > b then x - a
                      else if y < a then a - y
                      else error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
@@ -290,7 +288,7 @@ stateFirstClosestToSecond firstInt@(a,b) secondInt@(x,y) =
 -- and the closest state in the second interval
  -- assumes a <= b, x<= y
 lciClosest :: (Int, Int) -> (Int, Int) -> (Int, Int)
-lciClosest xFactor@(a,b) nodePrelim@(x,y) = 
+lciClosest (a,b) (x,y) = 
    if x > b then (a,x)
    else if y < a then (y,b)
    else error ("I don't think this should happen in lciClosest" ++ show (a,b,x,y))
@@ -313,16 +311,18 @@ intervalIntersection (a,b) (x,y) =
 intervalUnion :: (Int, Int) -> (Int, Int) -> (Int, Int)
 intervalUnion (a,b) (x,y) = (min a x, max b y)
 
+{-
 -- | largestClosedInterval is the maximum interval created from two intervals
 largestClosedInterval :: (Int, Int) -> (Int, Int) -> (Int, Int)
 largestClosedInterval = intervalUnion
+-}
 
 -- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
 makeNonAdditiveCharacterFinal :: (BV.BitVector, BV.BitVector, BV.BitVector, BV.BitVector) -> BV.BitVector
-makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = 
+makeNonAdditiveCharacterFinal (nodePrelim, leftChild, rightChild, parentFinal) = 
    -- From Wheeler (2012) after Fitch (1971)
-   trace (show inData) (
+   -- trace (show inData) (
    if (nodePrelim .&. parentFinal) == parentFinal then 
       --trace ("R1 " ++ show parentFinal) 
       parentFinal
@@ -332,7 +332,7 @@ makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentF
    else 
       -- trace ("R3 " ++ show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal))) 
       nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
-   )
+   -- )
 
 -- | makeMatrixCharacterFinal vertex preliminaryavnd parent final state
 -- and constructs final state assignment
@@ -340,7 +340,7 @@ makeNonAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentF
 -- path
 -- Bool for left right node
 makeMatrixCharacterFinal :: Bool -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-makeMatrixCharacterFinal isLeft inData@(nodePrelim, parentFinal) = 
+makeMatrixCharacterFinal isLeft (nodePrelim, parentFinal) = 
    let numStates = length nodePrelim
        stateIndexList = V.fromList [0..(numStates - 1)]
        (stateCostList, stateLeftChildList, stateRightChildList) = V.unzip3 parentFinal
@@ -358,7 +358,7 @@ makeMatrixCharacterFinal isLeft inData@(nodePrelim, parentFinal) =
 -- of a matrix triple annd a fourth field of the state index
 -- if the state is in the list of `best' indices it is kept and not if it isn't
 setCostsAndStates :: [Int] -> (StateCost, [ChildStateIndex], [ChildStateIndex], Int) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
-setCostsAndStates bestPrelimStates inQuad@(cost, leftChildState, rightChildStates, stateIndex) = 
+setCostsAndStates bestPrelimStates (_, leftChildState, rightChildStates, stateIndex) = 
    if stateIndex `elem` bestPrelimStates then (stateIndex, leftChildState, rightChildStates)
    else (maxBound :: StateCost, leftChildState, rightChildStates)
 

@@ -62,6 +62,7 @@ import qualified GraphOptimization.Medians as M
 import qualified SymMatrix                   as S
 import qualified Data.Vector.Generic         as GV
 import Debug.Trace
+import qualified Debug.Debug as Debug
 
 -- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
 -- does not yet minimize over characters to get multi-min
@@ -105,14 +106,18 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
         --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
         --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
+
+        -- for debugging
+        --trace ("Top " ++ (show $ fmap (fmap charType) $ six6 outgroupRootedPhyloGraph))
+        preOrderTreeTraversal outgroupRootedPhyloGraph
+        {- 
+        -- special cases that don't require all the work
         if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
             
-        -- for testing 
-        else if nonExactChars == 1 then preOrderTreeTraversal outgroupRootedPhyloGraph
-        -- else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
+        else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
         
-        else preOrderTreeTraversal outgroupRootedPhyloGraph
-       -- else preOrderTreeTraversal graphWithBestAssignments'
+        else preOrderTreeTraversal graphWithBestAssignments'
+        -}
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
@@ -363,31 +368,37 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
 preOrderTreeTraversal :: PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
+    --trace ("PreO:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
-        let preOrderBlockVect = fmap (doBlockTraversal inCharInfoVV) blockCharacterDecoratedVV
-            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated inCost
+        let preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
+            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
         in
+        {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
             blockPre = GO.showDecGraphs preOrderBlockVect
         in
-        -- trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+        trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+        -}
         (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
         --)
         
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
-doBlockTraversal :: V.Vector (V.Vector CharInfo) -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
-doBlockTraversal inCharInfoVV traversalDecoratedVect =
-    fmap (doCharacterTraversal inCharInfoVV) traversalDecoratedVect
+doBlockTraversal :: (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
+doBlockTraversal (inCharInfoV, traversalDecoratedVect) =
+    --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
+    fmap doCharacterTraversal $ Debug.debugVectorZip inCharInfoV traversalDecoratedVect
 
 -- | doCharacterTraversal perfoms preorder traversal on single character tree
+-- with single charInfo
 -- this so each character can be independently "rooted" for optimal traversals.
-doCharacterTraversal ::  V.Vector (V.Vector CharInfo) -> DecoratedGraph -> DecoratedGraph 
-doCharacterTraversal inCharInfoVV inGraph =
+doCharacterTraversal ::  (CharInfo, DecoratedGraph) -> DecoratedGraph 
+doCharacterTraversal (inCharInfo, inGraph) =
     -- find root--index should = number of leaves 
+    --trace ("charT:" ++ (show $ charType inCharInfo)) (
     let rootVertexList = LG.getRoots inGraph
         (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
         rootIndex = fst $ head rootVertexList
@@ -399,7 +410,7 @@ doCharacterTraversal inCharInfoVV inGraph =
     else 
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         let rootLabel = snd $ head rootVertexList
-            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfoVV True
+            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True
             rootChildren =LG.labDescendants inGraph (head rootVertexList)
 
             -- this assumes two children
@@ -408,10 +419,11 @@ doCharacterTraversal inCharInfoVV inGraph =
                                  else [True, False]
             newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
             rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
-            upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfoVV
+            upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfo
         in
         -- hope this is the most efficient way since all nodes have been remade
         LG.mkGraph upDatedNodes inEdgeList
+        --)
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a liss of updated nodes
 -- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
@@ -419,9 +431,10 @@ doCharacterTraversal inCharInfoVV inGraph =
 makeFinalAndChildren :: DecoratedGraph 
                      -> [(LG.LNode VertexInfo, LG.LNode VertexInfo, Bool)] 
                      -> [LG.LNode VertexInfo] 
-                     -> V.Vector (V.Vector CharInfo) 
+                     -> CharInfo 
                      -> [LG.LNode VertexInfo]
-makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
+makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
+    --trace ("mFAC:" ++ (show $ charType inCharInfo)) (
     if null nodesToUpdate then updatedNodes
     else 
         let (firstNode, firstParent, isLeft) = head nodesToUpdate
@@ -434,11 +447,12 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
             firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
             firstChildrenIsLeft = if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
                                  else [True, False]
-            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfoVV isLeft
+            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfo isLeft
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
-        makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfoVV
+        makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
+        --)
 
 -- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 
 -- preorder character states from individual character trees.  Exact characters (Add, nonAdd, matrix) postorder
@@ -447,8 +461,9 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfoVV =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> VertexCost -> DecoratedGraph
-assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph graphCost =
+assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
+    --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else 
         -- trace ("In assign") (
@@ -477,8 +492,9 @@ assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph graphCost 
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
         LG.mkGraph newNodeList newEdgeList
-        -- )
+        --)
 
+{-
 -- | makeNewRootLabel takes list of labeled nodes (children of root) and sets te hroot data to the leaf data if one is a leaf
 -- otherwise the vertData of the first child.  This to avoid root branch length problems created by preorder pass over travesals.
 -- This will result in one edge being zero length--more properly reflecting the edge-as-root idea.
@@ -504,6 +520,7 @@ makeNewRootLabel rootChildren graphCost inRootInfo =
                        , vertexCost = 0.0
                        , subGraphCost = graphCost
                        }
+-}
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
 -- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.
@@ -512,28 +529,29 @@ updateNodeWithPreorder :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vect
 updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
     let nodeLabel = snd postOrderNode
         nodeVertData = vertData nodeLabel
-        blockIndexVect = V.fromList [0..((length $ inCharInfoVV) - 1)]
-        newNodeVertData = fmap (updateVertexBlock (fst postOrderNode))$ D.debugVectorZip4 preOrderBlockTreeVV nodeVertData inCharInfoVV blockIndexVect
+        newNodeVertData = fmap (updateVertexBlock (fst postOrderNode))$ D.debugVectorZip3 preOrderBlockTreeVV nodeVertData inCharInfoVV 
     in
     (fst postOrderNode, nodeLabel {vertData = newNodeVertData})
 
 -- | updateVertexBlock takes a block of vertex data and updates preorder states of charactes via fmap
-updateVertexBlock :: Int -> (V.Vector DecoratedGraph, V.Vector CharacterData, V.Vector CharInfo, Int) -> V.Vector CharacterData 
-updateVertexBlock nodeIndex (blockTraversalTreeV, nodeCharacterDataV, charInfoV, blockIndex) =
-    let characterIndexVect = V.fromList [0..((length $ charInfoV) - 1)]
-    in
-    fmap (updatePreorderCharacter nodeIndex blockIndex) $ D.debugVectorZip4 blockTraversalTreeV nodeCharacterDataV charInfoV characterIndexVect
+updateVertexBlock :: Int -> (V.Vector DecoratedGraph, V.Vector CharacterData, V.Vector CharInfo) -> V.Vector CharacterData 
+updateVertexBlock nodeIndex (blockTraversalTreeV, nodeCharacterDataV, charInfoV) =
+    fmap (updatePreorderCharacter nodeIndex) $ D.debugVectorZip3 blockTraversalTreeV nodeCharacterDataV charInfoV
 
--- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traverssal 
-updatePreorderCharacter :: Int -> Int -> (DecoratedGraph, CharacterData, CharInfo, Int) -> CharacterData 
-updatePreorderCharacter nodeIndex blockIndex (preOrderTree, postOrderCharacter, charInfo, characterIndex) =
+-- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traversal
+-- since there is single character optimized for each character decorated graph-- it is always teh 0th 0th character
+-- exact are vectors so take care of multipl there.
+updatePreorderCharacter :: Int -> (DecoratedGraph, CharacterData, CharInfo) -> CharacterData 
+updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
+    --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
     let maybePreOrderNodeLabel = LG.lab preOrderTree nodeIndex
         preOrderVertData = vertData $ fromJust maybePreOrderNodeLabel
-        preOrderCharacterData = (preOrderVertData V.! blockIndex) V.! characterIndex
+        preOrderCharacterData = V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
     in
     if maybePreOrderNodeLabel == Nothing then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
     else
         updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo)
+    --)
 
 -- | updateCharacter takes a postorder character and updates the preorder (final) fields with preorder data and character type
 updateCharacter :: CharacterData -> CharacterData -> CharType -> CharacterData
@@ -677,10 +695,10 @@ maxIntervalDiff ((a,b), (x,y)) =
 -- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost 
 -- between the two
 minMaxMatrixDiff :: S.Matrix Int -> (V.Vector Int, V.Vector Int) -> (Int, Int)
-minMaxMatrixDiff costMatrix (uStatesV, vStatesV) =
+minMaxMatrixDiff localCostMatrix (uStatesV, vStatesV) =
     let statePairs = (V.toList uStatesV, V.toList vStatesV)
         cartesianPairs = cartProdPair statePairs
-        costList = fmap (costMatrix S.!) cartesianPairs
+        costList = fmap (localCostMatrix S.!) cartesianPairs
     in 
     --trace (show cartesianPairs  ++ " " ++ show costList) 
     (minimum costList, maximum costList)
