@@ -220,18 +220,64 @@
 			
 		\subsubsection{Description}
 		Causes various file-based information to input.  \texttt{read} commands must contain an input file.
-		Options prepended to the filename with a colon (``:'') modify the processing of the input file.
+		Options prepended to the filename with a colon (``:'') modify the processing of the input file. If no options are specified, 
+		the program will attempt to recognize the file type and parse appropriately.
 		\subsubsection{Arguments}
+			\noindent \texttt{dot:} Specifies that the file contains a graph in `dot' format for use with graph rendering software such as GraphViz (\url{https://en.wikipedia.org/wiki/Graphviz}).
+			
+			\smallskip		
 			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
 			(``-'') in the sequences and alignment correspondences are not re-examined. Without this option,
 			gap characters are filtered out of the sequences after input.
 		
+			\smallskip		
+			\noindent \texttt{enewick:} File contains Enhanced Newick format graph of \cite{Cardonaetal2008}.
+			
+			\smallskip		
+			\noindent \texttt{exclude:}  File contains the names of terminal taxa to be excluded from an analysis.  Taxa not include in the list, in input files, will be included in analysis. 
+			
 			\smallskip		
 			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
 		
 			\smallskip		
 			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
 			
+			\smallskip		
+			\noindent \texttt{fenewick:}  File contains Forest Enhanced Newick format graph of \cite{Wheeler2021a} in \url{https://www.github.com/wardwheeler/euncon}.
+			
+			\smallskip		
+			\noindent \texttt{include:}  File contains the names of terminal taxa to be included in analysis.  It is possible to specify terminals that have no data.  This may be done to diagnose a large tree on partial data.  If there are no data for a leaf taxon, a warning will be printed to stderr.  Taxa not include in the list will be excluded from analysis. 
+			
+			\smallskip		
+			\noindent \texttt{newick:} File contains  Newick format graph as specified by \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}.
+			
+			\smallskip		
+			\noindent \texttt{rename:} File contains a series of lines, each of which contains at least two strings.  The second (and all following) strings (input taxon names),
+			will be replaced by the first string (taxon name) on the line. An example file renaming ``b'' and ``c''  to ``a'' and ``Ozzy'' and ``Harriet'' to ``OH''.
+				\begin{quote}
+				\texttt{"a" "b" "c"}\\
+				\texttt{"OH" "Ozzy" "Harriet"}
+			\end{quote}
+		
+			 The \texttt{rename} function can also be specified as a command:  \texttt{rename("a","b","c")} where ``b'' and ``c'' will be rename to ``a''. 
+			 
+			\smallskip		
+			\noindent \texttt{tcm:} File containing transformation cost matrix to specify varying costs among alphabet elements in a sequence.  The first line of the file 
+			contains the alphabet elements separated by space (the dash character representing an insertion/deletion or indel character is not specified but added to the alphabet automatically).
+			A square matrix with $n + 1$ ($n$ is the size of alphabet) follows with a row on each line.  An extra column at the and of each row and an additional row are 
+			added to specify indel costs to and from alphabet elements.  At present, this matrix must be symmetrical, but not necessarily metric.  Non-metric tcm's can
+			yield unexpected results. Transformation costs must be integers.  If real values are desired, a character can be weighted with a floating point value factor. For a sequence with three elements A, B, and C,  and an indel cost of 4 for all insertion deletion transformations, a example tcm would  be:
+			\begin{quote}
+			A B C\\
+			0 1 2 4\\
+			1 0 2 4\\
+			2 2 0 4\\
+		    4 4 4 0\\
+	   		 \end{quote}
+   		 
+   		 	\smallskip		
+   		 	\noindent \texttt{terminals:}  File contains the names of terminal taxa to be included in analysis.  It is possible to specify terminals that have no data.  This may be done to diagnose a large tree on partial data.  If there are no data for a leaf taxon, a warning will be printed to stderr.  Taxa not include in the list will be excluded from analysis. 
+	   
 			\smallskip		
 			\noindent \texttt{tnt:} Ensures that file contents are parsed in TNT \citep{Goloboffetal2008} format.
 			Not all TNT data commands are supported.  Files must begin with \texttt{xread}, followed by an optional comment in single quotes ('comment'), the number of characters and taxa.  Data follow starting on a new
@@ -259,16 +305,37 @@
 		    treatment of dashes (\texttt{-}).}  Single character dashes are treated as a state (as in sequence or other 
 		    ``gap'') whereas in TNT, by default they are missing data (`?'-- unless DNA input is specified).  Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character state specification.
 		    If the user wishes that dashes be treated as missing data (`?'), the file must be edited to reflect this
-		    by replacing tghe dashes that are to be treated as missing data with question marks (`?')
+		    by replacing the dashes that are to be treated as missing data with question marks (`?').
+		    
+		    Example file:
+		    	\begin{quote}
+		    	\texttt{xread\\
+		    	'An example TNT file' 5 5\\
+		    	A 000\\
+		    	B a14\\
+		    	C b22\\
+		    	D ?33\\
+		    	E d04\\}
+		    	
+		    	\texttt{A Blue-ish -\\
+		    	B Green-ish OneFish\\
+		    	C Rather-Red TwoFish\\
+		    	D Almost-Cyan RedFish\\
+		    	E Orange-definitely BlueFish\\
+		    	;\\
+		    	cc .;\\
+		    	cc + 2;\\
+		    	proc/;\\}
+		    \end{quote}
 			
-			
-			
-					
 		\subsubsection{Defaults}
 			\texttt{read("filename")} reads data from filename and attempts to recognize the file type
 			and process it accordingly.  The assumed file type is printed to stderr for verification.
 		\subsubsection{Examples}
-
+				\begin{itemize}
+					\item{\texttt{read(prealigned:"myDnaSequenceFile")}\\ Reads sequence data from ``myDnaSequenceFile'' as prealigned data.}
+					\item{\texttt{read(rename:"myRenameFile")}\\ Reads a list of taxa and names to be assigned.}  
+			\end{itemize}
 %	\subsection{Refine}
 %		\subsubsection{Syntax}
 %		\subsubsection{Description}
@@ -278,23 +345,48 @@
 	
 	\subsection{Rename}
 		\subsubsection{Syntax}
+			\texttt{rename("newName", "oldName1", "oldputName",...)}
 		\subsubsection{Description}
-			Command to rename taxa.
+			Command to rename taxa.  The first string (name) is assigned to taxa with the strings (names) that follow. This can be useful when combining data from
+			different sources, such as genbank, or in revising names to reflect taxonomic changes.
 		\subsubsection{Arguments}
+			Taxon names to assign and be assigned.
 		\subsubsection{Defaults}
+			None.
 		\subsubsection{Examples}
-	
+			 \begin{itemize}
+			 	\item{\texttt{rename("a","b","c")}\\ Renames ``b'' and ``c'' to ``a''. }
+			\end{itemize}
+		
 	\subsection{Report}
 		\subsubsection{Syntax}
 				\texttt{report("filename", arg0, arg1,...)}
 		\subsubsection{Description}
-			Outputs various information to file or stderr.
+			Outputs various information to file or stderr.  When a filename is specified, output is sent to that file.  By default, new information printed to a file
+			if appended to the file.  The option \texttt{overwrite} overrides the default and rewrites the file.  Many of the report options output in csv output that
+			can be easily imported by spreadsheet programs.
 		\subsubsection{Arguments}
+				\noindent \texttt{diagnosis}  Outputs graph diagnosis information such as vertex and states and edge statistics in csv format. 
+				
+				\smallskip
+				\noindent \texttt{data} Prints information about of the input data in csv format.
+				
+				\smallskip
+				\noindent \texttt{graph} Outputs a graph in format specified by the other arguments in the command.  These are \texttt{dot} for GraphViz graph format,
+				\texttt{newick} for Newick, ENewick, or ForestEnewick depending on the graph type, \texttt{ascii} for an ascii rendering.  
+				
+				\smallskip
+				\noindent \texttt{pairdist} Prints a taxon pairwise distance matrix in csv format.   
 				
 		\subsubsection{Defaults}
-				\texttt{report()} prints input data and output graph diagnosis  to stderr.
+				\texttt{report()} prints input data and output graph diagnosis  to stderr.  Default graph representation is \texttt{dot}.
 		\subsubsection{Examples}
-	
+				\begin{itemize}
+					\item{\texttt{report("outFile", newick, overwrite)}\\ Outputs graphs in newick format to ``outFile'', overwriting any existing information.}
+					\item{\texttt{report("outFile", crossrefs)}\\ Outputs presence/absence for taxa in input files.  A `+' is output  if taxa are present in an input data file, 
+					and `-' if. File is in csv format.  This can be useful in checking for missing sequence or other data and expected renaming.}
+				\end{itemize}
+			
 	\subsection{Run}
 		\subsubsection{Syntax}
 				\texttt{run("filename")}
@@ -307,8 +399,8 @@
 			There are no default \texttt{run} arguments.  
 		\subsubsection{Examples}
 				\begin{itemize}
-				\item{\texttt{run("readFiles.pg")} Executes "readFiles.pg", which may contain multiple input files to be \texttt{read}}
-				\item{\texttt{run("searchCommands.pg"} Executes "searchCommands.pg", which may contain commands defineing a common search strategy (e.g. \texttt{build}).}
+				\item{\texttt{run("readFiles.pg")}\\ Executes "readFiles.pg", which may contain multiple input files to be \texttt{read}}
+				\item{\texttt{run("searchCommands.pg"}\\ Executes "searchCommands.pg", which may contain commands defining a common search strategy (e.g. \texttt{build}).}
 			\end{itemize}
 	
 	\subsection{Select}
@@ -333,22 +425,32 @@
 			\texttt{select()} Keeps all unique graphs of best optimality value.
 		\subsubsection{Examples}
 				\begin{itemize}
-					\item{\texttt{select(random:10)} Keeps up to 10 graphs, selected at random.}
-					\item{\texttt{select(best:10)} Keeps up to 10 graphs of best optimality value.}
-			\end{itemize}
+					\item{\texttt{select(random:10)}\\ Keeps up to 10 graphs, selected at random.}
+					\item{\texttt{select(best:10)}\\ Keeps up to 10 graphs of best optimality value.}
+				\end{itemize}
+			
 	\subsection{Set}
 		\subsubsection{Syntax}
 				\texttt{set(arg0:option, arg1:option, ...)}
 		\subsubsection{Description}
 		The command specifies a number of global values and options include outgroup, graph type and optimality criterion.
 		\subsubsection{Arguments}
-		\subsubsection{Defaults}
+			\noindent \texttt{outgroup:"Blah"} Makes the outgroup taxon ``Blah''. 
+			
+			\smallskip
+			\noindent \texttt{optimality:method} Sets the optimiality criterion for graph search to be method.
+			
+			\smallskip
+			\noindent \texttt{graphtype:tree|hardwired|softwired} Sets the phylogenetic graph type to tree, hardwired network, or softwired network.  Forest are allowed 
+			by the network options.
+			
+		\subsubsection{Defaults} 
 		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
 		renaming and taxon inclusion/exclusion. For this reason, it is best to specify an outgroup explicitly.
 		The default optimality criterion is \texttt{parsimony} and the default graph type is \texttt{tree}.
 		\subsubsection{Examples}
 			\begin{itemize}
-					\item{\texttt{set(optimality:parsimony)}}
+					\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}
 			\end{itemize}
 		
 %	\subsection{Support}
