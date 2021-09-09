@@ -157,6 +157,7 @@
 		
 		\bigskip
 		\texttt{command(argument, option:argument, option:argument...)}
+		\subsection{Command order and processing}
 	
 	\subsection{Build}
 		\subsubsection{Syntax}
@@ -215,10 +216,57 @@
 			\end{itemize}
 	\subsection{Read}
 		\subsubsection{Syntax}
+				\texttt{read(option:"filename")}
+			
 		\subsubsection{Description}
-		Causes various information to input to the program.
+		Causes various file-based information to input.  \texttt{read} commands must contain an input file.
+		Options prepended to the filename with a colon (``:'') modify the processing of the input file.
 		\subsubsection{Arguments}
+			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
+			(``-'') in the sequences and alignment correspondences are not re-examined. Without this option,
+			gap characters are filtered out of the sequences after input.
+		
+			\smallskip		
+			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
+		
+			\smallskip		
+			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
+			
+			\smallskip		
+			\noindent \texttt{tnt:} Ensures that file contents are parsed in TNT \citep{Goloboffetal2008} format.
+			Not all TNT data commands are supported.  Files must begin with \texttt{xread}, followed by an optional comment in single quotes ('comment'), the number of characters and taxa.  Data follow starting on a new
+			line.  Taxon names are followed state data.  Data may be in multiple blocks (interleaved) format.  These
+			blocks may consist of a series of single character states  without spaces between them, or multiple (or single) character states (e.g. \texttt{Blue}) with space between the individual codings. Blocks must be of all
+			one type (ie. single character codings without spaces, or multi-character separated by spaces).
+			The data block must be followed by a single semicolon (``;'') on its own line.
+			
+			Character settings (i.e. \texttt{cc} commands) follow the data block (and semicolon)
+		    beginning on a new line.  Activity (\texttt{[,])}, addiitivity/ordered (\texttt{+}), non-additivity/unordered
+		    (\texttt{-}), matrix costs (\texttt{(}) can be specified with scopes (e.g. \texttt{cc + 10 12;}, \texttt{cc (.;
+		    costs 0 = 0/1 1 0/2 2 0/3 3 0/4 4 1/2 1 1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (\texttt{cc -.;}). Each character setting statement must be terminated by a semicolon (\texttt{;}).  There may
+	        be multiple character setting statements in a single line. 
+		    
+		    Character settings must be followed by \texttt{proc/;} on its own line. \texttt{PhyG} will not process
+		    any file contents that follow  \texttt{proc/;}.
+		    
+		    Additive/ordered character states must be numbers (integer or floating point).  Ranges for continuous
+		    characters are specified with a dash wihtin square brackets (e.g. \texttt{[1-2.1]})
+		    
+		    State polymorphism are specified in square brackets without spaces for
+		    single character states, and will spaces for multi-character
+		    
+		    \textbf{NB--An important difference between \texttt{TNT} and \texttt{PhyG} is in the 
+		    treatment of dashes (\texttt{-}).}  Single character dashes are treated as a state (as in sequence or other 
+		    ``gap'') whereas in TNT, by default they are missing data (`?'-- unless DNA input is specified).  Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character state specification.
+		    If the user wishes that dashes be treated as missing data (`?'), the file must be edited to reflect this
+		    by replacing tghe dashes that are to be treated as missing data with question marks (`?')
+			
+			
+			
+					
 		\subsubsection{Defaults}
+			\texttt{read("filename")} reads data from filename and attempts to recognize the file type
+			and process it accordingly.  The assumed file type is printed to stderr for verification.
 		\subsubsection{Examples}
 
 %	\subsection{Refine}
@@ -274,7 +322,7 @@
 			\noindent \texttt{all} Keeps all graphs.
 		
 			\smallskip		
-			\noindent	\noindent \texttt{best} Keeps graphs of best optimality value.
+			\noindent \texttt{best} Keeps graphs of best optimality value.
 			
 			\smallskip		
 			\noindent \texttt{random} Keeps graphs chosen at random.
