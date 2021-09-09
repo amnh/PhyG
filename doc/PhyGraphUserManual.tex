@@ -238,19 +238,30 @@
 	
 	\subsection{Report}
 		\subsubsection{Syntax}
+				\texttt{report("filename", arg0, arg1,...)}
 		\subsubsection{Description}
-			Outputs various information.
+			Outputs various information to file or stderr.
 		\subsubsection{Arguments}
+				
 		\subsubsection{Defaults}
+				\texttt{report()} prints input data and output graph diagnosis  to stderr.
 		\subsubsection{Examples}
 	
 	\subsection{Run}
 		\subsubsection{Syntax}
+				\texttt{run("filename")}
 		\subsubsection{Description}
-			Used to execute a file containing commands.
+			Used to execute a file containing commands.  This can be useful to specify common actions such
+			as file inputs and graph construction. 
 		\subsubsection{Arguments}
+			The only argument is the filename containing commands to be executed.
 		\subsubsection{Defaults}
+			There are no default \texttt{run} arguments.  
 		\subsubsection{Examples}
+				\begin{itemize}
+				\item{\texttt{run("readFiles.pg")} Executes "readFiles.pg", which may contain multiple input files to be \texttt{read}}
+				\item{\texttt{run("searchCommands.pg"} Executes "searchCommands.pg", which may contain commands defineing a common search strategy (e.g. \texttt{build}).}
+			\end{itemize}
 	
 	\subsection{Select}
 		\subsubsection{Syntax}
@@ -291,6 +302,7 @@
 			\begin{itemize}
 					\item{\texttt{set(optimality:parsimony)}}
 			\end{itemize}
+		
 %	\subsection{Support}
 %		\subsubsection{Syntax}
 %		\subsubsection{Description}
