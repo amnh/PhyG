@@ -276,7 +276,7 @@ leftRightChildLabelBV inPair@(firstNode, secondNode) =
     if firstLabel > secondLabel then (secondNode, firstNode)
     else inPair
 
--- | getBridgeList takes a Decorated and returns the list of edges that, if removed, will
+-- | getBridgeList takes a Decorated graph and returns the list of edges that, if removed, will
 -- split the graph, that is increase the number of unconnected components
 -- this is useful in graph rearrangement
 -- root connected edges are not returned-- but in a general graph context can be bridges
