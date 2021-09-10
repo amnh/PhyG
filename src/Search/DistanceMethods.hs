@@ -141,6 +141,7 @@ makeDMatrix inObsMatrix vertInList  =
       LS.fromList $ seqParMap myStrategy (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)]
 
 
+{-
 -- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
 -- assumes matrix is square and symmetrical
 -- makes values Infinity if already added
@@ -161,7 +162,7 @@ makeDMatrix' inObsMatrix vertInList row column updateList
         bigDij = dij - ((ri + rj) / divisor)
     in
     makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, bigDij) : updateList)
-
+-}
 
 -- | pickNearestUpdateMatrix takes d and D matrices, pickes nearest based on D
 -- then updates d and D to reflect new node and distances created

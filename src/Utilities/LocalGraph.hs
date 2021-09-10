@@ -55,6 +55,7 @@ import GeneralUtilities
 import Data.Maybe
 
 
+
 -- | Gr local graph definition using FGL
 type Gr a b = P.Gr a b
 type Node = G.Node
@@ -367,3 +368,4 @@ nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
     else nodesAndEdgesAfter inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ (tail inNodeList)) 
+

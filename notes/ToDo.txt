@@ -331,4 +331,8 @@ to render--would have repeated subtrees after network vertex
 127) root "first" taxon--first after reordering
 	so based on lexical sorting.  IS this ok?
 
-129) 
+129) Prealigned to nonadd/matrix
+
+130) Return Bridge set 
+	GraphAlgorithmBook.pdf
+	https://www.geeksforgeeks.org/bridge-in-a-graph/

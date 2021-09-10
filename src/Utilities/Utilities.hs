@@ -45,7 +45,7 @@ import qualified Data.List.NonEmpty as NE
 import Bio.Character.Encodable.Dynamic  -- this has DynamicCharacter reference
 import Data.Alphabet
 import Data.Alphabet.IUPAC
-import Data.Alphabet.Special
+-- import Data.Alphabet.Special
 import Data.Foldable
 import Data.Bits
 import qualified Data.Bimap as BM
@@ -54,9 +54,6 @@ import qualified Data.Text.Short             as ST
 import qualified GeneralUtilities as GU
 import Debug.Trace
 import qualified Utilities.LocalGraph as LG
-
-
-
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
@@ -97,7 +94,7 @@ convertVectorToDynamicCharacter inVector =
             | otherwise = f (n+1) xs
 
 
-bitVectToCharState :: (Show b, Bits b) => [String] -> b -> String
+bitVectToCharState :: (Bits b) => [String] -> b -> String
 bitVectToCharState localAlphabet bitValue =
     let bitList = fmap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. (length localAlphabet) - 1]
         bitBoolPairList = zip bitList localAlphabet
@@ -109,16 +106,16 @@ bitVectToCharState localAlphabet bitValue =
  
 
 -- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState' :: (Show b, Bits b) => [String] -> b -> String
+bitVectToCharState' :: (Bits b) => [String] -> b -> String
 bitVectToCharState' localAlphabet bitValue =
-  if isAlphabetDna       alphabet then fold $ iupacToDna       BM.!> observedSymbols
-  else if isAlphabetAminoAcid alphabet then  fold $ iupacToAminoAcid BM.!> observedSymbols
+  if isAlphabetDna       hereAlphabet then fold $ iupacToDna       BM.!> observedSymbols
+  else if isAlphabetAminoAcid hereAlphabet then  fold $ iupacToAminoAcid BM.!> observedSymbols
   else intercalate "," $ toList observedSymbols
   
   where
-    alphabet = fromSymbols localAlphabet
-    symbolCount     = length localAlphabet
-    observedSymbols = NE.fromList $ foldMap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. symbolCount - 1]
+    hereAlphabet = fromSymbols localAlphabet
+    symbolCountH     = length localAlphabet
+    observedSymbols = NE.fromList $ foldMap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. symbolCountH - 1]
 
 {-}
     --if DNA use IUPAC ambiguity codes
@@ -278,4 +275,38 @@ leftRightChildLabelBV inPair@(firstNode, secondNode) =
     in
     if firstLabel > secondLabel then (secondNode, firstNode)
     else inPair
+
+-- | getBridgeList takes a Decorated and returns the list of edges that, if removed, will
+-- split the graph, that is increase the number of unconnected components
+-- this is useful in graph rearrangement
+-- root connected edges are not returned-- but in a general graph context can be bridges
+getBridgeList :: DecoratedGraph -> [LG.LEdge EdgeInfo]
+getBridgeList inGraph =
+    if LG.isEmpty inGraph then []
+    else 
+        let vertexList = LG.labNodes inGraph
+            labEdgeList = LG.labEdges inGraph
+            vertBVList = fmap bvLabel $ fmap snd networkVertexList
+            vertPairVect = V.fromList $ zip (fmap fst vertexList) vertBVList
+            (_, _, _, networkVertexList) = LG.splitVertexList inGraph
+            netVertBVList = fmap bvLabel $ fmap snd networkVertexList
+            -- netVertPairList = zip (fmap fst networkVertexList) netVertBVList
+            bridgeList = getBridgeList' vertPairVect netVertBVList labEdgeList
+            
+        in
+        bridgeList
+
+-- getBridgeList takes a vector of (vertex, bitvector label) pairs, a list of network 
+-- vertex bitvector labels, and a list of labelled edge and returns a list of bridge edges 
+-- checks whether for each edge (u,v), the bitvector labels of all the network nodes are 
+-- `compatible' with bit vector of vertex v.  a, and b are compatible if a .&. b = a, b, or empty
+getBridgeList' :: V.Vector (Int, BV.BitVector) -> [BV.BitVector] -> [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
+getBridgeList' vertexPairVect netVertBVList inEdgeList = 
+    if null inEdgeList then []
+    else 
+        let firstEdge@(_, vVertex, _) = head inEdgeList
+            isBridge = GU.isBVCompatible (snd $ vertexPairVect V.! vVertex) netVertBVList
+        in
+        if isBridge then firstEdge : getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
+        else getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
 

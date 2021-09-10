@@ -39,7 +39,6 @@ module Utilities.DistanceUtilities where
 
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as P
-import           Data.List
 import           Data.Maybe
 import qualified Data.Number.Transfinite           as NT
 import qualified Data.Set                          as Set
@@ -55,6 +54,8 @@ import qualified System.Random.Shuffle             as RandS
 import           Types.DistanceTypes
 --import qualified LocalSequence as LS
 import qualified Data.Vector as LS
+import qualified Data.List as L
+
 
 
 -- | localRoundtakes a double multiplies by 10^precisoin, rounds to integer then divides
@@ -107,8 +108,8 @@ reIndexEdges :: [Int] -> Edge -> Edge
 reIndexEdges inVertexList (e,u,w) =
   if null inVertexList then error "Null inVertexList in reIndexEdges"
   else
-    let newE = elemIndex e inVertexList
-        newU = elemIndex u inVertexList
+    let newE = L.elemIndex e inVertexList
+        newU = L.elemIndex u inVertexList
     in
     --un safe not testing but list is created from edges first
     (fromJust newE, fromJust newU, w)
@@ -176,9 +177,9 @@ convertToDirectedGraph leafList outgroupIndex inTree =
   let (_, edgeVect) = inTree
       nOTUs = length leafList
       -- should be stright 0->n-1 but in case some vertex number if missing
-      vertexList = sort $ Set.toList $ getVertexSet edgeVect
+      vertexList = L.sort $ Set.toList $ getVertexSet edgeVect
       vertexNames = makeVertexNames vertexList nOTUs leafList True
-      labelledVertexList = Data.List.zip vertexList vertexNames
+      labelledVertexList = L.zip vertexList vertexNames
       edgeList = V.toList $ directEdges outgroupIndex nOTUs True edgeVect
   in
   G.mkGraph labelledVertexList edgeList
@@ -189,9 +190,9 @@ convertToDirectedGraphText leafList outgroupIndex inTree =
   let (_, edgeVect) = inTree
       nOTUs = length leafList
       -- should be stright 0->n-1 but in case some vertex number if missing
-      vertexList = sort $ Set.toList $ getVertexSet edgeVect
+      vertexList = L.sort $ Set.toList $ getVertexSet edgeVect
       vertexNames = makeVertexNames vertexList nOTUs leafList False
-      labelledVertexList = Data.List.zip vertexList (fmap T.pack vertexNames)
+      labelledVertexList = L.zip vertexList (fmap T.pack vertexNames)
       edgeList = V.toList $ directEdges outgroupIndex nOTUs True edgeVect
   in
   G.mkGraph labelledVertexList edgeList
@@ -267,7 +268,7 @@ orderEdge (a,b,w) =
 -- | orderTree puts Tree edges in order based on edges
 orderTree :: Tree -> Tree
 orderTree (leaves, edges) =
-  let edgeList = sort $ V.toList edges
+  let edgeList = L.sort $ V.toList edges
   in
   (leaves, V.fromList edgeList)
 
@@ -339,7 +340,7 @@ getEdgesNonRoot edgeIndex edgeVect nOTUs leafNames =
 
       else getEdgesNonRoot edgeIndex remainderEdges nOTUs leafNames ++ ":" ++ showDouble precision weight ++ ","
 
--- getBestTrees takes newick and sorts on comment at end with cost
+-- getBestTrees takes newick and L.sorts on comment at end with cost
 getBestTrees :: String -> Int -> [TreeWithData] -> Double -> [TreeWithData] -> [TreeWithData]
 getBestTrees keepMethod number inList curBestCost curBestTrees =
   if null inList then
@@ -388,12 +389,12 @@ keepTrees inList saveMethod keepMethod curBestCost
     else
       let number = read (drop 7 saveMethod) :: Int
       in
-      take number $ sortOn thd4 $ getUniqueTrees inList []
+      take number $ L.sortOn thd4 $ getUniqueTrees inList []
   | take 4 saveMethod == "best" =
     if length saveMethod == 4 then getUniqueTrees (getBestTrees keepMethod (maxBound :: Int) inList curBestCost []) []
     else if (saveMethod !! 4) == ':' then
       let number =  read (drop 5 saveMethod) :: Int
-          saveTrees = take number $ sortOn thd4 $ getUniqueTrees inList []
+          saveTrees = take number $ L.sortOn thd4 $ getUniqueTrees inList []
           (_, _, bestCost, _) = head saveTrees
       in
       getBestTrees keepMethod number saveTrees bestCost []
@@ -467,7 +468,7 @@ getMatrixMinPairTabu distMatrix tabuList =
   else
     let minValueList = seqParMap myStrategy (getMinRowDistMatrix distMatrix tabuList (-1, NT.infinity) 0) [0..(M.rows distMatrix - 1)]
     in
-    minimumBy minTriples minValueList
+    L.minimumBy minTriples minValueList
 
 -- | getMatrixMinPairTabu takes distMatrix initial integer pair and value
 -- traverses the matrix (skippiong rows and columns in tabuList and return minimum distance and index pair
