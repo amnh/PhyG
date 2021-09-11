@@ -38,7 +38,7 @@ module Utilities.Utilities  where
 
 import qualified Data.Vector as V
 import           Data.Maybe
-import           Data.List (intercalate)
+import qualified Data.List as L
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
@@ -100,7 +100,7 @@ bitVectToCharState localAlphabet bitValue =
         bitBoolPairList = zip bitList localAlphabet
         (_, stateList) = unzip $ filter ((/= []) .fst) bitBoolPairList
     in
-    intercalate "," stateList
+    L.intercalate "," stateList
 
 
  
@@ -110,7 +110,7 @@ bitVectToCharState' :: (Bits b) => [String] -> b -> String
 bitVectToCharState' localAlphabet bitValue =
   if isAlphabetDna       hereAlphabet then fold $ iupacToDna       BM.!> observedSymbols
   else if isAlphabetAminoAcid hereAlphabet then  fold $ iupacToAminoAcid BM.!> observedSymbols
-  else intercalate "," $ toList observedSymbols
+  else L.intercalate "," $ toList observedSymbols
   
   where
     hereAlphabet = fromSymbols localAlphabet
@@ -287,14 +287,15 @@ getBridgeList inGraph =
         let vertexList = LG.labNodes inGraph
             labEdgeList = LG.labEdges inGraph
             vertBVList = fmap bvLabel $ fmap snd networkVertexList
-            vertPairVect = V.fromList $ zip (fmap fst vertexList) vertBVList
+            vertPairVect = V.fromList $ L.sortOn fst $ zip (fmap fst vertexList) vertBVList
             (_, _, _, networkVertexList) = LG.splitVertexList inGraph
             netVertBVList = fmap bvLabel $ fmap snd networkVertexList
             -- netVertPairList = zip (fmap fst networkVertexList) netVertBVList
             bridgeList = getBridgeList' vertPairVect netVertBVList labEdgeList
             
         in
-        bridgeList
+        if null networkVertexList then labEdgeList
+        else bridgeList
 
 -- getBridgeList takes a vector of (vertex, bitvector label) pairs, a list of network 
 -- vertex bitvector labels, and a list of labelled edge and returns a list of bridge edges 

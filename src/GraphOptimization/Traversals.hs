@@ -109,6 +109,9 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
         -- for debugging
         --trace ("Top " ++ (show $ fmap (fmap charType) $ six6 outgroupRootedPhyloGraph))
+        
+
+        -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
         -- preOrderTreeTraversal outgroupRootedPhyloGraph
         
         -- special cases that don't require all the work
