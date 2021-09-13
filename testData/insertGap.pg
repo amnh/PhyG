@@ -1,0 +1,6 @@
+read("ALB.fasta")
+build(distance, nj,wpgma,dwag)
+-- build(distance, rdwag, replicates:250, best:10)
+-- report("new-401-distance.csv", pairdist, overwrite)
+report("test-401-pg.tre", overwrite, graphs, newick)
+-- report("new-401-data.csv")
