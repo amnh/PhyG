@@ -57,6 +57,7 @@ import Debug.Trace
 
 
 
+
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
 -- if root or leaf preliminary is assigned to final
@@ -109,7 +110,7 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         trace ("root " ++ show (slimPrelim childChar, slimPrelim childChar, slimGapped childChar)) 
+         --trace ("root " ++ show (slimPrelim childChar, slimPrelim childChar, slimGapped childChar)) 
          childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
@@ -121,7 +122,7 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    else if childType == LeafNode then 
-
+      -- since leaf no neeed to precess final alignment fields for sequence characters
       if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
       else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
@@ -133,20 +134,20 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let -- finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
+             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
-         trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
+         --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
          childChar {slimFinal = slimPrelim childChar, slimAlignment = finalAlignment}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
+             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
          childChar {wideFinal = widePrelim childChar, wideAlignment = finalAlignment}
          
       else if localCharType == HugeSeq then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
+             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
          childChar {hugeFinal = hugePrelim childChar, hugeAlignment = finalAlignment}
          
@@ -177,7 +178,7 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
          in 
-         trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
+         --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
          childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 

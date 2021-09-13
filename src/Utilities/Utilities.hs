@@ -54,6 +54,7 @@ import qualified Data.Text.Short             as ST
 import qualified GeneralUtilities as GU
 import Debug.Trace
 import qualified Utilities.LocalGraph as LG
+import qualified Data.Text.Lazy  as T
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
@@ -297,7 +298,7 @@ getBridgeList inGraph =
         if null networkVertexList then labEdgeList
         else bridgeList
 
--- getBridgeList takes a vector of (vertex, bitvector label) pairs, a list of network 
+-- | getBridgeList takes a vector of (vertex, bitvector label) pairs, a list of network 
 -- vertex bitvector labels, and a list of labelled edge and returns a list of bridge edges 
 -- checks whether for each edge (u,v), the bitvector labels of all the network nodes are 
 -- `compatible' with bit vector of vertex v.  a, and b are compatible if a .&. b = a, b, or empty
@@ -311,3 +312,16 @@ getBridgeList' vertexPairVect netVertBVList inEdgeList =
         if isBridge then firstEdge : getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
         else getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
 
+
+-- | prettyPrintVertexInfo returns a string with formated version of 
+-- vertex info
+prettyPrintVertexInfo :: VertexInfo -> String
+prettyPrintVertexInfo inVertData =
+    let zerothPart = "Vertex name " ++ (T.unpack $ vertName inVertData) ++ " Index " ++ (show $ index inVertData)
+        firstPart = "\n\tBitVector (as number) " ++ (show $ BV.toUnsignedNumber $ bvLabel inVertData)
+        secondPart = "\n\tParents " ++ (show $ parents inVertData) ++ " Children " ++ (show $ children inVertData)
+        thirdPart = "\n\tType " ++ (show $ nodeType inVertData) ++ " Local Cost " ++ (show $ vertexCost inVertData) ++ " SubGraph Cost " ++ (show $ subGraphCost inVertData)
+        fourthPart = "\n\tData Blocks: " ++ (show $ V.length $ vertData inVertData) ++ " Characters (by block) " ++ (show $ fmap V.length $ vertData inVertData)
+        fifthPart = "\n\t" ++ (show $ vertData inVertData)
+    in
+    zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
