@@ -192,15 +192,15 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
         (gapsChar2, ungappedChar2) = (\v@(y,x) -> trace ("CHAR 2: " <> show x <> "\ngaps: " <> show y) v) $ deleteGaps char2
         (swapped, shorterChar, longerChar) = (\v@(s,_,_) -> trace ("SWAPPED: " <> show s) v) $ measureCharacters ungappedChar1 ungappedChar2
 -}
-    let (swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters (coerceEnum symbolCount) lhs rhs
+    let gap = bit . fromEnum $ symbolCount - 1 :: CUInt
+        (swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters gap lhs rhs
         (alignmentCost, ungappedAlignment) =
           if      V.length shorterChar == 0
           then if V.length  longerChar == 0
                -- Niether character was Missing, but both are empty when gaps are removed
                then (0, (mempty,mempty,mempty))
                -- Niether character was Missing, but one of them is empty when gaps are removed
-               else let gap = bit $ fromEnum symbolCount :: CUInt
-                        vec = V.generate (V.length longerChar) $ \i ->
+               else let vec = V.generate (V.length longerChar) $ \i ->
                                   fst (lookupPairwise denseTCMs (longerChar V.! i) gap)
                     in  (0, (vec, V.replicate (V.length longerChar) 0, longerChar))
                -- Both have some non-gap elements, perform string alignment
