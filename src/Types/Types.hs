@@ -213,6 +213,42 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , globalCost         :: VertexCost
                                      } deriving stock (Show, Eq)
 
+-- | emptyCharcater useful for intialization and missing data
+emptyCharacter :: CharacterData
+emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
+                         , stateBVFinal       = mempty
+                         -- for Additive
+                         , rangePrelim        = (mempty, mempty, mempty)
+                         , rangeFinal         = mempty
+                         -- for multiple Sankoff/Matrix with sme tcm
+                         , matrixStatesPrelim = mempty
+                         , matrixStatesFinal  = mempty
+                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                         , slimPrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , slimGapped         = (mempty, mempty, mempty)
+                         , slimAlignment      = (mempty, mempty, mempty)
+                         , slimFinal          = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , widePrelim         = mempty
+                         -- gapped median of left, right, and preliminary used in preorder pass
+                         , wideGapped         = (mempty, mempty, mempty)
+                         , wideAlignment      = (mempty, mempty, mempty)
+                         , wideFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , hugePrelim         = mempty
+                         -- gapped mediasn of left, right, and preliminary used in preorder pass
+                         , hugeGapped         = (mempty, mempty, mempty)
+                         , hugeAlignment      = (mempty, mempty, mempty)
+                         , hugeFinal          = mempty
+                         -- vector of individual character costs (Can be used in reweighting-ratchet)
+                         , localCostVect      = mempty
+                         -- weight * V.sum localCostVect
+                         , localCost          = 0
+                         -- unclear if need vector version
+                         , globalCost         = 0
+                         }
+
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
 type TermData = (NameText, [ST.ShortText])

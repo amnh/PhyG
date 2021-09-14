@@ -207,46 +207,14 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
 -- non-exact charcaters and those with non-integer weights
 -- and character Information vector
 -- these only bupdate preliminary of their type--meant to happen before decoration processes
+-- emptyCharacter defined in Types
 makeNewCharacterData :: [([CharacterData], CharInfo)] 
                      -> [([CharacterData], CharInfo)] 
                      -> [([[CharacterData]], CharInfo)] 
                      -> [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
-    let emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
-                         , stateBVFinal       = mempty
-                         -- for Additive
-                         , rangePrelim        = (mempty, mempty, mempty)
-                         , rangeFinal         = mempty
-                         -- for multiple Sankoff/Matrix with sme tcm
-                         , matrixStatesPrelim = mempty
-                         , matrixStatesFinal  = mempty
-                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
-                         , slimPrelim         = mempty
-                         -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , slimGapped         = (mempty, mempty, mempty)
-                         , slimAlignment      = (mempty, mempty, mempty)
-                         , slimFinal          = mempty
-                         -- gapped median of left, right, and preliminary used in preorder pass
-                         , widePrelim         = mempty
-                         -- gapped median of left, right, and preliminary used in preorder pass
-                         , wideGapped         = (mempty, mempty, mempty)
-                         , wideAlignment      = (mempty, mempty, mempty)
-                         , wideFinal          = mempty
-                         -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , hugePrelim         = mempty
-                         -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , hugeGapped         = (mempty, mempty, mempty)
-                         , hugeAlignment      = (mempty, mempty, mempty)
-                         , hugeFinal          = mempty
-                         -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , localCostVect      = mempty
-                         -- weight * V.sum localCostVect
-                         , localCost          = 0
-                         -- unclear if need vector version
-                         , globalCost         = 0
-                         } 
-
+    let
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
         nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}

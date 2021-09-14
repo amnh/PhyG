@@ -171,6 +171,7 @@
 
 81) Check all command execution for correctness before execution.
 	except perhaps filenames
+		commands and options 
 	
 82) Need to add prealigned charcater/DO like
 	recode to matrix?  Approx matrix?
@@ -261,7 +262,7 @@ to render--would have repeated subtrees after network vertex
 
 100)  Randomize list of additions--ST monad and return pure?
 
-101) Dashes in tgnt files--option?
+101) Dashes in tnt files--option?
 	Document
 
 102 ) partitioned data in blocks fix for traversal multiple sequence
@@ -295,7 +296,7 @@ to render--would have repeated subtrees after network vertex
 
 113) IA  branche info for all collepsing branchlengths etc
 
-114)  Add block PhylogeenticGraph for rees as same as Decorated Graph
+114)  Add block PhylogenticGraph for rees as same as Decorated Graph
 
 115) Check dependence of tree root on num OTUs
 		forest obviously no
@@ -309,10 +310,6 @@ to render--would have repeated subtrees after network vertex
 
 119) in make median--for final as well--need to check that nought
 	for parents not child (check paper)
-
-120) Still issue with filtering gapps in median for huge sequnecs 
-	teh abtracted function removes nearly everyhhting so have null medians for alot of HTUs
-
 
 121) Verify unique tree output for same length
 
@@ -336,3 +333,5 @@ to render--would have repeated subtrees after network vertex
 130) Return Bridge set 
 	GraphAlgorithmBook.pdf
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
+
+131) removing gaos and noughts pre/post order still not seemingly correct

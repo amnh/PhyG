@@ -109,18 +109,19 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
         -- for debugging
         --trace ("Top " ++ (show $ fmap (fmap charType) $ six6 outgroupRootedPhyloGraph))
-        
+        -- graphWithBestAssignments'
 
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
-        preOrderTreeTraversal outgroupRootedPhyloGraph
-        {-
+        -- preOrderTreeTraversal outgroupRootedPhyloGraph
+        
         -- special cases that don't require all the work
         if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
             
         else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
         
         else preOrderTreeTraversal graphWithBestAssignments'
-        -}
+        
+        
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
@@ -425,7 +426,7 @@ doCharacterTraversal (inCharInfo, inGraph) =
             upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfo
         in
         -- hope this is the most efficient way since all nodes have been remade
-        trace (U.prettyPrintVertexInfo $ rootLabel {vertData = rootFinalVertData})
+        --trace (U.prettyPrintVertexInfo $ rootLabel {vertData = rootFinalVertData})
         LG.mkGraph upDatedNodes inEdgeList
         --)
 
@@ -455,7 +456,7 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
-        trace (U.prettyPrintVertexInfo $ firstLabel {vertData = firstFinalVertData})
+        --trace (U.prettyPrintVertexInfo $ firstLabel {vertData = firstFinalVertData})
         makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
         --)
 
@@ -551,7 +552,9 @@ updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
     --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
     let maybePreOrderNodeLabel = LG.lab preOrderTree nodeIndex
         preOrderVertData = vertData $ fromJust maybePreOrderNodeLabel
-        preOrderCharacterData = V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
+        preOrderCharacterData = if V.null preOrderVertData then emptyCharacter
+                                else if V.null $ V.head preOrderVertData then emptyCharacter
+                                else V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
     in
     if maybePreOrderNodeLabel == Nothing then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
     else
