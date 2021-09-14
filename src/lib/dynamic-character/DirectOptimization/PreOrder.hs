@@ -64,8 +64,8 @@ preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,y
               if    pAlignment `isAlign` i
                 || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
                 || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-              then gapAt i
-              else modifySTRef k' succ *> (k `setAt` i)
+              then modifySTRef k' succ *> (k `setAt` i)
+              else gapAt i
 
       (,,) <$> GV.basicUnsafeFreeze xs'
            <*> GV.basicUnsafeFreeze ys'
