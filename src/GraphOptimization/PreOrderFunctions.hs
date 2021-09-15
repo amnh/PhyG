@@ -54,8 +54,12 @@ import           Data.Bits                 ((.&.), (.|.))
 import           Data.Maybe
 import qualified Data.List as L
 import Debug.Trace
-
-
+import qualified Data.TCM.Dense as TCMD
+import qualified Data.MetricRepresentation as MR
+import qualified Data.Vector.Generic                                         as GV
+import Data.Bits
+import qualified Data.Vector.Storable         as SV
+import           Foreign.C.Types             (CUInt)
 
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
@@ -110,7 +114,8 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          --trace ("root " ++ show (slimPrelim childChar, slimPrelim childChar, slimGapped childChar)) 
-         childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
+         --childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
+         childChar {slimFinal = fst3 $ slimGapped childChar, slimAlignment = slimGapped childChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          childChar {wideFinal = widePrelim childChar, wideAlignment = wideGapped childChar}
@@ -131,22 +136,18 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         let -- finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
+         let finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
-         childChar {slimFinal = slimPrelim childChar, slimAlignment = finalAlignment}
+         childChar {slimFinal = fst3 finalAlignment, slimAlignment = finalAlignment}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
          childChar {wideFinal = widePrelim childChar, wideAlignment = finalAlignment}
          
       else if localCharType == HugeSeq then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             --finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalAlignment
          in
          childChar {hugeFinal = hugePrelim childChar, hugeAlignment = finalAlignment}
          
@@ -175,31 +176,79 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
          in 
          --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
-         childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
+         --childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
+         childChar {slimFinal = finalAssignmentIA, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             finalAssignmentIA = getFinal3WayWideHuge (wideTCM charInfo) (fromEnum symbolCount) (wideFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
          in
-         childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
+         childChar {wideFinal = finalAssignmentIA, wideAlignment = finalGapped}
+         -- childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              --  should be like slim and wide--but useing second becuae of error on post order for huge characters
              --gapChar = M.getGapBV (fromEnum symbolCount)
              --finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
-             finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
+             finalAssignmentIA = getFinal3WayWideHuge (hugeTCM charInfo) (fromEnum symbolCount) (hugeFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
 
          in
-         childChar {hugeFinal = finalNoGaps, hugeAlignment = finalGapped}
+         childChar {hugeFinal = finalAssignmentIA, hugeAlignment = finalGapped}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    
+
+-- | getFinal3Way takes parent final assignment (including indel characters) and descendent
+-- preliminary gapped assingment from postorder and creates a gapped final assignment based on 
+-- minimum cost median for the three inputs.  THis is done to preserve the ImpliedAlignment
+-- information to create a final assingment with out an additional DO call to keep the 
+-- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
+-- used as true final sequence assignments using M.createUngappedMedianSequence
+getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim lSlimTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
+   let gap = bit $ symbolCount - 1 
+       newFinal = SV.zipWith3 (local3WaySlim lSlimTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
+   in
+   newFinal
+
+-- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
+getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a -> v a
+getFinal3WayWideHuge lWideTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
+   let gap = bit $ symbolCount - 1 
+       newFinal = GV.zipWith3 (local3WayWideHuge lWideTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
+   in
+   newFinal
+
+-- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
+local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a-> a -> a -> a -> a
+local3WayWideHuge lWideTCM gap b c d =
+   let  b' = if popCount b == 0 then gap else b
+        c' = if popCount c == 0 then gap else c
+        d' = if popCount d == 0 then gap else d
+        (median, _) = MR.retreiveThreewayTCM lWideTCM b' c' d'
+   in
+   -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+   median
+
+-- | local3WaySlim takes triple of CUInt and retuns median
+local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt -> CUInt
+local3WaySlim lSlimTCM gap b c d =
+ let  b' = if popCount b == 0 then gap else b
+      c' = if popCount c == 0 then gap else c
+      d' = if popCount d == 0 then gap else d
+      (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
+ in
+ -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+ median
 
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
