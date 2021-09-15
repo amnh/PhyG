@@ -427,7 +427,7 @@ doCharacterTraversal (inCharInfo, inGraph) =
             upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfo
         in
         -- hope this is the most efficient way since all nodes have been remade
-        trace (U.prettyPrintVertexInfo $ snd newRootNode)
+        --trace (U.prettyPrintVertexInfo $ snd newRootNode)
         LG.mkGraph upDatedNodes inEdgeList
         --)
 
@@ -457,7 +457,7 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
-        trace (U.prettyPrintVertexInfo $ snd newFirstNode)
+        --trace (U.prettyPrintVertexInfo $ snd newFirstNode)
         makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
         --)
 
