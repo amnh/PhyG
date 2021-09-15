@@ -334,4 +334,29 @@ to render--would have repeated subtrees after network vertex
 	GraphAlgorithmBook.pdf
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
 
-131) removing gaos and noughts pre/post order still not seemingly correct
+132) 3-way calls for preorder, harwired, rearrangement heuristics
+	'0' same as gap
+
+	to call tcmDense
+		import Data.TCM.Dense
+		Data.TCMDense is module
+			module Data.TCM.Dense
+   lookupPairwise
+   lookupThreeway
+			  lookupThreeway
+			  :: DenseTransitionCostMatrix
+			  -> CUInt
+			  -> CUInt
+			  -> CUInt
+			  -> (CUInt, Word)
+
+	to call memo
+	import  Data.MetricRepresentation
+	retreiveThreewayTCM
+	retreiveThreewayTCM
+  :: FiniteBits a
+  => MetricRepresentation a
+  -> a
+  -> a
+  -> a
+  -> (a, Word)
