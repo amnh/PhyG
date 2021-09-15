@@ -101,10 +101,9 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
    if childType == RootNode then 
 
       if localCharType == Add then 
-         --trace ("Root " ++ show (fst3 $ rangePrelim childChar))
          childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then trace ("RNA") childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
       else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
 
@@ -125,7 +124,7 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
       -- since leaf no neeed to precess final alignment fields for sequence characters
       if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then trace ("LNA") childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
 
       else if localCharType == Matrix then 
          childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
@@ -165,7 +164,7 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
          -- add logic for pre-order
          let finalAssignment = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
          in
-         childChar {stateBVFinal = finalAssignment}
+         trace ("HNA") childChar {stateBVFinal = finalAssignment}
 
       else if localCharType == Matrix then 
          -- add logic for pre-order

@@ -74,6 +74,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
             -- for special casing of nonexact and single exact characters
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
             -- minimal reoptimize with smart order to minimize node reoptimization
 
@@ -117,7 +118,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         -- special cases that don't require all the work
         if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
             
-        else if nonExactChars == 1 then preOrderTreeTraversal $ head minCostGraphListRecursive
+        else if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal $ head minCostGraphListRecursive
         
         else preOrderTreeTraversal graphWithBestAssignments'
         
@@ -426,7 +427,7 @@ doCharacterTraversal (inCharInfo, inGraph) =
             upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfo
         in
         -- hope this is the most efficient way since all nodes have been remade
-        --trace (U.prettyPrintVertexInfo $ rootLabel {vertData = rootFinalVertData})
+        trace (U.prettyPrintVertexInfo $ snd newRootNode)
         LG.mkGraph upDatedNodes inEdgeList
         --)
 
@@ -456,7 +457,7 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
-        --trace (U.prettyPrintVertexInfo $ firstLabel {vertData = firstFinalVertData})
+        trace (U.prettyPrintVertexInfo $ snd newFirstNode)
         makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
         --)
 
@@ -546,7 +547,8 @@ updateVertexBlock nodeIndex (blockTraversalTreeV, nodeCharacterDataV, charInfoV)
 
 -- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traversal
 -- since there is single character optimized for each character decorated graph-- it is always teh 0th 0th character
--- exact are vectors so take care of multipl there.
+-- exact are vectors so take care of multiple there.
+-- need to care for issues of missing data
 updatePreorderCharacter :: Int -> (DecoratedGraph, CharacterData, CharInfo) -> CharacterData 
 updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
     --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
@@ -555,6 +557,7 @@ updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
         preOrderCharacterData = if V.null preOrderVertData then emptyCharacter
                                 else if V.null $ V.head preOrderVertData then emptyCharacter
                                 else V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
+                                
     in
     if maybePreOrderNodeLabel == Nothing then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
     else
