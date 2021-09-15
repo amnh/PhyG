@@ -296,12 +296,14 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
       newVertexCost = localCost newVertexData
       newSubGraphCost = globalCost newVertexData
   in
+  {-
   if V.null $ V.head $ vertData inVertexInfo then 
       inVertexInfo { vertData    = V.singleton $ V.singleton emptyCharacter
                   , vertexCost   = 0
                   , subGraphCost = 0
                   }
-  else 
+  else
+  -} 
      inVertexInfo { vertData     = if (not isMissing) then V.singleton $ V.singleton newVertexData
                                    else V.singleton V.empty
                   , vertexCost   = newVertexCost
