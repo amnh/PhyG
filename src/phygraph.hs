@@ -52,6 +52,7 @@ import qualified Utilities.Distances          as D
 import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
+import qualified Input.Reorganize             as R
 
 -- | main driver
 main :: IO ()
@@ -148,13 +149,12 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-    {-To do
-      Execute any 'Block' change commands--make reBlockedNaiveData
-      Before organizing data by type since within blocks
-    -}
+    
+    -- Execute any 'Block' change commands--make reBlockedNaiveData
+    let reBlockedNaiveData = naiveData
 
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
-    let groupedData = DT.groupDataByType naiveData
+    let groupedData = R.groupDataByType reBlockedNaiveData
 
     -- Optimize Data convert
         -- Additive characters with alphabets < 64 to multiple binary nonadditive

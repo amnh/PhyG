@@ -180,7 +180,7 @@ executable phyg
                 , parallel
                 , deepseq
                 , bv
-                , exceptions
+                -- , exceptions
                 , array
                 , split
                 , text-short
@@ -189,10 +189,10 @@ executable phyg
                 , time
                 , vector
                 , sort
-                , unboxing-vector
+                -- , unboxing-vector
                 , MissingH >= 1.4.3
                 , bv-little
-                , bits
+                -- , bits
                 , hashmap
                 , bimap
                 , logfloat
@@ -224,6 +224,7 @@ executable phyg
                   Input.DataTransformation
                   Input.FastAC
                   Input.ReadInputFiles
+                  Input.Reorganize
                   Input.TNTUtilities
                   Search.Build
                   Search.DistanceWagner
@@ -241,6 +242,7 @@ executable phyg
                   GeneralUtilities
                   ParallelUtilities
                   SymMatrix
+
                   
             
 library alphabet
