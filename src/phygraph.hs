@@ -151,7 +151,7 @@ main = do
 
     
     -- Execute any 'Block' change commands--make reBlockedNaiveData
-    let reBlockedNaiveData = naiveData
+    let reBlockedNaiveData = R.reBlockData naiveData
 
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
     let groupedData = R.groupDataByType reBlockedNaiveData

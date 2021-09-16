@@ -37,9 +37,9 @@ Portability :  portable (I hope)
 
 module Input.Reorganize
   ( groupDataByType
+  , reBlockData 
   ) where
 
-import           Data.Foldable
 import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
@@ -47,20 +47,17 @@ import           Types.Types
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector                 as V
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-
-import qualified Data.Text.Short             as ST
-import qualified Data.Hashable as H
-import           Data.Bits                   (shiftL, (.|.))
-import           Data.Word
-import           Debug.Trace
-import           Foreign.C.Types
-import           Text.Read
 import qualified Utilities.Utilities as U
-import           Debug.Trace
 import           GeneralUtilities
 import qualified SymMatrix                   as S
+import           Debug.Trace
+
+
+-- | reBlockData takes original block assignments--each input file is a block--
+-- and compbines, cverted new, deletes empty new blocks from user input
+reBlockData :: ProcessedData -> ProcessedData
+reBlockData inData = inData
+
 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks) 
@@ -69,7 +66,7 @@ import qualified SymMatrix                   as S
     -- all matrix characters with same costmatrix recoded to single charcater
     -- removes innactive characters
 groupDataByType :: ProcessedData -> ProcessedData
-groupDataByType inData@(nameVect, nameBVVect, blockDataVect) = 
+groupDataByType (nameVect, nameBVVect, blockDataVect) = 
     let organizedBlockData =  V.map organizeBlockData' blockDataVect
     in
     -- trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
@@ -106,12 +103,12 @@ organizeBlockData :: [([CharacterData], CharInfo)]
                   -> [([CharacterData], CharInfo)]
                   -> BlockData 
                   -> BlockData
-organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList inBlockData@(blockName, characterDataVectVect, charInfoVect) =
+organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, characterDataVectVect, charInfoVect) =
     -- Bit of a cop out but not managing the missing data in blocks thing for multiple non-exact in block
     -- need to add multiple non-exact in block
     if null charInfoVect then 
         -- concatenate all new characters, reverse (for good measure), and convert to vectors
-        -- with unrecoded non-Exact charcaters and new CharInfo vector (reversed)
+        -- with unrecoded non-Exact characters and new CharInfo vector (reversed)
         -- need to make sure the character info is in the order of return types--nonAdd, Add, Matrix etc
         {-Will need a function to add all this stuff back together
         (blockNamne, newCharacterVector, newCharInfoVect)
@@ -197,7 +194,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
 
 -- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
 -- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
--- non-exact charcaters and those with non-integer weights
+-- non-exact characters and those with non-integer weights
 -- and character Information vector
 -- these only bupdate preliminary of their type--meant to happen before decoration processes
 -- emptyCharacter defined in Types
@@ -211,19 +208,15 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedChar
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
         nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
-        (nonAddCharacter', nonAddCharInfo') = if (null nonAddCharList) then ([], V.empty)
-                                              else (nonAddCharacter, nonAddCharInfo)
-
+        
         -- Additive Characters
         addCharacter = combineAdditveCharacters addCharList emptyCharacter []
         addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters"}
-        (addCharacter', addCharInfo') = if (null addCharList) then ([], V.empty)
-                                        else (addCharacter, addCharInfo)
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
         
         -- Unchanged characters 
-        (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList 
+        -- (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList 
         
         -- buildList incrementally
         newCharacterList' = if null nonAddCharacter then []
@@ -247,7 +240,8 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedChar
     -}
     (V.fromList $ fmap V.fromList $ L.transpose newCharacterList''', V.concat newChararacterInfoList''')
 
--- | combineUnchangedCharacters takes the list of unchanged charcaters (ie not merged) and recretes a list of them
+{-
+-- | combineUnchangedCharacters takes the list of unchanged characters (ie not merged) and recreates a list of them
 -- reversing to keep original order
 combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
 combineUnchangedCharacters unchangedCharListList = 
@@ -257,6 +251,7 @@ combineUnchangedCharacters unchangedCharListList =
         in 
         -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
         (L.transpose newCharList, newCharInfoList)
+-}
 
 -- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
 -- each character "type" (based on matrix) can have 1 or more characters 

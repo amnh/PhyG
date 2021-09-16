@@ -50,7 +50,6 @@ import qualified DirectOptimization.PreOrder as DOP
 import qualified GraphOptimization.Medians as M
 import qualified Data.Vector                                                 as V
 import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits                 ((.&.), (.|.))
 import           Data.Maybe
 import qualified Data.List as L
 import Debug.Trace
