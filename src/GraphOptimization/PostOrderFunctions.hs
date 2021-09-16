@@ -55,7 +55,7 @@ import qualified Utilities.LocalGraph      as LG
 import qualified Utilities.Utilities       as U
 import qualified Graphs.GraphOperations    as GO
 -- import Debug.Debug
--- import Debug.Trace
+import Debug.Trace
 
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
 -- them based on children in input graph
@@ -296,6 +296,7 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
       newVertexCost = localCost newVertexData
       newSubGraphCost = globalCost newVertexData
   in
+  -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) )
   {-
   if V.null $ V.head $ vertData inVertexInfo then 
       inVertexInfo { vertData    = V.singleton $ V.singleton emptyCharacter

@@ -189,14 +189,9 @@ setFinal childType isLeft charInfo (childChar, parentChar) =
              finalAssignmentIA = getFinal3WayWideHuge (wideTCM charInfo) (fromEnum symbolCount) (wideFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
          in
          childChar {wideFinal = finalAssignmentIA, wideAlignment = finalGapped}
-         -- childChar {wideFinal = finalNoGaps, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             --  should be like slim and wide--but useing second becuae of error on post order for huge characters
-             --gapChar = M.getGapBV (fromEnum symbolCount)
-             --finalNoGaps =  GV.filter (M.notGapNought gapChar) finalGField
-             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped 
              finalAssignmentIA = getFinal3WayWideHuge (hugeTCM charInfo) (fromEnum symbolCount) (hugeFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
 
          in
@@ -222,9 +217,9 @@ getFinal3WaySlim lSlimTCM symbolCount parentFinal descendantLeftPrelim descendan
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
 getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a -> v a
-getFinal3WayWideHuge lWideTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
+getFinal3WayWideHuge whTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
    let gap = bit $ symbolCount - 1 
-       newFinal = GV.zipWith3 (local3WayWideHuge lWideTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
+       newFinal = GV.zipWith3 (local3WayWideHuge whTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
