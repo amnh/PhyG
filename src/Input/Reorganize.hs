@@ -44,10 +44,9 @@ import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import           Types.Types
---import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector                 as V
-import qualified Utilities.Utilities as U
+import qualified Utilities.Utilities         as U
 import           GeneralUtilities
 import qualified SymMatrix                   as S
 import           Debug.Trace
@@ -55,8 +54,12 @@ import           Debug.Trace
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and compbines, cverted new, deletes empty new blocks from user input
-reBlockData :: ProcessedData -> ProcessedData
-reBlockData inData = inData
+reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
+reBlockData reBlockPairs inData = 
+    if null reBlockPairs then inData
+    else 
+        trace ("Reblock:" ++ (show reBlockPairs)) 
+        inData
 
 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData

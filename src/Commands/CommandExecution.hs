@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 module Commands.CommandExecution
   ( executeCommands
-  , executeRenameCommands
+  , executeRenameReblockCommands
   ) where
 
 import qualified Data.CSV               as CSV
@@ -61,7 +61,7 @@ import qualified Search.Build           as B
 
 
 
--- | executeCommands reads iput files and returns raw data
+-- | executeCommands reads input files and returns raw data
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList commandList = do
@@ -98,7 +98,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype","block"]
+setArgList = ["outgroup", "criterion", "graphtype"]
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
@@ -256,24 +256,24 @@ getCharInfoStrings inChar =
     in
     [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar) ++ [show $ costMatrix inChar]
 
--- | executeRenameCommands takes all the "Rename commands" pairs and
+-- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
 -- as Text
-executeRenameCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
-executeRenameCommands curPairs commandList  =
+executeRenameReblockCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
+executeRenameReblockCommands curPairs commandList  =
     if null commandList then return curPairs
     else do
         let (firstOption, firstArgs) = head commandList
 
         -- skip "Read" and "Rename "commands already processed
-        if firstOption /= Rename then executeRenameCommands curPairs (tail commandList)
+        if (firstOption /= Rename) && (firstOption /= Reblock) then executeRenameReblockCommands curPairs (tail commandList)
         else
             let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
                 oldNameList = (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
                 newPairs = zip newNameList oldNameList
             in
-            executeRenameCommands (curPairs ++ newPairs) (tail commandList)
+            executeRenameReblockCommands (curPairs ++ newPairs) (tail commandList)
 
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices

@@ -90,8 +90,8 @@ main = do
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
-    dataGraphList <- mapM (RIF.executeReadCommands [] [] [] [] [] False ([],[],1.0)) $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
-    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs) = RIF.extractInputTuple dataGraphList
+    dataGraphList <- mapM RIF.executeReadCommands $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
+    let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
@@ -100,7 +100,7 @@ main = do
     let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
 
     -- Process Rename Commands
-    newNamePairList <- CE.executeRenameCommands renameFilePairs thingsToDo
+    newNamePairList <- CE.executeRenameReblockCommands renameFilePairs thingsToDo
     if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
     else hPutStrLn stderr ("No terminals to be renamed")
 
@@ -151,7 +151,9 @@ main = do
 
     
     -- Execute any 'Block' change commands--make reBlockedNaiveData
-    let reBlockedNaiveData = R.reBlockData naiveData
+    newBlockPairList <- CE.executeRenameReblockCommands reBlockPairs thingsToDo
+    let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
+    let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
     let groupedData = R.groupDataByType reBlockedNaiveData
@@ -169,8 +171,8 @@ main = do
     let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree}
     --hPutStrLn stderr (show defaultGlobalSettings)
 
-    let initialSetCommands = takeWhile ((== Set).fst) thingsToDoAfterReadRename
-    let commandsAfterInitialDiagnose = dropWhile ((== Set).fst) thingsToDoAfterReadRename
+    let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock
+    let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList initialSetCommands
