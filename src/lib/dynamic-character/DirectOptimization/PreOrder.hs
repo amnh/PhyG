@@ -29,13 +29,19 @@ preOrderLogic
   -> (v a, v a, v a) -- ^ Parent Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Final       Alignment
-preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,ys,zs) = cAlignment
+preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,ys,zs)
+  | isMissing cContext = mAlignment -- Missing case is all gaps
+  | otherwise          = cAlignment
   where
     wlog  = x ! 0
     zero  = wlog `xor` wlog
     gap   = bit . fromEnum $ symbolCount - 1
     paLen = lengthSeq pAlignment
     ccLen = lengthSeq cContext
+
+    mAlignment =
+      let zeds = GV.replicate paLen zero
+      in  (GV.replicate paLen gap, zeds, zeds)
 
     cAlignment = runST $ do
       j'  <- newSTRef 0
