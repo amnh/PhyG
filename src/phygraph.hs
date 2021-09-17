@@ -155,6 +155,7 @@ main = do
     let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
+
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
     let groupedData = R.groupDataByType reBlockedNaiveData
 

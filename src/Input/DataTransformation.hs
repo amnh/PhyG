@@ -323,7 +323,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
                 
             in
-            trace ("Recoding block: " ++ T.unpack thisBlockName')
+            trace ("Recoding input block: " ++ T.unpack thisBlockName')
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
 
 

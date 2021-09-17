@@ -58,22 +58,50 @@ reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) = 
     if null reBlockPairs then trace ("Character Blocks as input files") inData
     else 
-        let inputBlockNames = V.toList $ fmap fst3 blockDataV
-            -- those block to be reassigned--nub in case repeated names
+        let -- those block to be reassigned--nub in case repeated names
             toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
             unChangedBlocks = V.filter ((`notElem` toBeReblockedNames).fst3) blockDataV
             blocksToChange = V.filter ((`elem` toBeReblockedNames).fst3) blockDataV
             newBlocks = makeNewBlocks reBlockPairs blocksToChange []
+            reblockedBlocks = unChangedBlocks V.++ (V.fromList newBlocks)
         in
-        trace ("Reblocking: " ++ (show toBeReblockedNames) ++ " leaving unchanged: " ++ (show $ fmap fst3 unChangedBlocks))
-        (leafNames, leafBVs, unChangedBlocks V.++ (V.fromList newBlocks))
+        trace ("Reblocking: " ++ (show toBeReblockedNames) ++ " leaving unchanged: " ++ (show $ fmap fst3 unChangedBlocks) 
+            ++ "\nNew blocks: " ++ (show $ fmap fst3 reblockedBlocks))
+        (leafNames, leafBVs, reblockedBlocks)
         
 -- | makeNewBlocks takes lists of rebloick pairs and existing relevant blocks and ccretes new blocks returned as a list
 makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> [BlockData]
 makeNewBlocks reBlockPairs inBlockV curBlockList =
     if null reBlockPairs then curBlockList
+    else if V.null inBlockV then curBlockList
     else 
-        V.toList inBlockV
+        let firstBlock = V.head inBlockV
+            firstName = fst3 firstBlock
+            newPairList = fmap fst $ filter ((==firstName).snd) reBlockPairs
+        in
+        if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing ':0'? Specified pairs: " ++ (show reBlockPairs) 
+            ++ " input block name: " ++ (T.unpack firstName)) 
+        else if length newPairList > 1 then errorWithoutStackTrace ("Multiple reblock destinations for single input block" ++ show newPairList)
+        else
+            let newBlockName = head newPairList
+                existingBlock = filter ((==newBlockName).fst3) curBlockList
+            in
+            -- new block to be created
+            if null existingBlock then
+                --trace("NBlocks:" ++ (show $ fmap fst3 curBlockList)) 
+                makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, snd3 firstBlock, thd3 firstBlock) : curBlockList)
+
+            -- existing block to be added to
+            else if (length existingBlock > 1) then error ("Error: Block to be added to more than one block-should not happen: " ++ show reBlockPairs)
+            else 
+                -- need to add character vectors to vertex vectors and add to CharInfo
+                -- could be multiple  'characteres' if non-exact data in inpuit file (Add, NonAdd, MAtrix etc)
+                let blockToAddTo = head existingBlock
+                    newCharData  = V.zipWith (V.++) (snd3 blockToAddTo) (snd3 firstBlock)
+                    newCharInfo  = (thd3 blockToAddTo) V.++ (thd3 firstBlock)
+                in
+                --trace("EBlocks:" ++ (show $ fmap fst3 curBlockList)) 
+                makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : (filter ((/=newBlockName).fst3) curBlockList))
 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks) 
@@ -89,19 +117,30 @@ groupDataByType (nameVect, nameBVVect, blockDataVect) =
     --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
     (nameVect, nameBVVect, organizedBlockData)
     
--- | organizeBlockData' shortcircuits nonExact data types in a block to avoid logic in organizeBlockData
--- should be removed when have better teatment of missing non-exact data and block options
+-- | organizeBlockData' special cases and divides characters so that exact characters
+-- are reorgnized into single characters by type and cost matrix, while non-exact sequence
+-- characters are unchanged.  Characters are reorganized wiht exact first in block then non-exact
 organizeBlockData' :: BlockData -> BlockData
 organizeBlockData' localBlockData = 
     let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
         numNonExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
     in
-    if (numExactChars == 0) && (numNonExactChars == 1) then localBlockData
-        -- fix for now for partiioned data
-    else if (numExactChars == 0) then localBlockData
-    else if (numExactChars > 0) && (numNonExactChars > 0) then error "This can't happen until block set implemented"
-    else organizeBlockData [] [] [] [] localBlockData
+    -- if no nonexact--nothing to combine
+    if numExactChars == 0 then localBlockData
 
+    -- if only non exact--split and recombine
+    else if numNonExactChars == 0 then organizeBlockData [] [] [] [] localBlockData
+
+    -- if both nonexact and exact--pull out non-exact and recombine exact
+    else if (numExactChars > 0) && (numNonExactChars > 0) then 
+        let (exactCharacters, nonExactCharacters) = U.splitBlockCharacters (snd3 localBlockData) (thd3 localBlockData) 0 [] []
+            newExactCharacters = organizeBlockData [] [] [] [] exactCharacters
+            newCharData = V.zipWith (V.++) (snd3 newExactCharacters) (snd3 nonExactCharacters)
+            newCharInfo = (thd3 newExactCharacters) V.++ (thd3 nonExactCharacters)
+        in
+        (fst3 localBlockData, newCharData, newCharInfo)
+    else error ("This shouldn't happen in organizeBlockData'")
+    
 -- | organizeBlockData takes a BlockData element and organizes its character by character type
 -- to single add, non-add, matrix, non-exact characters (and those with non-integer weights) are left as is due to their need for 
 -- individual traversal graphs

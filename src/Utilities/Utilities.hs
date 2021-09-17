@@ -243,6 +243,37 @@ getNumberExactCharacters blockDataVect =
         in
         nonExactChars + getNumberExactCharacters (V.tail blockDataVect)
 
+-- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact and non-exact characters
+-- using accumulators
+splitBlockCharacters :: V.Vector (V.Vector CharacterData) 
+                     -> V.Vector CharInfo 
+                     -> Int
+                     -> [([CharacterData], CharInfo)] 
+                     -> [([CharacterData], CharInfo)] 
+                     -> (BlockData, BlockData)
+splitBlockCharacters inDataVV inCharInfoV index exactCharPairList nonExactCharPairList =
+    if index == V.length inCharInfoV then 
+        let (exactDataList, exactCharInfoList) = unzip exactCharPairList
+            (nonExactDataList, nonExactCharInfoList) = unzip nonExactCharPairList
+            newExactCharInfoVect = V.fromList $ reverse exactCharInfoList
+            newNonExactCharInfoVect = V.fromList $ reverse nonExactCharInfoList
+            newExactData = V.fromList $ fmap V.fromList $ fmap reverse $ L.transpose exactDataList
+            newNonExactData = V.fromList $ fmap V.fromList $ fmap reverse $ L.transpose nonExactDataList
+        in
+        ((T.pack "ExactCharacters", newExactData, newExactCharInfoVect), (T.pack "Non-ExactCharacters", newNonExactData, newNonExactCharInfoVect))
+    else 
+        let localCharacterType = charType (inCharInfoV V.! index)
+            thisCharacterData = V.toList $ fmap (V.! index) inDataVV
+            newPair = (thisCharacterData, inCharInfoV V.! index)
+        in
+        if localCharacterType `elem` exactCharacterTypes then
+            splitBlockCharacters inDataVV inCharInfoV (index + 1) (newPair : exactCharPairList) nonExactCharPairList
+        else if localCharacterType `elem` nonExactCharacterTypes then
+            splitBlockCharacters inDataVV inCharInfoV (index + 1) exactCharPairList (newPair : nonExactCharPairList)
+        else error ("Unrecongized/implemented character type: " ++ show localCharacterType)
+
+
+
 -- | safeVectorHead safe vector head--throws error if null
 safeVectorHead :: V.Vector a -> a
 safeVectorHead inVect =
