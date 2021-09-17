@@ -53,14 +53,27 @@ import           Debug.Trace
 
 
 -- | reBlockData takes original block assignments--each input file is a block--
--- and compbines, cverted new, deletes empty new blocks from user input
+-- and combines, creates new, deletes empty blocks from user input
 reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
-reBlockData reBlockPairs inData = 
-    if null reBlockPairs then inData
+reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) = 
+    if null reBlockPairs then trace ("Character Blocks as input files") inData
     else 
-        trace ("Reblock:" ++ (show reBlockPairs)) 
-        inData
-
+        let inputBlockNames = V.toList $ fmap fst3 blockDataV
+            -- those block to be reassigned--nub in case repeated names
+            toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
+            unChangedBlocks = V.filter ((`notElem` toBeReblockedNames).fst3) blockDataV
+            blocksToChange = V.filter ((`elem` toBeReblockedNames).fst3) blockDataV
+            newBlocks = makeNewBlocks reBlockPairs blocksToChange []
+        in
+        trace ("Reblocking: " ++ (show toBeReblockedNames) ++ " leaving unchanged: " ++ (show $ fmap fst3 unChangedBlocks))
+        (leafNames, leafBVs, unChangedBlocks V.++ (V.fromList newBlocks))
+        
+-- | makeNewBlocks takes lists of rebloick pairs and existing relevant blocks and ccretes new blocks returned as a list
+makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> [BlockData]
+makeNewBlocks reBlockPairs inBlockV curBlockList =
+    if null reBlockPairs then curBlockList
+    else 
+        V.toList inBlockV
 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks) 

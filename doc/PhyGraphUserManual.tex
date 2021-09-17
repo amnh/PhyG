@@ -159,6 +159,26 @@
 		\texttt{command(argument, option:argument, option:argument...)}
 		\subsection{Command order and processing}
 	
+	\subsection{Block}
+		\subsubsection{Syntax}
+		\texttt{block("newBlockName", "inputFile0", "inputFile1",...)}
+		\subsubsection{Description}
+		Command to assign input data to ``blocks'' that will follow the same display tree when optimized
+		as ``soft-wired '' networks.  By default, each input data file is assigned its own block with the name
+		of the input file.  The \texttt{block} command is used to reassign these data to new, combined blocks.
+		Spaces are not allowed in block names and will produce \texttt{unrecognized block name} errors.    
+		\subsubsection{Arguments}
+		The first argument is the block to be created, the remainder are the input data to be 
+		assigned to that block. Blocks are initially named as the input file name with ``:0'' appended.  Blocks are reported in \texttt{report(data)} command.
+		\subsubsection{Defaults}
+		None.
+		\subsubsection{Examples}
+		\begin{itemize}
+			\item{\texttt{block("a","b:0","c:0")}\\ Assigns input data from file ``b'' and ``c'' to block ``a''. }
+		\end{itemize}
+		
+	
+	
 	\subsection{Build}
 		\subsubsection{Syntax}
 		\texttt{build(arg0, arg1:option, ...)}
@@ -223,13 +243,16 @@
 		Options prepended to the filename with a colon (``:'') modify the processing of the input file. If no options are specified, 
 		the program will attempt to recognize the file type and parse appropriately.
 		\subsubsection{Arguments}
+			\noindent \texttt{block:} Specifies that the file contains block information. Each line contains 
+			the new block name followed by names of input files to be assigned to that data block.  
+			Blocks are initially named as the input file name with ``:0'' appended.  
+			In the examples, data from files ``b'' and ``c'' will be assigned to block ``a''.  There can be no spaces in file or block names.
+			\begin{quote}
+				\texttt{"a" "b:0" "c:0"}\\
+			\end{quote}
+		
 			\noindent \texttt{dot:} Specifies that the file contains a graph in `dot' format for use with graph rendering software such as GraphViz (\url{https://en.wikipedia.org/wiki/Graphviz}).
 			
-			\smallskip		
-			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
-			(``-'') in the sequences and alignment correspondences are not re-examined. Without this option,
-			gap characters are filtered out of the sequences after input.
-		
 			\smallskip		
 			\noindent \texttt{enewick:} File contains Enhanced Newick format graph of \cite{Cardonaetal2008}.
 			
@@ -250,6 +273,11 @@
 			
 			\smallskip		
 			\noindent \texttt{newick:} File contains  Newick format graph as specified by \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}.
+			
+			\smallskip		
+			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
+			(``-'') in the sequences and alignment correspondences are not re-examined. Without this option,
+			gap characters are filtered out of the sequences after input.
 			
 			\smallskip		
 			\noindent \texttt{rename:} File contains a series of lines, each of which contains at least two strings.  The second (and all following) strings (input taxon names),
@@ -474,6 +502,8 @@
 %		\subsubsection{Defaults}
 %		\subsubsection{Examples}
 %	
+
+	\section{Example Script Files}
 	
 	\section{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
@@ -485,6 +515,6 @@
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}
-	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 \end{document}

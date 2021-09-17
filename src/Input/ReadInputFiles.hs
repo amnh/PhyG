@@ -270,7 +270,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             namePairs = concatMap (makeNamePairs firstFile) renameLines
                         in 
                         executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs ++ curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if (firstOption `elem` ["reblock"])  then
+                    else if (firstOption `elem` ["block"])  then
                         let renameLines = U.stripComments $ lines fileContents
                             blockPairs = concatMap (makeNamePairs firstFile) renameLines
                         in 
