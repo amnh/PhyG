@@ -41,7 +41,7 @@ import GHC.ForeignPtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
 
-#include "c_alignment_interface2.h"
+#include "c_alignment_interface.h"
 #include "c_code_alloc_setup.h"
 #include "costMatrix.h"
 #include "alignmentMatrices.h"
@@ -75,7 +75,7 @@ instance Enum UnionContext where
     toEnum _ =      ComputeUnions
 
 
-foreign import ccall unsafe "c_alignment_interface2.h cAlign2D"
+foreign import ccall unsafe "c_alignment_interface.h cAlign2D"
 
     align2dFn_c
       :: Ptr CUInt -- ^ character1, input & output (lesser)
@@ -90,23 +90,6 @@ foreign import ccall unsafe "c_alignment_interface2.h cAlign2D"
       -> CInt      -- ^ compute   gapped & not ungapped medians
       -> CInt      -- ^ compute union
       -> CSize     -- ^ cost
-
-
-{-
-foreign import ccall unsafe "c_alignment_interface2.h cAlignAffine2D"
-
-    align2dAffineFn_c
-      :: Ptr CUInt -- ^ character1, input & output (lesser)
-      -> Ptr CUInt -- ^ character2, input & output (longer)
-      -> Ptr CUInt -- ^ gapped median output
-      -> Ptr CSize -- ^ length median output
-      -> CSize     -- ^ size of each buffer
-      -> CSize     -- ^ length of character1
-      -> CSize     -- ^ length of character2
-      -> Ptr CostMatrix2d
-      -> CInt      -- ^ compute medians
-      -> CSize     -- ^ cost
--}
 
 
 {-
@@ -187,11 +170,6 @@ algn2d
   -> SlimDynamicCharacter         -- ^ Second dynamic character
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
 algn2d computeUnion computeMedians denseTCMs lhs rhs =
-{-
-    let (gapsChar1, ungappedChar1) = (\v@(y,x) -> trace ("CHAR 1: " <> show x <> "\ngaps: " <> show y) v) $ deleteGaps char1
-        (gapsChar2, ungappedChar2) = (\v@(y,x) -> trace ("CHAR 2: " <> show x <> "\ngaps: " <> show y) v) $ deleteGaps char2
-        (swapped, shorterChar, longerChar) = (\v@(s,_,_) -> trace ("SWAPPED: " <> show s) v) $ measureCharacters ungappedChar1 ungappedChar2
--}
     let gap = bit . fromEnum $ symbolCount - 1 :: CUInt
         (swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters gap lhs rhs
         (alignmentCost, ungappedAlignment) =
@@ -205,12 +183,7 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
                     in  (0, (vec, V.replicate (V.length longerChar) 0, longerChar))
                -- Both have some non-gap elements, perform string alignment
           else f shorterChar longerChar
-        transformation = if swapped then \(m,l,r) -> (m,r,l) else id
-{-
-        (gapsLesser, gapsLonger, transformation)
-          | swapped   = (gapsChar2, gapsChar1, omap swapContext)
-          | otherwise = (gapsChar1, gapsChar2, id)
--}
+        transformation    = if swapped then \(m,l,r) -> (m,r,l) else id
         regappedAlignment = insertGaps (coerceEnum symbolCount) gapsLesser gapsLonger ungappedAlignment
         alignmentContext  :: SlimDynamicCharacter 
         alignmentContext  = transformation regappedAlignment
@@ -252,13 +225,6 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
         alignedLesser <- {-# SCC alignedLesser #-} g lesserBuffer
         alignedLonger <- {-# SCC alignedLonger #-} g longerBuffer
         alignedMedian <- {-# SCC alignedMedian #-} g medianBuffer
-
-{--
-        !_ <- trace ("\n Len: " <> show (length resultingAlignedChar1)) $ pure ()
-        !_ <- trace ("  Gapped Char: " <> show       resultingGapped) $ pure ()
-        !_ <- trace (" Aligned LHS : " <> show resultingAlignedChar1) $ pure ()
-        !_ <- trace (" Aligned RHS : " <> show resultingAlignedChar2) $ pure ()
---}
         pure $ {-# SCC ffi_result #-} (fromIntegral cost, (alignedMedian,alignedLesser,alignedLonger))
 
       where

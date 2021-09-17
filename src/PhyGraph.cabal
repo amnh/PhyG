@@ -22,7 +22,6 @@ extra-source-files:
     ffi/external-direct-optimization/alignCharacters.h
     ffi/external-direct-optimization/alignmentMatrices.h
     ffi/external-direct-optimization/c_alignment_interface.h
-    ffi/external-direct-optimization/c_alignment_interface2.h
     ffi/external-direct-optimization/c_code_alloc_setup.h
     ffi/external-direct-optimization/costMatrix.h
     ffi/external-direct-optimization/debug_constants.h
@@ -50,7 +49,6 @@ common ffi-buildinfo
     ffi/external-direct-optimization/alignCharacters.c
     ffi/external-direct-optimization/alignmentMatrices.c
     ffi/external-direct-optimization/c_alignment_interface.c
-    ffi/external-direct-optimization/c_alignment_interface2.c
     ffi/external-direct-optimization/c_code_alloc_setup.c
     ffi/external-direct-optimization/costMatrix.c
     ffi/external-direct-optimization/dyn_character.c
