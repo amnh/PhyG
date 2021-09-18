@@ -322,7 +322,7 @@ to render--would have repeated subtrees after network vertex
 
 124) Test tree length on small huge alphabet tree
 
-125) For cehcking indexing after preorder--
+125) For checking indexing after preorder--
 	print children and parent node indices to make sure still same
 
 127) root "first" taxon--first after reordering
@@ -334,32 +334,11 @@ to render--would have repeated subtrees after network vertex
 	GraphAlgorithmBook.pdf
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
 
-132) 3-way calls for preorder, harwired, rearrangement heuristics
-	'0' same as gap
-
-	to call tcmDense
-		import Data.TCM.Dense
-		Data.TCMDense is module
-			module Data.TCM.Dense
-   lookupPairwise
-   lookupThreeway
-			  lookupThreeway
-			  :: DenseTransitionCostMatrix
-			  -> CUInt
-			  -> CUInt
-			  -> CUInt
-			  -> (CUInt, Word)
-
-	to call memo
-	import  Data.MetricRepresentation
-	retreiveThreewayTCM
-	retreiveThreewayTCM
-  :: FiniteBits a
-  => MetricRepresentation a
-  -> a
-  -> a
-  -> a
-  -> (a, Word)
 
 133) Test wide and huge final
+
+134) test block
+
+135) zip + map -> zip with
+
 
