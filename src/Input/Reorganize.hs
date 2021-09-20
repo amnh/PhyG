@@ -54,14 +54,15 @@ import           Debug.Trace
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
+-- reblock pair names may contain wildcards
 reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) = 
     if null reBlockPairs then trace ("Character Blocks as input files") inData
     else 
         let -- those block to be reassigned--nub in case repeated names
             toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
-            unChangedBlocks = V.filter ((`notElem` toBeReblockedNames).fst3) blockDataV
-            blocksToChange = V.filter ((`elem` toBeReblockedNames).fst3) blockDataV
+            unChangedBlocks = V.filter ((`notElemWildcards` toBeReblockedNames).fst3) blockDataV
+            blocksToChange = V.filter ((`elemWildcards` toBeReblockedNames).fst3) blockDataV
             newBlocks = makeNewBlocks reBlockPairs blocksToChange []
             reblockedBlocks = unChangedBlocks V.++ (V.fromList newBlocks)
         in
@@ -69,7 +70,7 @@ reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
             ++ "\nNew blocks: " ++ (show $ fmap fst3 reblockedBlocks))
         (leafNames, leafBVs, reblockedBlocks)
         
--- | makeNewBlocks takes lists of rebloick pairs and existing relevant blocks and ccretes new blocks returned as a list
+-- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and ccretes new blocks returned as a list
 makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> [BlockData]
 makeNewBlocks reBlockPairs inBlockV curBlockList =
     if null reBlockPairs then curBlockList
@@ -77,7 +78,7 @@ makeNewBlocks reBlockPairs inBlockV curBlockList =
     else 
         let firstBlock = V.head inBlockV
             firstName = fst3 firstBlock
-            newPairList = fmap fst $ filter ((==firstName).snd) reBlockPairs
+            newPairList = fmap fst $ filter ((textMatchWildcards firstName).snd) reBlockPairs
         in
         if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing ':0'? Specified pairs: " ++ (show reBlockPairs) 
             ++ " input block name: " ++ (T.unpack firstName)) 
