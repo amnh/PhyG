@@ -335,13 +335,4 @@ to render--would have repeated subtrees after network vertex
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
 
 
-133) Test wide and huge final
-
-134) test block
-
-135) zip + map -> zip with
-
-
-136) text wildcard match for block command
-
-140) Check dichotomization of all distance buyilds
+141)
