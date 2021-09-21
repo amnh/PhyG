@@ -481,7 +481,7 @@ flipVertices a b (u,v,l) =
 
 -- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
 dichotomizeRoot :: Int -> SimpleGraph -> SimpleGraph
-dichotomizeRoot outgroupIndex inGraph = 
+dichotomizeRoot lOutgroupIndex inGraph = 
   if LG.isEmpty inGraph then LG.empty
   else
     let rootList = LG.getRoots inGraph
@@ -496,14 +496,17 @@ dichotomizeRoot outgroupIndex inGraph =
     else 
       let numVertices = length $ LG.nodes inGraph
           newNode = (numVertices, T.pack $ show numVertices)
-          edgesToDelete = filter ((/=outgroupIndex) . snd3) rootEdgeList
+          edgesToDelete = filter ((/=lOutgroupIndex) . snd3) rootEdgeList
           newEdgeDestinations = fmap snd3 edgesToDelete
           newEdgeStarts = replicate (length newEdgeDestinations) numVertices
           newEdgeLabels = replicate (length newEdgeDestinations) 0.0
-          newEdgesNewNode = debugZip3 newEdgeStarts newEdgeDestinations newEdgeLabels
+          -- nub for case where root edge in "wrong" direction
+          -- doesn't filter edges to delete properly
+          newEdgesNewNode = L.nub $ zip3 newEdgeStarts newEdgeDestinations newEdgeLabels
           newRootEdge = (currentRoot, numVertices, 0.0)
       in
       LG.delLEdges edgesToDelete $ LG.insEdges (newRootEdge : newEdgesNewNode) $ LG.insNode newNode inGraph
+      
 
 -- | showBlockGraphs takes a vector of vector of DecoratedGraphs and converte and prettifies outputting a String
 showDecGraphs :: V.Vector (V.Vector DecoratedGraph) -> String
