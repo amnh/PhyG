@@ -71,24 +71,24 @@ import           Types.Types
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
 -- used for distances and post-order assignments
-median2 :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
-median2 inData = V.map median2Single inData
+median2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2 a b c  = V.zipWith3 median2Single a b c 
 
 
 -- | median2NonExact takes the vectors of characters and applies median2NonExact to each
 -- character for parallel fmap over all then parallelized by type and sequences
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-median2NonExact :: V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)
-median2NonExact inData  = V.map median2SingleNonExact inData
+median2NonExact :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2NonExact a b c  = V.zipWith3 median2SingleNonExact a b c 
 
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- used for post-order assignments
-median2Single :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
-median2Single (firstVertChar, secondVertChar, inCharInfo) =
+median2Single :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2Single firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
@@ -138,8 +138,8 @@ median2Single (firstVertChar, secondVertChar, inCharInfo) =
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others.
-median2SingleNonExact :: (CharacterData, CharacterData, CharInfo) -> (CharacterData, VertexCost)
-median2SingleNonExact (firstVertChar, secondVertChar, inCharInfo) =
+median2SingleNonExact :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2SingleNonExact firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo

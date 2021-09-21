@@ -45,9 +45,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
 
 import           Types.Types
 import GeneralUtilities
-import qualified Debug.Debug as D
 import qualified DirectOptimization.PreOrder as DOP
-import qualified GraphOptimization.Medians as M
 import qualified Data.Vector                                                 as V
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Maybe
@@ -73,20 +71,13 @@ createFinalAssignmentOverBlocks :: NodeType
                                 -> VertexBlockData
 createFinalAssignmentOverBlocks childType childBlockData parentBlockData charInfo isLeft =
    -- if root or leaf final assignment <- preliminary asssignment
-   let childParentBlockCharInfoTriple = D.debugVectorZip childBlockData parentBlockData 
-       --rootBlockPair = D.debugVectorZip childBlockData blockCharInfoVect
-   in
-   --trace ("cFAOB:" ++ (show $ charType charInfo)) 
-   fmap (assignFinal childType isLeft charInfo) childParentBlockCharInfoTriple
+   V.zipWith (assignFinal childType isLeft charInfo) childBlockData parentBlockData
 
   -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
-assignFinal :: NodeType -> Bool -> CharInfo -> (V.Vector CharacterData, V.Vector CharacterData)-> V.Vector CharacterData
-assignFinal childType isLeft charInfo (childCharacterVect, parentCharacterVect) =
-   let childParentPairList = D.debugVectorZip childCharacterVect parentCharacterVect 
-   in
-   --trace ("aF:" ++ (show $ charType charInfo) ++ " c: " ++ (show childCharacterVect) ++ " p: " ++ (show parentCharacterVect)) 
-   fmap (setFinal childType isLeft charInfo) childParentPairList
+assignFinal :: NodeType -> Bool -> CharInfo -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
+assignFinal childType isLeft charInfo childCharacterVect parentCharacterVect =
+   V.zipWith (setFinal childType isLeft charInfo) childCharacterVect parentCharacterVect
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
@@ -95,8 +86,8 @@ assignFinal childType isLeft charInfo (childCharacterVect, parentCharacterVect) 
 -- non exact charcaters are vectors of characters of same type
 -- this does the same things for seqeunce types, but also 
 -- performs preorder logic for exact characters
-setFinal :: NodeType -> Bool -> CharInfo -> (CharacterData, CharacterData) -> CharacterData
-setFinal childType isLeft charInfo (childChar, parentChar) =
+setFinal :: NodeType -> Bool -> CharInfo -> CharacterData-> CharacterData -> CharacterData
+setFinal childType isLeft charInfo childChar parentChar =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
    in
@@ -250,9 +241,7 @@ additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, In
 additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else 
-      let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
-      in
-      fmap makeAdditiveCharacterFinal allFour
+      V.zipWith4 makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
 
 -- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
@@ -260,9 +249,7 @@ nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector B
 nonAdditivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else 
-      let allFour = D.debugVectorZip4 nodePrelim leftChild rightChild parentFinal
-      in
-      fmap makeNonAdditiveCharacterFinal allFour
+      V.zipWith4 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
 
 
 -- | matrixPreorder assigment akes preliminary matrix states of child (= current vertex) and
@@ -272,15 +259,13 @@ matrixPreorder :: Bool -> V.Vector (V.Vector MatrixTriple) -> V.Vector (V.Vector
 matrixPreorder isLeft nodePrelim parentFinal =
    if null nodePrelim then mempty
    else 
-      let bothTwo = D.debugVectorZip nodePrelim parentFinal
-      in
-      fmap (makeMatrixCharacterFinal isLeft) bothTwo
+      V.zipWith (makeMatrixCharacterFinal isLeft)  nodePrelim parentFinal
 
 
 -- | makeAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
-makeAdditiveCharacterFinal :: ((Int, Int), (Int, Int), (Int, Int), (Int, Int)) -> (Int, Int)
-makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFinal) = 
+makeAdditiveCharacterFinal :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int)
+makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal = 
    -- From Wheeler (20012) after Goloboff (1993) 
    let interNodeParent = intervalIntersection nodePrelim parentFinal
    in
@@ -293,7 +278,7 @@ makeAdditiveCharacterFinal inData@(nodePrelim, leftChild, rightChild, parentFina
    else if ((leftChild `intervalUnion` rightChild) `intervalIntersection` parentFinal) /= Nothing then
       let xFactor = ((leftChild `intervalUnion` rightChild) `intervalUnion` nodePrelim) `intervalIntersection` parentFinal
       in
-      if xFactor == Nothing then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show inData)
+      if xFactor == Nothing then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ (show (nodePrelim, leftChild, rightChild, parentFinal)))
       else 
          if (fromJust xFactor) `intervalIntersection` nodePrelim /= Nothing then 
             -- trace ("R2a " ++ show (fromJust xFactor)) 
@@ -362,8 +347,8 @@ largestClosedInterval = intervalUnion
 
 -- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
-makeNonAdditiveCharacterFinal :: (BV.BitVector, BV.BitVector, BV.BitVector, BV.BitVector) -> BV.BitVector
-makeNonAdditiveCharacterFinal (nodePrelim, leftChild, rightChild, parentFinal) = 
+makeNonAdditiveCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> BV.BitVector -> BV.BitVector
+makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal = 
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
    if (nodePrelim .&. parentFinal) == parentFinal then 
@@ -382,48 +367,47 @@ makeNonAdditiveCharacterFinal (nodePrelim, leftChild, rightChild, parentFinal) =
 -- really just tracks the states on a traceback and sets the cost to maxBound:: Int for states not in the traceback
 -- path
 -- Bool for left right node
-makeMatrixCharacterFinal :: Bool -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-makeMatrixCharacterFinal isLeft (nodePrelim, parentFinal) = 
+makeMatrixCharacterFinal :: Bool -> V.Vector MatrixTriple -> V.Vector MatrixTriple -> V.Vector MatrixTriple
+makeMatrixCharacterFinal isLeft nodePrelim parentFinal = 
    let numStates = length nodePrelim
        stateIndexList = V.fromList [0..(numStates - 1)]
        (stateCostList, stateLeftChildList, stateRightChildList) = V.unzip3 parentFinal
-       (prelimStateCostList, prelimStateLeftChildList, prelimStateRightChildList) = V.unzip3 nodePrelim
-       allThree = if isLeft then D.debugVectorZip3 stateCostList stateLeftChildList stateIndexList
-                  else D.debugVectorZip3 stateCostList stateRightChildList stateIndexList
+       (_, prelimStateLeftChildList, prelimStateRightChildList) = V.unzip3 nodePrelim
+       allThree = if isLeft then V.zip3 stateCostList stateLeftChildList stateIndexList
+                  else V.zip3 stateCostList stateRightChildList stateIndexList
        bestParentThree = V.filter ((/= (maxBound :: StateCost)). fst3) allThree
        bestPrelimStates = L.sort $ L.nub $ concat $ fmap snd3 bestParentThree
-       allFour = D.debugVectorZip4 prelimStateCostList  prelimStateLeftChildList prelimStateRightChildList stateIndexList
-       finalBestTriple = V.filter ((/= (maxBound :: StateCost)).fst3) $ fmap (setCostsAndStates bestPrelimStates) allFour
+       allFour = V.zipWith3 (setCostsAndStates bestPrelimStates)  prelimStateLeftChildList prelimStateRightChildList stateIndexList
+       finalBestTriple = V.filter ((/= (maxBound :: StateCost)).fst3) allFour
    in
    finalBestTriple
 
 -- | setCostsAndStates takes a list of states that are in teh set of 'best' and a four-tuple
 -- of a matrix triple annd a fourth field of the state index
 -- if the state is in the list of `best' indices it is kept and not if it isn't
-setCostsAndStates :: [Int] -> (StateCost, [ChildStateIndex], [ChildStateIndex], Int) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
-setCostsAndStates bestPrelimStates (_, leftChildState, rightChildStates, stateIndex) = 
+setCostsAndStates :: [Int] -> [ChildStateIndex] -> [ChildStateIndex] -> Int -> (StateCost, [ChildStateIndex], [ChildStateIndex])
+setCostsAndStates bestPrelimStates leftChildState rightChildStates stateIndex = 
    if stateIndex `elem` bestPrelimStates then (stateIndex, leftChildState, rightChildStates)
    else (maxBound :: StateCost, leftChildState, rightChildStates)
-
 
 
 -- | setMinCostStatesMatrix  sets the cost of non-minimal cost states to maxBounnd :: StateCost (Int) 
 setMinCostStatesMatrix ::  Int -> V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
 setMinCostStatesMatrix numStates inCostVect inStateVect = 
-    fmap (V.filter ((/= (maxBound :: StateCost)).fst3)) $ fmap (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) $ D.debugVectorZip inCostVect inStateVect 
-
+    fmap (V.filter ((/= (maxBound :: StateCost)).fst3)) $ V.zipWith (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) inCostVect inStateVect
+    
 -- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple 
 -- retiurns a new character with the states cost either the minium value or maxBound iof not
 -- this only really useful at root--other vertices minimu costs may not be paert of the
 -- miniumm cost assignment, but may be useful heuristically
-nonMinCostStatesToMaxCost :: V.Vector StateCost -> (StateCost, V.Vector MatrixTriple) -> V.Vector MatrixTriple
-nonMinCostStatesToMaxCost stateIndexList (minStateCost, tripleVect) = 
-   let result = fmap (modifyStateCost minStateCost) $ V.zip tripleVect stateIndexList
+nonMinCostStatesToMaxCost :: V.Vector StateCost -> StateCost -> V.Vector MatrixTriple -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost stateIndexList minStateCost tripleVect = 
+   let result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
    in 
    -- trace ((show stateIndexList) ++ " " ++ (show $ V.zip tripleVect stateIndexList))
    result
       where
-         modifyStateCost d ((a,b,c), e) = if a == d then (e,b,c)
+         modifyStateCost d (a,b,c) e = if a == d then (e,b,c)
                                           else (maxBound :: StateCost ,b,c)
 
 

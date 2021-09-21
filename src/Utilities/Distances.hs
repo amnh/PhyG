@@ -72,7 +72,7 @@ getPairwiseDistances (nameVect, _, blockDataVect) =
 -- data leaves are first--then HTUs follow
 getBlockDistance :: BlockData -> (Int, Int) -> VertexCost
 getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
-    let pairCost = V.sum $ V.map snd $ M.median2 $ V.zip3 (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
+    let pairCost = V.sum $ V.map snd $ M.median2 (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
     in
     pairCost
 

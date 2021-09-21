@@ -34,12 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{--
-TODO:
-
-  Parallelize  median2Vect
---}
-
 module Graphs.GraphOperations ( ladderizeGraph
                                , verifyTimeConsistency
                                , rerootGraph
@@ -54,19 +48,14 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , showDecGraphs
                                ) where
 
-import           Data.Bits                 ((.&.), (.|.))
 import qualified Data.List                 as L
-import           Data.Maybe
 import qualified Data.Text.Lazy            as T
 import qualified Data.Vector               as V
 import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphFormatUtilities      as GFU
-import qualified GraphOptimization.Medians as M
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
-import qualified Utilities.LocalSequence   as LS
-import qualified Utilities.Utilities       as U
 import Debug.Debug
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
@@ -305,7 +294,7 @@ getContractGraphEdits :: [(([LG.LEdge b], [LG.LEdge b]), LG.Node)] -> ([LG.LEdge
 getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesToDelete) =
   if null inEdgeNodeList then curEdits
   else
-    let firstGroup@((firstInEdges, firstOutEdges), firstNode) = head inEdgeNodeList
+    let ((firstInEdges, firstOutEdges), firstNode) = head inEdgeNodeList
     in
     if  (length firstInEdges, length firstOutEdges) /= (1,1) then getContractGraphEdits (tail inEdgeNodeList) curEdits
     else
@@ -365,9 +354,9 @@ deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
   if LG.isEmpty inGraph then error "Empty graph in  "deleteEdgesCreateGraphs
   else if null netEdgeIndexPairList then []
   else
-    let (edgeList, index) = head netEdgeIndexPairList
+    let (edgeList, lIndex) = head netEdgeIndexPairList
         --edgeToKeep = edgeList !! index
-        edgesToDelete = (take index edgeList) ++ (drop (index + 1) edgeList)
+        edgesToDelete = (take lIndex edgeList) ++ (drop (lIndex + 1) edgeList)
         newGraph = LG.delLEdges edgesToDelete inGraph
     in
     newGraph : deleteEdgesCreateGraphs (tail netEdgeIndexPairList) (counter + 1) inGraph
@@ -456,7 +445,7 @@ graphCostFromNodes inGraph =
 
 -- | switchRootTree takes a new root vertex index of a tree and switches the existing root (and all relevent edges) 
 -- to new index
-switchRootTree :: (Show a, Show b) => Int -> LG.Gr a b -> LG.Gr a b
+switchRootTree :: (Show a) => Int -> LG.Gr a b -> LG.Gr a b
 switchRootTree newRootIndex inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
@@ -478,7 +467,7 @@ switchRootTree newRootIndex inGraph =
 
 -- | flipVertices takes an old vertex index and a new vertex index and inserts one for the other 
 -- in a labelled edge
-flipVertices ::(Show b) => Int -> Int ->  LG.LEdge b -> LG.LEdge b
+flipVertices :: Int -> Int ->  LG.LEdge b -> LG.LEdge b
 flipVertices a b (u,v,l) = 
   let newU = if u == a then b
              else if u == b then a

@@ -258,7 +258,7 @@ type LeafData = (NameText, V.Vector CharacterData)
 -- blocks of character data for  a given vertex
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
--- | type vertex information
+-- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing
                              , bvLabel      :: NameBV -- For comparison of vertices subtrees, etc
                              , parents      :: V.Vector Int --indegree indices
@@ -271,25 +271,32 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
                              } deriving stock (Show, Eq)
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
-data  EdgeInfo
-    = EdgeInfo
-    { minLength :: VertexCost
-    , maxLength :: VertexCost
-    , midRangeLength :: VertexCost
-    , edgeType  :: EdgeType
-    } deriving stock (Show, Eq)
+data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
+                            , maxLength :: VertexCost
+                            , midRangeLength :: VertexCost
+                            , edgeType  :: EdgeType
+                            } deriving stock (Show, Eq)
+
+-- | DecortatedGraph is the canonical graph contining all final information
+-- from preorder traversal trees
+-- and post-order info usually from an initial root-based traversal
+type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
 -- | Type BLockDisplayTree is a Forest of tree components (indegree, outdegree) = (0,1|2),(1,2),(1,0)
 -- these are "resolved" from more general graphs
--- will have to allow for indegre=outdegree=1 for disply tryee genration and rteconciliation
+-- will have to allow for indegre=outdegree=1 for dispaly tree generation and reconciliation
+-- the vertData field will always have a single Bloclk--teh vecor of blocks will be a vector of
+-- BlockDisplayForests.  These woulod better have a single Vector of cChracter info as
+-- opposed to the Decorated Tree type, but the record naming and use gets screwed up.
 type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo
-type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
--- | Type CharacterFoci is a vector for each character (in a block usually) of a vector of edges
--- (since there may be more than 1 "best" focus)
--- static characters all are fine--so length 1 and default value
--- dynamic characters its the edge of traversal focus, a psuedo-root
-type CharacterFoci = V.Vector (V.Vector LG.Edge)
+-- | CharacterTraversalForest is a forest of tree compnents for a single character
+-- this is used for non-exact character traversal trees
+-- there will always be only a single block and single character even though
+-- expresed as Vector fo Vector of Chaarcters.  Would be better as a single character as
+-- opposed to the Decorated Tree type, but the record naming and use gets screwed up.
+type CharacterTraversalForest = LG.Gr VertexInfo EdgeInfo
+
 
 -- | type RawGraph is input graphs with leaf and edge labels
 type SimpleGraph = LG.Gr NameText Double
@@ -312,7 +319,7 @@ type SimpleGraph = LG.Gr NameText Double
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --               one graph per character  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph

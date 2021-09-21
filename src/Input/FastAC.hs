@@ -34,12 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{--
-TODO:
-
-  Parallelize  median2Vect
---}
-
 module Input.FastAC
   ( getFastA
   , getFastaCharInfo

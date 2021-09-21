@@ -139,7 +139,7 @@ createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
-generalCreateVertexDataOverBlocks :: (V.Vector (CharacterData, CharacterData, CharInfo) -> V.Vector (CharacterData, VertexCost)) 
+generalCreateVertexDataOverBlocks :: (V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)) 
                                   -> VertexBlockData 
                                   -> VertexBlockData 
                                   -> V.Vector (V.Vector CharInfo) 
@@ -152,12 +152,12 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
     else
         let leftBlockLength = length $ V.head leftBlockData
             rightBlockLength =  length $ V.head rightBlockData
-            firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
 
             -- missing data cases first or zip defaults to zero length
             firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
                                else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-                               else medianFunction firstBlock
+                               else medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 

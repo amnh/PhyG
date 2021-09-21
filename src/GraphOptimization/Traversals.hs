@@ -322,7 +322,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         -- make node from childern
         else    
             -- make node from children and new edges to children
-            -- median2 takes characters in blocks--but for tree really all same block
+            -- takes characters in blocks--but for tree really all same block
             let newSubTree = thd6 $ rightLeftChildTree
                 -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
                 -- rightChildLabel = fromJust $ LG.lab newSubTree rightChild
