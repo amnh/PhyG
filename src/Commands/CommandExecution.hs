@@ -363,7 +363,6 @@ selectArgList = ["best", "all", "unique", "random"]
 -- uses selectListCostPairs in GeneralUtilities
 selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph] 
 selectPhylogeneticGraph inArgs seed curGraphs =
-    -- trace (show inArgs) (
     if null curGraphs then []
     else 
         let fstArgList = fmap (fmap C.toLower) $ fmap fst inArgs
@@ -379,11 +378,12 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                     doAll     = not $ null $ filter ((=="all").fst) lcArgList
                     doRandom  = not $ null $ filter ((=="random").fst) lcArgList
                     doUnique  = not $ null $ filter ((=="unique").fst) lcArgList
-                    numberToKeep = if null $ snd $ head lcArgList then Just (maxBound :: Int)
+                    numberToKeep = if null lcArgList then Just (maxBound :: Int)
+                                   else if null $ snd $ head lcArgList then Just (maxBound :: Int)
                                    else readMaybe (snd $ head lcArgList) :: Maybe Int
                 in
                 if doAll then curGraphs
-                else if numberToKeep == Nothing then errorWithoutStackTrace ("NUmber to keep specification not an integer: "  ++ (show $ snd $ head lcArgList))
+                else if numberToKeep == Nothing then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ (show $ snd $ head lcArgList))
                 else 
                     let -- minimum graph cost
                         minGraphCost = minimum $ fmap snd6 curGraphs
@@ -391,7 +391,7 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                         -- nonZeroEdgeLists for graphs
                         nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
-                        -- keep pnly unique gaphs based on non-zero edges
+                        -- keep only unique graphs based on non-zero edges
                         uniqueGraphList = getUniqueGraphs nonZeroEdgeListGraphPairList []
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
@@ -401,9 +401,10 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
                          take (fromJust numberToKeep) $ shuffledGraphs
-                    -- defualt is best and unique
-                    else filter ((== minGraphCost).snd6) uniqueGraphList
-                    -- )
+                    -- default is best and unique
+                    else 
+                        filter ((== minGraphCost).snd6) uniqueGraphList
+                
 
 -- | could use FGL '==' ?
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
