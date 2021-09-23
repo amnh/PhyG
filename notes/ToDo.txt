@@ -350,4 +350,15 @@ to render--would have repeated subtrees after network vertex
                 Trees and Hardwired can be empty
                         [VertData] ?
                         Child indices?
+                        keep trees on post order for diaply tree later
+
+
+143) Check optimization for input forest
+	issues with rootindex
+	need to make more flexible so can just map over components
+	perhaps splitgraph/merge graph type thing to keep root index as nOTUs
+
+144) Check optimization for multirooted components
+
+145) rationalike tree/graph, softwired, hardwired traversal function names
 

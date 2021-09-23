@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , preOrderTreeTraversal
                                     , makeLeafGraph
+                                    , multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
                                     , fullyLabelGraphWithoutMultiTraversal
                                     ) where
@@ -64,11 +65,38 @@ import qualified Data.Vector.Generic         as GV
 import Debug.Trace
 import qualified Debug.Debug as Debug
 
--- | multiTraverseFullyLabelGraph naively reroot (no progessive reroot) graph on all vertices and chooses lowest cost
--- does not yet minimize over characters to get multi-min
+
+-- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree, 
+-- Soft-wired network graph, and Hard-wired network graph
 multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelGraph inGS inData inGraph =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
+    else if (graphType inGS == Tree) then 
+        -- test for Tree
+        let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
+        in
+        if (null networkVertexList) then multiTraverseFullyLabelTree inGS inData inGraph
+        else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type")
+    else if (graphType inGS == SoftWired) then multiTraverseFullyLabelSoftWired  inGS inData inGraph
+    else if (graphType inGS == HardWired) then errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
+    else errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
+
+-- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
+-- including traversal rootings 
+multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired inGS inData inGraph = 
+    if LG.isEmpty inGraph then emptyPhylogeneticGraph
+    else 
+        emptyPhylogeneticGraph
+
+-- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
+-- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
+-- operates with Tree functions
+-- need to add forest funcgtinoality--in principle just split into components and optimize them independently
+-- but get into root index issues theway htis is written now. 
+multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree inGS inData inSimpleGraph =
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else 
         let leafGraph = makeLeafGraph inData
 
@@ -76,42 +104,29 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
-            -- minimal reoptimize with smart order to minimize node reoptimization
-
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
-            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph $ GO.rerootGraph' inGraph (outgroupIndex inGS)
+            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
 
             -- create list of multi-traversals with original rooting first
             -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
             -- they are taken from the fully labelled first input decorated graph later when output graph created
-            -- it is important that teh first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
-            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd filed.  This can be used for incremental
-            -- optimization to get log n initial postorder assingment when mutsating graph.
+            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph outgroupRootedPhyloGraph childrenOfRoot
 
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
-            --  travesal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
-            --  traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
+            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
-            --graphWithBestAssignments  = setBestGraphAssignments recursiveRerootList (fst6 outgroupRootedPhyloGraph)  (thd6 outgroupRootedPhyloGraph) (six6 outgroupRootedPhyloGraph) 
             graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
         in
-        --trace ("Outgroup cost:" ++ show (snd6 outgroupRootedPhyloGraph))
-        --trace ("Initial Children: " ++ show childrenOfRoot)
-        --trace ("Min graph cost :" ++ show minCostRecursive ++ " Merged :" ++ (show $ snd6 graphWithBestAssignments'))
-        --    show minCostDirect ++ ":" ++ (show $ sort $ fmap snd6 rerootPhyloGraphListDirect)
-        --    ++ "\n" ++ show minCostRecursive ++ ":" ++ (show $ sort $ fmap snd6 recursiveRerootList))
-
-        -- for debugging
-        --trace ("Top " ++ (show $ fmap (fmap charType) $ six6 outgroupRootedPhyloGraph))
-        -- graphWithBestAssignments'
-
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
         -- preOrderTreeTraversal outgroupRootedPhyloGraph
         
@@ -131,7 +146,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 -- this function is expected to be used in a fold over a list of graphs
 -- the basic comparison is over the costs of the root(s) cost for each  of the character decorated (traversal) graphs
 
---May change
+-- May change
 -- assumes that a single decorated graph comes in for each Phylogenetic graph from the fully and reroot optimize (V.singleton (V.singleton DecGraph))
 -- and goes through the block-character-cost data and reassigns based on that creating a unique (although there could be more than one) decorated 
 -- graph for each character in each block.
@@ -266,26 +281,6 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
             error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
         -- )
-{-
-Was used in postDecorateTree, but removed 
-
--- | getVirtualRootEdge cretes tehe virtual edge that would have existed to crete that node rott
--- the ide is that if the tree had been rooted somewhere else -- what edge would have existied and was
--- "divided" to crete this node.  This is used for individual character graph traversal foci
--- edge is basically undirected since orientation is unknown
-getVirtualRootEdge :: (Show a, Show b) => LG.Gr a b -> LG.Node -> LG.Edge
-getVirtualRootEdge inGraph inNode = 
-    if LG.isEmpty inGraph then error "Empty graph in getVirtualRootEdge"
-    else 
-        let childList = LG.descendants inGraph inNode
-            parentList = LG.parents inGraph inNode
-        in
-        -- this really shouldn't be used but in recursion for traversal may be needed
-        if LG.isLeaf inGraph inNode then (head parentList, inNode)
-        else 
-            if length childList /= 2 then error ("Root node with /= 2 children in getVirtualRootEdge\n" ++ (GFU.showGraph inGraph)) 
-            else (head childList, last childList)
--}
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
@@ -480,54 +475,13 @@ assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
             -- update node labels
             newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
             
-            {-This code will set root final (and preliminary as well) to outgroup final
-            --  remake root from two descendants-- assign one of two descendants
-            -- if one is a terminal that then left
-            rootNode = head $ LG.getRoots inGraph
-            rootChildrenIndices = LG.descendants inGraph (fst rootNode)
-            rootChildren = filter ((`elem` rootChildrenIndices).fst) newNodeList
-            newRootLabel = makeNewRootLabel rootChildren graphCost (snd rootNode) 
-
-            -- remove old root node and add new
-            newNodeList' = (fst rootNode, newRootLabel) : (filter ((/= (fst rootNode)).fst) newNodeList)
-            
             -- update edge labels
-            newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList')) postOrderEdgeList
-            -}
             newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
         LG.mkGraph newNodeList newEdgeList
         --)
-
-{-
--- | makeNewRootLabel takes list of labeled nodes (children of root) and sets te hroot data to the leaf data if one is a leaf
--- otherwise the vertData of the first child.  This to avoid root branch length problems created by preorder pass over travesals.
--- This will result in one edge being zero length--more properly reflecting the edge-as-root idea.
--- need to update only final states.  
-makeNewRootLabel :: [LG.LNode VertexInfo] -> VertexCost -> VertexInfo -> VertexInfo
-makeNewRootLabel rootChildren graphCost inRootInfo =
-    if null rootChildren then error "Null children of root in chooseNewRootLabel"
-    else 
-        let (_, childLeafList) = unzip $ filter ((==LeafNode).fst) $ zip (fmap nodeType $ fmap snd rootChildren) rootChildren
-        in
-        if not $ null childLeafList then 
-            let childLeafData = snd $ head childLeafList
-            in
-            -- trace (show $ vertData childLeafData)
-            inRootInfo { vertData = vertData childLeafData
-                       , vertexCost = 0.0
-                       , subGraphCost = graphCost
-                       }
-        else 
-            let childLeafData = snd $ head rootChildren
-            in
-            inRootInfo { vertData = vertData childLeafData
-                       , vertexCost = 0.0
-                       , subGraphCost = graphCost
-                       }
--}
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
 -- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.

@@ -226,13 +226,40 @@ delNode inNode inGraph = G.delNode inNode inGraph
 delNodes :: [Node] -> Gr a b -> Gr a b
 delNodes inNodeList inGraph = G.delNodes inNodeList inGraph
 
--- | mkGraph creates a greaph from list of nodes and list of edges
+-- | mkGraph creates a graph from list of nodes and list of edges
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
 mkGraph nodeList edgeList = G.mkGraph nodeList edgeList
 
 -- | components list of list of nodes (graphalyze can return graph list)
 components :: Gr a b -> [[Node]]
 components inGraph = DFS.components inGraph
+
+-- | componentGraphs takes a graph and returns its compnent gaphs
+componentGraphs :: (Eq a) => Gr a b -> [Gr a b]
+componentGraphs inGraph =
+    if isEmpty inGraph then []
+    else 
+        let componentNodeListList = components inGraph
+            labComponentNodeListList = fmap (fmap (labelNode inGraph)) componentNodeListList
+            edgeListListList = fmap (fmap (inn inGraph)) componentNodeListList
+            componentEdgeList = fmap concat edgeListListList
+            componentGraphList = zipWith mkGraph labComponentNodeListList componentEdgeList
+        in
+        if length componentNodeListList == 1 then [inGraph]
+        else componentGraphList
+
+
+-- | labelNode uses lab but checks for Nothing and returns labelled node
+labelNode :: (Eq a) => Gr a b -> Node -> LNode a
+labelNode inGraph inNode = 
+    if isEmpty inGraph then error "Empty graph for label source"
+    else 
+        let label = lab inGraph inNode
+        in
+        if label == Nothing then error ("No label for node " ++ show inNode)
+        else 
+            (inNode, fromJust label)    
+
 
 -- | noComponents returns number of components
 noComponents :: Gr a b -> Int

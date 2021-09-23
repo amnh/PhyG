@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingStrategies, StandaloneDeriving #-}
 
 module Types.Types where
 
@@ -258,14 +258,28 @@ type LeafData = (NameText, V.Vector CharacterData)
 -- blocks of character data for  a given vertex
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
+-- | ResolutionData contains vertex information for soft-wired network components
+-- these are used in the idenitification of minimal cost display trees for a block of
+-- data that follow the same display tree
+type ResolutionVertexData = V.Vector ResolutionBlockData
+
+-- | ResolutionBlockData contains individual block information for soft-wired network components
+-- these are used in the idenitification of minimal cost display trees for a block of
+-- data that follow the same display tree
+data ResolutionBlockData = ResolutionBlockData { displaySubGraph :: SimpleGraph -- holds the post-order display sub-tree for the block
+                                               , displayBVLabel  :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
+                                               , displayData     :: V.Vector CharacterData -- data for characters in block
+                                               } deriving stock (Show, Eq)
+
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing
-                             , bvLabel      :: NameBV -- For comparison of vertices subtrees, etc
+                             , bvLabel      :: NameBV -- For comparison of vertices subtrees, left/right
                              , parents      :: V.Vector Int --indegree indices
                              , children     :: V.Vector Int -- outdegree indices
                              , nodeType     :: NodeType -- root, leaf, network, tree
                              , vertName     :: NameText --Text name of vertex either input or HTU#
                              , vertData     :: VertexBlockData -- data as vector of blocks (each a vector of characters)
+                             , vertexResolutionData :: V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
                              , vertexCost   :: VertexCost -- local cost of vertex
                              , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
                              } deriving stock (Show, Eq)
