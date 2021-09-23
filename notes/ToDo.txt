@@ -335,4 +335,19 @@ to render--would have repeated subtrees after network vertex
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
 
 
-141)
+142) At some point keep equally costly traversals so
+        add another vector dimension to  traversal trees in Phylogenetic graph
+
+142) For soft-wired
+        1) change block graph tuple to Vector of Vector of Decorated graphs to hold
+                        multiple (equally costly) display trees for a given block
+                        when have block sets can reduce by intersection of display trees
+                        for each block could reduce complexity of output a great deal
+
+
+        2) Add resolution set to vertex information
+                Only updated in softwired graph optimization
+                Trees and Hardwired can be empty
+                        [VertData] ?
+                        Child indices?
+
