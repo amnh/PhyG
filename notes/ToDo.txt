@@ -362,3 +362,21 @@ to render--would have repeated subtrees after network vertex
 
 145) rationalike tree/graph, softwired, hardwired traversal function names
 
+146) Bridge Tarjan
+	Popcount for size subtree
+
+147) time consistency
+	list of all edges
+		\\ network edges
+		\\ ancestor edges
+		\\ descdendant edges
+		\\ opposite side of anc or desc network edge
+				(synchonization event)
+
+148) Block build network initial build
+	trees from block (remove missing from distance or whatever)
+		rooting on common leaf
+	combine via EUN/CUN
+	reroot on outgroup
+	label/filter unused edges
+

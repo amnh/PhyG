@@ -251,8 +251,8 @@ splitBlockCharacters :: V.Vector (V.Vector CharacterData)
                      -> [([CharacterData], CharInfo)] 
                      -> [([CharacterData], CharInfo)] 
                      -> (BlockData, BlockData)
-splitBlockCharacters inDataVV inCharInfoV index exactCharPairList nonExactCharPairList =
-    if index == V.length inCharInfoV then 
+splitBlockCharacters inDataVV inCharInfoV localIndex exactCharPairList nonExactCharPairList =
+    if localIndex == V.length inCharInfoV then 
         let (exactDataList, exactCharInfoList) = unzip exactCharPairList
             (nonExactDataList, nonExactCharInfoList) = unzip nonExactCharPairList
             newExactCharInfoVect = V.fromList $ reverse exactCharInfoList
@@ -262,14 +262,14 @@ splitBlockCharacters inDataVV inCharInfoV index exactCharPairList nonExactCharPa
         in
         ((T.pack "ExactCharacters", newExactData, newExactCharInfoVect), (T.pack "Non-ExactCharacters", newNonExactData, newNonExactCharInfoVect))
     else 
-        let localCharacterType = charType (inCharInfoV V.! index)
-            thisCharacterData = V.toList $ fmap (V.! index) inDataVV
-            newPair = (thisCharacterData, inCharInfoV V.! index)
+        let localCharacterType = charType (inCharInfoV V.! localIndex)
+            thisCharacterData = V.toList $ fmap (V.! localIndex) inDataVV
+            newPair = (thisCharacterData, inCharInfoV V.! localIndex)
         in
         if localCharacterType `elem` exactCharacterTypes then
-            splitBlockCharacters inDataVV inCharInfoV (index + 1) (newPair : exactCharPairList) nonExactCharPairList
+            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) (newPair : exactCharPairList) nonExactCharPairList
         else if localCharacterType `elem` nonExactCharacterTypes then
-            splitBlockCharacters inDataVV inCharInfoV (index + 1) exactCharPairList (newPair : nonExactCharPairList)
+            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) exactCharPairList (newPair : nonExactCharPairList)
         else error ("Unrecongized/implemented character type: " ++ show localCharacterType)
 
 

@@ -170,7 +170,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         (blockNamne, newCharacterVector, newCharInfoVect)
         -}
         --trace ("New Char lengths :" ++ (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
-        let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList
+        let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList 
         in 
         (blockName, newCharDataVectVect, newCharInfoVect)
         -- )
@@ -257,9 +257,8 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
 makeNewCharacterData :: [([CharacterData], CharInfo)] 
                      -> [([CharacterData], CharInfo)] 
                      -> [([[CharacterData]], CharInfo)] 
-                     -> [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
-makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList = 
+makeNewCharacterData nonAddCharList addCharList matrixCharListList  = 
     let
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
