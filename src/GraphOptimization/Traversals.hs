@@ -39,7 +39,6 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , makeLeafGraph
                                     , multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
-                                    , fullyLabelGraphWithoutMultiTraversal
                                     ) where
 
 import           Types.Types
@@ -83,11 +82,71 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings 
+-- allows indegree=outdegree=1 vertices
 multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelSoftWired inGS inData inGraph = 
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else 
-        emptyPhylogeneticGraph
+        let -- starting leaves
+            leafGraph = makeLeafGraphSoftWired inData
+
+            -- for special casing of nonexact and single exact characters
+            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            exactCharacters = U.getNumberExactCharacters (thd3 inData)
+
+            -- post order pass
+            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            
+            -- preorder pass
+            outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
+        in
+        outgroupRootedSoftWiredPreOrder
+
+-- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
+postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph = 
+    if LG.isEmpty inSimple then emptyPhylogeneticGraph
+    else emptyPhylogeneticGraph
+
+-- | preOrderSoftWiredTraversal performs preorder pass on post-order soft-wired graph
+preOrderSoftWiredTraversal :: PhylogeneticGraph -> PhylogeneticGraph
+preOrderSoftWiredTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
+    if LG.isEmpty inSimple then emptyPhylogeneticGraph
+    else inPGraph
+        
+
+-- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeLeafGraphSoftWired :: ProcessedData -> DecoratedGraph
+makeLeafGraphSoftWired (nameVect, bvNameVect, blocDataVect) =
+    if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
+    else 
+        let leafVertexList = V.toList $ V.map (makeLeafVertexSoftWired nameVect bvNameVect blocDataVect) (V.fromList [0.. (V.length nameVect) - 1])
+        in
+        LG.mkGraph leafVertexList []
+
+-- | makeLeafVertexSoftWired makes a single unconnected vertex for a leaf in a Soft-wired graph
+makeLeafVertexSoftWired :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
+makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
+    --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    let centralData = V.map snd3 inData 
+        thisData = V.map (V.! localIndex) centralData
+        newVertex = VertexInfo  { index = localIndex
+                                , bvLabel = bvNameVect V.! localIndex
+                                , parents = V.empty
+                                , children = V.empty
+                                , nodeType = LeafNode
+                                , vertName =  nameVect V.! localIndex
+                                , vertData = thisData
+                                , vertexResolutionData = mempty
+                                , vertexCost = 0.0
+                                , subGraphCost = 0.0
+                                }   
+        in
+        -- trace (show (length thisData) ++ (show $ fmap length thisData))
+        (localIndex, newVertex)
+        --)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
@@ -215,17 +274,6 @@ minimalReRootPhyloGraph inGraph nodesToRoot =
         --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
         newGraph : minimalReRootPhyloGraph newGraph nextReroots
 
--- | fullyLabelGraphWithoutMultiTraversal takes an unlabelled "simple' graph, performs post and preorder passes to 
--- fully label the graph and return a PhylogenticGraph
--- this does no rerooting to imporve score
-fullyLabelGraphWithoutMultiTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-fullyLabelGraphWithoutMultiTraversal inGS inData leafGraph inGraph = 
-    if LG.isEmpty inGraph then emptyPhylogeneticGraph
-    else 
-        let postOrderTree = postOrderTreeTraversal inGS inData leafGraph inGraph
-            preOrderTree = preOrderTreeTraversal postOrderTree
-        in
-        preOrderTree
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
@@ -251,6 +299,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
                                 , nodeType = LeafNode
                                 , vertName =  nameVect V.! localIndex
                                 , vertData = thisData
+                                , vertexResolutionData = mempty
                                 , vertexCost = 0.0
                                 , subGraphCost = 0.0
                                 }   
@@ -335,6 +384,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                         , nodeType = GO.getNodeType simpleGraph curNode
                                         , vertName = T.pack $ "HTU" ++ (show curNode)
                                         , vertData = V.map (V.map fst) newCharData
+                                        , vertexResolutionData = mempty
                                         , vertexCost = newCost
                                         , subGraphCost = (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                         }   
