@@ -263,13 +263,18 @@ type VertexBlockData = V.Vector (V.Vector CharacterData)
 -- data that follow the same display tree
 type ResolutionVertexData = V.Vector ResolutionBlockData
 
--- | ResolutionBlockData contains individual block information for soft-wired network components
+-- | ResolutionBlockData contains a list of ResolutionData
+-- this list contains all the potetnial resolutions of a softwired
+-- networtk vertex
+type ResolutionBlockData = [ResolutionData]
+
+-- | ResolutionData contains individual block information for a given resoluton of soft-wired network components
 -- these are used in the idenitification of minimal cost display trees for a block of
 -- data that follow the same display tree
-data ResolutionBlockData = ResolutionBlockData { displaySubGraph :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
-                                               , displayBVLabel  :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
-                                               , displayData     :: [CharacterData] -- data for characters in block
-                                               } deriving stock (Show, Eq)
+data ResolutionData = ResolutionData { displaySubGraph :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
+                                     , displayBVLabel  :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
+                                     , displayData     :: V.Vector CharacterData -- data for characters in block
+                                    } deriving stock (Show, Eq)
 
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing

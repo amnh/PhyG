@@ -104,6 +104,7 @@ reOptimizeNodes charInfoVectVect inGraph oldNodeList =
                                             , children = V.fromList nodeChildren
                                             , nodeType = nodeType curnodeLabel
                                             , vertName = vertName curnodeLabel
+                                            , vertexResolutionData = mempty
                                             , vertData = if (length nodeChildren < 2) then vertData leftChildLabel
                                                          else V.map (V.map fst) newVertexData
                                             , vertexCost = newCost

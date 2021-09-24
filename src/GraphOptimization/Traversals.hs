@@ -84,8 +84,8 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
 -- including traversal rootings 
 -- allows indegree=outdegree=1 vertices
 multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelSoftWired inGS inData inGraph = 
-    if LG.isEmpty inGraph then emptyPhylogeneticGraph
+multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph = 
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else 
         let -- starting leaves
             leafGraph = makeLeafGraphSoftWired inData
@@ -100,24 +100,26 @@ multiTraverseFullyLabelSoftWired inGS inData inGraph =
             -- preorder pass
             outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
         in
+        -- merge component gaphs 
         outgroupRootedSoftWiredPreOrder
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
 postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph = 
-    if LG.isEmpty inSimple then emptyPhylogeneticGraph
+postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimpleGraph = 
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else emptyPhylogeneticGraph
 
 -- | preOrderSoftWiredTraversal performs preorder pass on post-order soft-wired graph
 preOrderSoftWiredTraversal :: PhylogeneticGraph -> PhylogeneticGraph
 preOrderSoftWiredTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
-    if LG.isEmpty inSimple then emptyPhylogeneticGraph
+    if LG.isEmpty inDecorated then emptyPhylogeneticGraph
     else inPGraph
         
 
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
+-- includes leave resolution data
 makeLeafGraphSoftWired :: ProcessedData -> DecoratedGraph
 makeLeafGraphSoftWired (nameVect, bvNameVect, blocDataVect) =
     if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
@@ -132,6 +134,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
     --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData 
         thisData = V.map (V.! localIndex) centralData
+        thisResolutionData = 
         newVertex = VertexInfo  { index = localIndex
                                 , bvLabel = bvNameVect V.! localIndex
                                 , parents = V.empty
@@ -139,7 +142,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
                                 , nodeType = LeafNode
                                 , vertName =  nameVect V.! localIndex
                                 , vertData = thisData
-                                , vertexResolutionData = mempty
+                                , vertexResolutionData = thisResolutionData
                                 , vertexCost = 0.0
                                 , subGraphCost = 0.0
                                 }   

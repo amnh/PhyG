@@ -357,6 +357,8 @@ to render--would have repeated subtrees after network vertex
 	issues with rootindex
 	need to make more flexible so can just map over components
 	perhaps splitgraph/merge graph type thing to keep root index as nOTUs
+	perhaps remove to an added option to break on "long" edges at with
+	separate functions
 
 144) Check optimization for multirooted components
 
