@@ -134,7 +134,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
     --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData 
         thisData = V.map (V.! localIndex) centralData
-        thisResolutionData = 
+        thisResolutionData = makeLeafResolutionBlockData displaySubGraph ([(localIndex, newVertex)],[]) thisData
         newVertex = VertexInfo  { index = localIndex
                                 , bvLabel = bvNameVect V.! localIndex
                                 , parents = V.empty
