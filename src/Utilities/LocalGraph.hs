@@ -230,6 +230,11 @@ delNodes inNodeList inGraph = G.delNodes inNodeList inGraph
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
 mkGraph nodeList edgeList = G.mkGraph nodeList edgeList
 
+
+-- | mkGraphPair creates a graph from pair of list of nodes and list of edges
+mkGraphPair ::  ([LNode a], [LEdge b]) -> Gr a b
+mkGraphPair (nodeList, edgeList) = G.mkGraph nodeList edgeList
+
 -- | components list of list of nodes (graphalyze can return graph list)
 components :: Gr a b -> [[Node]]
 components inGraph = DFS.components inGraph

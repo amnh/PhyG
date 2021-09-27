@@ -63,6 +63,7 @@ import qualified SymMatrix                   as S
 import qualified Data.Vector.Generic         as GV
 import Debug.Trace
 import qualified Debug.Debug as Debug
+import qualified Data.BitVector.LittleEndian as BV
 
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree, 
@@ -135,12 +136,45 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else
             -- make display graph vector
-            let dispayGraphV = mempty
+            let dispayGraphV = extractBestDisplayTrees False $ vertexResolutionData (fromJust nodeLabel)
             in
             (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, V.singleton (V.singleton curDecGraph), blockCharInfo)
     else 
         emptyPhylogeneticGraph
     
+
+-- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
+-- option for filter based on pop-count for root cost and complete display tree check
+extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> V.Vector BlockDisplayForest
+extractBestDisplayTrees checkPopCount inRBDV = 
+    if V.null inRBDV then V.empty
+    else 
+        let bestBlockDisplayResolutionList = fmap (getBestResolutionList checkPopCount) inRBDV
+        in
+        fmap head bestBlockDisplayResolutionList
+
+-- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best diplay trees for that block
+getBestResolutionList :: Bool -> ResolutionBlockData -> [BlockDisplayForest]
+getBestResolutionList checkPopCount inRDList =
+    if null inRDList then []
+    else 
+        let displayTreeList = fmap displaySubGraph inRDList
+            displayCostList = fmap displayCost inRDList
+            displayPopList = fmap (complement) $ fmap displayBVLabel inRDList
+        in
+        if not checkPopCount then 
+            let minCost = minimum displayCostList
+                displayCostPairList = zip displayTreeList displayCostList
+                (bestDisplayList, _) = unzip $ filter ((== minCost) . snd) displayCostPairList
+            in
+            fmap LG.mkGraphPair bestDisplayList
+        else
+            let displayBVList = zip3 displayTreeList displayCostList displayPopList
+                validDisplayList = filter (BV.isZeroVector . thd3) displayBVList
+                validMinCost = minimum $ fmap snd3 validDisplayList
+                (bestDisplayList, _, _) = unzip3 $ filter ((== validMinCost) . snd3) validDisplayList
+            in
+            fmap LG.mkGraphPair bestDisplayList
 
 
 
