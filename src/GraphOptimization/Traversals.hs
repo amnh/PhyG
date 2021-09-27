@@ -106,8 +106,43 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
 postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
 postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimpleGraph = 
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
-    else emptyPhylogeneticGraph
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph  
+    else 
+         -- Assumes root is Number of Leaves  
+        let rootIndex = V.length $ fst3 inData
+            blockCharInfo = V.map thd3 blockDataVect
+            newSoftWired = postDecorateSoftWired inGS inData inSimpleGraph leafGraph blockCharInfo rootIndex
+        in
+        --trace ("It Begins at " ++ show rootIndex) (
+        if not $ LG.isRoot inSimpleGraph rootIndex then 
+            let localRootList = fmap fst $ LG.getRoots inSimpleGraph
+                localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
+                currentRootEdges = LG.out inSimpleGraph rootIndex
+            in
+            error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inSimpleGraph))
+        else newSoftWired 
+        -- )
+
+-- | postDecorateSoftWired begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled 
+-- and then recurses to root postorder labelling vertices and edges as it goes
+-- this for a single root
+postDecorateSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
+postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
+    -- if node in there nothing to do and return
+    if LG.gelem curNode curDecGraph then 
+        let nodeLabel = LG.lab curDecGraph curNode
+        in
+        if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
+        else
+            -- make display graph vector
+            let dispayGraphV = mempty
+            in
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, V.singleton (V.singleton curDecGraph), blockCharInfo)
+    else 
+        emptyPhylogeneticGraph
+    
+
+
 
 -- | preOrderSoftWiredTraversal performs preorder pass on post-order soft-wired graph
 preOrderSoftWiredTraversal :: PhylogeneticGraph -> PhylogeneticGraph
@@ -134,9 +169,10 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
     --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData 
         thisData = V.map (V.! localIndex) centralData
-        thisResolutionData = makeLeafResolutionBlockData displaySubGraph ([(localIndex, newVertex)],[]) thisData
+        thisBVLabel = bvNameVect V.! localIndex
+        thisResolutionData = makeLeafResolutionBlockData thisBVLabel ([(localIndex, newVertex)],[]) thisData
         newVertex = VertexInfo  { index = localIndex
-                                , bvLabel = bvNameVect V.! localIndex
+                                , bvLabel = thisBVLabel
                                 , parents = V.empty
                                 , children = V.empty
                                 , nodeType = LeafNode
@@ -150,6 +186,37 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
         -- trace (show (length thisData) ++ (show $ fmap length thisData))
         (localIndex, newVertex)
         --)
+
+
+-- | makeLeafResolutionBlockData creates leaf resolution data from leav BVLabel, leave node, and data.
+-- The return type is a vertor over character blocks each containing a list of potential resolutions (display trees) for that block 
+-- the resolutoins include subtree (display) for that resolution the bv l;abel for the node given that resolution, and the character data
+-- in the block (Vector CharacterData) also given that resolution  
+-- thiis is repeaatted for each bloick in VertexBlockData
+makeLeafResolutionBlockData :: NameBV -> ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -> VertexBlockData -> V.Vector ResolutionBlockData
+makeLeafResolutionBlockData inBV inSubGraph inVertData = 
+    let defaultResolutionData = ResolutionData  { displaySubGraph = inSubGraph
+                                                , displayBVLabel = inBV
+                                                , displayData = mempty
+                                                , displayCost = 0.0
+                                                } 
+
+        blockIndexList = [0..((V.length inVertData) - 1)]
+        blockDataList = fmap (inVertData V.!) blockIndexList
+        resolutionDataList = modifyDisplayData defaultResolutionData blockDataList []
+        resolutionData =  V.fromList $ fmap (:[]) resolutionDataList
+    in
+    resolutionData
+
+-- | modifyDisplayData modifies displatData filed in ResolutionData
+modifyDisplayData :: ResolutionData -> [V.Vector CharacterData] -> [ResolutionData] -> [ResolutionData]
+modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
+    if null characterDataVList then reverse curResolutionList
+    else 
+        let curBlockData = head characterDataVList
+        in
+        modifyDisplayData resolutionTemplate (tail characterDataVList) ((resolutionTemplate {displayData = curBlockData}) : curResolutionList)
+
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
@@ -334,9 +401,9 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
         else newTree 
         -- )
 
--- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till childrend ane labelled and then reurns postorder
+-- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
--- this for a tree so single rtoot
+-- this for a tree so single root
 postDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
 postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
     -- if node in there nothing to do and return
@@ -426,7 +493,8 @@ preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, bl
     else 
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
-        let preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
+        let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith doBlockTraversal inCharInfoVV blockCharacterDecoratedVV
             fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
         in
         {-
@@ -440,16 +508,16 @@ preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, bl
         
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
-doBlockTraversal :: (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
-doBlockTraversal (inCharInfoV, traversalDecoratedVect) =
+doBlockTraversal :: V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversal inCharInfoV traversalDecoratedVect =
     --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
-    fmap doCharacterTraversal $ Debug.debugVectorZip inCharInfoV traversalDecoratedVect
+    V.zipWith doCharacterTraversal inCharInfoV traversalDecoratedVect
 
 -- | doCharacterTraversal perfoms preorder traversal on single character tree
 -- with single charInfo
 -- this so each character can be independently "rooted" for optimal traversals.
-doCharacterTraversal ::  (CharInfo, DecoratedGraph) -> DecoratedGraph 
-doCharacterTraversal (inCharInfo, inGraph) =
+doCharacterTraversal ::  CharInfo -> DecoratedGraph -> DecoratedGraph 
+doCharacterTraversal inCharInfo inGraph =
     -- find root--index should = number of leaves 
     --trace ("charT:" ++ (show $ charType inCharInfo)) (
     let rootVertexList = LG.getRoots inGraph
