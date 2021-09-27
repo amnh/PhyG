@@ -43,7 +43,8 @@ ToDo:
 module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticGraph'
                                              , createVertexDataOverBlocks
-                                             , divideDecoratedGraphByBlockAndCharacter
+                                             , divideDecoratedGraphByBlockAndCharacterTree
+                                             , divideDecoratedGraphByBlockAndCharacterSoftWired
                                              ) where
 
 import           Data.Bits                 ((.|.))
@@ -218,15 +219,27 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDi
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, divideDecoratedGraphByBlockAndCharacter newDecGraph', charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
 
--- | divideDecoratedGraphByBlockAndCharacter takes a DecoratedGraph with (potentially) multiple blocks
+-- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a DecoratedGraph with (potentially) multiple blocks
+-- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
+-- over blocks and characters with the block diplay graph, but only a single block and character for each graph
+-- this to be used to create the "best" cost over alternate graph traversals
+-- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterSoftWired inGraphV = 
+  if V.null inGraphV then mempty
+  else 
+    V.empty
+
+
+-- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
 -- over blocks and characyets with the same graph, but only a single block and character for each graph
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
-divideDecoratedGraphByBlockAndCharacter :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
-divideDecoratedGraphByBlockAndCharacter inGraph = 
+divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterTree inGraph = 
   if LG.isEmpty inGraph then V.empty
   else 
     let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph

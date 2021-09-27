@@ -135,12 +135,62 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else
-            -- make display graph vector
+            -- make display graph vector--not correct for characters (5th field)--needs to be split at root by PO.divideDecoratedGraphByBlockAndCharacter
             let dispayGraphV = extractBestDisplayTrees False $ vertexResolutionData (fromJust nodeLabel)
             in
-            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, V.singleton (V.singleton curDecGraph), blockCharInfo)
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, V.singleton dispayGraphV, blockCharInfo)
     else 
-        emptyPhylogeneticGraph
+        let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
+            leftChild = (head nodeChildren)
+            rightChild = (last nodeChildren)
+            leftChildTree = postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo leftChild
+            rightLeftChildTree = if (length nodeChildren == 2) then postDecorateSoftWired inGS inData simpleGraph (thd6 $ leftChildTree) blockCharInfo rightChild
+                                 else leftChildTree
+        in 
+
+        -- Checks on children
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
+        else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateSoftWired node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
+
+        else
+            -- make node from child block resolutions
+            let newSubTree = thd6 $ rightLeftChildTree
+            in
+            -- single child of node (can certinly happen with soft-wired networks
+            if length nodeChildren == 1 then 
+                let childLabel = fromJust $ LG.lab newSubTree leftChild
+                    newVertex  = VertexInfo { index = curNode
+                                            , bvLabel = bvLabel childLabel
+                                            , parents = V.fromList $ LG.parents simpleGraph curNode
+                                            , children = V.fromList nodeChildren
+                                            , nodeType = GO.getNodeType simpleGraph curNode
+                                            , vertName = T.pack $ "HTU" ++ (show curNode)
+                                            , vertData = mempty
+                                            , vertexResolutionData = vertexResolutionData childLabel
+                                            , vertexCost = 0.0
+                                            , subGraphCost = subGraphCost childLabel
+                                            }   
+                    newEdgesLabel = EdgeInfo { minLength = 0.0
+                                             , maxLength = 0.0
+                                             , midRangeLength = 0.0
+                                             , edgeType = TreeEdge
+                                             }
+                    newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
+                    newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                    newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree  
+
+                    -- check if at root for all leaves in check
+                    dispayGraphV = if (V.null $ parents newVertex) then extractBestDisplayTrees True $ vertexResolutionData newVertex   
+                                   else extractBestDisplayTrees False $ vertexResolutionData newVertex            
+            in
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterSoftWired if not root?  probbaly not
+            (simpleGraph, (subGraphCost newVertex), newGraph, dispayGraphV, PO.divideDecoratedGraphByBlockAndCharacterSoftWired dispayGraphV, blockCharInfo)
+            
+            
+            -- 2 children    
+            else 
+
+                emptyPhylogeneticGraph
     
 
 -- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
@@ -211,7 +261,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
                                 , children = V.empty
                                 , nodeType = LeafNode
                                 , vertName =  nameVect V.! localIndex
-                                , vertData = thisData
+                                , vertData = mempty
                                 , vertexResolutionData = thisResolutionData
                                 , vertexCost = 0.0
                                 , subGraphCost = 0.0
@@ -499,11 +549,14 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                                          }
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
-                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree                    
-            in
-            -- trace ("Orig graph: " ++ (show $ U.getDecoratedGraphBlockCharInformation newGraph))
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree 
 
-            (simpleGraph, (subGraphCost newVertex), newGraph,V.replicate (length blockCharInfo) newGraph, PO.divideDecoratedGraphByBlockAndCharacter newGraph, blockCharInfo)
+                -- block display trees all same for a tree
+                blockDisplayGraphV =  V.replicate (length blockCharInfo) newGraph                  
+            in
+            
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
+            (simpleGraph, (subGraphCost newVertex), newGraph, blockDisplayGraphV, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             --)
             
 
