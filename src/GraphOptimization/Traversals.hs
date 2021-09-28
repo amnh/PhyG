@@ -162,26 +162,36 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- 2 children 
             else 
                 -- need to create new resolutions and add to existing sets
-
+                let leftChildLabel = fromJust $ LG.lab newSubTree leftChild
+                    rightChildLabel = fromJust $ LG.lab newSubTree rightChild
+                    leftChildNodeType  = nodeType leftChildLabel
+                    rightChildNodeType = nodeType rightChildLabel
+                    resolutionPairs = V.zipWith (createBlockResolutions leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) 
+                in
                 emptyPhylogeneticGraph
 
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: ResolutionBlockData -> ResolutionBlockData -> ResolutionBlockData
-createBlockResolutions leftChild rightChild =
+createBlockResolutions :: NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData) -> ResolutionBlockData
+createBlockResolutions leftChildNodeType rightChildNodeType (leftChild, rightChild)  =
     if (null leftChild) && (null rightChild) then []
     else if null leftChild then rightChild
     else if null rightChild then leftChild
     else 
         let childResolutionPairs = cartProd leftChild rightChild
-            validPairs = checkLeafOverlap childResolutionPairs
+            validPairs = checkLeafOverlap childResolutionPairs 
+            addLeft =  if leftChildNodeType == NetworkNode then leftChild
+                       else []
+            addRight = if rightChildNodeType == NetworkNode then rightChild
+                       else []
+            totalResolutions = validPairs ++ (addLeft ++ addRight)
         in
         leftChild
 
--- | checkLeafOverlap takes a left right resolution pair and checks if 
+-- | checkLeafOverlap takes a left right resolution pair list and checks if 
 -- there is leaf overlap via comparing displayBVLabel if & = 0 then no
--- overlap
+-- overlap, and adds to resulting list--reverses order--sholdn't matter
 checkLeafOverlap :: [(ResolutionData, ResolutionData)] -> [(ResolutionData, ResolutionData)] 
 checkLeafOverlap inPairList = 
     if null inPairList then []
