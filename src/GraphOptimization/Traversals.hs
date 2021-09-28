@@ -154,56 +154,94 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             in
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then 
-                let childLabel = fromJust $ LG.lab newSubTree leftChild
-                    newVertex  = VertexInfo { index = curNode
-                                            , bvLabel = bvLabel childLabel
-                                            , parents = V.fromList $ LG.parents simpleGraph curNode
-                                            , children = V.fromList nodeChildren
-                                            , nodeType = GO.getNodeType simpleGraph curNode
-                                            , vertName = T.pack $ "HTU" ++ (show curNode)
-                                            , vertData = mempty
-                                            , vertexResolutionData = vertexResolutionData childLabel
-                                            , vertexCost = 0.0
-                                            , subGraphCost = subGraphCost childLabel
-                                            }   
-                    newEdgesLabel = EdgeInfo { minLength = 0.0
-                                             , maxLength = 0.0
-                                             , midRangeLength = 0.0
-                                             , edgeType = TreeEdge
-                                             }
-                    newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
-                    newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
-                    newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree  
+                let (newGraph, isRoot, localCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                in
+                if isRoot then (simpleGraph, localCost, newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+                else (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
 
-                    -- check if at root for all leaves in check
-                    displayGraphVL = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True $ vertexResolutionData newVertex   
-                                   else mempty           
-            in
-            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterSoftWired if not root?  probably not
-            if (nodeType newVertex) == RootNode then (simpleGraph, (subGraphCost newVertex), newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
-            else (simpleGraph, (subGraphCost newVertex), newGraph, mempty, mempty, blockCharInfo)
-            
-            
-            -- 2 children    
+            -- 2 children 
             else 
+                -- need to create new resolutions and add to existing sets
 
                 emptyPhylogeneticGraph
-    
+
+
+-- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
+-- and generates node resolution data
+createBlockResolutions :: ResolutionBlockData -> ResolutionBlockData -> ResolutionBlockData
+createBlockResolutions leftChild rightChild =
+    if (null leftChild) && (null rightChild) then []
+    else if null leftChild then rightChild
+    else if null rightChild then leftChild
+    else 
+        let childResolutionPairs = cartProd leftChild rightChild
+            validPairs = checkLeafOverlap childResolutionPairs
+        in
+        leftChild
+
+-- | checkLeafOverlap takes a left right resolution pair and checks if 
+-- there is leaf overlap via comparing displayBVLabel if & = 0 then no
+-- overlap
+checkLeafOverlap :: [(ResolutionData, ResolutionData)] -> [(ResolutionData, ResolutionData)] 
+checkLeafOverlap inPairList = 
+    if null inPairList then []
+    else 
+        let inPair@(leftRes, rightRes) = head inPairList
+            leftBV = displayBVLabel leftRes
+            rightBV = displayBVLabel rightRes
+        in
+        if BV.isZeroVector (leftBV .&. rightBV) then inPair : checkLeafOverlap (tail inPairList)
+        else checkLeafOverlap (tail inPairList)
+
+-- | getOutDegree1VertexAndGraph makes              
+getOutDegree1VertexAndGraph :: LG.Node 
+                            -> VertexInfo 
+                            -> SimpleGraph 
+                            -> [LG.Node] 
+                            -> DecoratedGraph
+                            -> (DecoratedGraph, Bool, VertexCost, V.Vector [BlockDisplayForest])
+getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
+    let newVertex  = VertexInfo { index = curNode
+                                , bvLabel = bvLabel childLabel
+                                , parents = V.fromList $ LG.parents simpleGraph curNode
+                                , children = V.fromList nodeChildren
+                                , nodeType = GO.getNodeType simpleGraph curNode
+                                , vertName = T.pack $ "HTU" ++ (show curNode)
+                                , vertData = mempty
+                                , vertexResolutionData = vertexResolutionData childLabel
+                                , vertexCost = 0.0
+                                , subGraphCost = subGraphCost childLabel
+                                }   
+        newEdgesLabel = EdgeInfo { minLength = 0.0
+                                 , maxLength = 0.0
+                                 , midRangeLength = 0.0
+                                 , edgeType = TreeEdge
+                                 }
+        newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
+        newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
+        newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) subTree
+
+        (displayGraphVL, localCost) = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True (vertexResolutionData childLabel)
+                                     else (mempty, 0.0)
+
+
+    in
+    (newGraph, (nodeType newVertex) == RootNode, localCost, displayGraphVL)
 
 -- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
-extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> V.Vector [BlockDisplayForest]
+extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
 extractBestDisplayTrees checkPopCount inRBDV = 
-    if V.null inRBDV then V.empty
+    if V.null inRBDV then (V.empty, 0.0) 
     else 
-        let bestBlockDisplayResolutionList = fmap (getBestResolutionList checkPopCount) inRBDV
+        let (bestBlockDisplayResolutionList, costVect) = V.unzip $ fmap (getBestResolutionList checkPopCount) inRBDV
         in
-        bestBlockDisplayResolutionList
+        (bestBlockDisplayResolutionList, V.sum costVect)
 
 -- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best diplay trees for that block
-getBestResolutionList :: Bool -> ResolutionBlockData -> [BlockDisplayForest]
+getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
 getBestResolutionList checkPopCount inRDList =
-    if null inRDList then []
+    if null inRDList then ([], 0.0)
     else 
         let displayTreeList = fmap displaySubGraph inRDList
             displayCostList = fmap displayCost inRDList
@@ -214,14 +252,14 @@ getBestResolutionList checkPopCount inRDList =
                 displayCostPairList = zip displayTreeList displayCostList
                 (bestDisplayList, _) = unzip $ filter ((== minCost) . snd) displayCostPairList
             in
-            fmap LG.mkGraphPair bestDisplayList
+            (fmap LG.mkGraphPair bestDisplayList, minCost)
         else
             let displayBVList = zip3 displayTreeList displayCostList displayPopList
                 validDisplayList = filter (BV.isZeroVector . thd3) displayBVList
                 validMinCost = minimum $ fmap snd3 validDisplayList
                 (bestDisplayList, _, _) = unzip3 $ filter ((== validMinCost) . snd3) validDisplayList
             in
-            fmap LG.mkGraphPair bestDisplayList
+            (fmap LG.mkGraphPair bestDisplayList, validMinCost)
 
 
 
