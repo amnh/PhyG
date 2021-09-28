@@ -383,6 +383,4 @@ to render--would have repeated subtrees after network vertex
 	label/filter unused edges
 
 
-149)  Do we need to PO.divideDecoratedGraphByBlockAndCharacter
-	for anything but root? Soft-Wired also
-
+150) 

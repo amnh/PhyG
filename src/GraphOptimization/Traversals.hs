@@ -134,11 +134,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
         let nodeLabel = LG.lab curDecGraph curNode
         in
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
-        else
-            -- make display graph vector--not correct for characters (5th field)--needs to be split at root by PO.divideDecoratedGraphByBlockAndCharacter
-            let dispayGraphV = mempty -- extractBestDisplayTrees False $ vertexResolutionData (fromJust nodeLabel)
-            in
-            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, mempty, blockCharInfo)
+        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
+
     else 
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = (head nodeChildren)
@@ -147,7 +144,6 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             rightLeftChildTree = if (length nodeChildren == 2) then postDecorateSoftWired inGS inData simpleGraph (thd6 $ leftChildTree) blockCharInfo rightChild
                                  else leftChildTree
         in 
-
         -- Checks on children
         if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
         else if length nodeChildren == 0 then error ("Leaf not in graph in postDecorateSoftWired node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
@@ -176,15 +172,16 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                                              , edgeType = TreeEdge
                                              }
                     newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
-                    newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                    newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
                     newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree  
 
                     -- check if at root for all leaves in check
                     displayGraphVL = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True $ vertexResolutionData newVertex   
                                    else mempty           
             in
-            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterSoftWired if not root?  probbaly not
-            (simpleGraph, (subGraphCost newVertex), newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterSoftWired if not root?  probably not
+            if (nodeType newVertex) == RootNode then (simpleGraph, (subGraphCost newVertex), newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+            else (simpleGraph, (subGraphCost newVertex), newGraph, mempty, mempty, blockCharInfo)
             
             
             -- 2 children    

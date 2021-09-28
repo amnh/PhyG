@@ -221,17 +221,23 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDi
           -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
           (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
 
--- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a DecoratedGraph with (potentially) multiple blocks
+-- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
+-- continaing a list of decorated tryees that are the display trees for that block
+-- with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
 -- over blocks and characters with the block diplay graph, but only a single block and character for each graph
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+-- for this assignment purpose for pre-order a single (head) member of list is used to create the
+-- character graphs
 divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector [DecoratedGraph] -> V.Vector (V.Vector DecoratedGraph)
-divideDecoratedGraphByBlockAndCharacterSoftWired inGraphV = 
-  if V.null inGraphV then mempty
+divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL = 
+  if V.null inGraphVL then mempty
   else 
-    V.empty
-
+    let blockGraphList = fmap head inGraphVL
+        characterGraphList = fmap makeCharacterGraph blockGraphList
+    in
+    characterGraphList
 
 -- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
