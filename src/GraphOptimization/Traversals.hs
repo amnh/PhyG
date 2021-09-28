@@ -75,7 +75,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         -- test for Tree
         let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
         in
-        if (null networkVertexList) then multiTraverseFullyLabelTree inGS inData inGraph
+        if (not $ null networkVertexList) then multiTraverseFullyLabelTree inGS inData inGraph
         else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type")
     else if (graphType inGS == SoftWired) then multiTraverseFullyLabelSoftWired  inGS inData inGraph
     else if (graphType inGS == HardWired) then errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
@@ -500,7 +500,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else
             --  replicating curaDecGraph with number opf blocks--but all the same for tree 
-            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, V.replicate (length blockCharInfo) curDecGraph, V.singleton (V.singleton curDecGraph), blockCharInfo)
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
     -- Need to make node
     else 
@@ -550,13 +550,13 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree 
-
-                -- block display trees all same for a tree
-                blockDisplayGraphV =  V.replicate (length blockCharInfo) newGraph                  
+              
             in
             
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
-            (simpleGraph, (subGraphCost newVertex), newGraph, blockDisplayGraphV, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if (nodeType newVertex) == RootNode then (simpleGraph, (subGraphCost newVertex), newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            else (simpleGraph, (subGraphCost newVertex), newGraph, mempty, mempty, blockCharInfo)
+             
             --)
             
 
