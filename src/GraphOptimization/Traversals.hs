@@ -136,9 +136,9 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
         if nodeLabel == Nothing then error ("Null label for node " ++ show curNode)
         else
             -- make display graph vector--not correct for characters (5th field)--needs to be split at root by PO.divideDecoratedGraphByBlockAndCharacter
-            let dispayGraphV = extractBestDisplayTrees False $ vertexResolutionData (fromJust nodeLabel)
+            let dispayGraphV = mempty -- extractBestDisplayTrees False $ vertexResolutionData (fromJust nodeLabel)
             in
-            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, V.singleton dispayGraphV, blockCharInfo)
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, dispayGraphV, mempty, blockCharInfo)
     else 
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = (head nodeChildren)
@@ -180,11 +180,11 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree  
 
                     -- check if at root for all leaves in check
-                    dispayGraphV = if (V.null $ parents newVertex) then extractBestDisplayTrees True $ vertexResolutionData newVertex   
-                                   else extractBestDisplayTrees False $ vertexResolutionData newVertex            
+                    displayGraphVL = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True $ vertexResolutionData newVertex   
+                                   else mempty           
             in
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterSoftWired if not root?  probbaly not
-            (simpleGraph, (subGraphCost newVertex), newGraph, dispayGraphV, PO.divideDecoratedGraphByBlockAndCharacterSoftWired dispayGraphV, blockCharInfo)
+            (simpleGraph, (subGraphCost newVertex), newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
             
             
             -- 2 children    
@@ -195,13 +195,13 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
 
 -- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
-extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> V.Vector BlockDisplayForest
+extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> V.Vector [BlockDisplayForest]
 extractBestDisplayTrees checkPopCount inRBDV = 
     if V.null inRBDV then V.empty
     else 
         let bestBlockDisplayResolutionList = fmap (getBestResolutionList checkPopCount) inRBDV
         in
-        fmap head bestBlockDisplayResolutionList
+        bestBlockDisplayResolutionList
 
 -- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best diplay trees for that block
 getBestResolutionList :: Bool -> ResolutionBlockData -> [BlockDisplayForest]

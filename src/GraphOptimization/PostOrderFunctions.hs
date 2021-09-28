@@ -183,7 +183,7 @@ rerootPhylogeneticGraph' inGraph rerootIndex = rerootPhylogeneticGraph rerootInd
 --   from graph to graph.
 --   NNB only deals with post-order states
 rerootPhylogeneticGraph :: Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVect, _, charInfoVectVect) =
+rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
   if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else
@@ -205,8 +205,8 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDi
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
 
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
-        newBlockDisplayForestVect = if V.null blockDisplayForestVect then V.empty
-                                    else V.map (GO.rerootGraph rerootIndex) blockDisplayForestVect
+        newBlockDisplayForestVV = if V.null blockDisplayForestVV then mempty
+                                    else fmap (fmap (GO.rerootGraph rerootIndex)) blockDisplayForestVV
 
         in
         --trace ("=")
@@ -219,14 +219,14 @@ rerootPhylogeneticGraph rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDi
           ++ "\nSG:" ++ (LG.prettify newSimpleGraph))
           -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
-          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
+          (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
 -- over blocks and characters with the block diplay graph, but only a single block and character for each graph
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
-divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector [DecoratedGraph] -> V.Vector (V.Vector DecoratedGraph)
 divideDecoratedGraphByBlockAndCharacterSoftWired inGraphV = 
   if V.null inGraphV then mempty
   else 

@@ -334,12 +334,13 @@ type SimpleGraph = LG.Gr NameText Double
 --        3) Decorated Graph with optimized vertex/Node data
 --        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
+--                  Each block can have multiple disdpaly trees so extra vector there
 --        5) Vector of traversal foci for each character (Vector of Blocks -> Vector of Characters, a single tree for each character)
 --               vector is over blocks, then characters (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --               one graph per character  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector BlockDisplayForest, V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [BlockDisplayForest], V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph
