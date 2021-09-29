@@ -166,28 +166,95 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     rightChildLabel = fromJust $ LG.lab newSubTree rightChild
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
-                    resolutionPairs = V.zipWith (createBlockResolutions leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) 
+                    resolutionBlockVL = fmap (createBlockResolutions curNode leftChild rightChild leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
                 in
                 emptyPhylogeneticGraph
 
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData) -> ResolutionBlockData
-createBlockResolutions leftChildNodeType rightChildNodeType (leftChild, rightChild)  =
+createBlockResolutions :: LG.Node -> Int -> Int -> NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) -> ResolutionBlockData
+createBlockResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType (leftChild, rightChild, charInfoV)  =
     if (null leftChild) && (null rightChild) then []
     else if null leftChild then rightChild
     else if null rightChild then leftChild
     else 
         let childResolutionPairs = cartProd leftChild rightChild
-            validPairs = checkLeafOverlap childResolutionPairs 
+            validPairs = checkLeafOverlap childResolutionPairs
+            newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
             addLeft =  if leftChildNodeType == NetworkNode then leftChild
                        else []
             addRight = if rightChildNodeType == NetworkNode then rightChild
                        else []
-            totalResolutions = validPairs ++ (addLeft ++ addRight)
+            totalResolutions = newResolutionList ++ (addLeft ++ addRight)
         in
-        leftChild
+        totalResolutions
+
+-- | createNewResolution takes a pair of resolutions and cretes the median resolution
+-- need to watch left/right (based on BV) for preorder stuff
+createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> (ResolutionData, ResolutionData) -> ResolutionData
+createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV (leftRes, rightRes) = 
+    let -- make  bvLabel for resolution 
+        resBV = (displayBVLabel leftRes) .|. (displayBVLabel leftRes)
+
+        -- Make resolution Display tree infomation 
+        leftEdgeType  = if leftChildNodeType == NetworkNode then NetworkEdge
+                        else if leftChildNodeType == LeafNode then PendantEdge
+                        else TreeEdge
+        rightEdgeType = if rightChildNodeType == NetworkNode then NetworkEdge
+                        else if rightChildNodeType == LeafNode then PendantEdge
+                        else TreeEdge
+
+        edgeLable = EdgeInfo { minLength = 0.0
+                             , maxLength = 0.0
+                             , midRangeLength = 0.0
+                             , edgeType = TreeEdge
+                             }
+
+        leftEdge =  (curNode, leftIndex, edgeLable {edgeType = leftEdgeType})
+        rightEdge = (curNode, rightIndex, edgeLable {edgeType = rightEdgeType})
+        leftChildTree = displaySubGraph leftRes
+        rightChildTree = displaySubGraph rightRes
+
+        -- Data fields empty for display tree data--not needed and muptiple copies of everything
+        newNodeLabel = VertexInfo { index = curNode
+                                  , bvLabel = resBV
+                                  , parents = V.empty
+                                  , children = V.fromList [leftIndex, rightIndex]
+                                  , nodeType = TreeNode
+                                  , vertName = T.pack $ "HTU" ++ (show curNode)
+                                  , vertData = mempty
+                                  , vertexResolutionData = mempty
+                                  , vertexCost = 0.0
+                                  , subGraphCost = 0.0
+                                  }
+
+        newNode = (curNode, newNodeLabel)
+
+        resolutionEdgeList = leftEdge : (rightEdge: ((snd leftChildTree) ++ (snd rightChildTree)))
+        resolutionNodeList = newNode : ((fst leftChildTree) ++ (fst rightChildTree))
+
+        -- Make the data and cost for the resolution
+        leftBlockLength = V.length $ displayData leftRes
+        rightBlockLength = V.length $ displayData rightRes
+        resolutionMedianCostV = if (leftBlockLength == 0) then V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
+                                else if (rightBlockLength == 0) then V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
+                                else M.median2 (displayData leftRes) (displayData rightRes) charInfoV
+        (resolutionMedianV, resolutionCostV) = V.unzip resolutionMedianCostV
+        thisResolutionCost = V.sum resolutionCostV
+        displaySubTreeCost = (displayCost leftRes) + (displayCost rightRes) + thisResolutionCost
+
+    in 
+    ResolutionData { displaySubGraph = (resolutionNodeList, resolutionEdgeList)
+                   , displayBVLabel = resBV
+                   , displayData = resolutionMedianV
+                   , resolutionCost = thisResolutionCost
+                   , displayCost = displaySubTreeCost
+                   } 
+
+
+
+
 
 -- | checkLeafOverlap takes a left right resolution pair list and checks if 
 -- there is leaf overlap via comparing displayBVLabel if & = 0 then no
@@ -231,12 +298,12 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
         newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) subTree
 
-        (displayGraphVL, localCost) = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True (vertexResolutionData childLabel)
+        (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True (vertexResolutionData childLabel)
                                      else (mempty, 0.0)
 
 
     in
-    (newGraph, (nodeType newVertex) == RootNode, localCost, displayGraphVL)
+    (newGraph, (nodeType newVertex) == RootNode, displayCost, displayGraphVL)
 
 -- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
@@ -327,6 +394,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
     let defaultResolutionData = ResolutionData  { displaySubGraph = inSubGraph
                                                 , displayBVLabel = inBV
                                                 , displayData = mempty
+                                                , resolutionCost = 0.0
                                                 , displayCost = 0.0
                                                 } 
 

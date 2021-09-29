@@ -383,4 +383,9 @@ to render--would have repeated subtrees after network vertex
 	label/filter unused edges
 
 
-150) 
+150) Questyion on node and edge data in display tree filed of resolution data
+  How much in there? is actually needed for preorder etc.
+
+
+151) Display trees created in post order of softwired will have to have root vertex and edge moved
+	-- enunmerated as created

@@ -274,6 +274,7 @@ type ResolutionBlockData = [ResolutionData]
 data ResolutionData = ResolutionData { displaySubGraph :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
                                      , displayBVLabel  :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
                                      , displayData     :: V.Vector CharacterData -- data for characters in block
+                                     , resolutionCost  :: VertexCost -- cost of creating the resolution
                                      , displayCost     :: VertexCost -- cost of that display subtree
                                     } deriving stock (Show, Eq)
 
