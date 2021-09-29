@@ -152,6 +152,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- make node from child block resolutions
             let newSubTree = thd6 $ rightLeftChildTree
             in
+
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then 
                 let (newGraph, isRoot, localCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
@@ -162,13 +163,53 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- 2 children 
             else 
                 -- need to create new resolutions and add to existing sets
-                let leftChildLabel = fromJust $ LG.lab newSubTree leftChild
-                    rightChildLabel = fromJust $ LG.lab newSubTree rightChild
+                let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                    -- larger bitvector is Right, smaller or equal Left 
+                    (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
+                    
+                    -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
                     resolutionBlockVL = fmap (createBlockResolutions curNode leftChild rightChild leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
+                
+                    -- create canonical Decorated Graph vertex
+                    -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
+                    newVertex = VertexInfo {  index = curNode
+                                            , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
+                                            , parents = V.fromList $ LG.parents simpleGraph curNode
+                                            , children = V.fromList nodeChildren
+                                            , nodeType = GO.getNodeType simpleGraph curNode
+                                            , vertName = T.pack $ "HTU" ++ (show curNode)
+                                            , vertData = mempty --empty because of resolution data
+                                            , vertexResolutionData = resolutionBlockVL
+                                            , vertexCost = 0.0 --newCost
+                                            , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                            }   
+                
+                    leftEdgeType  = if leftChildNodeType == NetworkNode then NetworkEdge
+                                    else if leftChildNodeType == LeafNode then PendantEdge
+                                    else TreeEdge
+                    rightEdgeType = if rightChildNodeType == NetworkNode then NetworkEdge
+                                    else if rightChildNodeType == LeafNode then PendantEdge
+                                    else TreeEdge
+
+                    edgeLable = EdgeInfo { minLength = 0.0
+                                         , maxLength = 0.0
+                                         , midRangeLength = 0.0
+                                         , edgeType = TreeEdge
+                                         }
+
+                    leftEdge =  (curNode, leftChild, edgeLable {edgeType = leftEdgeType})
+                    rightEdge = (curNode, rightChild, edgeLable {edgeType = rightEdgeType})
+                    newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertex) newSubTree 
+
+                    (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True resolutionBlockVL
+                                                    else (mempty, 0.0)
+
                 in
-                emptyPhylogeneticGraph
+                if (nodeType newVertex) == RootNode then (simpleGraph, displayCost, newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+                else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
+                   
 
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
@@ -298,24 +339,25 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
         newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) subTree
 
-        (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractBestDisplayTrees True (vertexResolutionData childLabel)
-                                     else (mempty, 0.0)
+        (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
+                                        else (mempty, 0.0)
 
 
     in
     (newGraph, (nodeType newVertex) == RootNode, displayCost, displayGraphVL)
 
--- | extractBestDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
+-- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
-extractBestDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
-extractBestDisplayTrees checkPopCount inRBDV = 
+extractDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
+extractDisplayTrees checkPopCount inRBDV = 
     if V.null inRBDV then (V.empty, 0.0) 
     else 
         let (bestBlockDisplayResolutionList, costVect) = V.unzip $ fmap (getBestResolutionList checkPopCount) inRBDV
         in
         (bestBlockDisplayResolutionList, V.sum costVect)
 
--- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best diplay trees for that block
+-- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees 
+-- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
 getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
 getBestResolutionList checkPopCount inRDList =
     if null inRDList then ([], 0.0)
