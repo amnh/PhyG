@@ -1,0 +1,31 @@
+digraph {
+    0 [label=zero];
+    1 [label=one];
+    2 [label=two];
+    3 [label=three];
+    4 [label=four];
+    5 [label=five];
+    6 [label=six];
+    7 [label=seven];
+    8 [label=HTU8];
+    9 [label=HTU9];
+    10 [label=HTU10];
+    11 [label=HTU11];
+    12 [label=HTU12];
+    13 [label=HTU13];
+    14 [label=HTU14];
+    8 -> 0 [label=Tree];
+ 	8 -> 9 ;
+ 	9 -> 1 ;
+ 	9 -> 10 ;
+ 	10 -> 2 ;
+ 	10-> 11 ;
+ 	11 -> 12 ;
+ 	11 -> 14 ;
+ 	12 -> 3 ;
+ 	12 -> 13 ;
+ 	13 -> 5 ;
+ 	13 -> 6 ;
+ 	14 -> 4 ;
+ 	14 -> 7 ; 
+}
