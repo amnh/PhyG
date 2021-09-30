@@ -344,7 +344,7 @@ splitVertexList inGraph =
         (_, rootList) = unzip rootPairList
 
         -- tree nodes
-        nodeTripleList = zip3 degOutList degInList (labNodes inGraph)
+        nodeTripleList = zip3 degInList degOutList (labNodes inGraph)
         treeTripleList = filter ((==1).fst3 ) $ filter ((>0).snd3 ) nodeTripleList
         (_, _, treeVertexList) = unzip3 treeTripleList
 

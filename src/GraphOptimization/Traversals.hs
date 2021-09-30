@@ -75,7 +75,7 @@ multiTraverseFullyLabelGraph inGS inData inGraph =
         -- test for Tree
         let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
         in
-        if (not $ null networkVertexList) then multiTraverseFullyLabelTree inGS inData inGraph
+        if (null networkVertexList) then multiTraverseFullyLabelTree inGS inData inGraph
         else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type")
     else if (graphType inGS == SoftWired) then multiTraverseFullyLabelSoftWired  inGS inData inGraph
     else if (graphType inGS == HardWired) then errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
@@ -96,12 +96,13 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
             -- post order pass
-            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            outgroupRootedSoftWiredPostOrder = trace ("Post-order SW") postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             
             -- preorder pass
-            outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
+            outgroupRootedSoftWiredPreOrder  = trace ("Pre-order SW") preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
         in
         -- merge component gaphs 
+        trace ("Done SW")
         outgroupRootedSoftWiredPreOrder
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
@@ -130,6 +131,7 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimple
 postDecorateSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
 postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
     -- if node in there nothing to do and return
+    trace ("PDSW node " ++ show curNode ++ " in\n" ++ LG.prettify simpleGraph) (
     if LG.gelem curNode curDecGraph then 
         let nodeLabel = LG.lab curDecGraph curNode
         in
@@ -210,7 +212,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                 if (nodeType newVertex) == RootNode then (simpleGraph, displayCost, newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
                 else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
                    
-
+                )
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
@@ -236,7 +238,7 @@ createBlockResolutions curNode leftIndex rightIndex leftChildNodeType rightChild
 createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> (ResolutionData, ResolutionData) -> ResolutionData
 createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV (leftRes, rightRes) = 
     let -- make  bvLabel for resolution 
-        resBV = (displayBVLabel leftRes) .|. (displayBVLabel leftRes)
+        resBV = (displayBVLabel leftRes) .|. (displayBVLabel rightRes)
 
         -- Make resolution Display tree infomation 
         leftEdgeType  = if leftChildNodeType == NetworkNode then NetworkEdge
@@ -378,7 +380,10 @@ getBestResolutionList checkPopCount inRDList =
                 validMinCost = minimum $ fmap snd3 validDisplayList
                 (bestDisplayList, _, _) = unzip3 $ filter ((== validMinCost) . snd3) validDisplayList
             in
-            (fmap LG.mkGraphPair bestDisplayList, validMinCost)
+            trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
+            if null validDisplayList then error "Null validDisplayList in getBestResolutionList"
+            else (fmap LG.mkGraphPair bestDisplayList, validMinCost)
+            )
 
 
 
