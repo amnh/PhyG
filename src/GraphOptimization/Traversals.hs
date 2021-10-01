@@ -330,8 +330,6 @@ hasResolutionMatch inBV inCD rDList =
         else if existingCharData /= inCD then hasResolutionMatch inBV inCD (tail rDList)
         else False
 
-
-
 -- | checkLeafOverlap takes a left right resolution pair list and checks if 
 -- there is leaf overlap via comparing displayBVLabel if & = 0 then no
 -- overlap, and adds to resulting list--reverses order--sholdn't matter
@@ -356,25 +354,43 @@ getOutDegree1VertexAndGraph :: LG.Node
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
     
     --trace ("In out=1") (
-    let newVertex  = VertexInfo { index = curNode
+    let childResolutionData = vertexResolutionData childLabel
+        
+        curNodeResolutionData = addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
+
+        newEdgeLabel = EdgeInfo { minLength = 0.0
+                                 , maxLength = 0.0
+                                 , midRangeLength = 0.0
+                                 , edgeType = TreeEdge
+                                 }
+        newMinVertex = VertexInfo  { index = curNode
+                                    , bvLabel = bvLabel childLabel
+                                    , parents = V.fromList $ LG.parents simpleGraph curNode
+                                    , children = V.fromList nodeChildren
+                                    , nodeType = GO.getNodeType simpleGraph curNode
+                                    , vertName = T.pack $ "HTU" ++ (show curNode)
+                                    , vertData = mempty
+                                    , vertexResolutionData = mempty
+                                    , vertexCost = 0.0
+                                    , subGraphCost = 0.0
+                                    } 
+        
+        newVertex  = VertexInfo { index = curNode
                                 , bvLabel = bvLabel childLabel
                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                 , children = V.fromList nodeChildren
                                 , nodeType = GO.getNodeType simpleGraph curNode
                                 , vertName = T.pack $ "HTU" ++ (show curNode)
                                 , vertData = mempty
-                                , vertexResolutionData = vertexResolutionData childLabel
+                                , vertexResolutionData = curNodeResolutionData
                                 , vertexCost = 0.0
                                 , subGraphCost = subGraphCost childLabel
                                 }   
-        newEdgesLabel = EdgeInfo { minLength = 0.0
-                                 , maxLength = 0.0
-                                 , midRangeLength = 0.0
-                                 , edgeType = TreeEdge
-                                 }
-        newEdges = fmap LG.toEdge $ LG.out simpleGraph curNode 
-        newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
-        newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) subTree
+        
+        newLEdge = (curNode, index childLabel, newEdgeLabel) 
+        newLNode = (curNode, newVertex)
+        newDisplayNode = (curNode, newMinVertex)
+        newGraph =  LG.insEdge newLEdge $ LG.insNode newLNode subTree
 
         (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
                                         else (mempty, 0.0)
@@ -384,6 +400,21 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
     --trace ("NV1: " ++ show newVertex)
     (newGraph, (nodeType newVertex) == RootNode, displayCost, displayGraphVL)
     --)
+
+-- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
+-- staright copy would not add this node or edge to subtree in resolutions
+addNodeAndEdgeToResolutionData :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> V.Vector ResolutionBlockData -> V.Vector ResolutionBlockData
+addNodeAndEdgeToResolutionData newNode newEdge inDataLV = 
+    fmap (fmap (addNodeEdgeToResolutionList newNode newEdge)) inDataLV 
+
+-- | addNodeEdgeToResolutionList adds new node and edge to single subGraph in ResolutionData
+addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> ResolutionData -> ResolutionData
+addNodeEdgeToResolutionList newNode newEdge inData = 
+    let (inNodeList, inEdgeList) = displaySubGraph inData
+        newNodeList = newNode : inNodeList
+        newEdgeList = newEdge : inEdgeList
+    in
+    inData {displaySubGraph = (newNodeList, newEdgeList)}
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check

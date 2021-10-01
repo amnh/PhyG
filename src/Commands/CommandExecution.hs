@@ -147,7 +147,7 @@ setCommand argList globalSettings processedData =
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis"]
+reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees"]
 
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
@@ -186,34 +186,82 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 let dataString = CSV.genCsvFile $ concat $ fmap (getGraphDiagnosis processedData) $ zip curGraphs [0.. ((length curGraphs) - 1)]
                 in
                 (dataString, outfileName, writeMode)
-            else if "graphs" `elem` commandList then
+            else if "graphs" `elem` commandList then 
+                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                in
+                (graphString, outfileName, writeMode)
+                
+            else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
-                if "dot" `elem` commandList then
-                    let graphString = concat $ L.intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
-                    in
-                    (graphString, outfileName, writeMode)
-                else if "newick" `elem` commandList then
-                    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs))  True True
-                        --graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph (outgroupIndex globalSettings)) (fmap fst6 curGraphs))  True True
-                        newickStringList = fmap init $ filter (not . null) $ lines graphString
-                        costStringList  = fmap ('[' :) $ fmap (++ "];\n") $ fmap show $ fmap snd6 curGraphs
-                        graphStringCost = concat $ zipWith (++) newickStringList costStringList
-                    in
-                    (graphStringCost, outfileName, writeMode)
-                else if "ascii" `elem` commandList then
-                    let graphString = concat $ fmap LG.prettify  $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap GO.convertDecoratedToSimpleGraph $ fmap thd6 curGraphs
-                    in
-                    (graphString, outfileName, writeMode)
-                else -- "dot" as default
-                    let graphString = concat $ fmap fgl2DotString $ fmap (GO.rerootGraph (outgroupIndex globalSettings)) $ fmap fst6 curGraphs
-                    in
-                    (graphString, outfileName, writeMode)
+                let inputDisplayVVList = fmap fth6 curGraphs
+                    treeIndexStringList = fmap (++ "\n") $ fmap ("Canonical Tree " ++) $ fmap show [0..(length inputDisplayVVList - 1)]
+                    canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
+                    blockStringList = concat $ fmap (++ "\n") $ fmap (outputBlockTrees commandList (outgroupIndex globalSettings)) canonicalGraphPairList
+                    -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                in
+                (blockStringList, outfileName, writeMode)
+
             else if "pairdist" `elem` commandList then
                 let nameData = (L.intercalate "," $ V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in
                 (nameData ++ dataString, outfileName, writeMode)
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+
+-- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
+outputBlockTrees :: [String] -> Int -> (String , V.Vector [BlockDisplayForest]) -> String
+outputBlockTrees commandList outgroupIndex (labelString, graphLV) = 
+    let blockIndexStringList = fmap (++ "\n") $ fmap ("Block " ++) $ fmap show [0..((V.length graphLV) - 1)]
+        blockStrings = concat $ fmap (++ "\n") $ fmap (makeBlockGraphStrings commandList outgroupIndex ) $ zip blockIndexStringList (V.toList graphLV)
+    in
+    labelString ++ blockStrings
+
+-- | makeBlockGraphStrings makes individual block display trees--potentially multiple
+makeBlockGraphStrings :: [String] -> Int -> (String ,[BlockDisplayForest]) -> String
+makeBlockGraphStrings commandList outgroupIndex (labelString, graphL) =
+    let diplayIndexString =("Display Tree(s): " ++ (show $ length graphL) ++ "\n")
+        displayString = (++ "\n") $ outputDisplayString commandList outgroupIndex graphL
+    in
+    labelString ++ diplayIndexString ++ displayString
+
+-- | outputDisplayString is a wrapper around graph output functions--but without cost list
+outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String 
+outputDisplayString commandList outgroupIndex graphList =
+  if "dot" `elem` commandList then makeDotList outgroupIndex graphList
+  else if "newick" `elem` commandList then makeNewickList outgroupIndex graphList (replicate (length graphList) 0.0)
+  else if "ascii" `elem` commandList then makeAsciiList outgroupIndex graphList
+  else -- "dot" as default
+    makeDotList outgroupIndex graphList
+
+-- | outputGraphString is a wrapper arounf graph output functions
+outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String 
+outputGraphString commandList outgroupIndex graphList costList =
+  if "dot" `elem` commandList then makeDotList outgroupIndex graphList
+  else if "newick" `elem` commandList then makeNewickList outgroupIndex graphList costList
+  else if "ascii" `elem` commandList then makeAsciiList outgroupIndex graphList
+  else -- "dot" as default
+    makeDotList outgroupIndex graphList
+
+-- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
+-- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
+makeDotList :: Int -> [DecoratedGraph] -> String 
+makeDotList rootIndex graphList = 
+     concat $ L.intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootGraph rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList
+
+-- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
+makeNewickList ::  Int -> [DecoratedGraph] -> [VertexCost] -> String 
+makeNewickList rootIndex graphList costList = 
+    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootGraph rootIndex) (fmap GO.convertDecoratedToSimpleGraph graphList))  True True
+        newickStringList = fmap init $ filter (not . null) $ lines graphString
+        costStringList  = fmap ('[' :) $ fmap (++ "];\n") $ fmap show costList 
+        graphStringCost = concat $ zipWith (++) newickStringList costStringList
+    in
+    graphStringCost
+
+-- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
+makeAsciiList :: Int -> [DecoratedGraph] -> String
+makeAsciiList rootIndex graphList = 
+    concat $ fmap LG.prettify  $ fmap (GO.rerootGraph rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList
 
 -- | getDataListList returns a list of lists of Strings for data output as csv
 -- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
