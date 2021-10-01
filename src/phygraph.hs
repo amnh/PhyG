@@ -170,7 +170,7 @@ main = do
 
 
     -- Set global vaues before search--should be integrated with executing commands
-    let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree}
+    let defaultGlobalSettings = GlobalSettings {outgroupIndex = 0, outGroupName = head dataLeafNames, optimalityCriterion = Parsimony, graphType = Tree, compressResolutions = True}
     --hPutStrLn stderr (show defaultGlobalSettings)
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock

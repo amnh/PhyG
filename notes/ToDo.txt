@@ -392,4 +392,13 @@ to render--would have repeated subtrees after network vertex
 
 152) Outgroup edge as source for network edge--probbaly not.
 
+153) Report display trees by block
+
+154) reduce number of resolutions by checking if charctert assignments 
+	(Vector character data) and displayBV data are equal
+	could have different display trees--would loose that info, but could speed up alot.
+	Make an option in global settings?  Would have same leaf set (bvlabel) but different edges.
+
+155) Document compress resolutions
+
 

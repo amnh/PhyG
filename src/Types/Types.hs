@@ -120,6 +120,7 @@ data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup ter
                                     , outGroupName        :: T.Text -- Outgropu name
                                     , optimalityCriterion :: OptimalityCriterion
                                     , graphType           :: GraphType
+                                    , compressResolutions :: Bool -- "nub" resolutions in softwired graph
                                     } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters

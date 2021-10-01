@@ -98,7 +98,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype"]
+setArgList = ["outgroup", "criterion", "graphtype","compressresolutions"]
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
@@ -133,6 +133,13 @@ setCommand argList globalSettings processedData =
             in
             trace ("Optimality criterion set to " ++ (head optionList))
             (globalSettings {optimalityCriterion = localCriterion}, processedData)
+        else if head commandList == "compressresolutions"  then
+            let localCriterion = if (head optionList == "true") then True
+                                 else if (head optionList == "false") then False
+                                 else errorWithoutStackTrace ("Error in 'set' command. CompressResolutions '" ++ (head optionList) ++ "' is not 'true' or 'false'")
+            in
+            trace ("CompressResolutions set to " ++ (head optionList))
+            (globalSettings {compressResolutions = localCriterion}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 
 

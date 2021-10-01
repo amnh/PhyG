@@ -174,7 +174,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
-                    resolutionBlockVL = fmap (createBlockResolutions curNode leftChild rightChild leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
+                    resolutionBlockVL = fmap (createBlockResolutions (compressResolutions inGS) curNode leftChild rightChild leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
                 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -221,8 +221,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: LG.Node -> Int -> Int -> NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) -> ResolutionBlockData
-createBlockResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType (leftChild, rightChild, charInfoV)  =
+createBlockResolutions :: Bool -> LG.Node -> Int -> Int -> NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) -> ResolutionBlockData
+createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType rightChildNodeType (leftChild, rightChild, charInfoV)  =
     if (null leftChild) && (null rightChild) then []
     else if null leftChild then rightChild
     else if null rightChild then leftChild
@@ -235,10 +235,11 @@ createBlockResolutions curNode leftIndex rightIndex leftChildNodeType rightChild
                        else []
             addRight = if rightChildNodeType == NetworkNode then leftChild
                        else []
-            totalResolutions = newResolutionList ++ (addLeft ++ addRight)
         in
         -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
-        totalResolutions
+        -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
+        if compress then (nubResolutions newResolutionList []) ++ (addLeft ++ addRight)
+        else newResolutionList ++ (addLeft ++ addRight)
         -- )
 
 -- | createNewResolution takes a pair of resolutions and cretes the median resolution
@@ -304,6 +305,30 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
                    } 
 
 
+
+-- | nubResolutions takes a list of resolulutions and returns 'nub' based on leaf set (bvLabel) and Charinfo vector
+nubResolutions :: [ResolutionData] -> [ResolutionData] -> [ResolutionData]
+nubResolutions inData curData =
+    if null inData then reverse curData
+    else if null curData then nubResolutions (tail inData) [head inData]
+    else
+        let firstData = head inData
+            isUnique = hasResolutionMatch (displayBVLabel firstData) (displayData firstData) curData
+        in
+        if isUnique then nubResolutions (tail inData) (firstData : curData)
+        else nubResolutions (tail inData) curData
+
+-- | hasResolutionMatch checks for match of bvlabel and Vect charinfo with list
+hasResolutionMatch :: NameBV -> V.Vector CharacterData -> [ResolutionData] -> Bool
+hasResolutionMatch inBV inCD rDList =
+    if null rDList then True
+    else 
+        let existingBV =  displayBVLabel $ head rDList
+            existingCharData = displayData $ head rDList
+        in
+        if existingBV /= inBV then hasResolutionMatch inBV inCD (tail rDList)
+        else if existingCharData /= inCD then hasResolutionMatch inBV inCD (tail rDList)
+        else False
 
 
 
