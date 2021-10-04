@@ -210,6 +210,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     (displayGraphVL, displayCost) = if (nodeType newVertexLabel) == RootNode then extractDisplayTrees True resolutionBlockVL
                                                     else (mempty, 0.0)
 
+                    -- update preliminary states based on tracebeack of resolutions
+
                 in
                 --trace ("NewNode: " ++ (show curNode) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newGraph)) (
                 if (nodeType newVertexLabel) == RootNode then 
@@ -229,7 +231,9 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
     else
         -- trace ("CBR:" ++ (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) ++ (show $fmap BV.toBits $ fmap displayBVLabel leftChild) ++ " and " ++  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) ( 
         let childResolutionPairs = cartProd leftChild rightChild
-            validPairs = checkLeafOverlap childResolutionPairs
+            -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
+            childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
+            validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
             newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
             addLeft =  if leftChildNodeType == NetworkNode then rightChild
                        else []
@@ -244,8 +248,8 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
 
 -- | createNewResolution takes a pair of resolutions and cretes the median resolution
 -- need to watch left/right (based on BV) for preorder stuff
-createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> (ResolutionData, ResolutionData) -> ResolutionData
-createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV (leftRes, rightRes) = 
+createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
+createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) = 
     let -- make  bvLabel for resolution 
         resBV = (displayBVLabel leftRes) .|. (displayBVLabel rightRes)
 
@@ -300,11 +304,10 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
     ResolutionData { displaySubGraph = (resolutionNodeList, resolutionEdgeList)
                    , displayBVLabel = resBV
                    , displayData = resolutionMedianV
+                   , childResolutions = [(Just leftResIndex, Just rightResIndex)]
                    , resolutionCost = thisResolutionCost
                    , displayCost = displaySubTreeCost
                    } 
-
-
 
 -- | nubResolutions takes a list of resolulutions and returns 'nub' based on leaf set (bvLabel) and Charinfo vector
 nubResolutions :: [ResolutionData] -> [ResolutionData] -> [ResolutionData]
@@ -313,36 +316,44 @@ nubResolutions inData curData =
     else if null curData then nubResolutions (tail inData) [head inData]
     else
         let firstData = head inData
-            isUnique = hasResolutionMatch (displayBVLabel firstData) (displayData firstData) curData
+            (isUnique, matchIndex) = hasResolutionMatch (displayBVLabel firstData) (displayData firstData) curData 0
         in
         if isUnique then nubResolutions (tail inData) (firstData : curData)
-        else nubResolutions (tail inData) curData
+        else 
+            -- need to update the childResolutoin field of the match
+            let firstPart = L.take matchIndex curData
+                lastPart = L.drop (matchIndex + 1) curData
+                matchChildResolutionData =  childResolutions (curData !! matchIndex)
+                firstDataChildResolutionData = childResolutions firstData
+                newMatchResolution = (curData !! matchIndex) {childResolutions = firstDataChildResolutionData ++ matchChildResolutionData}
+            in
+            nubResolutions (tail inData) (firstPart ++ (newMatchResolution : lastPart))
 
 -- | hasResolutionMatch checks for match of bvlabel and Vect charinfo with list
-hasResolutionMatch :: NameBV -> V.Vector CharacterData -> [ResolutionData] -> Bool
-hasResolutionMatch inBV inCD rDList =
-    if null rDList then True
+hasResolutionMatch :: NameBV -> V.Vector CharacterData -> [ResolutionData] -> Int -> (Bool, Int)
+hasResolutionMatch inBV inCD rDList curIndex =
+    if null rDList then (True, curIndex)
     else 
         let existingBV =  displayBVLabel $ head rDList
             existingCharData = displayData $ head rDList
         in
-        if existingBV /= inBV then hasResolutionMatch inBV inCD (tail rDList)
-        else if existingCharData /= inCD then hasResolutionMatch inBV inCD (tail rDList)
-        else False
+        if existingBV /= inBV then hasResolutionMatch inBV inCD (tail rDList) (curIndex + 1)
+        else if existingCharData /= inCD then hasResolutionMatch inBV inCD (tail rDList)  (curIndex + 1)
+        else (False, curIndex)
 
 -- | checkLeafOverlap takes a left right resolution pair list and checks if 
 -- there is leaf overlap via comparing displayBVLabel if & = 0 then no
 -- overlap, and adds to resulting list--reverses order--sholdn't matter
-checkLeafOverlap :: [(ResolutionData, ResolutionData)] -> [(ResolutionData, ResolutionData)] 
-checkLeafOverlap inPairList = 
-    if null inPairList then []
+checkLeafOverlap :: [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))] 
+checkLeafOverlap inPairList curPairList = 
+    if null inPairList then reverse curPairList 
     else 
-        let inPair@(leftRes, rightRes) = head inPairList
+        let inPair@((leftRes, rightRes), (leftResIndex, rightResIndex)) = head inPairList
             leftBV = displayBVLabel leftRes
             rightBV = displayBVLabel rightRes
         in
-        if BV.isZeroVector (leftBV .&. rightBV) then inPair : checkLeafOverlap (tail inPairList)
-        else checkLeafOverlap (tail inPairList)
+        if BV.isZeroVector (leftBV .&. rightBV) then checkLeafOverlap (tail inPairList) (inPair : curPairList) 
+        else checkLeafOverlap (tail inPairList) curPairList
 
 -- | getOutDegree1VertexAndGraph makes              
 getOutDegree1VertexAndGraph :: LG.Node 
@@ -405,16 +416,24 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
 -- staright copy would not add this node or edge to subtree in resolutions
 addNodeAndEdgeToResolutionData :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> V.Vector ResolutionBlockData -> V.Vector ResolutionBlockData
 addNodeAndEdgeToResolutionData newNode newEdge inDataLV = 
-    fmap (fmap (addNodeEdgeToResolutionList newNode newEdge)) inDataLV 
+    fmap (addNodeEdgeToResolutionList newNode newEdge 0 []) inDataLV 
 
 -- | addNodeEdgeToResolutionList adds new node and edge to single subGraph in ResolutionData
-addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> ResolutionData -> ResolutionData
-addNodeEdgeToResolutionList newNode newEdge inData = 
-    let (inNodeList, inEdgeList) = displaySubGraph inData
-        newNodeList = newNode : inNodeList
-        newEdgeList = newEdge : inEdgeList
+-- adds resolutoin pairs to be equal to the child straight one-for-one correpondance
+addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> Int -> [ResolutionData] -> [ResolutionData] -> [ResolutionData]
+addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
+    if null inData then reverse  curData
+    else 
+        let firstInData = head inData
+            (inNodeList, inEdgeList) = displaySubGraph firstInData
+            newNodeList = newNode : inNodeList
+            newEdgeList = newEdge : inEdgeList
+            newFirstData = firstInData { displaySubGraph  = (newNodeList, newEdgeList)
+                                       , childResolutions = [(Just resolutionIndex, Nothing)]
+                                       }
     in
-    inData {displaySubGraph = (newNodeList, newEdgeList)}
+    addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (tail inData) 
+
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
@@ -520,6 +539,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
     let defaultResolutionData = ResolutionData  { displaySubGraph = inSubGraph
                                                 , displayBVLabel = inBV
                                                 , displayData = mempty
+                                                , childResolutions = mempty
                                                 , resolutionCost = 0.0
                                                 , displayCost = 0.0
                                                 } 

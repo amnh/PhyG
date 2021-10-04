@@ -401,4 +401,10 @@ to render--would have repeated subtrees after network vertex
 
 155) Document compress resolutions
 
+156) In=out=1 contract for newick output
+
+157) Change Recsolution Block data to Vector
+	For traceback and resolution compression efficiency
+
+
 

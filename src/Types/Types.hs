@@ -272,12 +272,16 @@ type ResolutionBlockData = [ResolutionData]
 -- | ResolutionData contains individual block information for a given resoluton of soft-wired network components
 -- these are used in the idenitification of minimal cost display trees for a block of
 -- data that follow the same display tree
-data ResolutionData = ResolutionData { displaySubGraph :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
-                                     , displayBVLabel  :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
-                                     , displayData     :: V.Vector CharacterData -- data for characters in block
-                                     , resolutionCost  :: VertexCost -- cost of creating the resolution
-                                     , displayCost     :: VertexCost -- cost of that display subtree
-                                    } deriving stock (Show, Eq)
+data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
+                                     , displayBVLabel   :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
+                                     , displayData      :: V.Vector CharacterData -- data for characters in block
+                                     -- list of left, right resolution indices to create current index, used in traceback to get prelminary states
+                                     -- and in compressing reolutions to keep only those that result in differnet preliminary states
+                                     -- but allowing traceback of resoliutions to get preliminary states
+                                     , childResolutions :: [(Maybe Int, Maybe Int)] 
+                                     , resolutionCost   :: VertexCost -- cost of creating the resolution
+                                     , displayCost      :: VertexCost -- cost of that display subtree
+                                     } deriving stock (Show, Eq)
 
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing
