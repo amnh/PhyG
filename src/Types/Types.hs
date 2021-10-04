@@ -267,7 +267,7 @@ type ResolutionVertexData = V.Vector ResolutionBlockData
 -- | ResolutionBlockData contains a list of ResolutionData
 -- this list contains all the potetnial resolutions of a softwired
 -- networtk vertex
-type ResolutionBlockData = [ResolutionData]
+type ResolutionBlockData = V.Vector ResolutionData
 
 -- | ResolutionData contains individual block information for a given resoluton of soft-wired network components
 -- these are used in the idenitification of minimal cost display trees for a block of

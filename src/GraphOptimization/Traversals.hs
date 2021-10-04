@@ -225,25 +225,25 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
 -- and generates node resolution data
 createBlockResolutions :: Bool -> LG.Node -> Int -> Int -> NodeType -> NodeType -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) -> ResolutionBlockData
 createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType rightChildNodeType (leftChild, rightChild, charInfoV)  =
-    if (null leftChild) && (null rightChild) then []
+    if (null leftChild) && (null rightChild) then mempty
     else if null leftChild then rightChild
     else if null rightChild then leftChild
     else
         -- trace ("CBR:" ++ (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) ++ (show $fmap BV.toBits $ fmap displayBVLabel leftChild) ++ " and " ++  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) ( 
-        let childResolutionPairs = cartProd leftChild rightChild
+        let childResolutionPairs = cartProd (V.toList leftChild) (V.toList rightChild)
             -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
             childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
             validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
             newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
             addLeft =  if leftChildNodeType == NetworkNode then rightChild
-                       else []
+                       else mempty
             addRight = if rightChildNodeType == NetworkNode then leftChild
-                       else []
+                       else mempty
         in
         -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
         -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
-        if compress then (nubResolutions newResolutionList []) ++ (addLeft ++ addRight)
-        else newResolutionList ++ (addLeft ++ addRight)
+        if compress then  (V.fromList $ nubResolutions newResolutionList []) V.++ (addLeft V.++ addRight)
+        else (V.fromList newResolutionList) V.++ (addLeft V.++ addRight)
         -- )
 
 -- | createNewResolution takes a pair of resolutions and cretes the median resolution
@@ -420,11 +420,11 @@ addNodeAndEdgeToResolutionData newNode newEdge inDataLV =
 
 -- | addNodeEdgeToResolutionList adds new node and edge to single subGraph in ResolutionData
 -- adds resolutoin pairs to be equal to the child straight one-for-one correpondance
-addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> Int -> [ResolutionData] -> [ResolutionData] -> [ResolutionData]
+addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> Int -> [ResolutionData] -> V.Vector ResolutionData -> V.Vector ResolutionData
 addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
-    if null inData then reverse  curData
+    if null inData then V.fromList $ reverse  curData
     else 
-        let firstInData = head inData
+        let firstInData = V.head inData
             (inNodeList, inEdgeList) = displaySubGraph firstInData
             newNodeList = newNode : inNodeList
             newEdgeList = newEdge : inEdgeList
@@ -432,7 +432,7 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
                                        , childResolutions = [(Just resolutionIndex, Nothing)]
                                        }
     in
-    addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (tail inData) 
+    addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (V.tail inData) 
 
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
@@ -457,19 +457,19 @@ getBestResolutionList checkPopCount inRDList =
         in
         if not checkPopCount then 
             let minCost = minimum displayCostList
-                displayCostPairList = zip displayTreeList displayCostList
-                (bestDisplayList, _) = unzip $ filter ((== minCost) . snd) displayCostPairList
+                displayCostPairList = V.zip displayTreeList displayCostList
+                (bestDisplayList, _) = V.unzip $ V.filter ((== minCost) . snd) displayCostPairList
             in
-            (fmap LG.mkGraphPair bestDisplayList, minCost)
+            (fmap LG.mkGraphPair (V.toList bestDisplayList), minCost)
         else
-            let displayBVList = zip3 displayTreeList displayCostList displayPopList
-                validDisplayList = filter (BV.isZeroVector . thd3) displayBVList
-                validMinCost = minimum $ fmap snd3 validDisplayList
-                (bestDisplayList, _, _) = unzip3 $ filter ((== validMinCost) . snd3) validDisplayList
+            let displayBVList = V.zip3 displayTreeList displayCostList displayPopList
+                validDisplayList = V.filter (BV.isZeroVector . thd3) displayBVList
+                validMinCost = V.minimum $ fmap snd3 validDisplayList
+                (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
             -- trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
-            if null validDisplayList then error "Null validDisplayList in getBestResolutionList"
-            else (fmap LG.mkGraphPair bestDisplayList, validMinCost)
+            if V.null validDisplayList then error "Null validDisplayList in getBestResolutionList"
+            else (fmap LG.mkGraphPair (V.toList bestDisplayList), validMinCost)
             -- )
 
 
@@ -547,7 +547,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
         blockIndexList = [0..((V.length inVertData) - 1)]
         blockDataList = fmap (inVertData V.!) blockIndexList
         resolutionDataList = modifyDisplayData defaultResolutionData blockDataList []
-        resolutionData =  V.fromList $ fmap (:[]) resolutionDataList
+        resolutionData =   V.fromList $ fmap V.fromList $ fmap (:[]) resolutionDataList
     in
     resolutionData
 
