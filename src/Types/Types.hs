@@ -272,6 +272,7 @@ type ResolutionBlockData = V.Vector ResolutionData
 -- | ResolutionData contains individual block information for a given resoluton of soft-wired network components
 -- these are used in the idenitification of minimal cost display trees for a block of
 -- data that follow the same display tree
+-- nodes are VertexInfo for ease of conversion--but nthe info is largely bogus and not to be trusted, same with EdgeInfo
 data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
                                      , displayBVLabel   :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
                                      , displayData      :: V.Vector CharacterData -- data for characters in block

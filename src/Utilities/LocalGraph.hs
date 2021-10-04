@@ -53,6 +53,7 @@ import qualified Data.Graph.Inductive.Graph        as G
 import           System.IO
 import GeneralUtilities
 import Data.Maybe
+import Debug.Trace
 
 
 
@@ -401,3 +402,24 @@ nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList =
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
     else nodesAndEdgesAfter inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ (tail inNodeList)) 
 
+-- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
+-- does one at a time and makes a graph and recurses
+contractIn1Out1Edges :: (Show a, Show b) => Gr a b -> Gr a b
+contractIn1Out1Edges inGraph = 
+    if G.isEmpty inGraph then G.empty
+    else 
+        let inOutDeg = fmap (getInOutDeg inGraph) $ labNodes inGraph
+            degree11VertexList = filter ((==1) . thd3) $ filter ((==1) . snd3) inOutDeg
+        in
+        trace ("11:" ++ show degree11VertexList) (
+        if null degree11VertexList then inGraph
+        else 
+                let nodeToDelete = fst3 $ head degree11VertexList
+                    inEdgeToDelete  = head $ inn inGraph $ fst nodeToDelete
+                    outEdgeToDelete = head $ out inGraph $ fst nodeToDelete
+                    newEdgeToAdd    = (fst3 inEdgeToDelete, snd3 outEdgeToDelete, thd3 inEdgeToDelete)
+                    newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
+                in
+                trace ("Deleting Node " ++ (show $ fst nodeToDelete) ++ " " ++ (show $ (inEdgeToDelete, outEdgeToDelete)) ++ " inserting " ++ (show  newEdgeToAdd))
+                contractIn1Out1Edges newGraph
+                )

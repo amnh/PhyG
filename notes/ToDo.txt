@@ -407,4 +407,6 @@ to render--would have repeated subtrees after network vertex
 	For traceback and resolution compression efficiency
 
 
+158) resolution vector stuff has alot of list <-> vector intercoversions
+	Prob could be cleaned up a bit
 

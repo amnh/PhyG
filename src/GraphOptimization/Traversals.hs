@@ -235,9 +235,39 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
             childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
             validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
             newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
-            addLeft =  if leftChildNodeType == NetworkNode then rightChild
+
+            --need to add in node and edge to left and right
+            edgeLable = EdgeInfo { minLength = 0.0
+                                 , maxLength = 0.0
+                                 , midRangeLength = 0.0
+                                 , edgeType = TreeEdge
+                                 }
+            newMinVertex = VertexInfo { index = curNode
+                                      , bvLabel = BV.fromBits [False]
+                                      , parents = mempty
+                                      , children = mempty
+                                      , nodeType = TreeNode
+                                      , vertName = T.pack $ "HTU" ++ (show curNode)
+                                      , vertData = mempty
+                                      , vertexResolutionData = mempty
+                                      , vertexCost = 0.0
+                                      , subGraphCost = 0.0
+                                      } 
+
+            newNode = (curNode, newMinVertex)
+                                
+            addLeft =  if leftChildNodeType == NetworkNode then 
+                            let newEdge = (curNode, rightIndex, edgeLable)
+                                newRightChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] rightChild
+                            in
+                            newRightChildBlockResolutionData
                        else mempty
-            addRight = if rightChildNodeType == NetworkNode then leftChild
+
+            addRight = if rightChildNodeType == NetworkNode then 
+                            let newEdge = (curNode, leftIndex, edgeLable)
+                                newLeftChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] leftChild
+                            in
+                            newLeftChildBlockResolutionData
                        else mempty
         in
         -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
@@ -246,7 +276,7 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
         else (V.fromList newResolutionList) V.++ (addLeft V.++ addRight)
         -- )
 
--- | createNewResolution takes a pair of resolutions and cretes the median resolution
+-- | createNewResolution takes a pair of resolutions and creates the median resolution
 -- need to watch left/right (based on BV) for preorder stuff
 createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
 createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) = 
@@ -552,6 +582,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
     resolutionData
 
 -- | modifyDisplayData modifies displatData filed in ResolutionData
+-- stas list doesn't change number of V.fromList calls 
 modifyDisplayData :: ResolutionData -> [V.Vector CharacterData] -> [ResolutionData] -> [ResolutionData]
 modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
     if null characterDataVList then reverse curResolutionList
