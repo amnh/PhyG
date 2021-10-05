@@ -227,6 +227,9 @@ softWiredPostOrderTraceBack :: DecoratedGraph -> V.Vector [BlockDisplayForest] -
 softWiredPostOrderTraceBack inGraph blockDisplayForestLV charInfoVV = 
     if LG.isEmpty inGraph ||  V.null blockDisplayForestLV then (LG.empty, mempty)
     else  
+        -- root first--choose best resolutions
+
+        -- recurse to children with resolution index from parent
         (inGraph, blockDisplayForestLV)
                 
 
