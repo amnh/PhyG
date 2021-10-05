@@ -215,7 +215,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                 if (nodeType newVertexLabel) == RootNode then 
                     -- perform "traceback" pre-order pass to choose best resolutions and assign preliminary data
                     -- to complete post-order decoration
-                    let (newGraph', displayGraphVL') = softWiredPostOrderTraceBack newGraph displayGraphVL blockCharInfo
+                    let newGraph' = softWiredPostOrderTraceBack newGraph (curNode, newVertexLabel)
                     in
                     (simpleGraph, displayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
 
@@ -223,15 +223,142 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
 
 -- | softWiredPostOrderTraceBack takes resolution data and assigns correct resolution median to preliminary 
 -- data ssignments.  Proceeds via typical pre-order pass over tree
-softWiredPostOrderTraceBack :: DecoratedGraph -> V.Vector [BlockDisplayForest] -> V.Vector (V.Vector CharInfo) -> (DecoratedGraph, V.Vector [BlockDisplayForest])
-softWiredPostOrderTraceBack inGraph blockDisplayForestLV charInfoVV = 
-    if LG.isEmpty inGraph ||  V.null blockDisplayForestLV then (LG.empty, mempty)
-    else  
-        -- root first--choose best resolutions
+softWiredPostOrderTraceBack :: DecoratedGraph -> LG.LNode -> DecoratedGraph
+softWiredPostOrderTraceBack inGraph (rootIndex, rootLabel)  = 
+    if LG.isEmpty inGraph then LG.empty
+    else 
+            -- get edges to remake graph after nodes are updated with preliminary states
+        let inEdgeList = LG.labEdges inGraph
+            
+            -- root first--choose best resolutions--returns a list and takes head of that list of equal cost/traceback preliminary
+            -- assignments.  Later could look at multiple.
+            (rootVertData, rootSubGraphCost, rootResolutionCost, leftRightIndexVect) = getResolutionDataAndIndices rootLabel (V.singleton (Just -1)) 
+            newRootLabel = rootLabel { vertData = rootVertData
+                                     , vertexCost = rootResolutionCost
+                                     , subGraphCost = rootSubGraphCost
+                                     }
+            newRootNode = (rootIndex, newRootLabel)
 
-        -- recurse to children with resolution index from parent
-        (inGraph, blockDisplayForestLV)
-                
+            -- get child/children of root
+            rootChildren = LG.labDescendants inGraph newRootNode
+            
+            -- left / right to match post-order
+            rootChildrenBV = fmap bvLabel $ fmap snd rootChildren
+            rootChildrenIsLeft = if length rootChildrenBV == 1 then [True]
+                                 else if (rootChildrenBV !! 0) > (rootChildrenBV !! 1) then [False, True]
+                                 else [True, False]
+            
+            rootChildrenTuples = zip3 rootChildren (replicate (length rootChildren) leftRightIndexVect) rootChildrenIsLeft
+            
+            -- recurse to children with resolution index from parent
+            softWiredUpdatedNodes = softWiredPrelimTraceback inGraph rootChildrenTuples [newRootNode]
+
+        in
+        LG.mkGraph softWiredUpdatedNodes inEdgeList
+
+-- | softWiredPrelimTraceback takes a list of nodes to update (with left right index info) based
+-- on resolution data, recurses with left right indices pre-order to leaves, keeping list og updated nodes
+softWiredPrelimTraceback :: DecoratedGraph 
+                        -> [(LG.LNode VertexInfo, (Maybe Int, Maybe Int), Bool]
+                        -> [LG.LNode VertexInfo]
+                        -> [LG.LNode VertexInfo]
+softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
+    if null nodesToUpdate then updatedNodes
+    else 
+        let (firstNode, firstLeftRight, isLeft) = head nodesToUpdate
+
+            -- ensure consistent left/right from post-order 
+            resolutionIndexVect = if isLeft then fmap fst firstLeftRight
+                                  else fmap snd firstLeftRight
+
+            -- get resolution info
+            (newBlockData, newSubGraphCost, newVertexCost, childLeftRightIndexVect) = getResolutionDataAndIndices (snd firstNode) resolutionIndexVect
+
+            -- make new node
+            newNodeLabel = (snd firstNode) { vertData = newBlockData
+                                           , vertexCost = newVertexCost
+                                           , subGraphCost = newSubGraphCost
+                                           }
+
+            newFirstNode = (fst firstNode, newNodeLabel)
+
+            -- get children 
+            firstChildren = LG.labDescendants inGraph firstNode
+            firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
+            firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
+                                  else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
+                                  else [True, False]
+
+            childrenTuples = zip3 firstChildren (replicate (length firstChildren) childLeftRightIndexVect) firstChildrenIsLeft
+            
+
+        in
+        if resolutionIndex == Nothing then error "'Nothing' index in softWiredPrelimTraceback"
+        else 
+            softWiredPrelimTraceback inGraph (childrenTuples ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes)
+
+           
+-- | getResolutionDataAndIndices takes a vertex label (VertexInfo) and returns the resolution data corresponding to
+-- the index taken from its child resolution (data, subgraph cost, local resolutoin cost, left/right pairs).  
+-- Index = (-1) denotes that it is a root label and in that case
+-- the best (lowest cost) resolutions are returned 
+getResolutionDataAndIndices :: VertexInfo -> V.Vector Maybe Int -> (VertexBlockData, VertexCost, VertexCost, V.Vector (Maybe Int, Maybe Int))
+getResolutionDataAndIndices nodeLabel parentResolutionIndexVect = 
+
+    -- should not happen
+    if V.head parentResolutionIndex = Nothing then error "'Nothing' index ingetResolutionDataAndIndices "
+
+    -- root node--take lowest cost 
+    else if V.head parentResolutionIndex = Just (-1) then 
+        let rootBlockResolutionPair = fmap getBestBlockResolution $ vertexResolutionData nodeLabel
+            (charDataVV, subGraphCostV, resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
+        in
+        (charDataVV, V.sum subGraphCostV, V.sum resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
+        
+    -- non-root node--return the index resolution information
+    else 
+        let parentIndexVect = fmap fromJust parentResolutionIndexVect
+            resolutionsByBlockV = fmap ((vertexResolutionData nodeLabel) V.!) parentIndexVect
+            charDataVV = fmap displayData resolutionsByBlockV
+            subGraphCost = V.sum $ fmap displayCost resolutionsByBlockV
+            resolutionCost = V.sum $ fmap resolutionCost resolutionsByBlockV
+            leftRightIndexVect = fmap childResolutions
+        in
+        (charDataVV, ubGraphCost, resolutionCost, leftRightIndexVect)
+
+
+-- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
+-- for a single block of characters.  A single left right index pair is returns for child resolution sources. Could be multiple
+-- from resolution compression (equal leaf set, equal median) and avaialble for potenitally implementd in future, multiple 
+-- preliminary assignments.  Only valid for root node with all leaves in graph
+getBestBlockResolution :: ResolutionBlockData -> (V.Vector CharacterData, VertexCost, VertexCost, (Maybe Int, Maybe Int))
+getBestBlockResolution inResBlockData =
+    if V.null inResBlockData then (mempty, 0.0, 0.0, (Nothing, Nothing))
+    else 
+        let -- makes sure all leaves in resolution
+            displayPopList = fmap (complement) $ fmap displayBVLabel inResBlockData
+
+            -- subgraph cost
+            displayCostList = fmap displayCost inResBlockData
+
+            -- resolution local cost
+            resolutionCostList = fmap resolutionCost inResBlockData
+            
+            -- takes only first resolution index pair
+            childResolutionList = fmap head $ fmap childResolutions inResBlockData
+            
+            -- resolution medians
+            displayDataList = fmap displayData inResBlockData
+
+            -- take only those will all leaves in, then minimum cost
+            quintVect = V.zip5 displayPopList displayCostList resolutionCostList childResolutionList displayDataList
+            validVect = V.filter (BV.isZeroVector . fst5) quintVect
+            validMinCost = V.minimum $ fmap snd5 validVect
+
+            (_, displayCostV, resCostV, childIndexPairV, displayMedianV) = V.unzip5 $ V.filter  ((== validMinCost) . snd5) validVect
+        in
+        if null validQuadVect then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
+        else (displayMedianV, displayCostV, resCostV, childIndexPairV)
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
@@ -923,9 +1050,10 @@ doCharacterTraversal inCharInfo inGraph =
             rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True
             rootChildren =LG.labDescendants inGraph (head rootVertexList)
 
-            -- this assumes two children
+            -- left / right to match post-order
             rootChildrenBV = fmap bvLabel $ fmap snd rootChildren
-            rootChildrenIsLeft = if (rootChildrenBV !! 0) > (rootChildrenBV !! 1) then [False, True]
+            rootChildrenIsLeft = if length rootChildrenBV == 1 then [True]
+                                 else if (rootChildrenBV !! 0) > (rootChildrenBV !! 1) then [False, True]
                                  else [True, False]
             newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
             rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
@@ -954,10 +1082,12 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             firstVertData = vertData firstLabel
             firstParentVertData = vertData $ snd firstParent
             firstChildren = LG.labDescendants inGraph firstNode
-            -- this assumes two children
+            
+            -- this OK with one or two children
             firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
-            firstChildrenIsLeft = if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
-                                 else [True, False]
+            firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
+                                  else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
+                                  else [True, False]
             firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfo isLeft
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft

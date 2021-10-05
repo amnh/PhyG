@@ -171,7 +171,7 @@ labDescendants inGraph inNode =
         labelList = fmap fromJust maybeLabelList
         labNodeList = zip nodeList labelList
     in
-    if (not $ null nothingList) then error "UNlabeled nodes in labDescendants" 
+    if (not $ null nothingList) then error "Unlabeled nodes in labDescendants" 
     else labNodeList
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
