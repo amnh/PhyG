@@ -210,16 +210,25 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     (displayGraphVL, displayCost) = if (nodeType newVertexLabel) == RootNode then extractDisplayTrees True resolutionBlockVL
                                                     else (mempty, 0.0)
 
-                    -- update preliminary states based on tracebeack of resolutions
-
                 in
-                --trace ("NewNode: " ++ (show curNode) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newGraph)) (
+                
                 if (nodeType newVertexLabel) == RootNode then 
-                    --trace ("New Graph " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newGraph))
-                    (simpleGraph, displayCost, newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+                    -- perform "traceback" pre-order pass to choose best resolutions and assign preliminary data
+                    -- to complete post-order decoration
+                    let (newGraph', displayGraphVL') = softWiredPostOrderTraceBack newGraph displayGraphVL blockCharInfo
+                    in
+                    (simpleGraph, displayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
+
                 else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
-                -- )   
-                -- ))
+
+-- | softWiredPostOrderTraceBack takes resolution data and assigns correct resolution median to preliminary 
+-- data ssignments.  Proceeds via typical pre-order pass over tree
+softWiredPostOrderTraceBack :: DecoratedGraph -> V.Vector [BlockDisplayForest] -> V.Vector (V.Vector CharInfo) -> (DecoratedGraph, V.Vector [BlockDisplayForest])
+softWiredPostOrderTraceBack inGraph blockDisplayForestLV charInfoVV = 
+    if LG.isEmpty inGraph ||  V.null blockDisplayForestLV then (LG.empty, mempty)
+    else  
+        (inGraph, blockDisplayForestLV)
+                
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data

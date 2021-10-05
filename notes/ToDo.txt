@@ -408,5 +408,16 @@ to render--would have repeated subtrees after network vertex
 
 
 158) resolution vector stuff has alot of list <-> vector intercoversions
-	Prob could be cleaned up a bit
+	Prob could be cleaned up a faitr amount
+
+159) Better--simpler Graph format for display trees
+	Can do conversions for traceback etc
+	Right now its a bogus DecoratedGraph
+
+160) Split tree, soft-wired, functtions.  
+	Make common traversal functions separate file (ie pre-order stuff)
+
+	
+
+
 
