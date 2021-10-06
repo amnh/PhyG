@@ -418,6 +418,7 @@ to render--would have repeated subtrees after network vertex
 	Make common traversal functions separate file (ie pre-order stuff)
 
 	
-
+161) Incremental pot-order traceback for soft-wired
+	during rerooting
 
 
