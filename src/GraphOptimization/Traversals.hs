@@ -217,13 +217,13 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     -- to complete post-order decoration
                     let newGraph' = softWiredPostOrderTraceBack newGraph (curNode, newVertexLabel)
                     in
-                    (simpleGraph, displayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
+                    (simpleGraph, displayCost, newGraph', displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
 
                 else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
 
 -- | softWiredPostOrderTraceBack takes resolution data and assigns correct resolution median to preliminary 
 -- data ssignments.  Proceeds via typical pre-order pass over tree
-softWiredPostOrderTraceBack :: DecoratedGraph -> LG.LNode -> DecoratedGraph
+softWiredPostOrderTraceBack :: DecoratedGraph -> LG.LNode VertexInfo -> DecoratedGraph
 softWiredPostOrderTraceBack inGraph (rootIndex, rootLabel)  = 
     if LG.isEmpty inGraph then LG.empty
     else 
@@ -232,7 +232,7 @@ softWiredPostOrderTraceBack inGraph (rootIndex, rootLabel)  =
             
             -- root first--choose best resolutions--returns a list and takes head of that list of equal cost/traceback preliminary
             -- assignments.  Later could look at multiple.
-            (rootVertData, rootSubGraphCost, rootResolutionCost, leftRightIndexVect) = getResolutionDataAndIndices rootLabel (V.singleton (Just -1)) 
+            (rootVertData, rootSubGraphCost, rootResolutionCost, leftRightIndexVect) = getResolutionDataAndIndices rootLabel (V.singleton (Just (-1))) 
             newRootLabel = rootLabel { vertData = rootVertData
                                      , vertexCost = rootResolutionCost
                                      , subGraphCost = rootSubGraphCost
@@ -259,7 +259,7 @@ softWiredPostOrderTraceBack inGraph (rootIndex, rootLabel)  =
 -- | softWiredPrelimTraceback takes a list of nodes to update (with left right index info) based
 -- on resolution data, recurses with left right indices pre-order to leaves, keeping list og updated nodes
 softWiredPrelimTraceback :: DecoratedGraph 
-                        -> [(LG.LNode VertexInfo, (Maybe Int, Maybe Int), Bool]
+                        -> [(LG.LNode VertexInfo, V.Vector (Maybe Int, Maybe Int), Bool)]
                         -> [LG.LNode VertexInfo]
                         -> [LG.LNode VertexInfo]
 softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
@@ -293,7 +293,7 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
             
 
         in
-        if resolutionIndex == Nothing then error "'Nothing' index in softWiredPrelimTraceback"
+        if V.head resolutionIndexVect == Nothing then error "'Nothing' index in softWiredPrelimTraceback"
         else 
             softWiredPrelimTraceback inGraph (childrenTuples ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes)
 
@@ -302,29 +302,40 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
 -- the index taken from its child resolution (data, subgraph cost, local resolutoin cost, left/right pairs).  
 -- Index = (-1) denotes that it is a root label and in that case
 -- the best (lowest cost) resolutions are returned 
-getResolutionDataAndIndices :: VertexInfo -> V.Vector Maybe Int -> (VertexBlockData, VertexCost, VertexCost, V.Vector (Maybe Int, Maybe Int))
+getResolutionDataAndIndices :: VertexInfo -> V.Vector (Maybe Int) -> (VertexBlockData, VertexCost, VertexCost, V.Vector (Maybe Int, Maybe Int))
 getResolutionDataAndIndices nodeLabel parentResolutionIndexVect = 
 
     -- should not happen
-    if V.head parentResolutionIndex = Nothing then error "'Nothing' index ingetResolutionDataAndIndices "
+    if V.head parentResolutionIndexVect == Nothing then error "'Nothing' index ingetResolutionDataAndIndices "
 
     -- root node--take lowest cost 
-    else if V.head parentResolutionIndex = Just (-1) then 
+    else if V.head parentResolutionIndexVect == Just (-1) then 
         let rootBlockResolutionPair = fmap getBestBlockResolution $ vertexResolutionData nodeLabel
             (charDataVV, subGraphCostV, resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
         in
-        (charDataVV, V.sum subGraphCostV, V.sum resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
+        (charDataVV, V.sum subGraphCostV, V.sum resCostV, leftRightIndexVect)
         
     -- non-root node--return the index resolution information
     else 
         let parentIndexVect = fmap fromJust parentResolutionIndexVect
-            resolutionsByBlockV = fmap ((vertexResolutionData nodeLabel) V.!) parentIndexVect
+
+            -- get resolution data from node label
+            resolutionData = vertexResolutionData nodeLabel
+
+            -- get the correct (via index) resolution data for each block
+            resolutionsByBlockV = V.zipWith (V.!) resolutionData parentIndexVect
+
+            -- get other resolution info
             charDataVV = fmap displayData resolutionsByBlockV
             subGraphCost = V.sum $ fmap displayCost resolutionsByBlockV
-            resolutionCost = V.sum $ fmap resolutionCost resolutionsByBlockV
-            leftRightIndexVect = fmap childResolutions
+            localResolutionCost = V.sum $ fmap resolutionCost resolutionsByBlockV
+
+            -- only takes first left right pair--although others in there
+            -- uses first for preliminary asiignment--but could be more
+            -- if euqla cost display trees, may have multiple possible preliminary states
+            leftRightIndexVect = fmap head $ fmap childResolutions resolutionsByBlockV
         in
-        (charDataVV, ubGraphCost, resolutionCost, leftRightIndexVect)
+        (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
 
 
 -- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
@@ -355,10 +366,11 @@ getBestBlockResolution inResBlockData =
             validVect = V.filter (BV.isZeroVector . fst5) quintVect
             validMinCost = V.minimum $ fmap snd5 validVect
 
+            -- ONly takes first of potentially multiple soliutions to begin traceback
             (_, displayCostV, resCostV, childIndexPairV, displayMedianV) = V.unzip5 $ V.filter  ((== validMinCost) . snd5) validVect
         in
-        if null validQuadVect then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
-        else (displayMedianV, displayCostV, resCostV, childIndexPairV)
+        if null validVect then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
+        else (V.head displayMedianV, V.head displayCostV, V.head resCostV, V.head childIndexPairV)
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
