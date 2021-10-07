@@ -68,16 +68,17 @@ createFinalAssignmentOverBlocks :: NodeType
                                 -> VertexBlockData 
                                 -> CharInfo 
                                 -> Bool
+                                -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks childType childBlockData parentBlockData charInfo isLeft =
+createFinalAssignmentOverBlocks childType childBlockData parentBlockData charInfo isLeft isOutDegree1 =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith (assignFinal childType isLeft charInfo) childBlockData parentBlockData
+   V.zipWith (assignFinal childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
 
   -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
-assignFinal :: NodeType -> Bool -> CharInfo -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
-assignFinal childType isLeft charInfo childCharacterVect parentCharacterVect =
-   V.zipWith (setFinal childType isLeft charInfo) childCharacterVect parentCharacterVect
+assignFinal :: NodeType -> Bool -> CharInfo -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
+assignFinal childType isLeft charInfo isOutDegree1 childCharacterVect parentCharacterVect =
+   V.zipWith (setFinal childType isLeft charInfo isOutDegree1) childCharacterVect parentCharacterVect
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
@@ -86,8 +87,8 @@ assignFinal childType isLeft charInfo childCharacterVect parentCharacterVect =
 -- non exact charcaters are vectors of characters of same type
 -- this does the same things for seqeunce types, but also 
 -- performs preorder logic for exact characters
-setFinal :: NodeType -> Bool -> CharInfo -> CharacterData-> CharacterData -> CharacterData
-setFinal childType isLeft charInfo childChar parentChar =
+setFinal :: NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
+setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
    in
@@ -186,6 +187,40 @@ setFinal childType isLeft charInfo childChar parentChar =
 
          in
          childChar {hugeFinal = finalAssignmentIA, hugeAlignment = finalGapped}
+         
+      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+   
+   -- display tree indegree=outdegree=1
+   -- since display trees here--indegree should be one as well
+   else if isOutDegree1 then
+
+      if localCharType == Add then 
+         -- add logic for pre-order
+         let finalAssignment = (rangeFinal parentChar)
+         in
+         childChar {rangeFinal = finalAssignment}
+
+      else if localCharType == NonAdd then 
+         -- add logic for pre-order
+         let finalAssignment = (stateBVFinal parentChar)
+         in
+         childChar {stateBVFinal = finalAssignment}
+
+      else if localCharType == Matrix then 
+         -- add logic for pre-order
+         let finalAssignment = (matrixStatesFinal parentChar)
+         in
+         childChar {matrixStatesFinal = finalAssignment}
+
+      -- need to set both final and alignment for sequence characters
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
+         childChar {slimFinal = (slimFinal parentChar), slimAlignment = (slimAlignment parentChar)}
+         
+      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
+         childChar {wideFinal = (wideFinal parentChar), wideAlignment = (wideAlignment parentChar)}
+         
+      else if localCharType == HugeSeq then 
+         childChar {hugeFinal = (hugeFinal parentChar), hugeAlignment = (hugeAlignment parentChar)}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 

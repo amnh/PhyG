@@ -99,7 +99,8 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             
             -- preorder pass
-            outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
+            -- outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
+            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal  outgroupRootedSoftWiredPostOrder
         in
         -- merge component gaphs 
         outgroupRootedSoftWiredPreOrder
@@ -216,10 +217,43 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     -- perform "traceback" pre-order pass to choose best resolutions and assign preliminary data
                     -- to complete post-order decoration
                     let newGraph' = softWiredPostOrderTraceBack newGraph (curNode, newVertexLabel)
+
+                        -- propagate post-order assignment to display trees for pre-order pass 
+                        -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
+                        displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes newGraph')) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                     in
-                    (simpleGraph, displayCost, newGraph', displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+                    (simpleGraph, displayCost, newGraph', displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
 
                 else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
+
+-- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
+-- to Block display graphs (through list of more than one for a block)
+-- input is canonical Decorated Graph and a pair containing the display tree and its Block index
+-- this could be integrated into preorder traceback to remove the extra pass
+-- do this here is a bit simpler
+assignPostOrderToDisplayTree :: [VertexBlockData] -> [DecoratedGraph] -> Int -> [DecoratedGraph]
+assignPostOrderToDisplayTree canonicalVertexBlockData displayTreeList displayTreeIndex =
+    if null canonicalVertexBlockData then []
+    else 
+        let 
+            updatedDispayTreeList = fmap (assignVertexBlockData canonicalVertexBlockData displayTreeIndex) displayTreeList
+        in
+        -- trace ("Index: " ++ (show displayTreeIndex) ++ " Blocks : " ++ (show $ V.length $ head canonicalVertexBlockData) ++ " Nodes: "  ++ (show $ length canonicalVertexBlockData))
+        updatedDispayTreeList
+
+-- | assignVertexBlockData assigns the block data of input index and assigns to all nodes of a tree
+assignVertexBlockData :: [VertexBlockData] -> Int -> DecoratedGraph -> DecoratedGraph
+assignVertexBlockData nodeDataList blockIndex inGraph =
+    if null nodeDataList || LG.isEmpty inGraph then LG.empty
+    else 
+        -- trace ("In Index: " ++ (show blockIndex) ++ " BL: " ++ (show $ V.length $ head nodeDataList) ++ " lengths " ++ (show $ fmap V.length nodeDataList)) (
+        let blockIndexDataList = fmap (V.! blockIndex) nodeDataList
+            (displayNodeIndexList, displayNodeLabelList) = L.unzip $ LG.labNodes inGraph
+            updatedNodeLabelList = zipWith updateVertData displayNodeLabelList blockIndexDataList
+        in
+        LG.mkGraph (zip displayNodeIndexList updatedNodeLabelList) (LG.labEdges inGraph)
+        -- )
+        where updateVertData inVertexInfo newVertData = inVertexInfo {vertData = V.singleton newVertData}
 
 -- | softWiredPostOrderTraceBack takes resolution data and assigns correct resolution median to preliminary 
 -- data ssignments.  Proceeds via typical pre-order pass over tree
@@ -313,8 +347,8 @@ getResolutionDataAndIndices :: VertexInfo -> V.Vector (Maybe Int) -> (VertexBloc
 getResolutionDataAndIndices nodeLabel parentResolutionIndexVect = 
 
     -- should not happen
-    if V.head parentResolutionIndexVect == Nothing then error "'Nothing' index ingetResolutionDataAndIndices "
-    else if nodeType nodeLabel == LeafNode then 
+    --mtrace ("NL " ++ (show $ index nodeLabel) ++ " PRIL: " ++ " length " ++ (show $ V.length parentResolutionIndexVect) ++ " " ++ show parentResolutionIndexVect) (
+    if nodeType nodeLabel == LeafNode then 
         let leafVertData = fmap displayData $ fmap (V.! 0) (vertexResolutionData nodeLabel)
         in
         (leafVertData, 0, 0, mempty)
@@ -328,8 +362,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
         
     -- non-root node--return the index resolution information
     else 
-        let parentIndexVect = if (nodeType nodeLabel == NetworkNode) then fmap fromJust $ V.filter (/= Nothing) parentResolutionIndexVect
-                              else fmap fromJust parentResolutionIndexVect
+        let parentIndexVect = fmap fromJust parentResolutionIndexVect
 
             -- get resolution data from node label
             resolutionData = vertexResolutionData nodeLabel
@@ -347,9 +380,8 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- if euqla cost display trees, may have multiple possible preliminary states
             leftRightIndexVect = fmap head $ fmap childResolutions resolutionsByBlockV
         in
-        if (null parentIndexVect) then error "Null parentIndexVect in getResolutionDataAndIndices"
-        else (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
-
+        (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
+        -- )
 
 -- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
 -- for a single block of characters.  A single left right index pair is returns for child resolution sources. Could be multiple
@@ -441,7 +473,7 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
         -- )
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
--- need to watch left/right (based on BV) for preorder stuff
+-- need to watch let/right (based on BV) for preorder stuff
 createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
 createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) = 
     let -- make  bvLabel for resolution 
@@ -620,14 +652,25 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
     else 
         let firstInData = V.head inData
             (inNodeList, inEdgeList) = displaySubGraph firstInData
+            childResolutionIndexPairList = childResolutions firstInData
+            childResolutionIndexPairList' = fmap makeNothingZeroFortLeafChild childResolutionIndexPairList
             newNodeList = newNode : inNodeList
             newEdgeList = newEdge : inEdgeList
             newFirstData = firstInData { displaySubGraph  = (newNodeList, newEdgeList)
-                                       , childResolutions = [(Just resolutionIndex, Nothing)]
+                                       , childResolutions = childResolutionIndexPairList'
                                        }
     in
     addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (V.tail inData) 
 
+
+-- | makeNothingZeroFortLeafChild 
+-- this to propagate resolution indices for outdegree 1 nodes--but since leaves have (Nothing, Nothing)
+-- parents of leaves must be the 0th resoluition of their child
+makeNothingZeroFortLeafChild :: (Maybe Int, Maybe Int) ->  (Maybe Int, Maybe Int)
+makeNothingZeroFortLeafChild (a, b) = 
+    let a' = if a == Nothing then Just 0 else a
+        b' = if b == Nothing then Just 0 else b
+        in (a', b') 
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
@@ -1072,7 +1115,7 @@ doCharacterTraversal inCharInfo inGraph =
     else 
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         let rootLabel = snd $ head rootVertexList
-            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True
+            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
             rootChildren =LG.labDescendants inGraph (head rootVertexList)
 
             -- left / right to match post-order
@@ -1113,7 +1156,7 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
                                   else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
                                   else [True, False]
-            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfo isLeft
+            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfo isLeft (length firstChildren == 1)
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
