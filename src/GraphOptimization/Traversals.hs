@@ -281,20 +281,27 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
                                            }
 
             newFirstNode = (fst firstNode, newNodeLabel)
+        in
+        if nodeType (snd firstNode) == LeafNode then 
+            softWiredPrelimTraceback inGraph (tail nodesToUpdate) (newFirstNode : updatedNodes)
 
-            -- get children 
-            firstChildren = LG.labDescendants inGraph firstNode
-            firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
-            firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
-                                  else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
-                                  else [True, False]
+        else 
+            let -- get children 
+                firstChildren = LG.labDescendants inGraph firstNode
+                firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
+                firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
+                                      else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
+                                      else [True, False]
 
-            childrenTuples = zip3 firstChildren (replicate (length firstChildren) childLeftRightIndexVect) firstChildrenIsLeft
+                childrenTuples = zip3 firstChildren (replicate (length firstChildren) childLeftRightIndexVect) firstChildrenIsLeft
             
 
         in
-        if V.head resolutionIndexVect == Nothing then error "'Nothing' index in softWiredPrelimTraceback"
-        else 
+        {-
+        if V.head resolutionIndexVect == Nothing then error ("'Nothing' index in softWiredPrelimTraceback " ++ (show resolutionIndexVect) 
+            ++ " Node " ++ (show $ fst firstNode) ++ " isLeft?: " ++ (show isLeft)  ++ " " ++ (show firstLeftRight))
+        else
+        -} 
             softWiredPrelimTraceback inGraph (childrenTuples ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes)
 
            
@@ -307,6 +314,10 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
 
     -- should not happen
     if V.head parentResolutionIndexVect == Nothing then error "'Nothing' index ingetResolutionDataAndIndices "
+    else if nodeType nodeLabel == LeafNode then 
+        let leafVertData = fmap displayData $ fmap (V.! 0) (vertexResolutionData nodeLabel)
+        in
+        (leafVertData, 0, 0, mempty)
 
     -- root node--take lowest cost 
     else if V.head parentResolutionIndexVect == Just (-1) then 
@@ -317,7 +328,8 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
         
     -- non-root node--return the index resolution information
     else 
-        let parentIndexVect = fmap fromJust parentResolutionIndexVect
+        let parentIndexVect = if (nodeType nodeLabel == NetworkNode) then fmap fromJust $ V.filter (/= Nothing) parentResolutionIndexVect
+                              else fmap fromJust parentResolutionIndexVect
 
             -- get resolution data from node label
             resolutionData = vertexResolutionData nodeLabel
@@ -335,7 +347,8 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- if euqla cost display trees, may have multiple possible preliminary states
             leftRightIndexVect = fmap head $ fmap childResolutions resolutionsByBlockV
         in
-        (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
+        if (null parentIndexVect) then error "Null parentIndexVect in getResolutionDataAndIndices"
+        else (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
 
 
 -- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
