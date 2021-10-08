@@ -356,9 +356,9 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
     -- should not happen
     --mtrace ("NL " ++ (show $ index nodeLabel) ++ " PRIL: " ++ " length " ++ (show $ V.length parentResolutionIndexVect) ++ " " ++ show parentResolutionIndexVect) (
     if nodeType nodeLabel == LeafNode then 
-        let leafVertData = fmap displayData $ fmap (V.! 0) (vertexResolutionData nodeLabel)
+        let leafVertData = fmap displayData $ fmap (V.head) (vertexResolutionData nodeLabel)
         in
-        (leafVertData, 0, 0, mempty)
+        (leafVertData, 0, 0, V.singleton (Just 0, Just 0))
 
     -- root node--take lowest cost 
     else if V.head parentResolutionIndexVect == Just (-1) then 
@@ -1309,7 +1309,7 @@ getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV =
 
 -- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
 -- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
-getCharacterDist :: CharacterData -> CharacterData-> CharInfo -> (VertexCost, VertexCost)
+getCharacterDist :: CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
 getCharacterDist uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
@@ -1341,16 +1341,17 @@ getCharacterDist uCharacter vCharacter charInfo =
 
 
     else if (thisCharType == SlimSeq || thisCharType == NucSeq) then
-        let minMaxDiffList = fmap (generalSequenceDiff thisMatrix (length thisMatrix)) $ zip (GV.toList $ fst3 $ slimAlignment uCharacter) (GV.toList $ fst3 $ slimAlignment vCharacter)
+        let minMaxDiffList = fmap (generalSequenceDiff thisMatrix (length thisMatrix)) $ zip (GV.toList $ slimFinal uCharacter) (GV.toList $ slimFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
         in
+        --trace ("MMDL: " ++ (show $ (GV.toList $ slimFinal uCharacter)) ++ " " ++ (show $ (GV.toList $ slimFinal vCharacter)) ++ "\n" ++ (show minCost) ++ " " ++ (show maxCost)) 
         (minCost, maxCost)
         
     
     else if (thisCharType == WideSeq || thisCharType == AminoSeq) then
-        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (fst3 $ wideAlignment uCharacter) (fst3 $ wideAlignment vCharacter)
+        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (wideFinal uCharacter) (wideFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1358,7 +1359,7 @@ getCharacterDist uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else if thisCharType == HugeSeq then
-        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (fst3 $ hugeAlignment uCharacter) (fst3 $ hugeAlignment vCharacter)
+        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (hugeFinal uCharacter) (hugeFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1398,5 +1399,6 @@ generalSequenceDiff thisMatrix numStates (uState, vState) =
         uvCombinations = cartProd uStateList vStateList
         costOfPairs = fmap (thisMatrix S.!) uvCombinations
     in
+    -- trace ("GSD: " ++ (show uStateList) ++ " " ++ (show vStateList) ++ " min " ++ (show $ minimum costOfPairs) ++ " max " ++ (show $  maximum costOfPairs))
     (minimum costOfPairs, maximum costOfPairs)
 

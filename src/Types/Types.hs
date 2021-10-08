@@ -173,12 +173,14 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
 -- for matrix/Saknoff characters-- Vector of vector of States
     --BUT all with same cost matrix/tcm
--- triples (add, no-add, seqeunce) are to keep children of vertex states for pre-order pass 
+-- triples (add, no-add, sequence) are to keep children of vertex states for pre-order pass 
 -- order is always (median, left parent median, right parent median)
--- do noit need for matrix since up pass is a traceback from parent
+-- do not need for matrix since up pass is a traceback from parent
 -- sequence characters are a vector of bitvectors--so only a single seqeunce character
 --  per "charctaer" this is so the multi-traversal can take place independently for each
 --  sequence character, creating a properly "rooted" tree/graph for each non-exact seqeunce character
+-- prelim is created from gapped, final from (via 3-way minimization) parent final and child alignment (2nd and 3rd fields).
+-- th ea'alignment' fields hold the im plied alignment data
 data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector

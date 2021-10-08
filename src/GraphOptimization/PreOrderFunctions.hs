@@ -144,7 +144,7 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
-   else if childType == TreeNode then
+   else if (childType == TreeNode && not isOutDegree1) then
       
       if localCharType == Add then 
          -- add logic for pre-order
@@ -193,7 +193,7 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
    else if isOutDegree1 then
-
+      -- trace ("InOut1 preorder") (
       if localCharType == Add then 
          -- add logic for pre-order
          let finalAssignment = (rangeFinal parentChar)
@@ -223,7 +223,7 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
          childChar {hugeFinal = (hugeFinal parentChar), hugeAlignment = (hugeAlignment parentChar)}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
-
+      --)
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    
 

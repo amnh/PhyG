@@ -430,4 +430,11 @@ to render--would have repeated subtrees after network vertex
 
 164) add outout gap filter for "final" assingment output
 
+165) Final state asignment for soft-wired is incorrect
+	pulling one of two prelminary states
+	root ok--but leaves are even incorrect suggesting an incorrect preliminary states
+	in display treess
+
+	
+
 
