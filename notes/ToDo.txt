@@ -422,3 +422,12 @@ to render--would have repeated subtrees after network vertex
 	during rerooting
 
 
+162) remove Maybe from resoltion child type
+
+163) update edge costs for softwired HTU edges, pendant seem OK.
+	Could be due to incorrect preorder assignment field for out=1 node/edges
+	min for tree seems wrong also
+
+164) add outout gap filter for "final" assingment output
+
+

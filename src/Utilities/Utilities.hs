@@ -308,6 +308,21 @@ leftRightChildLabelBV inPair@(firstNode, secondNode) =
     if firstLabel > secondLabel then (secondNode, firstNode)
     else inPair
 
+-- | get leftRightChildLabelBVNode takes a pair ofnodes and returns left and right
+-- based on their bitvector representation.  This ensures left/right consistancey in
+-- pre and postoder passes, and with bitvectors of leaves determined by data hash,
+-- ensures label invariance with repect to leaves 
+-- larger bitvector goes second (bigge)
+leftRightChildLabelBVNode :: (LG.LNode VertexInfo, LG.LNode VertexInfo) -> (LG.LNode VertexInfo, LG.LNode VertexInfo)
+leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
+    let firstLabel  = bvLabel $ snd firstNode
+        secondLabel = bvLabel $ snd secondNode
+    in
+    if firstLabel > secondLabel then (secondNode, firstNode)
+    else inPair
+
+
+
 -- | getBridgeList takes a Decorated graph and returns the list of edges that, if removed, will
 -- split the graph, that is increase the number of unconnected components
 -- this is useful in graph rearrangement

@@ -158,9 +158,16 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then 
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
-                let (newGraph, isRoot, localCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                let (newGraph, isRoot, newVertexLabel, localCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
-                if isRoot then (simpleGraph, localCost, newGraph, displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL, blockCharInfo)
+                if isRoot then 
+                     let newGraph' = softWiredPostOrderTraceBack newGraph (curNode, newVertexLabel)
+
+                         -- propagate post-order assignment to display trees for pre-order pass 
+                         -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
+                         displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes newGraph')) displayGraphVL (V.fromList [0.. (V.length displayGraphVL - 1)])
+                    in
+                    (simpleGraph, localCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
                 else (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
                 -- )
 
@@ -170,12 +177,12 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                 -- need to create new resolutions and add to existing sets
                 let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                     -- larger bitvector is Right, smaller or equal Left 
-                    (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
+                    ((leftChild', leftChildLabel), (rightChild', rightChildLabel)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab newSubTree leftChild), (rightChild, fromJust $ LG.lab newSubTree rightChild))
                     
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
-                    resolutionBlockVL = fmap (createBlockResolutions (compressResolutions inGS) curNode leftChild rightChild leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
+                    resolutionBlockVL = fmap (createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
                 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -204,8 +211,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                                          , edgeType = TreeEdge
                                          }
 
-                    leftEdge =  (curNode, leftChild, edgeLable {edgeType = leftEdgeType})
-                    rightEdge = (curNode, rightChild, edgeLable {edgeType = rightEdgeType})
+                    leftEdge =  (curNode, leftChild', edgeLable {edgeType = leftEdgeType})
+                    rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
                     newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree 
 
                     (displayGraphVL, displayCost) = if (nodeType newVertexLabel) == RootNode then extractDisplayTrees True resolutionBlockVL
@@ -222,9 +229,9 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                         -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                         displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes newGraph')) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                     in
-                    (simpleGraph, displayCost, newGraph', displayGraphVL, PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
+                    (simpleGraph, displayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
 
-                else (simpleGraph, displayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
+                else (simpleGraph, displayCost, newGraph, mempty, mempty, blockCharInfo)
 
 -- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
 -- to Block display graphs (through list of more than one for a block)
@@ -456,15 +463,19 @@ createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType r
                             let newEdge = (curNode, rightIndex, edgeLable)
                                 newRightChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] rightChild
                             in
+                            -- trace ("ANEL:" ++ (show $ (curNode, rightIndex))) 
                             newRightChildBlockResolutionData
-                       else mempty
+                       else -- trace ("ANEL-Nothing") 
+                            mempty
 
             addRight = if rightChildNodeType == NetworkNode then 
                             let newEdge = (curNode, leftIndex, edgeLable)
                                 newLeftChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] leftChild
                             in
+                            -- trace ("ANER:" ++ (show $ (curNode, leftIndex))) 
                             newLeftChildBlockResolutionData
-                       else mempty
+                       else -- trace ("ANER-Nothing") 
+                            mempty
         in
         -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
         -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
@@ -587,7 +598,7 @@ getOutDegree1VertexAndGraph :: LG.Node
                             -> SimpleGraph 
                             -> [LG.Node] 
                             -> DecoratedGraph
-                            -> (DecoratedGraph, Bool, VertexCost, V.Vector [BlockDisplayForest])
+                            -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [BlockDisplayForest])
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
     
     --trace ("In out=1") (
@@ -635,7 +646,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
 
     in
     --trace ("NV1: " ++ show newVertex)
-    (newGraph, (nodeType newVertex) == RootNode, displayCost, displayGraphVL)
+    (newGraph, (nodeType newVertex) == RootNode, newVertex, displayCost, displayGraphVL)
     --)
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
@@ -653,21 +664,21 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
         let firstInData = V.head inData
             (inNodeList, inEdgeList) = displaySubGraph firstInData
             childResolutionIndexPairList = childResolutions firstInData
-            childResolutionIndexPairList' = fmap makeNothingZeroFortLeafChild childResolutionIndexPairList
             newNodeList = newNode : inNodeList
             newEdgeList = newEdge : inEdgeList
             newFirstData = firstInData { displaySubGraph  = (newNodeList, newEdgeList)
-                                       , childResolutions = childResolutionIndexPairList'
+                                        -- this apir in case of left/right issues later
+                                       , childResolutions = [(Just resolutionIndex, Just resolutionIndex)]
                                        }
     in
     addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (V.tail inData) 
 
 
--- | makeNothingZeroFortLeafChild 
+-- | makeNothingZeroForLeafChild 
 -- this to propagate resolution indices for outdegree 1 nodes--but since leaves have (Nothing, Nothing)
 -- parents of leaves must be the 0th resoluition of their child
-makeNothingZeroFortLeafChild :: (Maybe Int, Maybe Int) ->  (Maybe Int, Maybe Int)
-makeNothingZeroFortLeafChild (a, b) = 
+makeNothingZeroForLeafChild :: (Maybe Int, Maybe Int) ->  (Maybe Int, Maybe Int)
+makeNothingZeroForLeafChild (a, b) = 
     let a' = if a == Nothing then Just 0 else a
         b' = if b == Nothing then Just 0 else b
         in (a', b') 
@@ -776,7 +787,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
     let defaultResolutionData = ResolutionData  { displaySubGraph = inSubGraph
                                                 , displayBVLabel = inBV
                                                 , displayData = mempty
-                                                , childResolutions = mempty
+                                                , childResolutions = [(Just 0, Just 0)]
                                                 , resolutionCost = 0.0
                                                 , displayCost = 0.0
                                                 } 
@@ -1281,16 +1292,16 @@ getEdgeWeight inCharInfoVV nodeVector (uNode, vNode) =
     else 
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
-            blockCostPairs = fmap getBlockCostPairs $ D.debugVectorZip3 uNodeInfo vNodeInfo inCharInfoVV
+            blockCostPairs = V.zipWith3 getBlockCostPairs uNodeInfo vNodeInfo inCharInfoVV
             minCost = sum $ fmap fst blockCostPairs
             maxCost = sum $ fmap snd blockCostPairs
         in
         (minCost, maxCost)
         
 -- | getBlockCostPairs takes a block of two nodes and character infomation and returns the min and max block branch costs
-getBlockCostPairs :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) -> (VertexCost, VertexCost)
-getBlockCostPairs (uNodeCharDataV, vNodeCharDataV, charInfoV) = 
-    let characterCostPairs = fmap getCharacterDist $ D.debugVectorZip3 uNodeCharDataV vNodeCharDataV charInfoV
+getBlockCostPairs :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
+getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV = 
+    let characterCostPairs = V.zipWith3 getCharacterDist uNodeCharDataV vNodeCharDataV charInfoV
         minCost = sum $ fmap fst characterCostPairs
         maxCost = sum $ fmap snd characterCostPairs
     in
@@ -1298,15 +1309,15 @@ getBlockCostPairs (uNodeCharDataV, vNodeCharDataV, charInfoV) =
 
 -- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
 -- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
-getCharacterDist :: (CharacterData, CharacterData, CharInfo) -> (VertexCost, VertexCost)
-getCharacterDist (uCharacter, vCharacter, charInfo) =
+getCharacterDist :: CharacterData -> CharacterData-> CharInfo -> (VertexCost, VertexCost)
+getCharacterDist uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
     in
     if thisCharType == Add then
         let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
-            maxDiff = V.sum $ fmap maxIntervalDiff $ D.debugVectorZip (rangeFinal uCharacter) (rangeFinal vCharacter)
+            maxDiff = V.sum $ V.zipWith maxIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
             maxCost = thisWeight * (fromIntegral maxDiff)
         in
         (minCost, maxCost)
@@ -1358,8 +1369,8 @@ getCharacterDist (uCharacter, vCharacter, charInfo) =
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
-maxIntervalDiff :: ((Int, Int), (Int, Int)) -> Int 
-maxIntervalDiff ((a,b), (x,y)) =
+maxIntervalDiff :: (Int, Int)-> (Int, Int) -> Int 
+maxIntervalDiff (a,b) (x,y) =
     let upper = (max b y) - (min b y)
         lower = (max a x) - (min a x)
     in
