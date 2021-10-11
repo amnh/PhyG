@@ -323,8 +323,14 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
 
             newFirstNode = (fst firstNode, newNodeLabel)
         in
+        
+        -- not really necessary, but avoids the graph query operations
         if nodeType (snd firstNode) == LeafNode then 
             softWiredPrelimTraceback inGraph (tail nodesToUpdate) (newFirstNode : updatedNodes)
+
+        -- checks if network node (and its children) has been visited already
+        else if (nodeType (snd firstNode) == NetworkNode) && ((L.find ((== (fst firstNode)). fst) updatedNodes) /= Nothing) then
+            softWiredPrelimTraceback inGraph (tail nodesToUpdate) updatedNodes
 
         else 
             let -- get children 

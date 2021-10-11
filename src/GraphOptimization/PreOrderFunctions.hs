@@ -93,6 +93,8 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
        symbolCount = toEnum $ length $ costMatrix charInfo
    in
    -- Three cases, Root, leaf, HTU
+   --trace ("set final:" ++ (show isLeft) ++ " " ++ (show isOutDegree1) ++ " " ++ (show $ slimAlignment parentChar) ++ " " 
+   --   ++ (show $ slimGapped parentChar) ++ " " ++ (show $ slimGapped childChar)) (
    if childType == RootNode then 
 
       if localCharType == Add then 
@@ -214,7 +216,14 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         childChar {slimFinal = (slimFinal parentChar), slimAlignment = (slimAlignment parentChar)}
+         let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
+             finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
+         in 
+         --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
+         --childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
+         childChar {slimFinal = finalAssignmentIA, slimAlignment = finalGapped}
+         --childChar {slimFinal = (slimFinal parentChar), slimAlignment = (slimAlignment parentChar)}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          childChar {wideFinal = (wideFinal parentChar), wideAlignment = (wideAlignment parentChar)}
@@ -223,9 +232,9 @@ setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
          childChar {hugeFinal = (hugeFinal parentChar), hugeAlignment = (hugeAlignment parentChar)}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
-      --)
+      -- )
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
-   
+   -- )
 
 -- | getFinal3Way takes parent final assignment (including indel characters) and descendent
 -- preliminary gapped assingment from postorder and creates a gapped final assignment based on 
