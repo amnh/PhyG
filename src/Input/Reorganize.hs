@@ -70,10 +70,12 @@ reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
             ++ "\nNew blocks: " ++ (show $ fmap fst3 reblockedBlocks))
         (leafNames, leafBVs, reblockedBlocks)
         
--- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and ccretes new blocks returned as a list
+-- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and creates new blocks returned as a list
 makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> [BlockData]
 makeNewBlocks reBlockPairs inBlockV curBlockList =
     if null reBlockPairs then curBlockList
+    else if V.null inBlockV && null curBlockList then
+         errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing ':0/N'? Blocks: " ++ (show $ fmap snd reBlockPairs)) 
     else if V.null inBlockV then curBlockList
     else 
         let firstBlock = V.head inBlockV
@@ -103,6 +105,7 @@ makeNewBlocks reBlockPairs inBlockV curBlockList =
                 in
                 --trace("EBlocks:" ++ (show $ fmap fst3 curBlockList)) 
                 makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : (filter ((/=newBlockName).fst3) curBlockList))
+            
 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks) 
