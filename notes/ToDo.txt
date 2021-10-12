@@ -435,6 +435,11 @@ to render--would have repeated subtrees after network vertex
 	root ok--but leaves are even incorrect suggesting an incorrect preliminary states
 	in display treess
 
-	
+	For some reason for tree and softwired--the "first" outgroup rooted tree 
+	has incorrect assignments--try rerooting on existing? to see if the reroot process fixes the problem?
 
+	Check branch lengths for exact data--since they never reroot
+
+	
+166) make forest a final set deleting edges?
 
