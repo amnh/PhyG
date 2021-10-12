@@ -443,3 +443,10 @@ to render--would have repeated subtrees after network vertex
 	
 166) make forest a final set deleting edges?
 
+167)  Create IA types for slim, wide, and huge
+	prelim and final
+	assign finalAlignment 1st field to IA leaf three fields and do post and preorder 2x and 3x passes
+	back propagate final states (w/o gaps) to slim/wide/huge/final
+
+	
+

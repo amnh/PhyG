@@ -196,18 +196,24 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , slimGapped         :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimAlignment      :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimFinal          :: SV.Vector CUInt
+                                     , slimIAPrelim       :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , slimIAFinal        :: SV.Vector CUInt
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , widePrelim         :: UV.Vector Word64
                                      -- gapped median of left, right, and preliminary used in preorder pass
                                      , wideGapped         :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideAlignment      :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideFinal          :: UV.Vector Word64
+                                     , wideIAPrelim       :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , wideIAFinal        :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped mediasn of left, right, and preliminary used in preorder pass
                                      , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeAlignment      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeFinal          :: V.Vector BV.BitVector
+                                     , hugeIAPrelim       :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeIAFinal        :: V.Vector BV.BitVector
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
                                      -- weight * V.sum localCostVect
@@ -232,18 +238,24 @@ emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- pr
                          , slimGapped         = (mempty, mempty, mempty)
                          , slimAlignment      = (mempty, mempty, mempty)
                          , slimFinal          = mempty
+                         , slimIAPrelim       = (mempty, mempty, mempty)
+                         , slimIAFinal        = mempty
                          -- gapped median of left, right, and preliminary used in preorder pass
                          , widePrelim         = mempty
                          -- gapped median of left, right, and preliminary used in preorder pass
                          , wideGapped         = (mempty, mempty, mempty)
                          , wideAlignment      = (mempty, mempty, mempty)
                          , wideFinal          = mempty
+                         , wideIAPrelim       = (mempty, mempty, mempty)
+                         , wideIAFinal        = mempty
                          -- vector of individual character costs (Can be used in reweighting-ratchet)
                          , hugePrelim         = mempty
                          -- gapped mediasn of left, right, and preliminary used in preorder pass
                          , hugeGapped         = (mempty, mempty, mempty)
                          , hugeAlignment      = (mempty, mempty, mempty)
                          , hugeFinal          = mempty
+                         , hugeIAPrelim       = (mempty, mempty, mempty)
+                         , hugeIAFinal        = mempty
                          -- vector of individual character costs (Can be used in reweighting-ratchet)
                          , localCostVect      = mempty
                          -- weight * V.sum localCostVect

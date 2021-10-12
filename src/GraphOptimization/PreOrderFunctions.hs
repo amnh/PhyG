@@ -63,6 +63,8 @@ import           Foreign.C.Types             (CUInt)
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
 -- if root or leaf preliminary is assigned to final
    -- need to watch zipping for missing sequence data
+-- this creates the IA during preorder from which final assignments are contructed
+-- via addition post and preorder passes on IA fields.
 createFinalAssignmentOverBlocks :: NodeType
                                 -> VertexBlockData 
                                 -> VertexBlockData 
