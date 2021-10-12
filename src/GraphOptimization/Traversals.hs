@@ -96,7 +96,7 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
             -- post order pass
-            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             
             -- preorder pass
             -- outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
@@ -835,6 +835,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- here initial root.
             outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
+            grandChildrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
 
             -- create list of multi-traversals with original rooting first
             -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
@@ -842,7 +843,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
             -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph Tree outgroupRootedPhyloGraph childrenOfRoot
+            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph Tree outgroupRootedPhyloGraph grandChildrenOfRoot
 
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
@@ -853,9 +854,13 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- are propagated to the Decorated graph field after the preorder pass.
             graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
+            allPreorderList = fmap preOrderTreeTraversal recursiveRerootList
+
         in
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
         preOrderTreeTraversal outgroupRootedPhyloGraph
+        -- trace ("Nums:" ++ (show $ length minCostGraphListRecursive) ++ " " ++ (show $ fmap fft6 allPreorderList))
+        --preOrderTreeTraversal  $ head minCostGraphListRecursive 
         
         -- special cases that don't require all the work
         
@@ -986,11 +991,11 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves  
-        let rootIndex = V.length $ fst3 inData
+        let (rootIndex, _) = head $ LG.getRoots inGraph
             blockCharInfo = V.map thd3 blockDataVect
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
-        --trace ("It Begins at " ++ show rootIndex) (
+        trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
         if not $ LG.isRoot inGraph rootIndex then 
             let localRootList = fmap fst $ LG.getRoots inGraph
                 localRootEdges = concatMap (LG.out inGraph) localRootList
@@ -998,14 +1003,14 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
             in
             error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
-        -- )
+        )
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
 postDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
 postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode = 
-    -- if node in there nothing to do and return
+    -- if node in there (leaf) nothing to do and return
     if LG.gelem curNode curDecGraph then 
         let nodeLabel = LG.lab curDecGraph curNode
             -- identify/create the virtual edge this node would have been created from
@@ -1016,7 +1021,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         else
             --  replicating curaDecGraph with number opf blocks--but all the same for tree 
             (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
-
+            
     -- Need to make node
     else 
         
@@ -1027,6 +1032,9 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
             leftChildTree = postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo leftChild
             rightLeftChildTree = if (length nodeChildren == 2) then postDecorateTree inGS inData simpleGraph (thd6 $ leftChildTree) blockCharInfo rightChild
                                  else leftChildTree
+            newSubTree = thd6 $ rightLeftChildTree
+            (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
+                   
         in 
 
         if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ (show curNode) ++ "\n" ++ LG.prettify simpleGraph)
@@ -1034,15 +1042,14 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 
         -- make node from childern
         else    
+            trace ("Making " ++ (show curNode) ++ " from " ++ (show nodeChildren) ++ "Labels " ++ "\n" ++ (show leftChildLabel) ++ "\n" ++ (show rightChildLabel)) (
             -- make node from children and new edges to children
             -- takes characters in blocks--but for tree really all same block
-            let newSubTree = thd6 $ rightLeftChildTree
-                -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
+            let -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
                 -- rightChildLabel = fromJust $ LG.lab newSubTree rightChild
 
                 -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                 -- larger bitvector is Right, smaller or equal Left 
-                (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
                 
                 newCharData = PO.createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map (V.sum) $ V.map (V.map snd) newCharData
@@ -1067,12 +1074,12 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree 
               
             in
-            
+            trace ("New vertex:" ++ (show newVertex)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
             if (nodeType newVertex) == RootNode then (simpleGraph, (subGraphCost newVertex), newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, (subGraphCost newVertex), newGraph, mempty, mempty, blockCharInfo)
              
-            --)
+            ))
             
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
