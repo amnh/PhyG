@@ -48,6 +48,7 @@ module GraphOptimization.Medians  ( median2
                                   , intervalAdd
                                   , interUnion
                                   , addMatrix
+                                  , getDOMedian
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -114,22 +115,11 @@ median2Single firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq] then
-      -- ffi to POY-C/PCG code
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
-
-    else if thisType `elem` [AminoSeq, WideSeq] then
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-      in
-      (newCharVect, localCost  newCharVect)
-
-    else if thisType == HugeSeq then
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-      in
-      (newCharVect, localCost  newCharVect)
-
+    
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
@@ -157,22 +147,11 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
 
     else if thisType == Matrix then (dummyStaticCharacter, 0)
 
-    else if thisType `elem` [SlimSeq, NucSeq] then
-      -- ffi to POY-C/PCG code
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
-
-    else if thisType `elem` [AminoSeq, WideSeq] then
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-      in
-      (newCharVect, localCost  newCharVect)
-
-    else if thisType == HugeSeq then
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-      in
-      (newCharVect, localCost  newCharVect)
-
+    
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
@@ -387,3 +366,4 @@ createUngappedMedianSequence symbols v@(m,_,_) = GV.ifilter f m
   where
     gap = bit $ symbols - 1
     f i e = e /= gap && not (isGapped v i)
+

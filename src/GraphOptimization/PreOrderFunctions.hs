@@ -57,6 +57,7 @@ import qualified Data.Vector.Generic                                         as 
 import Data.Bits
 import qualified Data.Vector.Storable         as SV
 import           Foreign.C.Types             (CUInt)
+import qualified GraphOptimization.Medians as M
 
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
@@ -109,15 +110,19 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         --trace ("root " ++ show (slimPrelim childChar, slimPrelim childChar, slimGapped childChar)) 
-         --childChar {slimFinal = slimPrelim childChar, slimAlignment = slimGapped childChar}
-         childChar {slimFinal = fst3 $ slimGapped childChar, slimAlignment = slimGapped childChar}
+         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (slimGapped childChar)
+         in
+         childChar {slimFinal = finalAssignment', slimAlignment = slimGapped childChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
-         childChar {wideFinal = widePrelim childChar, wideAlignment = wideGapped childChar}
+         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (wideGapped childChar)
+         in
+         childChar {wideFinal = finalAssignment', wideAlignment = wideGapped childChar}
          
       else if localCharType == HugeSeq then 
-         childChar {hugeFinal = hugePrelim childChar, hugeAlignment = hugeGapped childChar}
+         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (hugeGapped childChar)
+         in
+         childChar {hugeFinal = finalAssignment', hugeAlignment = hugeGapped childChar}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -133,19 +138,22 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (slimGapped childChar)
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
-         childChar {slimFinal = fst3 finalAlignment, slimAlignment = finalAlignment}
+         childChar {slimFinal = finalAssignment', slimAlignment = finalAlignment}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (wideGapped childChar)
          in
-         childChar {wideFinal = widePrelim childChar, wideAlignment = finalAlignment}
+         childChar {wideFinal = finalAssignment', wideAlignment = finalAlignment}
          
       else if localCharType == HugeSeq then 
          let finalAlignment = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (hugeGapped childChar)
          in
-         childChar {hugeFinal = hugePrelim childChar, hugeAlignment = finalAlignment}
+         childChar {hugeFinal = finalAssignment', hugeAlignment = finalAlignment}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -153,31 +161,33 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       
       if localCharType == Add then 
          -- add logic for pre-order
-         let finalAssignment = additivePreorder (rangePrelim childChar) (rangeFinal parentChar)
+         let finalAssignment' = additivePreorder (rangePrelim childChar) (rangeFinal parentChar)
          in
-         childChar {rangeFinal = finalAssignment}
+         childChar {rangeFinal = finalAssignment'}
 
       else if localCharType == NonAdd then 
          -- add logic for pre-order
-         let finalAssignment = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
+         let finalAssignment' = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
          in
-         childChar {stateBVFinal = finalAssignment}
+         childChar {stateBVFinal = finalAssignment'}
 
       else if localCharType == Matrix then 
          -- add logic for pre-order
-         let finalAssignment = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
+         let finalAssignment' = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
          in
-         childChar {matrixStatesFinal = finalAssignment}
+         childChar {matrixStatesFinal = finalAssignment'}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
-             finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
+             finalAssignmentDOGapped = slimFinal $ getDOFinal parentChar childChar charInfo
+             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                                                      else mempty
+             -- finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
          in 
          --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
          --childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
-         childChar {slimFinal = finalAssignmentIA, slimAlignment = finalGapped}
+         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -188,7 +198,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
          
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignmentIA = getFinal3WayWideHuge (hugeTCM charInfo) (fromEnum symbolCount) (hugeFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
+             finalAssignmentIA = getFinal3WayWideHuge (hugeTCM charInfo) (fromEnum symbolCount) (hugeFinal parentChar) (snd3 finalGapped) (thd3 finalGapped) 
 
          in
          childChar {hugeFinal = finalAssignmentIA, hugeAlignment = finalGapped}
@@ -240,6 +250,69 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       -}
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
+
+-- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
+-- to get the finla state.  This takes place in several steps
+--    1) align (DOMedian) parent final with node gapped (ie node preliminary)
+--    2) propagate new gaps in naligned node prelimiinary to child gapped in node tripe (snd and thd)
+--       creating a 3-way alignment with parent final and child preliminary
+--    3) apply approprouae get3way for the structure
+-- The final is then returned--with gaps to be filtered afterwards
+-- getDOFinal :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a) -> CharInfo -> v a
+getDOFinal :: CharacterData -> CharacterData -> CharInfo -> CharacterData
+getDOFinal parentData nodeData charInfo =
+   let parentNodeChar = M.getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo) parentData nodeData
+
+       -- put "new" gaps into 2nd and thd gapped fileds of appropriate seqeunce type
+       gappedLeftRightChar = makeGappedLeftRight parentNodeChar nodeData charInfo
+   in
+   gappedLeftRightChar
+
+-- | makeGappedLeftRight takes an alignment parent charcater and original node character and inserts "new" gaps into nodeCharcater
+makeGappedLeftRight :: CharacterData -> CharacterData -> CharInfo -> CharacterData
+makeGappedLeftRight gappedLeftRight nodeChar charInfo =
+   let localCharType = charType charInfo
+   in
+   if localCharType `elem` [SlimSeq, NucSeq] then
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (slimGapped gappedLeftRight) (slimGapped nodeChar)
+          newFinalGapped = getFinal3WaySlim (slimTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      in
+      nodeChar {slimFinal = newFinalGapped}
+
+   else if localCharType `elem` [AminoSeq, WideSeq] then
+      emptyCharacter
+
+   else if localCharType == HugeSeq then 
+      emptyCharacter
+
+   else error ("Unrecognized character type: " ++ (show localCharType))
+
+-- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
+addGapsToChildren :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
+addGapsToChildren symbols (_, reGappedParentFinal, reGappedNodePrelim) (gappedNodePrelim, gappedLeftChild, gappedRightChild) =
+   let (reGappedLeft, reGappedRight) = slideRegap symbols reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
+   in
+   if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not smae length " 
+      ++ (show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight)))
+   else (reGappedParentFinal, reGappedLeft, reGappedRight)
+
+-- | slideRegap takes two version of same vectors (1st and snd) one with additional gaps and if the two aren't equal then adds gaps 
+-- to the 3rd and 4th input vectors
+slideRegap :: (FiniteBits a, GV.Vector v a) => Int -> v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
+slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
+   if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
+   else 
+      let firstRGN = GV.head reGappedNode
+          firstGN = GV.head  gappedNode
+      in
+      -- no "new gap"
+      if firstRGN == firstGN then 
+         slideRegap symbols (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
+      else 
+         let gap = bit $ symbols - 1
+         in
+         slideRegap symbols (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
+
 
 -- | getFinal3Way takes parent final assignment (including indel characters) and descendent
 -- preliminary gapped assingment from postorder and creates a gapped final assignment based on 

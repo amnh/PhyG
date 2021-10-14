@@ -98,7 +98,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype","compressresolutions"]
+setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment"]
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)

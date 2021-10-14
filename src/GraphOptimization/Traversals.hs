@@ -1090,10 +1090,16 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- has its own traversal graph. These should be treees here (could be forests later) and should all have same root (number taxa)
 -- but worth checking to make sure.
 -- these were creted by "splitting" them after preorder 
+
+-- For sequence charcaters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
+-- if DO--then does a  median between parent andchgaps wherre needed--then  doing a 3way state assignmeent filteringgaps out
+-- if IA--then a separate post and preorder pass are donne on the slim/wide/huge/AI fields to crete full IA assignments 
+-- that are then filtered of gaps and assigned to th efinal fields
+
 -- The final states are propagated back to the second field
 -- DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
 -- ie postorder--since those are traversal specific
--- the character speciofic decorated graphs have appropriate post and pre-order assignments
+-- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
 preOrderTreeTraversal :: AssignmentMethod -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 

@@ -449,4 +449,6 @@ to render--would have repeated subtrees after network vertex
 	back propagate final states (w/o gaps) to slim/wide/huge/final
 
 	
+168) calculate branch length for DO in preorder pass for DO assignment
+
 
