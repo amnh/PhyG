@@ -461,21 +461,31 @@
 		\subsubsection{Syntax}
 				\texttt{set(arg0:option, arg1:option, ...)}
 		\subsubsection{Description}
-		The command specifies a number of global values and options include outgroup, graph type and optimality criterion.
+		The command specifies a number of global values and options include outgroup, graph type, final assignment, and optimality criterion.
 		\subsubsection{Arguments}
-			\noindent \texttt{outgroup:"Blah"} Makes the outgroup taxon ``Blah''. 
+			\smallskip
+			\noindent \texttt{compressResolutions:True|False} Determines whether soft-wired graph resolutions are ``compressed''
+			if multiple vertex assignments in alternate display trees are equal.
 			
 			\smallskip
-			\noindent \texttt{optimality:method} Sets the optimiality criterion for graph search to be method.
+			\noindent \texttt{finalAssignment:DirectOptimization|DO|ImpliedAlignment|IA} Sets the method of determining the ``final''
+			sequence states. DirectOptimization (DO) uses the DO method to assign the final states, which is more time consuming 
+			than \texttt{ImpliedAlignment}. DO has an additional factor of potentially $O(n^2)$ in sequence length compared to the constant factor for IA due to additional graph traversals.
 			
 			\smallskip
 			\noindent \texttt{graphtype:tree|hardwired|softwired} Sets the phylogenetic graph type to tree, hardwired network, or softwired network.  Forest are allowed 
 			by the network options.
 			
+			\smallskip
+			\noindent \texttt{outgroup:"Blah"} Makes the outgroup taxon ``Blah''. 
+			
+			\smallskip
+			\noindent \texttt{optimality:method} Sets the optimiality criterion for graph search to be method.
+				
 		\subsubsection{Defaults} 
 		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
 		renaming and taxon inclusion/exclusion. For this reason, it is best to specify an outgroup explicitly.
-		The default optimality criterion is \texttt{parsimony} and the default graph type is \texttt{tree}.
+		The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default graph type is \texttt{tree}.
 		\subsubsection{Examples}
 			\begin{itemize}
 					\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}

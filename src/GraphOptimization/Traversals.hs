@@ -100,7 +100,7 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             
             -- preorder pass
             -- outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
-            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal  outgroupRootedSoftWiredPostOrder
+            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal (finalAssignment inGS) outgroupRootedSoftWiredPostOrder
         in
         -- merge component gaphs 
         outgroupRootedSoftWiredPreOrder
@@ -854,21 +854,21 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- are propagated to the Decorated graph field after the preorder pass.
             graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
-            allPreorderList = fmap preOrderTreeTraversal recursiveRerootList
+            -- this for debuggin purposes
+            --allPreorderList = fmap (preOrderTreeTraversal (finalAssignment inGS)) recursiveRerootList
 
         in
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
-        preOrderTreeTraversal outgroupRootedPhyloGraph
+        --preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
         -- trace ("Nums:" ++ (show $ length minCostGraphListRecursive) ++ " " ++ (show $ fmap fft6 allPreorderList))
-        --preOrderTreeTraversal  $ head minCostGraphListRecursive 
+        --preOrderTreeTraversal  (finalAssignment inGS) $ head minCostGraphListRecursive 
         
         -- special cases that don't require all the work
         
-        --if nonExactChars == 0 then preOrderTreeTraversal outgroupRootedPhyloGraph
+        --if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
             
-        --else if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal $ head minCostGraphListRecursive
-        
-        --else preOrderTreeTraversal graphWithBestAssignments'
+        if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal (finalAssignment inGS) $ head minCostGraphListRecursive
+        else preOrderTreeTraversal (finalAssignment inGS) graphWithBestAssignments'
         
         
 
@@ -1095,15 +1095,15 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- ie postorder--since those are traversal specific
 -- the character speciofic decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
+preOrderTreeTraversal :: AssignmentMethod -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
     --trace ("PreO:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.zipWith doBlockTraversal inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
             fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
         in
         {-
@@ -1117,16 +1117,16 @@ preOrderTreeTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, bl
         
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
-doBlockTraversal :: V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
-doBlockTraversal inCharInfoV traversalDecoratedVect =
+doBlockTraversal :: AssignmentMethod -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversal finalMethod inCharInfoV traversalDecoratedVect =
     --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
-    V.zipWith doCharacterTraversal inCharInfoV traversalDecoratedVect
+    V.zipWith (doCharacterTraversal finalMethod) inCharInfoV traversalDecoratedVect
 
 -- | doCharacterTraversal perfoms preorder traversal on single character tree
 -- with single charInfo
 -- this so each character can be independently "rooted" for optimal traversals.
-doCharacterTraversal ::  CharInfo -> DecoratedGraph -> DecoratedGraph 
-doCharacterTraversal inCharInfo inGraph =
+doCharacterTraversal :: AssignmentMethod -> CharInfo -> DecoratedGraph -> DecoratedGraph 
+doCharacterTraversal finalMethod inCharInfo inGraph =
     -- find root--index should = number of leaves 
     --trace ("charT:" ++ (show $ charType inCharInfo)) (
     let rootVertexList = LG.getRoots inGraph
@@ -1140,7 +1140,7 @@ doCharacterTraversal inCharInfo inGraph =
     else 
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         let rootLabel = snd $ head rootVertexList
-            rootFinalVertData = PRE.createFinalAssignmentOverBlocks RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
+            rootFinalVertData = PRE.createFinalAssignmentOverBlocks finalMethod RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
             rootChildren =LG.labDescendants inGraph (head rootVertexList)
 
             -- left / right to match post-order
@@ -1150,7 +1150,7 @@ doCharacterTraversal inCharInfo inGraph =
                                  else [True, False]
             newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
             rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
-            upDatedNodes = makeFinalAndChildren inGraph rootChildrenPairs [newRootNode] inCharInfo
+            upDatedNodes = makeFinalAndChildren finalMethod inGraph rootChildrenPairs [newRootNode] inCharInfo
         in
         -- hope this is the most efficient way since all nodes have been remade
         -- trace (U.prettyPrintVertexInfo $ snd newRootNode)
@@ -1160,12 +1160,13 @@ doCharacterTraversal inCharInfo inGraph =
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a liss of updated nodes
 -- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
 -- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
-makeFinalAndChildren :: DecoratedGraph 
+makeFinalAndChildren :: AssignmentMethod 
+                     -> DecoratedGraph 
                      -> [(LG.LNode VertexInfo, LG.LNode VertexInfo, Bool)] 
                      -> [LG.LNode VertexInfo] 
                      -> CharInfo 
                      -> [LG.LNode VertexInfo]
-makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
+makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
     --trace ("mFAC:" ++ (show $ charType inCharInfo)) (
     if null nodesToUpdate then updatedNodes
     else 
@@ -1181,12 +1182,12 @@ makeFinalAndChildren inGraph nodesToUpdate updatedNodes inCharInfo =
             firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
                                   else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
                                   else [True, False]
-            firstFinalVertData = PRE.createFinalAssignmentOverBlocks firstNodeType firstVertData firstParentVertData inCharInfo isLeft (length firstChildren == 1)
+            firstFinalVertData = PRE.createFinalAssignmentOverBlocks finalMethod firstNodeType firstVertData firstParentVertData inCharInfo isLeft (length firstChildren == 1)
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
         in
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
-        makeFinalAndChildren inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
+        makeFinalAndChildren finalMethod inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
         --)
 
 -- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 

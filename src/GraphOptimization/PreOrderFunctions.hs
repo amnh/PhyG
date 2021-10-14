@@ -65,22 +65,23 @@ import           Foreign.C.Types             (CUInt)
    -- need to watch zipping for missing sequence data
 -- this creates the IA during preorder from which final assignments are contructed
 -- via addition post and preorder passes on IA fields.
-createFinalAssignmentOverBlocks :: NodeType
+createFinalAssignmentOverBlocks :: AssignmentMethod 
+                                -> NodeType
                                 -> VertexBlockData 
                                 -> VertexBlockData 
                                 -> CharInfo 
                                 -> Bool
                                 -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks childType childBlockData parentBlockData charInfo isLeft isOutDegree1 =
+createFinalAssignmentOverBlocks finalMethod childType childBlockData parentBlockData charInfo isLeft isOutDegree1 =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith (assignFinal childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
+   V.zipWith (assignFinal finalMethod childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
 
   -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
-assignFinal :: NodeType -> Bool -> CharInfo -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
-assignFinal childType isLeft charInfo isOutDegree1 childCharacterVect parentCharacterVect =
-   V.zipWith (setFinal childType isLeft charInfo isOutDegree1) childCharacterVect parentCharacterVect
+assignFinal :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
+assignFinal finalMethod childType isLeft charInfo isOutDegree1 childCharacterVect parentCharacterVect =
+   V.zipWith (setFinal finalMethod childType isLeft charInfo isOutDegree1) childCharacterVect parentCharacterVect
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
@@ -89,8 +90,8 @@ assignFinal childType isLeft charInfo isOutDegree1 childCharacterVect parentChar
 -- non exact charcaters are vectors of characters of same type
 -- this does the same things for seqeunce types, but also 
 -- performs preorder logic for exact characters
-setFinal :: NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
-setFinal childType isLeft charInfo isOutDegree1 childChar parentChar =
+setFinal :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
+setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo
    in

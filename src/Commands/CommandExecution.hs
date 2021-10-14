@@ -140,6 +140,13 @@ setCommand argList globalSettings processedData =
             in
             trace ("CompressResolutions set to " ++ (head optionList))
             (globalSettings {compressResolutions = localCriterion}, processedData)
+        else if head commandList == "finalassignment"  then
+            let localMethod = if ((head optionList == "do") || (head optionList == "directoptimization")) then DirectOptimization
+                                 else if ((head optionList == "ia") || (head optionList == "impliedalignment")) then ImpliedAlignment
+                                 else errorWithoutStackTrace ("Error in 'set' command. FinalAssignment  '" ++ (head optionList) ++ "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'")
+            in
+            trace ("FinalAssignment set to " ++ (head optionList))
+            (globalSettings {finalAssignment = localMethod}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 
 

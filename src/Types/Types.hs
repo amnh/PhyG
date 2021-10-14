@@ -116,11 +116,20 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL
     deriving stock (Show, Eq)
 
+-- | Method for makeing final seqeujnce charcatert states assignment 
+-- do an DO-based method--more exact but higher time complexity--single preorder
+-- pass but worst cae O(n^2) in seqeunce length
+-- or assign based on Implied alignment --requires additional post/pre order 
+-- traversal but is linear in sequence length
+data AssignmentMethod = DirectOptimization | ImpliedAlignment
+    deriving stock (Show, Eq)
+
 data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup terminal index, default 0 (first input leaf)
                                     , outGroupName        :: T.Text -- Outgropu name
                                     , optimalityCriterion :: OptimalityCriterion
                                     , graphType           :: GraphType
                                     , compressResolutions :: Bool -- "nub" resolutions in softwired graph
+                                    , finalAssignment     :: AssignmentMethod
                                     } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
