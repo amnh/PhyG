@@ -257,7 +257,7 @@ emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- pr
                          , hugeIAPrelim       = (mempty, mempty, mempty)
                          , hugeIAFinal        = mempty
                          -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , localCostVect      = mempty
+                         , localCostVect      = V.singleton 0
                          -- weight * V.sum localCostVect
                          , localCost          = 0
                          -- unclear if need vector version

@@ -995,7 +995,7 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
             blockCharInfo = V.map thd3 blockDataVect
             newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
         in
-        trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
+        -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
         if not $ LG.isRoot inGraph rootIndex then 
             let localRootList = fmap fst $ LG.getRoots inGraph
                 localRootEdges = concatMap (LG.out inGraph) localRootList
@@ -1003,7 +1003,7 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
             in
             error ("Index "  ++ (show rootIndex) ++ " with edges " ++ (show currentRootEdges) ++ " not root in graph:" ++ (show localRootList) ++ " edges:" ++ (show localRootEdges) ++ "\n" ++ (GFU.showGraph inGraph))
         else newTree 
-        )
+        --)
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
@@ -1042,7 +1042,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 
         -- make node from childern
         else    
-            trace ("Making " ++ (show curNode) ++ " from " ++ (show nodeChildren) ++ "Labels " ++ "\n" ++ (show leftChildLabel) ++ "\n" ++ (show rightChildLabel)) (
+            -- trace ("Making " ++ (show curNode) ++ " from " ++ (show nodeChildren) ++ "Labels " ++ "\n" ++ (show leftChildLabel) ++ "\n" ++ (show rightChildLabel)) (
             -- make node from children and new edges to children
             -- takes characters in blocks--but for tree really all same block
             let -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
@@ -1074,12 +1074,12 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree 
               
             in
-            trace ("New vertex:" ++ (show newVertex)) (
+            -- trace ("New vertex:" ++ (show newVertex)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
             if (nodeType newVertex) == RootNode then (simpleGraph, (subGraphCost newVertex), newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, (subGraphCost newVertex), newGraph, mempty, mempty, blockCharInfo)
              
-            ))
+            -- ))
             
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph

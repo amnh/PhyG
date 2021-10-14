@@ -147,30 +147,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisWideTCM = wideTCM inCharInfo
         thisHugeTCM = hugeTCM inCharInfo
         thisActive  = activity inCharInfo
-        dummyStaticCharacter =
-            CharacterData
-            { stateBVPrelim = (mempty, mempty, mempty)
-            , stateBVFinal  = mempty
-            , rangePrelim   = (mempty, mempty, mempty)
-            , rangeFinal    = mempty
-            , matrixStatesPrelim = mempty
-            , matrixStatesFinal  = mempty
-            , slimPrelim    = mempty
-            , slimGapped    = (mempty, mempty, mempty)
-            , slimAlignment = (mempty, mempty, mempty)
-            , slimFinal     = mempty
-            , widePrelim    = mempty
-            , wideGapped    = (mempty, mempty, mempty)
-            , wideAlignment = (mempty, mempty, mempty)
-            , wideFinal     = mempty
-            , hugePrelim    = mempty
-            , hugeGapped    = (mempty, mempty, mempty)
-            , hugeAlignment = (mempty, mempty, mempty)
-            , hugeFinal     = mempty
-            , localCostVect = V.singleton 0
-            , localCost     = 0.0
-            , globalCost    = 0.0
-            }
+        dummyStaticCharacter = emptyCharacter
     in
     if thisActive == False then (dummyStaticCharacter, 0)
 
@@ -225,25 +202,7 @@ interUnion thisWeight leftChar rightChar =
         numUnions = V.length $ V.filter BV.isZeroVector intersectVect
         newCost = thisWeight * (fromIntegral numUnions)
         newStateVect = V.zipWith localAndOr intersectVect unionVect
-        newCharcater = CharacterData {  stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
-                                      , stateBVFinal = mempty -- V.singleton (BV.fromBits [False])
-                                      , rangePrelim = (mempty, mempty, mempty)
-                                      , rangeFinal = mempty
-                                      , matrixStatesPrelim = mempty
-                                      , matrixStatesFinal = mempty
-                                      , slimPrelim = mempty
-                                              , slimGapped = (mempty, mempty, mempty)
-                                              , slimAlignment     = (mempty, mempty, mempty)
-                                              , slimFinal  = mempty
-                                              , widePrelim = mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideAlignment     = (mempty, mempty, mempty)
-                                              , wideFinal  = mempty
-                                              , hugePrelim = mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeAlignment     = (mempty, mempty, mempty)
-                                              , hugeFinal  = mempty
-                                              , localCostVect = V.singleton 0
+        newCharcater = emptyCharacter { stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
@@ -279,25 +238,7 @@ intervalAdd thisWeight leftChar rightChar =
         newMinRange = V.map fst3 newRangeCosts
         newMaxRange = V.map snd3 newRangeCosts
         newCost = thisWeight * (fromIntegral $ V.sum $ V.map thd3 newRangeCosts)
-        newCharcater = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
-                                      , stateBVFinal = V.empty
-                                      , rangePrelim = (V.zip newMinRange newMaxRange, fst3 $ rangePrelim leftChar, fst3 $ rangePrelim rightChar)
-                                      , rangeFinal = mempty
-                                      , matrixStatesPrelim = mempty
-                                      , matrixStatesFinal = mempty
-                                      , slimPrelim = mempty
-                                              , slimGapped = (mempty, mempty, mempty)
-                                              , slimAlignment     = (mempty, mempty, mempty)
-                                              , slimFinal  = mempty
-                                              , widePrelim = mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideAlignment     = (mempty, mempty, mempty)
-                                              , wideFinal  = mempty
-                                              , hugePrelim = mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeAlignment     = (mempty, mempty, mempty)
-                                              , hugeFinal  = mempty
-                                              , localCostVect = V.singleton 0
+        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, fst3 $ rangePrelim leftChar, fst3 $ rangePrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
                                       }
@@ -348,25 +289,7 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         initialMatrixVector = fmap (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
         initialCostVector = fmap V.minimum $ fmap (fmap fst3) initialMatrixVector
         newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
-        newCharcater = CharacterData {  stateBVPrelim = (mempty, mempty, mempty)
-                                      , stateBVFinal = mempty
-                                      , rangePrelim = (mempty, mempty, mempty)
-                                      , rangeFinal = mempty
-                                      , matrixStatesPrelim = initialMatrixVector
-                                      , matrixStatesFinal = mempty
-                                      , slimPrelim = mempty
-                                              , slimGapped = (mempty, mempty, mempty)
-                                              , slimAlignment     = (mempty, mempty, mempty)
-                                              , slimFinal  = mempty
-                                              , widePrelim = mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideAlignment     = (mempty, mempty, mempty)
-                                              , wideFinal  = mempty
-                                              , hugePrelim = mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeAlignment     = (mempty, mempty, mempty)
-                                              , hugeFinal  = mempty
-                                              , localCostVect = initialCostVector
+        newCharcater = emptyCharacter { matrixStatesPrelim = initialMatrixVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
                                       , globalCost = newCost
                                       }
@@ -394,29 +317,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
   | thisType `elem` [HugeSeq]           = newHugeCharacterData
   | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
   where
-    blankCharacterData = CharacterData
-        { stateBVPrelim      = (mempty, mempty, mempty)
-        , stateBVFinal       = mempty
-        , rangePrelim        = (mempty, mempty, mempty)
-        , rangeFinal         = mempty
-        , matrixStatesPrelim = mempty
-        , matrixStatesFinal  = mempty
-        , slimPrelim = mempty
-                                              , slimGapped = (mempty, mempty, mempty)
-                                              , slimAlignment     = (mempty, mempty, mempty)
-                                              , slimFinal  = mempty
-                                              , widePrelim = mempty
-                                              , wideGapped = (mempty, mempty, mempty)
-                                              , wideAlignment     = (mempty, mempty, mempty)
-                                              , wideFinal  = mempty
-                                              , hugePrelim = mempty
-                                              , hugeGapped = (mempty, mempty, mempty)
-                                              , hugeAlignment     = (mempty, mempty, mempty)
-                                              , hugeFinal  = mempty
-                                              , localCostVect      = mempty
-        , localCost          = 0
-        , globalCost         = 0
-        }
+    blankCharacterData = emptyCharacter  
 
     symbolCount = length thisMatrix
     newSlimCharacterData =
