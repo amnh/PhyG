@@ -41,6 +41,8 @@ ToDo:
 
 
 module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
+                                            , get2WaySlim
+                                            , get2WayWideHuge
                                             ) where
 
 import           Types.Types
@@ -356,6 +358,43 @@ local3WaySlim lSlimTCM gap b c d =
  in
  -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
  median
+
+-- | get2WaySlim takes two slim vectors an produces a preliminary median
+get2WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+get2WaySlim lSlimTCM symbolCount descendantLeftPrelim descendantRightPrelim =
+   let gap = bit $ symbolCount - 1 
+       median = SV.zipWith (local2WaySlim lSlimTCM gap) descendantLeftPrelim descendantRightPrelim
+   in
+   median
+
+-- | local2WaySlim takes pair of CUInt and retuns median
+local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
+local2WaySlim lSlimTCM gap b c =
+ let  b' = if popCount b == 0 then gap else b
+      c' = if popCount c == 0 then gap else c
+      (median, _) = TCMD.lookupPairwise lSlimTCM b' c'
+ in
+ -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+ median
+
+-- | get2WayWideHuge like get2WaySlim but for wide and huge characters
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a
+get2WayWideHuge whTCM symbolCount descendantLeftPrelim descendantRightPrelim =
+   let gap = bit $ symbolCount - 1 
+       median = GV.zipWith (local2WayWideHuge whTCM gap) descendantLeftPrelim descendantRightPrelim
+   in
+   median
+
+-- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
+local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
+local2WayWideHuge lWideTCM gap b c =
+   let  b' = if popCount b == 0 then gap else b
+        c' = if popCount c == 0 then gap else c
+        (median, _) = MR.retreivePairwiseTCM lWideTCM b' c'
+   in
+   -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+   median
+
 
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child

@@ -65,6 +65,7 @@ import Debug.Trace
 import qualified Debug.Debug as Debug
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Word
+import qualified Data.TCM.Dense as TCMD
 
 
 
@@ -102,7 +103,7 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             
             -- preorder pass
             -- outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
-            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal (finalAssignment inGS) outgroupRootedSoftWiredPostOrder
+            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0) outgroupRootedSoftWiredPostOrder
         in
         -- merge component gaphs 
         outgroupRootedSoftWiredPreOrder
@@ -869,8 +870,8 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
         
         --if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
             
-        if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal (finalAssignment inGS) $ head minCostGraphListRecursive
-        else preOrderTreeTraversal (finalAssignment inGS) graphWithBestAssignments'
+        if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0)  $ head minCostGraphListRecursive
+        else preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0)  graphWithBestAssignments'
         
         
 
@@ -1103,8 +1104,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: AssignmentMethod -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
+preOrderTreeTraversal :: AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
     --trace ("PreO:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
@@ -1112,7 +1113,12 @@ preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, block
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
             preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
-            fullyDecoratedGraph = assignPreorderStatesAndEdges finalMethod preOrderBlockVect inCharInfoVV inDecorated 
+
+            -- if final non-exact states determined by IA then perfomr passes and assignments of final and final IA fields
+            preOrderBlockVect' = if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments preOrderBlockVect inCharInfoVV
+                                else preOrderBlockVect    
+
+            fullyDecoratedGraph = assignPreorderStatesAndEdges finalMethod preOrderBlockVect' inCharInfoVV inDecorated 
         in
         {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -1123,6 +1129,164 @@ preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, block
         (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
         --)
         
+-- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
+-- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
+makeIAAssignments :: V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+makeIAAssignments preOrderBlock inCharInfoV = V.zipWith makeCharacterIA preOrderBlock inCharInfoV
+
+-- | makeCharacterIA takes an individual character postorder tree and if non-exact perform post and preorder IA passes
+-- and assignment to final field in slim/wide/huge
+makeCharacterIA :: DecoratedGraph -> CharInfo -> DecoratedGraph
+makeCharacterIA inGraph charInfo = 
+    if (charType charInfo) `notElem` nonExactCharacterTypes then inGraph
+    else 
+        let postOrderPass = postOrderIA inGraph charInfo (LG.getRoots inGraph)
+            preOrderPass = preOrderIA inGraph charInfo $ zip (LG.getRoots inGraph) (LG.getRoots inGraph)
+        in
+        preOrderPass
+
+-- | postOrderIA performs a post-order IA pass assigning leaaf preliminary states
+-- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
+-- matrix
+postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
+postOrderIA inGraph charInfo inNodeList  =
+    if null inNodeList then inGraph
+    else 
+        let inNode@(nodeIndex, nodeLabel) = head inNodeList
+            characterType = charType charInfo
+            symbols = length $ costMatrix charInfo
+            inCharacter = V.head $ V.head $ vertData nodeLabel
+            inCharacter' = inCharacter
+        in
+        -- checking sanity of data
+        if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
+        
+        -- leaf take assignment from alignment field
+        else if (nodeType nodeLabel)  == LeafNode then
+            let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                    inCharacter { slimIAPrelim = slimAlignment inCharacter'
+                                                , slimIAFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                }
+                               else if characterType `elem` [WideSeq, AminoSeq] then 
+                                    inCharacter { wideIAPrelim = wideAlignment inCharacter'
+                                                , wideIAFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                }
+                               else if characterType == HugeSeq then 
+                                    inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
+                                                , hugeIAFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                }
+                               else error ("Unrecognized character type " ++ (show characterType))
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+            in
+            postOrderIA newGraph charInfo (tail inNodeList)
+
+        -- HTU take create assignment from children
+        else 
+            let childNodes = LG.labDescendants inGraph inNode
+                childTree = postOrderIA inGraph charInfo childNodes
+            in
+            if length childNodes > 2 then error ("Too many children in postOrderIA: " ++ (show $ length childNodes))
+
+            -- in 1 out 1 vertex
+            else if length childNodes == 1 then
+                let childIndex = fst $ head childNodes
+                    childLabel = fromJust $ LG.lab childTree childIndex
+                    childCharacter = V.head $ V.head $ vertData childLabel 
+                in
+                -- sanity checks
+                if LG.lab childTree (fst $ head childNodes) == Nothing then error ("No label for node: " ++ (show $ fst $ head childNodes))
+                else if V.null $ vertData childLabel then error "Null vertData in postOrderIA"
+                else if V.null $ V.head $ vertData childLabel then error "Null vertData data in postOrderIA"
+                else 
+                    let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
+                        newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                    in
+                    postOrderIA newGraph charInfo (tail inNodeList)
+
+            -- two children take 2-way
+            else 
+                let childIndices = fmap fst childNodes
+                    childlabels = fmap fromJust $ fmap (LG.lab childTree) childIndices
+                    childCharacters = fmap vertData childlabels
+                    leftChar = V.head $ V.head $ head childCharacters
+                    rightChar = V.head $ V.head $ last childCharacters
+                    newCharacter = makeIAPrelimCharacter charInfo inCharacter leftChar rightChar
+                    newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                    newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                in
+                postOrderIA newGraph charInfo (tail inNodeList)
+
+-- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
+     let characterType = charType charInfo
+         symbols = (length $ costMatrix charInfo)
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then 
+        let prelimChar = PRE.get2WaySlim (slimTCM charInfo) symbols (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+        in
+        nodeChar {slimIAPrelim = (prelimChar,  fst3 $ slimIAPrelim leftChar, fst3 $ slimIAPrelim rightChar)}
+     else if characterType `elem` [WideSeq, AminoSeq] then 
+        let prelimChar = PRE.get2WayWideHuge (wideTCM charInfo) symbols (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+        in
+        nodeChar {wideIAPrelim = (prelimChar, fst3 $ wideIAPrelim leftChar, fst3 $ wideIAPrelim rightChar)}
+     else if characterType == HugeSeq then 
+        let prelimChar = PRE.get2WayWideHuge (hugeTCM charInfo) symbols (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+        in
+        nodeChar {hugeIAPrelim = (prelimChar, fst3 $ hugeIAPrelim leftChar, fst3 $ hugeIAPrelim rightChar)}
+     else error ("Unrecognized character type " ++ (show characterType))
+
+-- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
+-- the "final" fields are also set by filtering out gaps and 0.
+preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
+preOrderIA inGraph charInfo inNodePairList = 
+    if null inNodePairList then inGraph
+    else 
+        let (inNode@(nodeIndex, nodeLabel), parentNode) = head inNodePairList
+            characterType = charType charInfo
+            symbols = (length $ costMatrix charInfo)
+            inCharacter = V.head $ V.head $ vertData nodeLabel
+            inCharacter' = inCharacter
+            childNodes = LG.labDescendants inGraph inNode
+        in
+        -- checking sanity of data
+        if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
+        else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ (show $ length childNodes))
+
+        -- leaf done in post-order
+        else if (nodeType nodeLabel) == LeafNode then inGraph
+
+        else if (nodeType nodeLabel) == RootNode then 
+            let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                    inCharacter { slimIAFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                }
+                               else if characterType `elem` [WideSeq, AminoSeq] then 
+                                    inCharacter { wideIAFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                }
+                               else if characterType == HugeSeq then 
+                                    inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
+                                                , hugeIAFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                }
+                               else error ("Unrecognized character type " ++ (show characterType))
+
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+            in
+            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
+
+        -- single child, take parent assignment    
+        else if length childNodes == 1 then inGraph
+
+        -- 2 children, make 3-way 
+        else inGraph
+        
+
+
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
 doBlockTraversal :: AssignmentMethod -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
@@ -1232,13 +1396,13 @@ updateNodeWithPreorder :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vect
 updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
     let nodeLabel = snd postOrderNode
         nodeVertData = vertData nodeLabel
-        newNodeVertData = fmap (updateVertexBlock (fst postOrderNode))$ D.debugVectorZip3 preOrderBlockTreeVV nodeVertData inCharInfoVV 
+        newNodeVertData = V.zipWith3 (updateVertexBlock (fst postOrderNode)) preOrderBlockTreeVV nodeVertData inCharInfoVV 
     in
     (fst postOrderNode, nodeLabel {vertData = newNodeVertData})
 
 -- | updateVertexBlock takes a block of vertex data and updates preorder states of charactes via fmap
-updateVertexBlock :: Int -> (V.Vector DecoratedGraph, V.Vector CharacterData, V.Vector CharInfo) -> V.Vector CharacterData 
-updateVertexBlock nodeIndex (blockTraversalTreeV, nodeCharacterDataV, charInfoV) =
+updateVertexBlock :: Int -> V.Vector DecoratedGraph -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData 
+updateVertexBlock nodeIndex blockTraversalTreeV nodeCharacterDataV charInfoV =
     fmap (updatePreorderCharacter nodeIndex) $ D.debugVectorZip3 blockTraversalTreeV nodeCharacterDataV charInfoV
 
 -- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traversal
@@ -1275,16 +1439,19 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType =
     else if (localCharType == SlimSeq || localCharType == NucSeq) then
         postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
                            , slimFinal = slimFinal preOrderCharacter
+                           , slimIAFinal = slimIAFinal preOrderCharacter
                            }
     
     else if (localCharType == WideSeq || localCharType == AminoSeq) then
         postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
                            , wideFinal = wideFinal preOrderCharacter
+                           , wideIAFinal = wideIAFinal preOrderCharacter
                            }
 
     else if localCharType == HugeSeq then
         postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
                            , hugeFinal = hugeFinal preOrderCharacter
+                           , hugeIAFinal = hugeIAFinal preOrderCharacter
                            }
 
     else error ("Character type unimplemented : " ++ show localCharType)
@@ -1375,7 +1542,7 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
                                 zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapChar) newU) (GV.toList $ GV.map (zero2Gap gapChar) newV)
-                             else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimFinal uCharacter) (GV.toList $ slimFinal vCharacter)
+                             else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1393,7 +1560,7 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
                                 zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapWide gapCharWide) newU) (GV.toList $ GV.map (zero2GapWide gapCharWide) newV)
-                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideFinal uCharacter) (wideFinal vCharacter)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1409,7 +1576,7 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
                                 zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapBV gapCharBV) newU) (GV.toList $ GV.map (zero2GapBV gapCharBV) newV)
-                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeFinal uCharacter) (hugeFinal vCharacter)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
