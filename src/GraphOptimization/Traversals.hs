@@ -64,6 +64,8 @@ import qualified Data.Vector.Generic         as GV
 import Debug.Trace
 import qualified Debug.Debug as Debug
 import qualified Data.BitVector.LittleEndian as BV
+import           Data.Word
+
 
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree, 
@@ -1110,7 +1112,7 @@ preOrderTreeTraversal finalMethod inPGraph@(inSimple, inCost, inDecorated, block
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
             preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
-            fullyDecoratedGraph = assignPreorderStatesAndEdges preOrderBlockVect inCharInfoVV inDecorated 
+            fullyDecoratedGraph = assignPreorderStatesAndEdges finalMethod preOrderBlockVect inCharInfoVV inDecorated 
         in
         {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -1203,8 +1205,8 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
+assignPreorderStatesAndEdges :: AssignmentMethod -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges finalMethd preOrderBlockTreeVV inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else 
@@ -1216,7 +1218,7 @@ assignPreorderStatesAndEdges preOrderBlockTreeVV inCharInfoVV inGraph =
             newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
             
             -- update edge labels
-            newEdgeList = fmap (updateEdgeInfo inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
+            newEdgeList = fmap (updateEdgeInfo finalMethd inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
@@ -1290,11 +1292,11 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType =
 
 -- | updateEdgeInfo takes a Decorated graph--fully labelled post and preorder and and edge and 
 -- gets edge info--basically lengths
-updateEdgeInfo :: V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo 
-updateEdgeInfo  inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
+updateEdgeInfo :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo 
+updateEdgeInfo finalMethod inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
     if V.null nodeVector then error "Empty node list in updateEdgeInfo"
     else 
-        let (minW, maxW) = getEdgeWeight inCharInfoVV nodeVector (uNode, vNode)
+        let (minW, maxW) = getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode)
             midW = (minW + maxW) / 2.0
             localEdgeType = edgeType edgeLabel
             newEdgeLabel = EdgeInfo { minLength = minW
@@ -1307,22 +1309,22 @@ updateEdgeInfo  inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
         
 -- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
 -- basically a min/max distance between the two
-getEdgeWeight ::   V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
-getEdgeWeight inCharInfoVV nodeVector (uNode, vNode) = 
+getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
+getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) = 
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else 
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
-            blockCostPairs = V.zipWith3 getBlockCostPairs uNodeInfo vNodeInfo inCharInfoVV
+            blockCostPairs = V.zipWith3 (getBlockCostPairs finalMethod) uNodeInfo vNodeInfo inCharInfoVV
             minCost = sum $ fmap fst blockCostPairs
             maxCost = sum $ fmap snd blockCostPairs
         in
         (minCost, maxCost)
         
 -- | getBlockCostPairs takes a block of two nodes and character infomation and returns the min and max block branch costs
-getBlockCostPairs :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
-getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV = 
-    let characterCostPairs = V.zipWith3 getCharacterDist uNodeCharDataV vNodeCharDataV charInfoV
+getBlockCostPairs :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
+getBlockCostPairs finalMethod uNodeCharDataV vNodeCharDataV charInfoV = 
+    let characterCostPairs = V.zipWith3 (getCharacterDist finalMethod) uNodeCharDataV vNodeCharDataV charInfoV
         minCost = sum $ fmap fst characterCostPairs
         maxCost = sum $ fmap snd characterCostPairs
     in
@@ -1330,11 +1332,14 @@ getBlockCostPairs uNodeCharDataV vNodeCharDataV charInfoV =
 
 -- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
 -- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
-getCharacterDist :: CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
-getCharacterDist uCharacter vCharacter charInfo =
+getCharacterDist :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
+getCharacterDist finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
+        gapChar = bit $ (length thisMatrix) - 1
+        gapCharWide = (bit $ (length thisMatrix) - 1) :: Word64
+        gapCharBV = (bit $ (length thisMatrix) - 1) :: BV.BitVector
     in
     if thisCharType == Add then
         let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
@@ -1352,7 +1357,7 @@ getCharacterDist uCharacter vCharacter charInfo =
         (minCost, maxCost)
     
     else if thisCharType == Matrix then
-        let minMaxListList= fmap (minMaxMatrixDiff thisMatrix) $ D.debugVectorZip (fmap (fmap fst3) $ matrixStatesFinal uCharacter) (fmap (fmap fst3) $ matrixStatesFinal vCharacter)
+        let minMaxListList= V.zipWith (minMaxMatrixDiff thisMatrix)  (fmap (fmap fst3) $ matrixStatesFinal uCharacter) (fmap (fmap fst3) $ matrixStatesFinal vCharacter)
             minDiff = V.sum $ fmap fst minMaxListList
             maxDiff = V.sum $ fmap snd minMaxListList
             minCost = thisWeight * (fromIntegral minDiff)
@@ -1362,7 +1367,15 @@ getCharacterDist uCharacter vCharacter charInfo =
 
 
     else if (thisCharType == SlimSeq || thisCharType == NucSeq) then
-        let minMaxDiffList = fmap (generalSequenceDiff thisMatrix (length thisMatrix)) $ zip (GV.toList $ slimFinal uCharacter) (GV.toList $ slimFinal vCharacter)
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = slimFinal uCharacter
+                                    vFinal = slimFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimPrelim = uFinal}) (vCharacter {slimPrelim = vFinal}) 
+                                    (_, newU, newV) = slimGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapChar) newU) (GV.toList $ GV.map (zero2Gap gapChar) newV)
+                             else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimFinal uCharacter) (GV.toList $ slimFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1372,7 +1385,15 @@ getCharacterDist uCharacter vCharacter charInfo =
         
     
     else if (thisCharType == WideSeq || thisCharType == AminoSeq) then
-        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (wideFinal uCharacter) (wideFinal vCharacter)
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = wideFinal uCharacter
+                                    vFinal = wideFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {widePrelim = uFinal}) (vCharacter {widePrelim = vFinal}) 
+                                    (_, newU, newV) = wideGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapWide gapCharWide) newU) (GV.toList $ GV.map (zero2GapWide gapCharWide) newV)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideFinal uCharacter) (wideFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1380,7 +1401,15 @@ getCharacterDist uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else if thisCharType == HugeSeq then
-        let minMaxDiffList = GV.toList $ GV.map (generalSequenceDiff thisMatrix (length thisMatrix)) $ GV.zip (hugeFinal uCharacter) (hugeFinal vCharacter)
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = hugeFinal uCharacter
+                                    vFinal = hugeFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugePrelim = uFinal}) (vCharacter {hugePrelim = vFinal}) 
+                                    (_, newU, newV) = hugeGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapBV gapCharBV) newU) (GV.toList $ GV.map (zero2GapBV gapCharBV) newV)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeFinal uCharacter) (hugeFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * (fromIntegral $ sum minDiff)
             maxCost = thisWeight * (fromIntegral $ sum maxDiff)
@@ -1388,6 +1417,21 @@ getCharacterDist uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type unimplemented : " ++ show thisCharType)
+
+-- | zero2Gap converts a '0' or no bits set to gap (indel) value 
+zero2Gap :: (FiniteBits a) => a -> a -> a
+zero2Gap gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
+
+-- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
+zero2GapWide :: Word64 -> Word64 -> Word64
+zero2GapWide gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
+
+-- | zero2GapBV converts a '0' or no bits set to gap (indel) value 
+zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
+zero2GapBV gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
@@ -1400,8 +1444,8 @@ maxIntervalDiff (a,b) (x,y) =
 
 -- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost 
 -- between the two
-minMaxMatrixDiff :: S.Matrix Int -> (V.Vector Int, V.Vector Int) -> (Int, Int)
-minMaxMatrixDiff localCostMatrix (uStatesV, vStatesV) =
+minMaxMatrixDiff :: S.Matrix Int -> V.Vector Int -> V.Vector Int -> (Int, Int)
+minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
     let statePairs = (V.toList uStatesV, V.toList vStatesV)
         cartesianPairs = cartProdPair statePairs
         costList = fmap (localCostMatrix S.!) cartesianPairs
@@ -1413,8 +1457,8 @@ minMaxMatrixDiff localCostMatrix (uStatesV, vStatesV) =
 
 -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
 -- cost differences using matrix values
-generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> (a, a) -> (Int, Int)
-generalSequenceDiff thisMatrix numStates (uState, vState) = 
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff thisMatrix numStates uState vState = 
     let uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState) [0.. numStates - 1]) [0.. numStates - 1]
         vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState) [0.. numStates - 1]) [0.. numStates - 1]    
         uvCombinations = cartProd uStateList vStateList

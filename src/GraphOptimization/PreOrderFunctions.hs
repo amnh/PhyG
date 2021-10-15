@@ -261,7 +261,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 -- getDOFinal :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a) -> CharInfo -> v a
 getDOFinal :: CharacterData -> CharacterData -> CharInfo -> CharacterData
 getDOFinal parentData nodeData charInfo =
-   let parentNodeChar = M.getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo) parentData nodeData
+   let parentNodeChar = M.getDOMedianCharInfo charInfo parentData nodeData
 
        -- put "new" gaps into 2nd and thd gapped fileds of appropriate seqeunce type
        gappedLeftRightChar = makeGappedLeftRight parentNodeChar nodeData charInfo

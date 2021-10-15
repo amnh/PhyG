@@ -49,6 +49,7 @@ module GraphOptimization.Medians  ( median2
                                   , interUnion
                                   , addMatrix
                                   , getDOMedian
+                                  , getDOMedianCharInfo
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -277,6 +278,11 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
         newCharcater
+
+-- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
+getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
+getDOMedianCharInfo charInfo char1 char2 =
+    getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo) char1 char2
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequence median after some type wrangling
 getDOMedian

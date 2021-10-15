@@ -68,7 +68,7 @@ getPairwiseDistances (nameVect, _, blockDataVect) =
 
 -- | getBlockDistance takes Block data and returns distance between
 -- vertices based on block data
--- this can be done for ;leaves only or all via the input processed
+-- this can be done for leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
 getBlockDistance :: BlockData -> (Int, Int) -> VertexCost
 getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
@@ -76,7 +76,7 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
     in
     pairCost
 
--- | getPairwiseBlocDistance returns pairwsie ditances among vertices for
+-- | getPairwiseBlocDistance returns pairwsie distances among vertices for
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
