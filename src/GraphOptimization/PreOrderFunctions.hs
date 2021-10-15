@@ -43,6 +43,8 @@ ToDo:
 module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , get2WaySlim
                                             , get2WayWideHuge
+                                            , getFinal3WaySlim
+                                            , getFinal3WayWideHuge
                                             ) where
 
 import           Types.Types

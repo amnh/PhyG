@@ -1140,10 +1140,10 @@ makeCharacterIA :: DecoratedGraph -> CharInfo -> DecoratedGraph
 makeCharacterIA inGraph charInfo = 
     if (charType charInfo) `notElem` nonExactCharacterTypes then inGraph
     else 
-        let postOrderPass = postOrderIA inGraph charInfo (LG.getRoots inGraph)
-            preOrderPass = preOrderIA inGraph charInfo $ zip (LG.getRoots inGraph) (LG.getRoots inGraph)
+        let postOrderIATree = postOrderIA inGraph charInfo (LG.getRoots inGraph)
+            preOrderIATree = preOrderIA postOrderIATree charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
         in
-        preOrderPass
+        preOrderIATree
 
 -- | postOrderIA performs a post-order IA pass assigning leaaf preliminary states
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
@@ -1166,15 +1166,18 @@ postOrderIA inGraph charInfo inNodeList  =
         else if (nodeType nodeLabel)  == LeafNode then
             let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
                                     inCharacter { slimIAPrelim = slimAlignment inCharacter'
-                                                , slimIAFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                , slimIAFinal = fst3 $ slimAlignment inCharacter'
+                                                , slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
                                                 }
                                else if characterType `elem` [WideSeq, AminoSeq] then 
                                     inCharacter { wideIAPrelim = wideAlignment inCharacter'
-                                                , wideIAFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                , wideIAFinal = fst3 $ wideAlignment inCharacter'
+                                                , wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
                                                 }
                                else if characterType == HugeSeq then 
                                     inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
-                                                , hugeIAFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
+                                                , hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
                                                 }
                                else error ("Unrecognized character type " ++ (show characterType))
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
@@ -1239,17 +1242,50 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {hugeIAPrelim = (prelimChar, fst3 $ hugeIAPrelim leftChar, fst3 $ hugeIAPrelim rightChar)}
      else error ("Unrecognized character type " ++ (show characterType))
 
+-- | makeIAFinalharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+makeIAFinalCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
+     let characterType = charType charInfo
+         symbols = (length $ costMatrix charInfo)
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then 
+        let finalIAChar = PRE.getFinal3WaySlim (slimTCM charInfo) symbols (slimIAFinal parentChar) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+            finalChar =  M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { slimIAFinal = finalIAChar
+                 , slimFinal = finalChar 
+                 }
+     else if characterType `elem` [WideSeq, AminoSeq] then 
+        let finalIAChar = PRE.getFinal3WayWideHuge (wideTCM charInfo) symbols  (wideIAFinal parentChar) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+            finalChar = M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { wideIAFinal = finalIAChar
+                 , wideFinal = finalChar
+                 }
+     else if characterType == HugeSeq then 
+        let finalIAChar = PRE.getFinal3WayWideHuge (hugeTCM charInfo) symbols  (hugeIAFinal parentChar) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+            finalChar = M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { hugeIAFinal = finalIAChar
+                 , hugeFinal = finalChar
+                 }
+     else error ("Unrecognized character type " ++ (show characterType))
+
+
+
 -- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
 -- the "final" fields are also set by filtering out gaps and 0.
 preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
 preOrderIA inGraph charInfo inNodePairList = 
     if null inNodePairList then inGraph
     else 
-        let (inNode@(nodeIndex, nodeLabel), parentNode) = head inNodePairList
+        let (inNode@(nodeIndex, nodeLabel), (parentNodeInderx, parentNodeLabel)) = head inNodePairList
             characterType = charType charInfo
             symbols = (length $ costMatrix charInfo)
             inCharacter = V.head $ V.head $ vertData nodeLabel
             inCharacter' = inCharacter
+            parentCharacter = V.head $ V.head $ vertData parentNodeLabel
             childNodes = LG.labDescendants inGraph inNode
         in
         -- checking sanity of data
@@ -1262,14 +1298,16 @@ preOrderIA inGraph charInfo inNodePairList =
 
         else if (nodeType nodeLabel) == RootNode then 
             let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
-                                    inCharacter { slimIAFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                    inCharacter { slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                , slimIAFinal = fst3 $ slimAlignment inCharacter'
                                                 }
                                else if characterType `elem` [WideSeq, AminoSeq] then 
-                                    inCharacter { wideIAFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                    inCharacter { wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                , wideIAFinal = fst3 $ wideAlignment inCharacter'
                                                 }
                                else if characterType == HugeSeq then 
-                                    inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
-                                                , hugeIAFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                    inCharacter { hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
                                                 }
                                else error ("Unrecognized character type " ++ (show characterType))
 
@@ -1279,12 +1317,41 @@ preOrderIA inGraph charInfo inNodePairList =
             in
             preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
 
-        -- single child, take parent assignment    
-        else if length childNodes == 1 then inGraph
+        -- single child, take parent final assignments, but keep postorder assignments    
+        else if length childNodes == 1 then 
+                let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                      inCharacter { slimFinal = slimFinal parentCharacter
+                                                  , slimIAFinal = slimIAFinal parentCharacter
+                                                  }
+                                   else if characterType `elem` [WideSeq, AminoSeq] then 
+                                      inCharacter { wideFinal = wideFinal parentCharacter
+                                                  , wideIAFinal = wideIAFinal parentCharacter
+                                                  }
+                                   else if characterType == HugeSeq then 
+                                      inCharacter { hugeFinal = hugeFinal parentCharacter
+                                                  , hugeIAFinal = hugeIAFinal parentCharacter
+                                                  }
+                                   else error ("Unrecognized character type " ++ (show characterType))
+
+                    newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                    newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                    parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+                in 
+                preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
 
         -- 2 children, make 3-way 
-        else inGraph
-        
+        else 
+            let childLabels = fmap snd childNodes
+                leftChar = V.head $ V.head $ vertData $ head childLabels
+                rightChar = V.head $ V.head $ vertData $ last childLabels
+                finalCharacter = makeIAFinalCharacter charInfo inCharacter parentCharacter leftChar rightChar 
+
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
+                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+            in 
+            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList)) 
+            
 
 
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
