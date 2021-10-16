@@ -186,72 +186,69 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDOGapped = slimFinal $ getDOFinal parentChar childChar charInfo
              finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
-                                                                      else mempty
-             -- finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
+                                 else mempty
          in 
-         --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
-         --childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
          childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
-             finalAssignmentIA = getFinal3WayWideHuge (wideTCM charInfo) (fromEnum symbolCount) (wideFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
-         in
-         childChar {wideFinal = finalAssignmentIA, wideAlignment = finalGapped}
+             finalAssignmentDOGapped = wideFinal $ getDOFinal parentChar childChar charInfo
+             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                 else mempty
+         in 
+         childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignmentIA = getFinal3WayWideHuge (hugeTCM charInfo) (fromEnum symbolCount) (hugeFinal parentChar) (snd3 finalGapped) (thd3 finalGapped) 
-
-         in
-         childChar {hugeFinal = finalAssignmentIA, hugeAlignment = finalGapped}
+             finalAssignmentDOGapped = hugeFinal $ getDOFinal parentChar childChar charInfo
+             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                 else mempty
+         in 
+         childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
          
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
    
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
-   else if isOutDegree1 then error "Not implemenmted"
+   else if isOutDegree1 then 
       -- trace ("InOut1 preorder") (
-      {-
       if localCharType == Add then 
          -- add logic for pre-order
-         let finalAssignment = (rangeFinal parentChar)
+         let lFinalAssignment = (rangeFinal parentChar)
          in
-         childChar {rangeFinal = finalAssignment}
+         childChar {rangeFinal = lFinalAssignment}
 
       else if localCharType == NonAdd then 
          -- add logic for pre-order
-         let finalAssignment = (stateBVFinal parentChar)
+         let lFinalAssignment = (stateBVFinal parentChar)
          in
-         childChar {stateBVFinal = finalAssignment}
+         childChar {stateBVFinal = lFinalAssignment}
 
       else if localCharType == Matrix then 
          -- add logic for pre-order
-         let finalAssignment = (matrixStatesFinal parentChar)
+         let lFinalAssignment = (matrixStatesFinal parentChar)
          in
-         childChar {matrixStatesFinal = finalAssignment}
+         childChar {matrixStatesFinal = lFinalAssignment}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
-         let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             -- finalNoGaps = M.createUngappedMedianSequence (fromEnum symbolCount) finalGapped
-             finalAssignmentIA = getFinal3WaySlim (slimTCM charInfo) (fromEnum symbolCount) (slimFinal parentChar) (snd3 finalGapped) (thd3 finalGapped)
-         in 
-         --trace ("HTU " ++ show (slimPrelim childChar, finalNoGaps, finalGapped, slimGapped childChar, slimAlignment parentChar)) 
-         --childChar {slimFinal = finalNoGaps, slimAlignment = finalGapped}
-         childChar {slimFinal = finalAssignmentIA, slimAlignment = finalGapped}
-         --childChar {slimFinal = (slimFinal parentChar), slimAlignment = (slimAlignment parentChar)}
+         childChar { slimFinal = slimFinal parentChar
+                   , slimAlignment = slimAlignment parentChar
+                   , slimIAFinal = slimFinal parentChar}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
-         childChar {wideFinal = (wideFinal parentChar), wideAlignment = (wideAlignment parentChar)}
-         
+         childChar { wideFinal = wideFinal parentChar
+                   , wideAlignment = wideAlignment parentChar
+                   , wideIAFinal = wideFinal parentChar}
+       
       else if localCharType == HugeSeq then 
-         childChar {hugeFinal = (hugeFinal parentChar), hugeAlignment = (hugeAlignment parentChar)}
-         
+         childChar { hugeFinal = hugeFinal parentChar
+                   , hugeAlignment =  hugeAlignment parentChar
+                   , hugeIAFinal = hugeFinal parentChar}
+       
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
       -- )
-      -}
+      
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
 

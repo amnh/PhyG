@@ -62,10 +62,8 @@ import qualified GraphOptimization.Medians as M
 import qualified SymMatrix                   as S
 import qualified Data.Vector.Generic         as GV
 import Debug.Trace
-import qualified Debug.Debug as Debug
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Word
-import qualified Data.TCM.Dense as TCMD
 
 
 
@@ -161,7 +159,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then 
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
-                let (newGraph, isRoot, newVertexLabel, localCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                let (newGraph, isRoot, newVertexLabel, llocalCost, displayGraphVL) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
                 if isRoot then 
                      let newGraph' = softWiredPostOrderTraceBack newGraph (curNode, newVertexLabel)
@@ -170,7 +168,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                          -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                          displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes newGraph')) displayGraphVL (V.fromList [0.. (V.length displayGraphVL - 1)])
                     in
-                    (simpleGraph, localCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
+                    (simpleGraph, llocalCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
                 else (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
                 -- )
 
@@ -218,7 +216,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
                     newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree 
 
-                    (displayGraphVL, displayCost) = if (nodeType newVertexLabel) == RootNode then extractDisplayTrees True resolutionBlockVL
+                    (displayGraphVL, lDisplayCost) = if (nodeType newVertexLabel) == RootNode then extractDisplayTrees True resolutionBlockVL
                                                     else (mempty, 0.0)
 
                 in
@@ -232,9 +230,9 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                         -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                         displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes newGraph')) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
                     in
-                    (simpleGraph, displayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
+                    (simpleGraph, lDisplayCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
 
-                else (simpleGraph, displayCost, newGraph, mempty, mempty, blockCharInfo)
+                else (simpleGraph, lDisplayCost, newGraph, mempty, mempty, blockCharInfo)
 
 -- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
 -- to Block display graphs (through list of more than one for a block)
@@ -388,7 +386,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
 
             -- get other resolution info
             charDataVV = fmap displayData resolutionsByBlockV
-            subGraphCost = V.sum $ fmap displayCost resolutionsByBlockV
+            lSubGraphCost = V.sum $ fmap displayCost resolutionsByBlockV
             localResolutionCost = V.sum $ fmap resolutionCost resolutionsByBlockV
 
             -- only takes first left right pair--although others in there
@@ -396,7 +394,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- if euqla cost display trees, may have multiple possible preliminary states
             leftRightIndexVect = fmap head $ fmap childResolutions resolutionsByBlockV
         in
-        (charDataVV, subGraphCost, localResolutionCost, leftRightIndexVect)
+        (charDataVV, lSubGraphCost, localResolutionCost, leftRightIndexVect)
         -- )
 
 -- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
@@ -649,13 +647,13 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         newDisplayNode = (curNode, newMinVertex)
         newGraph =  LG.insEdge newLEdge $ LG.insNode newLNode subTree
 
-        (displayGraphVL, displayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
+        (displayGraphVL, lDisplayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
                                         else (mempty, 0.0)
 
 
     in
     --trace ("NV1: " ++ show newVertex)
-    (newGraph, (nodeType newVertex) == RootNode, newVertex, displayCost, displayGraphVL)
+    (newGraph, (nodeType newVertex) == RootNode, newVertex, lDisplayCost, displayGraphVL)
     --)
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
@@ -1114,7 +1112,7 @@ preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDeco
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
             preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
 
-            -- if final non-exact states determined by IA then perfomr passes and assignments of final and final IA fields
+            -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             preOrderBlockVect' = if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments preOrderBlockVect inCharInfoVV
                                 else preOrderBlockVect    
 
