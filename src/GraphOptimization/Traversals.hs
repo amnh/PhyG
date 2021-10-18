@@ -98,13 +98,35 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
 
             -- post order pass
             outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder)
+            grandChildrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) childrenOfRoot
+
+            -- create list of multi-traversals with original rooting first
+            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
+            -- they are taken from the fully labelled first input decorated graph later when output graph created
+            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
+            recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph Tree outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
+
+            minCostRecursive = minimum $ fmap snd6 recursiveRerootList
+            minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
+
+            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
+            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
+            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+            -- are propagated to the Decorated graph field after the preorder pass.
+            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList 
+
             
-            -- preorder pass
-            -- outgroupRootedSoftWiredPreOrder  = preOrderSoftWiredTraversal outgroupRootedSoftWiredPostOrder
-            outgroupRootedSoftWiredPreOrder  = preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0) outgroupRootedSoftWiredPostOrder
         in
-        -- merge component gaphs 
-        outgroupRootedSoftWiredPreOrder
+        preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0) outgroupRootedSoftWiredPostOrder
+        --preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
+        {-
+        if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
+        else if (nonExactChars == 1) then preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
+        else preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
+        -}
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
 postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
@@ -834,7 +856,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
-            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
             grandChildrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
 
@@ -930,7 +952,7 @@ chooseBetterCharacter firstGraph secondGraph =
         else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
         else if firstGraphCost < secondGraphCost then (firstGraph, firstGraphCost)
         else (secondGraph, secondGraphCost) 
-        --)
+        -- )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully

@@ -61,8 +61,8 @@ import Debug.Trace
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
 -- them based on children in input graph
 -- simple recursive since each node depends on children
--- remove check for debbubg after it works
--- check for out-degree 1, doens't matter for trees however.
+-- remove check for debugging after it works
+-- check for out-degree 1, doesn't matter for trees however.
 reOptimizeNodes :: GraphType -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
 reOptimizeNodes localGraphType charInfoVectVect inGraph oldNodeList =
   if null oldNodeList then inGraph
@@ -74,9 +74,9 @@ reOptimizeNodes localGraphType charInfoVectVect inGraph oldNodeList =
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
     if (not $ null foundCurChildern) then
-      --trace ("Current node has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ show oldNodeList)
+      -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
       reOptimizeNodes localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
-    -- code form postDecorateTree
+    
     else
         let leftChild = (head nodeChildren)
             rightChild = (last nodeChildren)
@@ -95,6 +95,7 @@ reOptimizeNodes localGraphType charInfoVectVect inGraph oldNodeList =
           reOptimizeNodes localGraphType charInfoVectVect inGraph (tail oldNodeList)
         else
         -}
+        if localGraphType == Tree then 
            let newCost =  if (length nodeChildren < 2) then 0
                           else V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
                newVertexLabel = VertexInfo {  index = curNodeIndex
@@ -112,11 +113,17 @@ reOptimizeNodes localGraphType charInfoVectVect inGraph oldNodeList =
                                                              else (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                             }
                -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
-               replacementEdges = (LG.inn inGraph curNodeIndex) ++ (LG.out inGraph curNodeIndex)
+               replacementEdges = (fst $ LG.getInOutEdges inGraph curNodeIndex) ++ (snd $ LG.getInOutEdges inGraph curNodeIndex)
                newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
             in
             --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
             reOptimizeNodes localGraphType charInfoVectVect newGraph (tail oldNodeList)
+        
+        else if  localGraphType == SoftWired then
+            errorWithoutStackTrace ("Graph type yet implemented: " ++ show localGraphType)
+
+        else  errorWithoutStackTrace ("Graph type unrecognized/not yet implemented: " ++ show localGraphType)
+
 
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
@@ -167,7 +174,7 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 rerootPhylogeneticGraph' :: GraphType -> PhylogeneticGraph -> Int -> PhylogeneticGraph
 rerootPhylogeneticGraph' localGraphType inGraph rerootIndex = rerootPhylogeneticGraph localGraphType rerootIndex inGraph
 
--- | rerootGraph takes a pphylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
+-- | rerootGraph takes a phylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
 --   unclear how will effect network edges--will need to verify that does not create cycles
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown

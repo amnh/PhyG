@@ -171,7 +171,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --)
 
 -- | rerootGraph' flipped version of rerootGraph
-rerootGraph' :: (Eq b) => LG.Gr a b -> Int -> LG.Gr a b
+rerootGraph' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
 
 -- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
@@ -180,8 +180,9 @@ rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
-rerootGraph :: (Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootGraph :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
 rerootGraph rerootIndex inGraph =
+  --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
   else
     let componentList = LG.components inGraph
@@ -235,10 +236,10 @@ rerootGraph rerootIndex inGraph =
 
         in
         --trace ("=")
-        --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) (
+        --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) 
         --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
         newGraph'
-        --))
+        -- ) -- )
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops

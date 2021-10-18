@@ -424,23 +424,6 @@ to render--would have repeated subtrees after network vertex
 
 162) remove Maybe from resoltion child type
 
-163) update edge costs for softwired HTU edges, pendant seem OK.
-	Could be due to incorrect preorder assignment field for out=1 node/edges
-	min for tree seems wrong also
-
-164) add outout gap filter for "final" assingment output
-
-165) Final state asignment for soft-wired is incorrect
-	pulling one of two prelminary states
-	root ok--but leaves are even incorrect suggesting an incorrect preliminary states
-	in display treess
-
-	For some reason for tree and softwired--the "first" outgroup rooted tree 
-	has incorrect assignments--try rerooting on existing? to see if the reroot process fixes the problem?
-
-	Check branch lengths for exact data--since they never reroot
-
-	
 166) make forest a final set deleting edges?
 
 167)  Create IA types for slim, wide, and huge
@@ -453,5 +436,9 @@ to render--would have repeated subtrees after network vertex
 	perhaps an issue with propagating and reestimating branch lengths
 	in sequence
 	
+170) DO soft-wired branch lengths are not same as trees and should be
+
+171) Root DO assignment not xcoorect--shold be preiminary--looks like sometjing else
+
 
 

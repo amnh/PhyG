@@ -423,3 +423,5 @@ contractIn1Out1Edges inGraph =
                 trace ("Deleting Node " ++ (show $ fst nodeToDelete) ++ " " ++ (show $ (inEdgeToDelete, outEdgeToDelete)) ++ " inserting " ++ (show  newEdgeToAdd))
                 contractIn1Out1Edges newGraph
                 )
+
+-- | simple print function for trees basedon indices.
