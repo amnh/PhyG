@@ -950,8 +950,8 @@ chooseBetterCharacter firstGraph secondGraph =
         -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
         if firstGraphCost == 0 then (secondGraph, secondGraphCost) 
         else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
-        else if firstGraphCost < secondGraphCost then (firstGraph, firstGraphCost)
-        else (secondGraph, secondGraphCost) 
+        else if secondGraphCost < firstGraphCost then (secondGraph, secondGraphCost)
+        else (firstGraph, firstGraphCost)
         -- )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
@@ -1499,14 +1499,14 @@ updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
 -- | updateVertexBlock takes a block of vertex data and updates preorder states of charactes via fmap
 updateVertexBlock :: Int -> V.Vector DecoratedGraph -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData 
 updateVertexBlock nodeIndex blockTraversalTreeV nodeCharacterDataV charInfoV =
-    fmap (updatePreorderCharacter nodeIndex) $ D.debugVectorZip3 blockTraversalTreeV nodeCharacterDataV charInfoV
+    V.zipWith3 (updatePreorderCharacter nodeIndex) blockTraversalTreeV nodeCharacterDataV charInfoV
 
 -- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traversal
 -- since there is single character optimized for each character decorated graph-- it is always teh 0th 0th character
 -- exact are vectors so take care of multiple there.
 -- need to care for issues of missing data
-updatePreorderCharacter :: Int -> (DecoratedGraph, CharacterData, CharInfo) -> CharacterData 
-updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
+updatePreorderCharacter :: Int -> DecoratedGraph -> CharacterData -> CharInfo -> CharacterData 
+updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
     --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
     let maybePreOrderNodeLabel = LG.lab preOrderTree nodeIndex
         preOrderVertData = vertData $ fromJust maybePreOrderNodeLabel
@@ -1517,12 +1517,13 @@ updatePreorderCharacter nodeIndex (preOrderTree, postOrderCharacter, charInfo) =
     in
     if maybePreOrderNodeLabel == Nothing then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
     else
-        updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo)
+        updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo) 
     --)
 
 -- | updateCharacter takes a postorder character and updates the preorder (final) fields with preorder data and character type
-updateCharacter :: CharacterData -> CharacterData -> CharType -> CharacterData
-updateCharacter postOrderCharacter preOrderCharacter localCharType =
+-- only updating preorder assignment--except for root, that is needed to draw final state for brnach lengths
+updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
+updateCharacter postOrderCharacter preOrderCharacter localCharType  =
     if localCharType == Add then
         postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
     
@@ -1536,7 +1537,7 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType =
         postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
                            , slimFinal = slimFinal preOrderCharacter
                            , slimIAFinal = slimIAFinal preOrderCharacter
-                           }
+                       }
     
     else if (localCharType == WideSeq || localCharType == AminoSeq) then
         postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
