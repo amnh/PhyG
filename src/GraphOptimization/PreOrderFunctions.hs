@@ -184,24 +184,30 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignmentDOGapped = slimFinal $ getDOFinal parentChar childChar charInfo
-             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+             finalAssignmentDO = if finalMethod == DirectOptimization then 
+                                    let finalAssignmentDOGapped = slimFinal $ getDOFinal parentChar childChar charInfo 
+                                    in
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
                                  else mempty
          in 
          childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalAssignmentDOGapped = wideFinal $ getDOFinal parentChar childChar charInfo
-             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+             finalAssignmentDO = if finalMethod == DirectOptimization then 
+                                    let finalAssignmentDOGapped = wideFinal $ getDOFinal parentChar childChar charInfo
+                                    in
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
                                  else mempty
          in 
          childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
          
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignmentDOGapped = hugeFinal $ getDOFinal parentChar childChar charInfo
-             finalAssignmentDO = if finalMethod == DirectOptimization then M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+             finalAssignmentDO = if finalMethod == DirectOptimization then 
+                                    let finalAssignmentDOGapped = hugeFinal $ getDOFinal parentChar childChar charInfo
+                                    in
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
                                  else mempty
          in 
          childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
@@ -211,7 +217,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
    else if isOutDegree1 then 
-      -- trace ("InOut1 preorder") (
+      trace ("InOut1 preorder") (
       if localCharType == Add then 
          -- add logic for pre-order
          let lFinalAssignment = (rangeFinal parentChar)
@@ -247,7 +253,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                    , hugeIAFinal = hugeFinal parentChar}
        
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
-      -- )
+      )
       
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )

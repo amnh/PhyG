@@ -866,10 +866,9 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
         
         -- special cases that don't require all the work
         
-        --if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
-            
-        if (nonExactChars == 1) && (exactCharacters == 0) then preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0)  $ head minCostGraphListRecursive
-        else preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0)  graphWithBestAssignments'
+        if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedPhyloGraph
+        else if (nonExactChars == 1) then preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
+        else preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
         
         
 
@@ -1104,7 +1103,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
 preOrderTreeTraversal :: AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
-    --trace ("PreO:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
+    --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else 
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
@@ -1125,7 +1124,7 @@ preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDeco
         trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
         -}
         (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-        --)
+        -- )
         
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
@@ -1141,9 +1140,10 @@ makeCharacterIA inGraph charInfo =
         let postOrderIATree = postOrderIA inGraph charInfo (LG.getRoots inGraph)
             preOrderIATree = preOrderIA postOrderIATree charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
         in
+        -- trace ("MCIA roots:" ++ (show $ LG.getRoots postOrderIATree) ++ "\n" ++ (show $ LG.edges postOrderIATree))
         preOrderIATree
 
--- | postOrderIA performs a post-order IA pass assigning leaaf preliminary states
+-- | postOrderIA performs a post-order IA pass assigning leaf preliminary states
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
 -- matrix
 postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
@@ -1151,11 +1151,14 @@ postOrderIA inGraph charInfo inNodeList  =
     if null inNodeList then inGraph
     else 
         let inNode@(nodeIndex, nodeLabel) = head inNodeList
+            (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
             characterType = charType charInfo
             symbols = length $ costMatrix charInfo
             inCharacter = V.head $ V.head $ vertData nodeLabel
             inCharacter' = inCharacter
         in
+
+        -- trace ("POIA Node: " ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show  $ fmap fst inNodeList)) (
         -- checking sanity of data
         if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
         else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
@@ -1179,7 +1182,7 @@ postOrderIA inGraph charInfo inNodeList  =
                                                 }
                                else error ("Unrecognized character type " ++ (show characterType))
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
             postOrderIA newGraph charInfo (tail inNodeList)
 
@@ -1188,6 +1191,8 @@ postOrderIA inGraph charInfo inNodeList  =
             let childNodes = LG.labDescendants inGraph inNode
                 childTree = postOrderIA inGraph charInfo childNodes
             in
+            --trace ("Children: " ++ (show  $ fmap fst childNodes)) (
+            
             if length childNodes > 2 then error ("Too many children in postOrderIA: " ++ (show $ length childNodes))
 
             -- in 1 out 1 vertex
@@ -1202,11 +1207,11 @@ postOrderIA inGraph charInfo inNodeList  =
                 else if V.null $ V.head $ vertData childLabel then error "Null vertData data in postOrderIA"
                 else 
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
-                        newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                        newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
                     postOrderIA newGraph charInfo (tail inNodeList)
 
-            -- two children take 2-way
+            -- two children 
             else 
                 let childIndices = fmap fst childNodes
                     childlabels = fmap fromJust $ fmap (LG.lab childTree) childIndices
@@ -1215,9 +1220,11 @@ postOrderIA inGraph charInfo inNodeList  =
                     rightChar = V.head $ V.head $ last childCharacters
                     newCharacter = makeIAPrelimCharacter charInfo inCharacter leftChar rightChar
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                    newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
                 postOrderIA newGraph charInfo (tail inNodeList)
+            -- )
+    -- )
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
 -- based on character type and nodeChar--only IA fields are modified
@@ -1278,7 +1285,8 @@ preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode Vert
 preOrderIA inGraph charInfo inNodePairList = 
     if null inNodePairList then inGraph
     else 
-        let (inNode@(nodeIndex, nodeLabel), (parentNodeInderx, parentNodeLabel)) = head inNodePairList
+        let (inNode@(nodeIndex, nodeLabel), (parentNodeIndex, parentNodeLabel)) = head inNodePairList
+            (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
             characterType = charType charInfo
             symbols = (length $ costMatrix charInfo)
             inCharacter = V.head $ V.head $ vertData nodeLabel
@@ -1286,13 +1294,14 @@ preOrderIA inGraph charInfo inNodePairList =
             parentCharacter = V.head $ V.head $ vertData parentNodeLabel
             childNodes = LG.labDescendants inGraph inNode
         in
+        --trace ("PreIA Node:" ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show (fmap fst $ fmap fst inNodePairList,fmap fst $ fmap snd inNodePairList))) (
         -- checking sanity of data
-        if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
-        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
+        if V.null $ vertData nodeLabel then error "Null vertData in preOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in preOrderIA"
         else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ (show $ length childNodes))
 
         -- leaf done in post-order
-        else if (nodeType nodeLabel) == LeafNode then inGraph
+        else if (nodeType nodeLabel) == LeafNode then preOrderIA inGraph charInfo (tail inNodePairList)
 
         else if (nodeType nodeLabel) == RootNode then 
             let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
@@ -1310,10 +1319,10 @@ preOrderIA inGraph charInfo inNodePairList =
                                else error ("Unrecognized character type " ++ (show characterType))
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
-                parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
+            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parentNodeList))
 
         -- single child, take parent final assignments, but keep postorder assignments    
         else if length childNodes == 1 then 
@@ -1332,7 +1341,7 @@ preOrderIA inGraph charInfo inNodePairList =
                                    else error ("Unrecognized character type " ++ (show characterType))
 
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                    newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                     parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
                 in 
                 preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
@@ -1345,12 +1354,12 @@ preOrderIA inGraph charInfo inNodePairList =
                 finalCharacter = makeIAFinalCharacter charInfo inCharacter parentCharacter leftChar rightChar 
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
-                newGraph = LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in 
             preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList)) 
             
-
+        -- )
 
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
