@@ -183,7 +183,7 @@ main = do
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList initialSetCommands
-    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
     
 
     -- Create lazy pairwise distances if needed later for build or report

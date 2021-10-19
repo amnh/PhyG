@@ -426,19 +426,4 @@ to render--would have repeated subtrees after network vertex
 
 166) make forest a final set deleting edges?
 
-167)  Create IA types for slim, wide, and huge
-	prelim and final
-	assign finalAlignment 1st field to IA leaf three fields and do post and preorder 2x and 3x passes
-	back propagate final states (w/o gaps) to slim/wide/huge/final
-
-	
-169)  Fix IA final assignments and branchlenth 
-	perhaps an issue with propagating and reestimating branch lengths
-	in sequence
-	
-170) DO soft-wired branch lengths are not same as trees and should be
-
-171) Root DO assignment not xcoorect--shold be preiminary--looks like sometjing else
-
-
-
+172) After fix in DO, make IA and DO final states and branch lengths

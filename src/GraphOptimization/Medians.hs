@@ -66,6 +66,7 @@ import           DirectOptimization.Pairwise
 import           GeneralUtilities
 import qualified SymMatrix                                                   as S
 import           Types.Types
+import           Debug.Trace
 
 
 --import qualified Data.Alphabet as DALPH
@@ -293,6 +294,7 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     if thisType `elem` [SlimSeq,   NucSeq]      then
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
         in 
+        --trace ("pDO:" ++ (show (GV.length $ fst3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2))) 
         (r, mempty, mempty, (weight charInfo) * (fromIntegral cost))
 
     else if thisType `elem` [WideSeq, AminoSeq] then 
@@ -346,9 +348,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * (fromIntegral cost)
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM -- (slimGapped leftChar) (slimGapped rightChar)
-                (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
-                (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
+                -- (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
+                -- (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --slimPrelim    = GV.filter (notGapNought gapChar) medians
@@ -368,8 +370,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 coefficient
                 gapState
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
-                (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
+                (wideGapped leftChar) (wideGapped rightChar)
+                -- (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
+                -- (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --widePrelim    = GV.filter (notGapNought gapChar) medians
@@ -390,8 +393,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 coefficient
                 gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
-                (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
+                (hugeGapped leftChar) (hugeGapped rightChar)
+                -- (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
+                -- (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
             --gapChar = getGap symbolCount
         in  blankCharacterData
               { --hugePrelim = GV.filter (notGapNought gapChar) medians -- 
