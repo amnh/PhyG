@@ -36,8 +36,8 @@ Portability :  portable (I hope)
 
 module Graphs.GraphOperations ( ladderizeGraph
                                , verifyTimeConsistency
-                               , rerootGraph
-                               , rerootGraph'
+                               , rerootTree
+                               , rerootTree'
                                , generateDisplayTrees
                                , contractOneOneEdges
                                , getNodeType
@@ -170,18 +170,18 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     --)
 
--- | rerootGraph' flipped version of rerootGraph
-rerootGraph' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
-rerootGraph' inGraph rerootIndex = rerootGraph rerootIndex inGraph
+-- | rerootTree' flipped version of rerootGraph
+rerootTree' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
+rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 
--- | rerootGraph takes a graph and reroots based on a vertex index (usually leaf outgroup)
+-- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
 --   unclear how will effect network edges--will need to verify that does not create cycles
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
-rerootGraph :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
-rerootGraph rerootIndex inGraph =
+rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
   else
@@ -192,10 +192,13 @@ rerootGraph rerootIndex inGraph =
         outgroupInComponent = fmap (rerootIndex `elem`) componentList
         componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
     in
+    
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
     if null parentNewRootList then inGraph
+
     -- check if outgroup doesn't change rooting--ie its parent is a root somewhere
     else if True `elem` parentRootList then inGraph
+
     -- this can't happen but whatever....
     else if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
     else

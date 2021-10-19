@@ -107,7 +107,7 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
             -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-            recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph Tree outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
+            recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph SoftWired outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
 
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
             minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
@@ -120,13 +120,13 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
 
             
         in
-        preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0) outgroupRootedSoftWiredPostOrder
+        --preOrderTreeTraversal (finalAssignment inGS) (nonExactChars > 0) outgroupRootedSoftWiredPostOrder
         --preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
-        {-
+        
         if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
         else if (nonExactChars == 1) then preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
         else preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
-        -}
+        
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
 postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
@@ -956,7 +956,9 @@ minimalReRootPhyloGraph localGraphType inGraph nodesToRoot =
     else 
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
-            newGraph = PO.rerootPhylogeneticGraph' localGraphType inGraph firstRerootIndex
+            newGraph = if localGraphType == Tree then PO.rerootPhylogeneticTree' inGraph firstRerootIndex
+                       else if localGraphType == SoftWired then PO.rerootPhylogeneticNetwork' inGraph firstRerootIndex
+                       else errorWithoutStackTrace ("Grpah type not implemented/recognized: " ++ show localGraphType)
         in
         --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
         newGraph : minimalReRootPhyloGraph localGraphType newGraph nextReroots

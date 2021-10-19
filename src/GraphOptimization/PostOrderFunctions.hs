@@ -40,8 +40,10 @@ ToDo:
 -}
 
 
-module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
-                                             , rerootPhylogeneticGraph'
+module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticTree
+                                             , rerootPhylogeneticTree'
+                                             , rerootPhylogeneticNetwork
+                                             , rerootPhylogeneticNetwork'
                                              , createVertexDataOverBlocks
                                              , divideDecoratedGraphByBlockAndCharacterTree
                                              , divideDecoratedGraphByBlockAndCharacterSoftWired
@@ -170,9 +172,49 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 
--- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph
-rerootPhylogeneticGraph' :: GraphType -> PhylogeneticGraph -> Int -> PhylogeneticGraph
-rerootPhylogeneticGraph' localGraphType inGraph rerootIndex = rerootPhylogeneticGraph localGraphType rerootIndex inGraph
+
+-- | rerootPhylogeneticNetwork take a vertex index and reroots phylogenetic network
+-- roots as for tree, but when a netwrok edge is chosen as root edge, its 'sister' network edge
+-- is deleted (leaving two in=out=1 nodes), th ereooting takes place,
+-- and the edge is re-added in both directions.  Nodes may change between
+-- tree and network.  This is updated 
+rerootPhylogeneticNetwork :: Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticNetwork rerootIndex inGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) = 
+    if LG.isEmpty inSimple then inGraph
+    else
+        let originalRoots = LG.getRoots inSimple
+            originalRootIndex = fst $ head originalRoots
+            originalRootChildren = LG.descendants inSimple originalRootIndex
+            newRootChildren = LG.descendants inSimple rerootIndex
+            newRootParents = LG.parents inSimple rerootIndex
+        in
+
+        -- sanity check on graph
+        if length originalRoots /= 1 then errorWithoutStackTrace ("Input graph has <>1 roots: " ++ (show originalRoots) ++ "\n" ++ (LG.prettify inSimple))
+
+        -- would produce same root position
+        else if rerootIndex `elem` originalRootChildren then inGraph
+
+        -- OK to reroot
+        else 
+            trace ("RRN:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) ( 
+            --if length newRootParents > 1 then trace ("Root on network edge") inGraph
+            --else 
+                let newSimple = GO.rerootTree rerootIndex inSimple
+                in
+                -- currently just bags out on network branch
+                if (null $ LG.getRoots newSimple) then 
+                    inGraph
+                else rerootPhylogeneticTree rerootIndex inGraph
+              )
+
+-- | rerootPhylogeneticNetwork' flipped version of rerootPhylogeneticNetwork
+rerootPhylogeneticNetwork' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
+rerootPhylogeneticNetwork' inGraph rerootIndex = rerootPhylogeneticNetwork rerootIndex inGraph
+
+-- | rerootPhylogeneticTree' flipped version of rerootPhylogeneticTree
+rerootPhylogeneticTree' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
+rerootPhylogeneticTree'  inGraph rerootIndex = rerootPhylogeneticTree rerootIndex inGraph
 
 -- | rerootGraph takes a phylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -188,16 +230,17 @@ rerootPhylogeneticGraph' localGraphType inGraph rerootIndex = rerootPhylogenetic
 --   much time by consolidating--also since labels are all different--can't re-use alot of info
 --   from graph to graph.
 --   NNB only deals with post-order states
-rerootPhylogeneticGraph :: GraphType -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticGraph localGraphType rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
+rerootPhylogeneticTree :: Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticTree  rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
   if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else
     let -- simple graph rerooted Boolean to specify that non-exact characters need NOT be reoptimized if affected
-        newSimpleGraph = GO.rerootGraph rerootIndex inSimple
+        newSimpleGraph = GO.rerootTree rerootIndex inSimple
 
         -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
-        newDecGraph = GO.rerootGraph rerootIndex inDecGraph
+        -- could just update with needges? from simple graph rerooting
+        newDecGraph = GO.rerootTree rerootIndex inDecGraph
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
@@ -205,14 +248,14 @@ rerootPhylogeneticGraph localGraphType rerootIndex inPhyGraph@(inSimple, _, inDe
 
         -- reversed because ll these node edges are reversed so preorder would be in reverse orientation
         -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
-        newDecGraph' = reOptimizeNodes localGraphType charInfoVectVect newDecGraph (reverse nodesToOptimize)
+        newDecGraph' = reOptimizeNodes Tree charInfoVectVect newDecGraph (reverse nodesToOptimize)
 
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
 
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVV = if V.null blockDisplayForestVV then mempty
-                                    else fmap (fmap (GO.rerootGraph rerootIndex)) blockDisplayForestVV
+                                  else fmap (fmap (GO.rerootTree rerootIndex)) blockDisplayForestVV
 
         in
         --trace ("=")
