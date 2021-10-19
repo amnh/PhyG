@@ -197,16 +197,17 @@ rerootPhylogeneticNetwork rerootIndex inGraph@(inSimple, _, inDecGraph, blockDis
 
         -- OK to reroot
         else 
-            trace ("RRN:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) ( 
             --if length newRootParents > 1 then trace ("Root on network edge") inGraph
             --else 
                 let newSimple = GO.rerootTree rerootIndex inSimple
                 in
                 -- currently just bags out on network branch
                 if (null $ LG.getRoots newSimple) then 
+                    trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
+                        ++ (show newRootParents) ++ " children " ++ (show newRootChildren) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple)) 
                     inGraph
                 else rerootPhylogeneticTree rerootIndex inGraph
-              )
+              
 
 -- | rerootPhylogeneticNetwork' flipped version of rerootPhylogeneticNetwork
 rerootPhylogeneticNetwork' :: PhylogeneticGraph -> Int -> PhylogeneticGraph
