@@ -194,7 +194,8 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                     M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
                                  else mempty
          in 
-         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
+         --childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
+         childChar {slimFinal = mempty, slimAlignment = finalGapped}
          
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
