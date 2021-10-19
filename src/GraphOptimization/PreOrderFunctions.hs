@@ -47,6 +47,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , getFinal3WayWideHuge
                                             ) where
 
+import           Bio.DynamicCharacter
 import           Types.Types
 import GeneralUtilities
 import qualified DirectOptimization.PreOrder as DOP
@@ -185,9 +186,12 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then 
-                                    let finalAssignmentDOGapped = slimFinal $ getDOFinal parentChar childChar charInfo 
+                                    let parentFinal = ((slimFinal parentChar, mempty, mempty), mempty, mempty)
+                                        -- parentGapped = (slimGapped parentChar, mempty, mempty)
+                                        childGapped = (slimGapped childChar, mempty, mempty)
+                                        finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
                                  else mempty
          in 
          childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
@@ -195,9 +199,12 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then 
-                                    let finalAssignmentDOGapped = wideFinal $ getDOFinal parentChar childChar charInfo
+                                    let parentFinal = (mempty, (mempty, wideFinal parentChar, mempty), mempty)
+                                        --parentGapped = (mempty, wideGapped parentChar, mempty)
+                                        childGapped = (mempty, wideGapped childChar, mempty)
+                                        finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
                                  else mempty
          in 
          childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
@@ -205,9 +212,12 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if localCharType == HugeSeq then 
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then 
-                                    let finalAssignmentDOGapped = hugeFinal $ getDOFinal parentChar childChar charInfo
+                                    let parentFinal = (mempty, mempty, (mempty, mempty, hugeFinal parentChar))
+                                        -- parentGapped = (mempty, mempty, hugeGapped parentChar)
+                                        childGapped = (mempty, mempty, hugeGapped childChar)
+                                        finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) (finalAssignmentDOGapped, mempty, mempty)
+                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
                                  else mempty
          in 
          childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
@@ -259,38 +269,54 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
    -- )
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
--- to get the finla state.  This takes place in several steps
+-- to get the final state.  This takes place in several steps
 --    1) align (DOMedian) parent final with node gapped (ie node preliminary)
---    2) propagate new gaps in naligned node prelimiinary to child gapped in node tripe (snd and thd)
+--    2) propagate new gaps in aligned node preliminary to child gapped in node tripe (snd and thd)
 --       creating a 3-way alignment with parent final and child preliminary
---    3) apply approprouae get3way for the structure
+--    3) apply appropriate get3way for the structure
 -- The final is then returned--with gaps to be filtered afterwards
 -- getDOFinal :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a) -> CharInfo -> v a
-getDOFinal :: CharacterData -> CharacterData -> CharInfo -> CharacterData
-getDOFinal parentData nodeData charInfo =
-   let parentNodeChar = M.getDOMedianCharInfo charInfo parentData nodeData
+getDOFinal :: CharInfo 
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+getDOFinal charInfo parentFinal nodeGapped = 
+   let (a,b,c,_) = M.pairwiseDO charInfo parentFinal nodeGapped
+       parentNodeChar = (a,b,c)
 
        -- put "new" gaps into 2nd and thd gapped fileds of appropriate seqeunce type
-       gappedLeftRightChar = makeGappedLeftRight parentNodeChar nodeData charInfo
+       gappedFinal = makeGappedLeftRight charInfo parentNodeChar nodeGapped 
    in
-   gappedLeftRightChar
+   gappedFinal
+   
 
 -- | makeGappedLeftRight takes an alignment parent charcater and original node character and inserts "new" gaps into nodeCharcater
-makeGappedLeftRight :: CharacterData -> CharacterData -> CharInfo -> CharacterData
-makeGappedLeftRight gappedLeftRight nodeChar charInfo =
+-- makeGappedLeftRight :: CharacterData -> CharacterData -> CharInfo -> CharacterData
+-- makeGappedLeftRight gappedLeftRight nodeChar charInfo =
+makeGappedLeftRight :: CharInfo 
+                    -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+                    -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+                    -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
    let localCharType = charType charInfo
    in
    if localCharType `elem` [SlimSeq, NucSeq] then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (slimGapped gappedLeftRight) (slimGapped nodeChar)
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (fst3 gappedLeftRight) (fst3 nodeChar)
           newFinalGapped = getFinal3WaySlim (slimTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
       in
-      nodeChar {slimFinal = newFinalGapped}
+      ((newFinalGapped, mempty, mempty), mempty, mempty)
 
    else if localCharType `elem` [AminoSeq, WideSeq] then
-      emptyCharacter
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (snd3 gappedLeftRight) (snd3 nodeChar)
+          newFinalGapped = getFinal3WayWideHuge (wideTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      in
+      (mempty, (newFinalGapped, mempty, mempty), mempty)
 
    else if localCharType == HugeSeq then 
-      emptyCharacter
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (thd3 gappedLeftRight) (thd3 nodeChar)
+          newFinalGapped = getFinal3WayWideHuge (hugeTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      in
+      (mempty, mempty, (newFinalGapped, mempty, mempty))
 
    else error ("Unrecognized character type: " ++ (show localCharType))
 

@@ -50,6 +50,7 @@ module GraphOptimization.Medians  ( median2
                                   , addMatrix
                                   , getDOMedian
                                   , getDOMedianCharInfo
+                                  , pairwiseDO
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -269,7 +270,7 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         initialMatrixVector = fmap (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
         initialCostVector = fmap V.minimum $ fmap (fmap fst3) initialMatrixVector
         newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
-        newCharcater = emptyCharacter { matrixStatesPrelim = initialMatrixVector
+        newCharacter = emptyCharacter { matrixStatesPrelim = initialMatrixVector
                                       , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
                                       , globalCost = newCost
                                       }
@@ -277,7 +278,43 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
-        newCharcater
+        newCharacter
+
+-- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of 
+-- DO medians and cost.  This is used in final state assignment
+pairwiseDO :: CharInfo 
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter) 
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter) 
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
+pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = 
+    let thisType = charType charInfo
+        symbolCount = length $ costMatrix charInfo
+    in 
+    if thisType `elem` [SlimSeq,   NucSeq]      then
+        let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
+        in 
+        (r, mempty, mempty, (weight charInfo) * (fromIntegral cost))
+
+    else if thisType `elem` [WideSeq, AminoSeq] then 
+        let coefficient = MR.minInDelCost (wideTCM charInfo)
+            gapState    = bit $ symbolCount - 1
+            (cost, r) = widePairwiseDO coefficient gapState (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
+            
+        in 
+        (mempty, r, mempty, (weight charInfo) * (fromIntegral cost))
+
+    else if thisType `elem` [HugeSeq]           then 
+        let coefficient = MR.minInDelCost (hugeTCM charInfo)
+            gapState    = bit $ symbolCount - 1
+            (cost, r) = hugePairwiseDO coefficient gapState (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
+            
+        in 
+        (mempty, mempty, r, (weight charInfo) * (fromIntegral cost))
+
+    else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+
+
+
 
 -- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
 getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
@@ -309,9 +346,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * (fromIntegral cost)
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
-                -- (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
-                -- (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+                thisSlimTCM -- (slimGapped leftChar) (slimGapped rightChar)
+                (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
+                (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --slimPrelim    = GV.filter (notGapNought gapChar) medians

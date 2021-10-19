@@ -749,15 +749,6 @@ getBestResolutionList checkPopCount inRDList =
             else (fmap LG.mkGraphPair (V.toList bestDisplayList), validMinCost)
             -- )
 
-
-
--- | preOrderSoftWiredTraversal performs preorder pass on post-order soft-wired graph
-preOrderSoftWiredTraversal :: PhylogeneticGraph -> PhylogeneticGraph
-preOrderSoftWiredTraversal inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
-    if LG.isEmpty inDecorated then emptyPhylogeneticGraph
-    else inPGraph
-        
-
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
