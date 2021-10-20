@@ -212,11 +212,11 @@ rerootPhylogeneticNetwork rerootIndex inGraph@(inSimple, _, inDecGraph, blockDis
                     parentIsNetworkNode = (nodeType $ fromJust parentNodeLabel) == NetworkNode
                 in
                 if isNetworkNode || parentIsNetworkNode then 
-                    trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
-                        ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) 
-                    --emptyPhylogeneticGraph
-                     rerootPhylogeneticTree isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
+                    --trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
+                    --    ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) 
+                    rerootPhylogeneticTree isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
                 else rerootPhylogeneticTree False (-1) False (-1) rerootIndex inGraph
+
               
 
 -- | rerootPhylogeneticNetwork' flipped version of rerootPhylogeneticNetwork
@@ -271,7 +271,7 @@ rerootPhylogeneticTree  isNetworkNode originalRootIndex parentIsNetworkNode pare
                                   else fmap (fmap (GO.rerootTree rerootIndex)) blockDisplayForestVV
 
         in
-        trace ("RPT\n" ++ (LG.prettify newSimpleGraph)) (
+        -- trace ("RPT\n" ++ (LG.prettify newSimpleGraph)) (
         if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
         
         -- Same root, so no need to redo
@@ -284,7 +284,7 @@ rerootPhylogeneticTree  isNetworkNode originalRootIndex parentIsNetworkNode pare
           -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
           (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
-          )
+          --)
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 rectifyGraph :: (Show a, Show b, Eq b) => Bool -> Int ->  Bool -> Int -> Int -> LG.Gr a b -> LG.Gr a b 

@@ -228,7 +228,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
    else if isOutDegree1 then 
-      trace ("InOut1 preorder") (
+      -- trace ("InOut1 preorder") (
       if localCharType == Add then 
          -- add logic for pre-order
          let lFinalAssignment = (rangeFinal parentChar)
@@ -264,7 +264,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                    , hugeIAFinal = hugeFinal parentChar}
        
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
-      )
+      -- )
       
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
