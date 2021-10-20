@@ -431,4 +431,6 @@ to render--would have repeated subtrees after network vertex
 173) rename reroot functions to make more sense
 
 174) Abstract rectify graph functions
+	Maybe a tuple with two kinds of graphs and branch WRT node update
 
+	

@@ -273,6 +273,8 @@ emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- pr
                          , globalCost         = 0
                          }
 
+-- | 
+
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
 type TermData = (NameText, [ST.ShortText])
