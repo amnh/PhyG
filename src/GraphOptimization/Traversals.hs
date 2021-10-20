@@ -956,12 +956,13 @@ minimalReRootPhyloGraph localGraphType inGraph nodesToRoot =
     else 
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
-            newGraph = if localGraphType == Tree then PO.rerootPhylogeneticTree' inGraph firstRerootIndex
+            newGraph = if localGraphType == Tree then PO.rerootPhylogeneticTree' False (-1) False (-1) inGraph firstRerootIndex
                        else if localGraphType == SoftWired then PO.rerootPhylogeneticNetwork' inGraph firstRerootIndex
                        else errorWithoutStackTrace ("Grpah type not implemented/recognized: " ++ show localGraphType)
         in
         --trace ("New cost:" ++ show (snd6 newGraph) ++ " vs " ++ (show $ GO.graphCostFromNodes $ thd6 newGraph))
-        newGraph : minimalReRootPhyloGraph localGraphType newGraph nextReroots
+        if fst6 newGraph == LG.empty then minimalReRootPhyloGraph localGraphType newGraph nextReroots
+        else newGraph : minimalReRootPhyloGraph localGraphType newGraph nextReroots
 
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation

@@ -427,3 +427,8 @@ to render--would have repeated subtrees after network vertex
 166) make forest a final set deleting edges?
 
 172) After fix in DO, make IA and DO final states and branch lengths
+
+173) rename reroot functions to make more sense
+
+174) Abstract rectify graph functions
+
