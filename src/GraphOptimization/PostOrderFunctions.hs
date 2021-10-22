@@ -480,7 +480,7 @@ extractDisplayTrees checkPopCount inRBDV =
 -- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
 getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
 getBestResolutionList checkPopCount inRDList =
-    trace ("GBRL: " ++ (show inRDList)) (
+    --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
     else 
         let displayTreeList = fmap displaySubGraph inRDList
@@ -502,7 +502,7 @@ getBestResolutionList checkPopCount inRDList =
             -- trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
             if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ (show inRDList))
             else (fmap LG.mkGraphPair (V.toList bestDisplayList), validMinCost)
-            )
+            -- )
             -- )
 
 
@@ -573,7 +573,7 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, blo
         if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ (show originalRoots) ++ "\n" ++ (LG.prettify inSimple))
 
         -- would produce same root position
-        else if rerootIndex `elem` originalRootChildren then emptyPhylogeneticGraph
+        -- else if rerootIndex `elem` originalRootChildren then inGraph
 
         else if newRootLabel == Nothing then error ("New root has no label: " ++ show rerootIndex) 
 
@@ -619,7 +619,7 @@ rerootPhylogeneticTree' inGS inGraphType isNetworkNode originalRootIndex parentI
 --   NNB only deals with post-order states
 rerootPhylogeneticTree ::  GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
 rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
-  if LG.isEmpty inSimple || LG.isEmpty inDecGraph then error "Empty graph in rerootPhylogeneticGraph"
+  if LG.isEmpty inSimple then inPhyGraph
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else 
     let -- Check for netowrk node reroot which can cause cycle at root
@@ -633,7 +633,7 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
-        (nodesToOptimize, _) = LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
+        (nodesToOptimize, _) = LG.pathToRoot newDecGraph (rerootIndex, fromJust $ LG.lab newDecGraph rerootIndex)
 
         -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
         newDecGraph' = reOptimizeNodes inGS inGraphType charInfoVectVect newDecGraph nodesToOptimize
@@ -651,7 +651,7 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
         if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
         
         -- Same root, so no need to redo
-        else if (length nodesToOptimize == 1) then emptyPhylogeneticGraph
+        -- else if (length nodesToOptimize == 1) then inPhyGraph
         else
           {-
           trace ("To optimize:" ++ (show nodesToOptimize) ++ "\nOG " ++ (show inCost) ++ " :"

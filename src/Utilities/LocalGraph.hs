@@ -88,7 +88,9 @@ hGetDotLocal inFileHandle = GVIO.hGetDot inFileHandle
 
 -- | fglToPrettyString calls prettify from FGL
 fglToPrettyString :: (Show a, Show b) => P.Gr a b -> String
-fglToPrettyString inGraph = G.prettify inGraph
+fglToPrettyString inGraph = 
+    if G.isEmpty inGraph then "Empty Graph"
+    else G.prettify inGraph
 
 -- Wrapper functions for fgl so could swap out later if want to
 
@@ -358,7 +360,9 @@ splitVertexList inGraph =
 
 -- | pretty prints graph to String
 prettify :: (Show a, Show b) => Gr a b -> String
-prettify inGraph = G.prettify inGraph
+prettify inGraph = 
+    if G.isEmpty inGraph then "Empty Graph"
+    else G.prettify inGraph
 
 -- | pathToRoot takes a greaph and a vertex and reurns a pair of lists 
 -- of vertices and edges to root(s) in order of encountering them to root
@@ -383,7 +387,7 @@ pathToRoot' inGraph inNodeList curNodeList curEdgeList =
                 inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
             in
             pathToRoot' inGraph (L.nub $ inLabNodes ++ (tail inNodeList)) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
-
+            
 
     
 
