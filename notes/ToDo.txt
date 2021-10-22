@@ -435,3 +435,7 @@ to render--would have repeated subtrees after network vertex
 
 175) Move softwired traceback to preorder ?
 
+176) Refactor and separate tree and softwired stuff
+	Use old reroot tree functions for tree--stuff is screwed up now for tree
+	
+

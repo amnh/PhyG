@@ -595,7 +595,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph inGS Tree outgroupRootedPhyloGraph grandChildrenOfRoot
 
             minCostRecursive = minimum $ fmap snd6 recursiveRerootList
-            minCostGraphListRecursive = filter ((== minCostRecursive).snd6) recursiveRerootList
+            minCostGraphListRecursive = L.sortOn snd6 recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
@@ -609,14 +609,15 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
         in
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
         --preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
-        -- trace ("Nums:" ++ (show $ length minCostGraphListRecursive) ++ " " ++ (show $ fmap fft6 allPreorderList))
         --preOrderTreeTraversal  (finalAssignment inGS) $ head minCostGraphListRecursive 
         
         -- special cases that don't require all the work
         
+        trace ("Nums:" ++ (show $ length minCostGraphListRecursive) ++ " " ++ (show $ fmap snd6 minCostGraphListRecursive)) (
         if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedPhyloGraph
         else if (nonExactChars == 1) then preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
         else preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
+        )
         
         
 
