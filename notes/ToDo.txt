@@ -433,4 +433,5 @@ to render--would have repeated subtrees after network vertex
 174) Abstract rectify graph functions
 	Maybe a tuple with two kinds of graphs and branch WRT node update
 
-	
+175) Move softwired traceback to preorder ?
+

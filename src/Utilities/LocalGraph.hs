@@ -54,6 +54,7 @@ import           System.IO
 import GeneralUtilities
 import Data.Maybe
 import Debug.Trace
+import qualified Data.List as L
 
 
 
@@ -360,11 +361,31 @@ prettify :: (Show a, Show b) => Gr a b -> String
 prettify inGraph = G.prettify inGraph
 
 -- | pathToRoot takes a greaph and a vertex and reurns a pair of lists 
--- of vertices and edges to root(s)
-pathToRoot :: (Eq a, Show a) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
+-- of vertices and edges to root(s) in order of encountering them to root
+-- if a tree--not necessrily if network
+pathToRoot :: (Eq a, Eq b, Show a) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
 pathToRoot inGraph inNode =
     if G.isEmpty inGraph then error "Empty graph in pathToRoot"
-    else nodesAndEdgesBefore inGraph ([],[]) [inNode]
+    else pathToRoot' inGraph [inNode] [] [] 
+
+-- | pathToRoot with accumulators
+pathToRoot' :: (Eq a, Eq b) => Gr a b -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
+pathToRoot' inGraph inNodeList curNodeList curEdgeList = 
+    if null inNodeList then (L.nub $ reverse curNodeList, L.nub $ reverse curEdgeList)
+    else 
+        let inNode = head inNodeList
+        in
+        -- root would already be inlist of nodes visited
+        if isRoot inGraph (fst inNode) then pathToRoot' inGraph (tail inNodeList) curNodeList curEdgeList 
+        else 
+            let inLEdges = inn inGraph (fst inNode)
+                inNodes = fmap fst3 inLEdges
+                inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
+            in
+            pathToRoot' inGraph (L.nub $ inLabNodes ++ (tail inNodeList)) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
+
+
+    
 
 -- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
 -- and edges 'before' in the sense of leading to--ie between root and

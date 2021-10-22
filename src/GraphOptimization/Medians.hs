@@ -348,9 +348,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * (fromIntegral cost)
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
-                --(slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
-                --(slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+                thisSlimTCM -- (slimGapped leftChar) (slimGapped rightChar)
+                (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
+                (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --slimPrelim    = GV.filter (notGapNought gapChar) medians

@@ -434,7 +434,7 @@ convertDecoratedToSimpleGraph inDec =
         decEdgeList = LG.labEdges inDec
         sourceList = fmap fst3 decEdgeList
         sinkList = fmap snd3 decEdgeList
-        newEdgeLables = fmap midRangeLength $ fmap thd3 decEdgeList
+        newEdgeLables = replicate (length sourceList) 0.0  -- fmap midRangeLength $ fmap thd3 decEdgeList
         simpleEdgeList = zip3 sourceList sinkList newEdgeLables
     in
     LG.mkGraph simpleNodes simpleEdgeList
