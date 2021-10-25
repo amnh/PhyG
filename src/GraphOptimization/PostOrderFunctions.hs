@@ -684,7 +684,10 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
           if inGraphType == Tree then (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
           else
             -- get root resolutions and cost
-            let (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
+            let (displayGraphVL, lDisplayCost) = if (LG.lab newDecGraph' originalRootIndex /= Nothing) then extractDisplayTrees True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
+                                                 else 
+                                                    trace ("Reroot oddness :" ++ (show $ fmap fst $ LG.getRoots newDecGraph') ++ "\n" ++ (LG.prettify newSimpleGraph))
+                                                    extractDisplayTrees True (vertexResolutionData $ snd $ head $ LG.getRoots newDecGraph')
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
           -- )
