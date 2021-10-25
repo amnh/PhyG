@@ -72,18 +72,16 @@ import Debug.Trace
 
 -- | updateDisplayTreesAndCost takes a softwired graph and updates
 -- display trees and graph cost based on resolutions at root
-updateDisplayTreesAndCost :: Int -> PhylogeneticGraph -> PhylogeneticGraph
-updateDisplayTreesAndCost outgroupRootIndex inGraph =
+updateDisplayTreesAndCost :: PhylogeneticGraph -> PhylogeneticGraph
+updateDisplayTreesAndCost inGraph =
     if LG.isEmpty $ thd6 inGraph then emptyPhylogeneticGraph
     else 
         -- True for check popCount at root fort valid resolution (all leaves in graph)
-        let (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData $ fromJust $ LG.lab (thd6 inGraph) outgroupRootIndex)
+        let (outgroupRootIndex, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
+            (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData outgroupRootLabel)
         in
-        trace ("UDTC")
+        trace ("UDTC: " ++ (show lDisplayCost))
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
-
-
-
 
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
 -- them based on children in input graph
@@ -92,7 +90,7 @@ updateDisplayTreesAndCost outgroupRootIndex inGraph =
 -- check for out-degree 1, doesn't matter for trees however.
 reOptimizeNodes :: GlobalSettings -> GraphType -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
 reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
-  trace ("RON:" ++ (show $ fmap fst oldNodeList)) (
+  -- trace ("RON:" ++ (show $ fmap fst oldNodeList)) (
   if null oldNodeList then inGraph
   else
     -- make sure that nodes are optimized in correct order so that nodes are only reoptimized using updated children
@@ -107,7 +105,7 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
 
     -- somehow root before others  
     else if (LG.isRoot inGraph curNodeIndex) && length oldNodeList > 1 then
-        error ("Root first :" ++ (show oldNodeList) ++ "RC " ++ (show $ LG.descendants inGraph curNodeIndex) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+        error ("Root first :" ++ (show oldNodeList) ++ "RC " ++ (show $ LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
         --reOptimizeNodes inGS localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
  
     else
@@ -204,13 +202,13 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
 
                     leftEdge =  (curNodeIndex, leftChild', edgeLable {edgeType = leftEdgeType})
                     rightEdge = (curNodeIndex, rightChild', edgeLable {edgeType = rightEdgeType})
-                    newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNodeIndex, newVertexLabel) inGraph 
+                    newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph 
                 in
                 reOptimizeNodes inGS localGraphType charInfoVectVect newGraph (tail oldNodeList)    
             
 
         else  errorWithoutStackTrace ("Graph type unrecognized/not yet implemented: " ++ show localGraphType)
-        )
+        -- )
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
@@ -501,9 +499,26 @@ getBestResolutionList checkPopCount inRDList =
             in
             -- trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
             if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ (show inRDList))
-            else (fmap LG.mkGraphPair (V.toList bestDisplayList), validMinCost)
+            else 
+                let displayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
+                    -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 
+                in
+                (displayTreeList, validMinCost)
             -- )
+    
             -- )
+-- | updateRootCost updates the subGraphCost of the root node(s) with input value
+-- new node is created, so original is deleted, new added, and original edges added back
+-- since deleted when node is
+-- assumes its a tree wiht a single root
+updateRootCost :: VertexCost -> BlockDisplayForest -> BlockDisplayForest
+updateRootCost newRootCost inGraph = 
+    let (rootIndex, rootLabel) = head $ LG.getRoots inGraph
+        rootEdges = LG.out inGraph rootIndex
+        newRootLabel = rootLabel {subGraphCost = newRootCost}
+    in
+    trace ("DCC: " ++ (show newRootCost))
+    LG.insEdges rootEdges $ LG.insNode (rootIndex, newRootLabel) $ LG.delNode rootIndex inGraph
 
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
@@ -570,7 +585,7 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, blo
         in
 
         -- sanity check on graph
-        if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ (show originalRoots) ++ "\n" ++ (LG.prettify inSimple))
+        if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ (show originalRoots))--  ++ "\n" ++ (LG.prettify inSimple))
 
         -- would produce same root position
         -- else if rerootIndex `elem` originalRootChildren then inGraph
@@ -586,10 +601,11 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, blo
                 let isNetworkNode = (nodeType $ fromJust newRootLabel) == NetworkNode 
                     parentIsNetworkNode = (nodeType $ fromJust parentNodeLabel) == NetworkNode
                 in
-                if isNetworkNode || parentIsNetworkNode then 
+                if (isNetworkNode || parentIsNetworkNode) then -- (isNetworkNode || parentIsNetworkNode)
+                    inGraph
                     --trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
                     --    ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) 
-                    rerootPhylogeneticTree inGS SoftWired isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
+                    -- rerootPhylogeneticTree inGS SoftWired isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
                 else rerootPhylogeneticTree inGS SoftWired False (-1) False (-1) rerootIndex inGraph
 
               
@@ -642,8 +658,7 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
                                else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
 
         -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
-        (a,_,c,d) = LG.splitVertexList newDecGraph
-        newDecGraph' = reOptimizeNodes inGS inGraphType charInfoVectVect newDecGraph (a ++ c ++ d) -- (L.nub $ nodesToOptimize ++ touchedNodes)
+        newDecGraph' = reOptimizeNodes inGS inGraphType charInfoVectVect newDecGraph (L.nub $ nodesToOptimize ++ touchedNodes)
 
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
@@ -654,7 +669,7 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
                                   else fmap (fmap (rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex)) blockDisplayForestVV
 
         in
-        trace ("NTO: " ++ (show $ fmap fst nodesToOptimize)) (
+        -- trace ("NTO: " ++ (show $ fmap fst nodesToOptimize)) (
         if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
         
         -- Same root, so no need to redo
@@ -672,7 +687,7 @@ rerootPhylogeneticTree  inGS inGraphType isNetworkNode originalRootIndex parentI
             let (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
-          )
+          -- )
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 -- bnasicall at root and network edge originally 'to' network edge
