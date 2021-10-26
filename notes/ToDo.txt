@@ -437,5 +437,8 @@ to render--would have repeated subtrees after network vertex
 
 176) Refactor and separate tree and softwired stuff
 	Use old reroot tree functions for tree--stuff is screwed up now for tree
-	
+
+177) remove calls to getRoots  must be O(n)
+
+
 

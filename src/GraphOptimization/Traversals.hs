@@ -268,7 +268,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
-                    resolutionBlockVL = fmap (PO.createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType) $  V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
+                    resolutionBlockVL = V.zipWith3 (PO.createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
                 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -631,7 +631,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph inGS Tree outgroupRootedPhyloGraph grandChildrenOfRoot
 
-            minCostGraphListRecursive = L.sortOn snd6 recursiveRerootList
+            minCostGraphListRecursive = trace ("Sorting") L.sortOn snd6 recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
@@ -735,10 +735,10 @@ minimalReRootPhyloGraph inGS localGraphType inGraph nodesToRoot =
                        else if localGraphType == SoftWired then PO.rerootPhylogeneticNetwork' inGS inGraph firstRerootIndex
                        else errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show localGraphType)
         in
-        -- trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
+        trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
         if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS localGraphType inGraph nextReroots
         else newGraph : minimalReRootPhyloGraph inGS localGraphType newGraph nextReroots
-        -- ))
+        ) -- )
 
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
