@@ -217,37 +217,37 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
 outputBlockTrees :: [String] -> Int -> (String , V.Vector [BlockDisplayForest]) -> String
-outputBlockTrees commandList outgroupIndex (labelString, graphLV) = 
+outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) = 
     let blockIndexStringList = fmap (++ "\n") $ fmap ("Block " ++) $ fmap show [0..((V.length graphLV) - 1)]
-        blockStrings = concat $ fmap (++ "\n") $ fmap (makeBlockGraphStrings commandList outgroupIndex ) $ zip blockIndexStringList (V.toList graphLV)
+        blockStrings = concat $ fmap (++ "\n") $ fmap (makeBlockGraphStrings commandList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV)
     in
     labelString ++ blockStrings
 
 -- | makeBlockGraphStrings makes individual block display trees--potentially multiple
 makeBlockGraphStrings :: [String] -> Int -> (String ,[BlockDisplayForest]) -> String
-makeBlockGraphStrings commandList outgroupIndex (labelString, graphL) =
+makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
     let diplayIndexString =("Display Tree(s): " ++ (show $ length graphL) ++ "\n")
-        displayString = (++ "\n") $ outputDisplayString commandList outgroupIndex graphL
+        displayString = (++ "\n") $ outputDisplayString commandList lOutgroupIndex graphL
     in
     labelString ++ diplayIndexString ++ displayString
 
 -- | outputDisplayString is a wrapper around graph output functions--but without cost list
 outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String 
-outputDisplayString commandList outgroupIndex graphList =
-  if "dot" `elem` commandList then makeDotList outgroupIndex graphList
-  else if "newick" `elem` commandList then makeNewickList outgroupIndex graphList (replicate (length graphList) 0.0)
-  else if "ascii" `elem` commandList then makeAsciiList outgroupIndex graphList
+outputDisplayString commandList lOutgroupIndex graphList =
+  if "dot" `elem` commandList then makeDotList lOutgroupIndex graphList
+  else if "newick" `elem` commandList then makeNewickList lOutgroupIndex graphList (replicate (length graphList) 0.0)
+  else if "ascii" `elem` commandList then makeAsciiList lOutgroupIndex graphList
   else -- "dot" as default
-    makeDotList outgroupIndex graphList
+    makeDotList lOutgroupIndex graphList
 
 -- | outputGraphString is a wrapper arounf graph output functions
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String 
-outputGraphString commandList outgroupIndex graphList costList =
-  if "dot" `elem` commandList then makeDotList outgroupIndex graphList
-  else if "newick" `elem` commandList then makeNewickList outgroupIndex graphList costList
-  else if "ascii" `elem` commandList then makeAsciiList outgroupIndex graphList
+outputGraphString commandList lOutgroupIndex graphList costList =
+  if "dot" `elem` commandList then makeDotList lOutgroupIndex graphList
+  else if "newick" `elem` commandList then makeNewickList lOutgroupIndex graphList costList
+  else if "ascii" `elem` commandList then makeAsciiList lOutgroupIndex graphList
   else -- "dot" as default
-    makeDotList outgroupIndex graphList
+    makeDotList lOutgroupIndex graphList
 
 -- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s

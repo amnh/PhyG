@@ -114,9 +114,7 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph inGS SoftWired outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
 
-            costSortedRerootList = L.sortOn snd6 recursiveRerootList
-
-            finalizedPostOrderGraphList = fmap updateAndFinalizePreorderSoftWired costSortedRerootList
+            finalizedPostOrderGraphList = L.sortOn snd6 $ fmap updateAndFinalizePreorderSoftWired recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
@@ -132,14 +130,14 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
         --  2) back proppagate resolutions to vertex info
         --  3) update display/character trees
         -- Preorder on updated post-order graph 
-        trace ("CSRL: " ++ (show $ fmap snd6 costSortedRerootList)) (
+        trace ("CSRL: " ++ (show $ fmap snd6 finalizedPostOrderGraphList)) (
 
         if nonExactChars == 0 then preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
         else 
 
             -- single dynamic character
             if (nonExactChars == 1) then 
-                let updatedPreorderGraph = updateAndFinalizePreorderSoftWired $ head costSortedRerootList
+                let updatedPreorderGraph = updateAndFinalizePreorderSoftWired $ head finalizedPostOrderGraphList
                 in
                 preOrderTreeTraversal (finalAssignment inGS) True updatedPreorderGraph
 
@@ -631,13 +629,14 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph inGS Tree outgroupRootedPhyloGraph grandChildrenOfRoot
 
-            minCostGraphListRecursive = trace ("Sorting") L.sortOn snd6 recursiveRerootList
+            minCostGraphListRecursive = L.sortOn snd6 recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
             -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
             -- are propagated to the Decorated graph field after the preorder pass.
-            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment recursiveRerootList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+            -- sorting may help with assignments (fewer)
+            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment minCostGraphListRecursive -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
             -- this for debuggin purposes
             --allPreorderList = fmap (preOrderTreeTraversal (finalAssignment inGS)) recursiveRerootList
@@ -679,7 +678,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
 -- unclear how hardwired will be affected
 setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
 setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
-    trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
+    -- trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else 
@@ -689,7 +688,7 @@ setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTrav
          --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ") ->" ++ (show $ V.sum costVector) ++ " nt:" ++ (show $ length fTraversal)
          --   ++ "length blocks " ++ (show $ fmap length fTraversal))
         (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
-        )
+        -- )
         
 -- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each 
 -- character.  This can be a single sequence or series of exact characters
@@ -698,7 +697,7 @@ makeBetterBlock :: V.Vector DecoratedGraph -> V.Vector DecoratedGraph -> ((V.Vec
 makeBetterBlock firstBlockGraphVect secondBlockGraphVect = 
     let (mergedCharacterVect, costVector) = V.unzip $ V.zipWith chooseBetterCharacter firstBlockGraphVect secondBlockGraphVect
     in
-    trace ("MBB: " ++ (show $ (length  firstBlockGraphVect, length firstBlockGraphVect)))
+    -- trace ("MBB: " ++ (show $ (length  firstBlockGraphVect, length firstBlockGraphVect)))
     (mergedCharacterVect, V.sum costVector)
 
 -- | chooseBetterCharacter takes a pair of character decorated graphs and chooses teh "better" one as in lower cost, or non-zero cost
@@ -712,12 +711,12 @@ chooseBetterCharacter firstGraph secondGraph =
         let firstGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots firstGraph
             secondGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots secondGraph
         in
-        trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
+        -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
         if firstGraphCost == 0 then (secondGraph, secondGraphCost) 
         else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
         else if secondGraphCost < firstGraphCost then (secondGraph, secondGraphCost)
         else (firstGraph, firstGraphCost)
-        )
+        -- )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully
@@ -735,10 +734,10 @@ minimalReRootPhyloGraph inGS localGraphType inGraph nodesToRoot =
                        else if localGraphType == SoftWired then PO.rerootPhylogeneticNetwork' inGS inGraph firstRerootIndex
                        else errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show localGraphType)
         in
-        trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
+        -- trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
         if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS localGraphType inGraph nextReroots
         else newGraph : minimalReRootPhyloGraph inGS localGraphType newGraph nextReroots
-        ) -- )
+        -- ) -- )
 
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
