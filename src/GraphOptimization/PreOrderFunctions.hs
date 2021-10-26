@@ -45,6 +45,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , get2WayWideHuge
                                             , getFinal3WaySlim
                                             , getFinal3WayWideHuge
+                                            , preOrderTreeTraversal
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -63,7 +64,637 @@ import Data.Bits
 import qualified Data.Vector.Storable         as SV
 import           Foreign.C.Types             (CUInt)
 import qualified GraphOptimization.Medians as M
+import qualified Utilities.LocalGraph as LG
+import qualified SymMatrix                   as S
+import           Data.Word
 
+
+-- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
+-- and returns a full labels with 'final' assignments based on character decorated graphs
+-- created postorder (5th of 6 fields).  
+-- the preorder states are creted by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
+-- these are by block and character,  Exact charcaters are vectors of standard characters and each seqeunce (non-exact) 
+-- has its own traversal graph. These should be treees here (could be forests later) and should all have same root (number taxa)
+-- but worth checking to make sure.
+-- these were creted by "splitting" them after preorder 
+
+-- For sequence charcaters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
+-- if DO--then does a  median between parent andchgaps wherre needed--then  doing a 3way state assignmeent filteringgaps out
+-- if IA--then a separate post and preorder pass are donne on the slim/wide/huge/AI fields to crete full IA assignments 
+-- that are then filtered of gaps and assigned to th efinal fields
+
+-- The final states are propagated back to the second field
+-- DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
+-- ie postorder--since those are traversal specific
+-- the character specific decorated graphs have appropriate post and pre-order assignments
+-- the traversal begins at the root (for a tree) and proceeds to leaves.
+preOrderTreeTraversal :: AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) = 
+    --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
+    if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
+    else 
+        -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
+        -- mapped recursive call over blkocks, later characters
+        let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
+
+            -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
+            preOrderBlockVect' = if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments preOrderBlockVect inCharInfoVV
+                                else preOrderBlockVect    
+
+            fullyDecoratedGraph = assignPreorderStatesAndEdges finalMethod preOrderBlockVect' inCharInfoVV inDecorated 
+        in
+        {-
+        let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
+            blockPre = GO.showDecGraphs preOrderBlockVect
+        in
+        trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+        -}
+        (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+        -- )
+        
+-- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
+-- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
+makeIAAssignments :: V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+makeIAAssignments preOrderBlock inCharInfoV = V.zipWith makeCharacterIA preOrderBlock inCharInfoV
+
+-- | makeCharacterIA takes an individual character postorder tree and if non-exact perform post and preorder IA passes
+-- and assignment to final field in slim/wide/huge
+makeCharacterIA :: DecoratedGraph -> CharInfo -> DecoratedGraph
+makeCharacterIA inGraph charInfo = 
+    if (charType charInfo) `notElem` nonExactCharacterTypes then inGraph
+    else 
+        let postOrderIATree = postOrderIA inGraph charInfo (LG.getRoots inGraph)
+            preOrderIATree = preOrderIA postOrderIATree charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
+        in
+        -- trace ("MCIA roots:" ++ (show $ LG.getRoots postOrderIATree) ++ "\n" ++ (show $ LG.edges postOrderIATree))
+        preOrderIATree
+
+-- | postOrderIA performs a post-order IA pass assigning leaf preliminary states
+-- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
+-- matrix
+postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
+postOrderIA inGraph charInfo inNodeList  =
+    if null inNodeList then inGraph
+    else 
+        let inNode@(nodeIndex, nodeLabel) = head inNodeList
+            (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
+            characterType = charType charInfo
+            symbols = length $ costMatrix charInfo
+            inCharacter = V.head $ V.head $ vertData nodeLabel
+            inCharacter' = inCharacter
+        in
+
+        -- trace ("POIA Node: " ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show  $ fmap fst inNodeList)) (
+        -- checking sanity of data
+        if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
+        
+        -- leaf take assignment from alignment field
+        else if (nodeType nodeLabel)  == LeafNode then
+            let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                    inCharacter { slimIAPrelim = slimAlignment inCharacter'
+                                                , slimIAFinal = fst3 $ slimAlignment inCharacter'
+                                                , slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                }
+                               else if characterType `elem` [WideSeq, AminoSeq] then 
+                                    inCharacter { wideIAPrelim = wideAlignment inCharacter'
+                                                , wideIAFinal = fst3 $ wideAlignment inCharacter'
+                                                , wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                }
+                               else if characterType == HugeSeq then 
+                                    inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
+                                                , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
+                                                , hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                }
+                               else error ("Unrecognized character type " ++ (show characterType))
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+            in
+            postOrderIA newGraph charInfo (tail inNodeList)
+
+        -- HTU take create assignment from children
+        else 
+            let childNodes = LG.labDescendants inGraph inNode
+                childTree = postOrderIA inGraph charInfo childNodes
+            in
+            --trace ("Children: " ++ (show  $ fmap fst childNodes)) (
+            
+            if length childNodes > 2 then error ("Too many children in postOrderIA: " ++ (show $ length childNodes))
+
+            -- in 1 out 1 vertex
+            else if length childNodes == 1 then
+                let childIndex = fst $ head childNodes
+                    childLabel = fromJust $ LG.lab childTree childIndex
+                    childCharacter = V.head $ V.head $ vertData childLabel 
+                in
+                -- sanity checks
+                if LG.lab childTree (fst $ head childNodes) == Nothing then error ("No label for node: " ++ (show $ fst $ head childNodes))
+                else if V.null $ vertData childLabel then error "Null vertData in postOrderIA"
+                else if V.null $ V.head $ vertData childLabel then error "Null vertData data in postOrderIA"
+                else 
+                    let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
+                        newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                    in
+                    postOrderIA newGraph charInfo (tail inNodeList)
+
+            -- two children 
+            else 
+                let childIndices = fmap fst childNodes
+                    childlabels = fmap fromJust $ fmap (LG.lab childTree) childIndices
+                    childCharacters = fmap vertData childlabels
+                    leftChar = V.head $ V.head $ head childCharacters
+                    rightChar = V.head $ V.head $ last childCharacters
+                    newCharacter = makeIAPrelimCharacter charInfo inCharacter leftChar rightChar
+                    newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                in
+                postOrderIA newGraph charInfo (tail inNodeList)
+            -- )
+    -- )
+
+-- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
+     let characterType = charType charInfo
+         symbols = (length $ costMatrix charInfo)
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then 
+        let prelimChar = get2WaySlim (slimTCM charInfo) symbols (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+        in
+        nodeChar {slimIAPrelim = (prelimChar,  fst3 $ slimIAPrelim leftChar, fst3 $ slimIAPrelim rightChar)}
+     else if characterType `elem` [WideSeq, AminoSeq] then 
+        let prelimChar = get2WayWideHuge (wideTCM charInfo) symbols (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+        in
+        nodeChar {wideIAPrelim = (prelimChar, fst3 $ wideIAPrelim leftChar, fst3 $ wideIAPrelim rightChar)}
+     else if characterType == HugeSeq then 
+        let prelimChar = get2WayWideHuge (hugeTCM charInfo) symbols (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+        in
+        nodeChar {hugeIAPrelim = (prelimChar, fst3 $ hugeIAPrelim leftChar, fst3 $ hugeIAPrelim rightChar)}
+     else error ("Unrecognized character type " ++ (show characterType))
+
+-- | makeIAFinalharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+makeIAFinalCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
+     let characterType = charType charInfo
+         symbols = (length $ costMatrix charInfo)
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then 
+        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) symbols (slimIAFinal parentChar) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+            finalChar =  M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { slimIAFinal = finalIAChar
+                 , slimFinal = finalChar 
+                 }
+     else if characterType `elem` [WideSeq, AminoSeq] then 
+        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) symbols  (wideIAFinal parentChar) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+            finalChar = M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { wideIAFinal = finalIAChar
+                 , wideFinal = finalChar
+                 }
+     else if characterType == HugeSeq then 
+        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) symbols  (hugeIAFinal parentChar) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+            finalChar = M.createUngappedMedianSequence symbols $ (finalIAChar, finalIAChar, finalIAChar)
+        in
+        nodeChar { hugeIAFinal = finalIAChar
+                 , hugeFinal = finalChar
+                 }
+     else error ("Unrecognized character type " ++ (show characterType))
+
+
+
+-- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
+-- the "final" fields are also set by filtering out gaps and 0.
+preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
+preOrderIA inGraph charInfo inNodePairList = 
+    if null inNodePairList then inGraph
+    else 
+        let (inNode@(nodeIndex, nodeLabel), (_, parentNodeLabel)) = head inNodePairList
+            (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
+            characterType = charType charInfo
+            symbols = (length $ costMatrix charInfo)
+            inCharacter = V.head $ V.head $ vertData nodeLabel
+            inCharacter' = inCharacter
+            parentCharacter = V.head $ V.head $ vertData parentNodeLabel
+            childNodes = LG.labDescendants inGraph inNode
+        in
+        --trace ("PreIA Node:" ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show (fmap fst $ fmap fst inNodePairList,fmap fst $ fmap snd inNodePairList))) (
+        -- checking sanity of data
+        if V.null $ vertData nodeLabel then error "Null vertData in preOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in preOrderIA"
+        else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ (show $ length childNodes))
+
+        -- leaf done in post-order
+        else if (nodeType nodeLabel) == LeafNode then preOrderIA inGraph charInfo (tail inNodePairList)
+
+        else if (nodeType nodeLabel) == RootNode then 
+            let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                    inCharacter { slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                                , slimIAFinal = fst3 $ slimAlignment inCharacter'
+                                                }
+                               else if characterType `elem` [WideSeq, AminoSeq] then 
+                                    inCharacter { wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                                , wideIAFinal = fst3 $ wideAlignment inCharacter'
+                                                }
+                               else if characterType == HugeSeq then 
+                                    inCharacter { hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                                , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
+                                                }
+                               else error ("Unrecognized character type " ++ (show characterType))
+
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+            in
+            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parentNodeList))
+
+        -- single child, take parent final assignments, but keep postorder assignments    
+        else if length childNodes == 1 then 
+                let newCharacter = if characterType `elem` [SlimSeq, NucSeq] then 
+                                      inCharacter { slimFinal = slimFinal parentCharacter
+                                                  , slimIAFinal = slimIAFinal parentCharacter
+                                                  }
+                                   else if characterType `elem` [WideSeq, AminoSeq] then 
+                                      inCharacter { wideFinal = wideFinal parentCharacter
+                                                  , wideIAFinal = wideIAFinal parentCharacter
+                                                  }
+                                   else if characterType == HugeSeq then 
+                                      inCharacter { hugeFinal = hugeFinal parentCharacter
+                                                  , hugeIAFinal = hugeIAFinal parentCharacter
+                                                  }
+                                   else error ("Unrecognized character type " ++ (show characterType))
+
+                    newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
+                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                    parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+                in 
+                preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList))
+
+        -- 2 children, make 3-way 
+        else 
+            let childLabels = fmap snd childNodes
+                leftChar = V.head $ V.head $ vertData $ head childLabels
+                rightChar = V.head $ V.head $ vertData $ last childLabels
+                finalCharacter = makeIAFinalCharacter charInfo inCharacter parentCharacter leftChar rightChar 
+
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+            in 
+            preOrderIA newGraph charInfo ((tail inNodePairList) ++ (zip childNodes parenNodeList)) 
+            
+        -- )
+
+-- | doBlockTraversal takes a block of postorder decorated character trees character info  
+-- could be moved up preOrderTreeTraversal, but like this for legibility
+doBlockTraversal :: AssignmentMethod -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversal finalMethod inCharInfoV traversalDecoratedVect =
+    --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
+    V.zipWith (doCharacterTraversal finalMethod) inCharInfoV traversalDecoratedVect
+
+-- | doCharacterTraversal performs preorder traversal on single character tree
+-- with single charInfo
+-- this so each character can be independently "rooted" for optimal traversals.
+doCharacterTraversal :: AssignmentMethod -> CharInfo -> DecoratedGraph -> DecoratedGraph 
+doCharacterTraversal finalMethod inCharInfo inGraph =
+    -- find root--index should = number of leaves 
+    --trace ("charT:" ++ (show $ charType inCharInfo)) (
+    let rootVertexList = LG.getRoots inGraph
+        (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
+        rootIndex = fst $ head rootVertexList
+        inEdgeList = LG.labEdges inGraph
+    in
+    -- remove these two lines if working
+    if length rootVertexList /= 1 then error ("Root number not = 1 in doCharacterTraversal" ++ show (rootVertexList))
+    else if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length rootVertexList))
+    else 
+        -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
+        let rootLabel = snd $ head rootVertexList
+            rootFinalVertData = createFinalAssignmentOverBlocks finalMethod RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
+            rootChildren =LG.labDescendants inGraph (head rootVertexList)
+
+            -- left / right to match post-order
+            rootChildrenBV = fmap bvLabel $ fmap snd rootChildren
+            rootChildrenIsLeft = if length rootChildrenBV == 1 then [True]
+                                 else if (rootChildrenBV !! 0) > (rootChildrenBV !! 1) then [False, True]
+                                 else [True, False]
+            newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
+            rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
+            upDatedNodes = makeFinalAndChildren finalMethod inGraph rootChildrenPairs [newRootNode] inCharInfo
+        in
+        -- hope this is the most efficient way since all nodes have been remade
+        -- trace (U.prettyPrintVertexInfo $ snd newRootNode)
+        LG.mkGraph upDatedNodes inEdgeList
+        --)
+
+-- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a liss of updated nodes
+-- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
+-- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
+makeFinalAndChildren :: AssignmentMethod 
+                     -> DecoratedGraph 
+                     -> [(LG.LNode VertexInfo, LG.LNode VertexInfo, Bool)] 
+                     -> [LG.LNode VertexInfo] 
+                     -> CharInfo 
+                     -> [LG.LNode VertexInfo]
+makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
+    --trace ("mFAC:" ++ (show $ charType inCharInfo)) (
+    if null nodesToUpdate then updatedNodes
+    else 
+        let (firstNode, firstParent, isLeft) = head nodesToUpdate
+            firstLabel = snd firstNode
+            firstNodeType = nodeType firstLabel
+            firstVertData = vertData firstLabel
+            firstParentVertData = vertData $ snd firstParent
+            firstChildren = LG.labDescendants inGraph firstNode
+            
+            -- this OK with one or two children
+            firstChildrenBV = fmap bvLabel $ fmap snd firstChildren
+            firstChildrenIsLeft = if length firstChildrenBV == 1 then [True]
+                                  else if (firstChildrenBV !! 0) > (firstChildrenBV !! 1) then [False, True]
+                                  else [True, False]
+            firstFinalVertData = createFinalAssignmentOverBlocks finalMethod firstNodeType firstVertData firstParentVertData inCharInfo isLeft (length firstChildren == 1)
+            newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
+            childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
+        in
+        -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
+        makeFinalAndChildren finalMethod inGraph (childrenPairs ++ (tail nodesToUpdate)) (newFirstNode : updatedNodes) inCharInfo
+        --)
+
+-- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 
+-- preorder character states from individual character trees.  Exact characters (Add, nonAdd, matrix) postorder
+-- states should be based on the outgroup rooted tree.  
+-- root should be median of finals of two descendets--for non-exact based on final 'alignments' field with gaps filtered
+-- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
+-- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
+-- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
+assignPreorderStatesAndEdges :: AssignmentMethod -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges finalMethd preOrderBlockTreeVV inCharInfoVV inGraph =
+    --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
+    if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
+    else 
+        -- trace ("In assign") (
+        let postOrderNodes = LG.labNodes inGraph
+            postOrderEdgeList = LG.labEdges inGraph
+
+            -- update node labels
+            newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
+            
+            -- update edge labels
+            newEdgeList = fmap (updateEdgeInfo finalMethd inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
+        in
+        -- make new graph
+        -- LG.mkGraph newNodeList' newEdgeList
+        LG.mkGraph newNodeList newEdgeList
+        --)
+
+-- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
+-- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.
+-- but that so can use incremental optimizaytion on base decorated graph in other areas.
+updateNodeWithPreorder :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
+    let nodeLabel = snd postOrderNode
+        nodeVertData = vertData nodeLabel
+        newNodeVertData = V.zipWith3 (updateVertexBlock (fst postOrderNode)) preOrderBlockTreeVV nodeVertData inCharInfoVV 
+    in
+    (fst postOrderNode, nodeLabel {vertData = newNodeVertData})
+
+-- | updateVertexBlock takes a block of vertex data and updates preorder states of charactes via fmap
+updateVertexBlock :: Int -> V.Vector DecoratedGraph -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData 
+updateVertexBlock nodeIndex blockTraversalTreeV nodeCharacterDataV charInfoV =
+    V.zipWith3 (updatePreorderCharacter nodeIndex) blockTraversalTreeV nodeCharacterDataV charInfoV
+
+-- | updatePreorderCharacter updates the pre-order fields of character data for a vertex from a traversal
+-- since there is single character optimized for each character decorated graph-- it is always teh 0th 0th character
+-- exact are vectors so take care of multiple there.
+-- need to care for issues of missing data
+updatePreorderCharacter :: Int -> DecoratedGraph -> CharacterData -> CharInfo -> CharacterData 
+updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
+    --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
+    let maybePreOrderNodeLabel = LG.lab preOrderTree nodeIndex
+        preOrderVertData = vertData $ fromJust maybePreOrderNodeLabel
+        preOrderCharacterData = if V.null preOrderVertData then emptyCharacter
+                                else if V.null $ V.head preOrderVertData then emptyCharacter
+                                else V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
+                                
+    in
+    if maybePreOrderNodeLabel == Nothing then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
+    else
+        updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo) 
+    --)
+
+-- | updateCharacter takes a postorder character and updates the preorder (final) fields with preorder data and character type
+-- only updating preorder assignment--except for root, that is needed to draw final state for brnach lengths
+updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
+updateCharacter postOrderCharacter preOrderCharacter localCharType  =
+    if localCharType == Add then
+        postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
+    
+    else if localCharType == NonAdd then
+        postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
+    
+    else if localCharType == Matrix then
+        postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
+    
+    else if (localCharType == SlimSeq || localCharType == NucSeq) then
+        postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
+                           , slimFinal = slimFinal preOrderCharacter
+                           , slimIAFinal = slimIAFinal preOrderCharacter
+                       }
+    
+    else if (localCharType == WideSeq || localCharType == AminoSeq) then
+        postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
+                           , wideFinal = wideFinal preOrderCharacter
+                           , wideIAFinal = wideIAFinal preOrderCharacter
+                           }
+
+    else if localCharType == HugeSeq then
+        postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
+                           , hugeFinal = hugeFinal preOrderCharacter
+                           , hugeIAFinal = hugeIAFinal preOrderCharacter
+                           }
+
+    else error ("Character type unimplemented : " ++ show localCharType)
+
+
+-- | updateEdgeInfo takes a Decorated graph--fully labelled post and preorder and and edge and 
+-- gets edge info--basically lengths
+updateEdgeInfo :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo 
+updateEdgeInfo finalMethod inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
+    if V.null nodeVector then error "Empty node list in updateEdgeInfo"
+    else 
+        let (minW, maxW) = getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode)
+            midW = (minW + maxW) / 2.0
+            localEdgeType = edgeType edgeLabel
+            newEdgeLabel = EdgeInfo { minLength = minW
+                                    , maxLength = maxW
+                                    , midRangeLength = midW
+                                    , edgeType  = localEdgeType
+                                    }
+        in
+        (uNode, vNode, newEdgeLabel)
+        
+-- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
+-- basically a min/max distance between the two
+getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
+getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) = 
+    if V.null nodeVector then error "Empty node list in getEdgeWeight"
+    else 
+        let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
+            vNodeInfo = vertData $ snd $ nodeVector V.! vNode
+            blockCostPairs = V.zipWith3 (getBlockCostPairs finalMethod) uNodeInfo vNodeInfo inCharInfoVV
+            minCost = sum $ fmap fst blockCostPairs
+            maxCost = sum $ fmap snd blockCostPairs
+        in
+        (minCost, maxCost)
+        
+-- | getBlockCostPairs takes a block of two nodes and character infomation and returns the min and max block branch costs
+getBlockCostPairs :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
+getBlockCostPairs finalMethod uNodeCharDataV vNodeCharDataV charInfoV = 
+    let characterCostPairs = V.zipWith3 (getCharacterDist finalMethod) uNodeCharDataV vNodeCharDataV charInfoV
+        minCost = sum $ fmap fst characterCostPairs
+        maxCost = sum $ fmap snd characterCostPairs
+    in
+    (minCost, maxCost)   
+
+-- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
+-- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
+getCharacterDist :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
+getCharacterDist finalMethod uCharacter vCharacter charInfo =
+    let thisWeight = weight charInfo
+        thisMatrix = costMatrix charInfo
+        thisCharType = charType charInfo
+        gapChar = bit $ (length thisMatrix) - 1
+        gapCharWide = (bit $ (length thisMatrix) - 1) :: Word64
+        gapCharBV = (bit $ (length thisMatrix) - 1) :: BV.BitVector
+    in
+    if thisCharType == Add then
+        let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
+            maxDiff = V.sum $ V.zipWith maxIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral maxDiff)
+        in
+        (minCost, maxCost)
+
+        
+    else if thisCharType == NonAdd then
+        let minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
+            maxDiff = length $ V.filter (==False) $ V.zipWith (==) (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral maxDiff)
+        in
+        (minCost, maxCost)
+    
+    else if thisCharType == Matrix then
+        let minMaxListList= V.zipWith (minMaxMatrixDiff thisMatrix)  (fmap (fmap fst3) $ matrixStatesFinal uCharacter) (fmap (fmap fst3) $ matrixStatesFinal vCharacter)
+            minDiff = V.sum $ fmap fst minMaxListList
+            maxDiff = V.sum $ fmap snd minMaxListList
+            minCost = thisWeight * (fromIntegral minDiff)
+            maxCost = thisWeight * (fromIntegral maxDiff)
+        in
+        (minCost, maxCost)
+
+
+    else if (thisCharType == SlimSeq || thisCharType == NucSeq) then
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = slimFinal uCharacter
+                                    vFinal = slimFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimPrelim = uFinal}) (vCharacter {slimPrelim = vFinal}) 
+                                    (_, newU, newV) = slimGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapChar) newU) (GV.toList $ GV.map (zero2Gap gapChar) newV)
+                             else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
+            (minDiff, maxDiff) = unzip minMaxDiffList
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
+        in
+        --trace ("MMDL: " ++ (show $ (GV.toList $ slimFinal uCharacter)) ++ " " ++ (show $ (GV.toList $ slimFinal vCharacter)) ++ "\n" ++ (show minCost) ++ " " ++ (show maxCost)) 
+        (minCost, maxCost)
+        
+    
+    else if (thisCharType == WideSeq || thisCharType == AminoSeq) then
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = wideFinal uCharacter
+                                    vFinal = wideFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {widePrelim = uFinal}) (vCharacter {widePrelim = vFinal}) 
+                                    (_, newU, newV) = wideGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapWide gapCharWide) newU) (GV.toList $ GV.map (zero2GapWide gapCharWide) newV)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
+            (minDiff, maxDiff) = unzip minMaxDiffList
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
+        in
+        (minCost, maxCost)
+
+    else if thisCharType == HugeSeq then
+        let minMaxDiffList = if finalMethod == DirectOptimization then 
+                                let uFinal = hugeFinal uCharacter
+                                    vFinal = hugeFinal vCharacter
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugePrelim = uFinal}) (vCharacter {hugePrelim = vFinal}) 
+                                    (_, newU, newV) = hugeGapped newEdgeCharacter
+                                in
+                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapBV gapCharBV) newU) (GV.toList $ GV.map (zero2GapBV gapCharBV) newV)
+                             else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
+            (minDiff, maxDiff) = unzip minMaxDiffList
+            minCost = thisWeight * (fromIntegral $ sum minDiff)
+            maxCost = thisWeight * (fromIntegral $ sum maxDiff)
+        in
+        (minCost, maxCost)
+
+    else error ("Character type unimplemented : " ++ show thisCharType)
+
+-- | zero2Gap converts a '0' or no bits set to gap (indel) value 
+zero2Gap :: (FiniteBits a) => a -> a -> a
+zero2Gap gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
+
+-- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
+zero2GapWide :: Word64 -> Word64 -> Word64
+zero2GapWide gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
+
+-- | zero2GapBV converts a '0' or no bits set to gap (indel) value 
+zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
+zero2GapBV gapChar inVal = if popCount inVal == 0 then gapChar
+                         else inVal
+
+-- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
+-- in upp and lower ranges.
+maxIntervalDiff :: (Int, Int)-> (Int, Int) -> Int 
+maxIntervalDiff (a,b) (x,y) =
+    let upper = (max b y) - (min b y)
+        lower = (max a x) - (min a x)
+    in
+    max upper lower 
+
+-- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost 
+-- between the two
+minMaxMatrixDiff :: S.Matrix Int -> V.Vector Int -> V.Vector Int -> (Int, Int)
+minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
+    let statePairs = (V.toList uStatesV, V.toList vStatesV)
+        cartesianPairs = cartProdPair statePairs
+        costList = fmap (localCostMatrix S.!) cartesianPairs
+    in 
+    --trace (show cartesianPairs  ++ " " ++ show costList) 
+    (minimum costList, maximum costList)
+   
+
+
+-- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
+-- cost differences using matrix values
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff thisMatrix numStates uState vState = 
+    let uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState) [0.. numStates - 1]) [0.. numStates - 1]
+        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState) [0.. numStates - 1]) [0.. numStates - 1]    
+        uvCombinations = cartProd uStateList vStateList
+        costOfPairs = fmap (thisMatrix S.!) uvCombinations
+    in
+    -- trace ("GSD: " ++ (show uStateList) ++ " " ++ (show vStateList) ++ " min " ++ (show $ minimum costOfPairs) ++ " max " ++ (show $  maximum costOfPairs))
+    (minimum costOfPairs, maximum costOfPairs)
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
