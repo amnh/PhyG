@@ -39,7 +39,7 @@ Portability :  portable (I hope)
 module Debug.Debug where
 
 import           Types.Types
-import Data.List
+-- import Data.List
 import qualified Data.Vector as V
 
 debugZip :: [a] -> [b] -> [(a,b)]

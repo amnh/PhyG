@@ -56,7 +56,7 @@ import qualified GraphOptimization.PreOrderFunctions as PRE
 import qualified Data.Text.Lazy  as T
 import Data.Bits 
 import Data.Maybe
-import Debug.Debug as D
+-- import Debug.Debug as D
 import Utilities.Utilities as U
 import qualified GraphOptimization.Medians as M
 import qualified SymMatrix                   as S
@@ -94,14 +94,14 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
 
             -- for special casing of nonexact and single exact characters
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
-            exactCharacters = U.getNumberExactCharacters (thd3 inData)
+            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
 
             -- post order pass
             outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
 
             -- root node--invariant even when rerooted
-            (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
+            -- (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
 
             childrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder)
             grandChildrenOfRoot = concat $ fmap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) childrenOfRoot
@@ -172,7 +172,7 @@ updateAndFinalizePreorderSoftWired :: PhylogeneticGraph -> PhylogeneticGraph
 updateAndFinalizePreorderSoftWired inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else 
-        let outgroupNode@(outgroupRootIndex, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
+        let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
             (displayGraphVL, lDisplayCost) = PO.extractDisplayTrees True (vertexResolutionData outgroupRootLabel)
 
             -- traceback on resolutions
@@ -242,7 +242,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then 
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
-                let (newGraph, isRoot, newVertexLabel, llocalCost, displayGraphVL) = PO.getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                let (newGraph, isRoot, _, llocalCost, displayGraphVL) = PO.getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
                 if isRoot then 
                      let newGraph' = softWiredPostOrderTraceBack newGraph 
@@ -299,8 +299,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                     rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
                     newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree 
 
-                    (displayGraphVL, lDisplayCost) = if (nodeType newVertexLabel) == RootNode then PO.extractDisplayTrees True resolutionBlockVL
-                                                    else (mempty, 0.0)
+                    -- (displayGraphVL, lDisplayCost) = if (nodeType newVertexLabel) == RootNode then PO.extractDisplayTrees True resolutionBlockVL
+                                                     -- else (mempty, 0.0)
 
                 in
                 (simpleGraph, 0.0, newGraph, mempty, mempty, blockCharInfo)
@@ -613,7 +613,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
 
             -- for special casing of nonexact and single exact characters
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
-            exactCharacters = U.getNumberExactCharacters (thd3 inData)
+            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
@@ -730,7 +730,7 @@ minimalReRootPhyloGraph inGS localGraphType inGraph nodesToRoot =
     else 
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants (thd6 inGraph) firstRerootIndex) ++ (tail nodesToRoot)
-            newGraph = if localGraphType == Tree then PO.rerootPhylogeneticTree' inGS Tree False (-1) False (-1) inGraph firstRerootIndex
+            newGraph = if localGraphType == Tree then PO.rerootPhylogeneticGraph' inGS Tree False (-1) False (-1) inGraph firstRerootIndex
                        else if localGraphType == SoftWired then PO.rerootPhylogeneticNetwork' inGS inGraph firstRerootIndex
                        else errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show localGraphType)
         in
@@ -1076,7 +1076,7 @@ preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode Vert
 preOrderIA inGraph charInfo inNodePairList = 
     if null inNodePairList then inGraph
     else 
-        let (inNode@(nodeIndex, nodeLabel), (parentNodeIndex, parentNodeLabel)) = head inNodePairList
+        let (inNode@(nodeIndex, nodeLabel), (_, parentNodeLabel)) = head inNodePairList
             (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
             characterType = charType charInfo
             symbols = (length $ costMatrix charInfo)

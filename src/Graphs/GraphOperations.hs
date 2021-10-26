@@ -56,7 +56,7 @@ import           GeneralUtilities
 import qualified GraphFormatUtilities      as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
-import Debug.Debug
+-- import Debug.Debug
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
@@ -171,7 +171,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --)
 
 -- | rerootTree' flipped version of rerootGraph
-rerootTree' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
+rerootTree' :: (Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 
 -- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
@@ -180,7 +180,7 @@ rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
-rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree :: (Eq b) => Int -> LG.Gr a b -> LG.Gr a b
 rerootTree rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
@@ -392,6 +392,7 @@ verifyTimeConsistency inGraph =
       else errorWithoutStackTrace ("Graph violates time consistency" ++ GFU.showGraph inGraph)
     -}
 
+{-
 -- | checkCompaptible takes a list of a list of nodes and checks the node lists
 -- to see if compatible-- ie A intersect B = A|B|[]
 checkCompatible :: [[LG.Node]] -> Bool
@@ -411,6 +412,7 @@ checkCompatible inNodeListList =
       if null c then True
       else if (c == a) || (c == b) then True
       else False
+-}
 
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType

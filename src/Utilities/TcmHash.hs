@@ -37,11 +37,11 @@ Portability :  portable (I hope)
 
 module Utilities.TcmHash where
 
-import Data.HashMap
-import Types.Types
+-- import Data.HashMap
+-- import Types.Types
 import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.Vector    as V
-import Data.Bits ((.&.), (.|.))
+-- import qualified Data.Vector    as V
+import Data.Bits ((.&.))
 import qualified SymMatrix as S
 
 -- | getMedianPair takes a tcm (single states) and two states and

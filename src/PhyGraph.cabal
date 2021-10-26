@@ -191,7 +191,7 @@ executable phyg
                 , MissingH >= 1.4.3
                 , bv-little
                 -- , bits
-                , hashmap
+                -- , hashmap
                 , bimap
                 , logfloat
                 , random-shuffle
