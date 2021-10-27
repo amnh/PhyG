@@ -775,7 +775,7 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
                 touchedNodeLabelIndex = fmap (fromJust . LG.lab newGraph) touchedNodeIndexList
                 touchedNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ zip touchedNodeIndexList touchedNodeLabelIndex
             in
-            trace ("Node Touched :" ++ show (fmap fst touchedNodeList))
+            -- trace ("Node Touched :" ++ show (fmap fst touchedNodeList))
             (newGraph, touchedNodeList)
 
         -- parent of root point is network--flip and retype nodes
