@@ -139,25 +139,6 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             -- multiply dynamic characters
             else PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments
 
-
-                {-
-
-                -- traceback on resolutions
-                -- newGraph' = softWiredPostOrderTraceBack (thd6 initialPreorderGraph) (outgroupRootIndex, fromJust $ LG.lab (thd6 initialPreorderGraph) outgroupRootIndex)
-                displayGraphVL = fmap (fmap softWiredPostOrderTraceBack) (fth6 initialPreorderGraph) 
-                
-                -- propagate updated post-order assignments to display trees, which updates dispay tree and cost ealier
-                displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap vertData $ fmap snd $ LG.labNodes (thd6 initialPreorderGraph))) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
-
-                -- create new, fully  updated post-order graph
-                finalPreOrderGraph = (fst6 initialPreorderGraph, snd6 initialPreorderGraph, (thd6 initialPreorderGraph), displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 initialPreorderGraph)
-                in
-
-                -- perform preorder on fully updated postorder graph via chracter trees
-                preOrderTreeTraversal (finalAssignment inGS) True finalPreOrderGraph
-
-                -}
-
         )
 
 

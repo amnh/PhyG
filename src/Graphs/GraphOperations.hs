@@ -180,42 +180,43 @@ rerootTree rerootIndex inGraph =
     in
 
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    if null parentNewRootList || (True `elem` parentRootList) then inGraph else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-                                                                            else
-                                                                              --rooroot component with new outtaxon
-                                                                              let componentWithNewOutgroup = snd $ head componentWithOutgroup
-                                                                                  (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-                                                                                  numRoots = length originalRootList
-                                                                                  orginalRoot = head originalRootList
-                                                                                  originalRootEdges = LG.out inGraph orginalRoot
+    if null parentNewRootList || (True `elem` parentRootList) then inGraph 
+                                                              else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
+    else
+        --rooroot component with new outtaxon
+        let componentWithNewOutgroup = snd $ head componentWithOutgroup
+            (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
+            numRoots = length originalRootList
+            orginalRoot = head originalRootList
+            originalRootEdges = LG.out inGraph orginalRoot
 
-                                                                              in
-                                                                              
-                                                                              -- check if outgroup in a multirooted component
-                                                                              if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
-                                                                              else
-                                                                                --reroot graph safely automatically will only affect the component with the outgroup
-                                                                                -- delete old root edge and create two new edges from oringal root node.
-                                                                                -- keep orignl root node and delte/crete new edges when they are encounterd
-                                                                                --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-                                                                                let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-                                                                                    rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
+        in
+        
+        -- check if outgroup in a multirooted component
+        if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
+        else
+          --reroot graph safely automatically will only affect the component with the outgroup
+          -- delete old root edge and create two new edges from oringal root node.
+          -- keep orignl root node and delte/crete new edges when they are encounterd
+          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
+          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
+              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
-                                                                                    --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-                                                                                    newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
-                                                                                                       else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
+                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
-                                                                                    newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-                                                                                    newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
+              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
+              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
-                                                                                    -- get edges that need reversing
-                                                                                    newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
+              -- get edges that need reversing
+              newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
 
-                                                                                in
-                                                                                --trace ("=")
-                                                                                --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) 
-                                                                                --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-                                                                                newGraph')
+          in
+          --trace ("=")
+          --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) 
+          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
+          newGraph')
         -- ) -- )
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed

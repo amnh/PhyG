@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Main where
+module Main (main) where
 
 import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC

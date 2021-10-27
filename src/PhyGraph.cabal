@@ -109,6 +109,7 @@ common ghc-flags
     -Wmissing-home-modules
     -Wmissing-monadfail-instances
     -Wmissing-signatures
+    -Wmissing-export-lists
     -Wnoncanonical-monad-instances
     -Wnoncanonical-monoid-instances
     -Woverflowed-literals
@@ -123,6 +124,8 @@ common ghc-flags
     -Wunused-imports
     -Wunused-matches
     -Wwrong-do-bind
+    -Wpartial-fields
+
 
   if impl(ghc >= 8.10)
     ghc-options:

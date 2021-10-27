@@ -103,8 +103,8 @@ setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "final
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
 setCommand argList globalSettings processedData =
-    let commandList = filter (/= "") $ fmap fst argList
-        optionList = filter (/= "") $ fmap snd argList
+    let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
+        optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
         checkCommandList = U.checkCommandArgs "set" commandList setArgList
         leafNameVect = fst3 processedData
 

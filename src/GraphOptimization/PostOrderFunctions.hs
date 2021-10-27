@@ -80,7 +80,7 @@ updateDisplayTreesAndCost inGraph =
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
             (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData outgroupRootLabel)
         in
-        trace ("UDTC: " ++ show lDisplayCost)
+        --trace ("UDTC: " ++ show lDisplayCost)
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
 
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
@@ -618,12 +618,7 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, 
                 let isNetworkNode = nodeType (fromJust newRootLabel) == NetworkNode
                     parentIsNetworkNode = nodeType (fromJust parentNodeLabel) == NetworkNode
                 in
-                if isNetworkNode || parentIsNetworkNode then -- (isNetworkNode || parentIsNetworkNode)
-                    inGraph
-                    --trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
-                    --    ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) 
-                    -- rerootPhylogeneticGraph inGS SoftWired isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
-                else rerootPhylogeneticGraph inGS SoftWired isNetworkNode originalRootIndex parentIsNetworkNode  (head newRootParents) rerootIndex inGraph
+                rerootPhylogeneticGraph inGS SoftWired isNetworkNode originalRootIndex parentIsNetworkNode  (head newRootParents) rerootIndex inGraph
 
 
 
@@ -654,18 +649,17 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
   if LG.isEmpty inSimple then inPhyGraph
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else
-    let -- Check for netowrk node reroot which can cause cycle at root
-        -- Does not triger relabelling of node-type since the branch flip keeps it a network node
-        newSimpleGraph = if inGraphType == Tree then GO.rerootTree rerootIndex inSimple
-                         else if inGraphType == SoftWired then rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inSimple
-                         else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
-
-        -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
+    let -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
         -- could just update with needges? from simple graph rerooting
         (newDecGraph, touchedNodes)  = if inGraphType == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
                                        else if inGraphType == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inDecGraph
                                        else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
 
+        newSimpleGraph = GO.convertDecoratedToSimpleGraph newDecGraph
+                        {- if inGraphType == Tree then GO.rerootTree rerootIndex inSimple
+                         else if inGraphType == SoftWired then rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inSimple
+                         else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
+                        -} 
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
@@ -728,7 +722,11 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
             LG.insEdges newRootEdges $ LG.delLEdges inRootEdges reRootGraph
 
         -- parent of root point is network--flip and retype nodes
-        else
+        -- this is incorrect so skipped
+        -- I think it has to do with the relabelling of nodes between Network and Tree
+        -- when reentering on next rooting
+        else inGraph 
+            {-
             let reRootGraph = GO.rerootTree rerootIndex inGraph
 
                 -- reroot edgeFlip as above 
@@ -752,6 +750,7 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
             if parentIndex == fst3 edgeToFlip then error ("Nodeindex confusion " ++ show parentIndex)
             else newGraph
             -- )
+            -}
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
 rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
@@ -780,7 +779,9 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
             (newGraph, touchedNodeList)
 
         -- parent of root point is network--flip and retype nodes
-        else
+        -- this is incorrect so skipped
+        else (inGraph, [])
+            {-
             let reRootGraph = GO.rerootTree rerootIndex inGraph
 
                 -- reroot edgeFlip as above 
@@ -810,6 +811,7 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
             if parentIndex == fst3 edgeToFlip then error ("Nodeindex confusion " ++ show parentIndex)
             else (newGraph, touchedNodeList)
             )
+            -}
 
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph

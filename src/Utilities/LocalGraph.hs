@@ -325,7 +325,7 @@ flipEdge :: Edge -> Edge
 flipEdge (u,v) = (v,u)
 
 -- flipLEdge flips orientation of labelled edge
-flipLEdge :: LEdge b ->LEdge b
+flipLEdge :: LEdge b -> LEdge b
 flipLEdge (u,v,w) = (v,u,w)
 
 
