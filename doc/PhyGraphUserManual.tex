@@ -152,31 +152,13 @@
 		\subsection{Command Structure}
 		Commands and arguments are case insensitive with the exception of filename specifications, which are also 
 		always in double quotes (\texttt{"fileName"}).  Commands are specified with mandatory parentheses \texttt{`()'} which may be empty or
-		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{':'}.  Command arguments are not 
+		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are not 
 		order dependent.
 		
 		\bigskip
 		\texttt{command(argument, option:argument, option:argument...)}
 		\subsection{Command order and processing}
 	
-	\subsection{Block}
-		\subsubsection{Syntax}
-		\texttt{block("newBlockName", "inputFile0", "inputFile1",...)}
-		\subsubsection{Description}
-		Command to assign input data to ``blocks'' that will follow the same display tree when optimized
-		as ``soft-wired '' networks.  By default, each input data file is assigned its own block with the name
-		of the input file.  The \texttt{block} command is used to reassign these data to new, combined blocks.
-		Spaces are not allowed in block names and will produce \texttt{unrecognized block name} errors.    
-		\subsubsection{Arguments}
-		The first argument is the block to be created, the remainder are the input data to be 
-		assigned to that block. Blocks are initially named as the input file name with ``:0'' appended.  Blocks are reported in \texttt{report(data)} command.
-		\subsubsection{Defaults}
-		None.
-		\subsubsection{Examples}
-		\begin{itemize}
-			\item{\texttt{block("a","b:0","c:0")}\\ Assigns input data from file ``b'' and ``c'' to block ``a''. }
-		\end{itemize}
-		
 	
 	
 	\subsection{Build}
@@ -236,13 +218,16 @@
 			\end{itemize}
 	\subsection{Read}
 		\subsubsection{Syntax}
-				\texttt{read(option:"filename")}
+				\texttt{read(option:"filename", option:"filename", ...)}
 			
 		\subsubsection{Description}
 		Causes various file-based information to input.  \texttt{read} commands must contain an input file.
-		Options prepended to the filename with a colon (``:'') modify the processing of the input file. If no options are specified, 
-		the program will attempt to recognize the file type and parse appropriately.
+		Options prepended to the filename with a colon (`:') modify the processing of the input file. If no options are specified, 
+		the program will attempt to recognize the file type and parse appropriately.  Wildcard characters (`*', `?') can be used to specify multiple files.
 		\subsubsection{Arguments}
+			\noindent \texttt{aminoacid:} File contents are parsed as IUPAC coded amino acid data in fasta \citep{PearsonandLipman1988} format. .
+		
+			\smallskip		
 			\noindent \texttt{block:} Specifies that the file contains block information. Each line contains 
 			the new block name followed by names of input files to be assigned to that data block.  
 			Blocks are initially named as the input file name with ``:0'' appended.  
@@ -250,7 +235,11 @@
 			\begin{quote}
 				\texttt{"a" "b:0" "c:0"}\\
 			\end{quote}
-		
+			
+			\smallskip		
+			\noindent \texttt{custom\_alphabet:} Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
+			
+			\smallskip		
 			\noindent \texttt{dot:} Specifies that the file contains a graph in `dot' format for use with graph rendering software such as GraphViz (\url{https://en.wikipedia.org/wiki/Graphviz}).
 			
 			\smallskip		
@@ -260,10 +249,10 @@
 			\noindent \texttt{exclude:}  File contains the names of terminal taxa to be excluded from an analysis.  Taxa not include in the list, in input files, will be included in analysis. 
 			
 			\smallskip		
-			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
-		
+			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
+			
 			\smallskip		
-			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
+			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
 			
 			\smallskip		
 			\noindent \texttt{fenewick:}  File contains Forest Enhanced Newick format graph of \cite{Wheeler2021a} in \url{https://www.github.com/wardwheeler/euncon}.
@@ -273,6 +262,9 @@
 			
 			\smallskip		
 			\noindent \texttt{newick:} File contains  Newick format graph as specified by \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}.
+			
+			\smallskip		
+			\noindent \texttt{nucleotide:} File contents are parsed as IUPAC coded nucleotide data in fasta \citep{PearsonandLipman1988} format. .
 			
 			\smallskip		
 			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
@@ -370,6 +362,25 @@
 %		\subsubsection{Arguments}
 %		\subsubsection{Defaults}
 %		\subsubsection{Examples}
+
+	\subsection{Reblock}
+	\subsubsection{Syntax}
+	\texttt{reblock("newBlockName", "inputFile0", "inputFile1",...)}
+	\subsubsection{Description}
+	Command to assign input data to ``blocks'' that will follow the same display tree when optimized
+	as ``soft-wired '' networks.  By default, each input data file is assigned its own block with the name
+	of the input file.  The \texttt{block} command is used to reassign these data to new, combined blocks.
+	Spaces are not allowed in block names and will produce \texttt{unrecognized block name} errors.    
+	\subsubsection{Arguments}
+	The first argument is the block to be created, the remainder are the input data to be 
+	assigned to that block. Blocks are initially named as the input file name with ``:0'' appended.  Blocks are reported in \texttt{report(data)} command.
+	\subsubsection{Defaults}
+	None.
+	\subsubsection{Examples}
+	\begin{itemize}
+		\item{\texttt{reblock("a","b:0","c:0")}\\ Assigns input data from file ``b'' and ``c'' to block ``a''. }
+	\end{itemize}
+	
 	
 	\subsection{Rename}
 		\subsubsection{Syntax}
@@ -394,10 +405,18 @@
 			if appended to the file.  The option \texttt{overwrite} overrides the default and rewrites the file.  Many of the report options output in csv output that
 			can be easily imported by spreadsheet programs.
 		\subsubsection{Arguments}
-				\noindent \texttt{diagnosis}  Outputs graph diagnosis information such as vertex and states and edge statistics in csv format. 
-				
+				\noindent \texttt{crossrefs} Prints source file presence or absence of input data in csv format.  This is useful to check for 
+				missing and misnamed taxa.
+			
+			
 				\smallskip
 				\noindent \texttt{data} Prints information about of the input data in csv format.
+				
+				\smallskip
+				\noindent \texttt{diagnosis}  Outputs graph diagnosis information such as vertex and states and edge statistics in csv format. 
+			
+				\smallskip
+				\noindent \texttt{displaytrees}  Outputs graph information for soft-wired networks.  The ``display'' trees are output for each data block. 
 				
 				\smallskip
 				\noindent \texttt{graph} Outputs a graph in format specified by the other arguments in the command.  These are \texttt{dot} for GraphViz graph format,
@@ -480,7 +499,7 @@
 			\noindent \texttt{outgroup:"Blah"} Makes the outgroup taxon ``Blah''. 
 			
 			\smallskip
-			\noindent \texttt{optimality:method} Sets the optimiality criterion for graph search to be method.
+			\noindent \texttt{criterion:parsimony|pmdl} Sets the optimiality criterion for graph search to be method.  Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
 				
 		\subsubsection{Defaults} 
 		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
@@ -526,6 +545,6 @@
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}
-	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 \end{document}
