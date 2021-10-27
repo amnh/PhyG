@@ -163,7 +163,7 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   in
   let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
   in
-  if (last progress == '0') then 
+  if last progress == '0' then
       trace (progress ++ "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
@@ -875,7 +875,7 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
     let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees' = getGeneralSwap "otu" reAddTerminals saveMethod keepMethod leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if refinement == "best:1" then 
+    if refinement == "best:1" then
       if not $ null newTrees then newTrees
       else [inTree]
     else if not (null newTrees') then newTrees'
@@ -887,7 +887,7 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
         newTrees' = getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees'' = getGeneralSwap "spr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if saveMethod == "best:1" then  
+    if saveMethod == "best:1" then
       if not $ null newTrees' then newTrees'
       else [inTree]
     else if not (null newTrees'') then newTrees''
@@ -900,7 +900,7 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
         newTrees'' = getGeneralSwapSteepestOne "tbr" doSPRTBRSteep leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
         newTrees''' = getGeneralSwap "tbr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees'' [([],(V.empty,V.empty), NT.infinity, M.empty)]
     in
-    if saveMethod == "best:1" then 
+    if saveMethod == "best:1" then
       if not $ null newTrees' then newTrees''
       else [inTree]
     else if not (null newTrees''') then newTrees'''

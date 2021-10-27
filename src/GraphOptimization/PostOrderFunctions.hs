@@ -54,7 +54,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , updateDisplayTreesAndCost
                                              ) where
 
-import           Data.Bits                 
+import           Data.Bits
 import           Data.Maybe
 import qualified Data.Vector               as V
 import qualified GraphOptimization.Medians as M
@@ -75,12 +75,12 @@ import Debug.Trace
 updateDisplayTreesAndCost :: PhylogeneticGraph -> PhylogeneticGraph
 updateDisplayTreesAndCost inGraph =
     if LG.isEmpty $ thd6 inGraph then emptyPhylogeneticGraph
-    else 
+    else
         -- True for check popCount at root fort valid resolution (all leaves in graph)
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
             (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData outgroupRootLabel)
         in
-        trace ("UDTC: " ++ (show lDisplayCost))
+        trace ("UDTC: " ++ show lDisplayCost)
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
 
 -- | reOptimizeNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
@@ -99,18 +99,18 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
         nodeChildren = LG.descendants inGraph curNodeIndex  -- should be 1 or 2, not zero since all leaves already in graph
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
-    if (not $ null foundCurChildern) then
+    if not $ null foundCurChildern then
       -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
-      reOptimizeNodes inGS localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
+      reOptimizeNodes inGS localGraphType charInfoVectVect inGraph (tail oldNodeList ++ [curNode])
 
     -- somehow root before others -- remove if not needed after debug
-    else if (LG.isRoot inGraph curNodeIndex) && length oldNodeList > 1 then
-        error ("Root first :" ++ (show oldNodeList) ++ "RC " ++ (show $ LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+    else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
+        error ("Root first :" ++ show oldNodeList ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
         --reOptimizeNodes inGS localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
- 
+
     else
-        let leftChild = (head nodeChildren)
-            rightChild = (last nodeChildren)
+        let leftChild = head nodeChildren
+            rightChild = last nodeChildren
             -- leftChildLabel = fromJust $ LG.lab inGraph leftChild
             -- rightChildLabel = fromJust $ LG.lab inGraph rightChild
 
@@ -126,39 +126,39 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
           reOptimizeNodes localGraphType charInfoVectVect inGraph (tail oldNodeList)
         else
         -}
-        if localGraphType == Tree then 
-           let newCost =  if (length nodeChildren < 2) then 0
-                          else V.sum $ V.map (V.sum) $ V.map (V.map snd) newVertexData
+        if localGraphType == Tree then
+           let newCost =  if length nodeChildren < 2 then 0
+                          else V.sum $ V.map V.sum $ V.map (V.map snd) newVertexData
                newVertexLabel = VertexInfo {  index = curNodeIndex
                                             -- this bit labelling incorect for outdegree = 1, need to prepend bits
-                                            , bvLabel = (bvLabel leftChildLabel) .|. (bvLabel rightChildLabel)
+                                            , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                             , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                             , children = V.fromList nodeChildren
                                             , nodeType = nodeType curNodeLabel
                                             , vertName = vertName curNodeLabel
                                             , vertexResolutionData = mempty
-                                            , vertData = if (length nodeChildren < 2) then vertData leftChildLabel
+                                            , vertData = if length nodeChildren < 2 then vertData leftChildLabel
                                                          else V.map (V.map fst) newVertexData
                                             , vertexCost = newCost
-                                            , subGraphCost = if (length nodeChildren < 2) then subGraphCost leftChildLabel
-                                                             else (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                            , subGraphCost = if length nodeChildren < 2 then subGraphCost leftChildLabel
+                                                             else subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
                                             }
                -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
-               replacementEdges = (LG.inn inGraph curNodeIndex) ++ (LG.out inGraph curNodeIndex)
+               replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
                newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
             in
             --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
             reOptimizeNodes inGS localGraphType charInfoVectVect newGraph (tail oldNodeList)
-        
-        else if  localGraphType == SoftWired then 
+
+        else if  localGraphType == SoftWired then
             -- trace ("Reoptimizing " ++ (show curNodeIndex)) (
             -- single child of node (can certinly happen with soft-wired networks
-            if length nodeChildren == 1 then 
+            if length nodeChildren == 1 then
                 --trace ("Out=1\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
                 let (_,_, newVertexLabel, _, _) = getOutDegree1VertexAndGraph curNodeIndex leftChildLabel inGraph nodeChildren inGraph
 
                     -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
-                    replacementEdges = (LG.inn inGraph curNodeIndex) ++ (LG.out inGraph curNodeIndex)
+                    replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
                     newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
                 in
                 reOptimizeNodes inGS localGraphType charInfoVectVect newGraph (tail oldNodeList)
@@ -170,26 +170,26 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
                 let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                     -- larger bitvector is Right, smaller or equal Left 
                     ((leftChild', leftChildLabel'), (rightChild', rightChildLabel')) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab inGraph leftChild), (rightChild, fromJust $ LG.lab inGraph rightChild))
-                    
+
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel'
                     rightChildNodeType = nodeType rightChildLabel'
                     resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
-                
+
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
                     newVertexLabel = VertexInfo {  index = curNodeIndex
-                                            , bvLabel = (bvLabel leftChildLabel') .|. (bvLabel rightChildLabel')
+                                            , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
                                             , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                             , children = V.fromList nodeChildren
                                             , nodeType = nodeType curNodeLabel
-                                            , vertName = T.pack $ "HTU" ++ (show curNodeIndex)
+                                            , vertName = T.pack $ "HTU" ++ show curNodeIndex
                                             , vertData = mempty --empty because of resolution data
                                             , vertexResolutionData = resolutionBlockVL
                                             , vertexCost = 0.0 --newCost
                                             , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
-                                            }   
-                
+                                            }
+
                     {-
                     leftEdgeType  = if leftChildNodeType == NetworkNode then NetworkEdge
                                     else if leftChildNodeType == LeafNode then PendantEdge
@@ -205,13 +205,13 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
                                          }
                     -}
 
-                    replacementEdges = (LG.inn inGraph curNodeIndex) ++ (LG.out inGraph curNodeIndex)
-                    newGraph =  LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph 
+                    replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
+                    newGraph =  LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
                 in
                 -- trace ("Resolution Data: \n" ++ "left child\n" ++ (show $ vertexResolutionData leftChildLabel) ++ "\nright child\n" ++ (show $ vertexResolutionData rightChildLabel)
                 --    ++ "\nCur Node\n" ++ (show $ vertexResolutionData newVertexLabel))
-                reOptimizeNodes inGS localGraphType charInfoVectVect newGraph (tail oldNodeList)    
-            
+                reOptimizeNodes inGS localGraphType charInfoVectVect newGraph (tail oldNodeList)
+
                 -- ) -- )
         else  errorWithoutStackTrace ("Graph type unrecognized/not yet implemented: " ++ show localGraphType)
         -- )
@@ -219,76 +219,87 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
 createBlockResolutions :: Bool -> LG.Node -> Int -> Int -> NodeType -> NodeType -> ResolutionBlockData -> ResolutionBlockData -> V.Vector CharInfo -> ResolutionBlockData
-createBlockResolutions compress curNode leftIndex rightIndex leftChildNodeType rightChildNodeType leftChild rightChild charInfoV  =
-    if (null leftChild) && (null rightChild) then mempty
-    else if null leftChild then rightChild
-    else if null rightChild then leftChild
-    else
-        -- trace ("CBR:" ++ (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) ++ (show $fmap BV.toBits $ fmap displayBVLabel leftChild) ++ " and " ++  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) ( 
-        let childResolutionPairs = cartProd (V.toList leftChild) (V.toList rightChild)
-            -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
-            childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
-            validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
-            newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
+createBlockResolutions
+  compress
+  curNode
+  leftIndex
+  rightIndex
+  leftChildNodeType
+  rightChildNodeType
+  leftChild
+  rightChild
+  charInfoV
+  | null leftChild && null rightChild = mempty
+  | null leftChild = rightChild
+  | null rightChild = leftChild
+  | otherwise =
+    -- trace ("CBR:" ++ (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) ++ (show $fmap BV.toBits $ fmap displayBVLabel leftChild) ++ " and " ++  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) ( 
+    let childResolutionPairs = cartProd (V.toList leftChild) (V.toList rightChild)
+        -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
+        childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
+        validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
+        newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
 
-            --need to add in node and edge to left and right
-            edgeLable = EdgeInfo { minLength = 0.0
-                                 , maxLength = 0.0
-                                 , midRangeLength = 0.0
-                                 , edgeType = TreeEdge
-                                 }
-            newMinVertex = VertexInfo { index = curNode
-                                      , bvLabel = BV.fromBits [False]
-                                      , parents = mempty
-                                      , children = mempty
-                                      , nodeType = TreeNode
-                                      , vertName = T.pack $ "HTU" ++ (show curNode)
-                                      , vertData = mempty
-                                      , vertexResolutionData = mempty
-                                      , vertexCost = 0.0
-                                      , subGraphCost = 0.0
-                                      } 
+        --need to add in node and edge to left and right
+        edgeLable = EdgeInfo { minLength = 0.0
+                             , maxLength = 0.0
+                             , midRangeLength = 0.0
+                             , edgeType = TreeEdge
+                             }
+        newMinVertex = VertexInfo { index = curNode
+                                  , bvLabel = BV.fromBits [False]
+                                  , parents = mempty
+                                  , children = mempty
+                                  , nodeType = TreeNode
+                                  , vertName = T.pack $ "HTU" ++ show curNode
+                                  , vertData = mempty
+                                  , vertexResolutionData = mempty
+                                  , vertexCost = 0.0
+                                  , subGraphCost = 0.0
+                                  }
 
-            newNode = (curNode, newMinVertex)
-                                
-            addLeft =  if leftChildNodeType == NetworkNode then 
-                            let newEdge = (curNode, rightIndex, edgeLable)
-                                newRightChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] rightChild
-                            in
-                            -- trace ("ANEL:" ++ (show $ (curNode, rightIndex))) 
-                            newRightChildBlockResolutionData
-                       else -- trace ("ANEL-Nothing") 
-                            mempty
+        newNode = (curNode, newMinVertex)
 
-            addRight = if rightChildNodeType == NetworkNode then 
-                            let newEdge = (curNode, leftIndex, edgeLable)
-                                newLeftChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] leftChild
-                            in
-                            -- trace ("ANER:" ++ (show $ (curNode, leftIndex))) 
-                            newLeftChildBlockResolutionData
-                       else -- trace ("ANER-Nothing") 
-                            mempty
-        in
-        -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
-        -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
-        if compress then  (V.fromList $ nubResolutions newResolutionList []) V.++ (addLeft V.++ addRight)
-        else (V.fromList newResolutionList) V.++ (addLeft V.++ addRight)
+        addLeft =  if leftChildNodeType == NetworkNode then
+                        let newEdge = (curNode, rightIndex, edgeLable)
+                            newRightChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] rightChild
+                        in
+                        -- trace ("ANEL:" ++ (show $ (curNode, rightIndex))) 
+                        newRightChildBlockResolutionData
+                   else -- trace ("ANEL-Nothing") 
+                        mempty
+
+        addRight = if rightChildNodeType == NetworkNode then
+                        let newEdge = (curNode, leftIndex, edgeLable)
+                            newLeftChildBlockResolutionData = addNodeEdgeToResolutionList newNode newEdge 0 [] leftChild
+                        in
+                        -- trace ("ANER:" ++ (show $ (curNode, leftIndex))) 
+                        newLeftChildBlockResolutionData
+                   else -- trace ("ANER-Nothing") 
+                        mempty
+    in
+    -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) ) 
+    -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
+    if compress then  V.fromList (nubResolutions newResolutionList []) V.++ (addLeft V.++ addRight)
+    else V.fromList newResolutionList V.++ (addLeft V.++ addRight)
         -- )
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
 -- need to watch let/right (based on BV) for preorder stuff
 createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
-createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) = 
+createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) =
     let -- make  bvLabel for resolution 
-        resBV = (displayBVLabel leftRes) .|. (displayBVLabel rightRes)
+        resBV = displayBVLabel leftRes .|. displayBVLabel rightRes
 
         -- Make resolution Display tree infomation 
-        leftEdgeType  = if leftChildNodeType == NetworkNode then NetworkEdge
-                        else if leftChildNodeType == LeafNode then PendantEdge
-                        else TreeEdge
-        rightEdgeType = if rightChildNodeType == NetworkNode then NetworkEdge
-                        else if rightChildNodeType == LeafNode then PendantEdge
-                        else TreeEdge
+        leftEdgeType
+          | leftChildNodeType == NetworkNode = NetworkEdge
+          | leftChildNodeType == LeafNode = PendantEdge
+          | otherwise = TreeEdge
+        rightEdgeType
+          | rightChildNodeType == NetworkNode = NetworkEdge
+          | rightChildNodeType == LeafNode = PendantEdge
+          | otherwise = TreeEdge
 
         edgeLable = EdgeInfo { minLength = 0.0
                              , maxLength = 0.0
@@ -307,7 +318,7 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
                                   , parents = V.empty
                                   , children = V.fromList [leftIndex, rightIndex]
                                   , nodeType = TreeNode
-                                  , vertName = T.pack $ "HTU" ++ (show curNode)
+                                  , vertName = T.pack $ "HTU" ++ show curNode
                                   , vertData = mempty
                                   , vertexResolutionData = mempty
                                   , vertexCost = 0.0
@@ -316,72 +327,71 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
 
         newNode = (curNode, newNodeLabel)
 
-        resolutionEdgeList = leftEdge : (rightEdge: ((snd leftChildTree) ++ (snd rightChildTree)))
-        resolutionNodeList = newNode : ((fst leftChildTree) ++ (fst rightChildTree))
+        resolutionEdgeList = leftEdge : (rightEdge: (snd leftChildTree ++ snd rightChildTree))
+        resolutionNodeList = newNode : (fst leftChildTree ++ fst rightChildTree)
 
         -- Make the data and cost for the resolution
         leftBlockLength = V.length $ displayData leftRes
         rightBlockLength = V.length $ displayData rightRes
-        resolutionMedianCostV = if (leftBlockLength == 0) then V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
-                                else if (rightBlockLength == 0) then V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
-                                else M.median2 (displayData leftRes) (displayData rightRes) charInfoV
+        resolutionMedianCostV
+          | (leftBlockLength == 0) = V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
+          | (rightBlockLength == 0) = V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
+          | otherwise = M.median2 (displayData leftRes) (displayData rightRes) charInfoV
         (resolutionMedianV, resolutionCostV) = V.unzip resolutionMedianCostV
         thisResolutionCost = V.sum resolutionCostV
-        displaySubTreeCost = (displayCost leftRes) + (displayCost rightRes) + thisResolutionCost
+        displaySubTreeCost = displayCost leftRes + displayCost rightRes + thisResolutionCost
 
-    in 
+    in
     ResolutionData { displaySubGraph = (resolutionNodeList, resolutionEdgeList)
                    , displayBVLabel = resBV
                    , displayData = resolutionMedianV
                    , childResolutions = [(Just leftResIndex, Just rightResIndex)]
                    , resolutionCost = thisResolutionCost
                    , displayCost = displaySubTreeCost
-                   } 
+                   }
 
 -- | nubResolutions takes a list of resolulutions and returns 'nub' based on leaf set (bvLabel) and Charinfo vector
 nubResolutions :: [ResolutionData] -> [ResolutionData] -> [ResolutionData]
-nubResolutions inData curData =
-    if null inData then reverse curData
-    else if null curData then nubResolutions (tail inData) [head inData]
+nubResolutions inData curData
+  | null inData = reverse curData
+  | null curData = nubResolutions (tail inData) [head inData]
+  | otherwise =
+    let firstData = head inData
+        (isUnique, matchIndex) = hasResolutionMatch (displayBVLabel firstData) (displayData firstData) curData 0
+    in
+    if isUnique then nubResolutions (tail inData) (firstData : curData)
     else
-        let firstData = head inData
-            (isUnique, matchIndex) = hasResolutionMatch (displayBVLabel firstData) (displayData firstData) curData 0
+        -- need to update the childResolutoin field of the match
+        let firstPart = L.take matchIndex curData
+            lastPart = L.drop (matchIndex + 1) curData
+            matchChildResolutionData =  childResolutions (curData !! matchIndex)
+            firstDataChildResolutionData = childResolutions firstData
+            newMatchResolution = (curData !! matchIndex) {childResolutions = firstDataChildResolutionData ++ matchChildResolutionData}
         in
-        if isUnique then nubResolutions (tail inData) (firstData : curData)
-        else 
-            -- need to update the childResolutoin field of the match
-            let firstPart = L.take matchIndex curData
-                lastPart = L.drop (matchIndex + 1) curData
-                matchChildResolutionData =  childResolutions (curData !! matchIndex)
-                firstDataChildResolutionData = childResolutions firstData
-                newMatchResolution = (curData !! matchIndex) {childResolutions = firstDataChildResolutionData ++ matchChildResolutionData}
-            in
-            nubResolutions (tail inData) (firstPart ++ (newMatchResolution : lastPart))
+        nubResolutions (tail inData) (firstPart ++ (newMatchResolution : lastPart))
 
 -- | hasResolutionMatch checks for match of bvlabel and Vect charinfo with list
 hasResolutionMatch :: NameBV -> V.Vector CharacterData -> [ResolutionData] -> Int -> (Bool, Int)
 hasResolutionMatch inBV inCD rDList curIndex =
     if null rDList then (True, curIndex)
-    else 
+    else
         let existingBV =  displayBVLabel $ head rDList
             existingCharData = displayData $ head rDList
         in
-        if existingBV /= inBV then hasResolutionMatch inBV inCD (tail rDList) (curIndex + 1)
-        else if existingCharData /= inCD then hasResolutionMatch inBV inCD (tail rDList)  (curIndex + 1)
-        else (False, curIndex)
+        if (existingBV /= inBV) || (existingCharData /= inCD) then hasResolutionMatch inBV inCD (tail rDList) (curIndex + 1) else (False, curIndex)
 
 -- | checkLeafOverlap takes a left right resolution pair list and checks if 
 -- there is leaf overlap via comparing displayBVLabel if & = 0 then no
 -- overlap, and adds to resulting list--reverses order--sholdn't matter
-checkLeafOverlap :: [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))] 
-checkLeafOverlap inPairList curPairList = 
-    if null inPairList then reverse curPairList 
-    else 
+checkLeafOverlap :: [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))] -> [((ResolutionData, ResolutionData), (Int, Int))]
+checkLeafOverlap inPairList curPairList =
+    if null inPairList then reverse curPairList
+    else
         let inPair@((leftRes, rightRes), (_, _)) = head inPairList
             leftBV = displayBVLabel leftRes
             rightBV = displayBVLabel rightRes
         in
-        if BV.isZeroVector (leftBV .&. rightBV) then checkLeafOverlap (tail inPairList) (inPair : curPairList) 
+        if BV.isZeroVector (leftBV .&. rightBV) then checkLeafOverlap (tail inPairList) (inPair : curPairList)
         else checkLeafOverlap (tail inPairList) curPairList
 
 
@@ -389,18 +399,18 @@ checkLeafOverlap inPairList curPairList =
 
 
 -- | getOutDegree1VertexAndGraph makes parent node fomr single child for soft-wired resolutions            
-getOutDegree1VertexAndGraph :: (Show a, Show b) 
-                            => LG.Node 
-                            -> VertexInfo 
-                            -> LG.Gr a b 
-                            -> [LG.Node] 
+getOutDegree1VertexAndGraph :: (Show a, Show b)
+                            => LG.Node
+                            -> VertexInfo
+                            -> LG.Gr a b
+                            -> [LG.Node]
                             -> DecoratedGraph
                             -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [BlockDisplayForest])
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
-    
+
     --trace ("In out=1") (
     let childResolutionData = vertexResolutionData childLabel
-        
+
         curNodeResolutionData = addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
 
         newEdgeLabel = EdgeInfo { minLength = 0.0
@@ -413,51 +423,50 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
                                     , parents = V.fromList $ LG.parents simpleGraph curNode
                                     , children = V.fromList nodeChildren
                                     , nodeType = GO.getNodeType simpleGraph curNode
-                                    , vertName = T.pack $ "HTU" ++ (show curNode)
+                                    , vertName = T.pack $ "HTU" ++ show curNode
                                     , vertData = mempty
                                     , vertexResolutionData = mempty
                                     , vertexCost = 0.0
                                     , subGraphCost = 0.0
-                                    } 
-        
+                                    }
+
         newVertex  = VertexInfo { index = curNode
                                 , bvLabel = bvLabel childLabel
                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                 , children = V.fromList nodeChildren
                                 , nodeType = GO.getNodeType simpleGraph curNode
-                                , vertName = T.pack $ "HTU" ++ (show curNode)
+                                , vertName = T.pack $ "HTU" ++ show curNode
                                 , vertData = mempty
                                 , vertexResolutionData = curNodeResolutionData
                                 , vertexCost = 0.0
                                 , subGraphCost = subGraphCost childLabel
-                                }   
-        
-        newLEdge = (curNode, index childLabel, newEdgeLabel) 
+                                }
+
+        newLEdge = (curNode, index childLabel, newEdgeLabel)
         newLNode = (curNode, newVertex)
         newDisplayNode = (curNode, newMinVertex)
         newGraph =  LG.insEdge newLEdge $ LG.insNode newLNode subTree
 
-        (displayGraphVL, lDisplayCost) = if (nodeType newVertex) == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
+        (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
                                         else (mempty, 0.0)
 
 
     in
     --trace ("NV1: " ++ show newVertex)
-    (newGraph, (nodeType newVertex) == RootNode, newVertex, lDisplayCost, displayGraphVL)
+    (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
     --)
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
 -- staright copy would not add this node or edge to subtree in resolutions
 addNodeAndEdgeToResolutionData :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> V.Vector ResolutionBlockData -> V.Vector ResolutionBlockData
-addNodeAndEdgeToResolutionData newNode newEdge inDataLV = 
-    fmap (addNodeEdgeToResolutionList newNode newEdge 0 []) inDataLV 
+addNodeAndEdgeToResolutionData newNode newEdge = fmap (addNodeEdgeToResolutionList newNode newEdge 0 [])
 
 -- | addNodeEdgeToResolutionList adds new node and edge to single subGraph in ResolutionData
 -- adds resolutoin pairs to be equal to the child straight one-for-one correpondance
 addNodeEdgeToResolutionList :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> Int -> [ResolutionData] -> V.Vector ResolutionData -> V.Vector ResolutionData
 addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
     if null inData then V.fromList $ reverse  curData
-    else 
+    else
         let firstInData = V.head inData
             (inNodeList, inEdgeList) = displaySubGraph firstInData
             -- childResolutionIndexPairList = childResolutions firstInData
@@ -468,14 +477,14 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
                                        , childResolutions = [(Just resolutionIndex, Just resolutionIndex)]
                                        }
     in
-    addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (V.tail inData) 
+    addNodeEdgeToResolutionList newNode newEdge (resolutionIndex + 1) (newFirstData : curData) (V.tail inData)
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
 extractDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
-extractDisplayTrees checkPopCount inRBDV = 
-    if V.null inRBDV then (V.empty, 0.0) 
-    else 
+extractDisplayTrees checkPopCount inRBDV =
+    if V.null inRBDV then (V.empty, 0.0)
+    else
         let (bestBlockDisplayResolutionList, costVect) = V.unzip $ fmap (getBestResolutionList checkPopCount) inRBDV
         in
         (bestBlockDisplayResolutionList, V.sum costVect)
@@ -486,12 +495,12 @@ getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], V
 getBestResolutionList checkPopCount inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
-    else 
+    else
         let displayTreeList = fmap displaySubGraph inRDList
             displayCostList = fmap displayCost inRDList
-            displayPopList = fmap (complement) $ fmap displayBVLabel inRDList
+            displayPopList = fmap (complement . displayBVLabel) inRDList
         in
-        if not checkPopCount then 
+        if not checkPopCount then
             let minCost = minimum displayCostList
                 displayCostPairList = V.zip displayTreeList displayCostList
                 (bestDisplayList, _) = V.unzip $ V.filter ((== minCost) . snd) displayCostPairList
@@ -504,14 +513,14 @@ getBestResolutionList checkPopCount inRDList =
                 (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
             -- trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
-            if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ (show inRDList))
-            else 
+            if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ show inRDList)
+            else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
                     -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 
                 in
                 (lDisplayTreeList, validMinCost)
             -- )
-    
+
             -- )
 {-
 -- | updateRootCost updates the subGraphCost of the root node(s) with input value
@@ -549,11 +558,11 @@ createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data for parent node (usually)
 -- not checking if vectors are equal in length
-generalCreateVertexDataOverBlocks :: (V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)) 
-                                  -> VertexBlockData 
-                                  -> VertexBlockData 
-                                  -> V.Vector (V.Vector CharInfo) 
-                                  -> [V.Vector (CharacterData, VertexCost)] 
+generalCreateVertexDataOverBlocks :: (V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost))
+                                  -> VertexBlockData
+                                  -> VertexBlockData
+                                  -> V.Vector (V.Vector CharInfo)
+                                  -> [V.Vector (CharacterData, VertexCost)]
                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
@@ -565,9 +574,10 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
             -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
 
             -- missing data cases first or zip defaults to zero length
-            firstBlockMedian = if (leftBlockLength == 0) then V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
-                               else if (rightBlockLength == 0) then V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-                               else medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            firstBlockMedian
+              | (leftBlockLength == 0) = V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
+              | (rightBlockLength == 0) = V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
+              | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
@@ -579,7 +589,7 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 -- and the edge is re-added in both directions.  Nodes may change between
 -- tree and network.  This is updated 
 rerootPhylogeneticNetwork :: GlobalSettings -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, _, _) = 
+rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, _, _) =
     if LG.isEmpty inSimple then inGraph
     else
         let originalRoots = LG.getRoots inSimple
@@ -592,30 +602,30 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, 
         in
 
         -- sanity check on graph
-        if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ (show originalRoots))--  ++ "\n" ++ (LG.prettify inSimple))
+        if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ show originalRoots)--  ++ "\n" ++ (LG.prettify inSimple))
 
         -- would produce same root position
         -- else if rerootIndex `elem` originalRootChildren then inGraph
 
-        else if newRootLabel == Nothing then error ("New root has no label: " ++ show rerootIndex) 
+        else if isNothing newRootLabel then error ("New root has no label: " ++ show rerootIndex)
 
-        else if parentNodeLabel == Nothing then error ("Parent of new root has no label: " ++ show rerootIndex) 
+        else if isNothing parentNodeLabel then error ("Parent of new root has no label: " ++ show rerootIndex)
 
         -- OK to reroot
-        else 
+        else
             --if length newRootParents > 1 then trace ("Root on network edge") inGraph
             --else 
-                let isNetworkNode = (nodeType $ fromJust newRootLabel) == NetworkNode 
-                    parentIsNetworkNode = (nodeType $ fromJust parentNodeLabel) == NetworkNode
+                let isNetworkNode = nodeType (fromJust newRootLabel) == NetworkNode
+                    parentIsNetworkNode = nodeType (fromJust parentNodeLabel) == NetworkNode
                 in
-                if (isNetworkNode || parentIsNetworkNode) then -- (isNetworkNode || parentIsNetworkNode)
+                if isNetworkNode || parentIsNetworkNode then -- (isNetworkNode || parentIsNetworkNode)
                     inGraph
                     --trace ("RRN No roots:" ++ (show originalRootIndex) ++ " children " ++ (show originalRootChildren) ++ "-> " ++ (show rerootIndex) ++ " parents " 
                     --    ++ (show newRootParents) ++ " children " ++ (show newRootChildren)) 
                     -- rerootPhylogeneticGraph inGS SoftWired isNetworkNode (fst $ head originalRoots) parentIsNetworkNode (head newRootParents) rerootIndex inGraph
                 else rerootPhylogeneticGraph inGS SoftWired isNetworkNode originalRootIndex parentIsNetworkNode  (head newRootParents) rerootIndex inGraph
 
-              
+
 
 -- | rerootPhylogeneticNetwork' flipped version of rerootPhylogeneticNetwork
 rerootPhylogeneticNetwork' :: GlobalSettings -> PhylogeneticGraph -> Int -> PhylogeneticGraph
@@ -643,19 +653,19 @@ rerootPhylogeneticGraph ::  GlobalSettings -> GraphType -> Bool -> Int ->  Bool 
 rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
   if LG.isEmpty inSimple then inPhyGraph
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
-  else 
+  else
     let -- Check for netowrk node reroot which can cause cycle at root
         -- Does not triger relabelling of node-type since the branch flip keeps it a network node
         newSimpleGraph = if inGraphType == Tree then GO.rerootTree rerootIndex inSimple
                          else if inGraphType == SoftWired then rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inSimple
                          else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
-                         
+
         -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
         -- could just update with needges? from simple graph rerooting
         (newDecGraph, touchedNodes)  = if inGraphType == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
                                        else if inGraphType == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inDecGraph
                                        else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
-                                       
+
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
@@ -679,7 +689,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         --trace ("rerootPhylogeneticGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nNew\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph)
         -- trace ( "\nFinal\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph')) (
         if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
-        
+
         -- Same root, so no need to redo
         -- else if (length nodesToOptimize == 1) then inPhyGraph
         else
@@ -699,15 +709,15 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 -- bnasicall at root and network edge originally 'to' network edge
-rectifyGraph :: (Show a, Show b, Eq b) => Bool -> Int ->  Bool -> Int -> Int -> LG.Gr a b -> LG.Gr a b 
+rectifyGraph :: (Eq b) => Bool -> Int ->  Bool -> Int -> Int -> LG.Gr a b -> LG.Gr a b
 rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph =
     if LG.isEmpty inGraph then LG.empty
-    else 
+    else
         -- sanity check of phylogenetic graph 
         if not isNetworkNode && not parentIsNetworkNode then GO.rerootTree rerootIndex inGraph
-        
+
         -- simply reroot if not network edge reroot
-        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ (show (originalRootIndex, parentIsNetworkNode)))
+        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode))
 
         -- root point is network node
         else if isNetworkNode then
@@ -718,7 +728,7 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
             LG.insEdges newRootEdges $ LG.delLEdges inRootEdges reRootGraph
 
         -- parent of root point is network--flip and retype nodes
-        else 
+        else
             let reRootGraph = GO.rerootTree rerootIndex inGraph
 
                 -- reroot edgeFlip as above 
@@ -736,7 +746,7 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
                 -- (fstNodeInEdges, fstNodeOutEdges) = LG.getInOutEdges reRootGraph (fst3 edgeToFlip)
                 -- fstNodeEdgesToKeep = fstNodeInEdges ++ (fstNodeOutEdges L.\\ [edgeToFlip]) 
                 newGraph = LG.insEdges (newEdge : newRootEdges) $ LG.delLEdges (edgeToFlip : inRootEdges) reRootGraph
-                           
+
             in
             -- trace ("Edge to flip " ++ (show $ LG.toEdge edgeToFlip)) (
             if parentIndex == fst3 edgeToFlip then error ("Nodeindex confusion " ++ show parentIndex)
@@ -747,12 +757,12 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
 rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
 rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph =
     if LG.isEmpty inGraph then (LG.empty, [])
-    else 
+    else
         -- sanity check of phylogenetic graph 
         if not isNetworkNode && not parentIsNetworkNode then (GO.rerootTree rerootIndex inGraph, [])
-        
+
         -- simply reroot if not network edge reroot
-        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ (show (originalRootIndex, parentIsNetworkNode)))
+        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode))
 
         -- root point is network node
         else if isNetworkNode then
@@ -762,15 +772,15 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
                 newGraph = LG.insEdges newRootEdges $ LG.delLEdges inRootEdges reRootGraph
 
                 -- get touched nodes
-                touchedNodeIndexList = L.nub (fmap fst3 newRootEdges) ++ (fmap snd3 newRootEdges)
+                touchedNodeIndexList = L.nub (fmap fst3 newRootEdges) ++ fmap snd3 newRootEdges
                 touchedNodeLabelIndex = fmap (fromJust . LG.lab newGraph) touchedNodeIndexList
                 touchedNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ zip touchedNodeIndexList touchedNodeLabelIndex
             in
-            trace ("Node Touched :" ++ (show $ fmap fst touchedNodeList)) 
+            trace ("Node Touched :" ++ show (fmap fst touchedNodeList))
             (newGraph, touchedNodeList)
 
         -- parent of root point is network--flip and retype nodes
-        else 
+        else
             let reRootGraph = GO.rerootTree rerootIndex inGraph
 
                 -- reroot edgeFlip as above 
@@ -792,15 +802,15 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
                 newGraph = LG.insEdges (newEdge : (fstNodeEdgesToKeep ++ newRootEdges)) $ LG.insNodes [newFstNode, newSndNode] $ LG.delNodes nodesToRemake reRootGraph
 
                 -- get touched nodes
-                newEdgeNodeIndexList = L.nub (fmap fst3 (newEdge : (fstNodeEdgesToKeep ++ newRootEdges))) ++ (fmap snd3 (newEdge : (fstNodeEdgesToKeep ++ newRootEdges)))
+                newEdgeNodeIndexList = L.nub (fmap fst3 (newEdge : (fstNodeEdgesToKeep ++ newRootEdges))) ++ fmap snd3 (newEdge : (fstNodeEdgesToKeep ++ newRootEdges))
                 newEdgeNodeLabelList = fmap (fromJust . LG.lab newGraph) newEdgeNodeIndexList
                 touchedNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ L.nub $ [newFstNode, newSndNode] ++ zip newEdgeNodeIndexList newEdgeNodeLabelList
             in
-            trace ("Node Touched :" ++ (show $ fmap fst touchedNodeList)) (
+            trace ("Node Touched :" ++ show (fmap fst touchedNodeList)) (
             if parentIndex == fst3 edgeToFlip then error ("Nodeindex confusion " ++ show parentIndex)
             else (newGraph, touchedNodeList)
             )
-            
+
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
 -- continaing a list of decorated tryees that are the display trees for that block
@@ -812,9 +822,9 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parent
 -- for this assignment purpose for pre-order a single (head) member of list is used to create the
 -- character graphs
 divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector [DecoratedGraph] -> V.Vector (V.Vector DecoratedGraph)
-divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL = 
+divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
   if V.null inGraphVL then mempty
-  else 
+  else
     let blockGraphList = fmap head inGraphVL
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
@@ -826,11 +836,11 @@ divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
 divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
-divideDecoratedGraphByBlockAndCharacterTree inGraph = 
+divideDecoratedGraphByBlockAndCharacterTree inGraph =
   if LG.isEmpty inGraph then V.empty
-  else 
+  else
     let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
-        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)] 
+        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
     -- trace ("Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph)) 
@@ -841,7 +851,7 @@ divideDecoratedGraphByBlockAndCharacterTree inGraph =
 pullBlock :: DecoratedGraph -> Int -> DecoratedGraph
 pullBlock inGraph blockIndex =
   if LG.isEmpty inGraph then LG.empty
-  else 
+  else
     let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inGraph
         blockNodeLabelList = fmap (makeBlockNodeLabels blockIndex) inNodeLabelList
     in
@@ -851,7 +861,7 @@ pullBlock inGraph blockIndex =
 -- and cretes a new list of a singleton block from the input block index
 makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
 makeBlockNodeLabels blockIndex inVertexInfo =
-  let newVertexData = (vertData inVertexInfo) V.! blockIndex
+  let newVertexData = vertData inVertexInfo V.! blockIndex
       newVertexCost = V.sum $ fmap localCost newVertexData
       newsubGraphCost = V.sum $ fmap globalCost newVertexData
   in
@@ -867,14 +877,14 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 makeCharacterGraph :: DecoratedGraph -> V.Vector DecoratedGraph
 makeCharacterGraph inBlockGraph =
   if LG.isEmpty inBlockGraph then V.empty
-  else 
+  else
     let numCharacters =  V.length $ V.head $ vertData $ snd $ head $ LG.labNodes inBlockGraph
-        characterGraphList = if (numCharacters > 0) then fmap (pullCharacter False inBlockGraph) [0.. (numCharacters - 1)]
+        characterGraphList = if numCharacters > 0 then fmap (pullCharacter False inBlockGraph) [0.. (numCharacters - 1)]
                              -- missing data
                              else [pullCharacter True inBlockGraph 0]
     in
-    if (V.length $ vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
-    else 
+    if V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
+    else
       -- trace ("Chars: " ++ show numCharacters)
       V.fromList characterGraphList
 
@@ -883,7 +893,7 @@ makeCharacterGraph inBlockGraph =
 pullCharacter :: Bool -> DecoratedGraph -> Int -> DecoratedGraph
 pullCharacter isMissing inBlockGraph characterIndex =
   if LG.isEmpty inBlockGraph then LG.empty
-  else 
+  else
     let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inBlockGraph
         characterLabelList = fmap (makeCharacterLabels isMissing characterIndex) inNodeLabelList
     in
@@ -893,7 +903,7 @@ pullCharacter isMissing inBlockGraph characterIndex =
 -- and creates a singleton character label, updating costs to that of the character
 makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
 makeCharacterLabels isMissing characterIndex inVertexInfo =
-  let newVertexData = (V.head $ vertData inVertexInfo) V.! characterIndex
+  let newVertexData = V.head (vertData inVertexInfo) V.! characterIndex
       newVertexCost = localCost newVertexData
       newSubGraphCost = globalCost newVertexData
   in
@@ -905,8 +915,8 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
                   , subGraphCost = 0
                   }
   else
-  -} 
-     inVertexInfo { vertData     = if (not isMissing) then V.singleton $ V.singleton newVertexData
+  -}
+     inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
                                    else V.singleton V.empty
                   , vertexCost   = newVertexCost
                   , subGraphCost = newSubGraphCost

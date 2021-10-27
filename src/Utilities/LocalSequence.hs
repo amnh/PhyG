@@ -36,12 +36,13 @@ Portability :  portable (I hope)
 
 module Utilities.LocalSequence where
 
-import Debug.Trace
+-- import Debug.Trace
 import Data.Sequence ((<|), (|>), (><))
 import qualified Data.Sequence as S
-import qualified Data.Foldable as Foldable
+-- import qualified Data.Foldable as Foldable
 import qualified Data.Vector as V
 import qualified Data.Foldable as F
+import Data.Maybe
 
 -- | sequjence type for exporting 
 type Seq = S.Seq
@@ -52,11 +53,11 @@ head inSeq = S.index inSeq 0
 
 -- | tail maps to drop Seq
 tail :: Seq a -> Seq a
-tail inSeq = S.drop 1 inSeq
+tail = S.drop 1
 
 -- | (!!) index
 (!) :: Seq a -> Int -> a
-(!) inSeq index = S.index inSeq index
+(!) = S.index
 
 -- | cons maps to (<|)
 cons :: a -> Seq a -> Seq a
@@ -76,12 +77,11 @@ empty = S.empty
 
 -- | null equal to empty
 null :: (Eq a) => Seq a -> Bool
-null inSeq = if inSeq == S.empty then True
-             else False
+null inSeq = inSeq == S.empty
 
 -- | singleton to singleton
 singleton :: a -> Seq a
-singleton newElem = S.singleton newElem
+singleton = S.singleton
 
 -- | ++ maps to ><
 (++) :: Seq a -> Seq a -> Seq a
@@ -93,28 +93,28 @@ concat inSeqSeq = concatInternal inSeqSeq Utilities.LocalSequence.empty
 
 -- | concatInternal internal concat function with accumulator
 concatInternal :: (Eq a) => Seq (Seq a) -> Seq a -> Seq a
-concatInternal inSeqSeq newSeq = 
-	if Utilities.LocalSequence.null inSeqSeq then newSeq
-	else 
-		let firstSeq = Utilities.LocalSequence.head inSeqSeq
-		in
-		concatInternal (Utilities.LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
+concatInternal inSeqSeq newSeq =
+        if Utilities.LocalSequence.null inSeqSeq then newSeq
+        else
+                let firstSeq = Utilities.LocalSequence.head inSeqSeq
+                in
+                concatInternal (Utilities.LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
 
 -- | zip maps to zip
 zip :: Seq a -> Seq b -> Seq (a,b)
-zip inSeqA inSeqB = S.zip inSeqA inSeqB
+zip = S.zip
 
 -- | length maps to length
 length :: Seq a -> Int
-length inSeq = S.length inSeq
+length = S.length
 
 -- | toList from Foldable
 toList :: Seq a -> [a]
-toList inSeq = F.toList inSeq
+toList = F.toList
 
 -- | fromList from fromList
-fromList :: [a] -> Seq a 
-fromList aList  = S.fromList aList
+fromList :: [a] -> Seq a
+fromList = S.fromList
 
 -- | toVector via intemediate List (alas) 
 toVector :: Seq a -> V.Vector a
@@ -122,54 +122,52 @@ toVector inSeq = V.fromList $ toList inSeq
 
 -- | toVector via intemediate List (alas) 
 fromVector :: V.Vector a -> Seq a
-fromVector inVect = S.fromList $ V.toList inVect 
+fromVector inVect = S.fromList $ V.toList inVect
 
 -- | reverse to reverse
 reverse :: Seq a -> Seq a
-reverse inSeq = S.reverse inSeq
+reverse = S.reverse
 
 -- | last should be connstant time
 last :: Seq a -> a
-last inSeq = S.index inSeq $ (S.length inSeq) - 1
+last inSeq = S.index inSeq $ S.length inSeq - 1
 
 -- | map to fmap for ease of migrating libraries
 map :: Traversable t => (a->b) -> t a -> t b
-map f = fmap f
+map = fmap
 
 -- | drop maps to drop
 drop :: Int -> Seq a -> Seq a
-drop number inSeq = S.drop number inSeq
+drop = S.drop
 
 -- | take maps to take
 take :: Int -> Seq a -> Seq a
-take number inSeq = S.take number inSeq
+take = S.take
 
 -- | unsafeTake maps to take
 unsafeTake ::  Int -> Seq a -> Seq a
-unsafeTake number inSeq = S.take number inSeq
+unsafeTake = S.take
 
 -- | unsafeDrop maps to drop
 unsafeDrop :: Int -> Seq a -> Seq a
-unsafeDrop number inSeq = S.drop number inSeq
+unsafeDrop = S.drop
 
 -- | replicate maps to replicate
-replicate ::  Int -> a -> Seq a 
-replicate number value = S.replicate number value
+replicate ::  Int -> a -> Seq a
+replicate = S.replicate
 
 -- | elem returns True if element present in Sequence
 -- False otherwise
 elem :: (Eq a) => a -> Seq a -> Bool
-elem element fullSequence = 
-	let index = S.elemIndexL element fullSequence
-	in
-	if index == Nothing then False
-	else True
+elem element fullSequence =
+        let index = S.elemIndexL element fullSequence
+        in
+        isJust index
 
 -- | notElem returns False if element present in Sequence
 -- True otherwise
 notElem :: (Eq a) => a -> Seq a -> Bool
-notElem element fullSequence = 
-	let index = S.elemIndexL element fullSequence
-	in
-	if index == Nothing then True
-	else False
+notElem element fullSequence =
+        let index = S.elemIndexL element fullSequence
+        in
+        isNothing index

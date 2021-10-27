@@ -214,11 +214,10 @@ executable phyg
                   Commands.CommandExecution
                   Debug.Debug
                   Graphs.GraphOperations
-                  GraphFormatUtilities
                   GraphOptimization.Medians
-                  GraphOptimization.Traversals
                   GraphOptimization.PostOrderFunctions
                   GraphOptimization.PreOrderFunctions
+                  GraphOptimization.Traversals
                   Input.DataTransformation
                   Input.FastAC
                   Input.ReadInputFiles
@@ -233,11 +232,12 @@ executable phyg
                   Utilities.DistanceUtilities
                   Utilities.LocalGraph
                   Utilities.LocalSequence
-                  Utilities.Utilities
                   Utilities.TcmHash
+                  Utilities.Utilities
                   -- From PhyloLibs
                   Cyclic
                   GeneralUtilities
+                  GraphFormatUtilities
                   ParallelUtilities
                   SymMatrix
 

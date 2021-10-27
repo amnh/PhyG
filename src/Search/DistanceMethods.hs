@@ -250,7 +250,7 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
     --trace (M.showMatrixNicely newLittleDMatrix ++ "\n" ++ M.showMatrixNicely bigDMatrix)
     let progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
-    if (last progress == '0') then 
+    if last progress == '0' then
       trace (progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
       addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
@@ -282,7 +282,7 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
     --trace (M.showMatrixNicely distMatrix)
     let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
-    if (last progress == '0') then
+    if last progress == '0' then
       trace (progress ++ "%")
       addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList

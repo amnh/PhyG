@@ -66,25 +66,25 @@ ladderizeGraph inGraph = ladderizeGraph' inGraph (LG.nodes inGraph)
 -- | ladderize takes an input graph and ensures/creates nodes
 -- such that all vertices are (indegree, outdegree) (0,>0), (1,2) (2,1) (1,0)
 ladderizeGraph' :: SimpleGraph -> [LG.Node] -> SimpleGraph
-ladderizeGraph' inGraph nodeList =
-    if LG.isEmpty inGraph then LG.empty
-    else if null nodeList then inGraph
-    else
-        let -- these are roots, network, tree, leaf nodes
-            okNodeDegrees = [(0,1),(0,2),(1,2),(2,1),(1,0)]
-            firstNode = head nodeList
-            (inEdgeList, outEdgeList) = LG.getInOutEdges inGraph firstNode
-            inOutPairLength = (length inEdgeList, length outEdgeList)
-        in
-        --trace ("node " ++ (show firstNode) ++ " " ++ (show inOutPair)) (
-        -- node ok to keep
-        if inOutPairLength `elem` okNodeDegrees then ladderizeGraph' inGraph (tail nodeList)
-        -- node edges need modification
-        else
-          let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
-          in
-          ladderizeGraph' newGraph (LG.nodes newGraph)
-        
+ladderizeGraph' inGraph nodeList
+  | LG.isEmpty inGraph = LG.empty
+  | null nodeList = inGraph
+  | otherwise =
+  let -- these are roots, network, tree, leaf nodes
+      okNodeDegrees = [(0,1),(0,2),(1,2),(2,1),(1,0)]
+      firstNode = head nodeList
+      (inEdgeList, outEdgeList) = LG.getInOutEdges inGraph firstNode
+      inOutPairLength = (length inEdgeList, length outEdgeList)
+  in
+  --trace ("node " ++ (show firstNode) ++ " " ++ (show inOutPair)) (
+  -- node ok to keep
+  if inOutPairLength `elem` okNodeDegrees then ladderizeGraph' inGraph (tail nodeList)
+  -- node edges need modification
+  else
+    let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
+    in
+    ladderizeGraph' newGraph (LG.nodes newGraph)
+
 
 -- | resolveNode takes a graph and node and inbound edgelist and outbound edge list
 -- and converts node to one of (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)
@@ -100,7 +100,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     let numNodes = length $ LG.nodes inGraph
     in
     -- isolated node -- throw error
-    if inNum == 0 && outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ (show curNode ) ++ " in graph\n" ++ (LG.prettify inGraph) )
+    if inNum == 0 && outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ show curNode ++ " in graph\n" ++ LG.prettify inGraph )
 
     -- indegree 1 outdegree 1 node to contract
     else if inNum == 1 && outNum == 1 then
@@ -110,7 +110,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       newGraph
 
     -- leaf leaf with too manuy parents
-    else if (inNum > 1) && (outNum == 0) then
+    else if ((inNum > 1) && (outNum == 0)) || ((inNum > 2) && (outNum == 1)) then (
       let first2Edges = take 2 inEdgeList
           newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
@@ -118,56 +118,42 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
           newEdge3 = (numNodes, curNode, 0.0 :: Double)
           newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
       in
-      newGraph
+      newGraph) else (if (inNum < 2 || outNum > 2) then
+                   let first2Edges = take 2 outEdgeList
+                       newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+                       newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
+                       newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
+                       newEdge3 = (curNode, numNodes, 0.0 :: Double)
+                       newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+                   in
+                   newGraph
 
-    -- network node with too many parents
-    else if (inNum > 2) && (outNum == 1) then
-      let first2Edges = take 2 inEdgeList
-          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-          newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
-          newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
-          newEdge3 = (numNodes, curNode, 0.0 :: Double)
-          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-      in
-      newGraph
-
-    -- tree node or root node with too many children
-    else if (inNum < 2 || outNum > 2) then
-      let first2Edges = take 2 outEdgeList
-          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-          newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
-          newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
-          newEdge3 = (curNode, numNodes, 0.0 :: Double)
-          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-      in
-      newGraph
-
-    -- node with too parents and too many children
-      -- converts to tree node--biased in that direction
-    else if (inNum > 2) && (outNum > 2) then
-      let first2Edges = take 2 inEdgeList
-          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-          newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
-          newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
-          newEdge3 = (numNodes, curNode, 0.0 :: Double)
-          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-      in
-      newGraph
+                 -- node with too parents and too many children
+                   -- converts to tree node--biased in that direction
+                 else if (inNum > 2) && (outNum > 2) then
+                   let first2Edges = take 2 inEdgeList
+                       newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+                       newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
+                       newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
+                       newEdge3 = (numNodes, curNode, 0.0 :: Double)
+                       newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+                   in
+                   newGraph
 
 
-    -- root or simple network indegree node
-    else if (inNum == 0 || outNum > 2) then
-      let first2Edges = take 2 outEdgeList
-          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-          newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
-          newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
-          newEdge3 = (curNode, numNodes, 0.0 :: Double)
-          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-      in
-      newGraph
+                 -- root or simple network indegree node
+                 else if (inNum == 0 || outNum > 2) then
+                   let first2Edges = take 2 outEdgeList
+                       newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+                       newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
+                       newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
+                       newEdge3 = (curNode, numNodes, 0.0 :: Double)
+                       newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+                   in
+                   newGraph
 
 
-    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
+                 else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph))
     --)
 
 -- | rerootTree' flipped version of rerootGraph
@@ -192,56 +178,44 @@ rerootTree rerootIndex inGraph =
         outgroupInComponent = fmap (rerootIndex `elem`) componentList
         componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
     in
-    
+
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    if null parentNewRootList then inGraph
+    if null parentNewRootList || (True `elem` parentRootList) then inGraph else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
+                                                                            else
+                                                                              --rooroot component with new outtaxon
+                                                                              let componentWithNewOutgroup = snd $ head componentWithOutgroup
+                                                                                  (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
+                                                                                  numRoots = length originalRootList
+                                                                                  orginalRoot = head originalRootList
+                                                                                  originalRootEdges = LG.out inGraph orginalRoot
 
-    -- check if outgroup doesn't change rooting--ie its parent is a root somewhere
-    else if True `elem` parentRootList then inGraph
+                                                                              in
+                                                                              
+                                                                              -- check if outgroup in a multirooted component
+                                                                              if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
+                                                                              else
+                                                                                --reroot graph safely automatically will only affect the component with the outgroup
+                                                                                -- delete old root edge and create two new edges from oringal root node.
+                                                                                -- keep orignl root node and delte/crete new edges when they are encounterd
+                                                                                --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
+                                                                                let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
+                                                                                    rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
-    -- this can't happen but whatever....
-    else if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-    else
-      --rooroot component with new outtaxon
-      let componentWithNewOutgroup = snd $ head componentWithOutgroup
-          (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-          numRoots = length originalRootList
-          orginalRoot = head originalRootList
-          originalRootEdges = LG.out inGraph orginalRoot
+                                                                                    --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+                                                                                    newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
+                                                                                                       else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
-      in
-      {-These to prevent heads of empty lists
-      if null originalRootList then error "No orginal roots"
-      else if null (LG.inn inGraph rerootIndex) then error ("Can't find parent of " ++ show rerootIndex)
-      else if null componentWithOutgroup then error ("Can't findcomponent with " ++ show rerootIndex)
-      else if null originalRootEdges then error ("Null original root edges ")
-      else
-        -}
-      -- check if outgroup in a multirooted component
-      if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
-      else
-        --reroot graph safely automatically will only affect the component with the outgroup
-        -- delete old root edge and create two new edges from oringal root node.
-        -- keep orignl root node and delte/crete new edges when they are encounterd
-        --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-        let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-            rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
+                                                                                    newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
+                                                                                    newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
-            --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-            newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
-                               else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+                                                                                    -- get edges that need reversing
+                                                                                    newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
 
-            newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-            newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
-
-            -- get edges that need reversing
-            newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
-
-        in
-        --trace ("=")
-        --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) 
-        --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-        newGraph'
+                                                                                in
+                                                                                --trace ("=")
+                                                                                --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges)) 
+                                                                                --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
+                                                                                newGraph')
         -- ) -- )
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
@@ -380,39 +354,6 @@ verifyTimeConsistency :: SimpleGraph -> SimpleGraph
 verifyTimeConsistency inGraph =
    if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
    else inGraph
-    {-
-
-      let (_, _, _, netVertList) = LG.splitVertexList inGraph
-          beforeLists = [] -- fmap fst $ fmap (nodesAndEdgesBefore inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
-          afterLists = fmap fst $ fmap (nodesAndEdgesAfter inGraph ([],[])) (fmap (:[]) $ (fmap fst netVertList))
-          allLists = beforeLists ++ afterLists
-          areCompatible = checkCompatible allLists
-      in
-      if areCompatible then inGraph
-      else errorWithoutStackTrace ("Graph violates time consistency" ++ GFU.showGraph inGraph)
-    -}
-
-{-
--- | checkCompaptible takes a list of a list of nodes and checks the node lists
--- to see if compatible-- ie A intersect B = A|B|[]
-checkCompatible :: [[LG.Node]] -> Bool
-checkCompatible inNodeListList =
-  if null inNodeListList then True
-  else
-    let firstList = head inNodeListList
-        compatibleList = fmap (interCheck firstList) (tail inNodeListList)
-    in
-    if (not $ L.foldl' (&&) True compatibleList) then False
-    else checkCompatible (tail inNodeListList)
-
-  where
-    interCheck a b =
-      let c = a `L.intersect` b
-      in
-      if null c then True
-      else if (c == a) || (c == b) then True
-      else False
--}
 
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
@@ -474,7 +415,7 @@ switchRootTree newRootIndex inGraph =
 -- | flipVertices takes an old vertex index and a new vertex index and inserts one for the other 
 -- in a labelled edge
 flipVertices :: Int -> Int ->  LG.LEdge b -> LG.LEdge b
-flipVertices a b (u,v,l) = 
+flipVertices a b (u,v,l) =
   let newU = if u == a then b
              else if u == b then a
              else u
@@ -487,7 +428,7 @@ flipVertices a b (u,v,l) =
 
 -- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
 dichotomizeRoot :: Int -> SimpleGraph -> SimpleGraph
-dichotomizeRoot lOutgroupIndex inGraph = 
+dichotomizeRoot lOutgroupIndex inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let rootList = LG.getRoots inGraph
@@ -499,7 +440,7 @@ dichotomizeRoot lOutgroupIndex inGraph =
 
     -- nothing to do 
     else if (length rootEdgeList < 3) then inGraph
-    else 
+    else
       let numVertices = length $ LG.nodes inGraph
           newNode = (numVertices, T.pack $ show numVertices)
           edgesToDelete = filter ((/=lOutgroupIndex) . snd3) rootEdgeList
@@ -512,11 +453,11 @@ dichotomizeRoot lOutgroupIndex inGraph =
           newRootEdge = (currentRoot, numVertices, 0.0)
       in
       LG.delLEdges edgesToDelete $ LG.insEdges (newRootEdge : newEdgesNewNode) $ LG.insNode newNode inGraph
-      
+
 
 -- | showBlockGraphs takes a vector of vector of DecoratedGraphs and converte and prettifies outputting a String
 showDecGraphs :: V.Vector (V.Vector DecoratedGraph) -> String
-showDecGraphs inDecVV = 
+showDecGraphs inDecVV =
     if V.null inDecVV then []
     else
         concat $ fmap concat $ V.toList $ fmap V.toList $ fmap (fmap LG.prettify) $ fmap (fmap convertDecoratedToSimpleGraph) inDecVV

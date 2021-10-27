@@ -77,10 +77,10 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
             if outFile == "stderr" then hPutStr stderr reportString
-            else if outFile == "stdout" then hPutStr stdout reportString
+            else if outFile == "stdout" then putStr reportString
             else if writeMode == "overwrite" then writeFile outFile reportString
             else if writeMode == "append" then appendFile outFile reportString
-            else error ("Error 'read' command not properly formatted" ++ (show reportStuff))
+            else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Set then
             let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
@@ -109,43 +109,47 @@ setCommand argList globalSettings processedData =
         leafNameVect = fst3 processedData
 
     in
-    if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ (show argList))
+    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ show argList)
     else
         if head commandList == "outgroup"  then
             let outTaxonName = T.pack $ filter (/= '"') $ head optionList
                 outTaxonIndex = V.elemIndex outTaxonName leafNameVect
 
             in
-            if outTaxonIndex == Nothing then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ (T.unpack outTaxonName) ++ " not found in input leaf list" ++ (show $ fmap (T.unpack) leafNameVect))
+            if isNothing outTaxonIndex then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ T.unpack outTaxonName ++ " not found in input leaf list" ++ show (fmap (T.unpack) leafNameVect))
             else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
         else if head commandList == "graphtype"  then
-            let localGraphType = if (head optionList == "tree") then Tree
-                                 else if (head optionList == "softwired") then SoftWired
-                                 else if (head optionList == "hardwired") then HardWired
-                                 else errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
+            let localGraphType
+                  | (head optionList == "tree") = Tree
+                  | (head optionList == "softwired") = SoftWired
+                  | (head optionList == "hardwired") = HardWired
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
             in
-            trace ("Graphtype set to " ++ (head optionList))
+            trace ("Graphtype set to " ++ head optionList)
             (globalSettings {graphType = localGraphType}, processedData)
         else if head commandList == "criterion"  then
-            let localCriterion = if (head optionList == "parsimony") then Parsimony
-                                 else if (head optionList == "pmdl") then PMDL
-                                 else errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
+            let localCriterion
+                  | (head optionList == "parsimony") = Parsimony
+                  | (head optionList == "pmdl") = PMDL
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
             in
-            trace ("Optimality criterion set to " ++ (head optionList))
+            trace ("Optimality criterion set to " ++ head optionList)
             (globalSettings {optimalityCriterion = localCriterion}, processedData)
         else if head commandList == "compressresolutions"  then
-            let localCriterion = if (head optionList == "true") then True
-                                 else if (head optionList == "false") then False
-                                 else errorWithoutStackTrace ("Error in 'set' command. CompressResolutions '" ++ (head optionList) ++ "' is not 'true' or 'false'")
+            let localCriterion
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. CompressResolutions '" ++ (head optionList) ++ "' is not 'true' or 'false'")
             in
-            trace ("CompressResolutions set to " ++ (head optionList))
+            trace ("CompressResolutions set to " ++ head optionList)
             (globalSettings {compressResolutions = localCriterion}, processedData)
         else if head commandList == "finalassignment"  then
-            let localMethod = if ((head optionList == "do") || (head optionList == "directoptimization")) then DirectOptimization
-                                 else if ((head optionList == "ia") || (head optionList == "impliedalignment")) then ImpliedAlignment
-                                 else errorWithoutStackTrace ("Error in 'set' command. FinalAssignment  '" ++ (head optionList) ++ "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'")
+            let localMethod
+                  | ((head optionList == "do") || (head optionList == "directoptimization")) = DirectOptimization
+                  | ((head optionList == "ia") || (head optionList == "impliedalignment")) = ImpliedAlignment
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. FinalAssignment  '" ++ (head optionList) ++ "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'")
             in
-            trace ("FinalAssignment set to " ++ (head optionList))
+            trace ("FinalAssignment set to " ++ head optionList)
             (globalSettings {finalAssignment = localMethod}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 
@@ -176,7 +180,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
         -- error too harsh, lose everything else
         --if (null $ filter (/= "overwrite") $ filter (/= "append") commandList) then errorWithoutStackTrace ("Error: Missing 'report' option in " ++ show commandList)
         --else
-        if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in report: " ++ (show argList))
+        if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in report: " ++ show argList)
         else
             -- This for reconciled data
             if "crossrefs" `elem` commandList then
@@ -185,31 +189,31 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 (dataString, outfileName, writeMode)
             else if "data" `elem` commandList then
                 let dataString = phyloDataToString 0 $ thd3 processedData
-                    baseData = ("There were " ++ (show $ length rawData) ++ " input data files with " ++ (show $ length $ thd3 processedData) ++ " blocks and " ++ (show $ ((length dataString) - 1)) ++ " total characters\n")
+                    baseData = ("There were " ++ show (length rawData) ++ " input data files with " ++ show (length $ thd3 processedData) ++ " blocks and " ++ (show ((length dataString) - 1)) ++ " total characters\n")
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
                 in
-                (baseData ++ (CSV.genCsvFile $ charInfoFields : dataString), outfileName, writeMode)
+                (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
             else if "diagnosis" `elem` commandList then
-                let dataString = CSV.genCsvFile $ concat $ fmap (getGraphDiagnosis processedData) $ zip curGraphs [0.. ((length curGraphs) - 1)]
+                let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs [0.. ((length curGraphs) - 1)])
                 in
                 (dataString, outfileName, writeMode)
-            else if "graphs" `elem` commandList then 
+            else if "graphs" `elem` commandList then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 (graphString, outfileName, writeMode)
-                
+
             else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
                 let inputDisplayVVList = fmap fth6 curGraphs
-                    treeIndexStringList = fmap (++ "\n") $ fmap ("Canonical Tree " ++) $ fmap show [0..(length inputDisplayVVList - 1)]
+                    treeIndexStringList = fmap ((++ "\n") . ("Canonical Tree " ++)) (fmap show [0..(length inputDisplayVVList - 1)])
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
-                    blockStringList = concat $ fmap (++ "\n") $ fmap (outputBlockTrees commandList (outgroupIndex globalSettings)) canonicalGraphPairList
+                    blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList (outgroupIndex globalSettings)) canonicalGraphPairList)
                     -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 (blockStringList, outfileName, writeMode)
 
             else if "pairdist" `elem` commandList then
-                let nameData = (L.intercalate "," $ V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
+                let nameData = L.intercalate "," (V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in
                 (nameData ++ dataString, outfileName, writeMode)
@@ -217,58 +221,58 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
 outputBlockTrees :: [String] -> Int -> (String , V.Vector [BlockDisplayForest]) -> String
-outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) = 
-    let blockIndexStringList = fmap (++ "\n") $ fmap ("Block " ++) $ fmap show [0..((V.length graphLV) - 1)]
-        blockStrings = concat $ fmap (++ "\n") $ fmap (makeBlockGraphStrings commandList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV)
+outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) =
+    let blockIndexStringList = fmap ((++ "\n") . ("Block " ++)) (fmap show [0..((V.length graphLV) - 1)])
+        blockStrings = concatMap (++ "\n") (fmap (makeBlockGraphStrings commandList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV))
     in
     labelString ++ blockStrings
 
 -- | makeBlockGraphStrings makes individual block display trees--potentially multiple
 makeBlockGraphStrings :: [String] -> Int -> (String ,[BlockDisplayForest]) -> String
 makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
-    let diplayIndexString =("Display Tree(s): " ++ (show $ length graphL) ++ "\n")
+    let diplayIndexString =("Display Tree(s): " ++ show (length graphL) ++ "\n")
         displayString = (++ "\n") $ outputDisplayString commandList lOutgroupIndex graphL
     in
     labelString ++ diplayIndexString ++ displayString
 
 -- | outputDisplayString is a wrapper around graph output functions--but without cost list
-outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String 
-outputDisplayString commandList lOutgroupIndex graphList =
-  if "dot" `elem` commandList then makeDotList lOutgroupIndex graphList
-  else if "newick" `elem` commandList then makeNewickList lOutgroupIndex graphList (replicate (length graphList) 0.0)
-  else if "ascii" `elem` commandList then makeAsciiList lOutgroupIndex graphList
-  else -- "dot" as default
+outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String
+outputDisplayString commandList lOutgroupIndex graphList
+  | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
+  | "newick" `elem` commandList = makeNewickList lOutgroupIndex graphList (replicate (length graphList) 0.0)
+  | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
+  | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex graphList
 
 -- | outputGraphString is a wrapper arounf graph output functions
-outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String 
-outputGraphString commandList lOutgroupIndex graphList costList =
-  if "dot" `elem` commandList then makeDotList lOutgroupIndex graphList
-  else if "newick" `elem` commandList then makeNewickList lOutgroupIndex graphList costList
-  else if "ascii" `elem` commandList then makeAsciiList lOutgroupIndex graphList
-  else -- "dot" as default
+outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
+outputGraphString commandList lOutgroupIndex graphList costList
+  | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
+  | "newick" `elem` commandList = makeNewickList lOutgroupIndex graphList costList
+  | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
+  | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex graphList
 
 -- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
-makeDotList :: Int -> [DecoratedGraph] -> String 
-makeDotList rootIndex graphList = 
-     concat $ L.intersperse "\n" $ fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList
+makeDotList :: Int -> [DecoratedGraph] -> String
+makeDotList rootIndex graphList =
+     L.intercalate "\n" (fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
-makeNewickList ::  Int -> [DecoratedGraph] -> [VertexCost] -> String 
-makeNewickList rootIndex graphList costList = 
-    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) (fmap GO.convertDecoratedToSimpleGraph graphList))  True True
+makeNewickList ::  Int -> [DecoratedGraph] -> [VertexCost] -> String
+makeNewickList rootIndex graphList costList =
+    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex . GO.convertDecoratedToSimpleGraph) graphList)  True True
         newickStringList = fmap init $ filter (not . null) $ lines graphString
-        costStringList  = fmap ('[' :) $ fmap (++ "];\n") $ fmap show costList 
+        costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
         graphStringCost = concat $ zipWith (++) newickStringList costStringList
     in
     graphStringCost
 
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [DecoratedGraph] -> String
-makeAsciiList rootIndex graphList = 
-    concat $ fmap LG.prettify  $ fmap (GO.rerootTree rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList
+makeAsciiList rootIndex graphList =
+    concatMap LG.prettify (fmap (GO.rerootTree rootIndex) $ fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | getDataListList returns a list of lists of Strings for data output as csv
 -- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
@@ -277,7 +281,7 @@ getDataListList :: [RawData] -> ProcessedData -> [[String]]
 getDataListList inDataList processedData =
     if null inDataList then []
     else
-        let fileNames = " " : (fmap (takeWhile (/= ':')) $ fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
+        let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
             fullTaxList = V.toList $ fst3  processedData
             presenceAbsenceList = fmap (isThere inDataList) fullTaxList
             fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
@@ -302,21 +306,21 @@ phyloDataToString charIndexStart inDataVect =
     if V.null inDataVect then []
     else
         let (blockName, _, charInfoVect) = V.head inDataVect
-            charStrings = zipWith (:) (replicate (V.length charInfoVect) (T.unpack blockName)) (fmap getCharInfoStrings $ V.toList charInfoVect)
-            charNumberString = fmap show [charIndexStart..(charIndexStart + (length charStrings) - 1)]
+            charStrings = zipWith (:) (replicate (V.length charInfoVect) (T.unpack blockName)) (getCharInfoStrings <$> V.toList charInfoVect)
+            charNumberString = fmap show [charIndexStart..(charIndexStart + length charStrings - 1)]
             fullMatrix = zipWith (:) charNumberString charStrings
         in
-        fullMatrix ++ phyloDataToString (charIndexStart + (length charStrings)) (V.tail inDataVect)
+        fullMatrix ++ phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
 -- | getCharInfoStrings takes charInfo and returns list of Strings of fields
 getCharInfoStrings :: CharInfo -> [String]
 getCharInfoStrings inChar =
-    let activityString = if (activity inChar) == True then "active"
+    let activityString = if (activity inChar) then "active"
                          else "inactive"
-        prealignedString = if (prealigned inChar) == True then "prealigned"
+        prealignedString = if (prealigned inChar) then "prealigned"
                          else "unaligned"
     in
-    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ (fmap ST.toString $ alphabet inChar) ++ [show $ costMatrix inChar]
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ fmap ST.toString (alphabet inChar) ++ [show $ costMatrix inChar]
 
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
@@ -332,7 +336,7 @@ executeRenameReblockCommands curPairs commandList  =
         else
             let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
-                oldNameList = (fmap (T.filter (/= '"')) $ fmap T.pack $ fmap snd $ tail firstArgs)
+                oldNameList = (fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs))
                 newPairs = zip newNameList oldNameList
             in
             executeRenameReblockCommands (curPairs ++ newPairs) (tail commandList)
@@ -348,7 +352,7 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
         let vertexList = LG.labNodes decGraph
             edgeList = LG.labEdges decGraph
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
-            vertexInfoList =  concat $ fmap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
+            vertexInfoList =  concatMap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
             edgeHeaderList = [[" "],[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
         in
@@ -359,9 +363,10 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
 getVertexCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
 getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
     let leafParents = LG.parents inGraph (fst inVert)
-        parentNodes = if nodeType  (snd inVert) == RootNode then "None"
-                     else if nodeType  (snd inVert) == LeafNode then show leafParents
-                     else show $  parents  (snd inVert)
+        parentNodes
+          | nodeType  (snd inVert) == RootNode = "None"
+          | nodeType  (snd inVert) == LeafNode = show leafParents
+          | otherwise = show $  parents  (snd inVert)
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
         basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ", " ", " ", " ", " ", show $ vertexCost (snd inVert)]
         blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
@@ -423,30 +428,31 @@ selectArgList = ["best", "all", "unique", "random"]
 -- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
 -- and returns or filters that list based on options.
 -- uses selectListCostPairs in GeneralUtilities
-selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph] 
+selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 selectPhylogeneticGraph inArgs seed curGraphs =
     if null curGraphs then []
-    else 
-        let fstArgList = fmap (fmap C.toLower) $ fmap fst inArgs
-            sndArgList = fmap (fmap C.toLower) $ fmap snd inArgs
+    else
+        let fstArgList = fmap (fmap C.toLower . fst) inArgs
+            sndArgList = fmap (fmap C.toLower . snd) inArgs
             lcArgList = zip fstArgList sndArgList
             checkCommandList = U.checkCommandArgs "select" fstArgList selectArgList
         in
            -- check for valid command options
-           if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ (show inArgs))
-           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ (show inArgs))
+           if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)
+           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ show inArgs)
            else
-                let doBest    = not $ null $ filter ((=="best").fst) lcArgList
-                    doAll     = not $ null $ filter ((=="all").fst) lcArgList
-                    doRandom  = not $ null $ filter ((=="random").fst) lcArgList
-                    doUnique  = not $ null $ filter ((=="unique").fst) lcArgList
-                    numberToKeep = if null lcArgList then Just (maxBound :: Int)
-                                   else if null $ snd $ head lcArgList then Just (maxBound :: Int)
-                                   else readMaybe (snd $ head lcArgList) :: Maybe Int
+                let doBest    = not $ not (any ((=="best").fst) lcArgList)
+                    doAll     = not $ not (any ((=="all").fst) lcArgList)
+                    doRandom  = not $ not (any ((=="random").fst) lcArgList)
+                    doUnique  = not $ not (any ((=="unique").fst) lcArgList)
+                    numberToKeep
+                      | null lcArgList = Just (maxBound :: Int)
+                      | null $ snd $ head lcArgList = Just (maxBound :: Int)
+                      | otherwise = readMaybe (snd $ head lcArgList) :: Maybe Int
                 in
                 if doAll then curGraphs
-                else if numberToKeep == Nothing then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ (show $ snd $ head lcArgList))
-                else 
+                else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ show (snd $ head lcArgList))
+                else
                     let -- minimum graph cost
                         minGraphCost = minimum $ fmap snd6 curGraphs
 
@@ -462,22 +468,22 @@ selectPhylogeneticGraph inArgs seed curGraphs =
                          let randList = head $ shuffleInt seed 1 [0..(length curGraphs - 1)]
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
-                         take (fromJust numberToKeep) $ shuffledGraphs
+                         take (fromJust numberToKeep) shuffledGraphs
                     -- default is best and unique
-                    else 
+                    else
                         filter ((== minGraphCost).snd6) uniqueGraphList
-                
+
 
 -- | could use FGL '==' ?
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
 getUniqueGraphs inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
-    else 
+    else
         let firstPair@(firstEdges, _) = head inGraphPairList
         in
         if null currentUniquePairs then getUniqueGraphs (tail inGraphPairList) [firstPair]
-        else 
+        else
             let equalList = filter (== True) $ fmap ((== firstEdges) . fst) currentUniquePairs
             in
             if null equalList then getUniqueGraphs (tail inGraphPairList) (firstPair : currentUniquePairs)

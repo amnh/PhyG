@@ -39,7 +39,7 @@ Distance builds (Wagner, NJ, WPGMA are imported from Wag2020.
 https://www.github.com/wardwheeler/wag2020
 -}
 
-module Search.Build  ( buildGraph 
+module Search.Build  ( buildGraph
                      ) where
 
 import qualified GraphOptimization.Traversals as T
@@ -68,54 +68,56 @@ buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "chara
 
 -- | buildGraph takes build options and returns contructed graphList 
 buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
-buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed = 
-   let fstArgList = fmap (fmap toLower) $ fmap fst inArgs
-       sndArgList = fmap (fmap toLower) $ fmap snd inArgs
+buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
+   let fstArgList = fmap (fmap toLower . fst) inArgs
+       sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
        checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
    in
    -- check for valid command options
-   if checkCommandList == False then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ (show inArgs))
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
    else
-           
+
       let buildDistance = filter ((=="distance").fst) lcArgList
           buildCharacter = filter ((=="character").fst) lcArgList
           repPairList = filter ((=="replicates").fst) lcArgList
-          numReplicates = if length repPairList > 1 then 
-                              errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " ++ show inArgs)
-                          else if null repPairList then Just 100
-                          else readMaybe (snd $ head repPairList) :: Maybe Int
+          numReplicates
+            | length repPairList > 1 =
+              errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " ++ show inArgs)
+            | null repPairList = Just 100
+            | otherwise = readMaybe (snd $ head repPairList) :: Maybe Int
           keepPairList = filter ((=="best").fst) lcArgList
-          numToSave = if length keepPairList > 1 then 
-                              errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " ++ show inArgs)
-                          else if null keepPairList then numReplicates
-                          else readMaybe (snd $ head keepPairList) :: Maybe Int
+          numToSave
+            | length keepPairList > 1 =
+                  errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " ++ show inArgs)
+            | null keepPairList = numReplicates
+            | otherwise = readMaybe (snd $ head keepPairList) :: Maybe Int
 
       in
-      if (not $ null buildDistance) && (not $ null buildCharacter) then 
+      if not (null buildDistance) && not (null buildCharacter) then
          errorWithoutStackTrace ("Cannot specify both 'character' and 'distance' builds in same build command" ++ show inArgs)
-      else if numReplicates == Nothing then errorWithoutStackTrace ("Replicates specification not an integer: "  ++ (show $ snd $ head repPairList))
-      else if numToSave == Nothing then errorWithoutStackTrace ("Best specification not an integer: "  ++ (show $ snd $ head keepPairList))
-      else if (not $ null buildDistance) then
+      else if isNothing numReplicates then errorWithoutStackTrace ("Replicates specification not an integer: "  ++ show (snd $ head repPairList))
+      else if isNothing numToSave then errorWithoutStackTrace ("Best specification not an integer: "  ++ show (snd $ head keepPairList))
+      else if not $ null buildDistance then
          -- distance build
          -- do all options in line and add together for return tree list
-         let doDWag  = not $ null $ filter ((=="dwag").fst) lcArgList
-             doRDwag = not $ null $ filter ((=="rdwag").fst) lcArgList
-             doNJ    = not $ null $ filter ((=="nj").fst) lcArgList
-             doWPGMA = not $ null $ filter ((=="wpgma").fst) lcArgList
-             doOTU   = not $ null $ filter ((=="otu").fst) lcArgList
-             doSPR   = not $ null $ filter ((=="spr").fst) lcArgList
-             doTBR   = not $ null $ filter ((=="tbr").fst) lcArgList
+         let doDWag  = any ((=="dwag").fst) lcArgList
+             doRDwag = any ((=="rdwag").fst) lcArgList
+             doNJ    = any ((=="nj").fst) lcArgList
+             doWPGMA = any ((=="wpgma").fst) lcArgList
+             doOTU   = any ((=="otu").fst) lcArgList
+             doSPR   = any ((=="spr").fst) lcArgList
+             doTBR   = any ((=="tbr").fst) lcArgList
              outgroupElem = outgroupIndex inGS
              nameStringVect = fmap TL.unpack nameTextVect
              distMatrix = M.fromLists pairwiseDistances
          in
-         let refinement = if doTBR then "tbr"
-                          else if doSPR then "spr"
-                          else if doOTU then "otu"
-                          else "none"
-             treeList    = if doDWag then [distanceWagner inGS inData nameStringVect distMatrix outgroupElem refinement]
-                           else []
+         let refinement
+               | doTBR = "tbr"
+               | doSPR = "spr"
+               | doOTU = "otu"
+               | otherwise = "none"
+             treeList    = [distanceWagner inGS inData nameStringVect distMatrix outgroupElem refinement | doDWag]
              treeList'   = if doRDwag then treeList ++ randomizedDistanceWagner inGS inData nameStringVect distMatrix outgroupElem (fromJust numReplicates) seed (fromJust numToSave) refinement
                            else treeList
              treeList''  = if doNJ then treeList' ++ [neighborJoin inGS inData nameStringVect distMatrix outgroupElem refinement]
@@ -124,20 +126,20 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
                            else treeList''
          in
          if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
-         else 
+         else
             -- trace (show inArgs ++ " Yielded " ++ (show $ length treeList''') ++ " trees")
             treeList'''
 
-      else 
+      else
          -- character build 
          errorWithoutStackTrace ("Character-based graph builds not yet implemented" ++ show inArgs)
-      
+
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
 distanceWagner :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
 distanceWagner inGS inData leafNames distMatrix outgroupValue refinement =
    let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" []
-       distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree 
+       distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
        distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
    in
    T.multiTraverseFullyLabelTree inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
@@ -146,19 +148,19 @@ distanceWagner inGS inData leafNames distMatrix outgroupValue refinement =
 -- random addition sequence Wagner trees fully decorated tree (as Graph)
 randomizedDistanceWagner :: GlobalSettings -> ProcessedData ->  V.Vector String -> M.Matrix Double -> Int -> Int -> Int -> Int -> String -> [PhylogeneticGraph]
 randomizedDistanceWagner inGS inData leafNames distMatrix outgroupValue numReplicates seed numToKeep refinement =
-   let randomizedAdditionSequences = fmap V.fromList $ shuffleInt seed numReplicates [0..(length leafNames - 1)] 
+   let randomizedAdditionSequences = V.fromList <$> shuffleInt seed numReplicates [0..(length leafNames - 1)]
        randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
-       randomizedAdditionWagnerTreeList'' = fmap head $ PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
+       randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
    in
-   fmap (T.multiTraverseFullyLabelTree inGS inData) $ fmap (GO.dichotomizeRoot outgroupValue) $ fmap (GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+   fmap ((T.multiTraverseFullyLabelTree inGS inData . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
 
 -- | neighborJoin takes Processed data and pairwise distance matrix and returns
 -- Neighbor-Joining tree as fully decorated tree (as Graph)
 neighborJoin :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
 neighborJoin inGS inData leafNames distMatrix outgroupValue refinement =
-   let njTree = DM.neighborJoining leafNames distMatrix outgroupValue 
+   let njTree = DM.neighborJoining leafNames distMatrix outgroupValue
        njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
        njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
    in
@@ -169,7 +171,7 @@ neighborJoin inGS inData leafNames distMatrix outgroupValue refinement =
 -- since root index not nOTUs as with other tres--chanegd as with dWag and NJ to make consistent.
 wPGMA :: GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> PhylogeneticGraph
 wPGMA inGS inData leafNames distMatrix outgroupValue refinement =
-   let wpgmaTree = DM.wPGMA leafNames distMatrix outgroupValue 
+   let wpgmaTree = DM.wPGMA leafNames distMatrix outgroupValue
        wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
        wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
    in
