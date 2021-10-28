@@ -440,5 +440,11 @@ to render--would have repeated subtrees after network vertex
 
 177) remove calls to getRoots  must be O(n)
 
+178) Add graph reconciliation functions and report 
+
+179) Add no error dot-pdf output
+
+
+
 
 
