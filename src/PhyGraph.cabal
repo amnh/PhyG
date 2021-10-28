@@ -237,6 +237,8 @@ executable phyg
                   Utilities.LocalSequence
                   Utilities.TcmHash
                   Utilities.Utilities
+                  Reconciliation.Adams
+                  Reconciliation.Eun
                   -- From PhyloLibs
                   Cyclic
                   GeneralUtilities
