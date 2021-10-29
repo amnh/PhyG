@@ -782,7 +782,7 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
     where showLabel (e,u,l) = (e,u,show l)
 
 -- | reconcile is the overall function to drive all methods 
-reconcile :: (String, String, Int, Bool, Bool, Bool, String, String, [P.Gr a b]) -> (String, P.Gr String String)
+reconcile :: (String, String, Int, Bool, Bool, Bool, String, String, [P.Gr String String]) -> (String, P.Gr String String)
 reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, outputFile, inputGraphList) =
   
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
@@ -798,11 +798,12 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         unionNodes = L.sort $ leafNodes ++ addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
         unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
 
-        
+        totallLeafString = L.foldl' L.union [] (fmap (fmap snd)  (fmap getLeafListNewick inputGraphList))
+        totallLeafSet = zip [0..(length totallLeafString - 1)] totallLeafString
         --
         -- Create Adams II consensus
         --
-        adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble fullLeafSetGraphs)
+        adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
         adamsIIInfo = "There are " ++ show (length $ G.nodes adamsII) ++ " nodes present in Adams II consensus"
         adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
         adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
