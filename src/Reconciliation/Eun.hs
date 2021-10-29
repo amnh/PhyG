@@ -805,7 +805,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble fullLeafSetGraphs)
         adamsIIInfo = "There are " ++ show (length $ G.nodes adamsII) ++ " nodes present in Adams II consensus"
         adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
-        ladamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
+        adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
         adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
 
         --
@@ -860,7 +860,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
 
     if method == "eun" then 
       if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
-      else if outputFormat == fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
+      else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
       else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
     
     else if method == "adams" then 
@@ -870,7 +870,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
     
     else if (method == "majority") || (method == "cun") || (method == "strict") then
         if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
-        else if outputFormat == "fenewick" (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
+        else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
         else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
 
     else errorWithoutStackTrace("Graph combination method " ++ method ++ " is not implemented")

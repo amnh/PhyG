@@ -58,7 +58,7 @@ import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char as C
 import qualified Search.Build           as B
-import qualified Reconcile.ReconcileGraphs as R
+import qualified Reconciliation.ReconcileGraphs as R
 
 
 
