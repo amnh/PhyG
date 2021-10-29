@@ -58,6 +58,7 @@ import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char as C
 import qualified Search.Build           as B
+import qualified Reconcile.ReconcileGraphs as R
 
 
 
@@ -158,7 +159,7 @@ setCommand argList globalSettings processedData =
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees"]
+reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
 
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
@@ -187,16 +188,19 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 let dataString = CSV.genCsvFile $ getDataListList rawData processedData
                 in
                 (dataString, outfileName, writeMode)
+
             else if "data" `elem` commandList then
                 let dataString = phyloDataToString 0 $ thd3 processedData
                     baseData = ("There were " ++ show (length rawData) ++ " input data files with " ++ show (length $ thd3 processedData) ++ " blocks and " ++ (show ((length dataString) - 1)) ++ " total characters\n")
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
+
             else if "diagnosis" `elem` commandList then
                 let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs [0.. ((length curGraphs) - 1)])
                 in
                 (dataString, outfileName, writeMode)
+
             else if "graphs" `elem` commandList then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
@@ -217,6 +221,13 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in
                 (nameData ++ dataString, outfileName, writeMode)
+
+            else if "reconcile" `elem` commandList then
+                let (reconcileString, _) = R.makeReconcileGraph commandList (fmap fst6 curGraphs)
+                in
+                (reconcileString, outfileName, writeMode)
+
+
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees

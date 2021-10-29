@@ -34,6 +34,36 @@ Portability :  portable (I hope)
 
 -}
 
-module Reconciliation.ReconcileGraphs  where
+module Reconciliation.ReconcileGraphs  ( makeReconcileGraph 
+                                       ) where
 
-import qualified Reconciliation.Eun as E
+import           Types.Types
+import qualified Reconciliation.Eun    as E
+import qualified Utilities.LocalGraph  as LG
+import qualified GraphFormatUtilities  as GFU
+
+
+-- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
+makeReconcileGraph :: [String] -> [SimpleGraph] -> (String, SimpleGraph)
+makeReconcileGraph commandList inGraphList =
+   if null inGraphList then "Error: No input graphs to reconcile"
+   else   
+      let -- convert SimpleGraph to String String from Text Double
+          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True) fmap GFU.textGraph2StringGraph inGraphList
+          method = "eun"
+          compareMethod = "combinable"
+          threshold = 100
+          connectComponents = True
+          edgeLabel = True
+          vertexLabel = False
+          outputFormat = "dot"
+          outputFile = "bleh.dot"
+          (reconcileString, reconcileGraph) = reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, outputFile, stringGraphs)
+          reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
+      in
+      (reconcileString, reconcileSimpleGraph)
+
+
+
+
+

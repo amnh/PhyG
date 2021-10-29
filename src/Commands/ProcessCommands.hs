@@ -161,6 +161,7 @@ getInstruction inString possibleCommands
     | fmap toLower inString == "rename"    = Rename
     | fmap toLower inString == "reblock"   = Reblock
     | fmap toLower inString == "select"    = Select
+    | fmap toLower inString == "reconcile" = Reconcile
     | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in  errorWithoutStackTrace $ fold
