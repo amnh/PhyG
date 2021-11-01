@@ -447,8 +447,8 @@ contractIn1Out1Edges inGraph =
                     inEdgeToDelete  = head $ inn inGraph $ fst nodeToDelete
                     outEdgeToDelete = head $ out inGraph $ fst nodeToDelete
                     newEdgeToAdd    = (fst3 inEdgeToDelete, snd3 outEdgeToDelete, thd3 inEdgeToDelete)
-                    reindexedNodes = reindexNodes nodeToDelete [] $ labNodes inGraph
-                    reindexedEdges = fmap (reindexEdge nodeToDelete) (newEdgeToAdd : (labEdges inGraph L.\\ (inEdgeToDelete ++ outEdgeToDelete)))
+                    reindexedNodes = reindexNodes (fst nodeToDelete) [] $ labNodes inGraph
+                    reindexedEdges = reindexEdges (fst nodeToDelete) [] (newEdgeToAdd : (labEdges inGraph))
                     newGraph = mkGraph reindexedNodes reindexedEdges
                     -- newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete inGraph -- $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
                 in
@@ -458,13 +458,52 @@ contractIn1Out1Edges inGraph =
 
 -- | reindexNodes takes a node (assumes index and fst of node are the same) and a list of
 --   nodes deleting the input node and reindexing all the other nodes with indices > than the input are reduced by 1
-reindexNodes :: LNode a -> [LNode a] ->  [LNode a] -> [LNode a]
-reindexNodes inNode@(inNodeIndex, _) curList nodeList =
+reindexNodes :: Int -> [LNode a] ->  [LNode a] -> [LNode a]
+reindexNodes inNodeIndex curList nodeList =
     if null nodeList then reverse curList
     else 
         let firstNode@(index, label) = head nodeList
         in 
-        if index < inNodeIndex then reindexNodes inNode(firstNode : curList) (tail nodeList)
-        else if index == inNodeIndexthen then reindexNodes inNode curList (tail nodeList)
-        else reindexNodes inNode((index - 1, label) : curList) (tail nodeList)
+        if index < inNodeIndex then reindexNodes inNodeIndex (firstNode : curList) (tail nodeList)
+        else if index == inNodeIndex then reindexNodes inNodeIndex curList (tail nodeList)
+        else reindexNodes inNodeIndex ((index - 1, label) : curList) (tail nodeList)
+
+
+-- | reindexEdges takes the index of a node that has/is being delted and reindexes indices 
+-- that are not incident on the node and deleted if incedent on node index
+reindexEdges :: Int -> [LEdge b] -> [LEdge b] -> [LEdge b]
+reindexEdges inNodeIndex curList edgeList =
+    if null edgeList then curList
+    else 
+        let firstEdge@(a,b,c) = head edgeList
+            a' = if a < inNodeIndex then a
+                 else a - 1
+            b' = if b < inNodeIndex then b
+                 else b - 1
+        in
+        -- incident on node to be deleted 
+        if a == inNodeIndex || b == inNodeIndex then reindexEdges inNodeIndex curList (tail edgeList)
+
+        -- reindexed edge added in
+        else reindexEdges inNodeIndex ((a', b', c) : curList) (tail edgeList)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
