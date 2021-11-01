@@ -46,10 +46,10 @@ import qualified GraphFormatUtilities  as GFU
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
 makeReconcileGraph :: [String] -> [SimpleGraph] -> (String, SimpleGraph)
 makeReconcileGraph commandList inGraphList =
-   if null inGraphList then "Error: No input graphs to reconcile"
+   if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
    else   
       let -- convert SimpleGraph to String String from Text Double
-          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True) fmap GFU.textGraph2StringGraph inGraphList
+          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True) $ fmap GFU.textGraph2StringGraph inGraphList
           method = "eun"
           compareMethod = "combinable"
           threshold = 100
@@ -58,7 +58,7 @@ makeReconcileGraph commandList inGraphList =
           vertexLabel = False
           outputFormat = "dot"
           outputFile = "bleh.dot"
-          (reconcileString, reconcileGraph) = reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, outputFile, stringGraphs)
+          (reconcileString, reconcileGraph) = E.reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, outputFile, stringGraphs)
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
       in
       (reconcileString, reconcileSimpleGraph)

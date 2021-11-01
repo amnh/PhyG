@@ -35,9 +35,10 @@ Portability :  portable (I hope)
 -}
 
 module GraphOptimization.Traversals ( postOrderTreeTraversal
-                                    -- , makeLeafGraph
+                                    , postOrderSoftWiredTraversal
                                     , multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
+                                    , multiTraverseFullyLabelSoftWired
                                     ) where
 
 import           Types.Types
@@ -64,8 +65,8 @@ import qualified Data.BitVector.LittleEndian as BV
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree, 
 -- Soft-wired network graph, and Hard-wired network graph
-multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelGraph inGS inData inGraph
+multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> Bool -> Bool -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
   | LG.isEmpty inGraph = emptyPhylogeneticGraph
   | graphType inGS == Tree =
     -- test for Tree
@@ -73,15 +74,18 @@ multiTraverseFullyLabelGraph inGS inData inGraph
     in
     if null networkVertexList then multiTraverseFullyLabelTree inGS inData inGraph
     else errorWithoutStackTrace "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type"
-      | graphType inGS == SoftWired = multiTraverseFullyLabelSoftWired  inGS inData inGraph
+      | graphType inGS == SoftWired = multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges inGraph
       | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
       | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
--- including traversal rootings 
+-- including traversal rootings-- does not reroot on network edges
 -- allows indegree=outdegree=1 vertices
-multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
+-- pruneEdges and warnPruneEdges specify if unused edges (ie not in diuaplytrees) are pruned from
+-- canonical tree or if an infinity cost is returned and if a trace warning is thrown if so.
+-- in general--input trees should use "pruneEdges" during search--not
+multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
         let -- starting leaves
@@ -110,6 +114,8 @@ multiTraverseFullyLabelSoftWired inGS inData inSimpleGraph =
             recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph inGS SoftWired outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
 
             finalizedPostOrderGraphList = L.sortOn snd6 $ fmap updateAndFinalizePreorderSoftWired recursiveRerootList
+
+
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
