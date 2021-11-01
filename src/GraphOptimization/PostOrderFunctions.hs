@@ -702,7 +702,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         -- )          
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
--- bnasicall at root and network edge originally 'to' network edge
+-- basically at root and network edge originally 'to' network edge
 rectifyGraph :: (Eq b) => Bool -> Int ->  Bool -> Int -> Int -> LG.Gr a b -> LG.Gr a b
 rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph =
     if LG.isEmpty inGraph then LG.empty
@@ -923,3 +923,4 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
                   , vertexCost   = newVertexCost
                   , subGraphCost = newSubGraphCost
                   }
+

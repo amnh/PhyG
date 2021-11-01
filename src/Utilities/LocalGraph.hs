@@ -202,6 +202,11 @@ insEdge = G.insEdge
 delLEdge :: LEdge b -> Gr a b -> Gr a b
 delLEdge inEdge = G.delEdge (G.toEdge inEdge)
 
+-- | delLEdge deletes a list of unlabelled edges from a graph
+-- wrapps around delEdges
+delEdges :: [Edge] -> Gr a b -> Gr a b
+delEdges inEdgeList = G.delEdges inEdgeList
+
 -- | delLEdge deletes a list of labelled edges from a graph
 -- wrapps around delEdges
 delLEdges :: [LEdge b] -> Gr a b -> Gr a b
@@ -435,15 +440,31 @@ contractIn1Out1Edges inGraph =
         let inOutDeg = getInOutDeg inGraph <$> labNodes inGraph
             degree11VertexList = filter ((==1) . thd3) $ filter ((==1) . snd3) inOutDeg
         in
-        trace ("11:" ++ show degree11VertexList) (
+        trace ("vertex 11:" ++ show degree11VertexList) (
         if null degree11VertexList then inGraph
         else
                 let nodeToDelete = fst3 $ head degree11VertexList
                     inEdgeToDelete  = head $ inn inGraph $ fst nodeToDelete
                     outEdgeToDelete = head $ out inGraph $ fst nodeToDelete
                     newEdgeToAdd    = (fst3 inEdgeToDelete, snd3 outEdgeToDelete, thd3 inEdgeToDelete)
-                    newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
+                    reindexedNodes = reindexNodes nodeToDelete [] $ labNodes inGraph
+                    reindexedEdges = fmap (reindexEdge nodeToDelete) (newEdgeToAdd : (labEdges inGraph L.\\ (inEdgeToDelete ++ outEdgeToDelete)))
+                    newGraph = mkGraph reindexedNodes reindexedEdges
+                    -- newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete inGraph -- $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
                 in
                 trace ("Deleting Node " ++ show (fst nodeToDelete) ++ " " ++ show (inEdgeToDelete, outEdgeToDelete) ++ " inserting " ++ show  newEdgeToAdd)
                 contractIn1Out1Edges newGraph
                 )
+
+-- | reindexNodes takes a node (assumes index and fst of node are the same) and a list of
+--   nodes deleting the input node and reindexing all the other nodes with indices > than the input are reduced by 1
+reindexNodes :: LNode a -> [LNode a] ->  [LNode a] -> [LNode a]
+reindexNodes inNode@(inNodeIndex, _) curList nodeList =
+    if null nodeList then reverse curList
+    else 
+        let firstNode@(index, label) = head nodeList
+        in 
+        if index < inNodeIndex then reindexNodes inNode(firstNode : curList) (tail nodeList)
+        else if index == inNodeIndexthen then reindexNodes inNode curList (tail nodeList)
+        else reindexNodes inNode((index - 1, label) : curList) (tail nodeList)
+

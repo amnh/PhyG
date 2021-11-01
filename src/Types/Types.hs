@@ -65,6 +65,11 @@ pgVersion = "0.1"
 epsilon :: Double
 epsilon = 0.0001
 
+
+-- | infinity is a large Double for use with Graph costs
+infinity :: Double
+infinity = (read "Infinity")::Double
+
 -- | Types for timed searches
 type Days = Int
 type Hours = Int

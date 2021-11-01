@@ -39,6 +39,7 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
                                     , multiTraverseFullyLabelSoftWired
+                                    , checkUnusedEdgesPruneInfty
                                     ) where
 
 import           Types.Types
@@ -96,8 +97,8 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
 
-            -- post order pass
-            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            -- post order pass-- rerooted because to keep track of rerooting in Graphs
+            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
 
             -- root node--invariant even when rerooted
             -- (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
@@ -113,9 +114,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- optimization to get O(log n) initial postorder assingment when mutsating graph.
             recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph inGS SoftWired outgroupRootedSoftWiredPostOrder grandChildrenOfRoot
 
-            finalizedPostOrderGraphList = L.sortOn snd6 $ fmap updateAndFinalizePreorderSoftWired recursiveRerootList
-
-
+            finalizedPostOrderGraphList = L.sortOn snd6 $ fmap updateAndFinalizePostOrderSoftWired recursiveRerootList
 
             -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
             -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
@@ -133,25 +132,77 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
         -- Preorder on updated post-order graph 
         trace ("CSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
 
-        if nonExactChars == 0 then PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
-        else
+        -- only static characters
+        if nonExactChars == 0 then 
+            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
 
-            -- single dynamic character
-            if nonExactChars == 1 then
-                let updatedPreorderGraph = updateAndFinalizePreorderSoftWired $ head finalizedPostOrderGraphList
-                in
-                PRE.preOrderTreeTraversal (finalAssignment inGS) True updatedPreorderGraph
-
-            -- multiply dynamic characters
-            else PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments
-
+        -- single dynamic character
+        else if nonExactChars == 1 then
+            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
+            
+        -- multiple dynamic characters
+        else 
+            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
         )
 
+-- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has 
+-- "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is 
+-- not present in any of the block display trees (that are heursticlly optimal)
+-- the optrions specify if the cost returned is Infinity (really max boun Double)
+-- with no pruning of edges or th ecost is left unchanged and unused edges are
+-- pruned from the canonical graph
+-- this is unDirected due to rerooting heuristic in post/preorder optimization
+-- inifinity defined in Types.hs
+checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges inGraph@(inSimple, _, inCanonical, blockTreeV, charTreeVV, charInfoVV) =
+    let simpleEdgeList = LG.edges inSimple
+        displayEdgeSet =  L.nubBy undirectedEdgeEquality $ concat $ concat $ fmap (fmap LG.edges) blockTreeV
+        unusedEdges = undirectedEdgeMinus simpleEdgeList displayEdgeSet
+    in
+    -- no unused edges all OK
+    if null unusedEdges then inGraph
 
--- | updateAndFinalizePreorderSoftWired performs the post-order traceback on the resolutions to create the correct vertex states,
--- ports the post order assignments to the canonical tree and display trees, and creates the charctear trees from the block trees
-updateAndFinalizePreorderSoftWired :: PhylogeneticGraph -> PhylogeneticGraph
-updateAndFinalizePreorderSoftWired inGraph =
+    -- unused edges--do not prune return "infinite cost"
+    else if not pruneEdges then (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV) 
+
+    -- unused but pruned--need to prune nodes and reoptimize to get final assignments correct
+    else 
+        let newSimpleGraph = LG.delEdges unusedEdges inSimple
+            contractedSimple = LG.contractIn1Out1Edges newSimpleGraph
+        in
+        if warnPruneEdges then 
+            trace ("Pruning " ++ (show $ length unusedEdges) ++ " unused edges and reoptimizing graph") 
+            multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges contractedSimple 
+            
+        else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges contractedSimple 
+
+    where undirectedEdgeEquality (a,b) (c,d) = if a == c && b == d then True
+                                               else if a == d && b == c then True
+                                               else False 
+
+-- | undirectedEdgeMinus subtracts edges in the second list from those in the first using 
+-- undirected matching
+undirectedEdgeMinus :: [LG.Edge] -> [LG.Edge] -> [LG.Edge]
+undirectedEdgeMinus firstList secondList =
+    if null firstList then []
+    else 
+        let firstEdge@(a,b) = head firstList
+        in
+        if firstEdge `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
+        else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
+        else firstEdge : undirectedEdgeMinus (tail firstList) secondList
+
+
+-- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions to create the correct vertex states,
+-- ports the post order assignments to the canonical tree and display trees, and creates the character trees from the block trees
+updateAndFinalizePostOrderSoftWired :: PhylogeneticGraph -> PhylogeneticGraph
+updateAndFinalizePostOrderSoftWired inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)

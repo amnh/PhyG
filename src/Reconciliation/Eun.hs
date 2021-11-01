@@ -315,7 +315,7 @@ getLeafListNewick inGraph =
     leafList'
 
 -- | checkNodesSequential takes a list of nodes and returns booolean
--- True if nodes are input with seqeutial numerical indices
+-- True if nodes are input with sequential numerical indices
 -- False if not--screws up reindexing later which assumes they are successive
 checkNodesSequential :: G.Node -> [G.Node] -> Bool
 checkNodesSequential prevNode inNodeList
