@@ -102,6 +102,10 @@ isEmpty = G.isEmpty
 empty :: Gr a b
 empty = G.empty
 
+-- | maps to equal
+equal :: (Eq a, Eq b) => Gr a b -> Gr a b -> Bool
+equal x y = G.equal x y
+
 -- | gelem is a node in a graph
 gelem :: Node -> Gr a b -> Bool
 gelem = G.gelem

@@ -121,6 +121,9 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL
     deriving stock (Show, Eq)
 
+data NetworkPenalty = NoPenalty | Wheeler2015 | PhyloMDL
+    deriving stock (Show, Eq)
+
 -- | Method for makeing final seqeujnce charcatert states assignment 
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length

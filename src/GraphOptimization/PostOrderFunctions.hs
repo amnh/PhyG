@@ -52,6 +52,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , extractDisplayTrees
                                              , createBlockResolutions
                                              , updateDisplayTreesAndCost
+                                             , getAllResolutionList
                                              ) where
 
 import           Data.Bits
@@ -489,6 +490,30 @@ extractDisplayTrees checkPopCount inRBDV =
         in
         (bestBlockDisplayResolutionList, V.sum costVect)
 
+-- | getAllResolutionList takes ResolutionBlockData and retuns a list of the all valid (ie all leaves in subtree) display trees 
+-- for that block- and costs
+getAllResolutionList ::ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
+getAllResolutionList inRDList =
+    --trace ("GBRL: " ++ (show inRDList)) (
+    if null inRDList then error "Null resolution list"
+    else
+        let displayTreeList = fmap displaySubGraph inRDList
+            displayCostList = fmap displayCost inRDList
+            displayPopList = fmap (complement . displayBVLabel) inRDList
+        in
+            let displayBVList = V.zip3 displayTreeList displayCostList displayPopList
+                validDisplayList = V.filter (BV.isZeroVector . thd3) displayBVList
+                (displayList, costList, _) = V.unzip3 validDisplayList
+            in
+            --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
+            if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ show inRDList)
+            else
+                let lDisplayTreeList = fmap LG.mkGraphPair (V.toList displayList)
+                    -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 
+                in
+                zip lDisplayTreeList (V.toList costList)
+            
+
 -- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees 
 -- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
 getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
@@ -512,14 +537,14 @@ getBestResolutionList checkPopCount inRDList =
                 validMinCost = V.minimum $ fmap snd3 validDisplayList
                 (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
-            -- trace ("GBR:" ++ (show $ length displayTreeList) ++ " " ++ (show $ length displayCostList) ++ " " ++ (show $ fmap BV.toBits displayPopList)) (
+            --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
             if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ show inRDList)
             else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
                     -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 
                 in
                 (lDisplayTreeList, validMinCost)
-            -- )
+            --)
 
             -- )
 {-

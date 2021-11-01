@@ -444,6 +444,10 @@ to render--would have repeated subtrees after network vertex
 
 179) Add no error dot-pdf output
 
+180) Check size of (number of) resolutions, that its not blowing up
+
+
+
 
 
 

@@ -123,6 +123,16 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- doesn't have to be sorted, but should minimize assignments
             graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
 
+            networkPenalty = Wheeler2015
+
+            (penaltyFactor, bestCost) = if networkPenalty == NoPenalty then (0.0, 0.0)
+                            else if networkPenalty == Wheeler2015 then 
+                                let (bestTreeList, bestTreeCost) = extractLowestCostDisplayTree outgroupRootedSoftWiredPostOrder
+
+                                in
+                                (0.0, bestTreeCost)
+                            else error ("Network penalty type " ++ (show networkPenalty) ++ " is not yet implemented")
+
         in
 
         -- Update post-order:
@@ -130,7 +140,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
         --  2) back proppagate resolutions to vertex info
         --  3) update display/character trees
         -- Preorder on updated post-order graph 
-        trace ("CSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
+        trace ("Best tree cost " ++ (show bestCost) ++ " penalty " ++ (show penaltyFactor) ++ "\nCSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
 
         -- only static characters
         if nonExactChars == 0 then 
@@ -143,7 +153,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
-            
+
         -- multiple dynamic characters
         else 
             let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments
@@ -198,6 +208,41 @@ undirectedEdgeMinus firstList secondList =
         else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
         else firstEdge : undirectedEdgeMinus (tail firstList) secondList
 
+-- | extractLowestCostDisplayTree takes a phylogenetic graph and takes all valid (complete) resolutions 
+-- (display trees) and their costs
+-- and determines the total cost (over all blocks) of each display tree 
+-- the lowest cost display tree(s) as list are returned with cost
+-- this is used in Wheeler (2015) network penalty
+extractLowestCostDisplayTree :: PhylogeneticGraph -> ([BlockDisplayForest], VertexCost) 
+extractLowestCostDisplayTree inGraph =
+ if LG.isEmpty $ thd6 inGraph then error "Empty graph in extractLowestCostDisplayTree" 
+ else 
+    let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
+        blockResolutionLL = V.toList $ fmap PO.getAllResolutionList (vertexResolutionData outgroupRootLabel)
+        displayTreeBlockList = L.transpose blockResolutionLL
+        displayTreePairList = L.foldl1' sumTreeCostLists displayTreeBlockList
+        minimumCost = minimum $ fmap snd displayTreePairList
+        (bestDisplayTreeList, _) = unzip $ filter ((== minimumCost) . snd) displayTreePairList
+    in
+    trace ("FC: " ++ (show $ fmap snd displayTreePairList)) 
+    (bestDisplayTreeList, minimumCost)
+
+-- | sumTreeCostLists takes two lists of (Graph, Cost) pairs and sums the costs and keeps the trees the same
+-- does not check that graphs are the same after debug
+sumTreeCostLists :: (Eq a, Eq b) => [(LG.Gr a b, VertexCost)] ->  [(LG.Gr a b, VertexCost)] ->  [(LG.Gr a b, VertexCost)] 
+sumTreeCostLists firstList secondList = 
+    if null firstList || null secondList then error "Empty list in sumTreeCostLists"
+    else 
+        let (firstGraphList, firstCostList) = unzip firstList
+            (secondGraphList, secondCostList) =  unzip secondList
+            newCostList = zipWith (+)  firstCostList secondCostList 
+
+            -- remove once working
+            checkList = filter (== False) $ zipWith LG.equal firstGraphList secondGraphList
+        in
+        if null checkList then error ("Graph lists not same : " ++ (show checkList))
+        else trace ("Graphs match ") zip firstGraphList newCostList
+
 
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions to create the correct vertex states,
 -- ports the post order assignments to the canonical tree and display trees, and creates the character trees from the block trees
@@ -218,8 +263,6 @@ updateAndFinalizePostOrderSoftWired inGraph =
             finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
         in
         finalPreOrderGraph
-
-
 
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
@@ -277,16 +320,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
                 let (newGraph, isRoot, _, llocalCost, displayGraphVL) = PO.getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
-                if isRoot then
-                     let newGraph' = softWiredPostOrderTraceBack newGraph
-
-                         -- propagate post-order assignment to display trees for pre-order pass 
-                         -- displayGraphVL' = fmap (assignPostOrderToDisplayTree (LG.labNodes newGraph')) $ V.zip displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
-                         displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph'))) displayGraphVL (V.fromList [0.. (V.length displayGraphVL - 1)])
-                    in
-                    (simpleGraph, llocalCost, newGraph', displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', blockCharInfo)
-                else (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
-                -- )
+                (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
+                
 
             -- 2 children 
             else
