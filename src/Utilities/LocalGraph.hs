@@ -440,7 +440,7 @@ contractIn1Out1Edges inGraph =
         let inOutDeg = getInOutDeg inGraph <$> labNodes inGraph
             degree11VertexList = filter ((==1) . thd3) $ filter ((==1) . snd3) inOutDeg
         in
-        trace ("vertex 11:" ++ show degree11VertexList) (
+        -- trace ("vertex 11:" ++ show degree11VertexList) (
         if null degree11VertexList then inGraph
         else
                 let nodeToDelete = fst3 $ head degree11VertexList
@@ -452,9 +452,9 @@ contractIn1Out1Edges inGraph =
                     newGraph = mkGraph reindexedNodes reindexedEdges
                     -- newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete inGraph -- $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
                 in
-                trace ("Deleting Node " ++ show (fst nodeToDelete) ++ " " ++ show (inEdgeToDelete, outEdgeToDelete) ++ " inserting " ++ show  newEdgeToAdd)
+                -- trace ("Deleting Node " ++ show (fst nodeToDelete) ++ " " ++ show (inEdgeToDelete, outEdgeToDelete) ++ " inserting " ++ show  newEdgeToAdd)
                 contractIn1Out1Edges newGraph
-                )
+                -- )
 
 -- | reindexNodes takes a node (assumes index and fst of node are the same) and a list of
 --   nodes deleting the input node and reindexing all the other nodes with indices > than the input are reduced by 1
