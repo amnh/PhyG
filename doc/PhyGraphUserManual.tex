@@ -566,6 +566,30 @@
 %	
 
 	\section{Example Script Files}
+	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), skips all the lines that begin with double dash (\texttt{--}),
+	reads the graph file net-I-II.dot, sets the outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a soft-wired network, and
+	reports a series of files with various information about the data and graphs.
+	\begin{verbatim}
+		-- Example Script 1
+		read("net-I.fas")
+		--read("net-Ia.fas")
+		--read("net-IIa.fas")
+		read("net-II.fas")
+		--read("net-I.dot")
+		--read("net-I.tre")
+		--read("net-II.tre")
+		--read("net-II.dot")
+		read("net-I-II.dot")
+		set(outgroup:"zero")
+		set(graphtype:softwired)
+		report("net-test.tre", graphs, newick, overwrite)
+		report("net-test.dot", graphs, dot, overwrite)
+		report("net-test-data.csv", data, overwrite)
+		report("net-test-diag.csv", diagnosis, overwrite)
+		report("net-display.dot", displaytrees, dot, overwrite)
+		report("net-display.tre", displaytrees, newick, overwrite)
+		
+	\end{verbatim}
 	
 	\section{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
