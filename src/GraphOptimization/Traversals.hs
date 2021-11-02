@@ -123,6 +123,11 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- doesn't have to be sorted, but should minimize assignments
             graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
 
+            -- same root cost if same data and number of roots
+            localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+                       else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRootedSoftWiredPostOrder
+                       else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+
         in
 
         -- Update post-order:
@@ -174,6 +179,37 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
 -- and returns Phylogenetic graph
 updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
 updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
+
+-- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
+-- leaf taxa
+getW15RootCost :: ProcessedData -> PhylogeneticGraph -> VertexCost
+getW15RootCost (_, _, blockDataV) inGraph =
+    if LG.isEmpty $ thd6 inGraph then 0.0
+    else
+        let (rootList, leafList, _, _) = LG.splitVertexList $ fst6 inGraph
+            numRoots = length rootList
+            numLeaves = length leafList
+            insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+        in
+        (fromIntegral numRoots) * insertDataCost /  (fromIntegral numLeaves)
+
+-- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
+getblockInsertDataCost :: BlockData -> Double
+getblockInsertDataCost (_, characterDataVV, charInfoV) =
+    V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
+
+-- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
+-- for all characters in a block
+getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
+getLeafInsertCost charInfoV charDataV = 
+    V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
+
+-- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
+getCharacterInsertCost :: CharacterData -> CharInfo -> Double
+getCharacterInsertCost inChar charInfo =
+    1.0
+
+
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length
