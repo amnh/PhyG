@@ -99,7 +99,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment"]
+setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment", "graphfactor", "rootcost"]
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
@@ -152,6 +152,24 @@ setCommand argList globalSettings processedData =
             in
             trace ("FinalAssignment set to " ++ head optionList)
             (globalSettings {finalAssignment = localMethod}, processedData)
+        else if head commandList == "graphfactor"  then
+            let localMethod
+                  | (head optionList == "nopenalty") = NoNetworkPenalty
+                  | (head optionList == "w15") = Wheeler2015Network
+                  | (head optionList == "pmdl") = PMDLGraph
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', or 'PMDL'")
+            in
+            trace ("GraphFactor set to " ++ head optionList)
+            (globalSettings {graphFactor = localMethod}, processedData)
+        else if head commandList == "rootcost"  then
+            let localMethod
+                  | (head optionList == "norootcost") = NoRootCost
+                  | (head optionList == "w15") = Wheeler2015Root
+                  | (head optionList == "pmdl") = PMDLRoot
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. RootCost  '" ++ (head optionList) ++ "' is not 'NoRootCost', 'W15', or 'PMDL'")
+            in
+            trace ("RootCost set to " ++ head optionList)
+            (globalSettings {rootCost = localMethod}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 
 

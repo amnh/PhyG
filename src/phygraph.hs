@@ -175,7 +175,10 @@ main = do
                                                , optimalityCriterion = Parsimony
                                                , graphType = Tree
                                                , compressResolutions = True
-                                               , finalAssignment = ImpliedAlignment}
+                                               , finalAssignment = ImpliedAlignment
+                                               , graphFactor = Wheeler2015Network
+                                               , rootCost = NoRootCost
+                                               }
     --hPutStrLn stderr (show defaultGlobalSettings)
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock

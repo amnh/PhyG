@@ -123,11 +123,9 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- doesn't have to be sorted, but should minimize assignments
             graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
 
-            networkPenalty = Wheeler2015
-
-            penaltyFactorList  = if networkPenalty == NoPenalty then replicate (length recursiveRerootList) 0.0
-                                 else if networkPenalty == Wheeler2015 then fmap getW15NetPenalty recursiveRerootList
-                                 else error ("Network penalty type " ++ (show networkPenalty) ++ " is not yet implemented")
+            penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length recursiveRerootList) 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty recursiveRerootList
+                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
         in
 

@@ -121,7 +121,10 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL
     deriving stock (Show, Eq)
 
-data NetworkPenalty = NoPenalty | Wheeler2015 | PhyloMDL
+data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
+    deriving stock (Show, Eq)
+
+data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot
     deriving stock (Show, Eq)
 
 -- | Method for makeing final seqeujnce charcatert states assignment 
@@ -133,11 +136,13 @@ data AssignmentMethod = DirectOptimization | ImpliedAlignment
     deriving stock (Show, Eq)
 
 data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup terminal index, default 0 (first input leaf)
-                                    , outGroupName        :: T.Text -- Outgropu name
+                                    , outGroupName        :: T.Text -- Outgroup name
                                     , optimalityCriterion :: OptimalityCriterion
                                     , graphType           :: GraphType
                                     , compressResolutions :: Bool -- "nub" resolutions in softwired graph
                                     , finalAssignment     :: AssignmentMethod
+                                    , graphFactor         :: GraphFactor -- net penalty/graph complexity
+                                    , rootCost            :: RootCost
                                     } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
