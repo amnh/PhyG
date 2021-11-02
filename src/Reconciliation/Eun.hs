@@ -782,8 +782,8 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
     where showLabel (e,u,l) = (e,u,show l)
 
 -- | reconcile is the overall function to drive all methods 
-reconcile :: (String, String, Int, Bool, Bool, Bool, String, String, [P.Gr String String]) -> (String, P.Gr String String)
-reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, outputFile, inputGraphList) =
+reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
+reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,inputGraphList) =
   
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
         processedGraphs = parmap rdeepseq reAnnotateGraphs inputGraphList -- inputGraphList
@@ -804,7 +804,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         -- Create Adams II consensus
         --
         adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
-        adamsIIInfo = "There are " ++ show (length $ G.nodes adamsII) ++ " nodes present in Adams II consensus"
+        -- adamsIIInfo = "There are " ++ show (length $ G.nodes adamsII) ++ " nodes present in Adams II consensus"
         adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
         adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
         adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
@@ -819,8 +819,8 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
         thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
       
-        thresholdConInfo =  "There are " ++ show (length thresholdNodes) ++ " nodes present in >= " ++ (show threshold ++ "%") ++ " of input graphs and " ++ show numPossibleEdges ++ " candidate edges"
-                          ++ " yielding a final graph with " ++ show (length (G.labNodes thresholdConsensusGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdConsensusGraph)) ++ " edges"
+        -- thresholdConInfo =  "There are " ++ show (length thresholdNodes) ++ " nodes present in >= " ++ (show threshold ++ "%") ++ " of input graphs and " ++ show numPossibleEdges ++ " candidate edges"
+        --                  ++ " yielding a final graph with " ++ show (length (G.labNodes thresholdConsensusGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdConsensusGraph)) ++ " edges"
 
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
         labelledTresholdConsensusGraph' = addGraphLabels thresholdConsensusGraph totallLeafSet
@@ -842,8 +842,9 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
 
         -- Remove unnconnected HTU nodes via postorder pass from leaves
         thresholdEUNGraph = verticesByPostorder thresholdEUNGraph' leafNodes S.empty
-        thresholdEUNInfo =  "\nThreshold EUN deleted " ++ show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) ++ " of " ++ show (length unionEdges) ++ " total edges"
-                            ++ " for a final graph with " ++ show (length (G.labNodes thresholdEUNGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdEUNGraph)) ++ " edges"
+        -- thresholdEUNInfo =  "\nThreshold EUN deleted " ++ show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) ++ " of " ++ show (length unionEdges) ++ " total edges"
+        --                    ++ " for a final graph with " ++ show (length (G.labNodes thresholdEUNGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdEUNGraph)) ++ " edges"
+        
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
         thresholdLabelledEUNGraph' = addGraphLabels thresholdEUNGraph totallLeafSet
         thresholdLabelledEUNGraph'' = addEdgeFrequenciesToGraph thresholdLabelledEUNGraph' (length leafNodes) edgeFreqs

@@ -179,15 +179,23 @@ setCommand argList globalSettings processedData =
 reportArgList :: [String]
 reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
 
+
+-- | reconcileCommandList list of allowable commands
+reconcileCommandList :: [String]
+reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
+
+
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs pairwiseDistanceMatrix =
-    let outFileNameList = filter (/= "") $ fmap snd argList
-        commandList = filter (/= "") $ fmap fst argList
+    let argListWithoutReconcileCommands = filter ((`notElem` reconcileCommandList) .fst) argList
+        outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
+        commandList = filter (/= "") $ fmap fst argListWithoutReconcileCommands
+        -- reconcileList = filter (/= "") $ fmap fst argList
     in
-    if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ show outFileNameList)
+    if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ (show outFileNameList) ++ " " ++ (show argList))
     else
         let checkCommandList = U.checkCommandArgs "report" commandList reportArgList
             outfileName = if null outFileNameList then "stderr"
@@ -241,7 +249,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph commandList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph reconcileCommandList argList (fmap fst6 curGraphs)
                 in
                 (reconcileString, outfileName, writeMode)
 

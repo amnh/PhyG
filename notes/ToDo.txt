@@ -446,7 +446,9 @@ to render--would have repeated subtrees after network vertex
 
 180) Check size of (number of) resolutions, that its not blowing up
 
-180) test net/root penalty 
+181) add root cost stuff
+
+182) test net/root penalty 
 
 
 
