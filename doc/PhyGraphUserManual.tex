@@ -531,12 +531,12 @@
 			\noindent \texttt{rootCost:noRootCost|W15|PMDL} Sets the root cost for a graph.  W15 sets a cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
 			The W15 root cost is based on the same rationale as the parsimony network penalty of \cite{Wheeler2015}.
 			
-			
-		
 		\subsubsection{Defaults} 
 		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
 		renaming and taxon inclusion/exclusion. For this reason, it is best to specify an outgroup explicitly.
-		The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default graph type is \texttt{tree}.
+		The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default graph type is \texttt{tree}.  The default graphFactor is \texttt{W15} if parsimony is the optimallity criterion and \texttt{PMDL} if PMDL is set as the optimality criterion.  The default rootCost
+		is \texttt{noRootCost} if  parsimony is the optimallity criterion and \texttt{PMDL} if PMDL is set as the optimality criterion.
+		
 		\subsubsection{Examples}
 			\begin{itemize}
 					\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}
