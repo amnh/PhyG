@@ -126,8 +126,8 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             networkPenalty = Wheeler2015
 
             penaltyFactorList  = if networkPenalty == NoPenalty then replicate (length recursiveRerootList) 0.0
-                            else if networkPenalty == Wheeler2015 then fmap getW15NetPenalty recursiveRerootList
-                            else error ("Network penalty type " ++ (show networkPenalty) ++ " is not yet implemented")
+                                 else if networkPenalty == Wheeler2015 then fmap getW15NetPenalty recursiveRerootList
+                                 else error ("Network penalty type " ++ (show networkPenalty) ++ " is not yet implemented")
 
         in
 
