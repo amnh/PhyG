@@ -123,10 +123,6 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             -- doesn't have to be sorted, but should minimize assignments
             graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
 
-            penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length recursiveRerootList) 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty recursiveRerootList
-                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-
         in
 
         -- Update post-order:
@@ -134,26 +130,50 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
         --  2) back proppagate resolutions to vertex info
         --  3) update display/character trees
         -- Preorder on updated post-order graph 
-        trace ("Penalty " ++ (show penaltyFactorList) ++ "\nCSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
+        -- trace ("Pre-penalty: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
 
         -- only static characters
         if nonExactChars == 0 then 
-            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder
+            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRootedSoftWiredPostOrder
+                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+
+                outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + (snd6 outgroupRootedSoftWiredPostOrder))
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
 
         -- single dynamic character
         else if nonExactChars == 1 then
-            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList
+            let penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
+                                     else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
+                                     else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+
+                finalizedPostOrderGraphList' = L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
 
         -- multiple dynamic characters
         else 
-            let fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments
+            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
+                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+
+                graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  (snd6 graphWithBestAssignments))
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
-        )
+        -- )
+
+-- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
+-- and returns Phylogenetic graph
+updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
+updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length
