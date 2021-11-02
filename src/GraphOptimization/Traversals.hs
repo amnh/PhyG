@@ -125,12 +125,8 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
 
             networkPenalty = Wheeler2015
 
-            (penaltyFactor, bestCost) = if networkPenalty == NoPenalty then (0.0, 0.0)
-                            else if networkPenalty == Wheeler2015 then 
-                                let (bestTreeList, bestTreeCost) = extractLowestCostDisplayTree outgroupRootedSoftWiredPostOrder
-
-                                in
-                                (0.0, bestTreeCost)
+            penaltyFactorList  = if networkPenalty == NoPenalty then replicate (length recursiveRerootList) 0.0
+                            else if networkPenalty == Wheeler2015 then fmap getW15NetPenalty recursiveRerootList
                             else error ("Network penalty type " ++ (show networkPenalty) ++ " is not yet implemented")
 
         in
@@ -140,7 +136,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
         --  2) back proppagate resolutions to vertex info
         --  3) update display/character trees
         -- Preorder on updated post-order graph 
-        trace ("Best tree cost " ++ (show bestCost) ++ " penalty " ++ (show penaltyFactor) ++ "\nCSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
+        trace ("Penalty " ++ (show penaltyFactorList) ++ "\nCSRL: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
 
         -- only static characters
         if nonExactChars == 0 then 
@@ -160,6 +156,35 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
         )
+
+-- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
+-- modified to take theg union of all edges of trees of minimal length
+getW15NetPenalty :: PhylogeneticGraph -> VertexCost
+getW15NetPenalty inGraph =
+    if LG.isEmpty $ thd6 inGraph then 0.0
+    else
+        let (bestTreeList, bestTreeCost) = extractLowestCostDisplayTree inGraph
+            bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
+            rootIndex = fst $ head $ LG.getRoots (fst6 inGraph)
+            blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
+            numLeaves = length leafList
+            divisor = 4.0 * (fromIntegral numLeaves) - 4.0
+        in
+        (sum $ blockPenaltyList) / divisor
+
+
+-- | getBlockW2015 takes teh list of trees for a block, gets teh root cost and determines the individual
+-- penlaty cost of that block
+getBlockW2015 :: [LG.Edge] -> Int -> [BlockDisplayForest] -> VertexCost
+getBlockW2015 treeEdgeList rootIndex blockTreeList =
+    if null treeEdgeList || null blockTreeList then 0.0
+    else 
+        let blockTreeEdgeList = L.nubBy undirectedEdgeEquality $ concatMap LG.edges blockTreeList
+            numExtraEdges = length $ undirectedEdgeMinus blockTreeEdgeList treeEdgeList
+            blockCost = vertexCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
+        in
+        blockCost * (fromIntegral numExtraEdges) 
 
 -- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has 
 -- "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is 
@@ -192,7 +217,9 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges inGraph@(inSimp
             
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges contractedSimple 
 
-    where undirectedEdgeEquality (a,b) (c,d) = if a == c && b == d then True
+-- | undirectedEdgeEquality checks edgse for equality irrespective of direction
+undirectedEdgeEquality :: LG.Edge -> LG.Edge -> Bool
+undirectedEdgeEquality (a,b) (c,d) = if a == c && b == d then True
                                                else if a == d && b == c then True
                                                else False 
 
@@ -224,7 +251,7 @@ extractLowestCostDisplayTree inGraph =
         minimumCost = minimum $ fmap snd displayTreePairList
         (bestDisplayTreeList, _) = unzip $ filter ((== minimumCost) . snd) displayTreePairList
     in
-    trace ("FC: " ++ (show $ fmap snd displayTreePairList)) 
+    -- trace ("FC: " ++ (show $ fmap snd displayTreePairList)) 
     (bestDisplayTreeList, minimumCost)
 
 -- | sumTreeCostLists takes two lists of (Graph, Cost) pairs and sums the costs and keeps the trees the same
