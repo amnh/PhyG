@@ -199,7 +199,7 @@ getW15NetPenalty :: PhylogeneticGraph -> VertexCost
 getW15NetPenalty inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else
-        let (bestTreeList, bestTreeCost) = extractLowestCostDisplayTree inGraph
+        let (bestTreeList, _) = extractLowestCostDisplayTree inGraph
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = fst $ head $ LG.getRoots (fst6 inGraph)
             blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
@@ -381,7 +381,7 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
-                let (newGraph, isRoot, _, llocalCost, displayGraphVL) = PO.getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                let (newGraph, _, _, _, _) = PO.getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
                 (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
                 
@@ -783,11 +783,11 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
 
         -- special cases that don't require all the work
 
-        trace ("Nums:" ++ show (length minCostGraphListRecursive) ++ " " ++ show (fmap snd6 minCostGraphListRecursive)) (
+        -- trace ("Nums:" ++ show (length minCostGraphListRecursive) ++ " " ++ show (fmap snd6 minCostGraphListRecursive)) (
         if nonExactChars == 0 then PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedPhyloGraph
         else if nonExactChars == 1 then PRE.preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
         else PRE.preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
-        )
+        -- )
 
 
 
