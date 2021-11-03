@@ -61,6 +61,9 @@ import Data.Maybe
 import Utilities.Utilities as U
 import Debug.Trace
 import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
+import qualified SymMatrix                   as S
 
 
 
@@ -143,7 +146,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
                                  else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRootedSoftWiredPostOrder
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-                outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + (snd6 outgroupRootedSoftWiredPostOrder))
+                outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + localRootCost + (snd6 outgroupRootedSoftWiredPostOrder))
 
                 fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder'
             in
@@ -154,7 +157,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
             let penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                      else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
                                      else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-                newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+                newCostList = zipWith3 U.add3 penaltyFactorList (replicate (length finalizedPostOrderGraphList) localRootCost) (fmap snd6 finalizedPostOrderGraphList)
 
                 finalizedPostOrderGraphList' = L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
 
@@ -168,7 +171,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
                                  else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-                graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  (snd6 graphWithBestAssignments))
+                graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  localRootCost + (snd6 graphWithBestAssignments))
 
                 fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments'
             in
@@ -207,7 +210,19 @@ getLeafInsertCost charInfoV charDataV =
 -- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
 getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
-    1.0
+    let localCharType = charType charInfo
+        thisWeight = weight charInfo
+        inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
+    in
+    if localCharType == Add then thisWeight * (fromIntegral $ V.length $ fst3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ fst3 $ stateBVPrelim inChar) 
+    else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
+    else error ("Character type unimplemented : " ++ show localCharType)
+
+    
 
 
 

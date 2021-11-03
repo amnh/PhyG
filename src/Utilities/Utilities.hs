@@ -372,3 +372,7 @@ prettyPrintVertexInfo inVertData =
         fifthPart = "\n\t" ++ show (vertData inVertData)
     in
     zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
+
+-- | add3 adds three values
+add3 :: (Num a) => a -> a -> a -> a
+add3 x y z = x + y + z
