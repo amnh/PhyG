@@ -61,9 +61,6 @@ import Data.Maybe
 import Utilities.Utilities as U
 import Debug.Trace
 import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import qualified SymMatrix                   as S
 
 
 
@@ -192,39 +189,9 @@ getW15RootCost (_, _, blockDataV) inGraph =
         let (rootList, leafList, _, _) = LG.splitVertexList $ fst6 inGraph
             numRoots = length rootList
             numLeaves = length leafList
-            insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+            insertDataCost = V.sum $ fmap U.getblockInsertDataCost blockDataV
         in
         (fromIntegral numRoots) * insertDataCost /  (fromIntegral numLeaves)
-
--- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
-getblockInsertDataCost :: BlockData -> Double
-getblockInsertDataCost (_, characterDataVV, charInfoV) =
-    V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
-
--- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
--- for all characters in a block
-getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
-getLeafInsertCost charInfoV charDataV = 
-    V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
-
--- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
-getCharacterInsertCost :: CharacterData -> CharInfo -> Double
-getCharacterInsertCost inChar charInfo =
-    let localCharType = charType charInfo
-        thisWeight = weight charInfo
-        inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
-    in
-    if localCharType == Add then thisWeight * (fromIntegral $ V.length $ fst3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ fst3 $ stateBVPrelim inChar) 
-    else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
-    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
-    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
-    else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
-    else error ("Character type unimplemented : " ++ show localCharType)
-
-    
-
-
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length

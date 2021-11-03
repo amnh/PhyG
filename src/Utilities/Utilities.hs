@@ -55,6 +55,36 @@ import qualified GeneralUtilities as GU
 import Debug.Trace
 import qualified Utilities.LocalGraph as LG
 import qualified Data.Text.Lazy  as T
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
+import qualified SymMatrix                   as S
+
+-- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
+getblockInsertDataCost :: BlockData -> Double
+getblockInsertDataCost (_, characterDataVV, charInfoV) =
+    V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
+
+-- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
+-- for all characters in a block
+getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
+getLeafInsertCost charInfoV charDataV = 
+    V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
+
+-- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
+getCharacterInsertCost :: CharacterData -> CharInfo -> Double
+getCharacterInsertCost inChar charInfo =
+    let localCharType = charType charInfo
+        thisWeight = weight charInfo
+        inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
+    in
+    if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.fst3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.fst3 $ stateBVPrelim inChar) 
+    else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
+    else error ("Character type unimplemented : " ++ show localCharType)
+
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
