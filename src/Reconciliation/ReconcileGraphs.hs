@@ -81,7 +81,7 @@ processReconcileArgs validCommandList inList' =
       let -- default values
           method = "eun"
           compareMethod = "combinable"
-          threshold = 100
+          threshold = 0
           connectComponents = True
           edgeLabel = True
           vertexLabel = False
