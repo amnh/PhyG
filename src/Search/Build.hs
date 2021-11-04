@@ -56,6 +56,7 @@ import           Data.Char
 import qualified Data.List               as L
 import qualified Data.Vector             as V
 import qualified Search.DistanceMethods  as DM
+import qualified Search.WagnerBuild      as WB
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
 import qualified Search.DistanceWagner   as DW

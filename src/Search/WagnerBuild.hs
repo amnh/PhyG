@@ -34,11 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-
-Distance builds (Wagner, NJ, WPGMA are imported from Wag2020.
-https://www.github.com/wardwheeler/wag2020
--}
-
 module Search.WagnerBuild  ( wagnerTreeBuild
                      ) where
 
