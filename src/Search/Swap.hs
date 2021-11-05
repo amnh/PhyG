@@ -45,6 +45,8 @@ import qualified Utilities.LocalGraph    as LG
 import Utilities.Utilities               as U
 import Debug.Trace
 import           Data.Char
+import           Text.Read
+import           Data.Maybe
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
@@ -65,20 +67,42 @@ swapMaster inArgs inGS rSeed inGraphList =
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
    else 
-      inGraphList
+       let keepList = filter ((=="keep").fst) lcArgList
+           keepNum
+            | length keepList > 1 =
+              errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
+            | null keepList = Just 1
+            | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+      in
+      if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (snd $ head keepList))
+      else 
+         let doSPR' = any ((=="spr").fst) lcArgList
+             doTBR = any ((=="tbr").fst) lcArgList
+             doSteepest' = any ((=="steepest").fst) lcArgList
+             doAll = any ((=="all").fst) lcArgList
+             doSPR = if (not doSPR' && not doTBR) then True
+                     else doSPR'
+             doSteepest = if (not doSteepest' && not doAll) then True
+                          else doSteepest'
+             newGraphList  = if doSPR then concatMap (swapSPR inGS (fromJust keepNum) doSteepest) inGraphList
+                             else inGraphList
+             newGraphList' = if doTBR then concatMap (swapTBR inGS (fromJust keepNum) doSteepest) newGraphList
+                             else newGraphList
+            in
+            newGraphList'
    )
 
 
 -- | swapSPR perfomrs SPR branch (edge) swapping on graphs
-swapSPR :: GlobalSettings -> PhylogeneticGraph -> [PhylogeneticGraph]
-swapSPR inGS inGraph = 
+swapSPR :: GlobalSettings -> Int -> Bool -> PhylogeneticGraph -> [PhylogeneticGraph]
+swapSPR inGS numToKeep steepest inGraph = 
    if LG.isEmpty (fst6 inGraph) then []
    else 
       [inGraph]
 
 -- | swapTBR performs TBR branch (edge) swapping on graphs
-swapTBR :: GlobalSettings -> PhylogeneticGraph -> [PhylogeneticGraph]
-swapTBR inGS inGraph = 
+swapTBR :: GlobalSettings -> Int -> Bool -> PhylogeneticGraph -> [PhylogeneticGraph]
+swapTBR inGS numToKeep steepest inGraph = 
    if LG.isEmpty (fst6 inGraph) then []
    else 
       [inGraph]

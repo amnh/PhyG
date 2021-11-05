@@ -100,7 +100,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             let newGraphList = SW.swapMaster firstArgs globalSettings (head seedList)  curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
-        else error "Command not recognized/implemented"
+        else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
