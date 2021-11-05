@@ -555,12 +555,41 @@
 %		\subsubsection{Defaults}
 %		\subsubsection{Examples}
 %		
-%	\subsection{Swap} 
-%		\subsubsection{Syntax}
-%		\subsubsection{Description}
-%		\subsubsection{Arguments}
-%		\subsubsection{Defaults}
-%		\subsubsection{Examples}
+	\subsection{Swap} 
+		\subsubsection{Syntax}
+			\texttt{swap(arg0, arg1:option, ...)}
+			
+		\subsubsection{Description}
+		Performs branch-swapping rearrangement on graphs.  These include ``SPR''  \citep{Dayhoff1969} and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
+		
+		\subsubsection{Arguments}
+		\noindent \texttt{keep:n} Specifies that up to $n$ equally costly graphs are retained.
+		
+		\smallskip		
+		\noindent \texttt{spr} Specifies that SPR refinement \citep{Dayhoff1969} is performed.
+		
+		\smallskip		
+		\noindent \texttt{steepest} Specifies that refinement follows a greedy path, abandoning the neighborhood of the current graph when a better (lower cost)
+		graph is found.
+		
+		\smallskip		
+		\noindent \texttt{all} Specifies that refinement examines the entire rearrangement neighborhood of the current graph before retaining the best (lowest cost) solutions.
+		
+		
+		\smallskip		
+		\noindent \texttt{tbr} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed.
+		
+		\subsubsection{Defaults}
+		\texttt{swap(spr, keep:1, steepest)}
+		
+		\subsubsection{Examples}
+			\begin{itemize}
+			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single best rearrangement found for each graph  employing steepest descent.}
+			\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph returning up to 10 best rearrangements found for each graph after examining all 
+			graphs in the rearrangement neighborhood.}
+			
+		\end{itemize}
+		
 %	
 %	\subsection{Transform}
 %		\subsubsection{Syntax}
