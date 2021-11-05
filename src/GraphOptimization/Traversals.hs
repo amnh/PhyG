@@ -40,6 +40,8 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , multiTraverseFullyLabelGraph
                                     , multiTraverseFullyLabelSoftWired
                                     , checkUnusedEdgesPruneInfty
+                                    , makeLeafGraph
+                                    , postDecorateTree
                                     ) where
 
 import           Types.Types
@@ -920,7 +922,7 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
         -- Assumes root is Number of Leaves  
         let (rootIndex, _) = head $ LG.getRoots inGraph
             blockCharInfo = V.map thd3 blockDataVect
-            newTree = postDecorateTree inGS inData inGraph leafGraph blockCharInfo rootIndex
+            newTree = postDecorateTree inGraph leafGraph blockCharInfo rootIndex
         in
         -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
         if not $ LG.isRoot inGraph rootIndex then
@@ -935,8 +937,8 @@ postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
-postDecorateTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
-postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
+postDecorateTree :: SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
+postDecorateTree simpleGraph curDecGraph blockCharInfo curNode =
     -- if node in there (leaf) nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
@@ -946,6 +948,7 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         in
         if isNothing nodeLabel then error ("Null label for node " ++ show curNode)
         else
+            -- trace ("In graph :" ++ (show curNode) ++ " " ++ (show nodeLabel))
             --  replicating curaDecGraph with number opf blocks--but all the same for tree 
             (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
@@ -956,8 +959,8 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren
-            leftChildTree = postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree inGS inData simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
+            leftChildTree = postDecorateTree simpleGraph curDecGraph blockCharInfo leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
                                  else leftChildTree
             newSubTree = thd6 rightLeftChildTree
             (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
@@ -1001,11 +1004,11 @@ postDecorateTree inGS inData simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
             in
-            -- trace ("New vertex:" ++ (show newVertex)) (
+            -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
             if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
-            -- ))
+            -- ) -- )
 
 

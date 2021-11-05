@@ -206,6 +206,11 @@ insEdge = G.insEdge
 delLEdge :: LEdge b -> Gr a b -> Gr a b
 delLEdge inEdge = G.delEdge (G.toEdge inEdge)
 
+-- | delEdges delete an unlabelled edge from a graph
+-- wrapps around delEdge
+delEdge :: Edge -> Gr a b -> Gr a b
+delEdge inEdge = G.delEdge inEdge
+
 -- | delLEdge deletes a list of unlabelled edges from a graph
 -- wrapps around delEdges
 delEdges :: [Edge] -> Gr a b -> Gr a b
@@ -479,7 +484,7 @@ reindexEdges :: Int -> [LEdge b] -> [LEdge b] -> [LEdge b]
 reindexEdges inNodeIndex curList edgeList =
     if null edgeList then curList
     else 
-        let firstEdge@(a,b,c) = head edgeList
+        let (a,b,c) = head edgeList
             a' = if a < inNodeIndex then a
                  else a - 1
             b' = if b < inNodeIndex then b

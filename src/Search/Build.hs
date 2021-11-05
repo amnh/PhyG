@@ -43,7 +43,6 @@ module Search.Build  ( buildGraph
                      ) where
 
 import qualified GraphOptimization.Traversals as T
-
 import qualified Data.Text.Lazy              as TL
 import Types.Types
 import qualified ParallelUtilities            as PU
@@ -60,8 +59,7 @@ import qualified Search.WagnerBuild      as WB
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
 import qualified Search.DistanceWagner   as DW
---import Debug.Trace
-
+import Debug.Trace
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
@@ -85,7 +83,7 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
           numReplicates
             | length repPairList > 1 =
               errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " ++ show inArgs)
-            | null repPairList = Just 100
+            | null repPairList = Just 10
             | otherwise = readMaybe (snd $ head repPairList) :: Maybe Int
           keepPairList = filter ((=="best").fst) lcArgList
           numToSave
@@ -131,9 +129,19 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
             -- trace (show inArgs ++ " Yielded " ++ (show $ length treeList''') ++ " trees")
             treeList'''
 
-      else
+      else 
          -- character build 
-         errorWithoutStackTrace ("Character-based graph builds not yet implemented" ++ show inArgs)
+         trace ("Building Character Wager") (
+         let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates) 
+             graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False)  (fmap fst6 treeList)
+         in
+         if (graphType inGS == SoftWired) then 
+            -- multi-traverse reroots graphs
+            graphList
+         else if (graphType inGS == Tree) then 
+            treeList
+         else errorWithoutStackTrace ("Graph type " ++ (show $ graphType inGS) ++ " not implemented")
+         )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)

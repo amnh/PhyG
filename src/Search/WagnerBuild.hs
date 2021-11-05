@@ -35,10 +35,126 @@ Portability :  portable (I hope)
 -}
 
 module Search.WagnerBuild  ( wagnerTreeBuild
+                           , rasWagnerBuild
                      ) where
 
 import Types.Types
+import qualified Data.Vector as V
+import GeneralUtilities
+import Debug.Trace
+import qualified GraphOptimization.Traversals as T
+import qualified Utilities.LocalGraph as LG
+import qualified Data.Text.Lazy              as TL
+import qualified Graphs.GraphOperations  as GO
+import qualified GraphOptimization.PreOrderFunctions as PRE
+import Utilities.Utilities as U
+import qualified Data.List as L
 
--- | wagnerTreeBuild builds a wagner tree (Farris 1969) from a leaf addition sequence
-wagnerTreeBuild :: GlobalSettings -> ProcessedData -> [Int] -> PhylogeneticGraph
-wagnerTreeBuild inGS inData additionSequence = emptyPhylogeneticGraph
+-- import qualified ParallelUtilities as PU --need instance for VerexInfo
+
+
+-- | rasWagnerBuild generates a series of random addition sequences and then calls wagnerTreeBuild to construct them.
+-- Does not filter by best, unique etc.  That happens with the select() command specified separately.
+rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> [PhylogeneticGraph]
+rasWagnerBuild inGS inData seed numReplicates =
+   if numReplicates == 0 then []
+   else 
+      let numLeaves = V.length $ fst3 inData 
+          randomizedAdditionSequences = V.fromList <$> shuffleInt seed numReplicates [0..numLeaves - 1]
+
+          -- "graph" of leaf nodes without any edges
+          leafGraph = makeSimpleLeafGraph inData
+          leafDecGraph = T.makeLeafGraph inData
+
+          hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
+      in
+      trace ("Building " ++ (show numReplicates) ++ " character Wagner replicates")
+      -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
+      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences
+
+-- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition) 
+-- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
+-- afterwards
+-- basic procs is to add edges to unresolved tree
+-- currently naive wrt candidate tree costs
+wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> PhylogeneticGraph
+wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence = 
+   let rootHTU = (numLeaves, TL.pack $ "HTU" ++ (show numLeaves))
+       nextHTU = (numLeaves + 1, TL.pack $ "HTU" ++ (show $ numLeaves + 1))
+
+       edge0 = (numLeaves, (additionSequence V.! 0), 0.0)
+       edge1 = (numLeaves, numLeaves + 1, 0.0)
+       edge2 = (numLeaves + 1, (additionSequence V.! 1), 0.0)
+       edge3 = (numLeaves + 1, (additionSequence V.! 2), 0.0)
+
+       initialTree = LG.insEdges [edge0, edge1, edge2, edge3] $ LG.insNodes [rootHTU, nextHTU] leafSimpleGraph
+
+       blockCharInfo = V.map thd3 $ thd3 inData
+
+       -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves
+
+       wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
+   in
+   -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n" 
+   --   ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
+   wagnerTree
+
+
+-- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
+-- this tested by null additin sequence list
+-- interface will change with correct final states--using post-order pass for now
+recursiveAddEdgesWagner :: V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph 
+recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) =
+   -- all edges/ taxa in graph
+   -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
+   if null additionSequence then inGraph
+   else
+      -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
+      let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inSimple numLeaves
+          edgesToInvade = (LG.edges inSimple) L.\\ (fmap LG.toEdge outgroupEdges)
+          leafToAdd = V.head additionSequence
+          candidateEditList = fmap (addTaxonWagner numLeaves numVerts inGraph leafToAdd leafDecGraph) edgesToInvade
+          minCost = minimum $ fmap fst4 candidateEditList
+          (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minCost). fst4) candidateEditList
+
+          -- create new tree
+          newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
+
+          newSimple' = if V.length additionSequence == 1 then GO.rerootTree (outgroupIndex inGS) newSimple
+                       else newSimple
+
+          -- creatre fully labelled tree
+          newPhyloGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
+      in
+      recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+      -- )
+
+-- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
+-- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
+-- returns a tuple of the cost, node to add, edges to add, edge to delete
+addTaxonWagner :: Int -> Int -> PhylogeneticGraph -> Int -> DecoratedGraph -> LG.Edge -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
+addTaxonWagner numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) leafToAdd leafDecGraph targetEdge =
+   let edge0 = (numVerts, leafToAdd, 0.0)
+       edge1 = (fst targetEdge, numVerts, 0.0)
+       edge2 = (numVerts, snd targetEdge, 0.0)
+       newNode = (numVerts, TL.pack ("HTU" ++ (show numVerts)))
+       newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge targetEdge inSimple
+       newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
+   in
+   (newCost, newNode, [edge0, edge1, edge2], targetEdge)
+
+
+   
+
+-- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
+makeSimpleLeafGraph (nameVect, _, _) =
+    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+        where makeSimpleLeafVertex a b = (b, a V.! b)

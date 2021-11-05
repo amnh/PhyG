@@ -450,10 +450,4 @@ to render--would have repeated subtrees after network vertex
 
 182) test net/root penalty 
 
-
-
-
-
-
-
-
+183) Fix fenewtick for degenerate (no edges) tree
