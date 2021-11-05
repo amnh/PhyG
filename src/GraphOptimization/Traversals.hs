@@ -338,7 +338,7 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimple
          -- Assumes root is Number of Leaves  
         let rootIndex = V.length $ fst3 inData
             blockCharInfo = V.map thd3 blockDataVect
-            newSoftWired = postDecorateSoftWired inGS inData inSimpleGraph leafGraph blockCharInfo rootIndex
+            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex
         in
         --trace ("It Begins at " ++ show rootIndex) (
         if not $ LG.isRoot inSimpleGraph rootIndex then
@@ -353,8 +353,8 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimple
 -- | postDecorateSoftWired begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled 
 -- and then recurses to root postorder labelling vertices and edges as it goes
 -- this for a single root
-postDecorateSoftWired :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
-postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode =
+postDecorateSoftWired :: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
+postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode =
     -- if node in there nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
@@ -367,8 +367,8 @@ postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo curNode 
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren
-            leftChildTree = postDecorateSoftWired inGS inData simpleGraph curDecGraph blockCharInfo leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS inData simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
+            leftChildTree = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
                                  else leftChildTree
         in
         -- Checks on children
@@ -754,7 +754,7 @@ multiTraverseFullyLabelTree inGS inData inSimpleGraph =
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
-            outgroupRootedPhyloGraph = postOrderTreeTraversal inGS inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
+            outgroupRootedPhyloGraph = postOrderTreeTraversal inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
             childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
             grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
 
@@ -915,8 +915,8 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
 -- vi post-order traversal, yields cost as well
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
-postOrderTreeTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal inGS inData@(_, _, blockDataVect) leafGraph inGraph =
+postOrderTreeTraversal :: ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+postOrderTreeTraversal (_, _, blockDataVect) leafGraph inGraph =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves  
