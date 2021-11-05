@@ -56,8 +56,9 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
-import qualified Data.Char as C
+import qualified Data.Char              as C
 import qualified Search.Build           as B
+import qualified Search.Swap            as SW
 import qualified Reconciliation.ReconcileGraphs as R
 
 
@@ -93,6 +94,10 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
             let newGraphList = selectPhylogeneticGraph firstArgs  (head seedList) curGraphs
+            in
+            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Swap then
+            let newGraphList = SW.swapMaster firstArgs globalSettings (head seedList)  curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error "Command not recognized/implemented"

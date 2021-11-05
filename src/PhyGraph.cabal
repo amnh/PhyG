@@ -230,6 +230,7 @@ executable phyg
                   Search.DistanceWagner
                   Search.DistanceMethods
                   Search.WagnerBuild
+                  Search.Swap
                   Types.Types
                   Types.DistanceTypes
                   Utilities.Distances

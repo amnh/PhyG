@@ -141,10 +141,10 @@ removeComments inLineList =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "run", "report", "set", "rename", "reblock"]
+allowedCommandList = ["read", "build", "run", "report", "set", "rename", "reblock", "swap", "select"]
 
 
--- | getInstruction returns the command type forom an input String
+-- | getInstruction returns the command type from an input String
 -- all operations on lower case
 getInstruction :: String -> [String] -> Instruction
 getInstruction inString possibleCommands
@@ -161,7 +161,6 @@ getInstruction inString possibleCommands
     | fmap toLower inString == "rename"    = Rename
     | fmap toLower inString == "reblock"   = Reblock
     | fmap toLower inString == "select"    = Select
-    | fmap toLower inString == "reconcile" = Reconcile
     | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in  errorWithoutStackTrace $ fold
