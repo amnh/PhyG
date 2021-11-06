@@ -451,3 +451,9 @@ to render--would have repeated subtrees after network vertex
 182) test net/root penalty 
 
 183) Fix fenewtick for degenerate (no edges) tree
+	Convert to forest then fmap
+
+184) sort edges for swap 
+	by length (perhaps better for net edges)
+	by closness to deleted edge (good for swpping smaller edits first)
+	
