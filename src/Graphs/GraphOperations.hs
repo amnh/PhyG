@@ -46,8 +46,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , switchRootTree
                                , dichotomizeRoot
                                , showDecGraphs
-                               , edgeListByLength
-                               , edgeListByDistance
+                               , sortEdgeListByLength
+                               , sortEdgeListByDistance
                                , splitGraphOnEdge
                                ) where
 
@@ -100,21 +100,21 @@ joinGraphOnEdge inGraph edgeToInvade@(x,y,l) nakedNode graphToJoinRoot =
       -- make new graph
       LG.insEdges [edgeToCreate0, edgeToCreate1, edgeToCreate2] $ LG.delEdge (x,y) inGraph
  
--- | edgeListByLength sorts edge list by length (midRange), highest to lowest
-edgeListByLength :: [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
-edgeListByLength inEdgeList = 
+-- | sortEdgeListByLength sorts edge list by length (midRange), highest to lowest
+sortEdgeListByLength :: [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
+sortEdgeListByLength inEdgeList = 
   if null inEdgeList then []
   else 
     reverse $ L.sortOn (midRangeLength . thd3) inEdgeList
 
--- | edgeListByDistance sorts edges by distance (in edges) from edge pair of vertices
+-- | sortEdgeListByDistance sorts edges by distance (in edges) from edge pair of vertices
 -- cretes a list of edges into (but traveling away from) an initial eNOde and away from 
 -- an initial vNode adding new nodes to those lists as encountered by traversing edges.
 -- the eidea is theat the nodes from a directed edge (eNode, vNode)
 -- the list is creted at each round from the "in" and "out" edge lists
 -- so they are in order of 1 edge 2 edges etc.
-edgeListByDistance :: LG.Gr a b -> [LG.Node] -> [LG.Node] -> [LG.LEdge b]
-edgeListByDistance inGraph eNodeList vNodeList = 
+sortEdgeListByDistance :: LG.Gr a b -> [LG.Node] -> [LG.Node] -> [LG.LEdge b]
+sortEdgeListByDistance inGraph eNodeList vNodeList = 
   if LG.isEmpty inGraph then error ("Empty graph in edgeListByDistance")
   else if (null eNodeList && null vNodeList) then []
   else 
@@ -126,7 +126,7 @@ edgeListByDistance inGraph eNodeList vNodeList =
         outEdgeList = concatMap (LG.out inGraph) vNodeList
         newVNodeList = fmap snd3 outEdgeList
     in
-    inEdgeList ++ outEdgeList ++ (edgeListByDistance inGraph newENodeList newVNodeList)
+    inEdgeList ++ outEdgeList ++ (sortEdgeListByDistance inGraph newENodeList newVNodeList)
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
