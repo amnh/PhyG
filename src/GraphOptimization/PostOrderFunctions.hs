@@ -643,7 +643,7 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, 
                 let isNetworkNode = nodeType (fromJust newRootLabel) == NetworkNode
                     parentIsNetworkNode = nodeType (fromJust parentNodeLabel) == NetworkNode
                 in
-                rerootPhylogeneticGraph inGS SoftWired isNetworkNode originalRootIndex parentIsNetworkNode  (head newRootParents) rerootIndex inGraph
+                rerootPhylogeneticGraph inGS SoftWired isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph
 
 
 
@@ -652,8 +652,8 @@ rerootPhylogeneticNetwork' :: GlobalSettings -> PhylogeneticGraph -> Int -> Phyl
 rerootPhylogeneticNetwork' inGS inGraph rerootIndex = rerootPhylogeneticNetwork inGS rerootIndex inGraph
 
 -- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph
-rerootPhylogeneticGraph' :: GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> Int -> PhylogeneticGraph -> Int -> PhylogeneticGraph
-rerootPhylogeneticGraph' inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode parentIndex inGraph rerootIndex = rerootPhylogeneticGraph inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph
+rerootPhylogeneticGraph' :: GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> PhylogeneticGraph -> Int -> PhylogeneticGraph
+rerootPhylogeneticGraph' inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode  inGraph rerootIndex = rerootPhylogeneticGraph inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph
 
 -- | rerootGraph takes a phylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -669,15 +669,15 @@ rerootPhylogeneticGraph' inGS inGraphType isNetworkNode originalRootIndex parent
 --   much time by consolidating--also since labels are all different--can't re-use alot of info
 --   from graph to graph.
 --   NNB only deals with post-order states
-rerootPhylogeneticGraph ::  GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
+rerootPhylogeneticGraph ::  GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
   if LG.isEmpty inSimple then inPhyGraph
   --else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ convertDecoratedToSimpleGraph inDecGraph))
   else
     let -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
         -- could just update with needges? from simple graph rerooting
         (newDecGraph, touchedNodes)  = if inGraphType == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
-                                       else if inGraphType == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inDecGraph
+                                       else if inGraphType == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
                                        else error ("Error--Graph type unimplemented: " ++ (show inGraphType))
 
         newSimpleGraph = GO.convertDecoratedToSimpleGraph newDecGraph
@@ -702,7 +702,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVV = if V.null blockDisplayForestVV then mempty
                                   --else fmap (fmap (GO.rerootTree rerootIndex)) blockDisplayForestVV
-                                  else fmap (fmap (rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex)) blockDisplayForestVV
+                                  else fmap (fmap (rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex)) blockDisplayForestVV
 
         in
         --trace ("rerootPhylogeneticGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nNew\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph)
@@ -728,8 +728,8 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 -- basically at root and network edge originally 'to' network edge
-rectifyGraph :: (Eq b) => Bool -> Int ->  Bool -> Int -> Int -> LG.Gr a b -> LG.Gr a b
-rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph =
+rectifyGraph :: (Eq b) => Bool -> Int ->  Bool -> Int -> LG.Gr a b -> LG.Gr a b
+rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
     if LG.isEmpty inGraph then LG.empty
     else
         -- sanity check of phylogenetic graph 
@@ -778,8 +778,8 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rer
             -}
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
-rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
-rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inGraph =
+rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
+rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
     if LG.isEmpty inGraph then (LG.empty, [])
     else
         -- sanity check of phylogenetic graph 

@@ -85,7 +85,7 @@ type Argument = (String, String)
 
 
 --For rename format rename:(a,b,c,...,y,z) => a-y renamed to z
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename | Select | Reblock | Reconcile
+data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename | Select | Reblock
     deriving stock (Show, Eq)
 
 -- | Node variety
@@ -341,6 +341,14 @@ data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
                             , midRangeLength :: VertexCost
                             , edgeType  :: EdgeType
                             } deriving stock (Show, Eq)
+
+-- | dummyEdge for convenience
+dummyEdge :: EdgeInfo
+dummyEdge = EdgeInfo    { minLength = 0
+                        , maxLength = 0
+                        , midRangeLength = 0
+                        , edgeType  = TreeEdge
+                        } 
 
 -- | DecortatedGraph is the canonical graph contining all final information
 -- from preorder traversal trees

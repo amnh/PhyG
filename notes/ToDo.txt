@@ -457,3 +457,5 @@ to render--would have repeated subtrees after network vertex
 	by length (perhaps better for net edges)
 	by closness to deleted edge (good for swpping smaller edits first)
 	
+185) verify ladderize graph both in and out > 1, > 2
+

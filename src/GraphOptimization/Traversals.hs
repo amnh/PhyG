@@ -868,7 +868,7 @@ minimalReRootPhyloGraph inGS localGraphType inGraph nodesToRoot =
         let firstRerootIndex = head nodesToRoot
             nextReroots = LG.descendants (thd6 inGraph) firstRerootIndex ++ tail nodesToRoot
             newGraph
-              | localGraphType == Tree = PO.rerootPhylogeneticGraph' inGS Tree False (-1) False (-1) inGraph firstRerootIndex
+              | localGraphType == Tree = PO.rerootPhylogeneticGraph' inGS Tree False (-1) False inGraph firstRerootIndex
               | localGraphType == SoftWired = PO.rerootPhylogeneticNetwork' inGS inGraph firstRerootIndex
               | otherwise = errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show localGraphType)
         in

@@ -46,6 +46,9 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , switchRootTree
                                , dichotomizeRoot
                                , showDecGraphs
+                               , edgeListByLength
+                               , edgeListByDistance
+                               , splitGraphOnEdge
                                ) where
 
 import qualified Data.List                 as L
@@ -57,6 +60,73 @@ import qualified GraphFormatUtilities      as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
 -- import Debug.Debug
+
+-- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
+-- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
+-- node returned.  The naked node is used for rejoining the two components during rearrangement
+-- (SplitGraph, root of compoent that has original root, root of component that was cut off, naked node left over)
+-- this function does not check whether edge is a 'bridge'
+splitGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
+splitGraphOnEdge inGraph (e,v,l) =
+  if LG.isEmpty inGraph then error "Empty graph in splitGraphOnEdge"
+  else if (length $ LG.getRoots inGraph) /= 1 then error ("Incorrect number roots in splitGraphOnEdge--must be 1: " ++ (show $ fmap fst $ LG.getRoots inGraph))
+  else
+      let childrenENode = (LG.descendants inGraph e) L.\\ [v]
+          parentsENode = LG.parents inGraph e
+          newEdge = (head parentsENode, head childrenENode, l)
+          edgesToDelete = [(e,v), (head parentsENode, e), (e, head childrenENode)]
+
+          -- make new graph
+          splitGraph = LG.insEdge newEdge $ LG.delEdges edgesToDelete inGraph
+      in
+      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show childrenENode))
+      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show parentsENode))
+      else 
+          (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
+
+
+-- | joinGraphOnEdge takes a graph with and adds an edge reducing the component number
+-- expected ot be two components to one in SPR/TBR
+-- assumes that first node of edge (e,v,l) is 'naked' ie avaiable to make edges but is in graph
+-- created from splitGraphOnEdge
+joinGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> LG.Node -> LG.Node -> LG.Gr a b
+joinGraphOnEdge inGraph edgeToInvade@(x,y,l) nakedNode graphToJoinRoot =
+  if LG.isEmpty inGraph then error ("Empty graph in joinGraphOnEdge")
+  else 
+      let edgeToCreate0 = (x, nakedNode, l)
+          edgeToCreate1 = (nakedNode, y, l)
+          edgeToCreate2 = (nakedNode, graphToJoinRoot, l)     
+      in
+      -- make new graph
+      LG.insEdges [edgeToCreate0, edgeToCreate1, edgeToCreate2] $ LG.delEdge (x,y) inGraph
+ 
+-- | edgeListByLength sorts edge list by length (midRange), highest to lowest
+edgeListByLength :: [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
+edgeListByLength inEdgeList = 
+  if null inEdgeList then []
+  else 
+    reverse $ L.sortOn (midRangeLength . thd3) inEdgeList
+
+-- | edgeListByDistance sorts edges by distance (in edges) from edge pair of vertices
+-- cretes a list of edges into (but traveling away from) an initial eNOde and away from 
+-- an initial vNode adding new nodes to those lists as encountered by traversing edges.
+-- the eidea is theat the nodes from a directed edge (eNode, vNode)
+-- the list is creted at each round from the "in" and "out" edge lists
+-- so they are in order of 1 edge 2 edges etc.
+edgeListByDistance :: LG.Gr a b -> [LG.Node] -> [LG.Node] -> [LG.LEdge b]
+edgeListByDistance inGraph eNodeList vNodeList = 
+  if LG.isEmpty inGraph then error ("Empty graph in edgeListByDistance")
+  else if (null eNodeList && null vNodeList) then []
+  else 
+        -- get edges 'in' to eNodeList
+    let inEdgeList = concatMap (LG.inn inGraph) eNodeList
+        newENodeList = fmap fst3 inEdgeList
+
+        -- get edges 'out' from vNodeList
+        outEdgeList = concatMap (LG.out inGraph) vNodeList
+        newVNodeList = fmap snd3 outEdgeList
+    in
+    inEdgeList ++ outEdgeList ++ (edgeListByDistance inGraph newENodeList newVNodeList)
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
