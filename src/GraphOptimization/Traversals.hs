@@ -41,7 +41,16 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , multiTraverseFullyLabelSoftWired
                                     , checkUnusedEdgesPruneInfty
                                     , makeLeafGraph
+                                    , makeSimpleLeafGraph
+                                    , makeLeafGraphSoftWired
                                     , postDecorateTree
+                                    , postDecorateTree'
+                                    , postDecorateSoftWired
+                                    , postDecorateSoftWired'
+                                    , updateAndFinalizePostOrderSoftWired
+                                    , updatePhylogeneticGraphCost
+                                    , getW15NetPenalty
+                                    , getW15RootCost
                                     ) where
 
 import           Types.Types
@@ -349,6 +358,10 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimple
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inSimpleGraph)
         else newSoftWired
         -- )
+
+-- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
+postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> SimpleGraph -> PhylogeneticGraph
+postDecorateSoftWired' inGS curDecGraph blockCharInfo curNode simpleGraph = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode
 
 -- | postDecorateSoftWired begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled 
 -- and then recurses to root postorder labelling vertices and edges as it goes
@@ -889,6 +902,20 @@ makeLeafGraph (nameVect, bvNameVect, blocDataVect) =
         in
         LG.mkGraph leafVertexList []
 
+
+-- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
+makeSimpleLeafGraph (nameVect, _, _) =
+    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+        where makeSimpleLeafVertex a b = (b, a V.! b)
+
+
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertex nameVect bvNameVect inData localIndex =
@@ -933,6 +960,10 @@ postOrderTreeTraversal (_, _, blockDataVect) leafGraph inGraph =
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inGraph)
         else newTree
         --)
+
+-- | postDecorateTree' is wrapper for postDecorateTree to alow for mapping
+postDecorateTree' :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> SimpleGraph -> PhylogeneticGraph
+postDecorateTree' curDecGraph blockCharInfo curNode simpleGraph = postDecorateTree simpleGraph curDecGraph blockCharInfo curNode 
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
 -- labelling vertices and edges as it goes back to root

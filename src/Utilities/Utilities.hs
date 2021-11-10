@@ -353,7 +353,7 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
     else inPair
 
 
-
+{-
 -- | getBridgeList takes a Decorated graph and returns the list of edges that, if removed, will
 -- split the graph, that is increase the number of unconnected components
 -- this is useful in graph rearrangement
@@ -388,7 +388,7 @@ getBridgeList' vertexPairVect netVertBVList inEdgeList =
         in
         if isBridge then firstEdge : getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
         else getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
-
+-}
 
 -- | prettyPrintVertexInfo returns a string with formated version of 
 -- vertex info

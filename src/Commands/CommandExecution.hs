@@ -62,6 +62,23 @@ import qualified Search.Swap            as SW
 import qualified Reconciliation.ReconcileGraphs as R
 
 
+-- | setArgLIst contains valid 'set' arguments
+setArgList :: [String]
+setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment", "graphfactor", "rootcost"]
+
+-- | reportArgList contains valid 'report' arguments
+reportArgList :: [String]
+reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
+
+
+-- | reconcileCommandList list of allowable commands
+reconcileCommandList :: [String]
+reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
+
+-- | buildArgList is the list of valid build arguments
+selectArgList :: [String]
+selectArgList = ["best", "all", "unique", "random"]
+
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
@@ -93,18 +110,14 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             in
             executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
-            let newGraphList = selectPhylogeneticGraph firstArgs  (head seedList) curGraphs
+            let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Swap then
-            let newGraphList = SW.swapMaster firstArgs globalSettings (head seedList)  curGraphs
+            let newGraphList = SW.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
-
--- | setArgLIst contains valid 'set' arguments
-setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment", "graphfactor", "rootcost"]
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
@@ -177,17 +190,6 @@ setCommand argList globalSettings processedData =
             (globalSettings {rootCost = localMethod}, processedData)
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
 
-
-
-
--- | reportArgList contains valid 'report' arguments
-reportArgList :: [String]
-reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
-
-
--- | reconcileCommandList list of allowable commands
-reconcileCommandList :: [String]
-reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
 
 
 -- | reportCommand takes report options, current data and graphs and returns a
@@ -457,89 +459,4 @@ getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
 getEdgeInfo inEdge =
     [" ", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge), show $ midRangeLength (thd3 inEdge)]
 
-
--- | executeSet processes the "set" command
--- set command very general can set outgroup, optimality criterion, blocks
--- executeSet ::
-
-
--- | buildArgList is the list of valid build arguments
-selectArgList :: [String]
-selectArgList = ["best", "all", "unique", "random"]
-
--- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
--- and returns or filters that list based on options.
--- uses selectListCostPairs in GeneralUtilities
-selectPhylogeneticGraph :: [Argument] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectPhylogeneticGraph inArgs seed curGraphs =
-    if null curGraphs then []
-    else
-        let fstArgList = fmap (fmap C.toLower . fst) inArgs
-            sndArgList = fmap (fmap C.toLower . snd) inArgs
-            lcArgList = zip fstArgList sndArgList
-            checkCommandList = U.checkCommandArgs "select" fstArgList selectArgList
-        in
-           -- check for valid command options
-           if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)
-           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ show inArgs)
-           else
-                let doBest    = not $ not (any ((=="best").fst) lcArgList)
-                    doAll     = not $ not (any ((=="all").fst) lcArgList)
-                    doRandom  = not $ not (any ((=="random").fst) lcArgList)
-                    doUnique  = not $ not (any ((=="unique").fst) lcArgList)
-                    numberToKeep
-                      | null lcArgList = Just (maxBound :: Int)
-                      | null $ snd $ head lcArgList = Just (maxBound :: Int)
-                      | otherwise = readMaybe (snd $ head lcArgList) :: Maybe Int
-                in
-                if doAll then curGraphs
-                else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ show (snd $ head lcArgList))
-                else
-                    let -- minimum graph cost
-                        minGraphCost = minimum $ fmap snd6 curGraphs
-
-                        -- nonZeroEdgeLists for graphs
-                        nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
-
-                        -- keep only unique graphs based on non-zero edges
-                        uniqueGraphList = getUniqueGraphs nonZeroEdgeListGraphPairList []
-                    in
-                    if doUnique then take (fromJust numberToKeep) uniqueGraphList
-                    else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
-                    else if doRandom then
-                         let randList = head $ shuffleInt seed 1 [0..(length curGraphs - 1)]
-                             (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
-                         in
-                         take (fromJust numberToKeep) shuffledGraphs
-                    -- default is best and unique
-                    else
-                        filter ((== minGraphCost).snd6) uniqueGraphList
-
-
--- | could use FGL '==' ?
--- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
-getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
-getUniqueGraphs inGraphPairList currentUniquePairs =
-    if null inGraphPairList then fmap snd currentUniquePairs
-    else
-        let firstPair@(firstEdges, _) = head inGraphPairList
-        in
-        if null currentUniquePairs then getUniqueGraphs (tail inGraphPairList) [firstPair]
-        else
-            let equalList = filter (== True) $ fmap ((== firstEdges) . fst) currentUniquePairs
-            in
-            if null equalList then getUniqueGraphs (tail inGraphPairList) (firstPair : currentUniquePairs)
-            else getUniqueGraphs (tail inGraphPairList) currentUniquePairs
-
-
--- getNonZeroEdges takes a DecortatedGraph and returns the sorted list of non-zero length (< epsilon) edges
-getNonZeroEdges :: PhylogeneticGraph -> ([LG.LEdge EdgeInfo], PhylogeneticGraph)
-getNonZeroEdges inGraph =
-    if LG.isEmpty $ thd6 inGraph then ([], (LG.empty,0.0, LG.empty, V.empty, V.empty, V.empty))
-    else
-        let edgeList = LG.labEdges (thd6 inGraph)
-            minCostEdgeList = fmap (minLength . thd3) edgeList
-            (_, nonZeroEdgeList) = unzip $ filter ((>epsilon) . fst) $ zip  minCostEdgeList edgeList
-        in
-        (L.sortOn fst3 nonZeroEdgeList, inGraph)
 

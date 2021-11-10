@@ -49,6 +49,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , sortEdgeListByLength
                                , sortEdgeListByDistance
                                , splitGraphOnEdge
+                               , getEdgeSplitList
+                               , selectPhylogeneticGraph
                                ) where
 
 import qualified Data.List                 as L
@@ -59,7 +61,32 @@ import           GeneralUtilities
 import qualified GraphFormatUtilities      as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
+import qualified Data.Char              as C
+import qualified Utilities.Utilities    as U
+import           Data.Maybe
+import           Text.Read
 -- import Debug.Debug
+
+-- | getEdgeSplitList takes a graph and returns list of edges
+-- that split a graph increasing the number of components by 1
+-- using articulation point nodes.  Each edge that originates on
+-- an artculation point is taken as a bridge.
+-- not all of these are useful for network splitting during SPR/TBR
+-- root and network nodes ( and their derived edges) are not included
+-- for a tree all non-root edges would be returned
+getEdgeSplitList :: LG.Gr a b -> [LG.LEdge b]
+getEdgeSplitList inGraph = 
+  if LG.isEmpty inGraph then error ("Empty graph in getEdgeSplitList")
+  else 
+      let artPointList = LG.artPoint inGraph
+          (_, _, treeNodeList, _) = LG.splitVertexList inGraph
+          treeArtPointNodeList = filter (`elem` (fmap fst treeNodeList)) artPointList
+
+          -- get edge list 
+          edgeList = LG.labEdges inGraph
+      in
+      filter ((`elem` treeArtPointNodeList).fst3) edgeList
+
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
 -- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
@@ -616,3 +643,80 @@ showDecGraphs inDecVV =
     if V.null inDecVV then []
     else
         concat $ fmap concat $ V.toList $ fmap V.toList $ fmap (fmap LG.prettify) $ fmap (fmap convertDecoratedToSimpleGraph) inDecVV
+
+-- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
+-- and returns or filters that list based on options.
+-- uses selectListCostPairs in GeneralUtilities
+selectPhylogeneticGraph :: [Argument] -> Int -> [String] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
+    if null curGraphs then []
+    else
+        let fstArgList = fmap (fmap C.toLower . fst) inArgs
+            sndArgList = fmap (fmap C.toLower . snd) inArgs
+            lcArgList = zip fstArgList sndArgList
+            checkCommandList = U.checkCommandArgs "select" fstArgList selectArgList
+        in
+           -- check for valid command options
+           if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)
+           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ show inArgs)
+           else
+                let doBest    = not $ not (any ((=="best").fst) lcArgList)
+                    doAll     = not $ not (any ((=="all").fst) lcArgList)
+                    doRandom  = not $ not (any ((=="random").fst) lcArgList)
+                    doUnique  = not $ not (any ((=="unique").fst) lcArgList)
+                    numberToKeep
+                      | null lcArgList = Just (maxBound :: Int)
+                      | null $ snd $ head lcArgList = Just (maxBound :: Int)
+                      | otherwise = readMaybe (snd $ head lcArgList) :: Maybe Int
+                in
+                if doAll then curGraphs
+                else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ show (snd $ head lcArgList))
+                else
+                    let -- minimum graph cost
+                        minGraphCost = minimum $ fmap snd6 curGraphs
+
+                        -- nonZeroEdgeLists for graphs
+                        nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
+
+                        -- keep only unique graphs based on non-zero edges
+                        uniqueGraphList = getUniqueGraphs nonZeroEdgeListGraphPairList []
+                    in
+                    if doUnique then take (fromJust numberToKeep) uniqueGraphList
+                    else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
+                    else if doRandom then
+                         let randList = head $ shuffleInt seed 1 [0..(length curGraphs - 1)]
+                             (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
+                         in
+                         take (fromJust numberToKeep) shuffledGraphs
+                    -- default is best and unique
+                    else
+                        filter ((== minGraphCost).snd6) uniqueGraphList
+
+
+-- | could use FGL '==' ?
+-- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
+getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
+getUniqueGraphs inGraphPairList currentUniquePairs =
+    if null inGraphPairList then fmap snd currentUniquePairs
+    else
+        let firstPair@(firstEdges, _) = head inGraphPairList
+        in
+        if null currentUniquePairs then getUniqueGraphs (tail inGraphPairList) [firstPair]
+        else
+            let equalList = filter (== True) $ fmap ((== firstEdges) . fst) currentUniquePairs
+            in
+            if null equalList then getUniqueGraphs (tail inGraphPairList) (firstPair : currentUniquePairs)
+            else getUniqueGraphs (tail inGraphPairList) currentUniquePairs
+
+
+-- getNonZeroEdges takes a DecortatedGraph and returns the sorted list of non-zero length (< epsilon) edges
+getNonZeroEdges :: PhylogeneticGraph -> ([LG.LEdge EdgeInfo], PhylogeneticGraph)
+getNonZeroEdges inGraph =
+    if LG.isEmpty $ thd6 inGraph then ([], (LG.empty,0.0, LG.empty, V.empty, V.empty, V.empty))
+    else
+        let edgeList = LG.labEdges (thd6 inGraph)
+            minCostEdgeList = fmap (minLength . thd3) edgeList
+            (_, nonZeroEdgeList) = unzip $ filter ((>epsilon) . fst) $ zip  minCostEdgeList edgeList
+        in
+        (L.sortOn fst3 nonZeroEdgeList, inGraph)
+

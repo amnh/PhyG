@@ -63,7 +63,7 @@ rasWagnerBuild inGS inData seed numReplicates =
           randomizedAdditionSequences = V.fromList <$> shuffleInt seed numReplicates [0..numLeaves - 1]
 
           -- "graph" of leaf nodes without any edges
-          leafGraph = makeSimpleLeafGraph inData
+          leafGraph = T.makeSimpleLeafGraph inData
           leafDecGraph = T.makeLeafGraph inData
 
           hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
@@ -147,14 +147,3 @@ addTaxonWagner numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, c
 
    
 
--- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
--- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
--- to avoid remaking of leaf vertices
-makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
-makeSimpleLeafGraph (nameVect, _, _) =
-    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
-    else
-        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
-        in
-        LG.mkGraph leafVertexList []
-        where makeSimpleLeafVertex a b = (b, a V.! b)

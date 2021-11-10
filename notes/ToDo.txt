@@ -459,3 +459,6 @@ to render--would have repeated subtrees after network vertex
 	
 185) verify ladderize graph both in and out > 1, > 2
 
+186) Graph distance matrix output RF, SPR, TBR, net+SPR/TBR
+
+ 

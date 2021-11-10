@@ -42,6 +42,7 @@ module Utilities.LocalGraph  where
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.DFS as DFS
+import qualified Data.Graph.Inductive.Query.ArtPoint as AP
 import qualified GraphFormatUtilities              as GFU
 --import qualified Data.Text as T
 import qualified Data.Text.Lazy as T
@@ -497,13 +498,9 @@ reindexEdges inNodeIndex curList edgeList =
         else reindexEdges inNodeIndex ((a', b', c) : curList) (tail edgeList)
 
 
-
-
-
-
-
-
-
+-- | artPoint calls ap to get artoculation points of graph
+artPoint :: Gr a b -> [Node]
+artPoint inGraph = AP.ap inGraph
 
 
 
