@@ -84,9 +84,13 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
     -- test for Tree
     let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
     in
-    if null networkVertexList then multiTraverseFullyLabelTree inGS inData inGraph
+    if null networkVertexList then 
+        let leafGraph = makeLeafGraph inData
+        in multiTraverseFullyLabelTree inGS inData leafGraph inGraph
     else errorWithoutStackTrace "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type"
-      | graphType inGS == SoftWired = multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges inGraph
+      | graphType inGS == SoftWired = 
+        let leafGraph = makeLeafGraphSoftWired inData
+        in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph inGraph
       | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
       | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
 
@@ -96,14 +100,11 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
 -- pruneEdges and warnPruneEdges specify if unused edges (ie not in diuaplytrees) are pruned from
 -- canonical tree or if an infinity cost is returned and if a trace warning is thrown if so.
 -- in general--input trees should use "pruneEdges" during search--not
-multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleGraph =
+multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-        let -- starting leaves
-            leafGraph = makeLeafGraphSoftWired inData
-
-            -- for special casing of nonexact and single exact characters
+        let -- for special casing of nonexact and single exact characters
             nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
@@ -158,7 +159,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
 
                 fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder'
             in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
 
         -- single dynamic character
         else if nonExactChars == 1 then
@@ -171,7 +172,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
 
                 fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList'
             in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
 
         -- multiple dynamic characters
         else 
@@ -183,7 +184,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges inSimpleG
 
                 fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments'
             in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges fullyOptimizedGraph
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
         -- )
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
@@ -241,8 +242,8 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
 -- pruned from the canonical graph
 -- this is unDirected due to rerooting heuristic in post/preorder optimization
 -- inifinity defined in Types.hs
-checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges inGraph@(inSimple, _, inCanonical, blockTreeV, charTreeVV, charInfoVV) =
+checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph-> PhylogeneticGraph -> PhylogeneticGraph
+checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGraph@(inSimple, _, inCanonical, blockTreeV, charTreeVV, charInfoVV) =
     let simpleEdgeList = LG.edges inSimple
         displayEdgeSet =  L.nubBy undirectedEdgeEquality $ concat $ concat $ fmap (fmap LG.edges) blockTreeV
         unusedEdges = undirectedEdgeMinus simpleEdgeList displayEdgeSet
@@ -260,9 +261,9 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges inGraph@(inSimp
         in
         if warnPruneEdges then 
             trace ("Pruning " ++ (show $ length unusedEdges) ++ " unused edges and reoptimizing graph") 
-            multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges contractedSimple 
+            multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph contractedSimple 
             
-        else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges contractedSimple 
+        else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph contractedSimple 
 
 -- | undirectedEdgeEquality checks edgse for equality irrespective of direction
 undirectedEdgeEquality :: LG.Edge -> LG.Edge -> Bool
@@ -755,14 +756,11 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
 -- operates with Tree functions
 -- need to add forest funcgtinoality--in principle just split into components and optimize them independently
 -- but get into root index issues theway htis is written now. 
-multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelTree inGS inData inSimpleGraph =
+multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree inGS inData leafGraph inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-        let leafGraph = makeLeafGraph inData
-
-            -- for special casing of nonexact and single exact characters
-            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal

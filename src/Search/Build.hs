@@ -151,7 +151,7 @@ distanceWagner inGS inData leafNames distMatrix outgroupValue refinement =
        distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
        distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
    in
-   T.multiTraverseFullyLabelTree inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData False False (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
 
 -- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
 -- random addition sequence Wagner trees fully decorated tree (as Graph)
@@ -163,7 +163,7 @@ randomizedDistanceWagner inGS inData leafNames distMatrix outgroupValue numRepli
        randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
    in
-   fmap ((T.multiTraverseFullyLabelTree inGS inData . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+   fmap ((T.multiTraverseFullyLabelGraph inGS inData False False . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
 
 -- | neighborJoin takes Processed data and pairwise distance matrix and returns
 -- Neighbor-Joining tree as fully decorated tree (as Graph)
@@ -173,7 +173,7 @@ neighborJoin inGS inData leafNames distMatrix outgroupValue refinement =
        njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
        njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
    in
-   T.multiTraverseFullyLabelTree inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData False False (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
 
 -- | wPGMA takes Processed data and pairwise distance matrix and returns
 -- WPGMA tree as fully decorated tree (as Graph)
@@ -184,4 +184,4 @@ wPGMA inGS inData leafNames distMatrix outgroupValue refinement =
        wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
        wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
    in
-   T.multiTraverseFullyLabelTree inGS inData (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)
+   T.multiTraverseFullyLabelGraph inGS inData False False  (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)

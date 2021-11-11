@@ -461,4 +461,5 @@ to render--would have repeated subtrees after network vertex
 
 186) Graph distance matrix output RF, SPR, TBR, net+SPR/TBR
 
- 
+187) create incremental postorder pass for use in wagern and swapping
+	add damping if possible
