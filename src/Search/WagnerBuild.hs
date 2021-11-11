@@ -124,8 +124,9 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           newSimple' = if V.length additionSequence == 1 then GO.rerootTree (outgroupIndex inGS) newSimple
                        else newSimple
 
-          -- creatre fully labelled tree
-          newPhyloGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
+          -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
+          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
+                          else T.multiTraverseFullyLabelGraph inGS inData False False newSimple'   
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )

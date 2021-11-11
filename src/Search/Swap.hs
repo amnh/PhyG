@@ -215,6 +215,9 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
 
 
 -- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex
+-- for softwired--need to deal with popocount at root
+-- reooting issues for single component
+-- need th ecost to calculate the deltas later
 reoptimizeGraphFromVertex :: DecoratedGraph -> Int -> DecoratedGraph
 reoptimizeGraphFromVertex inGraph startVertex =
    inGraph
@@ -229,7 +232,22 @@ rejoinGraphKeepBest curBestCost numToKeep steepest splitGraph graphRoot prunedGr
 
 
 -- | swapSteepest performs branch swapping greedily swithcing to found graph if better
-swapSteepest :: String -> GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> VertexCost -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> Int -> SimpleGraph -> DecoratedGraph -> DecoratedGraph -> Bool-> V.Vector (V.Vector CharInfo) -> ([PhylogeneticGraph], Int)
+swapSteepest   :: String 
+               -> GlobalSettings 
+               -> ProcessedData 
+               -> Int 
+               -> Bool 
+               -> Int 
+               -> VertexCost 
+               -> [PhylogeneticGraph] 
+               -> [PhylogeneticGraph] 
+               -> Int 
+               -> SimpleGraph 
+               -> DecoratedGraph 
+               -> DecoratedGraph 
+               -> Bool
+               -> V.Vector (V.Vector CharInfo) 
+               -> ([PhylogeneticGraph], Int)
 swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curBetterList inGraphList  numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV =
    if null inGraphList then (curBetterList, counter)
    else 
