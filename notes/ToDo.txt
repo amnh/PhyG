@@ -463,3 +463,9 @@ to render--would have repeated subtrees after network vertex
 
 187) create incremental postorder pass for use in wagern and swapping
 	add damping if possible
+
+188) write multiTraverseFullyLabel for softWired and tree 
+	but for a single component
+	passing in leafGraph and component root
+
+
