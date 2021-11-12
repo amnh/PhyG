@@ -560,12 +560,14 @@
 			\texttt{swap(arg0, arg1:option, ...)}
 			
 		\subsubsection{Description}
-		Performs branch-swapping rearrangement on graphs.  These include ``SPR''  \citep{Dayhoff1969} and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
+		Performs branch-swapping rearrangement on graphs.  These include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR''  \citep{Dayhoff1969}, and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
 		
 		\subsubsection{Arguments}
 		\noindent \texttt{keep:n} Specifies that up to $n$ equally costly graphs are retained.
 		
 		\smallskip		
+		\noindent \texttt{nni} Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
+		
 		\noindent \texttt{spr} Specifies that SPR refinement \citep{Dayhoff1969} is performed.
 		
 		\smallskip		
