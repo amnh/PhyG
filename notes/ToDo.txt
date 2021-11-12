@@ -469,3 +469,11 @@ to render--would have repeated subtrees after network vertex
 	passing in leafGraph and component root
 
 
+189) For NF data instance VertexInfo
+	import GHC.generics, control.deepseq
+
+	language extensions derive generic, derive anyclass
+
+	when declare type deriveing generic, deriving NFData
+
+190) NNI swapping

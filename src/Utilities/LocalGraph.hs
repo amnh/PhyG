@@ -307,12 +307,30 @@ getRoots inGraph =
     if isEmpty inGraph then []
     else
         let nodeList =  labNodes inGraph
-            rootBoolList = fmap (isRoot inGraph . fst) nodeList
+            -- rootBoolList = fmap (isRoot inGraph . fst) nodeList
+            rootBoolList = fmap ((== 0).length) $ fmap (inn inGraph) $ fmap fst nodeList
             pairList = zip rootBoolList nodeList
             rootPairList =  filter ((==True).fst) pairList
             rootList = fmap snd rootPairList
         in
         rootList
+
+-- | getIsolatedNodes returns list of labelled nodes with indegree=outdegree=0
+getIsolatedNodes :: Gr a b -> [LNode a]
+getIsolatedNodes inGraph = 
+    if isEmpty inGraph then []
+    else
+        let nodeList =  labNodes inGraph
+            -- rootBoolList = fmap (isRoot inGraph . fst) nodeList
+            in0BoolList = fmap ((== 0).length) $ fmap (inn inGraph) $ fmap fst nodeList
+            out0BoolList = fmap ((== 0).length) $ fmap (out inGraph) $ fmap fst nodeList
+            isolateBoolList = zipWith (&&) in0BoolList out0BoolList
+
+            pairList = zip isolateBoolList nodeList
+            isolatePairList =  filter ((==True).fst) pairList
+            isolateList = fmap snd isolatePairList
+        in
+        isolateList
 
 -- | isRoot checks if node is root 
 isRoot :: Gr a b -> Node-> Bool

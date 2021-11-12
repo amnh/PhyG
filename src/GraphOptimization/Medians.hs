@@ -142,12 +142,13 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisActive  = activity inCharInfo
         dummyStaticCharacter = emptyCharacter
     in
-    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0) else (if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
-                                                                                                                                 let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-                                                                                                                                 in
-                                                                                                                                 (newCharVect, localCost  newCharVect)
+    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0) 
+    else (if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+            let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+            in
+            (newCharVect, localCost  newCharVect)
 
-                                                                                                                               else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
 
 
 -- | localOr wrapper for BV.or for vector elements
@@ -339,9 +340,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM  -- (slimGapped leftChar) (slimGapped rightChar)
-                (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
-                (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
+                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
+                -- (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
+                -- (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --slimPrelim    = GV.filter (notGapNought gapChar) medians

@@ -49,6 +49,7 @@ import qualified Graphs.GraphOperations  as GO
 import qualified GraphOptimization.PreOrderFunctions as PRE
 import Utilities.Utilities as U
 import qualified Data.List as L
+import Data.Maybe
 
 -- import qualified ParallelUtilities as PU --need instance for VerexInfo
 
@@ -111,12 +112,12 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
    if null additionSequence then inGraph
    else
       -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
-      let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inSimple numLeaves
-          edgesToInvade = (LG.edges inSimple) L.\\ (fmap LG.toEdge outgroupEdges)
+      let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
+          edgesToInvade = (LG.labEdges inDecGraph) L.\\ outgroupEdges
           leafToAdd = V.head additionSequence
-          candidateEditList = fmap (addTaxonWagner numLeaves numVerts inGraph leafToAdd leafDecGraph) edgesToInvade
-          minCost = minimum $ fmap fst4 candidateEditList
-          (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minCost). fst4) candidateEditList
+          candidateEditList = fmap (addTaxonWagner inGS numLeaves numVerts inGraph leafToAdd leafDecGraph) edgesToInvade
+          minDelta = minimum $ fmap fst4 candidateEditList
+          (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 
           -- create new tree
           newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
@@ -134,17 +135,38 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 -- returns a tuple of the cost, node to add, edges to add, edge to delete
-addTaxonWagner :: Int -> Int -> PhylogeneticGraph -> Int -> DecoratedGraph -> LG.Edge -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
-addTaxonWagner numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) leafToAdd leafDecGraph targetEdge =
+addTaxonWagner ::  GlobalSettings -> Int -> Int -> PhylogeneticGraph -> Int -> DecoratedGraph -> LG.LEdge EdgeInfo -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
+addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) leafToAdd leafDecGraph targetEdge =
    let edge0 = (numVerts, leafToAdd, 0.0)
-       edge1 = (fst targetEdge, numVerts, 0.0)
-       edge2 = (numVerts, snd targetEdge, 0.0)
+       edge1 = (fst3 targetEdge, numVerts, 0.0)
+       edge2 = (numVerts, snd3 targetEdge, 0.0)
        newNode = (numVerts, TL.pack ("HTU" ++ (show numVerts)))
-       newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge targetEdge inSimple
-       newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
+
+       -- full post order
+       -- newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delLEdge targetEdge inSimple
+       -- newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
+
+       -- heuristic delta
+       delta = getDelta leafToAdd targetEdge inDecGraph charInfoVV
+      
    in
-   (newCost, newNode, [edge0, edge1, edge2], targetEdge)
+   (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
 
 
-   
+-- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
+-- must be DO for this--isolated leaves won't have IA
+getDelta :: Int -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
+getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
+   let existingEdgeCost = minLength targetlabel
+       leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
+       eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
+       vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
 
+   in
+   if (LG.lab inDecGraph leafToAdd == Nothing) || (LG.lab inDecGraph eNode == Nothing) || (LG.lab inDecGraph vNode == Nothing) then error ("Missing label data for vertices")
+   else 
+      let dLeafENode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairs DirectOptimization) leafToAddVertData eNodeVertData charInfoVV
+          dLeafVNode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairs DirectOptimization) leafToAddVertData vNodeVertData charInfoVV
+      in
+      -- trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
+      dLeafENode + dLeafVNode - existingEdgeCost

@@ -46,6 +46,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , getFinal3WaySlim
                                             , getFinal3WayWideHuge
                                             , preOrderTreeTraversal
+                                            , getBlockCostPairs
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -160,14 +161,14 @@ postOrderIA inGraph charInfo inNodeList  =
                                  }
                   | characterType `elem` [WideSeq, AminoSeq] =
                      inCharacter { wideIAPrelim = wideAlignment inCharacter'
-                            , wideIAFinal = fst3 $ wideAlignment inCharacter'
-                            , wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
-                            }
+                                 , wideIAFinal = fst3 $ wideAlignment inCharacter'
+                                 , wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                 }
                   | characterType == HugeSeq =
                      inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
-                            , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
-                            , hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
-                            }
+                                 , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
+                                 , hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                 }
                   | otherwise = error ("Unrecognized character type " ++ show characterType)
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
@@ -365,13 +366,16 @@ doCharacterTraversal :: AssignmentMethod -> CharInfo -> DecoratedGraph -> Decora
 doCharacterTraversal finalMethod inCharInfo inGraph =
     -- find root--index should = number of leaves 
     --trace ("charT:" ++ (show $ charType inCharInfo)) (
-    let rootVertexList = LG.getRoots inGraph
+    let isolateNodeList = LG.getIsolatedNodes inGraph
+        rootVertexList = (LG.getRoots inGraph) L.\\ isolateNodeList
         (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
         rootIndex = fst $ head rootVertexList
         inEdgeList = LG.labEdges inGraph
     in
     -- remove these two lines if working
-    if length rootVertexList /= 1 then error ("Root number not = 1 in doCharacterTraversal" ++ show rootVertexList)
+    if length rootVertexList /= 1 then 
+        error ("Root number not = 1 in doCharacterTraversal" ++ (show $ fmap fst rootVertexList) ++ " with isolated nodes: " ++ (show $ fmap fst isolateNodeList))
+
     else if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length rootVertexList))
     else
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
@@ -388,11 +392,23 @@ doCharacterTraversal finalMethod inCharInfo inGraph =
             newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
             rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
             upDatedNodes = makeFinalAndChildren finalMethod inGraph rootChildrenPairs [newRootNode] inCharInfo
+
+            -- update isolated nodes with final == preliminary as with root nodes (and leaves, but without postorder logic)
+            updatedIsolateNodes = fmap (updateIsolatedNode finalMethod inCharInfo) isolateNodeList
         in
         -- hope this is the most efficient way since all nodes have been remade
         -- trace (U.prettyPrintVertexInfo $ snd newRootNode)
-        LG.mkGraph upDatedNodes inEdgeList
+        LG.mkGraph (upDatedNodes ++ updatedIsolateNodes) inEdgeList
         --)
+
+-- | updateIsolatedNode updates the final states of an isolated node as if it were a root with final=preliminary
+-- states without preorder logic as in regular leaves
+-- NB IA length won't match if compared since not in graph
+updateIsolatedNode :: AssignmentMethod -> CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+updateIsolatedNode finalMethod inCharInfo (inNodeIndex, inNodeLabel) = 
+    let newVertData = createFinalAssignmentOverBlocks finalMethod RootNode (vertData inNodeLabel) (vertData inNodeLabel) inCharInfo True False
+    in
+    (inNodeIndex, inNodeLabel {vertData = newVertData})
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a liss of updated nodes
 -- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
@@ -723,7 +739,7 @@ assignFinal finalMethod childType isLeft charInfo isOutDegree1 = V.zipWith (setF
    -- | setFinalHTU takes a single character and its parent and sets the final state to prelim based 
 -- on character info. 
 -- non exact charcaters are vectors of characters of same type
--- this does the same things for seqeunce types, but also 
+-- this does the same things for sequence types, but also 
 -- performs preorder logic for exact characters
 setFinal :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
 setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar =
@@ -823,8 +839,9 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                     M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
                                  else mempty
          in
-         --childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
-         childChar {slimFinal = mempty, slimAlignment = finalGapped}
+         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
+         -- For debugging IA/DO bug 
+         -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -1232,6 +1249,6 @@ nonMinCostStatesToMaxCost stateIndexList minStateCost tripleVect =
    result
       where
          modifyStateCost d (a,b,c) e = if a == d then (e,b,c)
-                                          else (maxBound :: StateCost ,b,c)
+                                       else (maxBound :: StateCost ,b,c)
 
 
