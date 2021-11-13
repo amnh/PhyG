@@ -149,13 +149,12 @@ cm_alloc_2d ( cost_matrices_2d_t *res
 {
     if (DEBUG_COST_M)  printf("\n---cm_alloc_set_costs_2d\n");
 
+    res->gap_char = 1;
     if (combinations) {
-        res->gap_char            = 1 << (alphSize - 1);
         res->alphSize            = alphSize;
         res->costMatrixDimension = cm_combinations_of_alphabet (alphSize); // 2 ^ alphSize - 1 is |power set of alphSize|
         res->include_ambiguities = 1;
     } else {
-        res->gap_char            = alphSize;
         res->alphSize            = alphSize;
         res->costMatrixDimension = ceil_log_2 (alphSize + 1);
         res->include_ambiguities = 0;
@@ -423,13 +422,12 @@ cm_alloc_3d ( cost_matrices_3d_t *res
         printf ("gap open cost: %d \n", gap_open_cost);
     }
     // TODO: check the following code. Does combinations need to be reset? Are the dimensions set right?
-    res->gap_char            = 1 << (alphSize - 1);
+    res->gap_char = 1;
     if (combinations != 0) {
         res->alphSize            = alphSize;
         res->costMatrixDimension = cm_combinations_of_alphabet (alphSize); // 2 ^ alphSize - 1 is |power set of alphSize|
         res->include_ambiguities = 1;
     } else {
-       // res->gap_char            = alphSize;
         res->alphSize            = alphSize;
         res->costMatrixDimension = ceil_log_2 (alphSize + 1);
         res->include_ambiguities = 0;

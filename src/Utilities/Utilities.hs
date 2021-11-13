@@ -39,6 +39,7 @@ module Utilities.Utilities  where
 import qualified Data.Vector as V
 import           Data.Maybe
 import qualified Data.List as L
+import           Data.BitVector.LittleEndian (BitVector)
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
@@ -48,8 +49,11 @@ import Data.Alphabet.IUPAC
 -- import Data.Alphabet.Special
 import Data.Foldable
 import Data.Bits
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Bimap as BM
 import Types.Types
+import           Data.Text.Short (ShortText)
 import qualified Data.Text.Short             as ST
 import qualified GeneralUtilities as GU
 import Debug.Trace
@@ -95,15 +99,16 @@ convertVectorToDynamicCharacter inVector =
             | otherwise = f (n+1) xs
 
 
-bitVectToCharState :: (Bits b) => [String] -> b -> String
-bitVectToCharState localAlphabet bitValue =
-    let bitList = fmap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. (length localAlphabet) - 1]
-        bitBoolPairList = zip bitList localAlphabet
-        (_, stateList) = unzip $ filter ((/= []) .fst) bitBoolPairList
-    in
-    L.intercalate "," stateList
-
-
+-- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
+bitVectToCharState :: Bits b => Alphabet String -> b -> String
+bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol mempty indices 
+  where
+    indices = [ 0 .. len - 1 ]
+    len = length vec
+    vec = alphabetSymbols localAlphabet
+    pollSymbol i polled
+      | bitValue `testBit` i = (vec V.! i) : polled
+      | otherwise         = polled
  
 
 -- bitVectToCharState  takes a bit vector representation and returns a list states as integers
@@ -371,3 +376,27 @@ prettyPrintVertexInfo inVertData =
         fifthPart = "\n\t" ++ (show $ vertData inVertData)
     in
     zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
+
+
+{-# INLINEABLE encodeState #-}
+{-# SPECIALISE encodeState :: (Bits b, Foldable f, Ord s) => Alphabet s         -> (Word -> b        ) -> f s           -> b         #-}
+{-# SPECIALISE encodeState :: (Bits b,             Ord s) => Alphabet s         -> (Word -> b        ) -> Set s         -> b         #-}
+{-# SPECIALISE encodeState ::  Bits b                     => Alphabet String    -> (Word -> b        ) -> Set String    -> b         #-}
+{-# SPECIALISE encodeState ::  Bits b                     => Alphabet ShortText -> (Word -> b        ) -> Set ShortText -> b         #-}
+{-# SPECIALISE encodeState :: (        Foldable f, Ord s) => Alphabet s         -> (Word -> BitVector) -> f s           -> BitVector #-}
+{-# SPECIALISE encodeState ::                      Ord s  => Alphabet s         -> (Word -> BitVector) -> Set s         -> BitVector #-}
+{-# SPECIALISE encodeState ::                                Alphabet String    -> (Word -> BitVector) -> Set String    -> BitVector #-}
+{-# SPECIALISE encodeState ::                                Alphabet ShortText -> (Word -> BitVector) -> Set ShortText -> BitVector #-}
+encodeState
+  :: ( Bits e
+     , Foldable f
+     , Ord s
+     )
+  => Alphabet s  -- ^ Alphabet of symbols
+  -> (Word -> e) -- ^ Constructor for an empty element, taking the alphabet size
+  -> f s         -- ^ ambiguity groups of symbols
+  -> e           -- ^ Encoded dynamic character element
+encodeState alphabet' f symbols = getSubsetIndex alphabet' symbolsSet emptyElement
+  where
+    emptyElement = f . toEnum $ length alphabet'
+    symbolsSet   = Set.fromList $ toList symbols

@@ -18,22 +18,27 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Strict           #-}
 {-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE UnboxedTuples    #-}
 
 module DirectOptimization.Pairwise.Swapping
-  ( swappingDO
+  ( Direction()
+  , swappingDO
+  , buildDirectionMatrix
+  , minimumCostDirection
   ) where
 
 import           Bio.DynamicCharacter
 import           Control.Monad.ST
 import           Data.Bits
 import           Data.Foldable
-import           Data.Matrix.Unboxed                  (Matrix, unsafeFreeze)
-import qualified Data.Matrix.Unboxed.Mutable          as M
-import qualified Data.Vector                          as V
-import           Data.Vector.Generic                  (Vector, (!))
-import qualified Data.Vector.Generic                  as GV
-import qualified Data.Vector.Unboxed                  as UV
-import qualified Data.Vector.Unboxed.Mutable          as MUV
+import           Data.Matrix.Unboxed                   (Matrix, unsafeFreeze)
+import qualified Data.Matrix.Unboxed.Mutable           as M
+import qualified Data.Vector                           as V
+import           Data.Vector.Generic                   (Vector, (!))
+import qualified Data.Vector.Generic                   as GV
+import qualified Data.Vector.Unboxed                   as UV
+import qualified Data.Vector.Unboxed.Mutable           as MUV
+import           DirectOptimization.Pairwise.Direction
 import           DirectOptimization.Pairwise.Internal
 
 
@@ -46,21 +51,18 @@ import           DirectOptimization.Pairwise.Internal
 -- algorithm is to generate a traversal matrix, then perform a traceback.
 {-# SCC        swappingDO #-}
 {-# INLINEABLE swappingDO #-}
-{-# SPECIALISE swappingDO :: WideState -> (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
-{-# SPECIALISE swappingDO :: HugeState -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
 swappingDO
-  :: ( FiniteBits a
-     , Ord a
-     , Ord (v a)
-     , Vector v a
-     , Vector v (a, a, a)
+  :: ( FiniteBits e
+     , Ord (v e)
+     , Vector v e
      )
-  => a
-  -> (a -> a -> (a, Word))
-  -> (v a, v a, v a)
-  -> (v a, v a, v a)
-  -> (Word, (v a, v a, v a))
-swappingDO = directOptimization buildDirectionMatrix
+  => TCMλ e
+  -> OpenDynamicCharacter v e
+  -> OpenDynamicCharacter v e
+  -> (Word, OpenDynamicCharacter v e)
+swappingDO = directOptimizationFromDirectionMatrix buildDirectionMatrix
 
 
 {-# SCC        buildDirectionMatrix #-}
@@ -68,25 +70,24 @@ swappingDO = directOptimization buildDirectionMatrix
 {-# SPECIALISE buildDirectionMatrix :: WideState -> (WideState -> WideState -> (WideState, Word)) -> UV.Vector WideState -> UV.Vector WideState -> (Word, Matrix Direction) #-}
 {-# SPECIALISE buildDirectionMatrix :: HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, Matrix Direction) #-}
 buildDirectionMatrix
-  :: ( Vector v a
-     )
-  => a
-  -> (a -> a -> (a, Word))
-  -> v a
-  -> v a
+  :: Vector v e
+  => e      -- ^ Gap state
+  -> TCMλ e -- ^ Metric between states producing the medoid of states.
+  -> v e    -- ^ Shorter dynamic character related to the "left column"
+  -> v e    -- ^ Longer  dynamic character related to the "top row"
   -> (Word, Matrix Direction)
-buildDirectionMatrix gap overlapλ topChar leftChar = fullMatrix
+buildDirectionMatrix gap tcmλ lesserLeft longerTop = fullMatrix
   where
-    cost x y = snd $ overlapλ x y
-    rows     = GV.length leftChar + 1
-    cols     = GV.length topChar  + 1
+    costλ x y = snd $ tcmλ x y
+    rows      = GV.length lesserLeft + 1
+    cols      = GV.length longerTop  + 1
 
     fullMatrix = runST $ do
       mDir <- M.new (rows, cols)
       vOne <- MUV.new cols
       vTwo <- MUV.new cols
 
-      let write v p@(_,j) c d = MUV.unsafeWrite v j c *> M.unsafeWrite mDir p d
+      let write v p@(~(_,j)) c d = MUV.unsafeWrite v j c *> M.unsafeWrite mDir p d
 
       write vOne (0,0) 0 DiagArrow
 
@@ -95,8 +96,8 @@ buildDirectionMatrix gap overlapλ topChar leftChar = fullMatrix
       -- We can also reduce the number of comparisons the first row makes from 3 to 1,
       -- since the diagonal and upward values are "out of bounds."
       for_ [1 .. cols - 1] $ \j ->
-        let topElement    = topChar ! (j - 1)
-            firstCellCost = cost gap topElement
+        let topElement    = longerTop ! (j - 1)
+            firstCellCost = costλ gap topElement
         in  do firstPrevCost <- MUV.unsafeRead vOne (j - 1)
                write vOne (0,j) (firstCellCost + firstPrevCost) LeftArrow
 
@@ -104,33 +105,34 @@ buildDirectionMatrix gap overlapλ topChar leftChar = fullMatrix
         let (prev, curr)
               | odd i     = (vOne, vTwo)
               | otherwise = (vTwo, vOne)
-            leftElement   = leftChar ! (i - 1)
+            leftElement   = lesserLeft ! (i - 1)
             -- Special case the first cell of each row
             -- We need to ensure that there are only Up Arrow values in the directional matrix.
             -- We can also reduce the number of comparisons the first row makes from 3 to 1,
             -- since the diagonal and leftward values are "out of bounds."
-            firstCellCost = cost leftElement gap
+            firstCellCost = costλ leftElement gap
         in  do firstPrevCost <- MUV.unsafeRead prev 0
                write curr (i,0) (firstCellCost + firstPrevCost) UpArrow
                -- Finish special case for first cell of each row
                -- Begin processing all other cells in the curr vector
                for_ [1 .. cols - 1] $ \j ->
-                 let topElement  = topChar ! (j - 1)
-                     deleteCost  = cost topElement gap
-                     alignCost   = cost topElement leftElement
-                     insertCost  = cost gap        leftElement
+                 let topElement = longerTop ! (j - 1)
+                     deleteCost = costλ gap          topElement
+                     alignCost  = costλ leftElement  topElement
+                     insertCost = costλ leftElement  gap
                  in  do diagCost <- MUV.unsafeRead prev $ j - 1
                         topCost  <- MUV.unsafeRead prev   j
                         leftCost <- MUV.unsafeRead curr $ j - 1
-                        let xs = [ ( alignCost + diagCost, DiagArrow)
-                                 , (deleteCost + leftCost, LeftArrow)
-                                 , (insertCost +  topCost, UpArrow  )
-                                 ]
-                        let (c,d) = minimum xs
+                        let (# c, d #) = minimumCostDirection
+                                            (deleteCost + leftCost)
+                                            ( alignCost + diagCost)
+                                            (insertCost +  topCost)
                         write curr (i,j) c d
 
       let v | odd  rows = vOne
             | otherwise = vTwo
+
       c <- MUV.unsafeRead v (cols - 1)
       m <- unsafeFreeze mDir
       pure (c, m)
+

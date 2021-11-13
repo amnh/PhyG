@@ -38,8 +38,9 @@ import Data.Binary
 import Data.Bits
 import Data.Hashable
 import Data.Hashable.Memoize
-import Data.TCM              (TCM, (!), size)
+import Data.TCM              (TCM, size, (!))
 import Data.TCM.Overlap
+import Foreign.C.Types       (CUInt)
 import GHC.Generics
 
 
@@ -58,7 +59,7 @@ import GHC.Generics
 data  MetricRepresentation a
     = ExplicitLayout {-# UNPACK #-} !TCM {-# UNPACK #-} !Word {-# UNPACK #-} !Word !(a -> a -> (a, Word)) !(a -> a -> a -> (a, Word))
     | DiscreteMetric
-    | LinearNorm
+    | LinearNorm Word -- Alphabet Size
     deriving stock    (Generic)
     deriving anyclass (NFData)
 
@@ -66,15 +67,15 @@ data  MetricRepresentation a
 instance Eq (MetricRepresentation a) where
 
     (==)  DiscreteMetric             DiscreteMetric            = True
-    (==)  LinearNorm                 LinearNorm                = True
+    (==) (LinearNorm x            ) (LinearNorm y            ) = x == y
     (==) (ExplicitLayout x _ _ _ _) (ExplicitLayout y _ _ _ _) = x == y
     (==) _ _                                                   = False
 
 instance Show (MetricRepresentation a) where
 
-    show  DiscreteMetric            = "Discrete-Metric"
-    show  LinearNorm                = "1st-Linear-Norm"
-    show (ExplicitLayout _ _ _ _ _) = "General-Metric"
+    show DiscreteMetric    = "Discrete-Metric"
+    show LinearNorm     {} = "1st-Linear-Norm"
+    show ExplicitLayout {} = "General-Metric"
 
 
 -- |
@@ -85,7 +86,7 @@ discreteMetric = DiscreteMetric
 
 -- |
 -- Nullary constructor for the <https://en.wikipedia.org/wiki/Lp_space 1st linear norm>.
-linearNorm :: MetricRepresentation a
+linearNorm :: Word -> MetricRepresentation a
 linearNorm = LinearNorm
 
 
@@ -103,8 +104,8 @@ metricRepresentation
 metricRepresentation tcm =
     let scm = makeSCM tcm
     in  ExplicitLayout tcm minInDel maxInDel
-          (memoize2 (overlap2 scm))
-          (memoize3 (overlap3 scm))
+          (memoize2 (overlap2 bitWidth scm))
+          (memoize3 (overlap3 bitWidth scm))
   where
     -- /O(2*(a - 1))/
     --
@@ -117,13 +118,14 @@ metricRepresentation tcm =
     -- determine if optimality is preserved, and the Ukkonen algorithm will hang.
     -- Consequently, we do not perform Ukkonen's algorithm if the coefficient is
     -- zero.
-    minInDel       = toEnum . fromEnum . minimum $ inDelCost min <$> nonGapElements
-    maxInDel       = toEnum . fromEnum . maximum $ inDelCost max <$> nonGapElements
+    minInDel       = fromIntegral . minimum $ inDelCost min <$> nonGapElements
+    maxInDel       = fromIntegral . maximum $ inDelCost max <$> nonGapElements
+    bitWidth       = toEnum alphabetSize
     alphabetSize   = size tcm
-    gap            = alphabetSize - 1
-    nonGapElements = [ 0 .. alphabetSize - 2 ]                                                                    
-    inDelCost f i  = f (tcm ! (i  , gap))
-                       (tcm ! (gap,   i))
+    gapIndex       = 0
+    nonGapElements = [ 1 .. alphabetSize - 1 ]
+    inDelCost f i  = f (tcm ! (i, gapIndex))
+                       (tcm ! (gapIndex, i))
 
 
 -- |
@@ -131,8 +133,8 @@ metricRepresentation tcm =
 --
 -- Extract the /minimum/ cost between a non-gap symbol and the gap symbol.
 minInDelCost :: MetricRepresentation a -> Word
-minInDelCost  DiscreteMetric = 1
-minInDelCost  LinearNorm     = 1
+minInDelCost  DiscreteMetric            = 1
+minInDelCost  LinearNorm {}             = 1
 minInDelCost (ExplicitLayout _ x _ _ _) = x
 
 
@@ -141,17 +143,17 @@ minInDelCost (ExplicitLayout _ x _ _ _) = x
 --
 -- Extract the /maximum/ cost between a non-gap symbol and the gap symbol.
 maxInDelCost :: MetricRepresentation a -> Word
-maxInDelCost  DiscreteMetric = 1
-maxInDelCost  LinearNorm     = 1
+maxInDelCost  DiscreteMetric            = 1
+maxInDelCost  LinearNorm {}             = 1
 maxInDelCost (ExplicitLayout _ _ x _ _) = x
 
 
 -- |
 -- Extract the "symbol change matrix" from a 'MetricRepresentation'.
 retreiveSCM :: MetricRepresentation a -> Word -> Word -> Word
+retreiveSCM  DiscreteMetric              = \i j -> if i == j then 0 else 1
+retreiveSCM  LinearNorm {}               = l1normMetric
 retreiveSCM (ExplicitLayout tcm _ _ _ _) = makeSCM tcm
-retreiveSCM DiscreteMetric               = \i j -> if i == j then 0 else 1
-retreiveSCM LinearNorm                   = l1normMetric
 
 
 -- |
@@ -163,9 +165,9 @@ retreivePairwiseTCM
   -> a
   -> a
   -> (a, Word)
+retreivePairwiseTCM  DiscreteMetric            =  discreteMetricPairwiseLogic
+retreivePairwiseTCM (LinearNorm bitWidth     ) = firstLinearNormPairwiseLogic bitWidth
 retreivePairwiseTCM (ExplicitLayout _ _ _ f _) = f
-retreivePairwiseTCM DiscreteMetric             =  discreteMetricPairwiseLogic
-retreivePairwiseTCM LinearNorm                 = firstLinearNormPairwiseLogic
 
 
 -- |
@@ -178,9 +180,9 @@ retreiveThreewayTCM
   -> a
   -> a
   -> (a, Word)
+retreiveThreewayTCM  DiscreteMetric            =  discreteMetricThreewayLogic
+retreiveThreewayTCM (LinearNorm  bitWidth    ) = firstLinearNormThreewayLogic bitWidth
 retreiveThreewayTCM (ExplicitLayout _ _ _ _ f) = f
-retreiveThreewayTCM DiscreteMetric             =  discreteMetricThreewayLogic
-retreiveThreewayTCM LinearNorm                 = firstLinearNormThreewayLogic
 
 
 -- |
@@ -189,6 +191,7 @@ retreiveThreewayTCM LinearNorm                 = firstLinearNormThreewayLogic
 {-# INLINE     discreteMetricPairwiseLogic #-}
 {-# SPECIALISE discreteMetricPairwiseLogic :: Bits b => b      -> b      -> (b     , Word) #-}
 {-# SPECIALISE discreteMetricPairwiseLogic ::           Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE discreteMetricPairwiseLogic ::           CUInt  -> CUInt  -> (CUInt , Word) #-}
 {-# SPECIALISE discreteMetricPairwiseLogic ::           Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE discreteMetricPairwiseLogic ::           Word8  -> Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE discreteMetricPairwiseLogic ::           Word16 -> Word16 -> (Word16, Word) #-}
@@ -196,14 +199,14 @@ retreiveThreewayTCM LinearNorm                 = firstLinearNormThreewayLogic
 {-# SPECIALISE discreteMetricPairwiseLogic ::           Word64 -> Word64 -> (Word64, Word) #-}
 discreteMetricPairwiseLogic
   :: ( Bits b
-     , Num c
+     , Enum c
      )
   => b
   -> b
   -> (b, c)
 discreteMetricPairwiseLogic !lhs !rhs
-  | popCount intersect > 0 = (intersect, 0)
-  | otherwise              = (  unioned, 1)
+  | popCount intersect > 0 = (intersect, toEnum 0)
+  | otherwise              = (  unioned, toEnum 1)
   where
     !intersect = lhs .&. rhs
     !unioned   = lhs .|. rhs
@@ -221,6 +224,7 @@ discreteMetricPairwiseLogic !lhs !rhs
 {-# INLINE     discreteMetricThreewayLogic #-}
 {-# SPECIALISE discreteMetricThreewayLogic :: Bits b => b      -> b      -> b      -> (b     , Word) #-}
 {-# SPECIALISE discreteMetricThreewayLogic ::           Int    -> Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE discreteMetricThreewayLogic ::           CUInt  -> CUInt  -> CUInt  -> (CUInt , Word) #-}
 {-# SPECIALISE discreteMetricThreewayLogic ::           Word   -> Word   -> Word   -> (Word  , Word) #-}
 {-# SPECIALISE discreteMetricThreewayLogic ::           Word8  -> Word8  -> Word8  -> (Word8 , Word) #-}
 {-# SPECIALISE discreteMetricThreewayLogic ::           Word16 -> Word16 -> Word16 -> (Word16, Word) #-}
@@ -228,16 +232,16 @@ discreteMetricPairwiseLogic !lhs !rhs
 {-# SPECIALISE discreteMetricThreewayLogic ::           Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
 discreteMetricThreewayLogic
   :: ( Bits b
-     , Num c
+     , Enum c
      )
   => b
   -> b
   -> b
   -> (b, c)
 discreteMetricThreewayLogic !x !y !z
-  | popCount fullIntersection > 0 = (fullIntersection, 0)
-  | popCount joinIntersection > 0 = (joinIntersection, 1)
-  | otherwise                     = (fullUnion,        2)
+  | popCount fullIntersection > 0 = (fullIntersection, toEnum 0)
+  | popCount joinIntersection > 0 = (joinIntersection, toEnum 1)
+  | otherwise                     = (fullUnion,        toEnum 2)
   where
     !fullIntersection =  x        .&.  y        .&.  z
     !joinIntersection = (x .&. y) .|. (y .&. z) .|. (z .&. x)
@@ -248,19 +252,21 @@ discreteMetricThreewayLogic !x !y !z
 -- Definition of the L1 norm metric.
 {-# SCC        firstLinearNormPairwiseLogic #-}
 {-# INLINEABLE firstLinearNormPairwiseLogic #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic :: FiniteBits b => b      -> b      -> (b     , Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Int    -> Int    -> (Int   , Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word   -> Word   -> (Word  , Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word8  -> Word8  -> (Word8 , Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word16 -> Word16 -> (Word16, Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word32 -> Word32 -> (Word32, Word) #-}
-{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word64 -> Word64 -> (Word64, Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic :: FiniteBits b => Word -> b      -> b      -> (b     , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> CUInt  -> CUInt  -> (CUInt , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Word   -> Word   -> (Word  , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Word8  -> Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Word16 -> Word16 -> (Word16, Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Word32 -> Word32 -> (Word32, Word) #-}
+{-# SPECIALISE firstLinearNormPairwiseLogic ::                 Word -> Word64 -> Word64 -> (Word64, Word) #-}
 firstLinearNormPairwiseLogic
   :: FiniteBits b
-  => b
+  => Word
+  -> b
   -> b
   -> (b, Word)
-firstLinearNormPairwiseLogic !lhs !rhs = overlap2 l1normMetric lhs rhs
+firstLinearNormPairwiseLogic !elementBitWidth !lhs !rhs = overlap2 elementBitWidth l1normMetric lhs rhs
 {-
 firstLinearNormPairwiseLogic !lhs !rhs
   | popCount intersect > 0 = (intersect, 0)
@@ -274,22 +280,24 @@ firstLinearNormPairwiseLogic !lhs !rhs
 -- Definition of the L1 norm metric in three dimensions.
 {-# SCC        firstLinearNormThreewayLogic #-}
 {-# INLINEABLE firstLinearNormThreewayLogic #-}
-{-# SPECIALISE firstLinearNormThreewayLogic :: FiniteBits b => b      -> b      -> b      -> (b     , Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Int    -> Int    -> Int    -> (Int   , Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word   -> Word   -> Word   -> (Word  , Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word8  -> Word8  -> Word8  -> (Word8 , Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word16 -> Word16 -> Word16 -> (Word16, Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word32 -> Word32 -> Word32 -> (Word32, Word) #-}
-{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic :: FiniteBits b => Word -> b      -> b      -> b      -> (b     , Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Int    -> Int    -> Int    -> (Int   , Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> CUInt  -> CUInt  -> CUInt  -> (CUInt , Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Word   -> Word   -> Word   -> (Word  , Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Word8  -> Word8  -> Word8  -> (Word8 , Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Word16 -> Word16 -> Word16 -> (Word16, Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Word32 -> Word32 -> Word32 -> (Word32, Word) #-}
+{-# SPECIALISE firstLinearNormThreewayLogic ::                 Word -> Word64 -> Word64 -> Word64 -> (Word64, Word) #-}
 firstLinearNormThreewayLogic
   :: FiniteBits b
-  => b
+  => Word
+  -> b
   -> b
   -> b
   -> (b, Word)
-firstLinearNormThreewayLogic !x !y !z
+firstLinearNormThreewayLogic !elementBitWidth !x !y !z
   | popCount intersect > 0 = (intersect, 0)
-  | otherwise              = overlap3 l1normMetric x y z
+  | otherwise              = overlap3 elementBitWidth l1normMetric x y z
   where
     !intersect = x .&. y .&. z
 

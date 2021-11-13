@@ -10,7 +10,6 @@ import DirectOptimization.Pairwise.Ukkonen
 
 widePairwiseDO
   :: Word
-  -> WideState
   -> (WideState -> WideState -> (WideState, Word))
   -> WideDynamicCharacter
   -> WideDynamicCharacter

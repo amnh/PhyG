@@ -28,7 +28,6 @@ module DirectOptimization.Pairwise
   , hugePairwiseDO
   ) where
 
-
 import DirectOptimization.Pairwise.Huge
 import DirectOptimization.Pairwise.Slim
 import DirectOptimization.Pairwise.Wide

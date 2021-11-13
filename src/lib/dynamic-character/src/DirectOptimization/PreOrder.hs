@@ -14,7 +14,8 @@ import qualified Data.Vector.Generic.Mutable as MGV
 
 -- |
 -- Faithful translation of Algorithm 8 (Non-root Node Alignment) from the
--- "Efficient Implied Alignment" paper found at <https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2>
+-- "Efficient Implied Alignment" paper found at:
+-- <https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2 DOI>
 {-# INLINEABLE preOrderLogic #-}
 {-# SPECIALISE preOrderLogic :: Word -> Bool -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
 {-# SPECIALISE preOrderLogic :: Word -> Bool -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter #-}
@@ -46,32 +47,24 @@ preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,y
     cAlignment = runST $ do
       j'  <- newSTRef 0
       k'  <- newSTRef 0
-      xs' <- MGV.unsafeNew paLen
-      ys' <- MGV.unsafeNew paLen
-      zs' <- MGV.unsafeNew paLen
+      tempAlign@(xs',ys',zs') <- (,,) <$> MGV.unsafeNew paLen
+                                      <*> MGV.unsafeNew paLen
+                                      <*> MGV.unsafeNew paLen
 
-      let gapAt i = do
-            MGV.basicUnsafeWrite xs' i gap
-            MGV.basicUnsafeWrite ys' i zero
-            MGV.basicUnsafeWrite zs' i zero
-
-      let setAt k i = do
-            MGV.basicUnsafeWrite xs' i $ xs ! k
-            MGV.basicUnsafeWrite ys' i $ ys ! k
-            MGV.basicUnsafeWrite zs' i $ zs ! k
+      let setAt k i = setAlign tempAlign i (xs ! k) (ys ! k) (zs ! k)
 
       forM_ [0 .. paLen - 1] $ \i -> do
           k <- readSTRef k'
           if   k > ccLen || pAlignment `isGapped` i
-          then gapAt i
+          then tempAlign `setGapped` i
           else do
               j <- readSTRef j'
               modifySTRef j' succ
               if    pAlignment `isAlign` i
                 || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
                 || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-              then modifySTRef k' succ *> (k `setAt` i)
-              else gapAt i
+              then tempAlign `setGapped` i
+              else modifySTRef k' succ *> (k `setAt` i)
 
       (,,) <$> GV.basicUnsafeFreeze xs'
            <*> GV.basicUnsafeFreeze ys'

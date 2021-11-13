@@ -35,7 +35,7 @@ module Bio.Character.Encodable.Dynamic.AmbiguityGroup
 import Bio.Character.Encodable.Internal
 import Bio.Character.Encodable.Stream
 import Control.DeepSeq
-import Control.Lens
+import Control.Lens ()
 import Data.BitVector.LittleEndian
 import Data.BitVector.LittleEndian.Instances ()
 import Data.Bits

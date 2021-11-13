@@ -34,9 +34,11 @@ module Data.Alphabet.Internal
   , fromSymbolsWithStateNamesAndTCM
   , fromSymbolsWithTCM
   , gapSymbol
+  , symbolSet
   , truncateAtSymbol
   , truncateAtMaxSymbol
   , getSubsetIndex
+  , getSubsetIndices
   ) where
 
 import           Control.Arrow
@@ -47,6 +49,8 @@ import           Data.Binary                         (Binary)
 import           Data.Bits
 import           Data.Data
 import           Data.Foldable
+import           Data.IntSet                         (IntSet)
+import qualified Data.IntSet                         as Int
 import           Data.Key
 import           Data.List                           (elemIndex, intercalate, sort)
 import           Data.List.NonEmpty                  (NonEmpty(..), unzip)
@@ -61,13 +65,25 @@ import           Data.Set                            (Set)
 import qualified Data.Set                            as Set
 import           Data.String
 import           Data.Text.Short                     (ShortText)
+import qualified Data.Vector                         as V
 import           Data.Vector.NonEmpty                (Vector)
 import qualified Data.Vector.NonEmpty                as NEV
+import           Data.Word
+import           GHC.Exts                            (IsList(fromList), Item)
 import           GHC.Generics                        (Generic)
 import           Numeric.Natural
 import           Prelude                             hiding (lookup, unzip, zip)
 import           Test.QuickCheck
 import           Test.QuickCheck.Arbitrary.Instances ()
+
+
+-- |
+-- The index of the vector where the gap state is stored.
+--
+-- /NOTE:/ This index value is very important for many gap-related operations,
+-- both internally for the 'Alphabet' module/linbrary and externally in general.
+gapIndex :: Int
+gapIndex = 0
 
 
 -- |
@@ -128,7 +144,7 @@ instance (Ord a, IsString a) => Arbitrary (Alphabet a) where
         pure . fromSymbols $ take n symbolSpace
       where
         -- We do this to simplify Alphabet generation, ensuring that there is at least one non gap symbol.
-        symbolSpace = fromString . pure <$> ['0'..'9'] <> ['A'..'Z'] <> ['a'..'z'] <> "?-"
+        symbolSpace = fromString . pure <$> "-" <>['0'..'9'] <> ['A'..'Z'] <> ['a'..'z'] <> "?"
 
 
 -- |
@@ -209,16 +225,16 @@ instance Indexable Alphabet where
 
 instance (Eq a, IsString a) => InternalClass (AlphabetInputSingle a) where
 
-  gapSymbol'        = ASI $ fromString "-"
-  isGapSymboled     = (gapSymbol' ==)
-  isMissingSymboled = (ASI (fromString "?") ==)
+    gapSymbol'        = ASI $ fromString "-"
+    isGapSymboled     = (gapSymbol' ==)
+    isMissingSymboled = (ASI (fromString "?") ==)
 
 
 instance (Eq a, IsString a) => InternalClass (AlphabetInputTuple a) where
 
-  gapSymbol'                     = ASNI (fromString "-", fromString "-")
-  isGapSymboled     (ASNI (x,_)) = x == fromString "-"
-  isMissingSymboled (ASNI (x,_)) = x == fromString "?"
+    gapSymbol'                     = ASNI (fromString "-", fromString "-")
+    isGapSymboled     (ASNI (x,_)) = x == fromString "-"
+    isMissingSymboled (ASNI (x,_)) = x == fromString "?"
 
 
 instance Lookup Alphabet where
@@ -248,16 +264,21 @@ instance Show a => Show (Alphabet a) where
 --
 -- If the symbols of the 'Alphabet' were not given state names during
 -- construction then an empty list is returned.
-alphabetStateNames :: Alphabet a -> [a]
-alphabetStateNames = stateNames
+alphabetStateNames :: (IsList (f a), Item (f a) ~ a) => Alphabet a -> f a
+alphabetStateNames = fromList . toList . stateNames
 
 
 -- |
 -- \( \mathcal{O} \left( n \right) \)
 --
 -- Retrieves the symbols of the 'Alphabet'. Synonym for 'toList'.
-alphabetSymbols :: Alphabet a -> [a]
-alphabetSymbols = toList
+{-# INLINE[1] alphabetSymbols #-}
+{-# RULES
+"alphabetSymbols/Set"    forall (x :: Ord a => Alphabet a). alphabetSymbols x = symbolSet x
+"alphabetSymbols/Vector" alphabetSymbols = (NEV.unwrap :: Vector a -> V.Vector a) . symbolVector
+#-}
+alphabetSymbols :: (IsList (f a), Item (f a) ~ a) => Alphabet a -> f a
+alphabetSymbols = fromList . toList
 
 
 -- |
@@ -265,44 +286,107 @@ alphabetSymbols = toList
 --
 -- Retrieves the "gap character" from the alphabet.
 gapSymbol :: Alphabet a -> a
-gapSymbol alphabet = alphabet ! (length alphabet - 1)
+gapSymbol alphabet = alphabet ! gapIndex
+
+
+-- |
+-- \( \mathcal{O} \left( n \right) \) for a sorted alphabet.
+--
+-- \( \mathcal{O} \left( n log n \right) \) for a /non-sorted/ alphabet.
+--
+-- Retrieves the set of all symbols from the alphabet.
+symbolSet :: Ord a => Alphabet a -> Set a
+symbolSet a =
+    case toList $ symbolVector a of
+      []   -> mempty
+      -- First element is 'gap'
+      g:xs -> Set.insert g $ f xs
+  where
+    f | isSorted a = Set.fromDistinctAscList
+      | otherwise  = Set.fromList
 
 
 -- |
 -- For a given subset of symbols, this function returns a positive 'Natural' number
 -- in the range @[0, 2^|alphabet| - 1]@.
 -- This number is the unique index of the given subset in the powerset of the alphabet.
-{-# SPECIALISE  getSubsetIndex :: Alphabet String    -> Set String    -> Natural #-}
-{-# SPECIALISE  getSubsetIndex :: Alphabet ShortText -> Set ShortText -> Natural #-}
-{-# INLINE      getSubsetIndex #-}
-getSubsetIndex :: (Ord a) => Alphabet a -> Set a -> Natural
-getSubsetIndex a s
-  | isSorted a = addGapVal . go 0 0 $ consumeSet s -- /O(log a + n)/, a >= n
-  | otherwise  = addGapVal . mo 0 0 $ consumeSet s -- /O(a)/
+{-# INLINE      getSubsetIndices #-}
+{-# SPECIALISE  getSubsetIndices :: Alphabet String    -> Set String    -> IntSet #-}
+{-# SPECIALISE  getSubsetIndices :: Alphabet ShortText -> Set ShortText -> IntSet #-}
+getSubsetIndices :: Ord a => Alphabet a -> Set a -> IntSet
+getSubsetIndices a s
+  | isSorted a = produceSet . go low $ consumeSet s -- /O(log a + n)/, a >= n
+  | otherwise  = produceSet . mo low $ consumeSet s -- /O(a)/
   where
     vec = symbolVector a
     gap = gapSymbol a
+    low = gapIndex + 1
+
+    inputHadGap = Set.member gap s
+    consumeSet  = Set.toAscList . Set.delete gap
+    produceSet  = addGapVal . Int.fromDistinctAscList
+
+    addGapVal
+      | inputHadGap = Int.insert gapIndex
+      | otherwise   = id
+
+    -- Faster binary search for a sorted alphabet
+    go   _    []  = []
+    go !lo (x:xs) =
+      case withinVec vec x lo of
+        Right i -> i : go (i+1) xs
+        Left  i ->     go  i    xs
+
+    -- Slower version for an unsorted alphabet
+    mo _    []  = []
+    mo i (x:xs)
+      | i > length vec = []
+      | x == (vec ! i) = i : mo 0 xs
+      | otherwise      =     mo (i+1) (x:xs)
+
+
+-- |
+-- For a given subset of symbols, this function returns a positive 'Natural' number
+-- in the range @[0, 2^|alphabet| - 1]@.
+-- This number is the unique index of the given subset in the powerset of the alphabet.
+{-# INLINE      getSubsetIndex #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet String    -> Set String    -> Word    -> Word    #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet ShortText -> Set ShortText -> Word    -> Word    #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet String    -> Set String    -> Word32  -> Word32  #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet ShortText -> Set ShortText -> Word32  -> Word32  #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet String    -> Set String    -> Word64  -> Word64  #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet ShortText -> Set ShortText -> Word64  -> Word64  #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet String    -> Set String    -> Natural -> Natural #-}
+{-# SPECIALISE  getSubsetIndex :: Alphabet ShortText -> Set ShortText -> Natural -> Natural #-}
+getSubsetIndex :: (Bits b, Ord a) => Alphabet a -> Set a -> b -> b
+getSubsetIndex a s zero
+  | isSorted a = addGapVal . go zero low $ consumeSet s -- /O(log a + n)/, a >= n
+  | otherwise  = addGapVal . mo zero low $ consumeSet s -- /O(a)/
+  where
+    vec = symbolVector a
+    gap = gapSymbol a
+    low = gapIndex + 1
 
     consumeSet  = Set.toAscList . Set.delete gap
     inputHadGap = Set.member gap s
 
-    addGapVal x
-      | inputHadGap = x + bit (length a - 1)
-      | otherwise   = x
+    addGapVal
+      | inputHadGap = (`setBit` gapIndex)
+      | otherwise   = id
 
     -- Faster binary search for a sorted alphabet
-    go !num   _    []  = num
-    go !num !lo (x:xs) =
+    go !bits   _    []  = bits
+    go !bits !lo (x:xs) =
       case withinVec vec x lo of
-        Right i -> go (num + bit i) (i+1) xs
-        Left  i -> go  num           i    xs
+        Right i -> go (bits .|. bit i) (i+1) xs
+        Left  i -> go  bits             i    xs
 
     -- Slower version for an unsorted alphabet
-    mo num   _    []   = num
-    mo num i (x:xs)
-      | i > length vec  = num
-      | x == (vec ! i)  = mo (num + bit i) 0      xs
-      | otherwise       = mo  num          (i+1) (x:xs)
+    mo bits  _    []    = bits
+    mo bits i (x:xs)
+      | i > length vec  = bits
+      | x == (vec ! i)  = mo (bits .|. bit i) low     xs
+      | otherwise       = mo  bits           (i+1) (x:xs)
 
 
 -- |
@@ -316,9 +400,9 @@ getSubsetIndex a s
 {-# SPECIALISE fromSymbols ::               [String]    -> Alphabet String    #-}
 {-# SPECIALISE fromSymbols ::               [ShortText] -> Alphabet ShortText #-}
 {-# RULES
-"fromSymbols/Set" forall (s :: Set ShortText). fromSymbols s =
+"fromSymbols/Set" forall (s :: (IsString x, Ord x) => Set x). fromSymbols s =
     let g = fromString "-"
-        x = toList (Set.delete g s) <> [g]
+        x = g : toList (Set.delete g s)
         v = NEV.fromNonEmpty $ NE.fromList x
     in  Alphabet True v []
 #-}
@@ -374,7 +458,7 @@ fromSymbolsWithTCM symbols originalTcm = (alphabet, permutedTcm)
     removeSpecialSymbolsAndDuplicates xs = (uniqueVals, permutedKeys)
       where
         count = length uniqueSymbols - 1
-        uniqueVals = NE.fromList . fmap toSingle . (<> [gapSymbol']) . Set.toAscList $ Map.keysSet uniques
+        uniqueVals = NE.fromList . fmap toSingle . ([gapSymbol']<>) . Set.toAscList $ Map.keysSet uniques
         permutedKeys =
           case gapMay of
             Nothing -> NE.fromList $ toList uniques <> [count]
@@ -409,7 +493,7 @@ fromSymbolsWithStateNamesAndTCM symbols originalTcm = (alphabet, permutedTcm)
     removeSpecialSymbolsAndDuplicates xs = (uniqueVals, uniqueNames, permutedKeys)
       where
         count = length uniqueSymbols - 1
-        (uniqueVals, uniqueNames) = first NE.fromList . unzip . fmap toTuple . (<> [gapSymbol']) . Set.toAscList $ Map.keysSet uniques
+        (uniqueVals, uniqueNames) = first NE.fromList . unzip . fmap toTuple . ([gapSymbol']<>) . Set.toAscList $ Map.keysSet uniques
         permutedKeys =
           case gapMay of
             Nothing -> NE.fromList $ toList uniques <> [count]
@@ -484,12 +568,12 @@ truncateAtMaxSymbol symbols alphabet =
 -- |
 -- \( \mathcal{O} \left( n * \log_2 n \right) \)
 alphabetPreprocessing :: (Ord a, InternalClass a, Foldable t) => t a -> NonEmpty a
-alphabetPreprocessing = appendGapSymbol . sort . removeSpecialSymbolsAndDuplicates . toList
+alphabetPreprocessing = prependGapSymbol . sort . removeSpecialSymbolsAndDuplicates . toList
   where
-    appendGapSymbol xs =
+    prependGapSymbol xs =
         case xs of
           []   -> gapSymbol':|[]
-          y:ys -> y:|(ys <> [gapSymbol'])
+          y:ys -> gapSymbol':|(y:ys)
 
 
     removeSpecialSymbolsAndDuplicates = (`evalState` mempty) . filterM f
@@ -516,10 +600,10 @@ fromTuple  = ASNI
 -- {-# SPECIALISE withinVec :: Vector ShortText -> ShortText -> Int -> Either Int Int #-}
 withinVec :: Ord a => Vector a -> a -> Int -> Either Int Int
 withinVec v e m
-  | e == gap  = Right $ length v - 1
+  | e == gap  = Right gapIndex
   | otherwise = go m  $ length v - 1
   where
-    gap = v ! (length v - 1)
+    gap = v ! gapIndex
     -- Perform a binary search on the unboxed vector
     -- to determine if a symbol is present.
     --

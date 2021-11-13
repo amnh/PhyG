@@ -38,6 +38,7 @@ Portability :  portable (I hope)
 
 module Types.Types where
 
+import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
@@ -124,13 +125,15 @@ data OptimalityCriterion = Parsimony | PMDL
 data AssignmentMethod = DirectOptimization | ImpliedAlignment
     deriving stock (Show, Eq)
 
-data GlobalSettings = GlobalSettings { outgroupIndex      :: Int -- Outgroup terminal index, default 0 (first input leaf)
-                                    , outGroupName        :: T.Text -- Outgropu name
-                                    , optimalityCriterion :: OptimalityCriterion
-                                    , graphType           :: GraphType
-                                    , compressResolutions :: Bool -- "nub" resolutions in softwired graph
-                                    , finalAssignment     :: AssignmentMethod
-                                    } deriving stock (Show, Eq)
+data  GlobalSettings
+    = GlobalSettings
+    { outgroupIndex       :: Int -- Outgroup terminal index, default 0 (first input leaf)
+    , outGroupName        :: T.Text -- Outgropu name
+    , optimalityCriterion :: OptimalityCriterion
+    , graphType           :: GraphType
+    , compressResolutions :: Bool -- "nub" resolutions in softwired graph
+    , finalAssignment     :: AssignmentMethod
+    } deriving stock (Show, Eq)
 
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
@@ -145,7 +148,7 @@ data CharInfo = CharInfo { name       :: NameText
                          , slimTCM    :: TCMD.DenseTransitionCostMatrix
                          , wideTCM    :: MR.MetricRepresentation Word64
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
-                         , alphabet   :: [ST.ShortText]
+                         , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
                          } deriving stock (Show, Eq)
 

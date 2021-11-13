@@ -325,11 +325,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
     newWideCharacterData =
         let newCost     = thisWeight * (fromIntegral cost)
             coefficient = MR.minInDelCost thisWideTCM
-            gapState    = bit $ symbolCount - 1
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
                 coefficient
-                gapState
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
                 (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
@@ -346,12 +344,10 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
     newHugeCharacterData =
         let newCost     = thisWeight * (fromIntegral cost)
             coefficient = MR.minInDelCost thisHugeTCM
-            gapState    = bit $ symbolCount - 1
             subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
             (cost, r)   = hugePairwiseDO
             -- (cost, r)   = hugePairwiseDO
                 coefficient
-                gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
                 (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)

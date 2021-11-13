@@ -53,7 +53,7 @@ iupacToAminoAcid = toBimap
     , ('Y', "Y")
     , ('Z', "EQ")
     , ('-', "-")
-    , ('?', "ACDEFGHIKLMNPQRSTVWY-")
+    , ('?', "-ACDEFGHIKLMNPQRSTVWY")
     ]
 
 
@@ -77,22 +77,22 @@ iupacToDna = toBimap
     , ('V', "ACG")
     , ('N', "ACGT")
     , ('-', "-")
-    , ('?', "ACGT-")
+    , ('?', "-ACGT")
 
-    , ('a', "A-")
-    , ('c', "C-")
-    , ('g', "G-")
-    , ('t', "T-")
-    , ('r', "AG-")
-    , ('y', "CT-")
-    , ('s', "CG-")
-    , ('w', "AT-")
-    , ('k', "GT-")
-    , ('m', "AC-")
-    , ('b', "CGT-")
-    , ('d', "AGT-")
-    , ('h', "ACT-")
-    , ('v', "ACG-")
+    , ('a', "-A")
+    , ('c', "-C")
+    , ('g', "-G")
+    , ('t', "-T")
+    , ('r', "-AG")
+    , ('y', "-CT")
+    , ('s', "-CG")
+    , ('w', "-AT")
+    , ('k', "-GT")
+    , ('m', "-AC")
+    , ('b', "-CGT")
+    , ('d', "-AGT")
+    , ('h', "-ACT")
+    , ('v', "-ACG")
     ]
 
 

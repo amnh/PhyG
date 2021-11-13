@@ -16,11 +16,11 @@
 --
 -----------------------------------------------------------------------------
 
--- TODO: do I need this: https://hackage.haskell.org/package/base-4.9.0.0/docs/Foreign-StablePtr.html
 {-# LANGUAGE BangPatterns             #-}
 {-# LANGUAGE DeriveGeneric            #-}
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE Strict                   #-}
 {-# LANGUAGE StrictData               #-}
 
 module DirectOptimization.Pairwise.Slim.FFI
@@ -169,27 +169,8 @@ algn2d
   -> SlimDynamicCharacter         -- ^ First  dynamic character
   -> SlimDynamicCharacter         -- ^ Second dynamic character
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians denseTCMs lhs rhs =
-    let gap = bit . fromEnum $ symbolCount - 1 :: CUInt
-        (swapped, gapsLesser, gapsLonger, (shorterChar,_,_), (longerChar,_,_)) = measureAndUngapCharacters gap lhs rhs
-        (alignmentCost, ungappedAlignment) =
-          if      V.length shorterChar == 0
-          then if V.length  longerChar == 0
-               -- Niether character was Missing, but both are empty when gaps are removed
-               then (0, (mempty,mempty,mempty))
-               -- Niether character was Missing, but one of them is empty when gaps are removed
-               else let vec = V.generate (V.length longerChar) $ \i ->
-                                  fst (lookupPairwise denseTCMs (longerChar V.! i) gap)
-                    in  (0, (vec, V.replicate (V.length longerChar) 0, longerChar))
-               -- Both have some non-gap elements, perform string alignment
-          else f shorterChar longerChar
-        transformation    = if swapped then \(m,l,r) -> (m,r,l) else id
-        regappedAlignment = insertGaps (coerceEnum symbolCount) gapsLesser gapsLonger ungappedAlignment
-        alignmentContext  :: SlimDynamicCharacter 
-        alignmentContext  = transformation regappedAlignment
-    in  (alignmentCost, alignmentContext)
+algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPairwise denseTCMs
   where
-    symbolCount = matrixDimension denseTCMs
     f :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
     f lesser longer = {-# SCC f #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
@@ -198,8 +179,8 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
         -- Forgetting to do this will eventually corrupt the heap memory
         let bufferLength = lesserLength + longerLength + 2
         lesserBuffer <- allocCharacterBuffer bufferLength lesserLength lesserPtr
-        longerBuffer <- allocCharacterBuffer bufferLength longerLength longerPtr
         medianBuffer <- allocCharacterBuffer bufferLength            0   nullPtr
+        longerBuffer <- allocCharacterBuffer bufferLength longerLength longerPtr
         resultLength <- malloc :: IO (Ptr CSize)
         strategy     <- getAlignmentStrategy <$> peek costStruct
         let medianOpt = coerceEnum computeMedians
@@ -222,10 +203,16 @@ algn2d computeUnion computeMedians denseTCMs lhs rhs =
 
         alignedLength <- {-# SCC alignedLength #-} coerce <$> peek resultLength
         let g = buildResult bufferLength (csi alignedLength)
-        alignedLesser <- {-# SCC alignedLesser #-} g lesserBuffer
-        alignedLonger <- {-# SCC alignedLonger #-} g longerBuffer
+        --
+        -- NOTE: Extremely important implementation detail!
+        --
+        -- The C FFI swaps the results somewhere, we swap back here:
+        alignedLesser <- {-# SCC alignedLesser #-} g longerBuffer
         alignedMedian <- {-# SCC alignedMedian #-} g medianBuffer
-        pure $ {-# SCC ffi_result #-} (fromIntegral cost, (alignedMedian,alignedLesser,alignedLonger))
+        alignedLonger <- {-# SCC alignedLonger #-} g lesserBuffer
+        let alignmentCost    = fromIntegral cost
+        let alignmentContext = (alignedLesser, alignedMedian, alignedLonger)
+        pure $ {-# SCC ffi_result #-} (alignmentCost, alignmentContext)
 
       where
         costStruct  = costMatrix2D denseTCMs
@@ -331,26 +318,11 @@ allocCharacterBuffer maxSize elemCount elements = do
     let off = maxSize - e
     let ref = advancePtr buffer off
     copyArray ref elements e
-{-
-    putStr "Alloc Inputs:\n"
-    print maxSize
-    print elemCount
-    print =<< peekArray elemCount elements
-    putStr "Alloc Outputs:\n"
-    print e
-    print off
-    print =<< peekArray maxSize buffer
--}
     pure buffer
 
 
 buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 buildResult bufferLength alignedLength alignedBuffer = do
-{-
-    print bufferLength
-    print alignedLength
-    print =<< peekArray bufferLength alignedBuffer
--}
     let e   = min bufferLength alignedLength
     let off = bufferLength - e
     let ref = advancePtr alignedBuffer off 
@@ -360,24 +332,6 @@ buildResult bufferLength alignedLength alignedBuffer = do
     fPtr   <- newConcForeignPtr vector (free vector)
     let res = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
     pure res
-
-{-
--- |
--- Converts the data behind an 'Align_io' pointer to an 'Exportable' type.
-{-# INLINE extractFromAlign_io #-}
-{-# SPECIALISE extractFromAlign_io :: Word -> Ptr Align_io -> IO DynamicCharacter #-}
-extractFromAlign_io :: ExportableElements s => Word -> Ptr Align_io -> IO s
-extractFromAlign_io elemWidth ptr = do
-    Align_io bufferPtr charLenC bufferLenC <- peek ptr
-    let    charLength = fromEnum   charLenC
-    let  bufferLength = fromEnum bufferLenC
-    buffer <- peekArray bufferLength bufferPtr
-    let !charElems = drop (bufferLength - charLength) buffer
-    let  exportVal = ReImportableCharacterElements (toEnum charLength) elemWidth charElems
-    _ <- free bufferPtr
-    _ <- free ptr
-    pure $ fromExportableElements exportVal
--}
 
 
 -- |

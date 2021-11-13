@@ -92,7 +92,7 @@ void stringToDynChar(       dyn_character_t *retChar
                     ,       elem_t          *input
                     , const size_t           capacity
                     , const size_t           length
-                    , const size_t           alphabetSize
+                    , const elem_t           gap_elem
                     );
 
 /** For use in 2D alignment code.

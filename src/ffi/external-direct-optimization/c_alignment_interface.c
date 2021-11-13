@@ -112,8 +112,8 @@ size_t cAlign2D
     dyn_character_t *tmpLesserChar = dyn_char_alloc(0);
     dyn_character_t *tmpLongerChar = dyn_char_alloc(0);
 
-    stringToDynChar(tmpLesserChar, lesserInput, allocationLen, lesserLen, alphabetSize);
-    stringToDynChar(tmpLongerChar, longerInput, allocationLen, longerLen, alphabetSize);
+    stringToDynChar(tmpLesserChar, lesserInput, allocationLen, lesserLen, costMtx2d->gap_char);
+    stringToDynChar(tmpLongerChar, longerInput, allocationLen, longerLen, costMtx2d->gap_char);
 
     if (DEBUG_ALGN) {
         printf("\nafter copying, char 1:\n");
@@ -459,7 +459,7 @@ void stringToDynChar
   ,       elem_t    *input
   , const size_t     capacity
   , const size_t     length
-  , const size_t     alphabetSize
+  , const elem_t     gap_elem
   )
 {
     // Assign character into character struct. Note not copying, just creating pointers.
@@ -472,7 +472,7 @@ void stringToDynChar
 
     // now add gap to beginning, Grrr.
     retChar->char_begin--;   // Add another cell, prepended to the array
-    *retChar->char_begin = ((elem_t) 1) << (alphabetSize - 1);   //Prepend a gap to the array.
+    *retChar->char_begin = gap_elem; //Prepend a gap to the array.
     retChar->len++;
 }
 

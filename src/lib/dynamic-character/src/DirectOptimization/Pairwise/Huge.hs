@@ -10,7 +10,6 @@ import DirectOptimization.Pairwise.Ukkonen
 
 hugePairwiseDO
   :: Word
-  -> HugeState
   -> (HugeState -> HugeState -> (HugeState, Word))
   -> HugeDynamicCharacter
   -> HugeDynamicCharacter
