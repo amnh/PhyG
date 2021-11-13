@@ -426,19 +426,55 @@ to render--would have repeated subtrees after network vertex
 
 166) make forest a final set deleting edges?
 
-167)  Create IA types for slim, wide, and huge
-	prelim and final
-	assign finalAlignment 1st field to IA leaf three fields and do post and preorder 2x and 3x passes
-	back propagate final states (w/o gaps) to slim/wide/huge/final
+172) After fix in DO, make IA and DO final states and branch lengths
 
+173) rename reroot functions to make more sense
+
+174) Abstract rectify graph functions
+	Maybe a tuple with two kinds of graphs and branch WRT node update
+
+175) Move softwired traceback to preorder ?
+
+176) Refactor and separate tree and softwired stuff
+	Use old reroot tree functions for tree--stuff is screwed up now for tree
+
+177) remove calls to getRoots  must be O(n)
+
+178) Add graph reconciliation functions and report 
+
+179) Add no error dot-pdf output
+
+180) Check size of (number of) resolutions, that its not blowing up
+
+181) add root cost stuff
+
+182) test net/root penalty 
+
+183) Fix fenewtick for degenerate (no edges) tree
+	Convert to forest then fmap
+
+184) sort edges for swap 
+	by length (perhaps better for net edges)
+	by closness to deleted edge (good for swpping smaller edits first)
 	
-169)  Fix IA final assignments and branchlenth 
-	perhaps an issue with propagating and reestimating branch lengths
-	in sequence
-	
-170) DO soft-wired branch lengths are not same as trees and should be
+185) verify ladderize graph both in and out > 1, > 2
 
-171) Root DO assignment not xcoorect--shold be preiminary--looks like sometjing else
+186) Graph distance matrix output RF, SPR, TBR, net+SPR/TBR
+
+187) create incremental postorder pass for use in wagern and swapping
+	add damping if possible
+
+188) write multiTraverseFullyLabel for softWired and tree 
+	but for a single component
+	passing in leafGraph and component root
+	leave no overall root component untouched
 
 
+189) For NF data instance VertexInfo
+	import GHC.generics, control.deepseq
 
+	language extensions derive generic, derive anyclass
+
+	when declare type deriveing generic, deriving NFData
+
+190) NNI swapping

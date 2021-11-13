@@ -54,15 +54,15 @@ import           Types.Types
 -- distances among vertices in data set over blocks ans all character types
 -- sums over blocks
 getPairwiseDistances :: ProcessedData ->  [[VertexCost]]
-getPairwiseDistances (nameVect, _, blockDataVect) =
-    if V.null nameVect then error "Null name vector in getPairwiseDistances"
-    else if V.null blockDataVect then error "Null Block Data vector in getPairwiseDistances"
-    else
-        let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect
-            summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
-        in
-        trace ("Generating pairwise distances for " ++ (show $ V.length blockDataVect) ++ " character blocks")
-        S.toFullLists summedBlock
+getPairwiseDistances (nameVect, _, blockDataVect)
+  | V.null nameVect = error "Null name vector in getPairwiseDistances"
+  | V.null blockDataVect = error "Null Block Data vector in getPairwiseDistances"
+  | otherwise =
+    let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect
+        summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
+    in
+    trace ("Generating pairwise distances for " ++ show (V.length blockDataVect) ++ " character blocks")
+    S.toFullLists summedBlock
 
 
 

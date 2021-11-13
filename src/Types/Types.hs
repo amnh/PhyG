@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE DerivingStrategies, StandaloneDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Types.Types where
 
@@ -65,6 +65,11 @@ pgVersion = "0.1"
 -- | used for comparing graph costs and edge lengths that are Double
 epsilon :: Double
 epsilon = 0.0001
+
+
+-- | infinity is a large Double for use with Graph costs
+infinity :: Double
+infinity = (read "Infinity") :: Double
 
 -- | Types for timed searches
 type Days = Int
@@ -117,6 +122,12 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL
     deriving stock (Show, Eq)
 
+data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
+    deriving stock (Show, Eq)
+
+data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot
+    deriving stock (Show, Eq)
+
 -- | Method for makeing final seqeujnce charcatert states assignment 
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
@@ -125,15 +136,19 @@ data OptimalityCriterion = Parsimony | PMDL
 data AssignmentMethod = DirectOptimization | ImpliedAlignment
     deriving stock (Show, Eq)
 
+
 data  GlobalSettings
     = GlobalSettings
     { outgroupIndex       :: Int -- Outgroup terminal index, default 0 (first input leaf)
-    , outGroupName        :: T.Text -- Outgropu name
+    , outGroupName        :: T.Text -- Outgroup name
     , optimalityCriterion :: OptimalityCriterion
     , graphType           :: GraphType
     , compressResolutions :: Bool -- "nub" resolutions in softwired graph
     , finalAssignment     :: AssignmentMethod
+    , graphFactor         :: GraphFactor -- net penalty/graph complexity
+    , rootCost            :: RootCost
     } deriving stock (Show, Eq)
+
 
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
@@ -276,6 +291,8 @@ emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- pr
                          , globalCost         = 0
                          }
 
+-- | 
+
 -- | type TermData type contians termnal name and list of characters
 -- characters as ShortText to save space on input
 type TermData = (NameText, [ST.ShortText])
@@ -305,7 +322,7 @@ data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo
                                      -- list of left, right resolution indices to create current index, used in traceback to get prelminary states
                                      -- and in compressing reolutions to keep only those that result in differnet preliminary states
                                      -- but allowing traceback of resoliutions to get preliminary states
-                                     , childResolutions :: [(Maybe Int, Maybe Int)] 
+                                     , childResolutions :: [(Maybe Int, Maybe Int)]
                                      , resolutionCost   :: VertexCost -- cost of creating the resolution
                                      , displayCost      :: VertexCost -- cost of that display subtree
                                      } deriving stock (Show, Eq)
@@ -329,6 +346,14 @@ data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
                             , midRangeLength :: VertexCost
                             , edgeType  :: EdgeType
                             } deriving stock (Show, Eq)
+
+-- | dummyEdge for convenience
+dummyEdge :: EdgeInfo
+dummyEdge = EdgeInfo    { minLength = 0
+                        , maxLength = 0
+                        , midRangeLength = 0
+                        , edgeType  = TreeEdge
+                        } 
 
 -- | DecortatedGraph is the canonical graph contining all final information
 -- from preorder traversal trees

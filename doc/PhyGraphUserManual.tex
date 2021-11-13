@@ -152,43 +152,29 @@
 		\subsection{Command Structure}
 		Commands and arguments are case insensitive with the exception of filename specifications, which are also 
 		always in double quotes (\texttt{"fileName"}).  Commands are specified with mandatory parentheses \texttt{`()'} which may be empty or
-		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{':'}.  Command arguments are not 
+		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are not 
 		order dependent.
 		
 		\bigskip
 		\texttt{command(argument, option:argument, option:argument...)}
 		\subsection{Command order and processing}
 	
-	\subsection{Block}
-		\subsubsection{Syntax}
-		\texttt{block("newBlockName", "inputFile0", "inputFile1",...)}
-		\subsubsection{Description}
-		Command to assign input data to ``blocks'' that will follow the same display tree when optimized
-		as ``soft-wired '' networks.  By default, each input data file is assigned its own block with the name
-		of the input file.  The \texttt{block} command is used to reassign these data to new, combined blocks.
-		Spaces are not allowed in block names and will produce \texttt{unrecognized block name} errors.    
-		\subsubsection{Arguments}
-		The first argument is the block to be created, the remainder are the input data to be 
-		assigned to that block. Blocks are initially named as the input file name with ``:0'' appended.  Blocks are reported in \texttt{report(data)} command.
-		\subsubsection{Defaults}
-		None.
-		\subsubsection{Examples}
-		\begin{itemize}
-			\item{\texttt{block("a","b:0","c:0")}\\ Assigns input data from file ``b'' and ``c'' to block ``a''. }
-		\end{itemize}
-		
 	
 	
 	\subsection{Build}
 		\subsubsection{Syntax}
 		\texttt{build(arg0, arg1:option, ...)}
 		\subsubsection{Description}
-		Builds initial graphs.  Most options (with the exception of the $O(n^3)$ distance based \texttt{dWag} option and character based \texttt{bWag})
+		Builds initial graphs.  Most options (with the exception of the $O(n^3)$ distance based \texttt{dWag} option)
 		are $O(n^2)$.  Builds may be based on character methods or those based on distance methods.  Distance methods are considerably faster 
 		(lower constant factor), but approximate in terms of character-based methods.  Refinement (branch swapping) can be specified
-		for distance builds.  Given the large time burden, distance refinement is usually not time effective \citep{Wheeler2021}.
+		within the command for distance builds.  Refinement for character-based Wagner builds occurs after the \texttt{build} process through \texttt{swap} and
+		 other refinement commands.  Given the large time burden, distance refinement is usually not time effective \citep{Wheeler2021}.
 		\subsubsection{Arguments}
-		\texttt{distance} Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis for tree construction.
+		\noindent \texttt{character} Performs random addition sequence Wagner \citep{Farris1970} builds ($O(n^2)$) for tree construction.  If the graphtype is ``softwired'',
+		the resulting trees are rediagnosed as softwired graphs..
+		
+		\noindent \texttt{distance} Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis for distance tree construction.
 		
 		\noindent \texttt{dWag} Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to add at each step, 
 		yielding a single tree.  Time complexity of $O(n^3)$.
@@ -198,14 +184,14 @@
 		by argument \texttt{replicates:m}.  Time complexity of $O(m \times n^2)$.
 		
 		\smallskip		
-		\noindent \texttt{nj} Performs Neighbor-Joining build \citep{Saitou1987}, yielding a single tree.  Time complexity of $O(n^3)$.
+		\noindent \texttt{nj} Performs Neighbor-Joining distance build \citep{Saitou1987}, yielding a single tree.  Time complexity of $O(n^3)$.
 		
 		\smallskip		
-		\noindent \texttt{wpgma} Performs Weighted Pair Group Method with Arithmetic Mean build \citep{SokalandMichener1958}, 
+		\noindent \texttt{wpgma} Performs Weighted Pair Group Method with Arithmetic Mean distance build \citep{SokalandMichener1958}, 
 		yielding a single tree.  Time complexity of $O(n^2)$.
 		
 		\smallskip		
-		\noindent \texttt{replicates:n}  Applies only to rWag.  Specifies the number of random addition sequences performed. 
+		\noindent \texttt{replicates:n}  Applies to \texttt{rWag} and \texttt{character}.  Specifies the number of random addition sequences performed. 
 		
 		\smallskip		
 		\noindent \texttt{best:n} Applies only to rWag.  Specifies the number of trees retained after rWag builds, selecting 
@@ -225,24 +211,28 @@
 		\noindent \texttt{tbr} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed after distance builds.
 
 		\subsubsection{Defaults}
-			\texttt{build(distance, dwag)}
+			\texttt{build(character, replicates:10)}
 		\subsubsection{Examples}
 			\begin{itemize}
 				\item{\texttt{build(distance, dWag, nj, wpgma)}\\Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and a WPGMA tree.}
-				\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence  Wagner builds and returns  
+				\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\Builds 1000 random addition sequence distance Wagner builds and returns  
 				10 of lowest distance cost.}
-				\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)} \\Builds 100 random addition sequence  Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
-			10 of lowest distance cost.}
+				\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)} \\Builds 100 random addition sequence  distance Wagner builds, a WPGMA tree, performs OTU swapping on the WPGMA and 10 of the lowest cost random addition sequence Wagner trees. 
+				10 of lowest distance cost.}
+				\item{\texttt{build(replicates:100)} \\Builds 100 random addition sequence  character Wagner builds.}
 			\end{itemize}
 	\subsection{Read}
 		\subsubsection{Syntax}
-				\texttt{read(option:"filename")}
+				\texttt{read(option:"filename", option:"filename", ...)}
 			
 		\subsubsection{Description}
 		Causes various file-based information to input.  \texttt{read} commands must contain an input file.
-		Options prepended to the filename with a colon (``:'') modify the processing of the input file. If no options are specified, 
-		the program will attempt to recognize the file type and parse appropriately.
+		Options prepended to the filename with a colon (`:') modify the processing of the input file. If no options are specified, 
+		the program will attempt to recognize the file type and parse appropriately.  Wildcard characters (`*', `?') can be used to specify multiple files.
 		\subsubsection{Arguments}
+			\noindent \texttt{aminoacid:} File contents are parsed as IUPAC coded amino acid data in fasta \citep{PearsonandLipman1988} format. .
+		
+			\smallskip		
 			\noindent \texttt{block:} Specifies that the file contains block information. Each line contains 
 			the new block name followed by names of input files to be assigned to that data block.  
 			Blocks are initially named as the input file name with ``:0'' appended.  
@@ -250,7 +240,11 @@
 			\begin{quote}
 				\texttt{"a" "b:0" "c:0"}\\
 			\end{quote}
-		
+			
+			\smallskip		
+			\noindent \texttt{custom\_alphabet:} Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
+			
+			\smallskip		
 			\noindent \texttt{dot:} Specifies that the file contains a graph in `dot' format for use with graph rendering software such as GraphViz (\url{https://en.wikipedia.org/wiki/Graphviz}).
 			
 			\smallskip		
@@ -260,10 +254,10 @@
 			\noindent \texttt{exclude:}  File contains the names of terminal taxa to be excluded from an analysis.  Taxa not include in the list, in input files, will be included in analysis. 
 			
 			\smallskip		
-			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
-		
+			\noindent \texttt{fasta:} Ensures that file contents are parsed in fasta \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
+			
 			\smallskip		
-			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{PearsonandLipman1988} format. This is used for single character sequences such as binary streams, IUPAC nucleotide and amino acid sequence data.
+			\noindent \texttt{fastc:} Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019} format. This is used for multi-character sequences such as gene synteny, developmental,  or linguistic  data.
 			
 			\smallskip		
 			\noindent \texttt{fenewick:}  File contains Forest Enhanced Newick format graph of \cite{Wheeler2021a} in \url{https://www.github.com/wardwheeler/euncon}.
@@ -273,6 +267,9 @@
 			
 			\smallskip		
 			\noindent \texttt{newick:} File contains  Newick format graph as specified by \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}.
+			
+			\smallskip		
+			\noindent \texttt{nucleotide:} File contents are parsed as IUPAC coded nucleotide data in fasta \citep{PearsonandLipman1988} format. .
 			
 			\smallskip		
 			\noindent \texttt{prealigned:} Specifies that the sequences are prealigned, leaving gap characters
@@ -370,6 +367,24 @@
 %		\subsubsection{Arguments}
 %		\subsubsection{Defaults}
 %		\subsubsection{Examples}
+
+	\subsection{Reblock}
+	\subsubsection{Syntax}
+	\texttt{reblock("newBlockName", "inputFile0", "inputFile1",...)}
+	\subsubsection{Description}
+	Command to assign input data to ``blocks'' that will follow the same display tree when optimized
+	as ``soft-wired '' networks.  By default, each input data file is assigned its own block with the name
+	of the input file.  The \texttt{block} command is used to reassign these data to new, combined blocks.
+	Spaces are not allowed in block names and will produce \texttt{unrecognized block name} errors.    
+	\subsubsection{Arguments}
+	The first argument is the block to be created, the remainder are the input data to be 
+	assigned to that block. Blocks are initially named as the input file name with ``:0'' appended.  Blocks are reported in \texttt{report(data)} command.
+	\subsubsection{Defaults}
+	None.
+	\subsubsection{Examples}
+	\begin{itemize}
+		\item{\texttt{reblock("a","b:0","c:0")}\\ Assigns input data from file ``b'' and ``c'' to block ``a''. }
+	\end{itemize}
 	
 	\subsection{Rename}
 		\subsubsection{Syntax}
@@ -394,17 +409,47 @@
 			if appended to the file.  The option \texttt{overwrite} overrides the default and rewrites the file.  Many of the report options output in csv output that
 			can be easily imported by spreadsheet programs.
 		\subsubsection{Arguments}
-				\noindent \texttt{diagnosis}  Outputs graph diagnosis information such as vertex and states and edge statistics in csv format. 
-				
+				\noindent \texttt{crossrefs} Prints source file presence or absence of input data in csv format.  This is useful to check for 
+				missing and misnamed taxa.
+			
 				\smallskip
 				\noindent \texttt{data} Prints information about of the input data in csv format.
+				
+				\smallskip
+				\noindent \texttt{diagnosis}  Outputs graph diagnosis information such as vertex and states and edge statistics in csv format. 
+			
+				\smallskip
+				\noindent \texttt{displaytrees}  Outputs graph information for soft-wired networks.  The ``display'' trees are output for each data block. 
 				
 				\smallskip
 				\noindent \texttt{graph} Outputs a graph in format specified by the other arguments in the command.  These are \texttt{dot} for GraphViz graph format,
 				\texttt{newick} for Newick, ENewick, or ForestEnewick depending on the graph type, \texttt{ascii} for an ascii rendering.  
 				
 				\smallskip
-				\noindent \texttt{pairdist} Prints a taxon pairwise distance matrix in csv format.   
+				\noindent \texttt{pairdist} Outputs a taxon pairwise distance matrix in csv format.  
+				
+				\smallskip
+				\noindent \texttt{reconcile} Outputs  a single ``reconciled'' graph from all present graphs.  The methods include consensus, supertree, and other supergraph methods as described in \cite{Wheeler2012, Wheeler2021a}.  When \texttt{reconcile} is specified as a command option a series of  other options may be specified to taylor the desired outputs:
+					\begin{itemize}
+							\item {Method:eun$\mid$cun$\mid$majority$\mid$strict$\mid$Adams\\Default:eun\\This commands specifies the type of output graph.
+							EUN is the Edge-Union-Network \citep{MiyagiandWheeler2019}, CUN the Cluster Union Network \citep{Baroni2005},
+							majority (with fraction specified by `threshold') specifies that a values between 0 and 100 of either vertices or edges will be retained.  If all inputs are trees with the same leaf set this will be the Majority-Rule Consensus \citep{MargushandMcMorris1981}.
+							Strict requires all vertices be present to be included in the final graph.  If all inputs are trees with the same leaf set this will be the Strict Consensus \citep{Schuhandpolhemus1980}. Adams denotes the Adams II consensus \citep{Adams1972}.}
+						\item{Compare:Combinable$\mid$identity\\Default:combinable\\Species how group comparisons are to be made.  Either by identical match [(A, (B,C))$\neq$(A,B,C)],
+							combinable sensu \cite{Nelson1979} [(A, (B,C)) consistent with (A,B,C)].  This option can be used to specify ``semi-strict'' consensus
+							\citep{Bremer1990}.
+						}
+						\item{Threshold:(0-100)\\Default:0\\Threshold must be an integer between 0 and 100 and specifies the frequency of vertex or edge occurrence in input graphs to be included in the output graph.  Affects the behavior of `eun' and` majority.'
+						}
+						\item{Connect:True$\mid$False\\Default:True\\Specifies the output graph be connected (single component), potentially creating a root node and new edges labeled with ``0.0''.
+						}
+						\item{EdgeLabel:True$\mid$False\\Default:True\\Specifies the output graph have edges labeled with their frequency in input graphs.
+						}
+						\item{VertexLabel:True$\mid$False\\Default:False\\Specifies the output graph have vertices labeled with their subtree leaf set.
+						}
+						\item{OutFormat:Dot$\mid$FENewick\\Default:Dot\\Specifies the output graph format as either Graphviz `dot' or FEN.
+						}
+					\end{itemize}				 
 				
 		\subsubsection{Defaults}
 				\texttt{report()} prints input data and output graph diagnosis  to stderr.  Default graph representation is \texttt{dot}.
@@ -413,6 +458,7 @@
 					\item{\texttt{report("outFile", newick, overwrite)}\\ Outputs graphs in newick format to ``outFile'', overwriting any existing information.}
 					\item{\texttt{report("outFile", crossrefs)}\\ Outputs presence/absence for taxa in input files.  A `+' is output  if taxa are present in an input data file, 
 					and `-' if. File is in csv format.  This can be useful in checking for missing sequence or other data and expected renaming.}
+					\item{\texttt{report("outFile", dot, reconcile, method:eun, threshold:51)}\\ Outputs reconciled graph using the Edge-Union-Network method with a minimum edge frequency of 51\% in dot format to ``outFile'', appending to any existing information in ``outFile''.}
 				\end{itemize}
 			
 	\subsection{Run}
@@ -468,24 +514,34 @@
 			if multiple vertex assignments in alternate display trees are equal.
 			
 			\smallskip
+			\noindent \texttt{criterion:parsimony|pmdl} Sets the optimiality criterion for graph search to be method.  Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
+			
+			\smallskip
 			\noindent \texttt{finalAssignment:DirectOptimization|DO|ImpliedAlignment|IA} Sets the method of determining the ``final''
 			sequence states. DirectOptimization (DO) uses the DO method to assign the final states, which is more time consuming 
 			than \texttt{ImpliedAlignment}. DO has an additional factor of potentially $O(n^2)$ in sequence length compared to the constant factor for IA due to additional graph traversals.
 			
 			\smallskip
-			\noindent \texttt{graphtype:tree|hardwired|softwired} Sets the phylogenetic graph type to tree, hardwired network, or softwired network.  Forest are allowed 
+			\noindent \texttt{graphFactor:nopenalty|W15|PMDL} Sets the network penalty  for a softwired network (\texttt{nopenalty|W15}) or \texttt{PMDL} (for criterion = PMDL).  W15 employs the
+			parsimony network penalty of \cite{Wheeler2015}.
+			
+			\smallskip
+			\noindent \texttt{graphType:tree|hardwired|softwired} Sets the phylogenetic graph type to tree, hardwired network, or softwired network.  Forest are allowed 
 			by the network options.
 			
 			\smallskip
 			\noindent \texttt{outgroup:"Blah"} Makes the outgroup taxon ``Blah''. 
 			
 			\smallskip
-			\noindent \texttt{optimality:method} Sets the optimiality criterion for graph search to be method.
-				
+			\noindent \texttt{rootCost:noRootCost|W15|PMDL} Sets the root cost for a graph.  W15 sets a cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
+			The W15 root cost is based on the same rationale as the parsimony network penalty of \cite{Wheeler2015}.
+			
 		\subsubsection{Defaults} 
 		There are no default \texttt{set} arguments.  The default outgroup is the taxon whose name  is lexically first after
 		renaming and taxon inclusion/exclusion. For this reason, it is best to specify an outgroup explicitly.
-		The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default graph type is \texttt{tree}.
+		The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default graph type is \texttt{tree}.  The default graphFactor is \texttt{W15} if parsimony is the optimallity criterion and \texttt{PMDL} if PMDL is set as the optimality criterion.  The default rootCost
+		is \texttt{noRootCost} if  parsimony is the optimallity criterion and \texttt{PMDL} if PMDL is set as the optimality criterion.
+		
 		\subsubsection{Examples}
 			\begin{itemize}
 					\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}
@@ -499,12 +555,43 @@
 %		\subsubsection{Defaults}
 %		\subsubsection{Examples}
 %		
-%	\subsection{Swap} 
-%		\subsubsection{Syntax}
-%		\subsubsection{Description}
-%		\subsubsection{Arguments}
-%		\subsubsection{Defaults}
-%		\subsubsection{Examples}
+	\subsection{Swap} 
+		\subsubsection{Syntax}
+			\texttt{swap(arg0, arg1:option, ...)}
+			
+		\subsubsection{Description}
+		Performs branch-swapping rearrangement on graphs.  These include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR''  \citep{Dayhoff1969}, and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
+		
+		\subsubsection{Arguments}
+		\noindent \texttt{keep:n} Specifies that up to $n$ equally costly graphs are retained.
+		
+		\smallskip		
+		\noindent \texttt{nni} Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
+		
+		\noindent \texttt{spr} Specifies that SPR refinement \citep{Dayhoff1969} is performed.
+		
+		\smallskip		
+		\noindent \texttt{steepest} Specifies that refinement follows a greedy path, abandoning the neighborhood of the current graph when a better (lower cost)
+		graph is found.
+		
+		\smallskip		
+		\noindent \texttt{all} Specifies that refinement examines the entire rearrangement neighborhood of the current graph before retaining the best (lowest cost) solutions.
+		
+		
+		\smallskip		
+		\noindent \texttt{tbr} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed.
+		
+		\subsubsection{Defaults}
+		\texttt{swap(spr, keep:1, steepest)}
+		
+		\subsubsection{Examples}
+			\begin{itemize}
+			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single best rearrangement found for each graph  employing steepest descent.}
+			\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph returning up to 10 best rearrangements found for each graph after examining all 
+			graphs in the rearrangement neighborhood.}
+			
+		\end{itemize}
+		
 %	
 %	\subsection{Transform}
 %		\subsubsection{Syntax}
@@ -515,6 +602,30 @@
 %	
 
 	\section{Example Script Files}
+	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), skips all the lines that begin with double dash (\texttt{--}),
+	reads the graph file net-I-II.dot, sets the outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a soft-wired network, and
+	reports a series of files with various information about the data and graphs.
+	\begin{verbatim}
+		-- Example Script 1
+		read("net-I.fas")
+		--read("net-Ia.fas")
+		--read("net-IIa.fas")
+		read("net-II.fas")
+		--read("net-I.dot")
+		--read("net-I.tre")
+		--read("net-II.tre")
+		--read("net-II.dot")
+		read("net-I-II.dot")
+		set(outgroup:"zero")
+		set(graphtype:softwired)
+		report("net-test.tre", graphs, newick, overwrite)
+		report("net-test.dot", graphs, dot, overwrite)
+		report("net-test-data.csv", data, overwrite)
+		report("net-test-diag.csv", diagnosis, overwrite)
+		report("net-display.dot", displaytrees, dot, overwrite)
+		report("net-display.tre", displaytrees, newick, overwrite)
+		
+	\end{verbatim}
 	
 	\section{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
@@ -526,6 +637,6 @@
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}
-	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 \end{document}

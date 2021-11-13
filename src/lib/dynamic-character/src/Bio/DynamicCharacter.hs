@@ -4,7 +4,55 @@
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE Strict           #-}
 
-module Bio.DynamicCharacter where
+module Bio.DynamicCharacter
+  (  -- * Element Varieties of a Dynamic Character
+    SlimState
+  , WideState
+  , HugeState
+    -- * Generic Dynamic Character Constructions
+  , OpenDynamicCharacter
+  , TempOpenDynamicCharacter
+    -- * Dynamic Character Immutable Varieties
+  , SlimDynamicCharacter
+  , WideDynamicCharacter
+  , HugeDynamicCharacter
+    -- * Dynamic Character Mutable Varieties
+  , TempSlimDynamicCharacter
+  , TempWideDynamicCharacter
+  , TempHugeDynamicCharacter
+    -- * Queries
+  , isAlign
+  , isDelete
+  , isInsert
+  , isGapped
+  , isGap
+  , isMissing
+  , characterLength
+    -- * Mutators
+  , setAlign
+  , setDelete
+  , setInsert
+  , setGapped
+  , transposeCharacter
+    -- * Extractors
+  , extractMedians
+  , extractMediansLeft
+  , extractMediansRight
+  , extractMediansGapped
+  , extractMediansLeftGapped
+  , extractMediansRightGapped
+    -- * Immutable Constructors
+  , encodeDynamicCharacter
+  , encodeState
+    -- * Mutable Constructors
+  , newTempCharacter
+  , freezeTempCharacter
+  , unsafeCharacterBuiltByST
+  , unsafeCharacterBuiltByBufferedST
+    -- * Rendering
+  , decodeState
+  , renderDynamicCharacter
+  ) where
 
 import           Control.Monad.Primitive
 import           Control.Monad.ST

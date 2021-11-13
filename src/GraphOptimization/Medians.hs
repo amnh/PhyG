@@ -50,6 +50,7 @@ module GraphOptimization.Medians  ( median2
                                   , addMatrix
                                   , getDOMedian
                                   , getDOMedianCharInfo
+                                  , pairwiseDO
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -74,7 +75,7 @@ import           Types.Types
 -- for parallel fmap over all then parallelized by type and sequences
 -- used for distances and post-order assignments
 median2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2 a b c  = V.zipWith3 median2Single a b c 
+median2 = V.zipWith3 median2Single
 
 
 -- | median2NonExact takes the vectors of characters and applies median2NonExact to each
@@ -82,7 +83,7 @@ median2 a b c  = V.zipWith3 median2Single a b c
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2NonExact :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2NonExact a b c  = V.zipWith3 median2SingleNonExact a b c 
+median2NonExact = V.zipWith3 median2SingleNonExact
 
 
 -- | median2Single takes character data and returns median character and cost
@@ -99,7 +100,7 @@ median2Single firstVertChar secondVertChar inCharInfo =
         thisHugeTCM = hugeTCM inCharInfo
         thisActive  = activity inCharInfo
     in
-    if thisActive == False then (firstVertChar, 0)
+    if not thisActive then (firstVertChar, 0)
     else if thisType == Add then
         let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar
         in
@@ -116,11 +117,11 @@ median2Single firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
       let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
-    
+
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
@@ -140,20 +141,13 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisActive  = activity inCharInfo
         dummyStaticCharacter = emptyCharacter
     in
-    if thisActive == False then (dummyStaticCharacter, 0)
+    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0) 
+    else (if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+            let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+            in
+            (newCharVect, localCost  newCharVect)
 
-    else if thisType == Add then (dummyStaticCharacter, 0)
-
-    else if thisType == NonAdd then (dummyStaticCharacter, 0)
-
-    else if thisType == Matrix then (dummyStaticCharacter, 0)
-
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-      in
-      (newCharVect, localCost  newCharVect)
-    
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
 
 
 -- | localOr wrapper for BV.or for vector elements
@@ -167,7 +161,7 @@ localAnd lBV rBV = lBV .&. rBV
 -- | localAndOr takes the intesection vect and union vect elements
 -- and return intersection is /= 0 otherwise union
 localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
-localAndOr interBV unionBV = if (BV.isZeroVector interBV) then unionBV else interBV
+localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interBV
 
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
@@ -180,11 +174,11 @@ interUnion thisWeight leftChar rightChar =
     let intersectVect =  V.zipWith localAnd (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
         unionVect = V.zipWith localOr (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
         numUnions = V.length $ V.filter BV.isZeroVector intersectVect
-        newCost = thisWeight * (fromIntegral numUnions)
+        newCost = thisWeight * fromIntegral numUnions
         newStateVect = V.zipWith localAndOr intersectVect unionVect
         newCharcater = emptyCharacter { stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
-                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
+                                      , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
 
@@ -204,8 +198,8 @@ getNewRange inStuff@(lMin, lMax, rMin, rMax) =
     else if (rMin >= lMin) && (rMax >= lMax) && (rMin <= lMax) then (rMin, lMax,0)
     else if (lMin >= rMin) && (lMax >= rMax) && (lMin <= rMax) then (lMin, rMax,0)
     -- newInterval
-    else if (lMax <= rMin) then (lMax, rMin, rMin - lMax)
-    else if (rMax <= lMin) then (rMax, lMin, lMin - rMax)
+    else if lMax <= rMin then (lMax, rMin, rMin - lMax)
+    else if rMax <= lMin then (rMax, lMin, lMin - rMax)
     else error ("This can't happen " ++ show inStuff)
 
 -- | intervalAdd takes two additive chars and creates newCharcter as 2-median
@@ -217,10 +211,10 @@ intervalAdd thisWeight leftChar rightChar =
     let newRangeCosts = V.map getNewRange $ V.zip4 (V.map fst $ fst3 $ rangePrelim leftChar) (V.map snd $ fst3 $ rangePrelim leftChar) (V.map fst $ fst3 $ rangePrelim rightChar) (V.map snd $ fst3 $ rangePrelim rightChar)
         newMinRange = V.map fst3 newRangeCosts
         newMaxRange = V.map snd3 newRangeCosts
-        newCost = thisWeight * (fromIntegral $ V.sum $ V.map thd3 newRangeCosts)
+        newCost = thisWeight * fromIntegral (V.sum $ V.map thd3 newRangeCosts)
         newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, fst3 $ rangePrelim leftChar, fst3 $ rangePrelim rightChar)
                                       , localCost = newCost
-                                      , globalCost = newCost + (globalCost leftChar) + (globalCost rightChar)
+                                      , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
 
@@ -252,7 +246,7 @@ getNewVector thisMatrix  numStates (lChild, rChild) =
   let newStates = [0..(numStates -1)]
       leftPairs = fmap (getMinCostStates thisMatrix lChild (maxBound :: Int) numStates 0 []) newStates
       rightPairs = fmap (getMinCostStates thisMatrix rChild (maxBound :: Int) numStates 0 []) newStates
-      stateCosts = zipWith (+) (fmap fst $ fmap head leftPairs) (fmap fst $ fmap head rightPairs)
+      stateCosts = zipWith (+) (fmap (fst . head) leftPairs) (fmap (fst . head) rightPairs)
       newStateTripleList = zip3 stateCosts (fmap (fmap snd) leftPairs) (fmap (fmap snd) rightPairs)
   in
   V.fromList newStateTripleList
@@ -266,23 +260,54 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
   if null thisMatrix then error "Null cost matrix in addMatrix"
   else
     let numStates = length thisMatrix
-        initialMatrixVector = fmap (getNewVector thisMatrix numStates) $ V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
-        initialCostVector = fmap V.minimum $ fmap (fmap fst3) initialMatrixVector
-        newCost = thisWeight * (fromIntegral $ V.sum initialCostVector)
-        newCharcater = emptyCharacter { matrixStatesPrelim = initialMatrixVector
-                                      , localCost = newCost  - (globalCost firstVertChar) - (globalCost secondVertChar)
+        initialMatrixVector = getNewVector thisMatrix numStates <$> V.zip (matrixStatesPrelim firstVertChar) (matrixStatesPrelim secondVertChar)
+        initialCostVector = fmap (V.minimum . fmap fst3) initialMatrixVector
+        newCost = thisWeight * fromIntegral (V.sum initialCostVector)
+        newCharacter = emptyCharacter { matrixStatesPrelim = initialMatrixVector
+                                      , localCost = newCost  - globalCost firstVertChar - globalCost secondVertChar
                                       , globalCost = newCost
                                       }
         in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
 
-        newCharcater
+        newCharacter
+
+-- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of 
+-- DO medians and cost.  This is used in final state assignment
+pairwiseDO :: CharInfo
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+           -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
+pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
+    let thisType = charType charInfo
+    in
+    if thisType `elem` [SlimSeq,   NucSeq]      then
+        let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
+        in
+        --trace ("pDO:" ++ (show (GV.length $ fst3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2))) 
+        (r, mempty, mempty, weight charInfo * fromIntegral cost)
+
+    else if thisType `elem` [WideSeq, AminoSeq] then
+        let coefficient = MR.minInDelCost (wideTCM charInfo)
+            (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
+        in
+        (mempty, r, mempty, weight charInfo * fromIntegral cost)
+
+    else if thisType == HugeSeq           then
+        let coefficient = MR.minInDelCost (hugeTCM charInfo)
+            (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
+        in
+        (mempty, mempty, r, weight charInfo * fromIntegral cost)
+
+    else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+
+
+
 
 -- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
 getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
-getDOMedianCharInfo charInfo char1 char2 =
-    getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo) char1 char2
+getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
 -- | getDOMedian calls PCG/POY/C ffi to create sequence median after some type wrangling
 getDOMedian
@@ -299,14 +324,14 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
   | null thisMatrix = error "Null cost matrix in getDOMedian"
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
-  | thisType `elem` [HugeSeq]           = newHugeCharacterData
+  | thisType == HugeSeq           = newHugeCharacterData
   | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
   where
-    blankCharacterData = emptyCharacter  
+    blankCharacterData = emptyCharacter
 
     symbolCount = length thisMatrix
     newSlimCharacterData =
-        let newCost     = thisWeight * (fromIntegral cost)
+        let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
@@ -323,14 +348,15 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               }
 
     newWideCharacterData =
-        let newCost     = thisWeight * (fromIntegral cost)
+        let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
-                (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
+                (wideGapped leftChar) (wideGapped rightChar)
+                -- (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
+                -- (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
             --gapChar = getGapBV symbolCount
         in  blankCharacterData
               { --widePrelim    = GV.filter (notGapNought gapChar) medians
@@ -342,15 +368,16 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               }
 
     newHugeCharacterData =
-        let newCost     = thisWeight * (fromIntegral cost)
+        let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisHugeTCM
-            subtreeCost = newCost + (globalCost leftChar) + (globalCost rightChar)
+            subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
             -- (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
-                (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
+                (hugeGapped leftChar) (hugeGapped rightChar)
+                -- (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
+                -- (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
             --gapChar = getGap symbolCount
         in  blankCharacterData
               { --hugePrelim = GV.filter (notGapNought gapChar) medians -- 

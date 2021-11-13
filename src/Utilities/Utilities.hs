@@ -59,26 +59,56 @@ import qualified GeneralUtilities as GU
 import Debug.Trace
 import qualified Utilities.LocalGraph as LG
 import qualified Data.Text.Lazy  as T
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
+import qualified SymMatrix                   as S
+
+-- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
+getblockInsertDataCost :: BlockData -> Double
+getblockInsertDataCost (_, characterDataVV, charInfoV) =
+    V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
+
+-- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
+-- for all characters in a block
+getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
+getLeafInsertCost charInfoV charDataV = 
+    V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
+
+-- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
+getCharacterInsertCost :: CharacterData -> CharInfo -> Double
+getCharacterInsertCost inChar charInfo =
+    let localCharType = charType charInfo
+        thisWeight = weight charInfo
+        inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
+    in
+    if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.fst3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.fst3 $ stateBVPrelim inChar) 
+    else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
+    else error ("Character type unimplemented : " ++ show localCharType)
+
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on 
 -- that ShortText divider consuming it akin to Text.splitOn
 splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
 splitSequence partitionST stList =
     if null stList then []
-    else 
+    else
         let firstPart = takeWhile (/= partitionST) stList
             restList = dropWhile (/= partitionST) stList
         in
-        if restList == [partitionST] then firstPart : [[(ST.fromString "#")]]
-        else if (not $ null restList) then firstPart : splitSequence partitionST (tail restList)
+        if restList == [partitionST] then firstPart : [[ST.fromString "#"]]
+        else if not $ null restList then firstPart : splitSequence partitionST (tail restList)
         else [firstPart]
-        
+
 
 
 -- | dynamicCharacterTo3Vector takes a DYnamicCharacter and returns three Vectors
 dynamicCharacterTo3Vector :: DynamicCharacter -> (Word, V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 dynamicCharacterTo3Vector (Missing x) = (x, V.empty, V.empty, V.empty)
-dynamicCharacterTo3Vector (DC x) = 
+dynamicCharacterTo3Vector (DC x) =
     let neVect = V.fromList $ toList x
         (a,b,c) = V.unzip3 neVect
     in
@@ -91,7 +121,7 @@ convertVectorToDynamicCharacter inVector =
         arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. lenAlph - 1]
     in
     encodeStream arbitraryAlphabet $ fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList $ toList  inVector
-    where 
+    where
         f :: Word -> [Bool] -> [String]
         f _ [] = []
         f n (x:xs)
@@ -109,19 +139,22 @@ bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol
     pollSymbol i polled
       | bitValue `testBit` i = (vec V.! i) : polled
       | otherwise         = polled
- 
+
 
 -- bitVectToCharState  takes a bit vector representation and returns a list states as integers
 bitVectToCharState' :: (Bits b) => [String] -> b -> String
-bitVectToCharState' localAlphabet bitValue =
-  if isAlphabetDna       hereAlphabet then fold $ iupacToDna       BM.!> observedSymbols
-  else if isAlphabetAminoAcid hereAlphabet then  fold $ iupacToAminoAcid BM.!> observedSymbols
-  else L.intercalate "," $ toList observedSymbols
-  
+bitVectToCharState' localAlphabet bitValue
+  | isAlphabetDna       hereAlphabet = fold $ iupacToDna       BM.!> observedSymbols
+  | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
+  | otherwise = L.intercalate "," $ toList observedSymbols
   where
-    hereAlphabet = fromSymbols localAlphabet
-    symbolCountH     = length localAlphabet
-    observedSymbols = NE.fromList $ foldMap (\i -> if bitValue `testBit` i then [localAlphabet !! i] else []) [0 .. symbolCountH - 1]
+      hereAlphabet = fromSymbols localAlphabet
+      symbolCountH = length localAlphabet
+      observedSymbols
+        = NE.fromList
+            $ foldMap
+                (\ i -> [localAlphabet !! i | bitValue `testBit` i])
+                [0 .. symbolCountH - 1]
 
 {-}
     --if DNA use IUPAC ambiguity codes
@@ -175,25 +208,24 @@ bitVectToCharState' localAlphabet bitValue =
 -- "characters" are found.
 -- call with (0,0)
 filledDataFields :: (Int, Int) -> TermData -> (NameText, Int, Int)
-filledDataFields (hasData, totalData) (taxName, taxData) =
-    if null taxData then (taxName, hasData, totalData)
-    else 
-        if (ST.length $ head taxData) == 0 then filledDataFields (hasData, 1 + totalData) (taxName, tail taxData)
-        else filledDataFields (1 + hasData, 1 + totalData) (taxName, tail taxData)
+filledDataFields (hasData, totalData) (taxName, taxData)
+  | null taxData = (taxName, hasData, totalData)
+  | ST.length (head taxData) == 0 = filledDataFields (hasData, 1 + totalData) (taxName, tail taxData)
+  | otherwise = filledDataFields (1 + hasData, 1 + totalData) (taxName, tail taxData)
 
 -- | stripComments removes all lines that being with "--" haskell stype comments
 -- needs to be reversed on return to maintain order.
 stripComments :: [String] -> [String]
 stripComments inStringList =
     if null inStringList then []
-    else 
+    else
         let strippedLine = GU.stripString $ head inStringList
         in
-        if null strippedLine then stripComments $ tail inStringList 
-        else if length strippedLine < 2 then strippedLine : (stripComments $ tail inStringList) 
-        else 
-            if "--" == take 2 strippedLine then (stripComments $ tail inStringList)
-            else strippedLine : (stripComments $ tail inStringList)
+        if null strippedLine then stripComments $ tail inStringList
+        else if length strippedLine < 2 then strippedLine : stripComments (tail inStringList)
+        else
+            if "--" == take 2 strippedLine then stripComments $ tail inStringList
+            else strippedLine : stripComments (tail inStringList)
 
 -- | getDecoratedGraphBlockCharInformation takes decorated graph and reports number of blosk and size of each
 getDecoratedGraphBlockCharInformation :: DecoratedGraph -> ((Int, Int), [V.Vector Int])
@@ -201,7 +233,7 @@ getDecoratedGraphBlockCharInformation inGraph =
     if LG.isEmpty inGraph then ((0,0), [])
     else
         -- get a vertices from graph and take their information
-        let inVertDataList = fmap vertData $ fmap snd $ LG.labNodes inGraph 
+        let inVertDataList = fmap (vertData . snd) (LG.labNodes inGraph)
             blockNumMax = maximum $ fmap length inVertDataList
             blocknumMin = minimum $ fmap length inVertDataList
             blockLengthList = fmap (fmap length) inVertDataList
@@ -217,10 +249,10 @@ vectMaybeHead inVect =
 
 -- vectResolveMaybe takes a Vector of Maybe a 
 -- and returns Just a or V.empty
-vectResolveMaybe :: (Eq a) => V.Vector (Maybe a) -> V.Vector a
-vectResolveMaybe inVect = 
-    trace ("VRM " ++ (show $ length inVect)) (
-    if V.head inVect == Nothing then V.empty
+vectResolveMaybe :: V.Vector (Maybe a) -> V.Vector a
+vectResolveMaybe inVect =
+    trace ("VRM " ++ show (length inVect)) (
+    if isNothing (V.head inVect) then V.empty
     else V.singleton $ fromJust $ V.head inVect
     )
 
@@ -229,7 +261,7 @@ vectResolveMaybe inVect =
 getNumberNonExactCharacters :: V.Vector BlockData -> Int
 getNumberNonExactCharacters blockDataVect =
     if V.null blockDataVect then 0
-    else 
+    else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
             nonExactChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
@@ -241,7 +273,7 @@ getNumberNonExactCharacters blockDataVect =
 getNumberExactCharacters :: V.Vector BlockData -> Int
 getNumberExactCharacters blockDataVect =
     if V.null blockDataVect then 0
-    else 
+    else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
             nonExactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
@@ -250,23 +282,23 @@ getNumberExactCharacters blockDataVect =
 
 -- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact and non-exact characters
 -- using accumulators
-splitBlockCharacters :: V.Vector (V.Vector CharacterData) 
-                     -> V.Vector CharInfo 
+splitBlockCharacters :: V.Vector (V.Vector CharacterData)
+                     -> V.Vector CharInfo
                      -> Int
-                     -> [([CharacterData], CharInfo)] 
-                     -> [([CharacterData], CharInfo)] 
+                     -> [([CharacterData], CharInfo)]
+                     -> [([CharacterData], CharInfo)]
                      -> (BlockData, BlockData)
 splitBlockCharacters inDataVV inCharInfoV localIndex exactCharPairList nonExactCharPairList =
-    if localIndex == V.length inCharInfoV then 
+    if localIndex == V.length inCharInfoV then
         let (exactDataList, exactCharInfoList) = unzip exactCharPairList
             (nonExactDataList, nonExactCharInfoList) = unzip nonExactCharPairList
             newExactCharInfoVect = V.fromList $ reverse exactCharInfoList
             newNonExactCharInfoVect = V.fromList $ reverse nonExactCharInfoList
-            newExactData = V.fromList $ fmap V.fromList $ fmap reverse $ L.transpose exactDataList
-            newNonExactData = V.fromList $ fmap V.fromList $ fmap reverse $ L.transpose nonExactDataList
+            newExactData = V.fromList $ fmap (V.fromList . reverse) (L.transpose exactDataList)
+            newNonExactData = V.fromList $ fmap (V.fromList . reverse) (L.transpose nonExactDataList)
         in
         ((T.pack "ExactCharacters", newExactData, newExactCharInfoVect), (T.pack "Non-ExactCharacters", newNonExactData, newNonExactCharInfoVect))
-    else 
+    else
         let localCharacterType = charType (inCharInfoV V.! localIndex)
             thisCharacterData = V.toList $ fmap (V.! localIndex) inDataVV
             newPair = (thisCharacterData, inCharInfoV V.! localIndex)
@@ -289,16 +321,15 @@ safeVectorHead inVect =
 -- | checkCommandArgs takes comamnd and args and verifies that they are in list
 checkCommandArgs :: String -> [String] -> [String] -> Bool
 checkCommandArgs commandString commandList permittedList =
-    if null commandList then True
+    null commandList || (
+    let firstCommand = head commandList
+        foundCommand = firstCommand `elem` permittedList
+    in
+    if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
     else
-        let firstCommand = head commandList
-            foundCommand = firstCommand `elem` permittedList
+        let errorMatch = snd $ GU.getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
         in
-        if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
-        else
-            let errorMatch = snd $ GU.getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
-            in
-            errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n")
+        errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n"))
 
 -- | get leftRightChilLabelBV takes a pair of vertex labels and returns left and right
 -- based on their bitvector representation.  This ensures left/right consistancey in
@@ -327,7 +358,7 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
     else inPair
 
 
-
+{-
 -- | getBridgeList takes a Decorated graph and returns the list of edges that, if removed, will
 -- split the graph, that is increase the number of unconnected components
 -- this is useful in graph rearrangement
@@ -335,16 +366,16 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
 getBridgeList :: DecoratedGraph -> [LG.LEdge EdgeInfo]
 getBridgeList inGraph =
     if LG.isEmpty inGraph then []
-    else 
+    else
         let vertexList = LG.labNodes inGraph
             labEdgeList = LG.labEdges inGraph
-            vertBVList = fmap bvLabel $ fmap snd networkVertexList
+            vertBVList = fmap (bvLabel . snd) networkVertexList
             vertPairVect = V.fromList $ L.sortOn fst $ zip (fmap fst vertexList) vertBVList
             (_, _, _, networkVertexList) = LG.splitVertexList inGraph
-            netVertBVList = fmap bvLabel $ fmap snd networkVertexList
+            netVertBVList = fmap (bvLabel . snd) networkVertexList
             -- netVertPairList = zip (fmap fst networkVertexList) netVertBVList
             bridgeList = getBridgeList' vertPairVect netVertBVList labEdgeList
-            
+
         in
         if null networkVertexList then labEdgeList
         else bridgeList
@@ -354,26 +385,26 @@ getBridgeList inGraph =
 -- checks whether for each edge (u,v), the bitvector labels of all the network nodes are 
 -- `compatible' with bit vector of vertex v.  a, and b are compatible if a .&. b = a, b, or empty
 getBridgeList' :: V.Vector (Int, BV.BitVector) -> [BV.BitVector] -> [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
-getBridgeList' vertexPairVect netVertBVList inEdgeList = 
+getBridgeList' vertexPairVect netVertBVList inEdgeList =
     if null inEdgeList then []
-    else 
+    else
         let firstEdge@(_, vVertex, _) = head inEdgeList
             isBridge = GU.isBVCompatible (snd $ vertexPairVect V.! vVertex) netVertBVList
         in
         if isBridge then firstEdge : getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
         else getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
-
+-}
 
 -- | prettyPrintVertexInfo returns a string with formated version of 
 -- vertex info
 prettyPrintVertexInfo :: VertexInfo -> String
 prettyPrintVertexInfo inVertData =
-    let zerothPart = "Vertex name " ++ (T.unpack $ vertName inVertData) ++ " Index " ++ (show $ index inVertData)
-        firstPart = "\n\tBitVector (as number) " ++ (show $ BV.toUnsignedNumber $ bvLabel inVertData)
-        secondPart = "\n\tParents " ++ (show $ parents inVertData) ++ " Children " ++ (show $ children inVertData)
-        thirdPart = "\n\tType " ++ (show $ nodeType inVertData) ++ " Local Cost " ++ (show $ vertexCost inVertData) ++ " SubGraph Cost " ++ (show $ subGraphCost inVertData)
-        fourthPart = "\n\tData Blocks: " ++ (show $ V.length $ vertData inVertData) ++ " Characters (by block) " ++ (show $ fmap V.length $ vertData inVertData)
-        fifthPart = "\n\t" ++ (show $ vertData inVertData)
+    let zerothPart = "Vertex name " ++ T.unpack (vertName inVertData) ++ " Index " ++ show (index inVertData)
+        firstPart = "\n\tBitVector (as number) " ++ show (BV.toUnsignedNumber $ bvLabel inVertData)
+        secondPart = "\n\tParents " ++ show (parents inVertData) ++ " Children " ++ show (children inVertData)
+        thirdPart = "\n\tType " ++ show (nodeType inVertData) ++ " Local Cost " ++ show (vertexCost inVertData) ++ " SubGraph Cost " ++ show (subGraphCost inVertData)
+        fourthPart = "\n\tData Blocks: " ++ show (V.length $ vertData inVertData) ++ " Characters (by block) " ++ show (V.length <$> vertData inVertData)
+        fifthPart = "\n\t" ++ show (vertData inVertData)
     in
     zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
 
@@ -400,3 +431,8 @@ encodeState alphabet' f symbols = getSubsetIndex alphabet' symbolsSet emptyEleme
   where
     emptyElement = f . toEnum $ length alphabet'
     symbolsSet   = Set.fromList $ toList symbols
+
+
+-- | add3 adds three values
+add3 :: (Num a) => a -> a -> a -> a
+add3 x y z = x + y + z

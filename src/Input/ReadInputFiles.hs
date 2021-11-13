@@ -71,13 +71,13 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
     let fileNames = filter (/= "") $ fmap snd argList
         modifierList = fmap fst argList
     in
-    if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ (show inCommand))
+    if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ show inCommand)
     else do
         globbedFileNames <- mapM SPG.glob fileNames
-        if null (concat globbedFileNames) then errorWithoutStackTrace ("File name(s) not found in 'read' command: " ++ show fileNames)
-        else if (length $ concat globbedFileNames) == length fileNames then return [inCommand]
+        if all null globbedFileNames then errorWithoutStackTrace ("File name(s) not found in 'read' command: " ++ show fileNames)
+        else if length (concat globbedFileNames) == length fileNames then return [inCommand]
         else
-            let newArgPairs = fmap makeNewArgs $ zip modifierList globbedFileNames
+            let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
                 commandList = replicate (length newArgPairs) commandType
             in
             return $ zip commandList newArgPairs
@@ -101,12 +101,12 @@ Added strictness on read so could close files after reading to
 
 -- | extractInputTuple  takes the list of pairs from mapped executeReadCommands
 -- and returns ([RawData], [SimpleGraph])
-extractInputTuple :: [([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])] 
+extractInputTuple :: [([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])]
                   -> ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 extractInputTuple dataGraphList =
     let (inDataList, inGraphList, inTerminalsList, inExcludeList, inRenamePairs, inReBlockPairs) = L.unzip6 dataGraphList
         rawData   = concat inDataList
-        rawGraphs = concat inGraphList 
+        rawGraphs = concat inGraphList
         rawTerminals = concat inTerminalsList
         excludeTerminals = concat inExcludeList
         renamePairs = concat inRenamePairs
@@ -115,30 +115,31 @@ extractInputTuple dataGraphList =
 
 
 -- | executeReadCommands wrapper for executeReadCommands' with out all the empty list imput
-executeReadCommands :: [Argument] 
+executeReadCommands :: [Argument]
                     -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
-executeReadCommands commandList = executeReadCommands' [] [] [] [] [] [] False ([],[],1.0) commandList
+executeReadCommands = executeReadCommands' [] [] [] [] [] [] False ([],[],1.0)
 
 -- | executeReadCommands' reads iput files and returns raw data, input graphs, and terminal taxa to include
 -- assumes that "prealigned" and "tcm:File" are the first arguments if they are specified
 -- so that they can apply to all the files in the command without order depence
-executeReadCommands' :: [RawData] 
-                    -> [SimpleGraph] 
-                    -> [NameText] 
-                    -> [NameText] 
-                    -> [(NameText, NameText)] 
-                    -> [(NameText, NameText)] 
-                    -> Bool 
-                    -> ([ST.ShortText], [[Int]], Double) 
-                    -> [Argument] 
+executeReadCommands' :: [RawData]
+                    -> [SimpleGraph]
+                    -> [NameText]
+                    -> [NameText]
+                    -> [(NameText, NameText)]
+                    -> [(NameText, NameText)]
+                    -> Bool
+                    -> ([ST.ShortText], [[Int]], Double)
+                    -> [Argument]
                     -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
         --hPutStrLn stderr (show argList)
-        let isPrealigned' = if isPrealigned then True
-                            else if ("prealigned" `elem`  (fmap fst argList)) then True
-                            else False
+        let isPrealigned'
+              | isPrealigned = True
+              | "prealigned" `elem`  fmap fst argList = True
+              | otherwise = False
         let (firstOption, firstFile) = head argList
         -- Check for prealigned
         if firstOption == "prealigned" then
@@ -167,7 +168,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 -- this so don't have huge numbers of open files for large data sets
                 fileContents <- hGetContents' fileHandle
                 hClose fileHandle
-                if (null fileContents) then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
+                if null fileContents then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
                 else
                     -- try to figure out file type based on first and following characters
                     if firstOption == "tcm" then
@@ -196,8 +197,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                 hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                                 hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList
                             in
-                            if (not $ null hasLoops) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
-                            else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                            if not $ null hasLoops then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ "  has loops/self-edges")
+                            else if not $ null hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                             else executeReadCommands' curData (thisGraphList ++ curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else if toLower firstChar == 'x' then
@@ -206,16 +207,16 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             trace ("\tTrying to parse " ++ firstFile ++ " as TNT")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
-                            let fileContents' =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents
+                            let fileContents' =  unlines $ filter (not.null) $ takeWhile (/= ';') <$> lines fileContents
                             in
                               if null (dropWhile (== ' ') fileContents') then errorWithoutStackTrace ("Null file '" ++ firstFile ++ "' input")
-                              else if (head $ dropWhile (== ' ') fileContents') == '>' then
+                              else if head (dropWhile (== ' ') fileContents') == '>' then
                                 let secondLine = head $ tail $ lines fileContents'
                                     numSpaces = length $ L.elemIndices ' ' secondLine
                                     -- numWords = length $ words secondLine
                                 in
                                 -- spaces between alphabet elements suggest fastc
-                                if (numSpaces > 0) then
+                                if numSpaces > 0 then
                                     let fastcData = FAC.getFastC firstOption fileContents firstFile
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in
@@ -230,13 +231,13 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                         else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
                     -- fasta
-                    else if (firstOption `elem` ["fasta", "nucleotide", "aminoacid"]) then
+                    else if firstOption `elem` ["fasta", "nucleotide", "aminoacid"] then
                         let fastaData = FAC.getFastA  firstOption fileContents firstFile
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
-                    else if (firstOption `elem` ["fastc", "custom_alphabet"])  then
+                    else if firstOption `elem` ["fastc", "custom_alphabet"]  then
                         let fastcData = FAC.getFastC firstOption fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
@@ -248,45 +249,45 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- FENEwick
-                    else if (firstOption `elem` ["newick" , "enewick", "fenewick"])  then
+                    else if firstOption `elem` ["newick" , "enewick", "fenewick"]  then
                         let thisGraphList = getFENewickGraph fileContents
                             hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList
                             hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                         in
-                        if (not $ null hasLoops) then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
-                        else if (not $ null hasCycles) then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
+                        if not $ null hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
+                        else if not $ null hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                         else executeReadCommands' curData (thisGraphList ++ curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- reding terminals list to include--must be "new" names if taxa are renamed
-                    else if (firstOption `elem` ["terminals", "include"])  then
-                        let terminalsList = fmap T.pack $ fmap (filter (/= '"')) $ fmap (filter C.isPrint) $ words $ unlines $ U.stripComments $ lines fileContents
+                    else if firstOption `elem` ["terminals", "include"]  then
+                        let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ lines fileContents)
                         in
                         executeReadCommands' curData curGraphs (terminalsList ++ curTerminals) curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if (firstOption `elem` ["exclude"])  then
-                        let excludeList = fmap T.pack $ fmap (filter (/= '"')) $ fmap (filter C.isPrint) $ words $ unlines $ U.stripComments $ lines fileContents
-                        in 
+                    else if firstOption == "exclude"  then
+                        let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ lines fileContents)
+                        in
                         executeReadCommands' curData curGraphs curTerminals (excludeList ++ curExcludeList) curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if (firstOption `elem` ["rename"])  then
+                    else if firstOption == "rename"  then
                         let renameLines = U.stripComments $ lines fileContents
                             namePairs = concatMap (makeNamePairs firstFile) renameLines
-                        in 
+                        in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs ++ curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if (firstOption `elem` ["block"])  then
+                    else if firstOption == "block"  then
                         let renameLines = U.stripComments $ lines fileContents
                             blockPairs = concatMap (makeNamePairs firstFile) renameLines
-                        in 
+                        in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs (blockPairs ++ curReBlockPairs) isPrealigned' tcmPair (tail argList)
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
 -- for renaming or reblocking  
 makeNamePairs :: String -> String -> [(T.Text, T.Text)]
-makeNamePairs inFileName inLine = 
+makeNamePairs inFileName inLine =
     if null inLine then []
-    else 
+    else
         let lineWords = T.words $ T.pack $ filter (/= '"') $ filter C.isPrint inLine
         in
         if length lineWords < 2 then errorWithoutStackTrace ("Rename file " ++ inFileName ++ " line needs at least two Strings to rename the second as the first: " ++ inLine)
-        else 
+        else
             let targetNameList = replicate (length $ tail lineWords) (head lineWords)
                 renamePairList = zip targetNameList (tail lineWords)
             in
@@ -309,15 +310,15 @@ getReadArgs fullCommand argList =
         let (firstPart, secondPart) = head argList
         in
         -- plain file name with no modifier
-        if (null firstPart) then
-            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
-            else errorWithoutStackTrace ("\n\n'Read' command error (*) '" ++ (secondPart) ++"' : Need to specify filename in double quotes")
+        if null firstPart then
+            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
+            else errorWithoutStackTrace ("\n\n'Read' command error (*) '" ++ secondPart ++"' : Need to specify filename in double quotes")
         -- Change to allowed modifiers
-        else if ((fmap toLower firstPart) `notElem` readArgList) then
+        else if fmap toLower firstPart `notElem` readArgList then
             errorWithoutStackTrace ("\n\n'Read' command error (**): " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
-        else if ((null secondPart) && (firstPart == "prealigned"))  then
+        else if null secondPart && (firstPart == "prealigned")  then
             (firstPart, []) : getReadArgs fullCommand (tail argList)
-        else (firstPart, (init $ tail secondPart)) : getReadArgs fullCommand (tail argList)
+        else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
 
 -- | getFENewickGraph takes graph contents and returns local graph format
 -- could be mulitple input graphs
@@ -336,18 +337,18 @@ processTCMContents inContents fileName =
         let tcmLines = lines inContents
             localAlphabet =  fmap ST.pack $ words $ head tcmLines
             -- to account for '-'
-            numElements = 1 + (length localAlphabet)
-            costMatrixStrings = fmap words $ tail tcmLines
+            numElements = 1 + length localAlphabet
+            costMatrixStrings = words <$> tail tcmLines
             -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
             (scaleFactor, localCostMatrix) = getCostMatrixAndScaleFactor fileName costMatrixStrings
             numLines = length localCostMatrix
             lengthRowList = fmap length localCostMatrix
             rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
         in
-        if (not $ null (filter (== ST.singleton '-') localAlphabet)) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix")
+        if (any (== ST.singleton '-') localAlphabet) then errorWithoutStackTrace "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
         else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from "
             ++ fileName ++ " there should be (including '-') " ++ show numElements ++ " and there are " ++ show numLines)
-        else if (not rowsCorrectLength) then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
+        else if not rowsCorrectLength then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
             ++ fileName ++ " there should be (including '-') " ++ show numElements)
         else
             --trace (show (scaleFactor, localCostMatrix))
@@ -364,9 +365,9 @@ getCostMatrixAndScaleFactor :: String -> [[String]] -> (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName inStringListList =
     if null inStringListList then error "Empty list in inStringListList"
     else
-        let maxDecimalPlaces = maximum $ fmap getDecimals $ concat inStringListList
+        let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
             scaleFactor = if maxDecimalPlaces == 0 then 1.0
-                          else (0.1) ** (fromIntegral maxDecimalPlaces)
+                          else 0.1 ** fromIntegral maxDecimalPlaces
             in
             if maxDecimalPlaces == 0 then (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
             else
@@ -382,7 +383,7 @@ getDecimals inString =
         let decimalPart = dropWhile (/= '.') inString
         in
         if null decimalPart then 0
-        else (length decimalPart) - 1
+        else length decimalPart - 1
 
 -- | integerizeString integerizes a String by removing the '.' and adding the number of '0's to pad out
 -- adds maxDecimalPlaces - the nymber in the String
@@ -393,5 +394,5 @@ integerizeString maxDecimalPlaces inString =
         let decimalPart = dropWhile (/= '.') inString
         in
         if inString == "0" then inString
-        else if null decimalPart then inString ++ (replicate maxDecimalPlaces '0')
-        else (filter (/= '.') inString) ++ (replicate (maxDecimalPlaces - ((length decimalPart) - 1)) '0')
+        else if null decimalPart then inString ++ replicate maxDecimalPlaces '0'
+        else filter (/= '.') inString ++ replicate (maxDecimalPlaces - (length decimalPart - 1)) '0'

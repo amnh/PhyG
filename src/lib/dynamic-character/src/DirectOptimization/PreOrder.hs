@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module DirectOptimization.PreOrder where
+module DirectOptimization.PreOrder
+  ( preOrderLogic
+  ) where
 
 import           Bio.DynamicCharacter
 import           Control.Monad
@@ -37,8 +39,8 @@ preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,y
     wlog  = x ! 0
     zero  = wlog `xor` wlog
     gap   = bit . fromEnum $ symbolCount - 1
-    paLen = lengthSeq pAlignment
-    ccLen = lengthSeq cContext
+    paLen = fromEnum $ characterLength pAlignment
+    ccLen = fromEnum $ characterLength cContext
 
     mAlignment =
       let zeds = GV.replicate paLen zero
@@ -69,17 +71,3 @@ preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,y
       (,,) <$> GV.basicUnsafeFreeze xs'
            <*> GV.basicUnsafeFreeze ys'
            <*> GV.basicUnsafeFreeze zs'
-
-
-indexSeq
-  :: Vector v a
-  => (v a, v a, v a)
-  -> Int
-  -> (a, a, a)
-indexSeq (x,y,z) i
-  | i >= GV.length x = error "Indexing error in Implied Alignment logic"
-  | otherwise        = (x ! i, y ! i, z ! i)
-
-
-lengthSeq :: Vector v a => (v a, v a, v a) -> Int
-lengthSeq (x,_,_) = GV.length x

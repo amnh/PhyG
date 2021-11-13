@@ -20,7 +20,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Test.QuickCheck.Instances.DynamicCharacter where
+module Test.QuickCheck.Instances.DynamicCharacter
+  ( DNA(..)
+  , DyadDNA(..)
+  , SnippedDNA(..)
+  , Nucleotide(..)
+  , buildDNA
+  , nucleotideAlphabet
+  , nucleotideGap
+  ) where
 
 import           Bio.DynamicCharacter
 import           Control.Applicative

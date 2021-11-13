@@ -481,11 +481,11 @@ getMatrixMinPairTabu' distMatrix tabuList curBest curRow curColumn
   | curColumn == curRow = getMatrixMinPairTabu' distMatrix tabuList curBest curRow (curColumn + 1)
   | (curColumn `elem` tabuList) || (curRow `elem` tabuList) = getMatrixMinPairTabu' distMatrix tabuList curBest curRow (curColumn + 1)
   | otherwise =
-  let (_, _, currentBestDistance) = curBest
-  in
-  if  distMatrix M.! (curRow, curColumn) < currentBestDistance then
-    getMatrixMinPairTabu' distMatrix tabuList (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
-  else getMatrixMinPairTabu' distMatrix tabuList curBest curRow (curColumn + 1)
+    let (_, _, currentBestDistance) = curBest
+    in
+    if  distMatrix M.! (curRow, curColumn) < currentBestDistance then
+      getMatrixMinPairTabu' distMatrix tabuList (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
+    else getMatrixMinPairTabu' distMatrix tabuList curBest curRow (curColumn + 1)
 
 
 
@@ -499,11 +499,11 @@ getMatrixMinPair distMatrix curBest curRow curColumn
   | curColumn == M.cols distMatrix = getMatrixMinPair distMatrix curBest (curRow + 1) 0
   | curColumn == curRow = getMatrixMinPair distMatrix curBest curRow (curColumn + 1)
   | otherwise =
-  let (_, _, currentBestDistance) = curBest
-  in
-  if  distMatrix M.! (curRow, curColumn) < currentBestDistance then
-    getMatrixMinPair distMatrix (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
-  else getMatrixMinPair distMatrix curBest curRow (curColumn + 1)
+    let (_, _, currentBestDistance) = curBest
+    in
+    if  distMatrix M.! (curRow, curColumn) < currentBestDistance then
+      getMatrixMinPair distMatrix (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
+    else getMatrixMinPair distMatrix curBest curRow (curColumn + 1)
 
 
 -- | getMatrixMaxPair takes distMatrix initla pinteger pair and value
@@ -516,11 +516,11 @@ getMatrixMaxPair distMatrix curBest curRow curColumn
   | curColumn == M.cols distMatrix = getMatrixMaxPair distMatrix curBest (curRow + 1) 0
   | curColumn == curRow = getMatrixMaxPair distMatrix curBest curRow (curColumn + 1)
   | otherwise =
-  let (_, _, currentBestDistance) = curBest
-  in
-  if  distMatrix M.! (curRow, curColumn) > currentBestDistance then
-    getMatrixMaxPair distMatrix (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
-  else getMatrixMaxPair distMatrix curBest curRow (curColumn + 1)
+    let (_, _, currentBestDistance) = curBest
+    in
+    if  distMatrix M.! (curRow, curColumn) > currentBestDistance then
+      getMatrixMaxPair distMatrix (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
+    else getMatrixMaxPair distMatrix curBest curRow (curColumn + 1)
 
 -- | getTreeCost takes Tree and returns cost based on sum of edge weights
 getTreeCost :: Tree -> Double

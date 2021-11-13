@@ -67,12 +67,12 @@ import qualified Data.Char as C
 -- although with multicharacter alphabets that contain '[' or ']' this would be a problem,
 -- its only used for single character alphabets in fasta formats.
 -- '#' for partitions in fasta sequences
-getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText] 
+getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText]
 getAlphabet curList inList =
     let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]
-    in  
-    if null inList then filter (`notElem` notAlphElement) $ fmap ST.fromString $ (L.sort curList) `L.union` ["-"]
-    else 
+    in
+    if null inList then filter (`notElem` notAlphElement) $ fmap ST.fromString $ L.sort curList `L.union` ["-"]
+    else
         let firstChars = fmap (:[]) $ L.nub $ ST.toString $ head inList
         in  getAlphabet (firstChars `L.union` curList) (tail inList)
 
@@ -101,18 +101,21 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ foldMap snd inData
-            seqType = if      dataType == "nucleotide"      then  trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
-                      else if dataType == "aminoacid"       then  trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
-                      else if dataType == "custom_alphabet" then  trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
-                      else if (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
-                          ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-                      else if (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) then trace ("Assuming file " ++ dataName
-                          ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
-                      -- can fit in byte with reasonable pre-calculation costs
-                      else if (length sequenceData) <=  8 then trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
-                      else if (length sequenceData) <= 64 then trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
-                      else trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
+
+            seqType
+              | dataType == "nucleotide" = trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
+              | dataType == "aminoacid" = trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
+              | dataType == "custom_alphabet" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
+              | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
+                ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
+              | (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
+                ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
+              | length sequenceData <=  8 = trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
+              | length sequenceData <= 64 = trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
+              | otherwise = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
+
             seqAlphabet = fromSymbols seqSymbols
+
             seqSymbols =
               let toSymbols = fmap ST.fromString
               in  case seqType of
@@ -134,7 +137,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
-              | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, localCostMatrix)
+              | seqType == HugeSeq           = getTCMMemo (thisAlphabet, localCostMatrix)
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             tcmWeightFactor = thd3 localTCM
@@ -147,7 +150,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                        charType = seqType
                                      , activity = True
                                      , weight = tcmWeightFactor *
-                                                if (seqType == HugeSeq)
+                                                if seqType == HugeSeq
                                                 then fromRational hugeWeightFactor
                                                 else if seqType `elem` [WideSeq, AminoSeq]
                                                 then fromRational wideWeightFactor
@@ -156,12 +159,12 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                      , slimTCM = localDenseCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
-                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
-                                     , alphabet   = thisAlphabet
+                                     , name = T.pack (filter (/= ' ') dataName <> ":0")
+                                     , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }
         in
-        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
+        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
 
 
@@ -202,13 +205,13 @@ getSequenceAphabet newAlph inStates =
     if null inStates then
         -- removes indel gap from alphabet if present and then (re) adds at end
         -- (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
-        (L.sort $ L.nub newAlph) ++ [ST.singleton '-']
+        L.sort (L.nub newAlph) ++ [ST.singleton '-']
     else
         let firstState = ST.toString $ head inStates
         in
-        if (head firstState) /= '['  then 
-            if (firstState `elem` ["?","-"]) then getSequenceAphabet  newAlph (tail inStates)
-            else getSequenceAphabet ((head inStates) : newAlph) (tail inStates)
+        if head firstState /= '['  then
+            if firstState `elem` ["?","-"] then getSequenceAphabet  newAlph (tail inStates)
+            else getSequenceAphabet (head inStates : newAlph) (tail inStates)
         else -- ambiguity
             let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
             in
@@ -240,7 +243,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
-            localDenseCostMatrix = if (length $ thisAlphabet) < 9  then tcmDense
+            localDenseCostMatrix = if length thisAlphabet < 9  then tcmDense
                                    else tcmNaught
             seqType =
                 case length thisAlphabet of
@@ -253,7 +256,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
-              | seqType `elem` [HugeSeq]           = getTCMMemo (thisAlphabet, inMatrix)
+              | seqType == HugeSeq           = getTCMMemo (thisAlphabet, inMatrix)
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             defaultHugeSeqCharInfo = CharInfo {
@@ -269,7 +272,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , slimTCM = localDenseCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
-                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
+                                     , name = T.pack (filter (/= ' ') dataName ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }{-
@@ -289,7 +292,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      -}
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
-        if fst3 localTCM == [] then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
+        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else defaultHugeSeqCharInfo
         --)
 
@@ -300,12 +303,12 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- deletes '-' (unless "prealigned"), and spaces
 getFastA :: String -> String -> String -> [TermData]
 getFastA modifier fileContents' fileName  =
-    if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
+    if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments
-        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ';')) $ lines fileContents'
+        let fileContents =  unlines $ filter (not.null) $ takeWhile (/= ';') <$> lines fileContents'
         in
-        if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+        if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
             let terminalSplits = T.split (=='>') $ T.pack fileContents
                 pairData =  getRawDataPairsFastA modifier (tail terminalSplits)
@@ -325,10 +328,10 @@ getRawDataPairsFastA modifier inTextList =
     else
         let firstText = head inTextList
             firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
-            firstData = T.filter (C.isPrint) $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
+            firstData = T.filter C.isPrint $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
-            firtDataSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstData
-            firstDataNoGapsSTList = fmap ST.fromText $ fmap T.toStrict $ T.chunksOf 1 firstDataNoGaps
+            firtDataSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstData)
+            firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         --trace ("FA " ++ (show $ length firstDataNoGapsSTList)) (
@@ -342,20 +345,20 @@ getRawDataPairsFastA modifier inTextList =
 -- NEED TO ADD AMBIGUITY
 getFastC :: String -> String -> String -> [TermData]
 getFastC modifier fileContents' fileName =
-    if null fileContents' then errorWithoutStackTrace ("\n\n'Read' command error: empty file")
-    else 
-        let fileContentLines = filter (not.null) $ fmap stripString $ lines fileContents'
+    if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
+    else
+        let fileContentLines = filter (not.null) $ stripString <$> lines fileContents'
         in
         if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
             ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
-        else 
+        else
             let fileContents = unlines $ filter ((/=';').head) fileContentLines
-            in 
+            in
             if null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
                 ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
-            else if (head fileContents) /= '>' then errorWithoutStackTrace ("\n\n'Read' command error: fasta file must start with '>'")
+            else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') $ T.pack fileContents
                     pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
@@ -364,7 +367,7 @@ getFastC modifier fileContents' fileName =
                 -- tail because initial split will an empty text
                 if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
                 else pairData
-        
+
 -- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
 recodeFASTCAmbiguities :: String -> [TermData] -> [TermData]
 recodeFASTCAmbiguities fileName inData =
@@ -386,12 +389,12 @@ concatAmbig fileName inList =
         -- not ambiguity group
         -- trace (firstGroup ++ show inList) (
         if null firstGroup then concatAmbig fileName (tail inList)
-        else if head firstGroup /= '[' then (head inList) : concatAmbig fileName (tail inList)
+        else if head firstGroup /= '[' then head inList : concatAmbig fileName (tail inList)
         else
-            let ambiguityGroup = (head inList) : getRestAmbiguityGroup fileName (tail inList)
+            let ambiguityGroup = head inList : getRestAmbiguityGroup fileName (tail inList)
             in
             --trace (show ambiguityGroup)
-            (ST.concat ambiguityGroup) : concatAmbig fileName (drop (length ambiguityGroup) inList)
+            ST.concat ambiguityGroup : concatAmbig fileName (drop (length ambiguityGroup) inList)
             --)
 
 -- | getRestAmbiguityGroup takes a list of ShorText and keeps added them until one is found with ']'
@@ -401,7 +404,7 @@ getRestAmbiguityGroup fileName inList =
     else
         let firstGroup = ST.toString $ head inList
         in
-        if ']' `notElem` firstGroup then (ST.cons ' ' $ head inList) : getRestAmbiguityGroup fileName (tail inList)
+        if ']' `notElem` firstGroup then ST.cons ' ' (head inList) : getRestAmbiguityGroup fileName (tail inList)
         else [ST.cons ' ' $ head inList]
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
@@ -413,12 +416,12 @@ getRawDataPairsFastC modifier inTextList =
         let firstText = head inTextList
             firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
-            firstDataNoGaps = filter (/= (T.pack "-")) firstData
+            firstDataNoGaps = filter (/= T.pack "-") firstData
         in
         --trace (show firstData) (
         -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap ST.fromText  $ fmap T.toStrict firstData) : getRawDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap ST.fromText $ fmap T.toStrict firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        if modifier == "prealigned" then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC modifier (tail inTextList)
+        else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
 
 -- | add to tnt
 genDiscreteDenseOfDimension

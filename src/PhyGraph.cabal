@@ -110,6 +110,7 @@ common ghc-flags
     -Wmissing-home-modules
     -Wmissing-monadfail-instances
     -Wmissing-signatures
+    -Wmissing-export-lists
     -Wnoncanonical-monad-instances
     -Wnoncanonical-monoid-instances
     -Woverflowed-literals
@@ -124,6 +125,8 @@ common ghc-flags
     -Wunused-imports
     -Wunused-matches
     -Wwrong-do-bind
+    -Wpartial-fields
+
 
   if impl(ghc >= 8.10)
     ghc-options:
@@ -214,7 +217,7 @@ executable phyg
                 , MissingH >= 1.4.3
                 , bv-little
                 -- , bits
-                , hashmap
+                -- , hashmap
                 , bimap
                 , logfloat
                 , random-shuffle
@@ -237,11 +240,10 @@ executable phyg
                   Commands.CommandExecution
                   Debug.Debug
                   Graphs.GraphOperations
-                  GraphFormatUtilities
                   GraphOptimization.Medians
-                  GraphOptimization.Traversals
                   GraphOptimization.PostOrderFunctions
                   GraphOptimization.PreOrderFunctions
+                  GraphOptimization.Traversals
                   Input.DataTransformation
                   Input.FastAC
                   Input.ReadInputFiles
@@ -250,17 +252,24 @@ executable phyg
                   Search.Build
                   Search.DistanceWagner
                   Search.DistanceMethods
+                  Search.WagnerBuild
+                  Search.Swap
                   Types.Types
                   Types.DistanceTypes
                   Utilities.Distances
                   Utilities.DistanceUtilities
                   Utilities.LocalGraph
                   Utilities.LocalSequence
-                  Utilities.Utilities
                   Utilities.TcmHash
+                  Utilities.Utilities
+                  Reconciliation.Adams
+                  Reconciliation.Eun
+                  Reconciliation.ReconcileGraphs
+                  
                   -- From PhyloLibs
                   Cyclic
                   GeneralUtilities
+                  GraphFormatUtilities
                   ParallelUtilities
                   SymMatrix
 

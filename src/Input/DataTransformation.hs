@@ -80,59 +80,53 @@ import           GeneralUtilities
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
 -- a number to character name
 -- assumes that input rawdata are a single character (as in form a single file) for sequence data
-partitionSequences :: ST.ShortText -> [RawData] -> [RawData] 
+partitionSequences :: ST.ShortText -> [RawData] -> [RawData]
 partitionSequences partChar inDataList =
     if null inDataList then []
-    else 
+    else
         let firstRawData@(taxDataList, charInfoList) = head inDataList
         in
         -- for raw seqeunce data this will always be a single character
-        if length charInfoList > 1 then firstRawData : (partitionSequences partChar (tail inDataList))
+        if (length charInfoList > 1) || (charType (head charInfoList) `notElem` [SlimSeq, WideSeq, NucSeq, AminoSeq]) then firstRawData : partitionSequences partChar (tail inDataList) else (
+       let (leafNameList, leafDataList) = unzip taxDataList
+           partitionCharList = fmap (U.splitSequence partChar) leafDataList
+           partitionCharListByPartition = makePartitionList partitionCharList
+           firstPartNumber = length $ head partitionCharList
+           allSame = filter (== firstPartNumber) $ length <$> tail partitionCharList
+           pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
+       in
 
-        -- no recoding of non-sequence data
-        else if (charType $ head charInfoList) `notElem` [SlimSeq, WideSeq, NucSeq, AminoSeq] then firstRawData : (partitionSequences partChar (tail inDataList))
+       -- check partition numbers consistent + 1 because of tail
+       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ T.unpack (name $ head charInfoList) ++ " " ++ show pairPartitions)
 
-        -- is sequence data type
-        else 
-            let (leafNameList, leafDataList) = unzip taxDataList
-                partitionCharList = fmap (U.splitSequence partChar) leafDataList
-                partitionCharListByPartition = makePartitionList partitionCharList
-                firstPartNumber = length $ head partitionCharList
-                allSame = filter (== firstPartNumber) $ fmap length $ tail partitionCharList
-                pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
-            in
+       -- if single partition then nothing to do
+       else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
 
-            -- check partition numbers consistent + 1 because of tail
-            if (((length allSame) + 1) /= length partitionCharList) then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ (T.unpack $ name $ head charInfoList) ++ " " ++ show pairPartitions)
-            
-            -- if single partition then nothing to do
-            else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
+       -- split data
+       else
+           trace ("\nPartitioning " ++ T.unpack (name $ head charInfoList) ++ " into " ++ show firstPartNumber ++ " segments\n") (
 
-            -- split data
-            else 
-                trace ("\nPartitioning " ++ (T.unpack $ name $ head charInfoList) ++ " into " ++ (show firstPartNumber) ++ " segments\n") (
-                
-                -- make new structures to create RawData list
-                let leafNameListList = replicate firstPartNumber leafNameList
+           -- make new structures to create RawData list
+           let leafNameListList = replicate firstPartNumber leafNameList
 
-                    -- these filtered from terminal partitions 
-                    leafDataListList = fmap (fmap (filter (/= (ST.fromString "#")))) partitionCharListByPartition
+               -- these filtered from terminal partitions 
+               leafDataListList = fmap (fmap (filter (/= ST.fromString "#"))) partitionCharListByPartition
 
-                    -- create TermData
-                    newTermDataList = joinLists leafNameListList leafDataListList
+               -- create TermData
+               newTermDataList = joinLists leafNameListList leafDataListList
 
-                    -- filter out taxa with empty data-- so can be reconciled proerly later
-                    newTermDataList' = fmap removeTaxaWithNoData newTermDataList
+               -- filter out taxa with empty data-- so can be reconciled proerly later
+               newTermDataList' = fmap removeTaxaWithNoData newTermDataList
 
-                    -- create final [RawData]
-                    charInfoListList = replicate firstPartNumber charInfoList
-                    newRawDataList = zip newTermDataList' charInfoListList
-                in
-                --trace (" NCI " ++ (show $ newTermDataList'))
-                newRawDataList ++ (partitionSequences partChar (tail inDataList))
-                
-                --firstRawData : (partitionSequences partChar (tail inDataList))
-                )
+               -- create final [RawData]
+               charInfoListList = replicate firstPartNumber charInfoList
+               newRawDataList = zip newTermDataList' charInfoListList
+           in
+           --trace (" NCI " ++ (show $ newTermDataList'))
+           newRawDataList ++ partitionSequences partChar (tail inDataList)
+
+           --firstRawData : (partitionSequences partChar (tail inDataList))
+           ))
 
 -- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
 -- these can be created from paritioning sequences where there are no data in a 
@@ -140,7 +134,7 @@ partitionSequences partChar inDataList =
 removeTaxaWithNoData :: [TermData] -> [TermData]
 removeTaxaWithNoData inTermData =
     if null inTermData then []
-    else 
+    else
         let newData = filter ((not . null).snd) inTermData
         in
         --trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
@@ -149,42 +143,22 @@ removeTaxaWithNoData inTermData =
 -- | joinLists takes two lists of lists (of same length) and zips the 
 -- heads of each, then continues till all joined
 joinLists :: [[a]] -> [[b]] -> [[(a,b)]]
-joinLists listA listB = 
-    if length listA /= length listB then error ("Input lists not equal " ++ show (length listA, length listB))
-    else if null listA then []
-    else 
-        let firstList = zip (head listA) (head listB)
-        in
-        firstList : joinLists (tail listA) (tail listB)
+joinLists listA listB
+  | length listA /= length listB = error ("Input lists not equal " ++ show (length listA, length listB))
+  | null listA = []
+  | otherwise =
+    let firstList = zip (head listA) (head listB)
+    in
+    firstList : joinLists (tail listA) (tail listB)
 
 -- | makePartitionList take list by taxon and retuns list by partition
 makePartitionList :: [[[ST.ShortText]]] -> [[[ST.ShortText]]]
 makePartitionList inListList =
     if null $ head inListList then []
-    else 
+    else
         let firstParList = fmap head inListList
         in
         firstParList : makePartitionList (fmap tail inListList)
-
-{-
--- | makeNewCharInfoListList take an existing charInfo and replaictes it replacing teh "name" of each one
--- by appending an index.  THis to be used to split sequence charcaters in partitionSequences
-makeNewCharInfoListList :: Int -> CharInfo -> [[CharInfo]]
-makeNewCharInfoListList numPartitions oldCharInfo =
-    let newNameIndexList = fmap show [0..(numPartitions - 1)]
-        newCharInfoList = fmap (makeNewCharInfoName oldCharInfo) newNameIndexList
-    in
-    fmap (: []) newCharInfoList
-
--- | makeNewCharInfoName takes oldCharInfo and changes name to input Text 
-makeNewCharInfoName :: CharInfo -> String -> CharInfo
-makeNewCharInfoName oldCharInfo newName = 
-    let oldName = T.unpack $ name  oldCharInfo
-        newCharInfo = oldCharInfo {name = T.pack (oldName ++ newName)}
-    in
-    trace ((oldName ++ newName) ++ " " ++ show  newCharInfo)
-    newCharInfo
--}
 
 -- | renameData takes a list of rename Text pairs (new name, oldName)
 -- and replaces the old name with the new
@@ -208,7 +182,7 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
      else
         let foundName = find ((== leafName) .snd) namePairList
         in
-        if foundName == Nothing then
+        if isNothing foundName then
           --trace ("Not renaming " ++ (T.unpack leafName)) --  ++ " " ++ show namePairList)
           terminalData
         else
@@ -221,7 +195,7 @@ getDataTerminalNames :: [RawData] -> [T.Text]
 getDataTerminalNames inDataList =
     if null inDataList then []
     else
-        L.sort $ L.nub $ fmap fst $ concat $ fmap fst inDataList
+        L.sort $ L.nub $ fst <$> concatMap fst inDataList
 
 -- | addMissingTerminalsToInput dataLeafNames renamedData
 addMissingTerminalsToInput :: [T.Text] -> [TermData]-> RawData -> RawData
@@ -231,7 +205,7 @@ addMissingTerminalsToInput dataLeafNames curTermData inData@(termDataList, charI
         let firstLeafName = head dataLeafNames
             foundLeaf = find ((== firstLeafName) .fst)  termDataList
         in
-        if foundLeaf /= Nothing then addMissingTerminalsToInput (tail dataLeafNames) ((fromJust foundLeaf) : curTermData) inData
+        if isJust foundLeaf then addMissingTerminalsToInput (tail dataLeafNames) (fromJust foundLeaf : curTermData) inData
         else addMissingTerminalsToInput (tail dataLeafNames) ((firstLeafName, []) : curTermData) inData
 
 -- | checkDuplicatedTerminals takes list TermData and checks for repeated terminal names
@@ -249,7 +223,7 @@ checkDuplicatedTerminals inData =
 -- and sorts the result
 joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
-    if ((length $ head inFileLists) == 0) then []
+    if null (head inFileLists) then []
     else
         let firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
         in
@@ -263,25 +237,25 @@ joinSortFileData inFileLists =
 createBVNames :: [RawData] -> [(T.Text, BV.BitVector)]
 createBVNames inDataList =
     let rawDataList   = fmap fst inDataList
-        textNameList  = fmap fst $ head rawDataList
-        textNameList' = fmap fst $ last rawDataList
-        
+        textNameList  = fst <$> head rawDataList
+        textNameList' = fst <$> last rawDataList
+
         fileLeafCharList = fmap (fmap snd) rawDataList
         fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
         leafList = reverse $ joinSortFileData fileLeafList
         leafHash = fmap H.hash leafList
-        leafHashPair = L.sortOn fst $ zip leafHash [0..((length textNameList) - 1)] -- textNameList
+        leafHashPair = L.sortOn fst $ zip leafHash [0..(length textNameList - 1)] -- textNameList
         (_, leafReoderedList) = unzip leafHashPair
         -- leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
         -- (nameList, intList) = unzip leafOrder
-        
+
         --bv1 = BV.bitVec (length textNameList) (1 :: Integer)
-        boolList = replicate ((length textNameList) - 1) False
+        boolList = replicate (length textNameList - 1) False
         bv1 = BV.fromBits $ True : boolList
         bvList = fmap (shiftL bv1) leafReoderedList -- [0..((length textNameList) - 1)]
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
-    else 
+    else
         -- trace (show $ fmap BV.toBits bvList) 
         zip textNameList bvList
 
@@ -307,7 +281,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace ("Empty CharInfo") createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
+        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
@@ -315,22 +289,22 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 thisBlockCharInfo = V.fromList firstCharInfo
                 recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
-                previousBlockName = if (not $ null curBlockData) then fst3 $ head curBlockData
+                previousBlockName = if not $ null curBlockData then fst3 $ head curBlockData
                                     else T.empty
-                thisBlockName' = if ((T.takeWhile (/= ':')) previousBlockName) /= ((T.takeWhile (/= ':')) thisBlockName) then thisBlockName
-                                 else 
-                                    let oldSuffix = (T.dropWhile (/= ':')) previousBlockName
+                thisBlockName' = if T.takeWhile (/= ':') previousBlockName /= T.takeWhile (/= ':') thisBlockName then thisBlockName
+                                 else
+                                    let oldSuffix = T.dropWhile (/= ':') previousBlockName
                                         indexSuffix = if T.null oldSuffix then T.pack ":0"
-                                                      else 
+                                                      else
                                                         let oldIndex = readMaybe (T.unpack $ T.tail oldSuffix) :: Maybe Int
-                                                            newIndex = 1 + (fromJust oldIndex)
+                                                            newIndex = 1 + fromJust oldIndex
                                                         in
-                                                        if oldIndex == Nothing then error "Bad suffix in createNaiveData"
+                                                        if isNothing oldIndex then error "Bad suffix in createNaiveData"
                                                         else T.pack (":" ++ show newIndex)
                                     in
-                                    T.append ((T.takeWhile (/= ':')) thisBlockName)  indexSuffix
+                                    T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
                 thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
-                
+
             in
             trace ("Recoding input block: " ++ T.unpack thisBlockName')
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
@@ -358,7 +332,7 @@ missingNonAdditive inCharInfo =
     emptyCharacter { stateBVPrelim = (V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True), mempty, mempty)
                    , stateBVFinal  = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
                    }
-    
+
 
 
 -- | missingAdditive is additive missing character value, all 1's based on alphabet size
@@ -385,11 +359,11 @@ missingMatrix inCharInfo =
 getMissingValue :: [CharInfo] -> [CharacterData]
 getMissingValue inChar
   | null inChar = []
-  | (charType $ head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = []
-  | (charType $ head inChar) == NonAdd = (missingNonAdditive  $ head inChar) : getMissingValue (tail inChar)
-  | (charType $ head inChar) ==    Add = (missingAdditive  $ head inChar) : getMissingValue (tail inChar)
-  | (charType $ head inChar) == Matrix = (missingMatrix  $ head inChar) : getMissingValue (tail inChar)
-  | otherwise= error ("Datatype " ++ (show $ charType $ head inChar) ++ " not recognized")
+  | charType (head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = []
+  | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar)
+  | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar)
+  | charType (head inChar) == Matrix = missingMatrix (head inChar) : getMissingValue (tail inChar)
+  | otherwise= error ("Datatype " ++ show (charType $ head inChar) ++ " not recognized")
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])
@@ -415,7 +389,6 @@ iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.t
     constructor  = flip BV.fromNumber 0
     encoder      = U.encodeState inputAlphabet constructor
 
-  
 -- | nucleotideBVPairs for recoding DNA sequences
 -- this done to insure not recalculating everything for each base
 nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
@@ -427,11 +400,11 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
 getAminoAcidSequenceCodes :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, BV.BitVector)
 getAminoAcidSequenceCodes localAlphabet  =
     let stateBVList = getStateBitVectorList localAlphabet
-        pairB = (ST.singleton 'B', (snd $ stateBVList V.! 2) .|. (snd $ stateBVList V.! 11)) -- B = D or N
-        pairZ = (ST.singleton 'Z', (snd $ stateBVList V.! 3) .|. (snd $ stateBVList V.! 13))-- E or Q
+        pairB = (ST.singleton 'B', snd (stateBVList V.! 2) .|. snd (stateBVList V.! 11)) -- B = D or N
+        pairZ = (ST.singleton 'Z', snd (stateBVList V.! 3) .|. snd (stateBVList V.! 13))-- E or Q
         pairX = (ST.singleton 'X', foldr1 (.|.) $ V.toList $ V.map snd (V.init stateBVList))  --All AA not '-'
         pairQuest = (ST.singleton '?', foldr1 (.|.) $ V.toList $ V.map snd stateBVList)       -- all including -'-' Not IUPAC
-        ambigPairVect = V.fromList $ [pairB, pairZ, pairX, pairQuest]
+        ambigPairVect = V.fromList [pairB, pairZ, pairX, pairQuest]
         totalStateList = stateBVList V.++ ambigPairVect
 
     in
@@ -455,8 +428,7 @@ getBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVect
 getBVCode bvCodeVect inState =
     let newCode = V.find ((== inState).fst) bvCodeVect
     in
-    if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
-    else snd $ fromJust newCode
+    maybe (error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)) snd newCode
 
 
 getNucleotideSequenceChar :: [ST.ShortText] -> [CharacterData]
@@ -492,19 +464,19 @@ getGeneralBVCode bvCodeVect inState =
     if (head inStateString /= '[') && (last inStateString /= ']') then --single state
         let newCode = V.find ((== inState).fst) bvCodeVect
         in
-        if newCode == Nothing then error ("State " ++ (ST.toString inState) ++ " not found in bitvect code " ++ show bvCodeVect)
+        if isNothing newCode then error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
         else let x = snd $ fromJust newCode
              in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
     else
         let statesStringList = words $ tail $ init inStateString
             stateList = fmap ST.fromString statesStringList
             maybeBVList =  fmap getBV stateList
-            stateBVList = fmap snd $ fmap fromJust maybeBVList
+            stateBVList = fmap (snd . fromJust) maybeBVList
             ambiguousBVState = foldr1 (.|.) stateBVList
         in
         if Nothing `elem` maybeBVList then error ("Ambiguity group " ++ inStateString ++ " contained states not found in bitvect code " ++ show bvCodeVect)
         else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, ambiguousBVState)
-            where getBV s = (V.find ((== s).fst)) bvCodeVect
+            where getBV s = V.find ((== s).fst) bvCodeVect
 
 -- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
 -- as bitvectors,.  Main difference with getSequenceChar is in dealing wioth ambiguities
@@ -514,15 +486,15 @@ getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
             stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
             (slimVec, wideVec, hugeVec) =
-              if (not $ null stateList)
+              if not $ null stateList
               then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
               else (mempty, mempty, mempty)
             newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
                                              , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
                                              , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
                                              , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
-                                             , hugePrelim         = if cType `elem` [HugeSeq          ] then hugeVec else mempty
-                                             , hugeFinal          = if cType `elem` [HugeSeq          ] then hugeVec else mempty
+                                             , hugePrelim         = if cType == HugeSeq then hugeVec else mempty
+                                             , hugeFinal          = if cType == HugeSeq then hugeVec else mempty
                                              }
         in  [newSequenceChar]
 
@@ -531,15 +503,15 @@ getGeneralSequenceChar inCharInfo stateList =
 -- based on alphabet size--does not check if ambiguous--assumes single state
 getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getSingleStateBV localAlphabet localState =
-    let stateIndex = L.findIndex (== localState) localAlphabet
+    let stateIndex = L.elemIndex localState localAlphabet
         --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
         --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
-        bv1 = BV.fromBits (True :  (replicate ((length localAlphabet) - 1) False))
+        bv1 = BV.fromBits (True :  replicate (length localAlphabet - 1) False)
         bvState = shiftL bv1 (fromJust stateIndex)
     in
-    if stateIndex ==  Nothing then
-        if (localState `elem` (fmap ST.fromString ["?","-"])) then (BV.fromBits $ replicate (length $ localAlphabet) True)
-        else error ("getSingleStateBV: State " ++ (ST.toString localState) ++ " Not found in alphabet " ++ show localAlphabet)
+    if isNothing stateIndex then
+        if localState `elem` fmap ST.fromString ["?","-"] then BV.fromBits $ replicate (length localAlphabet) True
+        else error ("getSingleStateBV: State " ++ ST.toString localState ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
@@ -562,11 +534,11 @@ getMinMaxStates inStateStringList (curMin, curMax) =
         else if '[' `notElem` firstString then
             let onlyInt = readMaybe firstString :: Maybe Int
             in
-            if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ firstString)
+            if isNothing onlyInt then error ("State not an integer in getIntRange: " ++ firstString)
             else
-                let minVal = if (fromJust onlyInt) < curMin then (fromJust onlyInt)
+                let minVal = if fromJust onlyInt < curMin then fromJust onlyInt
                              else curMin
-                    maxVal = if (fromJust onlyInt) > curMax then (fromJust onlyInt)
+                    maxVal = if fromJust onlyInt > curMax then fromJust onlyInt
                              else curMax
                 in
                 getMinMaxStates (tail inStateStringList) (minVal, maxVal)
@@ -602,7 +574,7 @@ getIntRange localState totalAlphabet =
         else if '[' `notElem` stateString then
             let onlyInt = readMaybe stateString :: Maybe Int
             in
-            if onlyInt == Nothing then error ("State not an integer in getIntRange: " ++ ST.toString localState)
+            if isNothing onlyInt then error ("State not an integer in getIntRange: " ++ ST.toString localState)
             else (fromJust onlyInt, fromJust onlyInt)
         --Range of states
         else
@@ -619,7 +591,7 @@ getTripleList hasState notHasState localAlphabet stateList =
     else
         let firstAlphState = head localAlphabet
         in
-        if firstAlphState `elem` stateList then 
+        if firstAlphState `elem` stateList then
             -- trace ("State " ++ show firstAlphState ++ " in " ++ show localAlphabet)
             hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
         else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
@@ -665,8 +637,8 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Add then
-               if firstState == (ST.fromString "-1") then
-                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingAdditive firstCharInfo) : curCharList)
+               if firstState == ST.fromString "-1" then
+                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), mempty, mempty) }
@@ -674,8 +646,8 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Matrix then
-            if (firstState `elem` (fmap ST.fromString ["?","-"])) then
-                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) ((missingMatrix firstCharInfo) : curCharList)
+            if firstState `elem` fmap ST.fromString ["?","-"] then
+                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingMatrix firstCharInfo : curCharList)
              else
                 let initialMatrixVector = getInitialMatrixVector (alphabet firstCharInfo) firstState
                     newCharacter = emptyCharacter { matrixStatesPrelim = V.singleton initialMatrixVector }
@@ -683,7 +655,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
             -- trace (show initialMatrixVector) (
             --trace ((show $ alphabet firstCharInfo) ++ " " ++ (ST.toString firstState)) (
             --trace ("GQC " ++ (T.unpack $ name firstCharInfo) ++ (show $ alphabet firstCharInfo) ++ " " ++ (show $ costMatrix firstCharInfo)) (
-            if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ (T.unpack $ (name firstCharInfo)))
+            if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ T.unpack (name firstCharInfo))
             else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
             -- )
 
@@ -694,24 +666,22 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
 -- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
 -- need to add in missing data as well
 createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
-createLeafCharacter inCharInfoList rawDataList =
-    if      null inCharInfoList then
-            error "Null data in charInfoList createLeafCharacter"
-
-    else if null rawDataList    then  -- missing data
-            getMissingValue inCharInfoList
-
-    else let localCharType = charType $ head inCharInfoList
-         in if (length inCharInfoList == 1) then
-              case localCharType of
-                  NucSeq   -> getNucleotideSequenceChar rawDataList
-                  AminoSeq ->  getAminoAcidSequenceChar rawDataList
-                  -- ambiguities different, and alphabet varies with character (potentially)
-                  SlimSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
-                  WideSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
-                  HugeSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
-                  _        -> getQualitativeCharacters inCharInfoList rawDataList []
-           else if length inCharInfoList /= length rawDataList then
-                     error ("Mismatch in number of characters and character info")
-           else  getQualitativeCharacters inCharInfoList rawDataList []
+createLeafCharacter inCharInfoList rawDataList
+  | null inCharInfoList =
+        error "Null data in charInfoList createLeafCharacter"
+  | null rawDataList =  -- missing data
+   getMissingValue inCharInfoList
+  | otherwise = let localCharType = charType $ head inCharInfoList
+                in if length inCharInfoList == 1 then
+                     case localCharType of
+                         NucSeq   -> getNucleotideSequenceChar rawDataList
+                         AminoSeq ->  getAminoAcidSequenceChar rawDataList
+                         -- ambiguities different, and alphabet varies with character (potentially)
+                         SlimSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         WideSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         HugeSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         _        -> getQualitativeCharacters inCharInfoList rawDataList []
+                  else if length inCharInfoList /= length rawDataList then
+                            error "Mismatch in number of characters and character info"
+                  else  getQualitativeCharacters inCharInfoList rawDataList []
 

@@ -1,0 +1,8 @@
+read(fasta:"chel.fas")
+build(replicates:10)
+swap(spr)
+--build(distance, rdwag, replicates:10, best:10)
+-- report("new-401-distance.csv", pairdist, overwrite)
+-- set(graphType:softwired)
+report("chel-wag.dot", overwrite, graphs, dot)
+report("chel-wag.tre", overwrite, graphs, newick)

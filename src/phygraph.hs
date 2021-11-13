@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Main where
+module Main (main) where
 
 import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
@@ -53,7 +53,7 @@ import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
 import qualified Input.Reorganize             as R
-import qualified Utilities.LocalGraph         as LG
+-- import qualified Utilities.LocalGraph         as LG
 
 -- | main driver
 main :: IO ()
@@ -175,7 +175,10 @@ main = do
                                                , optimalityCriterion = Parsimony
                                                , graphType = Tree
                                                , compressResolutions = True
-                                               , finalAssignment = ImpliedAlignment}
+                                               , finalAssignment = ImpliedAlignment
+                                               , graphFactor = Wheeler2015Network
+                                               , rootCost = NoRootCost
+                                               }
     --hPutStrLn stderr (show defaultGlobalSettings)
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock
@@ -183,7 +186,7 @@ main = do
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList initialSetCommands
-    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData) (fmap (GO.rerootGraph (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True) (fmap (GO.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
     
 
     -- Create lazy pairwise distances if needed later for build or report
