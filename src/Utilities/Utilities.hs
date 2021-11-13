@@ -43,7 +43,6 @@ import           Data.BitVector.LittleEndian (BitVector)
 import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-import Bio.Character.Encodable.Dynamic  -- this has DynamicCharacter reference
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 -- import Data.Alphabet.Special
@@ -103,30 +102,6 @@ splitSequence partitionST stList =
         else if not $ null restList then firstPart : splitSequence partitionST (tail restList)
         else [firstPart]
 
-
-
--- | dynamicCharacterTo3Vector takes a DYnamicCharacter and returns three Vectors
-dynamicCharacterTo3Vector :: DynamicCharacter -> (Word, V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-dynamicCharacterTo3Vector (Missing x) = (x, V.empty, V.empty, V.empty)
-dynamicCharacterTo3Vector (DC x) =
-    let neVect = V.fromList $ toList x
-        (a,b,c) = V.unzip3 neVect
-    in
-    (0 :: Word, a, b, c)
-
-
-convertVectorToDynamicCharacter :: V.Vector BV.BitVector -> DynamicCharacter
-convertVectorToDynamicCharacter inVector =
-    let lenAlph = BV.dimension $ V.head inVector
-        arbitraryAlphabet = fromSymbols $ show <$> 0 :| [1 .. lenAlph - 1]
-    in
-    encodeStream arbitraryAlphabet $ fmap (NE.fromList . f 0 . BV.toBits) . NE.fromList $ toList  inVector
-    where
-        f :: Word -> [Bool] -> [String]
-        f _ [] = []
-        f n (x:xs)
-            | x = show n : f (n+1) xs
-            | otherwise = f (n+1) xs
 
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
