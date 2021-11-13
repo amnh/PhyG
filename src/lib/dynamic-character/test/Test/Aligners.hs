@@ -20,7 +20,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Test.Aligners where
+module Test.Aligners
+  ( alignmentMetricCombinations
+  , alignmentChoices
+  , metricChoices
+  ) where
 
 import Bio.DynamicCharacter
 import Data.Bifunctor
