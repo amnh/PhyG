@@ -20,7 +20,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module DirectOptimization.Pairwise.Test where
+module DirectOptimization.Pairwise.Test
+  ( testSuite
+  ) where
 
 import           Bio.DynamicCharacter
 import           Bio.DynamicCharacter.HandleGaps
@@ -120,7 +122,7 @@ knownErrorCases = testGroup "Known Error Cases"
         "a--c?dg-c-WBgB-T"
         " - s D   ?wB S-T"
 
-    , specialCase2 "002" (checkAlignmentResults $ withMetric 0)
+    , specialCase2 "008" (checkAlignmentResults $ withMetric 0)
         "GGG AGsAAH"
         "GDgtagvWAA"
         "GW T  ATaA"
@@ -129,6 +131,41 @@ knownErrorCases = testGroup "Known Error Cases"
         "tS?cSRTNAB"
         " G CCATBAY"
 
+    , specialCase2 "009" (checkAlignmentResults $ withMetric 0)
+        "GA?AHGGW T sA"
+        "S??MhgBTcKsca"
+        "Cb?C  YbCGSh-"
+
+        "?c G Cd ACATG"
+        "hCgRmC?cWMRYG"
+        "hBGAMBCCTAGCG"
+    
+    , specialCase2 "010" (checkAlignmentResults $ withMetric 0)
+        "TMCG ACATTCA"
+        "WCCggNMaWTcR"
+        "ACB GBA-AT G"
+
+        "ACB GBA-AT G"
+        "svagggb?aWTt"
+        "Cr G- sA TT "
+
+    , specialCase2 "011" (checkAlignmentResults $ withMetric 0)
+        "TH TTTT ?"
+        "TNtttKbtG"
+        "TGT  GsTG"
+
+        "-  A -TTK"
+        "cgcaattWB"
+        "CGC-AT AC"
+
+    , specialCase2 "012" (checkAlignmentResults $ withMetric 0)
+        "?G?TT Y  G"
+        "TGNTYgytc?"
+        "TGNyCG-TCh"
+
+        "TCTTTTGMTG"
+        "wcttTtRHtS"
+        "a  -y AT-C"
     ]
   where
     withMetric     = (metricChoices !!)

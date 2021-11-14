@@ -33,6 +33,7 @@ module Data.Alphabet.Internal
   , fromSymbolsWithStateNames
   , fromSymbolsWithStateNamesAndTCM
   , fromSymbolsWithTCM
+  , gapIndex
   , gapSymbol
   , symbolSet
   , truncateAtSymbol
@@ -74,7 +75,7 @@ import           GHC.Generics                        (Generic)
 import           Numeric.Natural
 import           Prelude                             hiding (lookup, unzip, zip)
 import           Test.QuickCheck
-import           Test.QuickCheck.Arbitrary.Instances ()
+--import           Test.QuickCheck.Arbitrary.Instances ()
 
 
 -- |

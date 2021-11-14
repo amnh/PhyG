@@ -528,32 +528,9 @@ library utility
               
 
   exposed-modules:
-    Control.Parallel.Custom
-    Data.BitMatrix
-    Data.Either.Custom
-    Data.Foldable.Custom
     Data.List.Utility
     Data.Matrix.NotStupid
-    Data.MutualExclusionSet
-    Data.Pair.Strict
-    Data.Range
-    Data.ShortText.Custom
-    Data.UnionSet
-    Data.Vector.Custom
-    Data.Vector.Memo
     Data.Vector.NonEmpty
-    Numeric.Cost
-    Numeric.Extended
-    Numeric.Extended.Natural
-    Numeric.Extended.Real
-    Numeric.NonNegativeAverage
-    Test.HUnit.Custom
-    Test.QuickCheck.Arbitrary.Instances
-
-  other-modules:
-    Data.BitMatrix.Internal
-    Data.MutualExclusionSet.Internal
-    Numeric.Extended.Internal
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
