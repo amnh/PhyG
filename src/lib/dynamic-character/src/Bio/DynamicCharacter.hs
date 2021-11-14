@@ -33,6 +33,7 @@ module Bio.DynamicCharacter
   , setDelete
   , setInsert
   , setGapped
+  , setFrom
   , transposeCharacter
     -- * Extractors
   , extractMedians
@@ -192,6 +193,23 @@ isGap (_,mc,_) i = i < GV.length mc &&
 {-# SPECIALISE isMissing :: HugeDynamicCharacter -> Bool #-}
 isMissing :: Vector v e => OpenDynamicCharacter v e -> Bool
 isMissing (x,y,z) = GV.length x == 0 && GV.length y == 0 && GV.length z == 0
+
+
+{-# INLINEABLE setFrom #-}
+{-# SPECIALISE setFrom :: SlimDynamicCharacter -> TempSlimDynamicCharacter (ST s) -> Int -> Int -> ST s () #-}
+{-# SPECIALISE setFrom :: WideDynamicCharacter -> TempWideDynamicCharacter (ST s) -> Int -> Int -> ST s () #-}
+{-# SPECIALISE setFrom :: HugeDynamicCharacter -> TempHugeDynamicCharacter (ST s) -> Int -> Int -> ST s () #-}
+setFrom
+  :: ( PrimMonad m
+     , Vector v e
+     )
+  => OpenDynamicCharacter v e  -- ^ source
+  -> TempOpenDynamicCharacter m v e -- ^ destination
+  -> Int -- ^ Index to read from source
+  -> Int -- ^ Index to write to destination
+  -> m ()
+setFrom (slc,smc,src) (dlc,dmc,drc) i j =
+    unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
 
 
 {-# INLINEABLE setAlign #-}

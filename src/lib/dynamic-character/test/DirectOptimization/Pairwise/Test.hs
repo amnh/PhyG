@@ -455,9 +455,12 @@ commutivity alignmentλ (DNA lhs :×: DNA rhs) =
 -- |
 -- Ensure that all three implementations return the same results
 consistencySuite :: TestTree
-consistencySuite = testGroup "All implementations return same alignments" $
+consistencySuite = testGroup description $
     consistentResults <$> metricChoices
-
+  where
+    preamble = "All of these implementations return same alignments:"
+    description = intercalate "\n        * " $ preamble : (fst <$> alignmentChoices)
+      
 
 consistentResults :: (String, MetricRepresentation Word32) -> TestTree
 consistentResults param@(testLabel, _) =

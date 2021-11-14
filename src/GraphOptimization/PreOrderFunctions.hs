@@ -744,7 +744,7 @@ assignFinal finalMethod childType isLeft charInfo isOutDegree1 = V.zipWith (setF
 setFinal :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
 setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar =
    let localCharType = charType charInfo
-       symbolCount = toEnum $ length $ costMatrix charInfo
+       symbolCount = toEnum $ length $ costMatrix charInfo :: Int
    in
    -- Three cases, Root, leaf, HTU
    --trace ("set final:" ++ (show isLeft) ++ " " ++ (show isOutDegree1) ++ " " ++ (show $ slimAlignment parentChar) ++ " " 
@@ -787,20 +787,20 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAlignment = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (slimGapped childChar)
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
          childChar {slimFinal = finalAssignment', slimAlignment = finalAlignment}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         let finalAlignment = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+         let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (wideGapped childChar)
          in
          childChar {wideFinal = finalAssignment', wideAlignment = finalAlignment}
 
       else if localCharType == HugeSeq then
-         let finalAlignment = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (hugeGapped childChar)
          in
          childChar {hugeFinal = finalAssignment', hugeAlignment = finalAlignment}
@@ -829,7 +829,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalGapped = DOP.preOrderLogic symbolCount isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinal = ((slimFinal parentChar, mempty, mempty), mempty, mempty)
                                         -- parentGapped = (slimGapped parentChar, mempty, mempty)
@@ -844,7 +844,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
          -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         let finalGapped = DOP.preOrderLogic symbolCount isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+         let finalGapped = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinal = (mempty, (mempty, wideFinal parentChar, mempty), mempty)
                                         --parentGapped = (mempty, wideGapped parentChar, mempty)
@@ -857,7 +857,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
          childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
 
       else if localCharType == HugeSeq then
-         let finalGapped = DOP.preOrderLogic symbolCount isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalGapped = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinal = (mempty, mempty, (mempty, mempty, hugeFinal parentChar))
                                         -- parentGapped = (mempty, mempty, hugeGapped parentChar)
@@ -1002,7 +1002,7 @@ slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList ne
 -- used as true final sequence assignments using M.createUngappedMedianSequence
 getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
-   let gap = bit $ symbolCount - 1
+   let gap = bit 0
        newFinal = SV.zipWith3 (local3WaySlim lSlimTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
@@ -1010,7 +1010,7 @@ getFinal3WaySlim lSlimTCM symbolCount parentFinal descendantLeftPrelim descendan
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
 getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a -> v a
 getFinal3WayWideHuge whTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
-   let gap = bit $ symbolCount - 1
+   let gap = bit 0
        newFinal = GV.zipWith3 (local3WayWideHuge whTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
@@ -1040,7 +1040,7 @@ local3WaySlim lSlimTCM gap b c d =
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
 get2WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 get2WaySlim lSlimTCM symbolCount descendantLeftPrelim descendantRightPrelim =
-   let gap = bit $ symbolCount - 1
+   let gap = bit 0
        median = SV.zipWith (local2WaySlim lSlimTCM gap) descendantLeftPrelim descendantRightPrelim
    in
    median
@@ -1058,7 +1058,7 @@ local2WaySlim lSlimTCM gap b c =
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
 get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a
 get2WayWideHuge whTCM symbolCount descendantLeftPrelim descendantRightPrelim =
-   let gap = bit $ symbolCount - 1
+   let gap = bit 0
        median = GV.zipWith (local2WayWideHuge whTCM gap) descendantLeftPrelim descendantRightPrelim
    in
    median

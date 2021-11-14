@@ -4,14 +4,11 @@ module DirectOptimization.PreOrder
   ( preOrderLogic
   ) where
 
-import           Bio.DynamicCharacter
-import           Control.Monad
-import           Control.Monad.ST
-import           Data.Bits
-import           Data.STRef
-import           Data.Vector.Generic         (Vector, (!))
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Generic.Mutable as MGV
+import Bio.DynamicCharacter
+import Control.Monad
+import Data.Bits
+import Data.STRef
+import Data.Vector.Generic (Vector)
 
 
 -- |
@@ -19,55 +16,44 @@ import qualified Data.Vector.Generic.Mutable as MGV
 -- "Efficient Implied Alignment" paper found at:
 -- <https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2 DOI>
 {-# INLINEABLE preOrderLogic #-}
-{-# SPECIALISE preOrderLogic :: Word -> Bool -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
-{-# SPECIALISE preOrderLogic :: Word -> Bool -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter #-}
-{-# SPECIALISE preOrderLogic :: Word -> Bool -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
+{-# SPECIALISE preOrderLogic :: Bool -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
+{-# SPECIALISE preOrderLogic :: Bool -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter #-}
+{-# SPECIALISE preOrderLogic :: Bool -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
 preOrderLogic
   :: ( FiniteBits a
      , Vector v a
      )
-  => Word
-  -> Bool
+  => Bool
   -> (v a, v a, v a) -- ^ Parent Final       Alignment
   -> (v a, v a, v a) -- ^ Parent Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Preliminary Context
   -> (v a, v a, v a) -- ^ Child  Final       Alignment
-preOrderLogic symbolCount isLeftChild pAlignment@(x,_,_) pContext cContext@(xs,ys,zs)
-  | isMissing cContext = mAlignment -- Missing case is all gaps
-  | otherwise          = cAlignment
+preOrderLogic isLeftChild pAlignment pContext cContext = unsafeCharacterBuiltByST caLen f
   where
-    wlog  = x ! 0
-    zero  = wlog `xor` wlog
-    gap   = bit . fromEnum $ symbolCount - 1
-    paLen = fromEnum $ characterLength pAlignment
+    paLen = fromEnum $ caLen
     ccLen = fromEnum $ characterLength cContext
+    caLen = characterLength pAlignment
 
-    mAlignment =
-      let zeds = GV.replicate paLen zero
-      in  (GV.replicate paLen gap, zeds, zeds)
+    -- Select character building function
+    f | isMissing cContext = missingλ   -- Missing case is all gaps
+      | otherwise          = alignmentλ -- Standard pre-order logic
 
-    cAlignment = runST $ do
-      j'  <- newSTRef 0
-      k'  <- newSTRef 0
-      tempAlign@(xs',ys',zs') <- (,,) <$> MGV.unsafeNew paLen
-                                      <*> MGV.unsafeNew paLen
-                                      <*> MGV.unsafeNew paLen
+    missingλ char = 
+      forM_ [0 .. paLen - 1] (char `setGapped`)
 
-      let setAt k i = setAlign tempAlign i (xs ! k) (ys ! k) (zs ! k)
+    alignmentλ char =  do
+        j'  <- newSTRef 0
+        k'  <- newSTRef 0
 
-      forM_ [0 .. paLen - 1] $ \i -> do
-          k <- readSTRef k'
-          if   k > ccLen || pAlignment `isGapped` i
-          then tempAlign `setGapped` i
-          else do
-              j <- readSTRef j'
-              modifySTRef j' succ
-              if    pAlignment `isAlign` i
-                || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
-                || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-              then tempAlign `setGapped` i
-              else modifySTRef k' succ *> (k `setAt` i)
-
-      (,,) <$> GV.basicUnsafeFreeze xs'
-           <*> GV.basicUnsafeFreeze ys'
-           <*> GV.basicUnsafeFreeze zs'
+        forM_ [0 .. paLen - 1] $ \i -> do
+            k <- readSTRef k'
+            if   k > ccLen || pAlignment `isGapped` i
+            then char `setGapped` i
+            else do
+                j <- readSTRef j'
+                modifySTRef j' succ
+                if    pAlignment `isAlign` i
+                  || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
+                  || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
+                then char `setGapped` i
+                else modifySTRef k' succ *> setFrom cContext char k i
