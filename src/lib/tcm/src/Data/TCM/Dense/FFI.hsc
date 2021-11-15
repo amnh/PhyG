@@ -44,6 +44,7 @@ import Foreign.C.Types
 import GHC.Generics     (Generic)
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
+import Debug.Trace
 
 
 #include "c_alignment_interface.h"
@@ -400,7 +401,10 @@ lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     let off = fromEnum e1 * dim * dim + fromEnum e2 * dim + fromEnum e3
     cost <- peek $ advancePtr (bestCost3D cm3d) off
     med  <- peek $ advancePtr ( medians3D cm3d) off
-    let val = toEnum $ fromEnum med
+
+    -- THis line I believe is just a work around 
+    let val = if (med == -2147483648) then toEnum $ fromEnum 0
+              else toEnum $ fromEnum med
     pure (val, toEnum $ fromEnum cost)
 
 

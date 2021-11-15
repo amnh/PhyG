@@ -307,7 +307,6 @@ preOrderIA inGraph charInfo inNodePairList =
                             , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
                             }
                   | otherwise = error ("Unrecognized character type " ++ show characterType)
-
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
@@ -574,16 +573,16 @@ getBlockCostPairs finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
     in
     (minCost, maxCost)
 
--- | getCharacterDist takes a pair of characters and character type, retunring teh minimum and maximum character distances
--- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/seqeunce length
+-- | getCharacterDist takes a pair of characters and character type, returning the minimum and maximum character distances
+-- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/sequence length
 getCharacterDist :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
 getCharacterDist finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
-        gapChar = bit $ length thisMatrix - 1
-        gapCharWide = (bit $ length thisMatrix - 1) :: Word64
-        gapCharBV = (bit $ length thisMatrix - 1) :: BV.BitVector
+        gapChar = bit 0
+        gapCharWide = bit 0 :: Word64
+        gapCharBV = bit 0 :: BV.BitVector
     in
     if thisCharType == Add then
         let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
@@ -664,17 +663,17 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
 
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value 
 zero2Gap :: (FiniteBits a) => a -> a -> a
-zero2Gap gapChar inVal = if popCount inVal == 0 then gapChar
+zero2Gap gapChar inVal = if inVal == zeroBits then bit 0
                          else inVal
 
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
 zero2GapWide :: Word64 -> Word64 -> Word64
-zero2GapWide gapChar inVal = if popCount inVal == 0 then gapChar
+zero2GapWide gapChar inVal = if inVal == zeroBits  then bit 0
                          else inVal
 
 -- | zero2GapBV converts a '0' or no bits set to gap (indel) value 
 zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
-zero2GapBV gapChar inVal = if popCount inVal == 0 then gapChar
+zero2GapBV gapChar inVal = if inVal == zeroBits then bit 0
                          else inVal
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
@@ -701,15 +700,20 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
 
 -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
 -- cost differences using matrix values
-generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+-- if value has no bits on--it is set to 0th bit on for GAP
+generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
-    let uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState) [0.. numStates - 1]) [0.. numStates - 1]
-        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState) [0.. numStates - 1]) [0.. numStates - 1]
+    -- trace ("GSD: " ++ (show (numStates, uState, vState))) (
+    let uState' = if uState == zeroBits then bit 0 else uState
+        vState' = if vState == zeroBits then bit 0 else vState
+        uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
+        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
         uvCombinations = cartProd uStateList vStateList
         costOfPairs = fmap (thisMatrix S.!) uvCombinations
     in
     -- trace ("GSD: " ++ (show uStateList) ++ " " ++ (show vStateList) ++ " min " ++ (show $ minimum costOfPairs) ++ " max " ++ (show $  maximum costOfPairs))
     (minimum costOfPairs, maximum costOfPairs)
+    -- )
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
@@ -1018,9 +1022,9 @@ getFinal3WayWideHuge whTCM symbolCount parentFinal descendantLeftPrelim descenda
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
 local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a-> a -> a -> a -> a
 local3WayWideHuge lWideTCM gap b c d =
-   let  b' = if popCount b == 0 then gap else b
-        c' = if popCount c == 0 then gap else c
-        d' = if popCount d == 0 then gap else d
+   let  b' = if b == zeroBits then gap else b
+        c' = if c == zeroBits then gap else c
+        d' = if d == zeroBits then gap else d
         (median, _) = MR.retreiveThreewayTCM lWideTCM b' c' d'
    in
    -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
@@ -1029,13 +1033,15 @@ local3WayWideHuge lWideTCM gap b c d =
 -- | local3WaySlim takes triple of CUInt and retuns median
 local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt -> CUInt
 local3WaySlim lSlimTCM gap b c d =
- let  b' = if popCount b == 0 then gap else b
-      c' = if popCount c == 0 then gap else c
-      d' = if popCount d == 0 then gap else d
+ -- trace ("L3WS: " ++ (show (b,c,d))) (
+ let  b' = if b == zeroBits then gap else b
+      c' = if c == zeroBits then gap else c
+      d' = if d == zeroBits then gap else d
       (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
  in
  -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
  median
+ -- )
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
 get2WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
@@ -1048,8 +1054,8 @@ get2WaySlim lSlimTCM symbolCount descendantLeftPrelim descendantRightPrelim =
 -- | local2WaySlim takes pair of CUInt and retuns median
 local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
 local2WaySlim lSlimTCM gap b c =
- let  b' = if popCount b == 0 then gap else b
-      c' = if popCount c == 0 then gap else c
+ let  b' = if b == zeroBits then gap else b
+      c' = if c == zeroBits then gap else c
       (median, _) = TCMD.lookupPairwise lSlimTCM b' c'
  in
  -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
@@ -1066,8 +1072,8 @@ get2WayWideHuge whTCM symbolCount descendantLeftPrelim descendantRightPrelim =
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
 local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
 local2WayWideHuge lWideTCM gap b c =
-   let  b' = if popCount b == 0 then gap else b
-        c' = if popCount c == 0 then gap else c
+   let  b' = if b == zeroBits then gap else b
+        c' = if c == zeroBits then gap else c
         (median, _) = MR.retreivePairwiseTCM lWideTCM b' c'
    in
    -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
