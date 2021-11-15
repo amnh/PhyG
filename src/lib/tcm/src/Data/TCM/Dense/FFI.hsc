@@ -375,7 +375,8 @@ lookupPairwise
   -> (CUInt, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
-    let dim = 1 `shiftL` (fromEnum (alphSize cm2d))
+    let mov = fromEnum $ alphSize cm2d - 1
+    let dim = 1 `shiftL` mov
     let off = fromEnum e1 * dim + fromEnum e2
     cost <- peek $ advancePtr (bestCost cm2d) off
     med  <- peek $ advancePtr (medians  cm2d) off
@@ -397,14 +398,13 @@ lookupThreeway
   -> (CUInt, Word)
 lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     cm3d <- peek $ costMatrix3D dtcm
-    let dim = 1 `shiftL` (fromEnum (alphSize3D cm3d))
+    let mov = fromEnum $ alphSize3D cm3d - 1
+    let dim = 1 `shiftL` mov
     let off = fromEnum e1 * dim * dim + fromEnum e2 * dim + fromEnum e3
     cost <- peek $ advancePtr (bestCost3D cm3d) off
     med  <- peek $ advancePtr ( medians3D cm3d) off
+    let val = toEnum $ fromEnum med
 
-    -- THis line I believe is just a work around 
-    let val = if (med == -2147483648) then toEnum $ fromEnum 0
-              else toEnum $ fromEnum med
     pure (val, toEnum $ fromEnum cost)
 
 
