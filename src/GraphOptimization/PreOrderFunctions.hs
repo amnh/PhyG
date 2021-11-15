@@ -835,7 +835,8 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
-                                    let parentFinal = ((slimFinal parentChar, mempty, mempty), mempty, mempty)
+                                    let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
+                                        parentFinal = (parentFinalDC, mempty, mempty)
                                         -- parentGapped = (slimGapped parentChar, mempty, mempty)
                                         childGapped = (slimGapped childChar, mempty, mempty)
                                         finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal  childGapped
@@ -850,7 +851,8 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
-                                    let parentFinal = (mempty, (mempty, wideFinal parentChar, mempty), mempty)
+                                    let parentFinalDC = M.makeDynamicCharacterFromSingleVector (wideFinal parentChar)
+                                        parentFinal = (mempty, parentFinalDC, mempty)
                                         --parentGapped = (mempty, wideGapped parentChar, mempty)
                                         childGapped = (mempty, wideGapped childChar, mempty)
                                         finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal  childGapped
@@ -863,7 +865,8 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       else if localCharType == HugeSeq then
          let finalGapped = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
-                                    let parentFinal = (mempty, mempty, (mempty, mempty, hugeFinal parentChar))
+                                    let parentFinalDC = M.makeDynamicCharacterFromSingleVector (hugeFinal parentChar)
+                                        parentFinal = (mempty, mempty, parentFinalDC)
                                         -- parentGapped = (mempty, mempty, hugeGapped parentChar)
                                         childGapped = (mempty, mempty, hugeGapped childChar)
                                         finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
@@ -922,7 +925,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
 -- to get the final state.  This takes place in several steps
 --    1) align (DOMedian) parent final with node gapped (ie node preliminary)
---    2) propagate new gaps in aligned node preliminary to child gapped in node tripe (snd and thd)
+--    2) propagate new gaps in aligned node preliminary to child gapped in node triple (snd and thd)
 --       creating a 3-way alignment with parent final and child preliminary
 --    3) apply appropriate get3way for the structure
 -- The final is then returned--with gaps to be filtered afterwards
@@ -935,7 +938,7 @@ getDOFinal charInfo parentFinal nodeGapped =
    let (a,b,c,_) = M.pairwiseDO charInfo parentFinal nodeGapped
        parentNodeChar = (a,b,c)
 
-       -- put "new" gaps into 2nd and thd gapped fileds of appropriate seqeunce type
+       -- put "new" gaps into 2nd and thd gapped fields of appropriate seqeunce type
        gappedFinal = makeGappedLeftRight charInfo parentNodeChar nodeGapped
    in
    gappedFinal
@@ -955,19 +958,19 @@ makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
       let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (fst3 gappedLeftRight) (fst3 nodeChar)
           newFinalGapped = getFinal3WaySlim (slimTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
       in
-      ((newFinalGapped, mempty, mempty), mempty, mempty)
+      (M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty, mempty)
 
    else if localCharType `elem` [AminoSeq, WideSeq] then
       let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (snd3 gappedLeftRight) (snd3 nodeChar)
           newFinalGapped = getFinal3WayWideHuge (wideTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
       in
-      (mempty, (newFinalGapped, mempty, mempty), mempty)
+      (mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty)
 
    else if localCharType == HugeSeq then
       let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (thd3 gappedLeftRight) (thd3 nodeChar)
           newFinalGapped = getFinal3WayWideHuge (hugeTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
       in
-      (mempty, mempty, (newFinalGapped, mempty, mempty))
+      (mempty, mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped)
 
    else error ("Unrecognized character type: " ++ show localCharType)
 
@@ -976,7 +979,7 @@ addGapsToChildren :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> 
 addGapsToChildren symbols (_, reGappedParentFinal, reGappedNodePrelim) (gappedNodePrelim, gappedLeftChild, gappedRightChild) =
    let (reGappedLeft, reGappedRight) = slideRegap symbols reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
-   if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not smae length "
+   if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
       ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
    else (reGappedParentFinal, reGappedLeft, reGappedRight)
 
@@ -993,7 +996,7 @@ slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList ne
       if firstRGN == firstGN then
          slideRegap symbols (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
       else
-         let gap = bit $ symbols - 1
+         let gap = bit 0
          in
          slideRegap symbols (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
 
@@ -1037,7 +1040,9 @@ local3WaySlim lSlimTCM gap b c d =
  let  b' = if b == zeroBits then gap else b
       c' = if c == zeroBits then gap else c
       d' = if d == zeroBits then gap else d
-      (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
+ in
+ -- trace ("L3WS: " ++ (show (b',c',d'))) (
+ let (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
  in
  -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
  median

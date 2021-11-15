@@ -51,6 +51,7 @@ module GraphOptimization.Medians  ( median2
                                   , getDOMedian
                                   , getDOMedianCharInfo
                                   , pairwiseDO
+                                  , makeDynamicCharacterFromSingleVector
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -69,6 +70,11 @@ import           Types.Types
 
 
 --import qualified Data.Alphabet as DALPH
+
+-- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
+-- and returns a dynamic character that canbe used with other functions
+makeDynamicCharacterFromSingleVector :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a)
+makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
 -- | median2 takes the vectors of characters and applies media2 to each
 -- character
@@ -393,6 +399,6 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence symbols v@(m,_,_) = GV.ifilter f m
   where
-    gap = bit $ symbols - 1
+    gap = bit 0 -- bit $ symbols - 1
     f i e = e /= gap && not (isGapped v i)
 
