@@ -439,7 +439,7 @@ cm_alloc_3d ( cost_matrices_3d_t *res
                       * (res->costMatrixDimension + 1)
                       * (res->costMatrixDimension + 1);
 
-    res->cost         = calloc (size * sizeof(int),  1);
+    res->cost         = calloc (size * sizeof(int   ), 1);
     res->median       = calloc (size * sizeof(elem_t), 1);
     assert(   res->cost   != NULL
            && res->median != NULL
