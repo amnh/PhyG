@@ -14,14 +14,9 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE ApplicativeDo              #-}
-{-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE Strict                     #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE UnboxedTuples              #-}
 
 module Bio.DynamicCharacter.HandleGaps
   ( GapSet()
@@ -78,8 +73,8 @@ deleteGaps
   => OpenDynamicCharacter v e -- ^ Dynamic character
   -> (GapSet, OpenDynamicCharacter v e)
 deleteGaps c@(x,y,z)
-  | GV.null x   = (noGaps,       c)
-  | null gaps   = (noGaps,       c)
+  | GV.null x   = (noGaps,         c)
+  | null gaps   = (noGaps,         c)
   | newLen == 0 = (gapSet,   missing)
   | otherwise   = (gapSet, newVector)
   where

@@ -13,8 +13,6 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE ApplicativeDo         #-}
-{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DerivingStrategies    #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}

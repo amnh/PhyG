@@ -13,14 +13,9 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE ApplicativeDo         #-}
-{-# LANGUAGE ConstraintKinds       #-}
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Strict                #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE UnboxedTuples         #-}
+{-# LANGUAGE ApplicativeDo    #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Strict           #-}
 
 module DirectOptimization.Pairwise.Internal
   ( -- * Alignment types

@@ -30,7 +30,7 @@ preOrderLogic
   -> (v a, v a, v a) -- ^ Child  Final       Alignment
 preOrderLogic isLeftChild pAlignment pContext cContext = unsafeCharacterBuiltByST caLen f
   where
-    paLen = fromEnum $ caLen
+    paLen = fromEnum caLen
     ccLen = fromEnum $ characterLength cContext
     caLen = characterLength pAlignment
 
