@@ -42,7 +42,7 @@ module Commands.CommandExecution
 import qualified Data.CSV               as CSV
 import qualified Data.List              as L
 import           Data.Maybe
-import           Text.Read
+-- import           Text.Read
 import qualified Data.Text.Lazy         as T
 import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V

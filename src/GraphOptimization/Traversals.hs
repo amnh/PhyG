@@ -77,8 +77,9 @@ import qualified Data.BitVector.LittleEndian as BV
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree, 
 -- Soft-wired network graph, and Hard-wired network graph
-multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> Bool -> Bool -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
+-- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
+multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
   | LG.isEmpty inGraph = emptyPhylogeneticGraph
   | graphType inGS == Tree =
     -- test for Tree
@@ -86,11 +87,11 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
     in
     if null networkVertexList then 
         let leafGraph = makeLeafGraph inData
-        in multiTraverseFullyLabelTree inGS inData leafGraph inGraph
+        in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
     else errorWithoutStackTrace "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type"
       | graphType inGS == SoftWired = 
         let leafGraph = makeLeafGraphSoftWired inData
-        in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph inGraph
+        in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
       | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
       | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
 
@@ -100,8 +101,9 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges inGraph
 -- pruneEdges and warnPruneEdges specify if unused edges (ie not in diuaplytrees) are pruned from
 -- canonical tree or if an infinity cost is returned and if a trace warning is thrown if so.
 -- in general--input trees should use "pruneEdges" during search--not
-multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph inSimpleGraph =
+-- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
+multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
         let -- for special casing of nonexact and single exact characters
@@ -110,12 +112,16 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
 
 
             -- post order pass-- rerooted because to keep track of rerooting in Graphs
-            outgroupRootedSoftWiredPostOrder = postOrderSoftWiredTraversal inGS inData leafGraph $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+            outgroupRootedSoftWiredPostOrder = if startVertex == Nothing then postOrderSoftWiredTraversal inGS inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+                                               else postOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
 
             -- root node--invariant even when rerooted
             -- (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
 
-            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder)
+            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
+                              else [fromJust startVertex]
+
+            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) startVertexList
             grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) childrenOfRoot
 
             -- create list of multi-traversals with original rooting first
@@ -261,9 +267,9 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
         in
         if warnPruneEdges then 
             trace ("Pruning " ++ (show $ length unusedEdges) ++ " unused edges and reoptimizing graph") 
-            multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph contractedSimple 
+            multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple 
             
-        else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph contractedSimple 
+        else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple 
 
 -- | undirectedEdgeEquality checks edgse for equality irrespective of direction
 undirectedEdgeEquality :: LG.Edge -> LG.Edge -> Bool
@@ -341,12 +347,13 @@ updateAndFinalizePostOrderSoftWired inGraph =
 
 
 -- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
-postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph inSimpleGraph =
+postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
          -- Assumes root is Number of Leaves  
-        let rootIndex = V.length $ fst3 inData
+        let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
+                        else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
             newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex
         in
@@ -754,10 +761,11 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
 -- operates with Tree functions
--- need to add forest funcgtinoality--in principle just split into components and optimize them independently
--- but get into root index issues theway htis is written now. 
-multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelTree inGS inData leafGraph inSimpleGraph =
+-- need to add forest functionality--in principle just split into components and optimize them independently
+-- but get into root index issues the way this is written now. 
+-- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
+multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
@@ -765,8 +773,14 @@ multiTraverseFullyLabelTree inGS inData leafGraph inSimpleGraph =
 
             -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
             -- here initial root.
-            outgroupRootedPhyloGraph = postOrderTreeTraversal inData leafGraph inSimpleGraph -- $ GO.rerootGraph' inSimpleGraph (outgroupIndex inGS)
-            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) (fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph)
+            outgroupRootedPhyloGraph = if startVertex == Nothing then postOrderTreeTraversal inData leafGraph  $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+                                       else postOrderTreeTraversal inData leafGraph inSimpleGraph
+
+            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph
+                              else [fromJust startVertex]
+
+                                      
+            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) startVertexList
             grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
 
             -- create list of multi-traversals with original rooting first

@@ -143,15 +143,13 @@ swapSPRTBR swapType inGS inData numToKeep steepest counter numLeaves leafGraph l
       if steepest then 
          let (betterGraphs, counter) = swapSteepest swapType inGS inData numToKeep steepest counter (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV
          in 
-         if null betterGraphs then ([inGraph], 0)
-         else (betterGraphs, counter)
+         (betterGraphs, counter)
 
       -- All does all swaps before taking best
       else  
          let (betterGraphs, counter) = swapAll swapType inGS inData numToKeep steepest counter (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV
          in 
-         if null betterGraphs then ([inGraph], 0)
-         else (betterGraphs, counter)
+         (betterGraphs, counter)
       
 -- | swapAll performs branch swapping on all 'break' edges and all readditions
 -- edges are unsorted since doing all of them
@@ -188,18 +186,18 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           -- create list of breaks
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 $ fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList
 
-          reoptimizedSplitGraphList = zipWith reoptimizeGraphFromVertex splitGraphList graphRootList
+          reoptimizedSplitGraphCostList = zipWith (reoptimizeGraphFromVertex inGS inData) splitGraphList graphRootList
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
           -- this cost prob doesn't include the root/net penalty--so need to figure out
-          swapPairList = concat $ L.zipWith4 (rejoinGraphKeepBest curBestCost numToKeep steepest) reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned
+          swapPairList = concat $ L.zipWith4 (rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest) reoptimizedSplitGraphCostList graphRootList prunedGraphRootIndexList originalConnectionOfPruned
 
           bestSimpleGraphList = fmap GO.convertDecoratedToSimpleGraph $ fmap fst swapPairList
           
           -- this should be incremental--full 2-pass for now]
-          reoptimizedSwapGraphList = if (graphType inGS == Tree) then fmap (T.multiTraverseFullyLabelTree inGS inData leafDecGraph) bestSimpleGraphList
-                                     else if (graphType inGS == SoftWired) then fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraphSoftWired) bestSimpleGraphList
+          reoptimizedSwapGraphList = if (graphType inGS == Tree) then fmap (T.multiTraverseFullyLabelTree inGS inData leafDecGraph Nothing) bestSimpleGraphList
+                                     else if (graphType inGS == SoftWired) then fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraphSoftWired Nothing) bestSimpleGraphList
                                      else errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
 
           bestSwapGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] reoptimizedSwapGraphList
@@ -215,25 +213,28 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] bestSwapGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV
 
-      else error ("THis can't happen.  New cost > existing cost: " ++ (show (bestSwapCost, curBestCost)))
+      else error ("This can't happen.  New cost > existing cost: " ++ (show (bestSwapCost, curBestCost)))
       )
 
 
 -- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex
 -- for softwired--need to deal with popocount at root
 -- reooting issues for single component
--- need th ecost to calculate the deltas later
-reoptimizeGraphFromVertex :: DecoratedGraph -> Int -> DecoratedGraph
-reoptimizeGraphFromVertex inGraph startVertex =
-   inGraph
+-- need the cost to calculate the deltas later during rejoin
+reoptimizeGraphFromVertex :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Int -> (DecoratedGraph, VertexCost)
+reoptimizeGraphFromVertex inGS inData inGraph startVertex =
+   let optimizedGraph = T.multiTraverseFullyLabelGraph inGS inData False False (Just startVertex) (GO.convertDecoratedToSimpleGraph inGraph)
+   in
+   (thd6 optimizedGraph, snd6 optimizedGraph)
 
 
 -- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)
 -- if steepest is False does not sort order of edges, other wise sorts in order of closness to original edge
 -- uses delta
 -- NNI sorts edges on propinquity taking first 2 edges
-rejoinGraphKeepBest :: VertexCost -> Int -> Bool -> DecoratedGraph -> LG.Node -> LG.Node -> LG.Node -> [(DecoratedGraph, VertexCost)]
-rejoinGraphKeepBest curBestCost numToKeep steepest splitGraph graphRoot prunedGraphRootIndex originalConnectionOfPruned = 
+-- TBR does th rerooting of pruned subtree
+rejoinGraphKeepBest :: GlobalSettings -> String -> VertexCost -> Int -> Bool -> (DecoratedGraph, VertexCost) -> LG.Node -> LG.Node -> LG.Node -> [(DecoratedGraph, VertexCost)]
+rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest (splitGraph, splitCost) graphRoot prunedGraphRootIndex originalConnectionOfPruned = 
    []
 
 
