@@ -397,8 +397,4 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 -- |
 -- createUngappedMedianSequence enter `Symbol Count` (symbols from alphabet) and context
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
-createUngappedMedianSequence symbols v@(m,_,_) = GV.ifilter f m
-  where
-    gap = bit 0 -- bit $ symbols - 1
-    f i e = e /= gap && not (isGapped v i)
-
+createUngappedMedianSequence = const extractMedians
