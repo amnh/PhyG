@@ -3,6 +3,7 @@
 {-# LANGUAGE KindSignatures   #-}
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE Strict           #-}
+{-# LANGUAGE UnboxedTuples    #-}
 
 module Bio.DynamicCharacter
   (  -- * Element Varieties of a Dynamic Character
@@ -182,9 +183,9 @@ isGapped (lc,_,rc) i = i < GV.length lc && popCount (lc ! i) == 0 && popCount (r
 {-# SPECIALISE isGap :: HugeDynamicCharacter -> Int -> Bool #-}
 isGap :: (Bits e, Vector v e) => OpenDynamicCharacter v e -> Int -> Bool
 isGap (_,mc,_) i = i < GV.length mc &&
-    let v = mc ! i
-        g = (v `xor` v) `setBit` 0
-    in  g == v
+    let val = mc ! i
+        gap = buildGap val
+    in  gap == val
 
 
 {-# INLINEABLE isMissing #-}
@@ -279,12 +280,11 @@ setGapped
   -> Int -- ^ Index to set
   -> m ()
 setGapped (lc,mc,rc) i = do
-    e <- unsafeRead mc i
-    let zero = e `xor` e
-    let gap  = zero `setBit` 0
-    unsafeWrite lc i zero
+    tmp <- unsafeRead mc i
+    let (# gap, nil #) = buildGapAndNil tmp
+    unsafeWrite lc i nil
     unsafeWrite mc i gap
-    unsafeWrite rc i zero
+    unsafeWrite rc i nil
 
 
 {-# INLINEABLE transposeCharacter #-}
@@ -307,9 +307,7 @@ extractMedians :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> v e
 extractMedians (_,me,_)
     | GV.null me = me
     | otherwise  =
-        let e    = me ! 0
-            zero = e `xor` e
-            gap  = zero `setBit` 0
+        let gap  = buildGap $me ! 0
         in  GV.filter (/=gap) me
 
 
@@ -323,8 +321,7 @@ extractMediansLeft :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> 
 extractMediansLeft (lc,_,_)
     | GV.null lc = lc
     | otherwise  =
-        let tmp = lc ! 0
-            nil = tmp `xor` tmp
+        let nil  = buildNil $ lc ! 0
         in  GV.filter (/=nil) lc
 
 
@@ -338,8 +335,7 @@ extractMediansRight :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e ->
 extractMediansRight (_,_,rc)
     | GV.null rc = rc
     | otherwise  =
-        let tmp = rc ! 0
-            nil = tmp `xor` tmp
+        let nil  = buildNil $ rc ! 0
         in  GV.filter (/=nil) rc
 
 
@@ -580,3 +576,18 @@ renderDynamicCharacter (lc,mc,rc) = unlines
       in   x <> sep <> intercalate' xs
 
     printVector vec = "[ " <> intercalate' (pad <$> vec) <> " ]"
+
+
+buildGap :: Bits e => e -> e
+buildGap e = buildNil e `setBit` gapIndex
+
+
+buildNil :: Bits e => e -> e
+buildNil e = e `xor` e
+
+
+buildGapAndNil :: Bits e => e -> (# e, e #)
+buildGapAndNil e =
+  let nil = buildNil e
+      gap = nil `setBit` gapIndex
+  in  (# gap, nil #)
