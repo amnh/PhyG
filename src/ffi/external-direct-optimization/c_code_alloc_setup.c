@@ -216,9 +216,8 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
     // int is_metric    = 1;
     elem_t all_elements = (1 << alphSize) - 1;   // Given data is DNA (plus gap), for instance, there are 2^5 - 1 possible character states
 
-    int minCost   = INT_MAX;
     elem_t median = 0;        // and 3d; combos of median1, etc., below
-    int curCost;
+    int minCost, curCost;
 
     cm_alloc_3d( retMtx
                , alphSize
@@ -230,7 +229,6 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
     for (elem_t ambElem1 = 1; ambElem1 <= all_elements; ambElem1++) { // for every possible value of ambElem1, ambElem2, ambElem3
         for (elem_t ambElem2 = 1; ambElem2 <= all_elements; ambElem2++) {
             for (elem_t ambElem3 = 1; ambElem3 <= all_elements; ambElem3++) {
-                curCost = 0;                // don't actually need to do this
                 minCost = INT_MAX;
                 median  = 0;
                 for (elem_t bitIndex = 0; bitIndex < alphSize; bitIndex++) {
@@ -239,10 +237,10 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                             + distance (tcm, alphSize, bitIndex, ambElem3);
                     if (curCost < minCost) {
                         minCost = curCost;
-                        median  = ((elem_t) 1) << (bitIndex - 1); // median1 | median2 | median3;
+                        median  = ((elem_t) 1) << bitIndex;
                     }
                     else if (curCost == minCost) {
-                        median |= ((elem_t) 1) << (bitIndex - 1); // median1 | median2 | median3;
+                        median |= ((elem_t) 1) << bitIndex;
                     }
                 } // bitIndex
                 // printf("%2u %2u %2u %2d %2u\n", ambElem1, ambElem2, ambElem3, minCost, median);
