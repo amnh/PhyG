@@ -46,7 +46,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , getFinal3WaySlim
                                             , getFinal3WayWideHuge
                                             , preOrderTreeTraversal
-                                            , getBlockCostPairs
+                                            , getBlockCostPairsFinal
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -220,18 +220,17 @@ postOrderIA inGraph charInfo inNodeList  =
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo
-         symbols = (length $ costMatrix charInfo)
      in
      if characterType `elem` [SlimSeq, NucSeq] then
-        let prelimChar = get2WaySlim (slimTCM charInfo) symbols (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+        let prelimChar = get2WaySlim (slimTCM charInfo) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
         in
         nodeChar {slimIAPrelim = (prelimChar,  fst3 $ slimIAPrelim leftChar, fst3 $ slimIAPrelim rightChar)}
      else if characterType `elem` [WideSeq, AminoSeq] then
-        let prelimChar = get2WayWideHuge (wideTCM charInfo) symbols (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+        let prelimChar = get2WayWideHuge (wideTCM charInfo) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
         in
         nodeChar {wideIAPrelim = (prelimChar, fst3 $ wideIAPrelim leftChar, fst3 $ wideIAPrelim rightChar)}
      else if characterType == HugeSeq then
-        let prelimChar = get2WayWideHuge (hugeTCM charInfo) symbols (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+        let prelimChar = get2WayWideHuge (hugeTCM charInfo) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
         in
         nodeChar {hugeIAPrelim = (prelimChar, fst3 $ hugeIAPrelim leftChar, fst3 $ hugeIAPrelim rightChar)}
      else error ("Unrecognized character type " ++ show characterType)
@@ -240,25 +239,25 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
 -- based on character type and nodeChar--only IA fields are modified
 makeIAFinalCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
-     let characterType = charType charInfo
-         symbols = (length $ costMatrix charInfo)
+     let symbols = length $ costMatrix charInfo
+         characterType = charType charInfo
      in
      if characterType `elem` [SlimSeq, NucSeq] then
-        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) symbols (slimIAFinal parentChar) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
             finalChar =  M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
         in
         nodeChar { slimIAFinal = finalIAChar
                  , slimFinal = finalChar
                  }
      else if characterType `elem` [WideSeq, AminoSeq] then
-        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) symbols  (wideIAFinal parentChar) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
             finalChar = M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
         in
         nodeChar { wideIAFinal = finalIAChar
                  , wideFinal = finalChar
                  }
      else if characterType == HugeSeq then
-        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) symbols  (hugeIAFinal parentChar) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
             finalChar = M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
         in
         nodeChar { hugeIAFinal = finalIAChar
@@ -558,25 +557,25 @@ getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     else
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
-            blockCostPairs = V.zipWith3 (getBlockCostPairs finalMethod) uNodeInfo vNodeInfo inCharInfoVV
+            blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
             minCost = sum $ fmap fst blockCostPairs
             maxCost = sum $ fmap snd blockCostPairs
         in
         (minCost, maxCost)
 
--- | getBlockCostPairs takes a block of two nodes and character infomation and returns the min and max block branch costs
-getBlockCostPairs :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
-getBlockCostPairs finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
-    let characterCostPairs = V.zipWith3 (getCharacterDist finalMethod) uNodeCharDataV vNodeCharDataV charInfoV
+-- | getBlockCostPairsFinal takes a block of two nodes and character infomation and returns the min and max block branch costs
+getBlockCostPairsFinal :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
+getBlockCostPairsFinal finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
+    let characterCostPairs = V.zipWith3 (getCharacterDistFinal finalMethod) uNodeCharDataV vNodeCharDataV charInfoV
         minCost = sum $ fmap fst characterCostPairs
         maxCost = sum $ fmap snd characterCostPairs
     in
     (minCost, maxCost)
 
--- | getCharacterDist takes a pair of characters and character type, returning the minimum and maximum character distances
+-- | getCharacterDistFinal takes a pair of characters and character type, returning the minimum and maximum character distances
 -- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/sequence length
-getCharacterDist :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
-getCharacterDist finalMethod uCharacter vCharacter charInfo =
+getCharacterDistFinal :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
+getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
@@ -611,31 +610,32 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType == SlimSeq || thisCharType == NucSeq then
         let minMaxDiffList = if finalMethod == DirectOptimization then
-                                let uFinal = slimFinal uCharacter
-                                    vFinal = slimFinal vCharacter
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimPrelim = uFinal}) (vCharacter {slimPrelim = vFinal})
-                                    (_, newU, newV) = slimGapped newEdgeCharacter
+                                let uFinal = M.makeDynamicCharacterFromSingleVector (slimFinal uCharacter)
+                                    vFinal = M.makeDynamicCharacterFromSingleVector (slimFinal vCharacter)
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimGapped = uFinal}) (vCharacter {slimGapped = vFinal})
+                                    (newU, _, newV) = slimGapped newEdgeCharacter
+                                    doCOST = localCost newEdgeCharacter
                                 in
-                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
                                 zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapChar) newU) (GV.toList $ GV.map (zero2Gap gapChar) newV)
                              else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
             maxCost = thisWeight * fromIntegral (sum maxDiff)
         in
-        --trace ("MMDL: " ++ (show $ (GV.toList $ slimFinal uCharacter)) ++ " " ++ (show $ (GV.toList $ slimFinal vCharacter)) ++ "\n" ++ (show minCost) ++ " " ++ (show maxCost)) 
+        --trace ("MMDL: " ++ (show minCost) ++ " " ++ (show maxCost)) 
         (minCost, maxCost)
 
 
     else if thisCharType == WideSeq || thisCharType == AminoSeq then
         let minMaxDiffList = if finalMethod == DirectOptimization then
-                                let uFinal = wideFinal uCharacter
-                                    vFinal = wideFinal vCharacter
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {widePrelim = uFinal}) (vCharacter {widePrelim = vFinal})
-                                    (_, newU, newV) = wideGapped newEdgeCharacter
+                                let uFinal = M.makeDynamicCharacterFromSingleVector (wideFinal uCharacter)
+                                    vFinal = M.makeDynamicCharacterFromSingleVector (wideFinal vCharacter)
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {wideGapped = uFinal}) (vCharacter {wideGapped = vFinal})
+                                    (newU, _, newV) = wideGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapWide gapCharWide) newU) (GV.toList $ GV.map (zero2GapWide gapCharWide) newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapCharWide) newU) (GV.toList $ GV.map (zero2Gap gapCharWide) newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -645,13 +645,13 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType == HugeSeq then
         let minMaxDiffList = if finalMethod == DirectOptimization then
-                                let uFinal = hugeFinal uCharacter
-                                    vFinal = hugeFinal vCharacter
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugePrelim = uFinal}) (vCharacter {hugePrelim = vFinal})
-                                    (_, newU, newV) = hugeGapped newEdgeCharacter
+                                let uFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal uCharacter)
+                                    vFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal vCharacter)
+                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugeGapped = uFinal}) (vCharacter {hugeGapped = vFinal})
+                                    (newU, _, newV) = hugeGapped newEdgeCharacter
                                 in
-                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2GapBV gapCharBV) newU) (GV.toList $ GV.map (zero2GapBV gapCharBV) newV)
+                                -- trace ("GCD:\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapCharBV) newU) (GV.toList $ GV.map (zero2Gap gapCharBV) newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -665,7 +665,7 @@ getCharacterDist finalMethod uCharacter vCharacter charInfo =
 zero2Gap :: (FiniteBits a) => a -> a -> a
 zero2Gap gapChar inVal = if inVal == zeroBits then bit 0
                          else inVal
-
+{-
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
 zero2GapWide :: Word64 -> Word64 -> Word64
 zero2GapWide gapChar inVal = if inVal == zeroBits  then bit 0
@@ -675,6 +675,7 @@ zero2GapWide gapChar inVal = if inVal == zeroBits  then bit 0
 zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
 zero2GapBV gapChar inVal = if inVal == zeroBits then bit 0
                          else inVal
+-}
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
@@ -955,29 +956,29 @@ makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
    let localCharType = charType charInfo
    in
    if localCharType `elem` [SlimSeq, NucSeq] then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (fst3 gappedLeftRight) (fst3 nodeChar)
-          newFinalGapped = getFinal3WaySlim (slimTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (fst3 gappedLeftRight) (fst3 nodeChar)
+          newFinalGapped = getFinal3WaySlim (slimTCM charInfo) parentGapped leftChildGapped rightChildGapped
       in
       (M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty, mempty)
 
    else if localCharType `elem` [AminoSeq, WideSeq] then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (snd3 gappedLeftRight) (snd3 nodeChar)
-          newFinalGapped = getFinal3WayWideHuge (wideTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (snd3 gappedLeftRight) (snd3 nodeChar)
+          newFinalGapped = getFinal3WayWideHuge (wideTCM charInfo) parentGapped leftChildGapped rightChildGapped
       in
       (mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty)
 
    else if localCharType == HugeSeq then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (length $ costMatrix charInfo) (thd3 gappedLeftRight) (thd3 nodeChar)
-          newFinalGapped = getFinal3WayWideHuge (hugeTCM charInfo) (length $ costMatrix charInfo) parentGapped leftChildGapped rightChildGapped
+      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (thd3 gappedLeftRight) (thd3 nodeChar)
+          newFinalGapped = getFinal3WayWideHuge (hugeTCM charInfo)  parentGapped leftChildGapped rightChildGapped
       in
       (mempty, mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped)
 
    else error ("Unrecognized character type: " ++ show localCharType)
 
 -- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
-addGapsToChildren :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
-addGapsToChildren symbols (_, reGappedParentFinal, reGappedNodePrelim) (gappedNodePrelim, gappedLeftChild, gappedRightChild) =
-   let (reGappedLeft, reGappedRight) = slideRegap symbols reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
+addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
+addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
+   let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
       ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
@@ -985,8 +986,8 @@ addGapsToChildren symbols (_, reGappedParentFinal, reGappedNodePrelim) (gappedNo
 
 -- | slideRegap takes two version of same vectors (1st and snd) one with additional gaps and if the two aren't equal then adds gaps 
 -- to the 3rd and 4th input vectors
-slideRegap :: (FiniteBits a, GV.Vector v a) => Int -> v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
-slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
+slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
+slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode
@@ -994,11 +995,11 @@ slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList ne
       in
       -- no "new gap"
       if firstRGN == firstGN then
-         slideRegap symbols (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
+         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
       else
          let gap = bit 0
          in
-         slideRegap symbols (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
+         slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
 
 
 -- | getFinal3Way takes parent final assignment (including indel characters) and descendent
@@ -1007,16 +1008,16 @@ slideRegap symbols reGappedNode gappedNode gappedLeft gappedRight newLeftList ne
 -- information to create a final assingment with out an additional DO call to keep the 
 -- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
 -- used as true final sequence assignments using M.createUngappedMedianSequence
-getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
-getFinal3WaySlim lSlimTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
+getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let gap = bit 0
        newFinal = SV.zipWith3 (local3WaySlim lSlimTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
-getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a -> v a
-getFinal3WayWideHuge whTCM symbolCount parentFinal descendantLeftPrelim descendantRightPrelim =
+getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a -> v a
+getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let gap = bit 0
        newFinal = GV.zipWith3 (local3WayWideHuge whTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
    in
@@ -1049,8 +1050,8 @@ local3WaySlim lSlimTCM gap b c d =
  -- )
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WaySlim :: TCMD.DenseTransitionCostMatrix -> Int -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
-get2WaySlim lSlimTCM symbolCount descendantLeftPrelim descendantRightPrelim =
+get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
    let gap = bit 0
        median = SV.zipWith (local2WaySlim lSlimTCM gap) descendantLeftPrelim descendantRightPrelim
    in
@@ -1067,8 +1068,8 @@ local2WaySlim lSlimTCM gap b c =
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
-get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> Int -> v a -> v a -> v a
-get2WayWideHuge whTCM symbolCount descendantLeftPrelim descendantRightPrelim =
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
+get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
    let gap = bit 0
        median = GV.zipWith (local2WayWideHuge whTCM gap) descendantLeftPrelim descendantRightPrelim
    in

@@ -96,6 +96,7 @@ median2NonExact = V.zipWith3 median2SingleNonExact
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- used for post-order assignments
+-- this is from preliminary states
 median2Single :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 median2Single firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo

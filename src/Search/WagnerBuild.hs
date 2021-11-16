@@ -166,11 +166,11 @@ getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
    in
    if (LG.lab inDecGraph leafToAdd == Nothing) || (LG.lab inDecGraph eNode == Nothing) || (LG.lab inDecGraph vNode == Nothing) then error ("Missing label data for vertices")
    else 
-      let dLeafENode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairs DirectOptimization) leafToAddVertData eNodeVertData charInfoVV
-          dLeafVNode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairs DirectOptimization) leafToAddVertData vNodeVertData charInfoVV
+      let dLeafENode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData eNodeVertData charInfoVV
+          dLeafVNode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData vNodeVertData charInfoVV
 
-          -- should be able to use existing infomation--but for now using this
-          existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairs DirectOptimization) eNodeVertData vNodeVertData charInfoVV
+          -- should be able to use existing information--but for now using this
+          -- existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) eNodeVertData vNodeVertData charInfoVV
       in
-      trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
-      dLeafENode + dLeafVNode - existingEdgeCost'
+      -- trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
+      dLeafENode + dLeafVNode - existingEdgeCost

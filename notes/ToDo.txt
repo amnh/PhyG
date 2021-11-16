@@ -450,7 +450,7 @@ to render--would have repeated subtrees after network vertex
 
 182) test net/root penalty 
 
-183) Fix fenewtick for degenerate (no edges) tree
+183) Fix fenewick for degenerate (no edges) tree
 	Convert to forest then fmap
 
 184) sort edges for swap 
@@ -478,3 +478,12 @@ to render--would have repeated subtrees after network vertex
 	when declare type deriveing generic, deriving NFData
 
 190) NNI swapping
+
+191) Should sliim final be a triple?  Save on conversion back and forth perhps
+
+192) IA final ordering is incorrect (after DO update) on final its (left, median, right)
+	need to redo that stuff on passes
+
+193) DO edge min weights seems to sumto > net cost
+	Incorrect final states-- as in from incorrect display trees
+
