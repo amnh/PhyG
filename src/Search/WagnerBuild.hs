@@ -143,15 +143,15 @@ addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _,
        newNode = (numVerts, TL.pack ("HTU" ++ (show numVerts)))
 
        -- full post order
-       newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
-       newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
+       --newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
+       --newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
 
        -- heuristic delta
-       --delta = getDelta leafToAdd targetEdge inDecGraph charInfoVV
+       delta = getDelta leafToAdd targetEdge inDecGraph charInfoVV
       
    in
-   -- (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
-   (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
+   (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
+   -- (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
 
 
 -- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
