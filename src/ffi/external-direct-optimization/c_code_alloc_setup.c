@@ -33,7 +33,7 @@ int distance( unsigned int const *tcm
 
     for (size_t pos = 0; pos < alphSize; pos++) {
         if ((1 << pos) & ambElem) { // if pos is set in ambElem, meaning pos is possible value of ambElem
-            curCost = tcm[pos * alphSize + nucleotide - 1];
+            curCost = tcm[pos * alphSize + nucleotide];
             if (curCost < min) {
                 min = curCost;
             }
@@ -159,30 +159,27 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
             median  = 0;
             // median1 = median2 = 0;
 
-            elem_t nucleotide;
-            for ( nucleotide = 1; nucleotide <= alphSize; nucleotide++) {
-                curCost = distance (tcm, alphSize, nucleotide, ambElem1)
-                        + distance (tcm, alphSize, nucleotide, ambElem2);
+            elem_t bitIndex;
+            for ( bitIndex = 0; bitIndex < alphSize; bitIndex++) {
+                curCost = distance (tcm, alphSize, bitIndex, ambElem1)
+                        + distance (tcm, alphSize, bitIndex, ambElem2);
                 // now seemingly recreating logic in distance(), but that was to get the cost for each
                 // ambElem; now we're combining those costs get overall cost and median
                 if (curCost < minCost) {
                     minCost = curCost;
-                    median  = 1 << (nucleotide - 1); // median = this nucleotide, because it has the lowest cost thus far
+                    median  = 1 << bitIndex; // median = this bitIndex, because it has the lowest cost thus far
                 } else if (curCost == minCost) {
-                    median |= 1 << (nucleotide - 1); // median = this nucleotide | old median
+                    median |= 1 << bitIndex; // median = this bitIndex | old median
                 }
-            } // nucleotide
+            } // bitIndex
             cm_set_cost_2d   (retCostMtx, ambElem1, ambElem2, minCost);
             cm_set_median_2d (retCostMtx, ambElem1, ambElem2, median);
         } // ambElem2
     } // ambElem1
-    // Gap number is alphSize - 1, which makes bit representation
-    // i << (alphSize - 1), because first char value is i << 0.
 
     /* TODO: which of following two loops is correct? */
 
-    elem_t gap = 1 << (alphSize - 1);
-    retCostMtx->gap_char = gap;
+    elem_t gap = retCostMtx->gap_char;
     for ( size_t i = 1; i <= all_elements; i++) {
         cm_set_prepend_2d (retCostMtx, i, cm_get_cost_2d(retCostMtx, gap,   i));
         cm_set_tail_2d    (retCostMtx, i, cm_get_cost_2d(retCostMtx,   i, gap));
@@ -219,9 +216,8 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
     // int is_metric    = 1;
     elem_t all_elements = (1 << alphSize) - 1;   // Given data is DNA (plus gap), for instance, there are 2^5 - 1 possible character states
 
-    int minCost   = INT_MAX;
     elem_t median = 0;        // and 3d; combos of median1, etc., below
-    int curCost;
+    int minCost, curCost;
 
     cm_alloc_3d( retMtx
                , alphSize
@@ -229,26 +225,24 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                , do_aff
                , gap_open
                , all_elements );
-    retMtx->gap_char = 1 << (alphSize - 1);
 
     for (elem_t ambElem1 = 1; ambElem1 <= all_elements; ambElem1++) { // for every possible value of ambElem1, ambElem2, ambElem3
         for (elem_t ambElem2 = 1; ambElem2 <= all_elements; ambElem2++) {
             for (elem_t ambElem3 = 1; ambElem3 <= all_elements; ambElem3++) {
-                curCost = 0;                // don't actually need to do this
                 minCost = INT_MAX;
                 median  = 0;
-                for (elem_t nucleotide = 1; nucleotide <= alphSize; nucleotide++) {
-                    curCost = distance (tcm, alphSize, nucleotide, ambElem1)
-                            + distance (tcm, alphSize, nucleotide, ambElem2)
-                            + distance (tcm, alphSize, nucleotide, ambElem3);
+                for (elem_t bitIndex = 0; bitIndex < alphSize; bitIndex++) {
+                    curCost = distance (tcm, alphSize, bitIndex, ambElem1)
+                            + distance (tcm, alphSize, bitIndex, ambElem2)
+                            + distance (tcm, alphSize, bitIndex, ambElem3);
                     if (curCost < minCost) {
                         minCost = curCost;
-                        median  = ((elem_t) 1) << (nucleotide - 1); // median1 | median2 | median3;
+                        median  = ((elem_t) 1) << bitIndex;
                     }
                     else if (curCost == minCost) {
-                        median |= ((elem_t) 1) << (nucleotide - 1); // median1 | median2 | median3;
+                        median |= ((elem_t) 1) << bitIndex;
                     }
-                } // nucleotide
+                } // bitIndex
                 // printf("%2u %2u %2u %2d %2u\n", ambElem1, ambElem2, ambElem3, minCost, median);
                 cm_set_cost_3d(   retMtx, ambElem1, ambElem2, ambElem3, minCost );
                 cm_set_median_3d( retMtx, ambElem1, ambElem2, ambElem3, median  );

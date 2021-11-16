@@ -108,10 +108,10 @@ isAlphabetDiscrete = isAlphabetSubsetOf discreteAlphabet
 
 
 isAlphabetSubsetOf :: Ord s => Alphabet s -> Alphabet s -> Bool
-isAlphabetSubsetOf specialAlpahbet queryAlphabet = querySet `Set.isSubsetOf` specialSet
+isAlphabetSubsetOf specialAlphabet queryAlphabet = querySet `Set.isSubsetOf` specialSet
   where
-    querySet   = Set.fromList $ toList queryAlphabet
-    specialSet = Set.fromList $ toList specialAlpahbet
+    querySet   = symbolSet queryAlphabet
+    specialSet = symbolSet specialAlphabet
 
 
 fromBimap :: (IsString s, Ord s) => Bimap (NonEmpty String) a -> Alphabet s

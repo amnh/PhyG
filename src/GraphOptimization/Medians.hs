@@ -51,6 +51,7 @@ module GraphOptimization.Medians  ( median2
                                   , getDOMedian
                                   , getDOMedianCharInfo
                                   , pairwiseDO
+                                  , makeDynamicCharacterFromSingleVector
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -66,10 +67,14 @@ import           DirectOptimization.Pairwise
 import           GeneralUtilities
 import qualified SymMatrix                                                   as S
 import           Types.Types
-import           Debug.Trace
 
 
 --import qualified Data.Alphabet as DALPH
+
+-- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
+-- and returns a dynamic character that canbe used with other functions
+makeDynamicCharacterFromSingleVector :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a)
+makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
 -- | median2 takes the vectors of characters and applies media2 to each
 -- character
@@ -282,7 +287,6 @@ pairwiseDO :: CharInfo
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
 pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     let thisType = charType charInfo
-        symbolCount = length $ costMatrix charInfo
     in
     if thisType `elem` [SlimSeq,   NucSeq]      then
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
@@ -292,17 +296,13 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
 
     else if thisType `elem` [WideSeq, AminoSeq] then
         let coefficient = MR.minInDelCost (wideTCM charInfo)
-            gapState    = bit $ symbolCount - 1
-            (cost, r) = widePairwiseDO coefficient gapState (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
-
+            (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
         in
         (mempty, r, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType == HugeSeq           then
         let coefficient = MR.minInDelCost (hugeTCM charInfo)
-            gapState    = bit $ symbolCount - 1
-            (cost, r) = hugePairwiseDO coefficient gapState (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
-
+            (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
         in
         (mempty, mempty, r, weight charInfo * fromIntegral cost)
 
@@ -356,11 +356,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
     newWideCharacterData =
         let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisWideTCM
-            gapState    = bit $ symbolCount - 1
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
                 coefficient
-                gapState
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (wideGapped leftChar) (wideGapped rightChar)
                 -- (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
@@ -378,12 +376,10 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
     newHugeCharacterData =
         let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisHugeTCM
-            gapState    = bit $ symbolCount - 1
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
             -- (cost, r)   = hugePairwiseDO
                 coefficient
-                gapState
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugeGapped leftChar) (hugeGapped rightChar)
                 -- (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
@@ -401,8 +397,4 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 -- |
 -- createUngappedMedianSequence enter `Symbol Count` (symbols from alphabet) and context
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
-createUngappedMedianSequence symbols v@(m,_,_) = GV.ifilter f m
-  where
-    gap = bit $ symbols - 1
-    f i e = e /= gap && not (isGapped v i)
-
+createUngappedMedianSequence = const extractMedians

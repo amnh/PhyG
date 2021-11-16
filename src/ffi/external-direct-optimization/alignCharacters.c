@@ -1135,7 +1135,7 @@ algn_fill_plane ( const dyn_character_t    *longerCharacter
 
         // Print cost matrix row header
             if (i == 0) printf ("  * | ");
-            else        printf ("  ? | "); // Character not in scope!
+            else        printf ("  # | "); // Character not in scope!
 
             for (j = 0; j < longerCharacterLength; j++) {
                 printf ("%4d ", debugCostMatrixBuffer[lesserCharacterLength * j + i]);
@@ -4104,7 +4104,7 @@ algn_nw_2d ( const dyn_character_t      *shorterChar
         dyn_char_print( longerChar );
         dyn_char_print( shorterChar );
         printf( "second character\n" );
-        algnMtx_print( algnMats, costMatrix->costMatrixDimension );
+        //algnMtx_print( algnMats, costMatrix->costMatrixDimension );
     }
 
 
@@ -4365,22 +4365,21 @@ algn_print_dynmtrx_2d ( const dyn_character_t      *char1
     else        printf (" %2d | ", lesserChar->char_begin[i]);
 
     for (j = 0; j < longerCharLen; j++) {
-      DIR_MTX_ARROW_t dirToken = algn_dirMtx[lesserCharLen * j + i];
-      /*
-      printf("    "); // leading pad
+      DIR_MTX_ARROW_t dirToken = algn_dirMtx[lesserCharLen * i + j];
 
+      printf("    "); // leading pad
+      /**/
       printf("%s", dirToken & DELETE ? "<"  : " " );
       printf("%s", dirToken & ALIGN  ? "\\" : " " );
       printf("%s", dirToken & INSERT ? "^"  : " " );
-      printf(" ");
-      */
-      printf("    "); // leading pad
+      /**/
+      /*
       // printf("%d", dirToken);
       wprintf(L"%wc", dirToken & DELETE ? (wchar_t *) "\u2191" : (wchar_t *) " ");
       wprintf(L"%wc", dirToken & ALIGN  ? (wchar_t *) "\u2196" : (wchar_t *) " ");
       wprintf(L"%wc", dirToken & INSERT ? (wchar_t *) "\u2190" : (wchar_t *) " ");
+      */
       printf(" ");
-      /**/
     }
     printf ("\n");
   }

@@ -175,7 +175,7 @@ instance Show CostMatrix2d where
 
 instance Storable CostMatrix2d where
 
-    sizeOf _  = (#size struct cost_matrices_2d_t)
+    sizeOf = const $ #size struct cost_matrices_2d_t
 
     alignment = sizeOf -- alignment (undefined :: StablePtr CostMatrix2d)
 
@@ -258,7 +258,7 @@ instance Show CostMatrix3d where
 
 instance Storable CostMatrix3d where
 
-    sizeOf _  = (#size struct cost_matrices_2d_t)
+    sizeOf = const $ #size struct cost_matrices_2d_t
 
     alignment = sizeOf -- alignment (undefined :: StablePtr CostMatrix2d)
 
@@ -374,7 +374,8 @@ lookupPairwise
   -> (CUInt, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
-    let dim = 1 `shiftL` (fromEnum (alphSize cm2d))
+    let mov = fromEnum $ alphSize cm2d - 1
+    let dim = 1 `shiftL` mov
     let off = fromEnum e1 * dim + fromEnum e2
     cost <- peek $ advancePtr (bestCost cm2d) off
     med  <- peek $ advancePtr (medians  cm2d) off
@@ -396,12 +397,12 @@ lookupThreeway
   -> (CUInt, Word)
 lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     cm3d <- peek $ costMatrix3D dtcm
-    let dim = 1 `shiftL` (fromEnum (alphSize3D cm3d))
-    let off = fromEnum e1 * dim * dim + fromEnum e2 * dim + fromEnum e3
-    cost <- peek $ advancePtr (bestCost3D cm3d) off
-    med  <- peek $ advancePtr ( medians3D cm3d) off
-    let val = toEnum $ fromEnum med
-    pure (val, toEnum $ fromEnum cost)
+    let dim = fromEnum $ alphSize3D cm3d
+    let off = (((fromEnum e1 `shiftL` dim) + fromEnum e2) `shiftL` dim) + fromEnum e3
+    let get = peek . flip advancePtr off
+    med  <- get $  medians3D cm3d
+    cost <- get $ bestCost3D cm3d
+    pure (fromIntegral med, fromIntegral cost)
 
 
 -- |

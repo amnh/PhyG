@@ -43,6 +43,7 @@ module Input.FastAC
   ) where
 
 import           Control.DeepSeq
+import           Data.Alphabet
 import           Data.Bits
 import           Data.Hashable
 import qualified Data.List                 as L
@@ -78,15 +79,15 @@ getAlphabet curList inList =
 
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
 --   in already)
-generateDefaultMatrix :: [ST.ShortText] -> Int -> [[Int]]
-generateDefaultMatrix inAlph rowCount
-  | null inAlph = []
-  | rowCount == length inAlph = []
-  | otherwise =
-    let firstPart = replicate rowCount 1
-        thirdPart = replicate (length inAlph - rowCount - 1) 1
-    in
-    (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1)
+generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> [[Int]]
+generateDefaultMatrix inAlph rowCount =
+    if null inAlph then []
+    else if rowCount == length inAlph then []
+    else
+        let firstPart = replicate rowCount 1
+            thirdPart = replicate ((length inAlph) - rowCount - 1) 1
+        in
+        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1)
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -100,6 +101,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ foldMap snd inData
+
             seqType
               | dataType == "nucleotide" = trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
               | dataType == "aminoacid" = trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
@@ -111,11 +113,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               | length sequenceData <=  8 = trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
               | length sequenceData <= 64 = trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
               | otherwise = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
-            seqAlphabet
-              | seqType == NucSeq = fmap ST.fromString ["A","C","G","T","-"]
-              | seqType == AminoSeq = fmap ST.fromString ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
-              | seqType == Binary = fmap ST.fromString ["0","1"]
-              | otherwise = sequenceData
+
+            seqAlphabet = fromSymbols seqSymbols
+
+            seqSymbols =
+              let toSymbols = fmap ST.fromString
+              in  case seqType of
+                    Binary   -> toSymbols ["0","1"]
+                    NucSeq   -> toSymbols ["A","C","G","T","-"]
+                    AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
+                    _        -> sequenceData
+
             localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
                               else S.fromLists $ snd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
@@ -133,8 +141,10 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             tcmWeightFactor = thd3 localTCM
-            thisAlphabet = if null $ fst3 localTCM then seqAlphabet
-                           else fst3 localTCM
+            thisAlphabet =
+              case fst3 localTCM of
+                a | null a -> seqAlphabet
+                a          -> fromSymbols a
 
             defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
@@ -149,7 +159,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                      , slimTCM = localDenseCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
-                                     , name = T.pack (filter (/= ' ') dataName ++ ":0")
+                                     , name = T.pack (filter (/= ' ') dataName <> ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
                                      }
@@ -171,13 +181,13 @@ getTCMMemo
      , Hashable b
      , NFData b
      )
-  => ([ST.ShortText], S.Matrix Int)
+  => (a, S.Matrix Int)
   -> (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
     let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric
-                   Additive    -> linearNorm
+                   NonAdditive -> discreteMetric 
+                   Additive    -> linearNorm . toEnum $ TCM.size tcm
                    _           -> metricRepresentation tcm
     in (coefficient, metric)
 
@@ -218,10 +228,16 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
     if null inData then error "Empty inData in getFastcCharInfo"
     else
         --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
-        let thisAlphabet = if not $ null $ fst3 localTCM  then fst3 localTCM
-                           else getSequenceAphabet [] $ concatMap snd inData
-            inMatrix = if not $ null $ fst3 localTCM then S.fromLists $ snd3 localTCM
-                       else S.fromLists $ generateDefaultMatrix thisAlphabet 0
+        let thisAlphabet = fromSymbols symbolsFound
+
+            symbolsFound
+              | not $ null $ fst3 localTCM = fst3 localTCM
+              | otherwise = getSequenceAphabet [] $ concatMap snd inData
+
+            inMatrix
+              | not $ null $ fst3 localTCM = S.fromLists $ snd3 localTCM
+              | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0
+
             tcmWeightFactor = thd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
 

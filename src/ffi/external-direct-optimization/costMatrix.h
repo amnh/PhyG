@@ -101,7 +101,7 @@ typedef struct cost_matrices_2d_t {
  */
 typedef struct cost_matrices_3d_t {
     size_t alphSize;             /** The number of symbols in the alphabet */
-    size_t costMatrixDimension;  /** n in an n x n matrix;
+    size_t costMatrixDimension;  /** n in an n x n x n matrix;
                                   *  n is the powerset of the alphabet size (including gap), minus the empty set.
                                   *  or 2 ^ alphSize - 1.
                                   */

@@ -81,6 +81,7 @@ common ghc-flags
     -optc -rdynamic          
 
     -- Optimization flags
+--    -O0
     -O2
     -threaded
     -fexcess-precision
@@ -137,9 +138,31 @@ common language-specs
 
   -- Always use MonadFail(fail), not Monad(fail)
   other-extensions:
-    MonadFailDesugaring
     DerivingStrategies
 
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Preamble of package description and reusable definitions from above has ended
+-- and below we list all build targets of the package. Build targets include:
+--
+--   * Primary executable(s) for public usage
+--
+--   * Exposed sub-libraries for public consumption as program dependancies
+--
+--   * Benchmarks for executables and sub-libraries
+--
+--   * Test-suites for executables and sub-libraries
+--
+--   * Additional executables for non-public, diagnostic purposes
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+                  
+            
+-- Phylogenetic Graphs
+--
+-- This is the main program of this package, supporting fully featured
+-- phylogenetic trees, networks, and forests.
 executable phyg
 
   import:
@@ -165,13 +188,12 @@ executable phyg
 
 
 -- delete these for OSX for linux static binaries
-  if !os(darwin)
-    cc-options: -static
-    ld-options: -static -pthread
+--  if !os(darwin)
+--    cc-options: -static
+--    ld-options: -static -pthread
 
   build-depends:  alphabet
                 , dynamic-character
-                , dynamic-character-deprecated
                 , tcm
                 , base >=4.10
                 , containers >=0.6
@@ -250,6 +272,13 @@ executable phyg
                   ParallelUtilities
                   SymMatrix
 
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Collection of sub-libraries which both, compose the package's primary program
+-- (PCG/PhyG), and are also exposed for external consumption by other programs.
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
                   
             
 library alphabet
@@ -278,6 +307,7 @@ library alphabet
     semigroupoids            >= 5.3       && < 5.4,
     text-short               >= 0.1.3     && < 1.0,
     transformers             >= 0.5.6     && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
 
   -- Apparently this is needed to compile with profiling, which is really stupid.
   -- It should only be in the modules which use TemplateHaskell, not all modules.
@@ -297,7 +327,6 @@ library alphabet
 
 -- Provides various metrics for scoring static characters and
 -- performing string alignment on dynamic characters.
-
 library dynamic-character
 
   import:
@@ -309,94 +338,37 @@ library dynamic-character
     Haskell2010
 
   hs-source-dirs:
-    lib/dynamic-character
-
-  build-depends:
-    tcm,
-    utility,
-    base                     >= 4.11      && < 5.0,
-    bv-little,
-    containers               >= 0.6.2     && < 1.0,
-    dlist                    >= 0.8       && < 1.0,
-    matrices                 >= 0.5       && < 1.0,            
-    monad-loops              >= 0.4       && < 1.0,
-    mtl                      >= 2.2.2     && < 3.0,
-    primitive                >= 0.7.1     && < 1.0,
-    vector                   >= 0.12.0.3  && < 0.13,
-
-  exposed-modules:
-    Bio.DynamicCharacter
-    DirectOptimization.Pairwise
-    DirectOptimization.Pairwise.Slim
-    DirectOptimization.Pairwise.Wide
-    DirectOptimization.Pairwise.Huge
-    DirectOptimization.PreOrder
-
-  other-modules:
-    DirectOptimization.Pairwise.Internal
-    DirectOptimization.Pairwise.Swapping
-    DirectOptimization.Pairwise.Slim.FFI
-    DirectOptimization.Pairwise.Ukkonen
-
-
-library dynamic-character-deprecated
-
-  import:
-    ghc-flags,
-    language-specs
-
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
-    lib/dynamic-character-deprecated/src
+    lib/dynamic-character/src
 
   build-depends:
     alphabet,
     tcm,
     utility,
     base                     >= 4.11      && < 5.0,
-    bimap                    >= 0.3       && < 1.0,
-    binary                   >= 0.8       && < 1.0,
-    binary-instances         >= 1         && < 2.0,
-    bv-little                >= 1.0.1     && < 2.0,
-    bv-little:instances      >= 1.0.1     && < 2.0,
+    bv-little,
     containers               >= 0.6.2     && < 1.0,
-    data-default             >= 0.5.2     && < 0.8,
-    deepseq                  >= 1.4       && < 2.0,
-    dlist                    >= 0.8       && < 1.0,
-    graphviz                 >= 2999.20   && < 3000,
-    hashable                 >= 1.3       && < 2.0,
-    hashtables               >= 1.2       && < 2.0,
-    keys                     >= 3.12      && < 4.0,
-    lens                     >= 4.18      && < 6.0,
+    matrices                 >= 0.5       && < 1.0,            
     monad-loops              >= 0.4       && < 1.0,
-    mono-traversable         >= 1.0       && < 2.0,
-    mtl                      >= 2.2.2     && < 3.0,
-    parallel                 >= 3.2       && < 4.0,
-    pretty-tree              >= 0.1       && < 0.2,
-    QuickCheck               >= 2.14      && < 3.0,
-    semigroupoids            >= 5.3       && < 5.4,
-    smallcheck               >= 1.1.5     && < 2.0,
-    text                     >= 1.2.4     && < 2.0,
-    text-short               >= 0.1.3     && < 1.0,
-    unordered-containers     >= 0.2.10    && < 1.0,
+    primitive                >= 0.7.1     && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
-    vector-builder           >= 0.3.7     && < 0.4,
-    vector-binary-instances  >= 0.2.1.1   && < 0.3,
-    vector-instances         >= 3.4       && < 3.5,
-    xml                      >= 1.3.14    && < 1.4,
 
   exposed-modules:
-    Bio.Character.Encodable.Dynamic
-    Bio.Character.Encodable.Dynamic.AmbiguityGroup
+    Bio.DynamicCharacter
+    Bio.DynamicCharacter.Measure
+    Bio.DynamicCharacter.HandleGaps
+    DirectOptimization.Pairwise
+    DirectOptimization.Pairwise.Visualization
+    DirectOptimization.Pairwise.Swapping
+    DirectOptimization.Pairwise.Ukkonen
+    DirectOptimization.PreOrder
 
   other-modules:
-    Bio.Character.Encodable.Dynamic.Class
-    Bio.Character.Encodable.Dynamic.Element
-    Bio.Character.Encodable.Dynamic.Internal
-    Bio.Character.Encodable.Internal
-    Bio.Character.Encodable.Stream
+    DirectOptimization.Pairwise.Direction
+    DirectOptimization.Pairwise.Huge
+    DirectOptimization.Pairwise.Internal
+    DirectOptimization.Pairwise.Slim
+    DirectOptimization.Pairwise.Slim.FFI
+    DirectOptimization.Pairwise.Wide
 
 
 -- Library for working with TCMs and SCMs in various representations.
@@ -545,7 +517,6 @@ library utility
     QuickCheck               >= 2.14      && < 3.0,
     semigroupoids            >= 5.3       && < 5.4,
     tasty-hunit              >= 0.10      && < 1.0,
-    text                     >= 1.2.4     && < 2.0,
     text-short               >= 0.1.3     && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2       && < 1.0,
@@ -557,30 +528,95 @@ library utility
               
 
   exposed-modules:
-    Control.Parallel.Custom
-    Data.BitMatrix
-    Data.Either.Custom
-    Data.Foldable.Custom
     Data.List.Utility
     Data.Matrix.NotStupid
-    Data.MutualExclusionSet
-    Data.Pair.Strict
-    Data.Range
-    Data.ShortText.Custom
-    Data.UnionSet
-    Data.Vector.Custom
-    Data.Vector.Memo
     Data.Vector.NonEmpty
-    Numeric.Cost
-    Numeric.Extended
-    Numeric.Extended.Natural
-    Numeric.Extended.Real
-    Numeric.NonNegativeAverage
-    Test.HUnit.Custom
-    Test.QuickCheck.Arbitrary.Instances
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Test-suites of the sub-libraries which compose PCG/PhyG
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+test-suite test-dynamic-character
+
+  import:
+    ghc-flags,
+    language-specs
+
+  default-language:
+    Haskell2010
+
+  main-is:
+    TestSuite.hs
+
+  type:
+    exitcode-stdio-1.0
+
+  hs-source-dirs:
+    lib/dynamic-character/test
+
+  build-depends:
+    alphabet,
+    dynamic-character,
+    tcm,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    tasty                    >= 1.4       && < 2.0,
+    tasty-quickcheck         >= 0.10      && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
 
   other-modules:
-    Data.BitMatrix.Internal
-    Data.MutualExclusionSet.Internal
-    Numeric.Extended.Internal
+    DirectOptimization.Pairwise.Test
+    Test.Aligners
+    Test.QuickCheck.Instances.DynamicCharacter
 
+    
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Additional executables which exist for the one of a few select purposes:
+--
+--   * Generating data for PCG/PhyG input
+--
+--   * Debugging the component sub-libraries of PCG/PhyG and PCG/PhyG itself
+--
+--   * Performing correctness verification
+--
+--   * Stocastically searching for non-totality counterexamples
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+executable inspect-dynamic-character
+
+  import:
+    ghc-flags,
+    language-specs
+
+  default-language:
+    Haskell2010
+
+  main-is:
+    Inspect.hs
+
+  hs-source-dirs:
+    lib/dynamic-character/test
+
+  build-depends:
+    alphabet,
+    dynamic-character,
+    tcm,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    tasty                    >= 1.4       && < 2.0,
+    tasty-quickcheck         >= 0.10      && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+
+  other-modules:
+    Test.Aligners
+    Test.QuickCheck.Instances.DynamicCharacter

@@ -596,7 +596,7 @@ getGraphCompatibleList :: String -> [[BV.BV]] -> BV.BV-> [BV.BV]
 getGraphCompatibleList comparison inBVListList bvToCheck =
   if null inBVListList then error "Null list of list of bitvectors in getGraphCompatibleList"
   else
-    let compatibleList = concat $ parmap rdeepseq (flip (combinable comparison) bvToCheck) inBVListList
+    let compatibleList = concat $ fmap (flip (combinable comparison) bvToCheck) inBVListList
     in
     -- trace (show $ length compatibleList)
     compatibleList
@@ -609,9 +609,9 @@ getCompatibleList comparison inBVListList =
   if null inBVListList then error "Null list of list of bitvectors in getCompatibleList"
   else
     let uniqueBVList = L.nub $ concat inBVListList
-        bvCompatibleListList = parmap rdeepseq (getGraphCompatibleList comparison inBVListList) uniqueBVList
+        bvCompatibleListList = fmap (getGraphCompatibleList comparison inBVListList) uniqueBVList
     in
-    filter (not .null) bvCompatibleListList
+    filter (not . null) bvCompatibleListList
 
 -- | getThresholdNodes takes a threshold and keeps those unique objects present in the threshold percent or
 -- higher.  L.sorted by frequency (low to high)
@@ -639,11 +639,11 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
 -- higher.  L.sorted by frequency (low to high)
 -- modified from getThresholdNodes due to type change in edges
 -- used and number from numleaves so can use BV
-getThresholdEdges :: (Ord a) => Int -> Int -> [a] -> ([a], [Double])
+getThresholdEdges :: (Show a, Ord a) => Int -> Int -> [a] -> ([a], [Double])
 getThresholdEdges thresholdInt numGraphsIn objectList
   | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace"Threshold must be in range [0,100]"
   | null objectList = error "Empty list of object lists in getThresholdEdges"
-  | otherwise =
+  | otherwise = 
   let threshold = (fromIntegral thresholdInt / 100.0) :: Double
       numGraphs = fromIntegral numGraphsIn
       objectGroupList = L.group $ L.sort objectList
@@ -653,6 +653,7 @@ getThresholdEdges thresholdInt numGraphsIn objectList
   in
   --trace ("There are " ++ (show numGraphsIn) ++ " to filter: " ++ (show uniqueList) ++ "\n" ++ (show $ fmap length objectGroupList) ++ " " ++ (show frequencyList))
   (fst <$> filter ((>= threshold). snd) fullPairList, snd <$> fullPairList)
+  
 
 -- | getPostOrderVerts takes a vertex and traverses postorder to root places all visirted nodes in a set of found
 -- vertices. Keeps placing new nodes in recursion list until a root is hit.  If a node is already in found set

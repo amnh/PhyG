@@ -58,12 +58,15 @@ One Big thing--
 module Input.TNTUtilities  (getTNTData
                       ) where
 
+import Data.Alphabet
+import Data.Foldable
 import           Types.Types
 import           Debug.Trace
 import           Data.Char
 import qualified Data.Char as C
 import qualified Data.List as L
 import           Data.Maybe
+import qualified Data.Set  as Set
 import qualified Data.Text.Lazy  as T
 import qualified Data.Text.Short as ST
 import qualified Input.DataTransformation as DT
@@ -249,7 +252,7 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , weight = 1.0
                                 , costMatrix = SM.empty
                                 , name = T.empty
-                                , alphabet = []
+                                , alphabet = fromSymbols []
                                 , prealigned = True
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
@@ -519,9 +522,9 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  indexList (charIndex + 1) (firstCharInfo : curCharList)
-        else
-            let updatedCharInfo = firstCharInfo {alphabet = localAlphabet, costMatrix = SM.fromLists localMatrix}
+        if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList) 
+        else 
+            let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
             -- trace ("TNT2" ++ (show $ alphabet updatedCharInfo))
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
@@ -531,11 +534,30 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
 -- this could happen if a matrix is specified for arange of characters, some of which do not exhibit all the states
 -- otherwsie an error is thrown since states done't agree with m,artrix specification
 -- this could happen for a DNA character (ACGT-) with a martix specified of numerical values (01234)
-reconcileAlphabetAndCostMatrix :: String -> String -> [ST.ShortText] -> [ST.ShortText] -> [ST.ShortText]
-reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphabet =
-    if L.intersect observedAlphabet inferredAlphabet == observedAlphabet then inferredAlphabet
-    else errorWithoutStackTrace ("Error: TNT file " ++ fileName ++ " character " ++ charName  ++ " Observed alphabet " ++ show observedAlphabet ++ " is incompatible with matrix specification states " ++ show inferredAlphabet)
+reconcileAlphabetAndCostMatrix
+  :: ( Ord s
+     , Show s
+     )
+  => String
+  -> String
+  -> Alphabet s -> Alphabet s -> Alphabet s
+reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphabet
+    | observedAlphabet `isAlphabetSubsetOf` inferredAlphabet = inferredAlphabet
+    | otherwise = errorWithoutStackTrace $ fold
+        [ "Error: TNT file "
+        , fileName
+        , " character "
+        , charName, " Observed alphabet "
+        , show observedAlphabet
+        , " is incompatible with matrix specification states "
+        , show inferredAlphabet
+        ]
 
+isAlphabetSubsetOf :: Ord s => Alphabet s -> Alphabet s -> Bool
+isAlphabetSubsetOf specialAlphabet queryAlphabet = 
+    let querySet   = alphabetSymbols   queryAlphabet
+        specialSet = alphabetSymbols specialAlphabet
+    in  querySet `Set.isSubsetOf` specialSet
 
 -- | checkAndRecodeCharacterAlphabets take RawData and checks the data with char info.
 -- verifies that states (including in ambiguity) are Numerical for additive, and checks alphabets and cost matrices
@@ -565,10 +587,10 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo
 -- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
 -- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
 -- checks if char is additive for numerical alphabet
-getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> ([ST.ShortText], Double, [ST.ShortText])
-getAlphabetFromSTList fileName inStates inCharInfo =
-  if null inStates then error "Empty column data in getAlphabetFromSTList"
-  else
+getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> (Alphabet ST.ShortText, Double, [ST.ShortText]) 
+getAlphabetFromSTList fileName inStates inCharInfo = 
+  if null inStates then error "Empty column data in getAlphabetFromSTList" 
+  else 
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
@@ -578,7 +600,7 @@ getAlphabetFromSTList fileName inStates inCharInfo =
                     else thisWeight
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
-    (thisAlphabet, newWeight, newColumn)
+    (fromSymbols thisAlphabet, newWeight, newColumn)
 
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range

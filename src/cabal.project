@@ -35,4 +35,5 @@ source-repository-package
   location: https://github.com/diagrams/diagrams-lib
   tag: 6f66ce6bd5aed81d8a1330c143ea012724dbac3c
 
-with-compiler: ghc-9.0.1
+--with-compiler: ghc-9.0.1
+with-compiler: ghc

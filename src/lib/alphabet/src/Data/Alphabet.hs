@@ -47,6 +47,8 @@ module Data.Alphabet
   , alphabetStateNames
   , alphabetSymbols
   , getSubsetIndex
+  -- * Gap Symbol Queries  
+  , gapIndex
   , gapSymbol
   -- * Truncation
   , truncateAtSymbol

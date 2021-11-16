@@ -78,7 +78,8 @@ typedef struct alignment_matrices_t {
                                          */
 } alignment_matrices_t;
 
-void algnMtx_print(alignment_matrices_t *m, size_t alphSize);
+
+// void algnMtx_print(alignment_matrices_t *m, size_t alphSize);
 
 
 /*
