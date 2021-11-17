@@ -30,6 +30,7 @@ module Test.QuickCheck.Instances.DynamicCharacter
 import           Bio.DynamicCharacter
 import           Control.Applicative
 import           Data.Alphabet
+import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC       (iupacToDna)
 import qualified Data.Bimap                as BM
 import           Data.Bits

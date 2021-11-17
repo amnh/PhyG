@@ -44,14 +44,13 @@ module Bio.DynamicCharacter
   , extractMediansRightGapped
     -- * Immutable Constructors
   , encodeDynamicCharacter
-  , encodeState
+  , generateCharacter
     -- * Mutable Constructors
   , newTempCharacter
   , freezeTempCharacter
   , unsafeCharacterBuiltByST
   , unsafeCharacterBuiltByBufferedST
     -- * Rendering
-  , decodeState
   , renderDynamicCharacter
   ) where
 
@@ -427,6 +426,23 @@ freezeTempCharacter
   -> m (OpenDynamicCharacter v e)
 freezeTempCharacter (lc,mc,rc) =
     (,,) <$> unsafeFreeze lc <*> unsafeFreeze mc <*> unsafeFreeze rc
+
+
+{-# INLINEABLE generateCharacter #-}
+{-# SPECIALISE generateCharacter :: Word -> (Word -> (# SlimState, SlimState, SlimState #)) -> SlimDynamicCharacter #-}
+{-# SPECIALISE generateCharacter :: Word -> (Word -> (# WideState, WideState, WideState #)) -> WideDynamicCharacter #-}
+{-# SPECIALISE generateCharacter :: Word -> (Word -> (# HugeState, HugeState, HugeState #)) -> HugeDynamicCharacter #-}
+generateCharacter
+  :: Vector v e
+  => Word
+  -> (Word -> (# e, e, e #))
+  -> OpenDynamicCharacter v e
+generateCharacter n f = runST $ do
+    char <- newTempCharacter n
+    forM_ [ 0 .. n - 1] $ \i -> 
+        let (# x, y, z #) = f i
+        in  setAlign char (fromEnum i) x y z
+    freezeTempCharacter char
 
 
 {-# INLINEABLE unsafeCharacterBuiltByST #-}
