@@ -46,6 +46,7 @@ module Input.DataTransformation
   ) where
 
 import           Data.Alphabet
+import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC
 import           Data.Bifunctor
 import           Data.Bimap (Bimap)
@@ -387,7 +388,7 @@ iupacToBVPairs
 iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.toAscList iupac
   where
     constructor  = flip BV.fromNumber 0
-    encoder      = U.encodeState inputAlphabet constructor
+    encoder      = encodeState inputAlphabet constructor
 
 -- | nucleotideBVPairs for recoding DNA sequences
 -- this done to insure not recalculating everything for each base
@@ -517,7 +518,7 @@ getSingleStateBV localAlphabet localState =
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
 -- and returns then bitvectorfor that state in order of states in alphabet
 getStateBitVector :: Alphabet ST.ShortText -> ST.ShortText -> BV.BitVector
-getStateBitVector localAlphabet = U.encodeState localAlphabet constructor . (:[])
+getStateBitVector localAlphabet = encodeState localAlphabet constructor . (:[])
   where
     constructor  = flip BV.fromNumber 0
 

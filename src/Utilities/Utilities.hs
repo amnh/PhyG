@@ -44,6 +44,7 @@ import qualified Data.BitVector.LittleEndian as BV
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Data.Alphabet
+import Data.Alphabet.Codec
 import Data.Alphabet.IUPAC
 -- import Data.Alphabet.Special
 import Data.Foldable
@@ -382,30 +383,6 @@ prettyPrintVertexInfo inVertData =
         fifthPart = "\n\t" ++ show (vertData inVertData)
     in
     zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
-
-
-{-# INLINEABLE encodeState #-}
-{-# SPECIALISE encodeState :: (Bits b, Foldable f, Ord s) => Alphabet s         -> (Word -> b        ) -> f s           -> b         #-}
-{-# SPECIALISE encodeState :: (Bits b,             Ord s) => Alphabet s         -> (Word -> b        ) -> Set s         -> b         #-}
-{-# SPECIALISE encodeState ::  Bits b                     => Alphabet String    -> (Word -> b        ) -> Set String    -> b         #-}
-{-# SPECIALISE encodeState ::  Bits b                     => Alphabet ShortText -> (Word -> b        ) -> Set ShortText -> b         #-}
-{-# SPECIALISE encodeState :: (        Foldable f, Ord s) => Alphabet s         -> (Word -> BitVector) -> f s           -> BitVector #-}
-{-# SPECIALISE encodeState ::                      Ord s  => Alphabet s         -> (Word -> BitVector) -> Set s         -> BitVector #-}
-{-# SPECIALISE encodeState ::                                Alphabet String    -> (Word -> BitVector) -> Set String    -> BitVector #-}
-{-# SPECIALISE encodeState ::                                Alphabet ShortText -> (Word -> BitVector) -> Set ShortText -> BitVector #-}
-encodeState
-  :: ( Bits e
-     , Foldable f
-     , Ord s
-     )
-  => Alphabet s  -- ^ Alphabet of symbols
-  -> (Word -> e) -- ^ Constructor for an empty element, taking the alphabet size
-  -> f s         -- ^ ambiguity groups of symbols
-  -> e           -- ^ Encoded dynamic character element
-encodeState alphabet' f symbols = getSubsetIndex alphabet' symbolsSet emptyElement
-  where
-    emptyElement = f . toEnum $ length alphabet'
-    symbolsSet   = Set.fromList $ toList symbols
 
 
 -- | add3 adds three values

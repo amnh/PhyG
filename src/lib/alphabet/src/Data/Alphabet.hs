@@ -26,7 +26,7 @@
 --
 -- Every 'Alphabet' contains a "gap" symbol denoted by the expression:
 -- > fromString "-"
--- The "gap" character is always the last element in the ordered
+-- The "gap" character is always the /FIRST/ in the ordered
 -- list regardless of its presence or position in the construction structure.
 --
 -- An 'Alphabet' will never contain the "missing" symbol denoted by the
@@ -46,7 +46,6 @@ module Data.Alphabet
   -- * Queries
   , alphabetStateNames
   , alphabetSymbols
-  , getSubsetIndex
   -- * Gap Symbol Queries  
   , gapIndex
   , gapSymbol

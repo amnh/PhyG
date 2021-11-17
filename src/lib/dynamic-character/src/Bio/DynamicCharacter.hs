@@ -58,14 +58,13 @@ module Bio.DynamicCharacter
 import           Control.Monad.Primitive
 import           Control.Monad.ST
 import           Data.Alphabet
+import           Data.Alphabet.Codec
 import           Data.BitVector.LittleEndian
 import           Data.Bits
 import           Data.Foldable
-import           Data.List.NonEmpty          (NonEmpty)
 import           Data.Ord
 import           Data.STRef
 import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
 import qualified Data.Vector                 as V
 import           Data.Vector.Generic         (Mutable, Vector, unsafeFreeze, (!))
 import qualified Data.Vector.Generic         as GV
@@ -75,7 +74,6 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types
-import           GHC.Exts                    (IsList(fromList), Item)
 
 
 -- |
@@ -400,68 +398,6 @@ encodeDynamicCharacter alphabet f sequenceOfSymbols = dynamicCharater
                    modifySTRef iRef succ
 
        traverse_ writeElement sequenceOfSymbols
-
-
-{-# INLINEABLE encodeState #-}
-{-# SPECIALISE encodeState :: (Foldable f, Ord s) => Alphabet s -> (Word -> SlimState) -> f s -> SlimState #-}
-{-# SPECIALISE encodeState :: (Foldable f, Ord s) => Alphabet s -> (Word -> WideState) -> f s -> WideState #-}
-{-# SPECIALISE encodeState :: (Foldable f, Ord s) => Alphabet s -> (Word -> HugeState) -> f s -> HugeState #-}
-{-# SPECIALISE encodeState :: Ord s => Alphabet s -> (Word -> SlimState) -> Set s -> SlimState #-}
-{-# SPECIALISE encodeState :: Ord s => Alphabet s -> (Word -> WideState) -> Set s -> WideState #-}
-{-# SPECIALISE encodeState :: Ord s => Alphabet s -> (Word -> HugeState) -> Set s -> HugeState #-}
-{-# SPECIALISE encodeState :: Alphabet String -> (Word -> SlimState) -> Set String -> SlimState #-}
-{-# SPECIALISE encodeState :: Alphabet String -> (Word -> WideState) -> Set String -> WideState #-}
-{-# SPECIALISE encodeState :: Alphabet String -> (Word -> HugeState) -> Set String -> HugeState #-}
-encodeState
-  :: ( Bits e
-     , Foldable f
-     , Ord s
-     )
-  => Alphabet s  -- ^ Alphabet of symbols
-  -> (Word -> e) -- ^ Constructor for an empty element, taking the alphabet size
-  -> f s         -- ^ ambiguity groups of symbols
-  -> e           -- ^ Encoded dynamic character element
-encodeState alphabet f symbols = getSubsetIndex alphabet symbolsSet emptyElement
-  where
-    emptyElement = f . toEnum $ length alphabet
-    symbolsSet   = Set.fromList $ toList symbols
-
-
-{-# INLINEABLE decodeState #-}
-{-# SPECIALISE decodeState :: Alphabet s -> SlimState -> [s] #-}
-{-# SPECIALISE decodeState :: Alphabet s -> WideState -> [s] #-}
-{-# SPECIALISE decodeState :: Alphabet s -> HugeState -> [s] #-}
-{-# SPECIALISE decodeState :: Alphabet String -> SlimState -> [String] #-}
-{-# SPECIALISE decodeState :: Alphabet String -> WideState -> [String] #-}
-{-# SPECIALISE decodeState :: Alphabet String -> HugeState -> [String] #-}
-{-# SPECIALISE decodeState :: Ord s => Alphabet s -> SlimState -> Set s #-}
-{-# SPECIALISE decodeState :: Ord s => Alphabet s -> WideState -> Set s #-}
-{-# SPECIALISE decodeState :: Ord s => Alphabet s -> HugeState -> Set s #-}
-{-# SPECIALISE decodeState :: Alphabet String -> SlimState -> Set String #-}
-{-# SPECIALISE decodeState :: Alphabet String -> WideState -> Set String #-}
-{-# SPECIALISE decodeState :: Alphabet String -> HugeState -> Set String #-}
-{-# SPECIALISE decodeState :: Alphabet s -> SlimState -> NonEmpty s #-}
-{-# SPECIALISE decodeState :: Alphabet s -> WideState -> NonEmpty s #-}
-{-# SPECIALISE decodeState :: Alphabet s -> HugeState -> NonEmpty s #-}
-{-# SPECIALISE decodeState :: Alphabet String -> SlimState -> NonEmpty String #-}
-{-# SPECIALISE decodeState :: Alphabet String -> WideState -> NonEmpty String #-}
-{-# SPECIALISE decodeState :: Alphabet String -> HugeState -> NonEmpty String #-}
-decodeState
-  :: ( Bits e
-     , IsList (f s)
-     , Item (f s) ~ s
-     )
-  => Alphabet s  -- ^ Alphabet of symbols
-  -> e           -- ^ State to decode
-  -> f s
-decodeState alphabet state = fromList $ foldr pollSymbol mempty indices
-  where
-    indices = [ 0 .. len - 1 ]
-    len = length vec
-    vec = alphabetSymbols alphabet
-    pollSymbol i polled
-      | state `testBit` i = (vec V.! i) : polled
-      | otherwise         = polled
 
 
 {-# INLINEABLE newTempCharacter #-}

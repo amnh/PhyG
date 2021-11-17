@@ -316,6 +316,7 @@ library alphabet
 
   exposed-modules:
     Data.Alphabet
+    Data.Alphabet.Codec
     Data.Alphabet.IUPAC
     Data.Alphabet.Special
 
