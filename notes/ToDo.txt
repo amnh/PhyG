@@ -510,7 +510,9 @@ to render--would have repeated subtrees after network vertex
 
 200) Tasty and quickcheck for tests
 
-202) branch lengths for soft-wired from block trees
+203)
+
+
 
 
 	

@@ -153,27 +153,31 @@ postOrderIA inGraph charInfo inNodeList  =
 
         -- leaf take assignment from alignment field
         else if nodeType nodeLabel  == LeafNode then
+            {-
             let newCharacter
                   | characterType `elem` [SlimSeq, NucSeq] =
                      inCharacter { slimIAPrelim = slimAlignment inCharacter'
-                                 , slimIAFinal = fst3 $ slimAlignment inCharacter'
-                                 , slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
+                                 , slimIAFinal = extractMediansGapped $ slimAlignment inCharacter'
+                                 , slimFinal = extractMedians $ slimAlignment inCharacter'
                                  }
                   | characterType `elem` [WideSeq, AminoSeq] =
                      inCharacter { wideIAPrelim = wideAlignment inCharacter'
-                                 , wideIAFinal = fst3 $ wideAlignment inCharacter'
-                                 , wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
+                                 , wideIAFinal = extractMediansGapped $ wideAlignment inCharacter'
+                                 , wideFinal = extractMedians $ wideAlignment inCharacter'
                                  }
                   | characterType == HugeSeq =
                      inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
-                                 , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
-                                 , hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
+                                 , hugeIAFinal = extractMediansGapped $ hugeAlignment inCharacter'
+                                 , hugeFinal = extractMedians $ hugeAlignment inCharacter'
                                  }
                   | otherwise = error ("Unrecognized character type " ++ show characterType)
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
-            postOrderIA newGraph charInfo (tail inNodeList)
+            -}
+            trace ("PostOL: " ++ (show nodeIndex) ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
+            postOrderIA inGraph charInfo (tail inNodeList)
+            -- postOrderIA newGraph charInfo (tail inNodeList)
 
         -- HTU take create assignment from children
         else
@@ -198,6 +202,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
+                    trace ("PostO1: " ++ (show nodeIndex) ++ (show $ slimFinal childCharacter))
                     postOrderIA newGraph charInfo (tail inNodeList)
 
             -- two children 
@@ -211,6 +216,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
+                trace ("PostO2: " ++ (show nodeIndex) ++ (show $ slimFinal newCharacter) ++ " From: " ++ (show childlabels))
                 postOrderIA newGraph charInfo (tail inNodeList)
             -- )
     -- )
@@ -222,17 +228,18 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo
      in
      if characterType `elem` [SlimSeq, NucSeq] then
-        let prelimChar = get2WaySlim (slimTCM charInfo) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
+        let prelimChar = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
-        nodeChar {slimIAPrelim = (prelimChar,  fst3 $ slimIAPrelim leftChar, fst3 $ slimIAPrelim rightChar)}
+        trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
+        nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar, prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)}
      else if characterType `elem` [WideSeq, AminoSeq] then
-        let prelimChar = get2WayWideHuge (wideTCM charInfo) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
+        let prelimChar = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
         in
-        nodeChar {wideIAPrelim = (prelimChar, fst3 $ wideIAPrelim leftChar, fst3 $ wideIAPrelim rightChar)}
+        nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar, prelimChar, extractMediansGapped $ wideIAPrelim rightChar)}
      else if characterType == HugeSeq then
-        let prelimChar = get2WayWideHuge (hugeTCM charInfo) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
+        let prelimChar = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
         in
-        nodeChar {hugeIAPrelim = (prelimChar, fst3 $ hugeIAPrelim leftChar, fst3 $ hugeIAPrelim rightChar)}
+        nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar, prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)}
      else error ("Unrecognized character type " ++ show characterType)
 
 -- | makeIAFinalharacter takes two characters and performs 2-way assignment 
@@ -243,22 +250,22 @@ makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
          characterType = charType charInfo
      in
      if characterType `elem` [SlimSeq, NucSeq] then
-        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (fst3 $ slimIAPrelim leftChar) (fst3 $ slimIAPrelim rightChar)
-            finalChar =  M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
+        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+            finalChar =  extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
         in
         nodeChar { slimIAFinal = finalIAChar
                  , slimFinal = finalChar
                  }
      else if characterType `elem` [WideSeq, AminoSeq] then
-        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (fst3 $ wideIAPrelim leftChar) (fst3 $ wideIAPrelim rightChar)
-            finalChar = M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
+        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
+            finalChar = extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
         in
         nodeChar { wideIAFinal = finalIAChar
                  , wideFinal = finalChar
                  }
      else if characterType == HugeSeq then
-        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (fst3 $ hugeIAPrelim leftChar) (fst3 $ hugeIAPrelim rightChar)
-            finalChar = M.createUngappedMedianSequence symbols (finalIAChar, finalIAChar, finalIAChar)
+        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
+            finalChar = extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
         in
         nodeChar { hugeIAFinal = finalIAChar
                  , hugeFinal = finalChar
@@ -294,17 +301,17 @@ preOrderIA inGraph charInfo inNodePairList =
         else if nodeType nodeLabel == RootNode then
             let newCharacter
                   | characterType `elem` [SlimSeq, NucSeq] =
-                     inCharacter { slimFinal = M.createUngappedMedianSequence symbols $ slimAlignment inCharacter'
-                                 , slimIAFinal = fst3 $ slimAlignment inCharacter'
+                     inCharacter { slimIAFinal = extractMediansGapped $ slimAlignment inCharacter'
+                                 , slimFinal = extractMedians $ slimAlignment inCharacter'
                                  }
                   | characterType `elem` [WideSeq, AminoSeq] =
-                     inCharacter { wideFinal = M.createUngappedMedianSequence symbols $ wideAlignment inCharacter'
-                            , wideIAFinal = fst3 $ wideAlignment inCharacter'
-                            }
+                     inCharacter { wideFinal = extractMediansGapped $ wideAlignment inCharacter'
+                                 , wideIAFinal = extractMedians $ wideAlignment inCharacter'
+                                 }
                   | characterType == HugeSeq =
-                     inCharacter { hugeFinal = M.createUngappedMedianSequence symbols $ hugeAlignment inCharacter'
-                            , hugeIAFinal = fst3 $ hugeAlignment inCharacter'
-                            }
+                     inCharacter { hugeFinal = extractMediansGapped $ hugeAlignment inCharacter'
+                                 , hugeIAFinal = extractMedians $ hugeAlignment inCharacter'
+                                 }
                   | otherwise = error ("Unrecognized character type " ++ show characterType)
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
@@ -321,19 +328,19 @@ preOrderIA inGraph charInfo inNodePairList =
                                    }
                       | characterType `elem` [WideSeq, AminoSeq] =
                         inCharacter { wideFinal = wideFinal parentCharacter
-                              , wideIAFinal = wideIAFinal parentCharacter
-                              }
+                                    , wideIAFinal = wideIAFinal parentCharacter
+                                    }
                       | characterType == HugeSeq =
                         inCharacter { hugeFinal = hugeFinal parentCharacter
-                              , hugeIAFinal = hugeIAFinal parentCharacter
-                              }
+                                    , hugeIAFinal = hugeIAFinal parentCharacter
+                                    }
                       | otherwise = error ("Unrecognized character type " ++ show characterType)
 
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
-                    parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+                    parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
                 in
-                preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parenNodeList)
+                preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- 2 children, make 3-way 
         else
@@ -344,9 +351,9 @@ preOrderIA inGraph charInfo inNodePairList =
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
-                parenNodeList = replicate (length childNodes) (nodeIndex, newLabel)
+                parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parenNodeList)
+            preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- )
 
@@ -594,7 +601,7 @@ getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex inCharInfo (no
     else getCharacterDistFinal finalMethod uCharacter vCharacter inCharInfo
 
 
--- | getEdgeVerts retuns vewrtriex labels if edge in vect or if a virtual edge including root
+-- | getEdgeVerts retuns vertex labels if edge in vect or if a virtual edge including root
 getEdgeVerts :: Int -> Int -> Int -> V.Vector (LG.LNode VertexInfo) -> V.Vector (LG.LEdge EdgeInfo) -> Maybe (VertexInfo, VertexInfo)
 getEdgeVerts uNode vNode rootIndex nodeVect edgeVect =
     if edgeInVect (uNode, vNode) edgeVect then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
@@ -786,7 +793,7 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
 -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
-generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " ++ (show (numStates, uState, vState))) (
     let uState' = if uState == zeroBits then bit 0 else uState
@@ -849,17 +856,18 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (slimGapped childChar)
+         let finalAssignment' = extractMedians $ slimGapped childChar
          in
+         trace ("SF Root: " ++ (show finalAssignment') ++ "\n" ++ (show $ slimGapped childChar))
          childChar {slimFinal = finalAssignment', slimAlignment = slimGapped childChar}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (wideGapped childChar)
+         let finalAssignment' = extractMedians $ wideGapped childChar
          in
          childChar {wideFinal = finalAssignment', wideAlignment = wideGapped childChar}
 
       else if localCharType == HugeSeq then
-         let finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (hugeGapped childChar)
+         let finalAssignment' = extractMedians $ hugeGapped childChar
          in
          childChar {hugeFinal = finalAssignment', hugeAlignment = hugeGapped childChar}
 
@@ -876,21 +884,25 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (slimGapped childChar)
+         let finalAlignmentMedianGapped = if isLeft then extractMediansLeftGapped $ slimAlignment parentChar
+                                          else extractMediansRightGapped $ slimAlignment parentChar
+             finalAlignment = M.makeDynamicCharacterFromSingleVector finalAlignmentMedianGapped
+             -- finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+             finalAssignment' = extractMedians finalAlignment
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
+         trace ("SF Leaf: " ++ (show isLeft) ++ " " ++  (show finalAssignment') ++ "\n" ++ (show finalAlignment))
          childChar {slimFinal = finalAssignment', slimAlignment = finalAlignment}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (wideGapped childChar)
+             finalAssignment' = extractMedians finalAlignment
          in
          childChar {wideFinal = finalAssignment', wideAlignment = finalAlignment}
 
       else if localCharType == HugeSeq then
          let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignment' = M.createUngappedMedianSequence (fromEnum symbolCount) (hugeGapped childChar)
+             finalAssignment' = extractMedians finalAlignment
          in
          childChar {hugeFinal = finalAssignment', hugeAlignment = finalAlignment}
 
@@ -926,9 +938,10 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         childGapped = (slimGapped childChar, mempty, mempty)
                                         finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
+                                    extractMedians finalAssignmentDOGapped
                                  else mempty
          in
+         trace ("SF HTU: " ++ (show finalGapped))
          childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
          -- For debugging IA/DO bug 
          -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
@@ -942,7 +955,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         childGapped = (mempty, wideGapped childChar, mempty)
                                         finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
+                                    extractMedians finalAssignmentDOGapped
                                  else mempty
          in
          childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
@@ -956,7 +969,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         childGapped = (mempty, mempty, hugeGapped childChar)
                                         finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    M.createUngappedMedianSequence (fromEnum symbolCount) finalAssignmentDOGapped
+                                    extractMedians finalAssignmentDOGapped
                                  else mempty
          in
          childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
