@@ -884,10 +884,12 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAlignmentMedianGapped = if isLeft then extractMediansLeftGapped $ slimAlignment parentChar
+         let {-
+             finalAlignmentMedianGapped = if isLeft then extractMediansLeftGapped $ slimAlignment parentChar
                                           else extractMediansRightGapped $ slimAlignment parentChar
              finalAlignment = M.makeDynamicCharacterFromSingleVector finalAlignmentMedianGapped
-             -- finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+             -}
+             finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignment' = extractMedians finalAlignment
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
