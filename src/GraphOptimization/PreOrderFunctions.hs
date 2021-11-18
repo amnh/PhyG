@@ -89,8 +89,8 @@ import           Data.Word
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inGS finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else
@@ -103,7 +103,7 @@ preOrderTreeTraversal finalMethod hasNonExact inPGraph@(inSimple, inCost, inDeco
             preOrderBlockVect' = if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments preOrderBlockVect inCharInfoVV
                                 else preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges finalMethod preOrderBlockVect' inCharInfoVV inDecorated
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod preOrderBlockVect' inCharInfoVV inDecorated
         in
         {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -449,8 +449,8 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: AssignmentMethod -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges finalMethd preOrderBlockTreeVV inCharInfoVV inGraph =
+assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges inGS finalMethd preOrderBlockTreeVV inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else
@@ -461,8 +461,16 @@ assignPreorderStatesAndEdges finalMethd preOrderBlockTreeVV inCharInfoVV inGraph
             -- update node labels
             newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
 
-            -- update edge labels
-            newEdgeList = fmap (updateEdgeInfo finalMethd inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
+            -- create a vector of vector of pair of nodes and edges for display x charcater trees
+            blockTreePairVV =  fmap (fmap LG.makeNodeEdgePairVect) preOrderBlockTreeVV
+
+            -- update edge labels--for softwired need to account for not all edges in all block/display trees
+            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
+                          else 
+                            let rootIndexList = fmap fst $ LG.getRoots inGraph  
+                            in 
+                                if (length rootIndexList /= 1) then error ("Root number not 1 in assignPreorderStatesAndEdges" ++ (show rootIndexList))
+                                else fmap (updateEdgeInfoSoftWired finalMethd inCharInfoVV blockTreePairVV (head rootIndexList)) postOrderEdgeList
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
@@ -471,7 +479,7 @@ assignPreorderStatesAndEdges finalMethd preOrderBlockTreeVV inCharInfoVV inGraph
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the
 -- the preorder fields only using character info.  This leaves post and preorder assignment out of sync.
--- but that so can use incremental optimizaytion on base decorated graph in other areas.
+-- but that so can use incremental optimization on base decorated graph in other areas.
 updateNodeWithPreorder :: V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> LG.LNode VertexInfo
 updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV postOrderNode =
     let nodeLabel = snd postOrderNode
@@ -531,11 +539,87 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType
                   }
   | otherwise = error ("Character type unimplemented : " ++ show localCharType)
 
+-- | updateEdgeInfoSoftWired gets edge weights via block trees as opposed to canonical graph
+-- this because not all edges present in all block/display trees
+updateEdgeInfoSoftWired :: AssignmentMethod 
+                        -> V.Vector (V.Vector CharInfo) 
+                        -> V.Vector (V.Vector (V.Vector (LG.LNode VertexInfo), V.Vector (LG.LEdge EdgeInfo))) 
+                        -> Int
+                        -> LG.LEdge EdgeInfo 
+                        -> LG.LEdge EdgeInfo
+updateEdgeInfoSoftWired finalMethod inCharInfoVV blockTreePairVV rootIndex (uNode, vNode, edgeLabel) =
+    if V.null blockTreePairVV then error "Empty node-edge pair vector in updateEdgeInfoSoftWired"
+    else
+        let (minWList, maxWList) = V.unzip $ V.zipWith (getEdgeBlockWeightSoftWired finalMethod uNode vNode rootIndex) inCharInfoVV blockTreePairVV 
+            localEdgeType = edgeType edgeLabel
+            newEdgeLabel = EdgeInfo { minLength = V.sum minWList
+                                    , maxLength = V.sum maxWList
+                                    , midRangeLength = (V.sum minWList + V.sum maxWList) / 2.0
+                                    , edgeType  = localEdgeType
+                                    }
+        in
+        (uNode, vNode, newEdgeLabel)
 
--- | updateEdgeInfo takes a Decorated graph--fully labelled post and preorder and and edge and 
+
+-- | getEdgeBlockWeightSoftWired takes a block of charcter trees and maps character distances if edge exists in block tree
+getEdgeBlockWeightSoftWired :: AssignmentMethod 
+                            -> Int 
+                            -> Int 
+                            -> Int 
+                            -> V.Vector CharInfo 
+                            -> V.Vector (V.Vector (LG.LNode VertexInfo), V.Vector (LG.LEdge EdgeInfo)) 
+                            -> (VertexCost, VertexCost)
+getEdgeBlockWeightSoftWired finalMethod uNode vNode rootIndex inCharInfoV blockTreePairV = 
+    let (minWList, maxWList) = V.unzip $ V.zipWith (getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex) inCharInfoV blockTreePairV 
+    in (V.sum minWList, V.sum maxWList)
+
+-- | getEdgeCharacterWeightSoftWired gets the edge weight for an individual character
+-- matches edge in either direction
+-- need examine edge root as two edges from rootIndex
+getEdgeCharacterWeightSoftWired :: AssignmentMethod 
+                                -> Int 
+                                -> Int 
+                                -> Int 
+                                -> CharInfo 
+                                -> (V.Vector (LG.LNode VertexInfo), V.Vector (LG.LEdge EdgeInfo)) 
+                                -> (VertexCost, VertexCost)
+getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex inCharInfo (nodeVect, edgeVect) =
+    let foundVertexPair = getEdgeVerts uNode vNode rootIndex nodeVect edgeVect
+        (uLabel, vLabel) = fromJust foundVertexPair
+        uCharacter = V.head $ V.head $ vertData uLabel
+        vCharacter = V.head $ V.head $ vertData vLabel
+    in
+    -- if edge not present and not around root then return  no costs
+    if foundVertexPair == Nothing then (0,0)
+    else getCharacterDistFinal finalMethod uCharacter vCharacter inCharInfo
+
+
+-- | getEdgeVerts retuns vewrtriex labels if edge in vect or if a virtual edge including root
+getEdgeVerts :: Int -> Int -> Int -> V.Vector (LG.LNode VertexInfo) -> V.Vector (LG.LEdge EdgeInfo) -> Maybe (VertexInfo, VertexInfo)
+getEdgeVerts uNode vNode rootIndex nodeVect edgeVect =
+    if edgeInVect (uNode, vNode) edgeVect then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
+    else if (edgeInVect (rootIndex, uNode) edgeVect) && (edgeInVect (rootIndex, vNode) edgeVect) then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
+    else Nothing
+
+-- | edgeInVect takes an edges and returns True if in Vector, False otherwise
+edgeInVect :: (Int , Int) -> V.Vector (LG.LEdge EdgeInfo) -> Bool
+edgeInVect (u, v) edgeVect =
+    if V.null edgeVect then False
+    else 
+        let (a, b, _) = V.head edgeVect
+        in
+        if (u, v) == (a, b) then True
+        else if (v, u) == (a, b) then True
+        else edgeInVect (u, v) (V.tail edgeVect)
+
+
+
+
+-- | updateEdgeInfoTree takes a Decorated graph--fully labelled post and preorder and and edge and 
 -- gets edge info--basically lengths
-updateEdgeInfo :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo
-updateEdgeInfo finalMethod inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
+-- this for a tree in that all edges are present in all character/block trees
+updateEdgeInfoTree :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo
+updateEdgeInfoTree finalMethod inCharInfoVV nodeVector (uNode, vNode, edgeLabel) =
     if V.null nodeVector then error "Empty node list in updateEdgeInfo"
     else
         let (minW, maxW) = getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode)

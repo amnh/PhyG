@@ -163,7 +163,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
 
                 outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + localRootCost + (snd6 outgroupRootedSoftWiredPostOrder))
 
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder'
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False outgroupRootedSoftWiredPostOrder'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
 
@@ -176,7 +176,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
 
                 finalizedPostOrderGraphList' = L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
 
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True $ head finalizedPostOrderGraphList'
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True $ head finalizedPostOrderGraphList'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
 
@@ -188,7 +188,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
 
                 graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  localRootCost + (snd6 graphWithBestAssignments))
 
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal (finalAssignment inGS) True graphWithBestAssignments'
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True graphWithBestAssignments'
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
         -- )
@@ -801,19 +801,19 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
             graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment minCostGraphListRecursive -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
 
             -- this for debuggin purposes
-            --allPreorderList = fmap (preOrderTreeTraversal (finalAssignment inGS)) recursiveRerootList
+            --allPreorderList = fmap (preOrderTreeTraversal inGS (finalAssignment inGS)) recursiveRerootList
 
         in
         -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
-        --preOrderTreeTraversal (finalAssignment inGS) outgroupRootedPhyloGraph
-        --preOrderTreeTraversal  (finalAssignment inGS) $ head minCostGraphListRecursive 
+        --preOrderTreeTraversal inGS (finalAssignment inGS) outgroupRootedPhyloGraph
+        --preOrderTreeTraversal inGS  (finalAssignment inGS) $ head minCostGraphListRecursive 
 
         -- special cases that don't require all the work
 
         -- trace ("Nums:" ++ show (length minCostGraphListRecursive) ++ " " ++ show (fmap snd6 minCostGraphListRecursive)) (
-        if nonExactChars == 0 then PRE.preOrderTreeTraversal (finalAssignment inGS) False outgroupRootedPhyloGraph
-        else if nonExactChars == 1 then PRE.preOrderTreeTraversal (finalAssignment inGS) True  $ head minCostGraphListRecursive
-        else PRE.preOrderTreeTraversal (finalAssignment inGS) True  graphWithBestAssignments'
+        if nonExactChars == 0 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False outgroupRootedPhyloGraph
+        else if nonExactChars == 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  $ head minCostGraphListRecursive
+        else PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  graphWithBestAssignments'
         -- )
 
 

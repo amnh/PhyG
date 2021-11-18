@@ -56,6 +56,7 @@ import GeneralUtilities
 import Data.Maybe
 import Debug.Trace
 import qualified Data.List as L
+import qualified Data.Vector                 as V
 
 
 
@@ -111,7 +112,7 @@ equal x y = G.equal x y
 gelem :: Node -> Gr a b -> Bool
 gelem = G.gelem
 
--- | maps to labNodes
+-- | maps to labNodes-- I beleive in vertex index order
 labNodes :: Gr a b -> [LNode a]
 labNodes = G.labNodes
 
@@ -521,11 +522,20 @@ artPoint :: Gr a b -> [Node]
 artPoint inGraph = AP.ap inGraph
 
 
+-- | makeNodeEdgePair takes a graph and extracts list of nodes and edges 
+-- returning a pair
+makeNodeEdgePair :: Gr a b -> ([LNode a], [LEdge b])
+makeNodeEdgePair inGraph = 
+    if isEmpty inGraph then ([],[])
+    else (labNodes inGraph, labEdges inGraph)
 
 
-
-
-
+-- | makeNodeEdgePairVect takes a graph and extracts list of nodes and edges 
+-- returning a pair of a vector of nodes and Vector of edges
+makeNodeEdgePairVect :: Gr a b -> (V.Vector (LNode a), V.Vector (LEdge b))
+makeNodeEdgePairVect inGraph = 
+    if isEmpty inGraph then (V.empty, V.empty)
+    else (V.fromList $ labNodes inGraph, V.fromList $ labEdges inGraph)
 
 
 

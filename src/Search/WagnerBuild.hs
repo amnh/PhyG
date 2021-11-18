@@ -93,7 +93,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        blockCharInfo = V.map thd3 $ thd3 inData
 
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
    in
@@ -105,7 +105,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner :: V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph 
+recursiveAddEdgesWagner ::V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph 
 recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
@@ -126,7 +126,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                        else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
+          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
                           else T.multiTraverseFullyLabelGraph inGS inData False False Nothing newSimple'   
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
