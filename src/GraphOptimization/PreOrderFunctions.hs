@@ -68,7 +68,6 @@ import           Foreign.C.Types             (CUInt)
 import qualified GraphOptimization.Medians as M
 import qualified Utilities.LocalGraph as LG
 import qualified SymMatrix                   as S
-import           Data.Word
 import qualified Graphs.GraphOperations as GO
 
 
@@ -102,8 +101,10 @@ preOrderTreeTraversal inGS finalMethod hasNonExact inPGraph@(inSimple, inCost, i
             preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
-            preOrderBlockVect' = if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments preOrderBlockVect inCharInfoVV
-                                else preOrderBlockVect
+            -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
+            preOrderBlockVect' = -- if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments finalMethod preOrderBlockVect inCharInfoVV
+                                 if hasNonExact then V.zipWith (makeIAAssignments finalMethod) preOrderBlockVect inCharInfoVV
+                                 else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod preOrderBlockVect' inCharInfoVV inDecorated
         in
@@ -118,19 +119,18 @@ preOrderTreeTraversal inGS finalMethod hasNonExact inPGraph@(inSimple, inCost, i
 
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
-makeIAAssignments :: V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
-makeIAAssignments = V.zipWith makeCharacterIA
+makeIAAssignments :: AssignmentMethod -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+makeIAAssignments finalMethod = V.zipWith (makeCharacterIA finalMethod)
 
 -- | makeCharacterIA takes an individual character postorder tree and if non-exact perform post and preorder IA passes
 -- and assignment to final field in slim/wide/huge
-makeCharacterIA :: DecoratedGraph -> CharInfo -> DecoratedGraph
-makeCharacterIA inGraph charInfo =
+makeCharacterIA :: AssignmentMethod -> DecoratedGraph -> CharInfo -> DecoratedGraph
+makeCharacterIA finalMethod inGraph charInfo =
     if charType charInfo `notElem` nonExactCharacterTypes then inGraph
     else
         let postOrderIATree = postOrderIA inGraph charInfo (LG.getRoots inGraph)
-            preOrderIATree = preOrderIA postOrderIATree charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
+            preOrderIATree = preOrderIA postOrderIATree finalMethod charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
         in
-        trace ("MCIA roots:" ++ (show $ LG.getRoots postOrderIATree) ++ "\n" ++ (show $ LG.edges postOrderIATree))
         preOrderIATree
 
 -- | postOrderIA performs a post-order IA pass assigning leaf preliminary states
@@ -142,10 +142,7 @@ postOrderIA inGraph charInfo inNodeList  =
     else
         let inNode@(nodeIndex, nodeLabel) = head inNodeList
             (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
-            characterType = charType charInfo
-            symbols = length $ costMatrix charInfo
             inCharacter = V.head $ V.head $ vertData nodeLabel
-            inCharacter' = inCharacter
             nodeType' = GO.getNodeType inGraph nodeIndex
         in
 
@@ -178,7 +175,7 @@ postOrderIA inGraph charInfo inNodeList  =
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
             -}
-            trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
+            -- trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
             postOrderIA inGraph charInfo (tail inNodeList)
             -- postOrderIA newGraph charInfo (tail inNodeList)
 
@@ -205,7 +202,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter), nodeType = nodeType'}
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
-                    trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
+                    -- trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
                     postOrderIA newGraph charInfo (tail inNodeList)
 
             -- two children 
@@ -219,7 +216,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
-                trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
+                -- trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
                 postOrderIA newGraph charInfo (tail inNodeList)
             -- )
     -- )
@@ -233,7 +230,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      if characterType `elem` [SlimSeq, NucSeq] then
         let prelimChar = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
-        trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
+        -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar, prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)}
      else if characterType `elem` [WideSeq, AminoSeq] then
         let prelimChar = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
@@ -247,27 +244,30 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
 
 -- | makeIAFinalharacter takes two characters and performs 2-way assignment 
 -- based on character type and nodeChar--only IA fields are modified
-makeIAFinalCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
-makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
+makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar =
      let characterType = charType charInfo
      in
      if characterType `elem` [SlimSeq, NucSeq] then
         let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
-            finalChar =  extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+            finalChar =  if finalMethod == ImpliedAlignment then extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+                         else slimFinal nodeChar 
         in
         nodeChar { slimIAFinal = finalIAChar
                  , slimFinal = finalChar
                  }
      else if characterType `elem` [WideSeq, AminoSeq] then
         let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
-            finalChar = extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+                        else wideFinal nodeChar 
         in
         nodeChar { wideIAFinal = finalIAChar
                  , wideFinal = finalChar
                  }
      else if characterType == HugeSeq then
         let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
-            finalChar = extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ M.makeDynamicCharacterFromSingleVector finalIAChar
+                        else hugeFinal nodeChar 
         in
         nodeChar { hugeIAFinal = finalIAChar
                  , hugeFinal = finalChar
@@ -278,14 +278,13 @@ makeIAFinalCharacter charInfo nodeChar parentChar leftChar rightChar =
 
 -- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
 -- the "final" fields are also set by filtering out gaps and 0.
-preOrderIA :: DecoratedGraph -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
-preOrderIA inGraph charInfo inNodePairList =
+preOrderIA :: DecoratedGraph -> AssignmentMethod -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
+preOrderIA inGraph finalMethod charInfo inNodePairList =
     if null inNodePairList then inGraph
     else
         let (inNode@(nodeIndex, nodeLabel), (_, parentNodeLabel)) = head inNodePairList
             (inNodeEdges, outNodeEdges) = LG.getInOutEdges inGraph nodeIndex
             characterType = charType charInfo
-            symbols = (length $ costMatrix charInfo)
             inCharacter = V.head $ V.head $ vertData nodeLabel
             inCharacter' = inCharacter
             parentCharacter = V.head $ V.head $ vertData parentNodeLabel
@@ -298,29 +297,29 @@ preOrderIA inGraph charInfo inNodePairList =
         else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ show (length childNodes))
 
         -- leaf done in post-order
-        else if nodeType nodeLabel == LeafNode then trace ("PreIALeaf: " ++ (show nodeIndex)) preOrderIA inGraph charInfo (tail inNodePairList)
+        else if nodeType nodeLabel == LeafNode then preOrderIA inGraph finalMethod charInfo (tail inNodePairList)
 
         else if nodeType nodeLabel == RootNode then
             let newCharacter
                   | characterType `elem` [SlimSeq, NucSeq] =
                      inCharacter { slimIAFinal = extractMediansGapped $ slimIAPrelim inCharacter'
-                                 , slimFinal = extractMedians $ slimIAPrelim  inCharacter'
+                                 -- , slimFinal = extractMedians $ slimIAPrelim  inCharacter'
                                  }
                   | characterType `elem` [WideSeq, AminoSeq] =
-                     inCharacter { wideFinal = extractMediansGapped $ wideIAPrelim inCharacter'
-                                 , wideIAFinal = extractMedians $ wideIAPrelim inCharacter'
+                     inCharacter { wideIAFinal = extractMediansGapped $ wideIAPrelim inCharacter'
+                                 -- , wideFinal = extractMedians $ wideIAPrelim inCharacter'
                                  }
                   | characterType == HugeSeq =
-                     inCharacter { hugeFinal = extractMediansGapped $ hugeIAPrelim inCharacter'
-                                 , hugeIAFinal = extractMedians $ hugeIAPrelim inCharacter'
+                     inCharacter { hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter'
+                                 -- , hugeFinal = extractMedians $ hugeIAPrelim inCharacter'
                                  }
                   | otherwise = error ("Unrecognized character type " ++ show characterType)
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            trace ("PreIARoot: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
-            preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            -- trace ("PreIARoot: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
+            preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- single child, take parent final assignments, but keep postorder assignments    
         else if length childNodes == 1 then
@@ -343,22 +342,22 @@ preOrderIA inGraph charInfo inNodePairList =
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                     parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
                 in
-                trace ("PreIANet: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
-                preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+                -- trace ("PreIANet: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
+                preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- 2 children, make 3-way 
         else
             let childLabels = fmap snd childNodes
                 leftChar = V.head $ V.head $ vertData $ head childLabels
                 rightChar = V.head $ V.head $ vertData $ last childLabels
-                finalCharacter = makeIAFinalCharacter charInfo inCharacter parentCharacter leftChar rightChar
+                finalCharacter = makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter leftChar rightChar
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            trace ("PreIATree: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal finalCharacter) ++ " Final: " ++ (show $ slimFinal finalCharacter)) 
-            preOrderIA newGraph charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            -- trace ("PreIATree: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal finalCharacter) ++ " Final: " ++ (show $ slimFinal finalCharacter)) 
+            preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- )
 
@@ -675,9 +674,6 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
-        gapChar = bit gapIndex
-        gapCharWide = bit gapIndex :: Word64
-        gapCharBV = bit gapIndex :: BV.BitVector
     in
     if thisCharType == Add then
         let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
@@ -710,10 +706,9 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     vFinal = M.makeDynamicCharacterFromSingleVector (slimFinal vCharacter)
                                     newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimGapped = uFinal}) (vCharacter {slimGapped = vFinal})
                                     (newU, _, newV) = slimGapped newEdgeCharacter
-                                    doCOST = localCost newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapChar) newU) (GV.toList $ GV.map (zero2Gap gapChar) newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap newU) (GV.toList $ GV.map zero2Gap  newV)
                              else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -731,7 +726,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     (newU, _, newV) = wideGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapCharWide) newU) (GV.toList $ GV.map (zero2Gap gapCharWide) newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap  newU) (GV.toList $ GV.map zero2Gap newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -747,7 +742,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     (newU, _, newV) = hugeGapped newEdgeCharacter
                                 in
                                 -- trace ("GCD:\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map (zero2Gap gapCharBV) newU) (GV.toList $ GV.map (zero2Gap gapCharBV) newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap newU) (GV.toList $ GV.map zero2Gap newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -758,9 +753,9 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     else error ("Character type unimplemented : " ++ show thisCharType)
 
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value 
-zero2Gap :: (FiniteBits a) => a -> a -> a
-zero2Gap gapChar inVal = if inVal == zeroBits then bit gapIndex
-                         else inVal
+zero2Gap :: (FiniteBits a) => a -> a
+zero2Gap inVal = if inVal == zeroBits then bit gapIndex
+                 else inVal
 {-
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
 zero2GapWide :: Word64 -> Word64 -> Word64
@@ -934,7 +929,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignment = if finalMethod == DirectOptimization then
+             finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
                                         -- parentGapped = (slimGapped parentChar, mempty, mempty)
@@ -942,12 +937,13 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
                                     extractMedians finalAssignmentDOGapped
+                                    -- really could/should be mempty since overwritten by IA later
                                  else extractMedians finalGapped
          in
          -- trace ("SF Tree: " ++ (show isLeft) ++ " FA': " ++  (show finalAssignment) ++ "\nFA: " ++ (show finalGapped) ++ "\nSAP: " ++
          --   (show $ slimAlignment parentChar) ++ "\nSGP: " ++ (show $ slimGapped parentChar) ++ "\nSGC: " ++ (show $ slimGapped childChar))
          --trace ("SF Tree: " ++ (show finalGapped))
-         childChar {slimFinal = finalAssignment, slimAlignment = finalGapped}
+         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
          -- For debugging IA/DO bug 
          -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
 
@@ -1151,7 +1147,7 @@ local3WaySlim lSlimTCM gap b c d =
  -- trace ("L3WS: " ++ (show (b',c',d'))) (
  let (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
  in
- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+ -- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
  median
  -- )
 
@@ -1166,12 +1162,12 @@ get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
 -- | local2WaySlim takes pair of CUInt and retuns median
 local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
 local2WaySlim lSlimTCM gap b c =
- let  b' = if b == zeroBits then gap else 2 * b
+ let  b' = if b == zeroBits then gap else 2 * b -- temp fix for 2-way oddness
       c' = if c == zeroBits then gap else c
       (median, _) = TCMD.lookupPairwise lSlimTCM b' c'
       -- (median, _ ) = TCMD.lookupPairwise lSlimTCM b c
  in
- trace ("2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show median))
+ -- trace ("2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show median))
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
