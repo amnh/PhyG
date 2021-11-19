@@ -420,7 +420,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode =
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel
                     rightChildNodeType = nodeType rightChildLabel
-                    resolutionBlockVL = V.zipWith3 (PO.createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
+                    resolutionBlockVL = V.zipWith3 (PO.createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions

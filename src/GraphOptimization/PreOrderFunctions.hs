@@ -202,7 +202,7 @@ postOrderIA inGraph charInfo inNodeList  =
                 else if V.null $ vertData childLabel then error "Null vertData in postOrderIA"
                 else if V.null $ V.head $ vertData childLabel then error "Null vertData data in postOrderIA"
                 else
-                    let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
+                    let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter), nodeType = nodeType'}
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
                     trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
