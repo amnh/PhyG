@@ -510,7 +510,9 @@ to render--would have repeated subtrees after network vertex
 
 200) Tasty and quickcheck for tests
 
-203)
+203) use union alignment frtom IA for branch invasion in Wagner/SPR/TBR
+
+
 
 
 

@@ -175,7 +175,7 @@ postOrderIA inGraph charInfo inNodeList  =
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
             -}
-            trace ("PostOL: " ++ (show nodeIndex) ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
+            trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
             postOrderIA inGraph charInfo (tail inNodeList)
             -- postOrderIA newGraph charInfo (tail inNodeList)
 
@@ -202,7 +202,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter)}
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
-                    trace ("PostO1: " ++ (show nodeIndex) ++ (show $ slimFinal childCharacter))
+                    trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
                     postOrderIA newGraph charInfo (tail inNodeList)
 
             -- two children 
@@ -216,7 +216,7 @@ postOrderIA inGraph charInfo inNodeList  =
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
-                trace ("PostO2: " ++ (show nodeIndex) ++ (show $ slimFinal newCharacter) ++ " From: " ++ (show childlabels))
+                trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " From: " ++ (show childlabels))
                 postOrderIA newGraph charInfo (tail inNodeList)
             -- )
     -- )
@@ -893,7 +893,8 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
              finalAssignment' = extractMedians finalAlignment
          in
          --trace ("Leaf " ++ show (slimPrelim childChar, slimPrelim childChar, finalAlignment, slimGapped childChar, slimAlignment parentChar))
-         trace ("SF Leaf: " ++ (show isLeft) ++ " " ++  (show finalAssignment') ++ "\n" ++ (show finalAlignment))
+         trace ("SF Leaf: " ++ (show isLeft) ++ " FA': " ++  (show finalAssignment') ++ "\nFA: " ++ (show finalAlignment) ++ "\nSAP: " ++
+            (show $ slimAlignment parentChar) ++ "\nSGP: " ++ (show $ slimGapped parentChar) ++ "\nSGC: " ++ (show $ slimGapped childChar))
          childChar {slimFinal = finalAssignment', slimAlignment = finalAlignment}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
@@ -933,7 +934,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignmentDO = if finalMethod == DirectOptimization then
+             finalAssignment = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
                                         -- parentGapped = (slimGapped parentChar, mempty, mempty)
@@ -941,10 +942,12 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
                                     extractMedians finalAssignmentDOGapped
-                                 else mempty
+                                 else extractMedians finalGapped
          in
-         trace ("SF HTU: " ++ (show finalGapped))
-         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
+         trace ("SF Tree: " ++ (show isLeft) ++ " FA': " ++  (show finalAssignment) ++ "\nFA: " ++ (show finalGapped) ++ "\nSAP: " ++
+            (show $ slimAlignment parentChar) ++ "\nSGP: " ++ (show $ slimGapped parentChar) ++ "\nSGC: " ++ (show $ slimGapped childChar))
+         --trace ("SF Tree: " ++ (show finalGapped))
+         childChar {slimFinal = finalAssignment, slimAlignment = finalGapped}
          -- For debugging IA/DO bug 
          -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
 
@@ -958,7 +961,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
                                     extractMedians finalAssignmentDOGapped
-                                 else mempty
+                                 else extractMedians finalGapped
          in
          childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
 
@@ -972,7 +975,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
                                     extractMedians finalAssignmentDOGapped
-                                 else mempty
+                                 else extractMedians finalGapped
          in
          childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
 
@@ -1002,6 +1005,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+         trace ("SF Net: " ++ (show $ slimAlignment parentChar))
          childChar { slimFinal = slimFinal parentChar
                    , slimAlignment = slimAlignment parentChar
                    , slimIAFinal = slimFinal parentChar}
