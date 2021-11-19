@@ -52,8 +52,9 @@ preOrderLogic isLeftChild pAlignment pContext cContext = unsafeCharacterBuiltByS
             else do
                 j <- readSTRef j'
                 modifySTRef j' succ
+                -- Remember that 'Delete' leaves 'voids' in the 'left' character.
                 if    pAlignment `isAlign` i
-                  || (    isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
-                  || (not isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-                then char `setGapped` i
-                else modifySTRef k' succ *> setFrom cContext char k i
+                  || (not isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
+                  || (    isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
+                then modifySTRef k' succ *> setFrom cContext char k i
+                else char `setGapped` i
