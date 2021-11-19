@@ -175,7 +175,7 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
                     -- create resolution caches for blocks
                     leftChildNodeType  = nodeType leftChildLabel'
                     rightChildNodeType = nodeType rightChildLabel'
-                    resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
+                    resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -219,7 +219,7 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: Bool -> LG.Node -> Int -> Int -> NodeType -> NodeType -> ResolutionBlockData -> ResolutionBlockData -> V.Vector CharInfo -> ResolutionBlockData
+createBlockResolutions :: Bool -> LG.Node -> Int -> Int -> NodeType -> NodeType -> NodeType -> ResolutionBlockData -> ResolutionBlockData -> V.Vector CharInfo -> ResolutionBlockData
 createBlockResolutions
   compress
   curNode
@@ -227,6 +227,7 @@ createBlockResolutions
   rightIndex
   leftChildNodeType
   rightChildNodeType
+  curNodeNodeType
   leftChild
   rightChild
   charInfoV
@@ -251,7 +252,7 @@ createBlockResolutions
                                   , bvLabel = BV.fromBits [False]
                                   , parents = mempty
                                   , children = mempty
-                                  , nodeType = TreeNode
+                                  , nodeType = curNodeNodeType
                                   , vertName = T.pack $ "HTU" ++ show curNode
                                   , vertData = mempty
                                   , vertexResolutionData = mempty
