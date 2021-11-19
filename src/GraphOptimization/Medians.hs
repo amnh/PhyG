@@ -44,7 +44,7 @@ module GraphOptimization.Medians  ( median2
                                   , median2Single
                                   , median2NonExact
                                   , median2SingleNonExact
-                                  , createUngappedMedianSequence
+                                  -- , createUngappedMedianSequence
                                   , intervalAdd
                                   , interUnion
                                   , addMatrix
@@ -52,6 +52,7 @@ module GraphOptimization.Medians  ( median2
                                   , getDOMedianCharInfo
                                   , pairwiseDO
                                   , makeDynamicCharacterFromSingleVector
+                                  , createEdgeUnionOverBlocks
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -73,7 +74,7 @@ import           Types.Types
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
 -- and returns a dynamic character that canbe used with other functions
-makeDynamicCharacterFromSingleVector :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a)
+makeDynamicCharacterFromSingleVector :: (GV.Vector v a) => v a -> (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
 -- | median2 takes the vectors of characters and applies media2 to each
@@ -183,7 +184,7 @@ interUnion thisWeight leftChar rightChar =
         numUnions = V.length $ V.filter BV.isZeroVector intersectVect
         newCost = thisWeight * fromIntegral numUnions
         newStateVect = V.zipWith localAndOr intersectVect unionVect
-        newCharcater = emptyCharacter { stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
+        newCharacter = emptyCharacter { stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
@@ -192,7 +193,23 @@ interUnion thisWeight leftChar rightChar =
     --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
 
-    newCharcater
+    newCharacter
+
+-- | localUnion takes two non-additive chars and creates newCharcter as 2-union/or
+-- assumes a single weight for all
+-- performs single
+-- fst3 $ rangePrelim left/rightChar due to triple in prelim
+localUnion :: CharacterData -> CharacterData -> CharacterData
+localUnion leftChar rightChar =
+    let unionVect = V.zipWith localOr (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
+        newCharacter = emptyCharacter { stateBVPrelim = (unionVect, unionVect, unionVect)
+                                      }
+    in
+
+    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
+
+    newCharacter
 
 -- | getNewRange takes min and max range of two additive charcaters and returns
 -- a triple of (newMin, newMax, Cost)
@@ -224,11 +241,30 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-
     --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
      --   ++ (show newRangeCosts))
-
     newCharcater
+
+-- | getUnionRange takes min and max range of two additive charcaters and returns
+-- a pair of (newMin, newMax)
+getUnionRange :: (Int, Int, Int, Int) -> (Int, Int)
+getUnionRange (lMin, lMax, rMin, rMax) =
+    (min lMin rMin, max lMax rMax)
+
+-- | intervalUnion takes two additive chars and creates newCharcter as 2-union
+-- min of all lower, max of all higher
+intervalUnion :: CharacterData -> CharacterData -> CharacterData
+intervalUnion leftChar rightChar =
+    let newRangeCosts = V.map getUnionRange $ V.zip4 (V.map fst $ fst3 $ rangePrelim leftChar) (V.map snd $ fst3 $ rangePrelim leftChar) (V.map fst $ fst3 $ rangePrelim rightChar) (V.map snd $ fst3 $ rangePrelim rightChar)
+        newMinRange = V.map fst newRangeCosts
+        newMaxRange = V.map snd newRangeCosts
+        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange)
+                                      }
+    in
+    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
+     --   ++ (show newRangeCosts))
+    newCharcater
+
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (totalCost, best child state)
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
@@ -336,18 +372,13 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
   where
     blankCharacterData = emptyCharacter
 
-    symbolCount = length thisMatrix
     newSlimCharacterData =
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
-                -- (slimPrelim  leftChar, slimPrelim  leftChar, slimPrelim  leftChar)
-                -- (slimPrelim rightChar, slimPrelim rightChar, slimPrelim rightChar)
-            --gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { --slimPrelim    = GV.filter (notGapNought gapChar) medians
-                slimPrelim    = createUngappedMedianSequence symbolCount r
+              { slimPrelim    = extractMedians r
               , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -362,12 +393,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (wideGapped leftChar) (wideGapped rightChar)
-                -- (widePrelim  leftChar, widePrelim  leftChar, widePrelim  leftChar)
-                -- (widePrelim rightChar, widePrelim rightChar, widePrelim rightChar)
-            --gapChar = getGapBV symbolCount
         in  blankCharacterData
-              { --widePrelim    = GV.filter (notGapNought gapChar) medians
-                widePrelim    = createUngappedMedianSequence symbolCount r
+              { widePrelim    = extractMedians r
               , wideGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -379,23 +406,84 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             coefficient = MR.minInDelCost thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
-            -- (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugeGapped leftChar) (hugeGapped rightChar)
-                -- (hugePrelim  leftChar, hugePrelim  leftChar, hugePrelim  leftChar)
-                -- (hugePrelim rightChar, hugePrelim rightChar, hugePrelim rightChar)
-            --gapChar = getGap symbolCount
         in  blankCharacterData
-              { --hugePrelim = GV.filter (notGapNought gapChar) medians -- 
-                hugePrelim = createUngappedMedianSequence symbolCount r
+              { hugePrelim = extractMedians r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost  = newCost
               , globalCost = subtreeCost
               }
 
+{-
 -- |
 -- createUngappedMedianSequence enter `Symbol Count` (symbols from alphabet) and context
 createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
 createUngappedMedianSequence = const extractMedians
+-}
+
+
+-- | union2 takes the vectors of characters and applies union2Single to each character
+-- used for edge states in buikd and rearrangement
+union2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
+union2 = V.zipWith3 union2Single
+
+-- | union2Single takes character data and returns union character data 
+-- union2Single assumes that the character vectors in the various states are the same length
+-- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- used IAFinal states for dynamic characters
+-- used in heurstic greaph build and rearrangement
+union2Single :: CharacterData -> CharacterData -> CharInfo -> CharacterData
+union2Single firstVertChar secondVertChar inCharInfo =
+    let thisType    = charType inCharInfo
+        thisWeight  = weight inCharInfo
+        thisMatrix  = costMatrix inCharInfo
+        thisSlimTCM = slimTCM inCharInfo
+        thisWideTCM = wideTCM inCharInfo
+        thisHugeTCM = hugeTCM inCharInfo
+        thisActive  = activity inCharInfo
+    in
+    if not thisActive then firstVertChar
+    else if thisType == Add then
+        intervalUnion firstVertChar secondVertChar
+        
+    else if thisType == NonAdd then
+        localUnion firstVertChar secondVertChar
+        
+    else if thisType == Matrix then
+        addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+      getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+
+
+-- | createEdgeUnionOverBlocks cretes the union of the final states characters on an edge
+-- The function takes data in blocks and block vector of char info and
+-- extracts the triple for each block and creates new block data 
+-- this is used fir delta's in edge invastion in Wagner and SPR/TBR
+createEdgeUnionOverBlocks :: VertexBlockData
+                          -> VertexBlockData
+                          -> V.Vector (V.Vector CharInfo)
+                          -> [V.Vector CharacterData]
+                          -> V.Vector (V.Vector CharacterData)
+createEdgeUnionOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData then
+        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        V.fromList $ reverse curBlockData
+    else
+        let leftBlockLength = length $ V.head leftBlockData
+            rightBlockLength =  length $ V.head rightBlockData
+            -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+
+            -- missing data cases first or zip defaults to zero length
+            firstBlockMedian
+              | (leftBlockLength == 0) = V.head rightBlockData
+              | (rightBlockLength == 0) = V.head leftBlockData 
+              | otherwise = union2 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+        in
+        createEdgeUnionOverBlocks  (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
