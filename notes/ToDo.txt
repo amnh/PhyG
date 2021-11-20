@@ -477,22 +477,13 @@ to render--would have repeated subtrees after network vertex
 
 	when declare type deriveing generic, deriving NFData
 
-190) NNI swapping
-
-191) Should sliim final be a triple?  Save on conversion back and forth perhps
-
-192) IA final ordering is incorrect (after DO update) on final its (left, median, right)
-	need to redo that stuff on passes
-
-193) DO edge min weights seems to sumto > net cost
-	Incorrect final states-- as in from incorrect display trees
+191) Should slim final be a triple?  Save on conversion back and forth perhps
 
 194) Alex Data.Alphabet usefule funciotns for coding and uncoding functions
 	
-
 195) Hadock
 
-196) prelim/fimnal states rendered using alphabet library
+196) prelim/fimal states rendered using alphabet library
 
 197) replace made un gapped medians--eith extract median
 	extractUngaoppeMedians left and right etc
@@ -504,13 +495,9 @@ to render--would have repeated subtrees after network vertex
 
 	runST to get mnutlkable out of 'm'
 
-198) renderDynamic Character for output Bio.Dynamic Character
-
-199) refactor pre and post order with Alex Bio functions
-
 200) Tasty and quickcheck for tests
 
-203) use union alignment frtom IA for branch invasion in Wagner/SPR/TBR
+204) 
 
 
 
