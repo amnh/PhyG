@@ -165,21 +165,28 @@ getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
 
        -- create edge union 'character' blockData
-       edgeUnionVertData = M.createEdgeUnionOverBlocks eNodeVertData vNodeVertData charInfoVV []
+       -- filters gaps because using DOm (as must) to add taxa not in IA framework
+       edgeUnionVertData = M.createEdgeUnionOverBlocks True eNodeVertData vNodeVertData charInfoVV []
 
    in
+   -- trace ("GD: " ++ (show edgeUnionVertData)) (
    if (LG.lab inDecGraph leafToAdd == Nothing) || (LG.lab inDecGraph eNode == Nothing) || (LG.lab inDecGraph vNode == Nothing) then error ("Missing label data for vertices")
    else 
       let dLeafENode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData eNodeVertData charInfoVV
           dLeafVNode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData vNodeVertData charInfoVV
 
           -- Use edge union data for delta to edge data
-          dLeafEdgeUnionCoat = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV
+          dLeafEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV
 
           -- should be able to use existing information--but for now using this
           -- existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) eNodeVertData vNodeVertData charInfoVV
       in
       -- trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
       -- dLeafENode + dLeafVNode - existingEdgeCost
-      trace ("Delta: " ++ (show dLeafEdgeUnionCoat))
-      dLeafEdgeUnionCoat
+      -- trace ("Delta: " ++ (show dLeafEdgeUnionCost))
+      
+
+      dLeafEdgeUnionCost
+      -- )
+
+

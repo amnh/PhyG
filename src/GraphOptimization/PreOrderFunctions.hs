@@ -1112,40 +1112,38 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
 -- used as true final sequence assignments using M.createUngappedMedianSequence
 getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
-   let gap = bit gapIndex
-       newFinal = SV.zipWith3 (local3WaySlim lSlimTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
+   let newFinal = SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
 getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a -> v a
 getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
-   let gap = bit gapIndex
-       newFinal = GV.zipWith3 (local3WayWideHuge whTCM gap) parentFinal descendantLeftPrelim descendantRightPrelim
+   let newFinal = GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a-> a -> a -> a -> a
-local3WayWideHuge lWideTCM gap b c d =
-   let  b' = if b == zeroBits then gap else b
-        c' = if c == zeroBits then gap else c
-        d' = if d == zeroBits then gap else d
-        (median, _) = MR.retreiveThreewayTCM lWideTCM b' c' d'
+local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
+local3WayWideHuge lWideTCM b c d =
+   let  -- b' = if b == zeroBits then gap else b
+        -- c' = if c == zeroBits then gap else c
+        -- d' = if d == zeroBits then gap else d
+        (median, _) = MR.retreiveThreewayTCM lWideTCM b c d
    in
    -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median
 
 -- | local3WaySlim takes triple of CUInt and retuns median
-local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt -> CUInt
-local3WaySlim lSlimTCM gap b c d =
+local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
+local3WaySlim lSlimTCM b c d =
  -- trace ("L3WS: " ++ (show (b,c,d))) (
- let  b' = if b == zeroBits then gap else b
-      c' = if c == zeroBits then gap else c
-      d' = if d == zeroBits then gap else d
+ let  -- b' = if b == zeroBits then gap else b
+      -- c' = if c == zeroBits then gap else c
+      -- d' = if d == zeroBits then gap else d
  in
  -- trace ("L3WS: " ++ (show (b',c',d'))) (
- let (median, _) = TCMD.lookupThreeway lSlimTCM b' c' d'
+ let (median, _) = TCMD.lookupThreeway lSlimTCM b c d
  in
  -- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
  median
@@ -1154,36 +1152,38 @@ local3WaySlim lSlimTCM gap b c d =
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
 get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
-   let gap = bit gapIndex
-       median = SV.zipWith (local2WaySlim lSlimTCM gap) descendantLeftPrelim descendantRightPrelim
+   let median = SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local2WaySlim takes pair of CUInt and retuns median
-local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
-local2WaySlim lSlimTCM gap b c =
- let  b' = if b == zeroBits then gap else 2 * b -- temp fix for 2-way oddness
-      c' = if c == zeroBits then gap else c
-      (median, _) = TCMD.lookupPairwise lSlimTCM b' c'
+local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt
+local2WaySlim lSlimTCM b c =
+ let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
+      -- c' = if c == zeroBits then gap else c
+      (median, _) = TCMD.lookupPairwise lSlimTCM (b `shiftL` 1) c -- shiflt is a temp fix for 2-way oddness
       -- (median, _ ) = TCMD.lookupPairwise lSlimTCM b c
  in
+ {-
+ if b == zeroBits || c == zeroBits then trace ("Uh oh zero bits on") median
  -- trace ("2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show median))
+ else median
+ -}
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
 get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
 get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
-   let gap = bit gapIndex
-       median = GV.zipWith (local2WayWideHuge whTCM gap) descendantLeftPrelim descendantRightPrelim
+   let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
-local2WayWideHuge lWideTCM gap b c =
-   let  b' = if b == zeroBits then gap else b
-        c' = if c == zeroBits then gap else c
-        (median, _) = MR.retreivePairwiseTCM lWideTCM b' c'
+local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a
+local2WayWideHuge lWideTCM b c =
+   let  -- b' = if b == zeroBits then gap else b
+        -- c' = if c == zeroBits then gap else c
+        (median, _) = MR.retreivePairwiseTCM lWideTCM b c
    in
    --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median

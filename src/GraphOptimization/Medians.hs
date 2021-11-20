@@ -56,6 +56,7 @@ module GraphOptimization.Medians  ( median2
                                   ) where
 
 import           Bio.DynamicCharacter
+import Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
@@ -189,26 +190,22 @@ interUnion thisWeight leftChar rightChar =
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-
     --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
-
     newCharacter
 
 -- | localUnion takes two non-additive chars and creates newCharcter as 2-union/or
 -- assumes a single weight for all
 -- performs single
--- fst3 $ rangePrelim left/rightChar due to triple in prelim
+-- bsaed on final states
 localUnion :: CharacterData -> CharacterData -> CharacterData
 localUnion leftChar rightChar =
-    let unionVect = V.zipWith localOr (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
-        newCharacter = emptyCharacter { stateBVPrelim = (unionVect, unionVect, unionVect)
+    let unionVect = V.zipWith localOr (stateBVFinal leftChar) (stateBVFinal rightChar)
+        newCharacter = emptyCharacter { stateBVFinal = unionVect
                                       }
     in
-
     --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
-
     newCharacter
 
 -- | getNewRange takes min and max range of two additive charcaters and returns
@@ -253,18 +250,18 @@ getUnionRange (lMin, lMax, rMin, rMax) =
 
 -- | intervalUnion takes two additive chars and creates newCharcter as 2-union
 -- min of all lower, max of all higher
+-- final states used and produced
 intervalUnion :: CharacterData -> CharacterData -> CharacterData
 intervalUnion leftChar rightChar =
-    let newRangeCosts = V.map getUnionRange $ V.zip4 (V.map fst $ fst3 $ rangePrelim leftChar) (V.map snd $ fst3 $ rangePrelim leftChar) (V.map fst $ fst3 $ rangePrelim rightChar) (V.map snd $ fst3 $ rangePrelim rightChar)
+    let newRangeCosts = V.map getUnionRange $ V.zip4 (V.map fst $ rangeFinal leftChar) (V.map snd $ rangeFinal leftChar) (V.map fst $ rangeFinal rightChar) (V.map snd $ rangeFinal rightChar)
         newMinRange = V.map fst newRangeCosts
         newMaxRange = V.map snd newRangeCosts
-        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange)
+        newCharcater = emptyCharacter { rangeFinal = V.zip newMinRange newMaxRange
                                       }
     in
-    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
+    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangeFinal leftChar) ++ "\t" ++ (show $ rangeFinal rightChar)
      --   ++ (show newRangeCosts))
     newCharcater
-
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (totalCost, best child state)
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
@@ -283,7 +280,7 @@ getMinCostStates thisMatrix childVect bestCost numStates childState currentBestS
 
 
 -- | getNewVector takes the vector of states and costs from the child nodes and the
--- cost matrix and calculates a new verctor n^2 in states
+-- cost matrix and calculates a new vector n^2 in states
 getNewVector :: S.Matrix Int -> Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
 getNewVector thisMatrix  numStates (lChild, rChild) =
   let newStates = [0..(numStates -1)]
@@ -313,7 +310,38 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
+        newCharacter
 
+-- | getUnionVector takes the vector of states and costs from two nodes
+-- and sets the states with min cost in the two vertices and maxBound in other states
+getUnionVector :: S.Matrix Int -> Int -> (V.Vector MatrixTriple, V.Vector MatrixTriple) -> V.Vector MatrixTriple
+getUnionVector thisMatrix  numStates (lChild, rChild) =
+  let newStates = [0..(numStates -1)]
+      leftPairs = fmap (getMinCostStates thisMatrix lChild (maxBound :: Int) numStates 0 []) newStates
+      rightPairs = fmap (getMinCostStates thisMatrix rChild (maxBound :: Int) numStates 0 []) newStates
+      stateCosts = zipWith (+) (fmap (fst . head) leftPairs) (fmap (fst . head) rightPairs)
+      minStateCost = minimum stateCosts
+      stateCosts' = fmap (minOrMax minStateCost) stateCosts
+      newStateTripleList = zip3 stateCosts' (fmap (fmap snd) leftPairs) (fmap (fmap snd) rightPairs)
+  in
+  V.fromList newStateTripleList
+    where minOrMax minVal curVal = if curVal == minVal then minVal
+                                    else maxBound :: Int
+
+-- | unionMatrix  thisMatrix firstVertChar secondVertChar matrix character
+-- assumes each character has same cost matrix
+-- Need to add approximation ala DO tcm lookup later
+-- Local and global costs are based on current not necessaril;y optimal minimum cost states
+unionMatrix :: S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
+unionMatrix thisMatrix firstVertChar secondVertChar =
+  if null thisMatrix then error "Null cost matrix in addMatrix"
+  else
+    let numStates = length thisMatrix
+        initialMatrixVector = getUnionVector thisMatrix numStates <$> V.zip (matrixStatesFinal firstVertChar) (matrixStatesFinal secondVertChar)
+        newCharacter = emptyCharacter { matrixStatesFinal = initialMatrixVector }
+        in
+        --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
+        --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
         newCharacter
 
 -- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of 
@@ -352,7 +380,7 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
 getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
 getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
--- | getDOMedian calls PCG/POY/C ffi to create sequence median after some type wrangling
+-- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
 getDOMedian
   :: Double
   -> S.Matrix Int
@@ -424,25 +452,51 @@ createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v 
 createUngappedMedianSequence = const extractMedians
 -}
 
+-- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
+-- takes IAFInal for each node, creates union of IAFinals states
+-- gaps need to be fitered if DO used later (as in Wagner), or as in SPR/TBR rearragement
+getDynamicUnion
+  :: Bool
+  -> CharType
+  -> CharacterData
+  -> CharacterData
+  -> CharacterData
+getDynamicUnion filterGaps thisType leftChar rightChar
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
+  | thisType == HugeSeq           = newHugeCharacterData
+  | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+  where
+    blankCharacterData = emptyCharacter
+
+    newSlimCharacterData =
+        let r   = GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
+            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+                 else r
+        in  blankCharacterData {slimFinal = r'}
+
+    newWideCharacterData =
+        let r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
+        in  blankCharacterData {wideFinal = r}
+
+    newHugeCharacterData =
+        let r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
+        in  blankCharacterData {hugeFinal = r}
 
 -- | union2 takes the vectors of characters and applies union2Single to each character
 -- used for edge states in buikd and rearrangement
-union2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
-union2 = V.zipWith3 union2Single
+union2 ::  Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
+union2 filterGaps = V.zipWith3 (union2Single filterGaps)
 
 -- | union2Single takes character data and returns union character data 
 -- union2Single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- used IAFinal states for dynamic characters
 -- used in heurstic greaph build and rearrangement
-union2Single :: CharacterData -> CharacterData -> CharInfo -> CharacterData
-union2Single firstVertChar secondVertChar inCharInfo =
+union2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> CharacterData
+union2Single filterGaps firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
-        thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
-        thisSlimTCM = slimTCM inCharInfo
-        thisWideTCM = wideTCM inCharInfo
-        thisHugeTCM = hugeTCM inCharInfo
         thisActive  = activity inCharInfo
     in
     if not thisActive then firstVertChar
@@ -453,10 +507,10 @@ union2Single firstVertChar secondVertChar inCharInfo =
         localUnion firstVertChar secondVertChar
         
     else if thisType == Matrix then
-        addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+        unionMatrix thisMatrix firstVertChar secondVertChar
 
     else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
-      getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+        getDynamicUnion filterGaps thisType firstVertChar secondVertChar
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -465,12 +519,14 @@ union2Single firstVertChar secondVertChar inCharInfo =
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data 
 -- this is used fir delta's in edge invastion in Wagner and SPR/TBR
-createEdgeUnionOverBlocks :: VertexBlockData
+-- filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
+createEdgeUnionOverBlocks :: Bool
+                          -> VertexBlockData
                           -> VertexBlockData
                           -> V.Vector (V.Vector CharInfo)
                           -> [V.Vector CharacterData]
                           -> V.Vector (V.Vector CharacterData)
-createEdgeUnionOverBlocks leftBlockData rightBlockData blockCharInfoVect curBlockData =
+createEdgeUnionOverBlocks filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
@@ -483,7 +539,7 @@ createEdgeUnionOverBlocks leftBlockData rightBlockData blockCharInfoVect curBloc
             firstBlockMedian
               | (leftBlockLength == 0) = V.head rightBlockData
               | (rightBlockLength == 0) = V.head leftBlockData 
-              | otherwise = union2 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+              | otherwise = union2 filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
-        createEdgeUnionOverBlocks  (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+        createEdgeUnionOverBlocks filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
