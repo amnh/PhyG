@@ -486,13 +486,7 @@ to render--would have repeated subtrees after network vertex
 196) prelim/fimal states rendered using alphabet library
 
 197) replace made un gapped medians--eith extract median
-	extractUngaoppeMedians left and right etc
-	especially for extract left orithg convert 0->1 use gapINdex in alphabet
-	0 -> bit gapIndex
-
-	bit 0 -> bit gapIndex
-
-
+	
 	runST to get mnutlkable out of 'm'
 
 200) Tasty and quickcheck for tests
