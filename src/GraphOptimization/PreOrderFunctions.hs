@@ -708,7 +708,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     (newU, _, newV) = slimGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap newU) (GV.toList $ GV.map zero2Gap  newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -726,7 +726,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     (newU, _, newV) = wideGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap  newU) (GV.toList $ GV.map zero2Gap newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -742,7 +742,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     (newU, _, newV) = hugeGapped newEdgeCharacter
                                 in
                                 -- trace ("GCD:\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
-                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ GV.map zero2Gap newU) (GV.toList $ GV.map zero2Gap newV)
+                                zipWith  (generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
@@ -751,12 +751,12 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type unimplemented : " ++ show thisCharType)
-
+{-
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value 
 zero2Gap :: (FiniteBits a) => a -> a
 zero2Gap inVal = if inVal == zeroBits then bit gapIndex
                  else inVal
-{-
+
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value 
 zero2GapWide :: Word64 -> Word64 -> Word64
 zero2GapWide gapChar inVal = if inVal == zeroBits  then bit gapIndex
