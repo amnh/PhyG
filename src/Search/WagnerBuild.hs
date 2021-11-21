@@ -73,7 +73,7 @@ rasWagnerBuild inGS inData seed numReplicates =
       in
       trace ("Building " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences
+      PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition) 
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network

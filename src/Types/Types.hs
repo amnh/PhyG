@@ -248,7 +248,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , localCost          :: VertexCost
                                      -- unclear if need vector version
                                      , globalCost         :: VertexCost
-                                     } deriving stock (Show, Eq)
+                                     } deriving stock (Show, Eq, Generic)
 
 -- | emptyCharcater useful for intialization and missing data
 emptyCharacter :: CharacterData
@@ -339,7 +339,9 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
                              , vertexResolutionData :: V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
                              , vertexCost   :: VertexCost -- local cost of vertex
                              , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
-                             } deriving stock (Generic, Show, Eq)
+                             } deriving  stock (Generic, Show, Eq)
+
+instance NFData VertexInfo where rnf x = seq x ()
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
