@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingStrategies, DeriveGeneric, DeriveAnyClass #-}
 
 module Types.Types where
 
@@ -51,7 +51,8 @@ import           Data.Word
 import           Foreign.C.Types             (CUInt)
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
-
+import GHC.Generics 
+import Control.DeepSeq
 
 -- | Debug Flag
 isDebug :: Bool
@@ -338,7 +339,7 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
                              , vertexResolutionData :: V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
                              , vertexCost   :: VertexCost -- local cost of vertex
                              , subGraphCost :: VertexCost -- cost of graph to leaves from the vertex
-                             } deriving stock (Show, Eq)
+                             } deriving stock (Generic, Show, Eq)
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data  EdgeInfo = EdgeInfo   { minLength :: VertexCost

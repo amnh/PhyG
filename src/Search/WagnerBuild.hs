@@ -51,6 +51,7 @@ import Utilities.Utilities as U
 import qualified Data.List as L
 import Data.Maybe
 import qualified GraphOptimization.Medians as M
+import qualified ParallelUtilities as PU
 
 -- import qualified ParallelUtilities as PU --need instance for VerexInfo
 
