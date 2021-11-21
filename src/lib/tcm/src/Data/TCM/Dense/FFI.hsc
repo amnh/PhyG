@@ -374,13 +374,12 @@ lookupPairwise
   -> (CUInt, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
-    let mov = fromEnum $ alphSize cm2d - 1
-    let dim = 1 `shiftL` mov
-    let off = fromEnum e1 * dim + fromEnum e2
-    cost <- peek $ advancePtr (bestCost cm2d) off
-    med  <- peek $ advancePtr (medians  cm2d) off
-    let val = toEnum $ fromEnum med
-    pure (val, toEnum $ fromEnum cost)
+    let dim = fromEnum $ alphSize3D cm3d
+    let off = (fromEnum e1 `shiftL` dim) + fromEnum e2
+    let get = peek . flip advancePtr off
+    cost <- get $ bestCost cm2d
+    med  <- get $ medians  cm2d
+    pure (fromIntegral med, fromIntegral cost)
 
 
 -- |
