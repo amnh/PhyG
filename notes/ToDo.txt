@@ -491,7 +491,8 @@ to render--would have repeated subtrees after network vertex
 
 200) Tasty and quickcheck for tests
 
-204) 
+204) Add parlist chunk finctionality for wagner
+	https://hackage.haskell.org/package/parallel-3.2.2.0/docs/Control-Parallel-Strategies.html
 
 
 

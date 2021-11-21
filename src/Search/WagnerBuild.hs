@@ -52,6 +52,9 @@ import qualified Data.List as L
 import Data.Maybe
 import qualified GraphOptimization.Medians as M
 import qualified ParallelUtilities as PU
+import Control.DeepSeq
+import Control.Parallel.Strategies
+
 
 -- import qualified ParallelUtilities as PU --need instance for VerexInfo
 
@@ -73,7 +76,7 @@ rasWagnerBuild inGS inData seed numReplicates =
       in
       trace ("Building " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-      PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences
+      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences `using` PU.myParListChunkRDS 
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition) 
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network

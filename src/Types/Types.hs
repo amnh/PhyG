@@ -168,6 +168,8 @@ data CharInfo = CharInfo { name       :: NameText
                          , prealigned :: Bool
                          } deriving stock (Show, Eq)
 
+instance NFData CharInfo where rnf x = seq x ()
+
 -- | Types for vertex information
 type VertexCost = Double
 type StateCost = Int
@@ -349,6 +351,8 @@ data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
                             , midRangeLength :: VertexCost
                             , edgeType  :: EdgeType
                             } deriving stock (Show, Eq)
+
+instance NFData EdgeInfo where rnf x = seq x ()
 
 -- | dummyEdge for convenience
 dummyEdge :: EdgeInfo
