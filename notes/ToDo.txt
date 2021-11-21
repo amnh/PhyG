@@ -494,6 +494,8 @@ to render--would have repeated subtrees after network vertex
 204) Add parlist chunk finctionality for wagner
 	https://hackage.haskell.org/package/parallel-3.2.2.0/docs/Control-Parallel-Strategies.html
 
+205) Go through parallel stuff in distance wagner and distances
+ use chunck  `using` PU.myParListChunkRDS 
 
 
 

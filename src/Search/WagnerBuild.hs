@@ -52,7 +52,6 @@ import qualified Data.List as L
 import Data.Maybe
 import qualified GraphOptimization.Medians as M
 import qualified ParallelUtilities as PU
-import Control.DeepSeq
 import Control.Parallel.Strategies
 
 
