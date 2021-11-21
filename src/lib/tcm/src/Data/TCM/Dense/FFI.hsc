@@ -88,7 +88,7 @@ data  CostMatrix2d
                                        -}
     , isMetric            :: CInt      -- if tcm is metric
     , allElems            :: CInt      -- total number of elements
-    , bestCost            :: Ptr CInt  {- The transformation cost matrix, including ambiguities,
+    , bestCost            :: Ptr CUInt {- The transformation cost matrix, including ambiguities,
                                           storing the **best** cost for each ambiguity pair
                                        -}
     , medians             :: Ptr CUInt {- The matrix of possible medians between elements in the
@@ -121,8 +121,8 @@ data  CostMatrix3d
     , include_ambiguities3D :: CInt
     , gapOpenCost3D         :: CInt
     , allElems3D            :: CInt
-    , bestCost3D            :: Ptr CInt
-    , medians3D             :: Ptr CInt
+    , bestCost3D            :: Ptr CUInt
+    , medians3D             :: Ptr CUInt
     }
     deriving stock    (Eq, Generic)
     deriving anyclass (NFData)
@@ -374,12 +374,12 @@ lookupPairwise
   -> (CUInt, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
-    let dim = fromEnum $ alphSize3D cm2d
+    let dim = fromEnum $ alphSize cm2d
     let off = (fromEnum e1 `shiftL` dim) + fromEnum e2
     let get = peek . flip advancePtr off
     cost <- get $ bestCost cm2d
     med  <- get $ medians  cm2d
-    pure (fromIntegral med, fromIntegral cost)
+    pure (med, fromIntegral cost)
 
 
 -- |
@@ -401,7 +401,7 @@ lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     let get = peek . flip advancePtr off
     med  <- get $  medians3D cm3d
     cost <- get $ bestCost3D cm3d
-    pure (fromIntegral med, fromIntegral cost)
+    pure (med, fromIntegral cost)
 
 
 -- |
