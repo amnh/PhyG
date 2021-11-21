@@ -1145,7 +1145,7 @@ local3WaySlim lSlimTCM b c d =
  -- trace ("L3WS: " ++ (show (b',c',d'))) (
  let (median, _) = TCMD.lookupThreeway lSlimTCM b c d
  in
- -- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+ -- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show (median, cost)))
  median
  -- )
 
@@ -1161,14 +1161,14 @@ local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt
 local2WaySlim lSlimTCM b c =
  let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
       -- c' = if c == zeroBits then gap else c
-      (median, _) = TCMD.lookupPairwise lSlimTCM (b `shiftL` 1) c -- shiflt is a temp fix for 2-way oddness
-      -- (median, _ ) = TCMD.lookupPairwise lSlimTCM b c
+      -- (median, _) = TCMD.lookupPairwise lSlimTCM (b `shiftL` 1) c -- shiflt is a temp fix for 2-way oddness
+      (median, _) = TCMD.lookupPairwise lSlimTCM b c
  in
- {-
- if b == zeroBits || c == zeroBits then trace ("Uh oh zero bits on") median
- -- trace ("2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show median))
- else median
- -}
+ 
+ -- if b == zeroBits || c == zeroBits then trace ("Uh oh zero bits on") median
+ -- trace ("Hello 2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show (median, cost)))
+ -- else median
+
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
