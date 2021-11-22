@@ -40,7 +40,6 @@ Portability :  portable (I hope)
 
 module Reconciliation.Adams (makeAdamsII) where
 
-import           Control.Concurrent
 import           Control.Parallel.Strategies
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as P
@@ -51,6 +50,7 @@ import qualified Data.Text.Lazy                    as T
 import qualified Data.Vector                       as V
 import qualified GraphFormatUtilities              as PhyP
 import           System.IO.Unsafe
+import qualified ParallelUtilities as PU
 -- import           Debug.Trace
 
 data VertexType = Root | Internal | Leaf | Network | Tree
@@ -65,29 +65,6 @@ type GenPhyNet = [GenPhyNetNode]
 -- | null PhyloGraphVect
 nullGraphVect :: PhyloGraphVect
 nullGraphVect = (V.empty, V.empty)
-
--- |
--- Map a function over a traversable structure in parallel
--- Preferred over parMap which is limited to lists
--- Add chunking (with arguement) (via chunkList) "fmap blah blah `using` parListChunk chunkSize rseq/rpar"
--- but would have to do one for lists (with Chunk) and one for vectors  (splitAt recusively)
-parmap :: Traversable t => Strategy b -> (a->b) -> t a -> t b
-parmap strat f = withStrategy (parTraversable strat).fmap f
-
--- | seqParMap takes strategy,  if numThread == 1 retuns fmap otherwise parmap and
-seqParMap :: Traversable t => Strategy b -> (a -> b) -> t a -> t b
-seqParMap strat f =
-  if getNumThreads > 1 then parmap strat f
-  else fmap f
-
--- | set myStrategy parallel strategy to rdeepseq
-myStrategy :: (NFData b) => Strategy b
-myStrategy = rdeepseq
-
--- | getNumThreads gets number of COncurrent  threads
-{-# NOINLINE getNumThreads #-}
-getNumThreads :: Int
-getNumThreads = unsafePerformIO getNumCapabilities
 
 -- | getAdamsIIPair inputs 2 PhyloGraphVects and returns AdamsII consensus
 getAdamsIIPair ::  PhyloGraphVect -> PhyloGraphVect -> PhyloGraphVect
@@ -133,7 +110,7 @@ makeAdamsII leafNodeList inFGList
         inGraphNonLeafNodes = fmap (drop $ length leafNodeList) inGraphNodes
         newNodeListList = fmap (leafNodeList ++ ) inGraphNonLeafNodes
         inFGList' = mkGraphPair <$> zip  newNodeListList inGraphEdges
-        allTreesList = seqParMap myStrategy isTree inFGList'
+        allTreesList = fmap isTree inFGList' `using` PU.myParListChunkRDS
         allTrees = L.foldl1' (&&) allTreesList
     in
     if not allTrees then errorWithoutStackTrace("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)
