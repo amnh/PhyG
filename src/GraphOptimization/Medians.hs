@@ -477,11 +477,15 @@ getDynamicUnion filterGaps thisType leftChar rightChar
 
     newWideCharacterData =
         let r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
-        in  blankCharacterData {wideFinal = r}
+            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+                 else r
+        in  blankCharacterData {wideFinal = r'}
 
     newHugeCharacterData =
         let r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
-        in  blankCharacterData {hugeFinal = r}
+            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+                 else r
+        in  blankCharacterData {hugeFinal = r'}
 
 -- | union2 takes the vectors of characters and applies union2Single to each character
 -- used for edge states in buikd and rearrangement
