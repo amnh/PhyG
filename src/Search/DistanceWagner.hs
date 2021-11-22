@@ -840,9 +840,9 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
           overallBestCost = minimum $ fmap thd4 savedTrees
           (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
           -- parallelize here
-          splitTreeList = fmap (splitTree curTreeMatrix curTree curTreeCost) (snd curTree)  -- `using` myParListChunkRDS
-          firstTreeList = fmap (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  -- `using` myParListChunkRDS
-          firstTreeList' = filterNewTreesOnCost overallBestCost  (curFullTree : concat (V.toList firstTreeList)) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
+          splitTreeList = fmap (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  `using` myParListChunkRDS
+          firstTreeList = fmap (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  `using` myParListChunkRDS
+          firstTreeList' = filterNewTreesOnCost overallBestCost  (curFullTree : concat firstTreeList) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
       in
       -- Work around for negative NT.infinity tree costs (could be dst matrix issue)
       if NT.isInfinite curTreeCost || null firstTreeList' then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees else (
