@@ -79,7 +79,7 @@ updateDisplayTreesAndCost inGraph =
     else
         -- True for check popCount at root fort valid resolution (all leaves in graph)
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
-            (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData outgroupRootLabel)
+            (displayGraphVL, lDisplayCost) = extractDisplayTrees Nothing True (vertexResolutionData outgroupRootLabel)
         in
         --trace ("UDTC: " ++ show lDisplayCost)
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
@@ -449,7 +449,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         newDisplayNode = (curNode, newMinVertex)
         newGraph =  LG.insEdge newLEdge $ LG.insNode newLNode subTree
 
-        (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then extractDisplayTrees True (vertexResolutionData childLabel)
+        (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then extractDisplayTrees Nothing True (vertexResolutionData childLabel)
                                         else (mempty, 0.0)
 
 
@@ -483,18 +483,18 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
-extractDisplayTrees :: Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
-extractDisplayTrees checkPopCount inRBDV =
+extractDisplayTrees :: Maybe Int -> Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
+extractDisplayTrees startVertex checkPopCount inRBDV =
     if V.null inRBDV then (V.empty, 0.0)
     else
-        let (bestBlockDisplayResolutionList, costVect) = V.unzip $ fmap (getBestResolutionList checkPopCount) inRBDV
+        let (bestBlockDisplayResolutionList, costVect) = V.unzip $ fmap (getBestResolutionList startVertex checkPopCount) inRBDV
         in
         (bestBlockDisplayResolutionList, V.sum costVect)
 
 -- | getAllResolutionList takes ResolutionBlockData and retuns a list of the all valid (ie all leaves in subtree) display trees 
 -- for that block- and costs
-getAllResolutionList ::ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
-getAllResolutionList inRDList =
+getAllResolutionList :: ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
+getAllResolutionList  inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
     else
@@ -517,8 +517,9 @@ getAllResolutionList inRDList =
 
 -- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees 
 -- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
-getBestResolutionList :: Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
-getBestResolutionList checkPopCount inRDList =
+-- startVertex for a component-- to allow for not every leaf being in componnet but still getting softwired cost
+getBestResolutionList :: Maybe Int -> Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
+getBestResolutionList startVertex checkPopCount inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
     else
@@ -533,8 +534,13 @@ getBestResolutionList checkPopCount inRDList =
             in
             (fmap LG.mkGraphPair (V.toList bestDisplayList), minCost)
         else
-            let displayBVList = V.zip3 displayTreeList displayCostList displayPopList
-                validDisplayList = V.filter (BV.isZeroVector . thd3) displayBVList
+            let minPopCount = minimum $ fmap popCount displayPopList
+                displayBVList = V.zip3 displayTreeList displayCostList displayPopList
+
+                -- must have al;l leaves if startvzertex == Nothing, component maximum otherwise
+                -- this for getting cost of component of a softwired network
+                validDisplayList = if startVertex == Nothing then V.filter (BV.isZeroVector . thd3) displayBVList
+                                   else V.filter ((== minPopCount) . (popCount . thd3)) displayBVList
                 validMinCost = V.minimum $ fmap snd3 validDisplayList
                 (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
@@ -614,26 +620,16 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 -- is deleted (leaving two in=out=1 nodes), th ereooting takes place,
 -- and the edge is re-added in both directions.  Nodes may change between
 -- tree and network.  This is updated 
-rerootPhylogeneticNetwork :: GlobalSettings -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, _, _) =
+rerootPhylogeneticNetwork :: GlobalSettings -> Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+rerootPhylogeneticNetwork inGS originalRootIndex rerootIndex inGraph@(inSimple, _, inDecGraph, _, _, _) =
     if LG.isEmpty inSimple then inGraph
     else
-        let originalRoots = LG.getRoots inSimple
-            originalRootIndex = fst $ head originalRoots
-            -- originalRootChildren = LG.descendants inSimple originalRootIndex
-            -- newRootChildren = LG.descendants inSimple rerootIndex
-            newRootParents = LG.parents inSimple rerootIndex
+        let newRootParents = LG.parents inSimple rerootIndex
             newRootLabel = LG.lab inDecGraph rerootIndex
             parentNodeLabel = LG.lab inDecGraph $ head newRootParents
         in
 
-        -- sanity check on graph
-        if length originalRoots /= 1 then error ("Input graph has <>1 roots: " ++ show originalRoots)--  ++ "\n" ++ (LG.prettify inSimple))
-
-        -- would produce same root position
-        -- else if rerootIndex `elem` originalRootChildren then inGraph
-
-        else if isNothing newRootLabel then error ("New root has no label: " ++ show rerootIndex)
+        if isNothing newRootLabel then error ("New root has no label: " ++ show rerootIndex)
 
         else if isNothing parentNodeLabel then error ("Parent of new root has no label: " ++ show rerootIndex)
 
@@ -649,12 +645,12 @@ rerootPhylogeneticNetwork inGS rerootIndex inGraph@(inSimple, _, inDecGraph, _, 
 
 
 -- | rerootPhylogeneticNetwork' flipped version of rerootPhylogeneticNetwork
-rerootPhylogeneticNetwork' :: GlobalSettings -> PhylogeneticGraph -> Int -> PhylogeneticGraph
-rerootPhylogeneticNetwork' inGS inGraph rerootIndex = rerootPhylogeneticNetwork inGS rerootIndex inGraph
+rerootPhylogeneticNetwork' :: GlobalSettings -> PhylogeneticGraph -> Int -> Int -> PhylogeneticGraph
+rerootPhylogeneticNetwork' inGS inGraph originalRootIndex rerootIndex = rerootPhylogeneticNetwork inGS originalRootIndex rerootIndex inGraph
 
 -- | rerootPhylogeneticGraph' flipped version of rerootPhylogeneticGraph
-rerootPhylogeneticGraph' :: GlobalSettings -> GraphType -> Bool -> Int ->  Bool -> PhylogeneticGraph -> Int -> PhylogeneticGraph
-rerootPhylogeneticGraph' inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode  inGraph rerootIndex = rerootPhylogeneticGraph inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph
+rerootPhylogeneticGraph' :: GlobalSettings -> GraphType -> Bool -> Bool -> PhylogeneticGraph -> Int -> Int -> PhylogeneticGraph
+rerootPhylogeneticGraph' inGS inGraphType isNetworkNode parentIsNetworkNode inGraph originalRootIndex rerootIndex = rerootPhylogeneticGraph inGS inGraphType isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph
 
 -- | rerootGraph takes a phylogenetic graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -722,7 +718,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
           if inGraphType == Tree then (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
           else
             -- get root resolutions and cost
-            let (displayGraphVL, lDisplayCost) = extractDisplayTrees True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
+            let (displayGraphVL, lDisplayCost) = extractDisplayTrees Nothing True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
         -- )          

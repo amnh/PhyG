@@ -497,9 +497,11 @@ to render--would have repeated subtrees after network vertex
 205) Go through parallel stuff in distance wagner and distances
  use chunck  `using` PU.myParListChunkRDS 
 
+206) getBestBlockResolution 
 
-
-
+	change to maximum -- could be dangerous if missing some part of network
+	perhaps if starverte is NOthing as is other wise maximuim
+	
 
 	
 

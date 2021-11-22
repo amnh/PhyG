@@ -90,20 +90,20 @@ import qualified Graphs.GraphOperations as GO
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod hasNonExact inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod) inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod rootIndex) inCharInfoVV blockCharacterDecoratedVV
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
             preOrderBlockVect' = -- if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments finalMethod preOrderBlockVect inCharInfoVV
-                                 if hasNonExact then V.zipWith (makeIAAssignments finalMethod) preOrderBlockVect inCharInfoVV
+                                 if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod preOrderBlockVect' inCharInfoVV inDecorated
@@ -119,17 +119,17 @@ preOrderTreeTraversal inGS finalMethod hasNonExact inPGraph@(inSimple, inCost, i
 
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
-makeIAAssignments :: AssignmentMethod -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
-makeIAAssignments finalMethod = V.zipWith (makeCharacterIA finalMethod)
+makeIAAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+makeIAAssignments finalMethod rootIndex = V.zipWith (makeCharacterIA finalMethod rootIndex)
 
 -- | makeCharacterIA takes an individual character postorder tree and if non-exact perform post and preorder IA passes
 -- and assignment to final field in slim/wide/huge
-makeCharacterIA :: AssignmentMethod -> DecoratedGraph -> CharInfo -> DecoratedGraph
-makeCharacterIA finalMethod inGraph charInfo =
+makeCharacterIA :: AssignmentMethod -> Int -> DecoratedGraph -> CharInfo -> DecoratedGraph
+makeCharacterIA finalMethod rootIndex inGraph charInfo =
     if charType charInfo `notElem` nonExactCharacterTypes then inGraph
     else
-        let postOrderIATree = postOrderIA inGraph charInfo (LG.getRoots inGraph)
-            preOrderIATree = preOrderIA postOrderIATree finalMethod charInfo $ zip (LG.getRoots postOrderIATree) (LG.getRoots postOrderIATree)
+        let postOrderIATree = postOrderIA inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
+            preOrderIATree = preOrderIA postOrderIATree finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] 
         in
         preOrderIATree
 
@@ -137,7 +137,7 @@ makeCharacterIA finalMethod inGraph charInfo =
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
 -- matrix
 postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
-postOrderIA inGraph charInfo inNodeList  =
+postOrderIA inGraph charInfo inNodeList =
     if null inNodeList then inGraph
     else
         let inNode@(nodeIndex, nodeLabel) = head inNodeList
@@ -363,34 +363,29 @@ preOrderIA inGraph finalMethod charInfo inNodePairList =
 
 -- | doBlockTraversal takes a block of postorder decorated character trees character info  
 -- could be moved up preOrderTreeTraversal, but like this for legibility
-doBlockTraversal :: AssignmentMethod -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
-doBlockTraversal finalMethod inCharInfoV traversalDecoratedVect =
+doBlockTraversal :: AssignmentMethod -> Int -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversal finalMethod rootIndex inCharInfoV traversalDecoratedVect =
     --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
-    V.zipWith (doCharacterTraversal finalMethod) inCharInfoV traversalDecoratedVect
+    V.zipWith (doCharacterTraversal finalMethod rootIndex) inCharInfoV traversalDecoratedVect
 
 -- | doCharacterTraversal performs preorder traversal on single character tree
 -- with single charInfo
 -- this so each character can be independently "rooted" for optimal traversals.
-doCharacterTraversal :: AssignmentMethod -> CharInfo -> DecoratedGraph -> DecoratedGraph
-doCharacterTraversal finalMethod inCharInfo inGraph =
+doCharacterTraversal :: AssignmentMethod -> Int -> CharInfo -> DecoratedGraph -> DecoratedGraph
+doCharacterTraversal finalMethod rootIndex inCharInfo inGraph =
     -- find root--index should = number of leaves 
     --trace ("charT:" ++ (show $ charType inCharInfo)) (
     let isolateNodeList = LG.getIsolatedNodes inGraph
-        rootVertexList = (LG.getRoots inGraph) L.\\ isolateNodeList
         (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
-        rootIndex = fst $ head rootVertexList
         inEdgeList = LG.labEdges inGraph
     in
     -- remove these two lines if working
-    if length rootVertexList /= 1 then 
-        error ("Root number not = 1 in doCharacterTraversal" ++ (show $ fmap fst rootVertexList) ++ " with isolated nodes: " ++ (show $ fmap fst isolateNodeList))
-
-    else if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length rootVertexList))
+    if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
     else
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
-        let rootLabel = snd $ head rootVertexList
+        let rootLabel = fromJust $ LG.lab inGraph rootIndex
             rootFinalVertData = createFinalAssignmentOverBlocks finalMethod RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
-            rootChildren =LG.labDescendants inGraph (head rootVertexList)
+            rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
 
             -- left / right to match post-order
             rootChildrenBV = fmap (bvLabel . snd) rootChildren
