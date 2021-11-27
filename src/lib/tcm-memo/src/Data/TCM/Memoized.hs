@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.TCM.Memoized
+-- Module      :  Measure.SymbolChangeMatrix.Dense.Memoized
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -10,14 +10,14 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.TCM.Memoized
+module Measure.SymbolChangeMatrix.Dense.Memoized
   ( FFI.MemoizedCostMatrix
   , generateMemoizedTransitionCostMatrix
   , FFI.getMedianAndCost2D
   , FFI.getMedianAndCost3D
   ) where
 
-import qualified Data.TCM.Memoized.FFI as FFI
+import qualified Measure.SymbolChangeMatrix.Dense.Memoized.FFI as FFI
 
 
 -- |

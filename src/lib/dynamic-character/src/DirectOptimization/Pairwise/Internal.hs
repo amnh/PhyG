@@ -20,10 +20,13 @@
 module DirectOptimization.Pairwise.Internal
   ( -- * Alignment types
     Direction(..)
-  , TCMλ
-    -- * Alignment feneric functions
+  , Distance
+  , TCM2Dλ
+    -- * Alignment generic functions
   , directOptimization
   , directOptimizationFromDirectionMatrix
+    -- * Reused helper functions
+  , getCostλ
   ) where
 
 import           Bio.DynamicCharacter
@@ -42,30 +45,25 @@ import qualified Data.Vector.Generic                   as GV
 import qualified Data.Vector.Storable                  as SV
 import qualified Data.Vector.Unboxed                   as UV
 import           DirectOptimization.Pairwise.Direction
-
-
--- |
--- A generalized function representation: the "overlap" between dynamic character
--- elements, supplying the corresponding median and cost to align the two
--- characters.
-type TCMλ e = e -> e -> (e, Word)
+import           Measure.Matrix
+import           Measure.Unit
 
 
 {-# SCC directOptimization #-}
 {-# INLINEABLE directOptimization #-}
-{-# SPECIALISE directOptimization :: (SV.Vector SlimState -> SV.Vector SlimState -> (Word, SlimDynamicCharacter)) -> (SlimState -> SlimState -> (SlimState, Word)) -> SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter) #-}
-{-# SPECIALISE directOptimization :: (UV.Vector WideState -> UV.Vector WideState -> (Word, WideDynamicCharacter)) -> (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
-{-# SPECIALISE directOptimization :: ( V.Vector HugeState ->  V.Vector HugeState -> (Word, HugeDynamicCharacter)) -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: (SV.Vector SlimState -> SV.Vector SlimState -> (Distance, SlimDynamicCharacter)) -> TCM2Dλ SlimState -> SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: (UV.Vector WideState -> UV.Vector WideState -> (Distance, WideDynamicCharacter)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: ( V.Vector HugeState ->  V.Vector HugeState -> (Distance, HugeDynamicCharacter)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
 directOptimization
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      )
-  => (v e -> v e -> (Word, OpenDynamicCharacter v e)) -- ^ Alignment function
-  -> TCMλ e -- ^ Metric for computing state distance and median state
+  => (v e -> v e -> (Distance, OpenDynamicCharacter v e)) -- ^ Alignment function
+  -> TCM2Dλ e -- ^ Metric for computing state distance and median state
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 directOptimization alignmentFunction overlapλ = handleMissing generateAlignmentResult
   where
     generateAlignmentResult lhs rhs =
@@ -91,19 +89,19 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
 
 {-# SCC directOptimizationFromDirectionMatrix #-}
 {-# INLINEABLE directOptimizationFromDirectionMatrix #-}
-{-# SPECIALISE directOptimizationFromDirectionMatrix :: (WideState -> (WideState -> WideState -> (WideState, Word)) -> UV.Vector WideState -> UV.Vector WideState -> (Word, UM.Matrix Direction)) -> (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
-{-# SPECIALISE directOptimizationFromDirectionMatrix :: (HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, UM.Matrix Direction)) -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+{-# SPECIALISE directOptimizationFromDirectionMatrix :: (WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (Distance, UM.Matrix Direction)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
+{-# SPECIALISE directOptimizationFromDirectionMatrix :: (HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (Distance, UM.Matrix Direction)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
 directOptimizationFromDirectionMatrix
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      , Matrix m t Direction
      )
-  => (e -> TCMλ e -> v e -> v e -> (Word, m t Direction)) -- ^ Alignment matrix generator function
-  -> TCMλ e -- ^ Metric for computing state distance and median state
+  => (e -> TCM2Dλ e -> v e -> v e -> (Distance, m t Direction)) -- ^ Alignment matrix generator function
+  -> TCM2Dλ e -- ^ Metric for computing state distance and median state
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
     handleMissing $ directOptimization alignmentFunction overlapλ
   where
@@ -113,24 +111,32 @@ directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
         in  (cost, traceback gap overlapλ traversalMatrix lhs rhs)
 
 
+{-# INLINEABLE getCostλ #-}
+getCostλ :: TCM2Dλ e -> e -> e -> Word
+getCostλ =
+    let normalize :: (Distance, e) -> Word
+        normalize = fromIntegral . fst
+    in  (.).(.) $ normalize
+
+
 {-# SCC traceback #-}
 {-# INLINEABLE traceback #-}
-{-# SPECIALISE traceback :: WideState -> (WideState -> WideState -> (WideState, Word)) -> UM.Matrix Direction -> UV.Vector WideState -> UV.Vector WideState -> WideDynamicCharacter #-}
-{-# SPECIALISE traceback :: HugeState -> (HugeState -> HugeState -> (HugeState, Word)) -> UM.Matrix Direction ->  V.Vector HugeState ->  V.Vector HugeState -> HugeDynamicCharacter #-}
+{-# SPECIALISE traceback :: WideState -> TCM2Dλ WideState -> UM.Matrix Direction -> UV.Vector WideState -> UV.Vector WideState -> WideDynamicCharacter #-}
+{-# SPECIALISE traceback :: HugeState -> TCM2Dλ HugeState -> UM.Matrix Direction ->  V.Vector HugeState ->  V.Vector HugeState -> HugeDynamicCharacter #-}
 traceback
   :: ( Bits e
      , Matrix m t Direction
      , Vector v e
      )
   => e
-  -> TCMλ e
+  -> TCM2Dλ e
   -> m t Direction
   -> v e -- ^ Shorter dynamic character related to the "left column"
   -> v e -- ^ Longer  dynamic character related to the "top row"
   -> OpenDynamicCharacter v e -- ^ Resulting dynamic character alignment context
 traceback gap overlapλ directionMatrix lesser longer = alignment
   where
-    f x y = fst $ overlapλ x y
+    f x y = snd $ overlapλ x y
     getDirection = curry $ unsafeIndex directionMatrix
     -- The maximum size the alignment could be
     bufferLength = toEnum $ GV.length lesser + GV.length longer
@@ -183,9 +189,9 @@ alignmentWithAllGaps
   :: ( Bits e
      , Vector v e
      )
-  => TCMλ e
+  => TCM2Dλ e
   -> v e
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 alignmentWithAllGaps overlapλ character =
     case character !? 0 of
       -- Neither character was Missing, but both are empty when gaps are removed
@@ -196,17 +202,17 @@ alignmentWithAllGaps overlapλ character =
             nil = e `xor` e
             gap = nil`setBit` 0
             zed = GV.replicate len nil
-            med = GV.generate  len $ fst . overlapλ gap . (character !)
+            med = GV.generate  len $ snd . overlapλ gap . (character !)
         in  (0, (zed, med, character))
 
 
 {-# SCC handleMissing #-}
 handleMissing
   :: Vector v e
-  => (OpenDynamicCharacter v e -> OpenDynamicCharacter v e -> (Word, OpenDynamicCharacter v e))
+  => (OpenDynamicCharacter v e -> OpenDynamicCharacter v e -> (Distance, OpenDynamicCharacter v e))
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 handleMissing f lhs rhs =
   case (isMissing lhs, isMissing rhs) of
     (True , True ) -> (0, lhs)

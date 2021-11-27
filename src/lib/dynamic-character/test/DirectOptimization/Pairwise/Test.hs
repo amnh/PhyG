@@ -22,11 +22,11 @@ import           Data.Foldable
 import           Data.List                                  (intercalate, partition, sortBy)
 import           Data.Map                                   (assocs, insertWith)
 import           Data.Maybe
-import           Data.MetricRepresentation
 import           Data.Ord
 import qualified Data.Vector.Generic                        as GV
 import qualified Data.Vector.Storable                       as SV
 import           Data.Word
+import           Measure.Compact.
 import           Test.Aligners
 import           Test.QuickCheck.Instances.DynamicCharacter
 import           Test.Tasty
@@ -131,7 +131,7 @@ knownErrorCases = testGroup "Known Error Cases"
         "?c G Cd ACATG"
         "hCgRmC?cWMRYG"
         "hBGAMBCCTAGCG"
-    
+
     , specialCase2 "010" (checkAlignmentResults $ withMetric 0)
         "TMCG ACATTCA"
         "WCCggNMaWTcR"
@@ -371,7 +371,7 @@ validitySuite = testGroup "Validity of Alignments" $
 
 isValidPairwiseAlignment
   :: String
-  -> (SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter))
+  -> (SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter))
   -> TestTree
 isValidPairwiseAlignment testLabel alignmentλ = testGroup ("Validity of " <> testLabel)
     [
@@ -464,7 +464,7 @@ isValidPairwiseAlignment testLabel alignmentλ = testGroup ("Validity of " <> te
 
 
 commutivity
-  :: (SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter))
+  :: (SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter))
   -> DyadDNA
   -> Property
 commutivity alignmentλ (DNA lhs :×: DNA rhs) =
@@ -489,21 +489,21 @@ consistencySuite = testGroup description $
   where
     preamble = "All of these implementations return same alignments:"
     description = intercalate "\n        * " $ preamble : (fst <$> alignmentChoices)
-      
 
-consistentResults :: (String, MetricRepresentation Word32) -> TestTree
+
+consistentResults :: (String, CompactMeasure Word32) -> TestTree
 consistentResults param@(testLabel, _) =
     testPropertyRigorously ("Consistenty over " <> testLabel) $ checkAlignmentResults param
 
 
-checkAlignmentResults :: (String, MetricRepresentation Word32) -> DyadDNA -> Property
+checkAlignmentResults :: (String, CompactMeasure Word32) -> DyadDNA -> Property
 checkAlignmentResults (testLabel, metric) (DNA lhs :×: DNA rhs) =
         allAreEqual alignmentResults
       where
         alignmentResults = getResults <$> alignmentChoices
         getResults = fmap (\f -> f metric lhs rhs)
 
-        allAreEqual :: Foldable f => f (String, (Word, SlimDynamicCharacter)) -> Property
+        allAreEqual :: Foldable f => f (String, (Distance, SlimDynamicCharacter)) -> Property
         allAreEqual input =
             case values of
               []   -> z

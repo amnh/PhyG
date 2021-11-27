@@ -13,7 +13,7 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE Strict                #-}
+{-# LANGUAGE Strict #-}
 
 module Bio.DynamicCharacter.Measure
   ( measureCharacters

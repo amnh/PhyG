@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Bio.TCM.Dense
+-- Module      :  Measure.Matrix
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -10,18 +10,16 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.TCM.Dense
-  ( AlignmentStrategy(..)
-  , DenseTransitionCostMatrix(..)
-  , CostMatrix2d()
-  , CostMatrix3d()
-    -- * Construction
-  , generateDenseTransitionCostMatrix
-    -- * Lookup functions
-  , lookupPairwise
-  , lookupThreeway
-    -- * Query
-  , getAlignmentStrategy
+module Measure.Matrix
+  ( -- * Comparators
+    SCMλ
+  , TCM2Dλ
+  , TCM3Dλ
+    -- * Comparator Type-classes
+  , HasDenseMatrix(..)
+  , HasSymbolChangeMatrix(..)
+  , HasTransitionCostMatrix(..)
   ) where
 
-import Data.TCM.Dense.FFI
+import Measure.Matrix.Types
+import Measure.Matrix.Class

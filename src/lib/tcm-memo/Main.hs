@@ -6,7 +6,7 @@ module Main (main) where
 
 import Bio.Character.Exportable
 import Control.Applicative      (liftA2)
-import Data.TCM.Memoized
+import Measure.SymbolChangeMatrix.Dense.Memoized
 import Foreign.C.Types
 import Safe                     (readMay)
 import System.Environment       (getArgs)

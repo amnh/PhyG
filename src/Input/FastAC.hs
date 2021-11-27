@@ -47,11 +47,12 @@ import           Data.Alphabet
 import           Data.Bits
 import           Data.Hashable
 import qualified Data.List                 as L
-import           Data.MetricRepresentation
-import qualified Data.MetricRepresentation as MR
-import           Data.TCM                  (TCMDiagnosis(..), TCMStructure(..))
-import qualified Data.TCM                  as TCM
-import qualified Data.TCM.Dense            as TCMD
+import           Measure.Compact
+import qualified Measure.Compact as MR
+import           Measure.Diagnosis                  (DiagnosisOfSCM(..))
+import           Measure.Metricity                  (Metricity(..))
+import qualified Measure.Symbols.Dense           as SCM
+import qualified Measure.States.Dense            as TCMD
 import qualified Data.Text.Lazy            as T
 import qualified Data.Text.Short           as ST
 import qualified Data.Vector               as V
@@ -126,7 +127,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
             localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
                               else S.fromLists $ snd3 localTCM
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
+            tcmDense = TCMD.fromSCMλ 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
             localDenseCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmDense
@@ -134,11 +135,11 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
 
             tcmWeightFactor = thd3 localTCM
             thisAlphabet =
@@ -169,7 +170,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
 
 -- | getCost is helper function for generartion for a dense TCM
-getCost :: S.Matrix Int -> Word -> Word -> Word
+getCost :: S.Matrix Int -> SymbolIndex -> SymbolIndex -> Distance
 getCost localCM i j =
     let x = S.getFullVects localCM
     in  toEnum $ (x V.! fromEnum i) V.! fromEnum j
@@ -182,13 +183,13 @@ getTCMMemo
      , NFData b
      )
   => (a, S.Matrix Int)
-  -> (Rational, MR.MetricRepresentation b)
+  -> (Rational, MR.CompactMeasure b)
 getTCMMemo (_inAlphabet, inMatrix) =
-    let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
-        metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric 
-                   Additive    -> linearNorm . toEnum $ TCM.size tcm
-                   _           -> metricRepresentation tcm
+    let DiagnosisOfSCM metricity coefficient scm = diagnoseSCMλ $ S.getFullVects inMatrix
+        metric = case metricity of
+                   DiscreteMetric -> discreteMetric $ symbolCount scm
+                   L1Norm         -> linearNorm     $ symbolCount scm
+                   _              -> metricRepresentation scm
     in (coefficient, metric)
 
 
@@ -239,7 +240,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0
 
             tcmWeightFactor = thd3 localTCM
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
+            tcmDense = TCMD.fromSCMλ 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
 
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
@@ -253,11 +254,11 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
 
             defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
@@ -427,9 +428,9 @@ getRawDataPairsFastC modifier inTextList =
 genDiscreteDenseOfDimension
   :: Enum i
   => i
-  -> TCMD.DenseTransitionCostMatrix
+  -> TCMD.TCMρ
 genDiscreteDenseOfDimension d =
   let n = toEnum $ fromEnum d
       r = [0 .. n - 1]
       m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
-  in  TCMD.generateDenseTransitionCostMatrix n n . getCost $ V.fromList <$> V.fromList m
+  in  TCMD.fromSCMλ n n . getCost $ V.fromList <$> V.fromList m

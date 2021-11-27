@@ -5,13 +5,14 @@ module DirectOptimization.Pairwise.Wide
   ) where
 
 import Bio.DynamicCharacter
+import DirectOptimization.Pairwise.Internal (Distance, TCM2Dλ)
 import DirectOptimization.Pairwise.Ukkonen
 
 
 widePairwiseDO
-  :: Word
-  -> (WideState -> WideState -> (WideState, Word))
+  :: Distance
+  -> TCM2Dλ WideState
   -> WideDynamicCharacter
   -> WideDynamicCharacter
-  -> (Word, WideDynamicCharacter)
+  -> (Distance, WideDynamicCharacter)
 widePairwiseDO = ukkonenDO

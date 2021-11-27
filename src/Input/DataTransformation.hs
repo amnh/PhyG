@@ -327,18 +327,18 @@ recodeRawData inTaxNames inData inCharInfo curCharData =
         recodeRawData (tail inTaxNames) (tail inData) inCharInfo (firstDataRecoded : curCharData)
 
 
--- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
-missingNonAdditive :: CharInfo -> CharacterData
-missingNonAdditive inCharInfo =
+-- | missingDiscreteMetric is non-additive missing character value, all 1's based on alphabet size
+missingDiscreteMetric :: CharInfo -> CharacterData
+missingDiscreteMetric inCharInfo =
     emptyCharacter { stateBVPrelim = (V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True), mempty, mempty)
                    , stateBVFinal  = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
                    }
 
 
 
--- | missingAdditive is additive missing character value, all 1's based on alphabet size
-missingAdditive :: CharInfo -> CharacterData
-missingAdditive inCharInfo =
+-- | missingL1Norm is additive missing character value, all 1's based on alphabet size
+missingL1Norm :: CharInfo -> CharacterData
+missingL1Norm inCharInfo =
   let missingRange = V.zip
                         (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
                         (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
@@ -361,8 +361,8 @@ getMissingValue :: [CharInfo] -> [CharacterData]
 getMissingValue inChar
   | null inChar = []
   | charType (head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = []
-  | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar)
-  | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar)
+  | charType (head inChar) == NonAdd = missingDiscreteMetric (head inChar) : getMissingValue (tail inChar)
+  | charType (head inChar) ==    Add = missingL1Norm (head inChar) : getMissingValue (tail inChar)
   | charType (head inChar) == Matrix = missingMatrix (head inChar) : getMissingValue (tail inChar)
   | otherwise= error ("Datatype " ++ show (charType $ head inChar) ++ " not recognized")
 
@@ -639,7 +639,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
 
         else if firstCharType == Add then
                if firstState == ST.fromString "-1" then
-                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
+                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingL1Norm firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), mempty, mempty) }

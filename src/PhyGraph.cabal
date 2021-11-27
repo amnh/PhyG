@@ -72,9 +72,9 @@ common ghc-flags
     -- Debugging flags
     -debug
     -g 
-    -ddump-stg
-    -ddump-cmm
-    -ddump-to-file   
+--    -ddump-stg-from-core
+--    -ddump-cmm
+--    -ddump-to-file   
     -- -prof
     -fprof-auto
     -fprof-cafs
@@ -108,7 +108,6 @@ common ghc-flags
     -Wmissing-deriving-strategies          
     -Wmissing-fields
     -Wmissing-home-modules
-    -Wmissing-monadfail-instances
     -Wmissing-signatures
     -Wmissing-export-lists
     -Wnoncanonical-monad-instances
@@ -194,7 +193,7 @@ executable phyg
 
   build-depends:  alphabet
                 , dynamic-character
-                , tcm
+                , measure
                 , base >=4.10
                 , containers >=0.6
                 , graphviz
@@ -294,7 +293,6 @@ library alphabet
     lib/alphabet/src
 
   build-depends:
---    serialize,
     utility,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
@@ -343,7 +341,7 @@ library dynamic-character
 
   build-depends:
     alphabet,
-    tcm,
+    measure,
     utility,
     base                     >= 4.11      && < 5.0,
     bv-little,
@@ -372,14 +370,14 @@ library dynamic-character
     DirectOptimization.Pairwise.Wide
 
 
--- Library for working with TCMs and SCMs in various representations.
+-- Library for working with Measures, Metrics, SCMs, and TCMS in various representations.
 
--- General purpose library for working with transition cost matrices (TCMs)
+-- General purpose library for working with transition cost matrices (MEASUREs)
 -- and symbol change matrices (SCMs). Specialization options are provided
--- for the discrete metric (non-additive) and the L1 norm (additive) TCMs &
--- SCMs. Exposes a memoized binding for sparsely indexed, large TCMs.
+-- for the discrete metric (non-additive) and the L1 norm (additive) MEASUREs &
+-- SCMs. Exposes a memoized binding for sparsely indexed, large MEASUREs.
 
-library tcm
+library measure
 
   import:
     ffi-buildinfo,
@@ -390,96 +388,42 @@ library tcm
     Haskell2010
 
   hs-source-dirs:
-    lib/tcm/src
+    lib/measure/src
 
   build-depends:
     utility,
-    binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     hashable                 >= 1.3       && < 2.0,
     hashtables               >= 1.2       && < 2.0,
-    QuickCheck               >= 2.14      && < 3.0,
-    mono-traversable         >= 1.0       && < 2.0,
     semigroupoids            >= 5.3       && < 5.4,
     vector                   >= 0.12.0.3  && < 0.13,
-    vector-binary-instances  >= 0.2.5     && < 1.0,
 
   exposed-modules:
-    Data.Hashable.Memoize
-    Data.MetricRepresentation
-    Data.TCM
-    Data.TCM.Dense
-    Data.TCM.Overlap
+    Measure.Compact
+    Measure.Diagnosis
+    Measure.Matrix
+    Measure.Metricity
+    Measure.States.Dense
+    Measure.Symbols.Dense
+    Measure.Unit
 
   other-modules:
-    Data.TCM.Dense.FFI
-    Data.TCM.Internal
-
-
--- A binding to a C++ hashtable for thread-safe memoization.
-
--- This package is designed to provide a thread safe binding to a "pure"
--- memoization of two-way and three-way Sankoff character cost and median
--- computations.
-
---library tcm-memo
---
---  import:
---    ffi-buildinfo,
---    ghc-flags,
---    language-specs,
---
---  default-language:
---    Haskell2010
---
---  hs-source-dirs:
---    lib/tcm-memo/src
---
---  cc-options:       --std=c11
---  
---  cxx-options:      --std=c++14
---
---  -- This library is required for linking to the C++ standard template library.
---  if os(darwin)
---    extra-libraries:  c++
---  else
---    extra-libraries:  stdc++
---
---  hs-source-dirs:   lib/tcm-memo/ffi
---
---  c-sources:
---    ffi/memoized-tcm/costMatrixWrapper.c
---    ffi/memoized-tcm/dynamicCharacterOperations.c
---
---  cxx-sources:
---    ffi/memoized-tcm/costMatrix_2d.cpp
---    ffi/memoized-tcm/costMatrix_3d.cpp
---
---  -- Here we list all directories that contain C & C++ header files that the FFI
---  -- tools will need to locate when preprocessing the C files. Without listing
---  -- the directories containing the C header files here, the FFI preprocessor
---  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
---  -- that the parent directory of the nessicary C & C++ header files must be
---  -- specified. The preprocessor will not recursively look in subdirectories for
---  -- header files!
---  include-dirs:
---    ffi/memoized-tcm
---
---  build-depends:
---    exportable,
---    base                     >= 4.11      && < 5.0,
---    deepseq                  >= 1.4       && < 2.0,
---    QuickCheck               >= 2.14      && < 3.0,
---
---  exposed-modules:
---    Data.TCM.Memoized
---    Data.TCM.Memoized.Types
---    Data.TCM.Memoized.FFI
---
---  other-modules:
---  --  Data.TCM.Memoized.FFI
+    Data.Hashable.Memoize
+    Measure.Compact.Discrete
+    Measure.Compact.DiscreteCrossGap
+    Measure.Compact.L1Norm
+    Measure.Compact.Overlap
+    Measure.Matrix.Class
+    Measure.Matrix.Types
+    Measure.States.Dense.Allocation
+    Measure.States.Dense.Structure
+    Measure.Symbols.Unsafe
+    Measure.Symbols.Internal
+    Measure.Unit.Distance
+    Measure.Unit.SymbolIndex
+    Measure.Unit.SymbolCount
 
 
 -- Collection of utility functions and data structures
@@ -502,9 +446,6 @@ library utility
   build-depends:
     base                     >= 4.11      && < 5.0,
     binary                   >= 0.8       && < 1.0,
-    bv-little                >= 1.0.1     && < 2.0,
-    bv-little:instances      >= 1.0.1     && < 2.0,
-    bytestring               >= 0.10.10   && < 0.11,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     foldl                    >= 1.4       && < 2.0,
@@ -512,13 +453,9 @@ library utility
     keys                     >= 3.12      && < 4.0,
     lens                     >= 4.18      && < 6.0,
     matrix                   >= 0.3.6     && < 0.4,
-    mono-traversable         >= 1.0       && < 2.0,
-    parallel                 >= 3.2       && < 4.0,
     pointed                  >= 5.0       && < 6.0,
     QuickCheck               >= 2.14      && < 3.0,
     semigroupoids            >= 5.3       && < 5.4,
-    tasty-hunit              >= 0.10      && < 1.0,
-    text-short               >= 0.1.3     && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2       && < 1.0,
     vector-instances         >= 3.4       && < 3.5,
@@ -561,7 +498,7 @@ test-suite test-dynamic-character
   build-depends:
     alphabet,
     dynamic-character,
-    tcm,
+    measure,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,
@@ -609,7 +546,7 @@ executable inspect-dynamic-character
   build-depends:
     alphabet,
     dynamic-character,
-    tcm,
+    measure,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,

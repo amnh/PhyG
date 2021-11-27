@@ -8,7 +8,7 @@ import Bio.DynamicCharacter
 import Control.Monad
 import Data.Bits
 import Data.STRef
-import Data.Vector.Generic (Vector)
+import Data.Vector.Generic  (Vector)
 
 
 -- |
@@ -38,7 +38,7 @@ preOrderLogic isLeftChild pAlignment pContext cContext = unsafeCharacterBuiltByS
     f | isMissing cContext = missingλ   -- Missing case is all gaps
       | otherwise          = alignmentλ -- Standard pre-order logic
 
-    missingλ char = 
+    missingλ char =
       forM_ [0 .. paLen - 1] (char `setGapped`)
 
     alignmentλ char =  do

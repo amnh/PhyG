@@ -40,8 +40,6 @@ module Types.Types where
 
 import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
 import qualified Data.Vector                 as V
@@ -49,6 +47,8 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types             (CUInt)
+import qualified Measure.Compact             as MR
+import qualified Measure.States.Dense        as TCMD
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
 import GHC.Generics 
@@ -153,17 +153,17 @@ data  GlobalSettings
 
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
---  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
---  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
---  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  TCMD.CompactMeasure          => genDiscreteDenseOfDimension (length alphabet)
+--  MR.CompactMeasure Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  MR.CompactMeasure BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
                          , activity   :: Bool
                          , weight     :: Double
                          , costMatrix :: S.Matrix Int
-                         , slimTCM    :: TCMD.DenseTransitionCostMatrix
-                         , wideTCM    :: MR.MetricRepresentation Word64
-                         , hugeTCM    :: MR.MetricRepresentation BV.BitVector
+                         , slimTCM    :: TCMD.TCMρ
+                         , wideTCM    :: MR.CompactMeasure Word64
+                         , hugeTCM    :: MR.CompactMeasure BV.BitVector
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
                          } deriving stock (Show, Eq)
@@ -214,7 +214,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector
-                                     -- for Additive
+                                     -- for L1Norm
                                      , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with slim tcm
@@ -256,7 +256,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
 emptyCharacter :: CharacterData
 emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
                          , stateBVFinal       = mempty
-                         -- for Additive
+                         -- for L1Norm
                          , rangePrelim        = (mempty, mempty, mempty)
                          , rangeFinal         = mempty
                          -- for multiple Sankoff/Matrix with sme tcm

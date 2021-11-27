@@ -161,7 +161,7 @@ main = do
     let groupedData = R.groupDataByType reBlockedNaiveData
 
     -- Optimize Data convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
+        -- L1Norm characters with alphabets < 64 to multiple binary nonadditive
         -- all binary characters to nonadditive
         -- matrix 2 states to non-additive with weight
         -- prealigned to non-additive or matrix

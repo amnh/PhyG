@@ -14,6 +14,9 @@
 
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE RankNTypes         #-}
+
+--{-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-}
 
@@ -31,22 +34,22 @@ import           Bio.DynamicCharacter
 import           Control.Applicative
 import           Data.Alphabet
 import           Data.Alphabet.Codec
-import           Data.Alphabet.IUPAC       (iupacToDna)
-import qualified Data.Bimap                as BM
+import           Data.Alphabet.IUPAC    (iupacToDna)
+import qualified Data.Bimap             as BM
 import           Data.Bits
 import           Data.Foldable
-import           Data.List                 (intercalate)
-import           Data.List.NonEmpty        (NonEmpty(..))
-import qualified Data.List.NonEmpty        as NE
-import           Data.MetricRepresentation
-import           Data.Set                  (Set)
-import qualified Data.Set                  as Set
-import qualified Data.Vector               as V
-import           Data.Vector.Generic       (Vector)
-import qualified Data.Vector.Generic       as GV
-import qualified Data.Vector.Storable      as SV
-import           Foreign.C.Types           (CUInt(..))
-import           Test.Tasty.QuickCheck     hiding ((.&.))
+import           Data.List              (intercalate)
+import           Data.List.NonEmpty     (NonEmpty(..))
+import qualified Data.List.NonEmpty     as NE
+import           Data.Set               (Set)
+import qualified Data.Set               as Set
+import qualified Data.Vector            as V
+import           Data.Vector.Generic    (Vector)
+import qualified Data.Vector.Generic    as GV
+import qualified Data.Vector.Storable   as SV
+import           Foreign.C.Types        (CUInt(..))
+import           Measure.Compact.
+import           Test.Tasty.QuickCheck  hiding ((.&.))
 
 
 data DyadDNA = !DNA :×: !DNA
@@ -62,7 +65,7 @@ newtype SnippedDNA = Snip { getSnippedDNA :: SV.Vector SlimState }
 
 
 newtype Nucleotide = N { getNucleotide :: SlimState }
-    deriving newtype (Eq, Ord)
+    deriving newtype (Enum, Eq, Ord)
 
 
 newtype NucleotideContext a = NC { getContext :: (a, a, a) }
@@ -121,7 +124,7 @@ instance Arbitrary DNA where
         in  fmap fromShrinkable . shrink . makeShrinkable
 
 
-instance (Arbitrary a, FiniteBits a, Vector v a) => Arbitrary (TestDynamicCharacter v a) where
+instance (Arbitrary a, Enum a, FiniteBits a, Vector v a) => Arbitrary (TestDynamicCharacter v a) where
 
     arbitrary = do
         makeFilled <- chooseEnum (0, 9 :: Word)
@@ -133,7 +136,8 @@ instance (Arbitrary a, FiniteBits a, Vector v a) => Arbitrary (TestDynamicCharac
             pure $ DC (GV.fromList lc, GV.fromList mc, GV.fromList rc)
 
 
-instance (Arbitrary a, Bits a, Eq a, FiniteBits a) => Arbitrary (NucleotideContext a) where
+instance (Arbitrary a, Bits a, Enum a, Eq a, FiniteBits a) => Arbitrary (NucleotideContext a) where
+--instance Arbitrary (NucleotideContext Nucleotide) where
 
     -- 50% »»» 'A' Alignment
     -- 25% »»» 'D' Deletion
@@ -150,12 +154,6 @@ instance (Arbitrary a, Bits a, Eq a, FiniteBits a) => Arbitrary (NucleotideConte
                    _ -> liftA2 (,) arbitrary arbitrary -- Align
         let med = generateMedian nil gap x y
         pure $ NC (x, med, y)
-      where
-        generateMedian n g x y =
-          let tcm = retreivePairwiseTCM discreteMetric
-              f v | v == n    = g
-                  | otherwise = v
-          in  fst $ tcm (f x) (f y)
 
 
 instance Arbitrary Nucleotide where
@@ -430,3 +428,29 @@ buildDNA lStr mStr rStr = DNA (lVec, mVec, rVec)
 
     iupac :: NonEmpty String -> Maybe (NonEmpty String)
     iupac s = BM.lookup s iupacToDna
+
+
+generateMedian
+  :: ( Enum a
+     , FiniteBits a
+     )
+  => a -> a -> a -> a -> a
+generateMedian nil gap x y =
+    let f v | v == nil  = gap
+            | otherwise = v
+    in  snd $ nucleotideTCM2Dλ (f x) (f y)
+
+
+nucleotideTCM2Dλ
+  :: Enum a
+  => TCM2Dλ a
+nucleotideTCM2Dλ i j =
+   let f = toEnum . fromEnum
+       tcm = getTCM2Dλ defaultMetric :: TCM2Dλ Nucleotide
+   in  toEnum . fromEnum <$> tcm (f i) (f j)
+
+  
+defaultMetric :: CompactMeasure Nucleotide
+defaultMetric = 
+    let dim = toEnum $ length nucleotideAlphabet
+    in  discreteMetric dim

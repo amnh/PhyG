@@ -59,8 +59,8 @@ import qualified Data.BitVector.LittleEndian as BV
 import           Data.Maybe
 import qualified Data.List as L
 import Debug.Trace
-import qualified Data.TCM.Dense as TCMD
-import qualified Data.MetricRepresentation as MR
+import qualified Measure.States.Dense as TCMD
+import qualified Measure.Compact as MR
 import qualified Data.Vector.Generic                                         as GV
 import Data.Bits
 import qualified Data.Vector.Storable         as SV
@@ -916,7 +916,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
       else if localCharType == NonAdd then
          -- add logic for pre-order
-         let finalAssignment' = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
+         let finalAssignment' = nonL1NormPreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
          in
          childChar {stateBVFinal = finalAssignment'}
 
@@ -1110,21 +1110,21 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
 -- information to create a final assingment with out an additional DO call to keep the 
 -- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
 -- used as true final sequence assignments using M.createUngappedMedianSequence
-getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim :: TCMD.CompactMeasure -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let newFinal = SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
-getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a -> v a
+getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.CompactMeasure a -> v a -> v a -> v a -> v a
 getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let newFinal = GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
+local3WayWideHuge :: (FiniteBits a) => MR.CompactMeasure a -> a -> a -> a -> a
 local3WayWideHuge lWideTCM b c d =
    let  -- b' = if b == zeroBits then gap else b
         -- c' = if c == zeroBits then gap else c
@@ -1135,7 +1135,7 @@ local3WayWideHuge lWideTCM b c d =
    median
 
 -- | local3WaySlim takes triple of CUInt and retuns median
-local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
+local3WaySlim :: TCMD.CompactMeasure -> CUInt -> CUInt -> CUInt -> CUInt
 local3WaySlim lSlimTCM b c d =
  -- trace ("L3WS: " ++ (show (b,c,d))) (
  let  -- b' = if b == zeroBits then gap else b
@@ -1150,14 +1150,14 @@ local3WaySlim lSlimTCM b c d =
  -- )
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+get2WaySlim :: TCMD.CompactMeasure -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
    let median = SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local2WaySlim takes pair of CUInt and retuns median
-local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt
+local2WaySlim :: TCMD.CompactMeasure -> CUInt -> CUInt -> CUInt
 local2WaySlim lSlimTCM b c =
  let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
       -- c' = if c == zeroBits then gap else c
@@ -1172,18 +1172,18 @@ local2WaySlim lSlimTCM b c =
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
-get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.CompactMeasure a -> v a -> v a -> v a
 get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
    let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a
+local2WayWideHuge :: (FiniteBits a) => MR.CompactMeasure a -> a -> a -> a
 local2WayWideHuge lWideTCM b c =
    let  -- b' = if b == zeroBits then gap else b
         -- c' = if c == zeroBits then gap else c
-        (median, _) = MR.retreivePairwiseTCM lWideTCM b c
+        (median, _) = MR.getTCM2Dλ lWideTCM b c
    in
    --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median
@@ -1195,15 +1195,15 @@ additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, In
 additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
-      V.zipWith4 makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
+      V.zipWith4 makeL1NormCharacterFinal nodePrelim leftChild rightChild parentFinal
 
--- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
+-- |  nonL1NormPreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
-nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
-nonAdditivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
+nonL1NormPreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
+nonL1NormPreorder (nodePrelim, leftChild, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
-      V.zipWith4 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
+      V.zipWith4 makeDiscreteMetricCharacterFinal nodePrelim leftChild rightChild parentFinal
 
 
 -- | matrixPreorder assigment akes preliminary matrix states of child (= current vertex) and
@@ -1216,10 +1216,10 @@ matrixPreorder isLeft nodePrelim parentFinal =
       V.zipWith (makeMatrixCharacterFinal isLeft)  nodePrelim parentFinal
 
 
--- | makeAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
+-- | makeL1NormCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
-makeAdditiveCharacterFinal :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int)
-makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
+makeL1NormCharacterFinal :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int)
+makeL1NormCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (20012) after Goloboff (1993) 
    let interNodeParent = intervalIntersection nodePrelim parentFinal
    in
@@ -1232,7 +1232,7 @@ makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    else if isJust ((leftChild `intervalUnion` rightChild) `intervalIntersection` parentFinal) then
       let xFactor = ((leftChild `intervalUnion` rightChild) `intervalUnion` nodePrelim) `intervalIntersection` parentFinal
       in
-      if isNothing xFactor then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (nodePrelim, leftChild, rightChild, parentFinal))
+      if isNothing xFactor then error ("I don't think this should happen in makeL1NormCharacterFinal" ++ show (nodePrelim, leftChild, rightChild, parentFinal))
       else
          if isJust (fromJust xFactor `intervalIntersection` nodePrelim) then
             -- trace ("R2a " ++ show (fromJust xFactor)) 
@@ -1259,11 +1259,11 @@ stateFirstClosestToSecond (a,b) (x,y) =
    let distASecond
          | x > b = x - a
          | y < a = a - y
-         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+         | otherwise = error ("I don't think this should happen in makeL1NormCharacterFinal" ++ show (a,b,x,y))
        distBSecond
          | x > b = x - b
          | y < a = b - y
-         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+         | otherwise = error ("I don't think this should happen in makeL1NormCharacterFinal" ++ show (a,b,x,y))
    in
    if distASecond <= distBSecond then a
    else b
@@ -1301,10 +1301,10 @@ largestClosedInterval :: (Int, Int) -> (Int, Int) -> (Int, Int)
 largestClosedInterval = intervalUnion
 -}
 
--- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
+-- | makeDiscreteMetricCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
-makeNonAdditiveCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> BV.BitVector -> BV.BitVector
-makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
+makeDiscreteMetricCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> BV.BitVector -> BV.BitVector
+makeDiscreteMetricCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
    if (nodePrelim .&. parentFinal) == parentFinal then

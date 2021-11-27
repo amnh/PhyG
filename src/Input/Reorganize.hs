@@ -213,21 +213,21 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                                                                                                                                                                     -- non-additive characters
                                                                                                                                                                     else if fCharType == NonAdd then
                                                                                                                                                                         let replicateNumber = fromJust intWeight
-                                                                                                                                                                            currentNonAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+                                                                                                                                                                            currentDiscreteMetricCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
                                                                                                                                                                         in
-                                                                                                                                                                        -- trace ("Non-Additive") (
-                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        else organizeBlockData (replicate replicateNumber currentNonAdditiveCharacter ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+                                                                                                                                                                        -- trace ("Non-L1Norm") (
+                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData (currentDiscreteMetricCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+                                                                                                                                                                        else organizeBlockData (replicate replicateNumber currentDiscreteMetricCharacter ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
                                                                                                                                                                         -- )
 
                                                                                                                                                                     -- additive characters    
                                                                                                                                                                     else if fCharType == Add then
                                                                                                                                                                         let replicateNumber = fromJust intWeight
-                                                                                                                                                                            currentAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+                                                                                                                                                                            currentL1NormCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
                                                                                                                                                                         in
-                                                                                                                                                                        -- trace ("Additive") (
-                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        else organizeBlockData nonAddCharList (replicate replicateNumber currentAdditiveCharacter ++ addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+                                                                                                                                                                        -- trace ("L1Norm") (
+                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData nonAddCharList (currentL1NormCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+                                                                                                                                                                        else organizeBlockData nonAddCharList (replicate replicateNumber currentL1NormCharacter ++ addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
                                                                                                                                                                         -- )
 
                                                                                                                                                                     -- matrix characters--more complex since need to check for matrix identity
@@ -256,13 +256,13 @@ makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
     let
-        -- Non-Additive Characters
+        -- Non-L1Norm Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
-        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
+        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedDiscreteMetricCharacters"}
 
-        -- Additive Characters
+        -- L1Norm Characters
         addCharacter = combineAdditveCharacters addCharList emptyCharacter []
-        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters"}
+        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedL1NormCharacters"}
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
 
@@ -282,8 +282,8 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
 
     in
     {-
-    trace ("Recoded Non-Additive: " ++ (show $ length nonAddCharList) ++ "->" ++ (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
-        ++ " Additive: " ++ (show $ length addCharList) ++ "->" ++ (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
+    trace ("Recoded Non-L1Norm: " ++ (show $ length nonAddCharList) ++ "->" ++ (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
+        ++ " L1Norm: " ++ (show $ length addCharList) ++ "->" ++ (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
         ++ " Matrix " ++ (show  $length matrixCharListList) ++ "->" ++ (show $ length matrixCharacters)
         ++ " total list: " ++ (show (length newCharacterList''', fmap length newCharacterList''')) ++ " CI " ++ (show $ length newChararacterInfoList'''))
     -}

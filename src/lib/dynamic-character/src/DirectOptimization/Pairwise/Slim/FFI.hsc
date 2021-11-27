@@ -23,15 +23,18 @@
 {-# LANGUAGE Strict                   #-}
 {-# LANGUAGE StrictData               #-}
 
+#include "c_alignment_interface.h"
+#include "alignmentMatrices.h"
+
 module DirectOptimization.Pairwise.Slim.FFI
-  ( DenseTransitionCostMatrix
+  ( TCMρ
   , smallAlphabetPairwiseDO
 --  , foreignThreeWayDO
   ) where
 
 import Bio.DynamicCharacter
 import Data.Coerce
-import Data.TCM.Dense
+import Measure.States.Dense
 import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import DirectOptimization.Pairwise.Internal
@@ -40,11 +43,7 @@ import Foreign.C.Types
 import GHC.ForeignPtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
-
-#include "c_alignment_interface.h"
-#include "c_code_alloc_setup.h"
-#include "costMatrix.h"
-#include "alignmentMatrices.h"
+import Measure.Matrix
 
 
 -- |
@@ -85,7 +84,7 @@ foreign import ccall unsafe "c_alignment_interface.h cAlign2D"
       -> CSize     -- ^ size of each buffer
       -> CSize     -- ^ length of character1
       -> CSize     -- ^ length of character2
-      -> Ptr CostMatrix2d
+      -> Ptr FFI2D
       -> CInt      -- ^ compute ungapped & not   gapped medians
       -> CInt      -- ^ compute   gapped & not ungapped medians
       -> CInt      -- ^ compute union
@@ -120,15 +119,19 @@ foreign import ccall unsafe "c_alignment_interface.h align3d"
 -- Align two dynamic characters using an FFI call for more efficient computation
 -- on small alphabet sizes.
 --
--- Requires a pre-generated 'DenseTransitionCostMatrix' from a call to
--- 'generateDenseTransitionCostMatrix' defining the alphabet and transition costs.
+-- Requires a pre-generated 'CompactMeasure' from a call to
+-- 'generateCompactMeasure' defining the alphabet and transition costs.
 -- {-# INLINE foreignPairwiseDO #-}
 {-# SCC smallAlphabetPairwiseDO #-}
 smallAlphabetPairwiseDO
-  :: DenseTransitionCostMatrix    -- ^ Structure defining the transition costs between character states
-  -> SlimDynamicCharacter         -- ^ First  dynamic character
-  -> SlimDynamicCharacter         -- ^ Second dynamic character
-  -> (Word, SlimDynamicCharacter) -- ^ The /ungapped/ character derived from the the input characters' N-W-esque matrix traceback
+  :: TCMρ
+     -- ^ Structure defining the transition costs between character states
+  -> SlimDynamicCharacter
+     -- ^ First  dynamic character
+  -> SlimDynamicCharacter
+     -- ^ Second dynamic character
+  -> (Distance, SlimDynamicCharacter)
+     -- ^ The /ungapped/ character derived from the the input characters' N-W-esque matrix traceback
 smallAlphabetPairwiseDO = algn2d DoNotComputeUnions ComputeMedians
 
 
@@ -137,8 +140,8 @@ smallAlphabetPairwiseDO = algn2d DoNotComputeUnions ComputeMedians
 -- Align three dynamic characters using an FFI call for more efficient computation
 -- on small (or smallish) alphabet sizes.
 --
--- Requires a pre-generated 'DenseTransitionCostMatrix' from a call to
--- 'generateDenseTransitionCostMatrix' defining the alphabet and transition costs.
+-- Requires a pre-generated 'CompactMeasure' from a call to
+-- 'generateCompactMeasure' defining the alphabet and transition costs.
 foreignThreeWayDO :: ( EncodableDynamicCharacter s
                      , ExportableElements s
 --                     , Show s
@@ -149,7 +152,7 @@ foreignThreeWayDO :: ( EncodableDynamicCharacter s
         -> Int                       -- ^ Mismatch cost
         -> Int                       -- ^ Gap open cost
         -> Int                       -- ^ Indel cost
-        -> DenseTransitionCostMatrix -- ^ Structure defining the transition costs between character states
+        -> CompactMeasure -- ^ Structure defining the transition costs between character states
         -> (Word, s, s, s, s, s)     -- ^ The /ungapped/ character derived from the the input characters' N-W-esque matrix traceback
 foreignThreeWayDO char1 char2 char3 costMatrix = algn3d char1 char2 char3 costMatrix
 -}
@@ -165,13 +168,13 @@ foreignThreeWayDO char1 char2 char3 costMatrix = algn3d char1 char2 char3 costMa
 algn2d
   :: UnionContext
   -> MedianContext
-  -> DenseTransitionCostMatrix    -- ^ Structure defining the transition costs between character states
-  -> SlimDynamicCharacter         -- ^ First  dynamic character
-  -> SlimDynamicCharacter         -- ^ Second dynamic character
-  -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPairwise denseTCMs
+  -> TCMρ                             -- ^ Structure defining the transition costs between character states
+  -> SlimDynamicCharacter             -- ^ First  dynamic character
+  -> SlimDynamicCharacter             -- ^ Second dynamic character
+  -> (Distance, SlimDynamicCharacter) -- ^ The cost of the alignment
+algn2d computeUnion computeMedians tcmρ = directOptimization f $ getTCM2Dλ tcmρ
   where
-    f :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
+    f :: Vector CUInt -> Vector CUInt -> (Distance, SlimDynamicCharacter)
     f lesser longer = {-# SCC f #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
         let longerLength = V.length longer
@@ -182,11 +185,11 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
         medianBuffer <- allocCharacterBuffer bufferLength            0   nullPtr
         longerBuffer <- allocCharacterBuffer bufferLength longerLength longerPtr
         resultLength <- malloc :: IO (Ptr CSize)
-        strategy     <- getAlignmentStrategy <$> peek costStruct
+        strategy     <- getAlignmentStrategy <$> peek cm2D
         let medianOpt = coerceEnum computeMedians
         let !cost = case strategy of
                       Affine -> {-# SCC affine_undefined #-}
-                        undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
+                        undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) ffi2D medianOpt
                       _      -> {-# SCC align2dFn_c #-}
                         align2dFn_c
                           lesserBuffer
@@ -196,7 +199,7 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
                           (ics bufferLength)
                           (ics lesserLength)
                           (ics longerLength)
-                          costStruct
+                          cm2D
                           neverComputeOnlyGapped
                           medianOpt
                           (coerceEnum computeUnion)
@@ -215,7 +218,7 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
         pure $ {-# SCC ffi_result #-} (alignmentCost, alignmentContext)
 
       where
-        costStruct  = costMatrix2D denseTCMs
+        cm2D = getFFI2D tcmρ
         neverComputeOnlyGapped = 0
         ics :: Int -> CSize
         ics = coerce . (toEnum :: Int -> Word64)
@@ -239,7 +242,7 @@ algn3d
   -> Int                       -- ^ Mismatch cost
   -> Int                       -- ^ Gap open cost
   -> Int                       -- ^ Indel cost
-  -> DenseTransitionCostMatrix -- ^ Structure defining the transition costs between character states
+  -> CompactMeasure -- ^ Structure defining the transition costs between character states
   -> (Word, s, s, s, s, s)     -- ^ The cost of the alignment
                                --
                                --   The /ungapped/ character derived from the the input characters' N-W-esque matrix traceback

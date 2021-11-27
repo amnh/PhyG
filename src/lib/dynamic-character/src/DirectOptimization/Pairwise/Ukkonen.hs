@@ -57,18 +57,18 @@ import           DirectOptimization.Pairwise.Swapping
 -- algorithm is to generate a traversal matrix, then perform a traceback.
 {-# SCC        ukkonenDO #-}
 {-# INLINEABLE ukkonenDO #-}
-{-# SPECIALISE ukkonenDO :: Word -> (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
-{-# SPECIALISE ukkonenDO :: Word -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+{-# SPECIALISE ukkonenDO :: Distance -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
+{-# SPECIALISE ukkonenDO :: Distance -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
 ukkonenDO
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      )
-  => Word   -- ^ Coefficient value, representing the /minimum/ transition cost from a state to gap
-  -> TCMλ e -- ^ Metric between states producing the medoid of states.
+  => Distance -- ^ Coefficient value, representing the /minimum/ transition cost from a state to gap
+  -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> OpenDynamicCharacter v e -- ^ /1st/ dynamic character
   -> OpenDynamicCharacter v e -- ^ /2nd/ dynamic character
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 ukkonenDO coefficient tcmλ char1 char2
   | noGainFromUkkonenMethod = buildFullMatrix
   | otherwise               = buildBandMatrix
@@ -76,7 +76,7 @@ ukkonenDO coefficient tcmλ char1 char2
     buildFullMatrix = swappingDO tcmλ char1 char2
     buildBandMatrix = directOptimizationFromDirectionMatrix ukkonenBandλ tcmλ char1 char2
 
-    ukkonenBandλ = createUkkonenMethodMatrix coefficient inputGapAmbiguities
+    ukkonenBandλ = createUkkonenMethodMatrix (fromIntegral coefficient) inputGapAmbiguities
 
     ~(_,_,_,x,y) = measureCharactersWithoutGaps char1 char2
 
@@ -149,17 +149,17 @@ ukkonenDO coefficient tcmλ char1 char2
 -- input did not contain any gap symbols.
 {-# SCC        createUkkonenMethodMatrix #-}
 {-# INLINEABLE createUkkonenMethodMatrix #-}
-{-# SPECIALISE createUkkonenMethodMatrix :: Word -> Word -> WideState -> (WideState -> WideState -> (WideState, Word)) -> UV.Vector WideState -> UV.Vector WideState -> (Word, Matrix Direction) #-}
-{-# SPECIALISE createUkkonenMethodMatrix :: Word -> Word -> HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, Matrix Direction) #-}
+{-# SPECIALISE createUkkonenMethodMatrix :: Word -> Word -> WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (Distance, Matrix Direction) #-}
+{-# SPECIALISE createUkkonenMethodMatrix :: Word -> Word -> HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (Distance, Matrix Direction) #-}
 createUkkonenMethodMatrix
   :: Vector v e
   => Word   -- ^ Coefficient value, representing the /minimum/ transition cost from a state to gap
-  -> Word   -- ^ Number of abiguous elements in both inputs which contained gap as a possible state
+  -> Word   -- ^ Number of ambiguous elements in both inputs which contained gap as a possible state
   -> e      -- ^ Gap State
-  -> TCMλ e -- ^ Metric between states producing the medoid of states.
+  -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> v e    -- ^ Shorter dynamic character
   -> v e    -- ^ Longer  dynamic character
-  -> (Word, Matrix Direction)
+  -> (Distance, Matrix Direction)
 createUkkonenMethodMatrix minimumIndelCost inputGapAmbiguities gap tcmλ lesserLeft longerTop = finalMatrix
   where
     -- General values that need to be in scope for the recursive computations.
@@ -207,14 +207,14 @@ createUkkonenMethodMatrix minimumIndelCost inputGapAmbiguities gap tcmλ lesserL
 
         c <- getAlignmentCost
         m <- unsafeFreeze mDir
-        pure (c, m)
+        pure (fromIntegral c, m)
 
 
 {-# SCC buildInitialBandedMatrix #-}
 buildInitialBandedMatrix
   :: Vector v e
   => e      -- ^ Gap
-  -> TCMλ e -- ^ Metric between states producing the medoid of states.
+  -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> v e    -- ^ Shorter dynamic character
   -> v e    -- ^ Longer dynamic character
   -> Word
@@ -369,7 +369,7 @@ buildInitialBandedMatrix gap tcmλ lesserLeft longerTop o = fullMatrix
 expandBandedMatrix
   :: Vector v e
   => e      -- ^ Gap state
-  -> TCMλ e -- ^ Metric between states producing the medoid of states.
+  -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> v e    -- ^ Shorter dynamic character
   -> v e    -- ^ Longer  dynamic character
   -> MMatrix s Word
@@ -775,7 +775,7 @@ edgeCellDefinitions gap costλ longerTop mCost mDir =
 -- different incarnations of the Ukkonen algorithms.
 ukkonenConstants
   :: Vector v e
-  => TCMλ e -- ^ Metric between states producing the medoid of states.
+  => TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> v e    -- ^ Shorter dynamic character
   -> v e    -- ^ Longer  dynamic character
   -> Word   -- ^ Current  offset from quasi-diagonal
@@ -784,7 +784,7 @@ ukkonenConstants tcmλ lesserLeft longerTop co =
     (offset, costλ, rows, cols, width, quasiDiagonalWidth)
   where
     offset    = clampOffset co
-    costλ x   = snd . tcmλ x
+    costλ     = getCostλ tcmλ
     longerLen = GV.length longerTop
     lesserLen = GV.length lesserLeft
     rows      = GV.length lesserLeft + 1

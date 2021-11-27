@@ -22,10 +22,10 @@
  *
  *  Requires symmetric, if not metric, matrix.
  */
-int distance( unsigned int const *tcm
-            , size_t              alphSize
-            , elem_t              nucleotide
-            , elem_t              ambElem
+int distance( unsigned short const *tcm
+            , size_t                alphSize
+            , elem_t                nucleotide
+            , elem_t                ambElem
             )
 {
     int min     = INT_MAX;
@@ -33,7 +33,7 @@ int distance( unsigned int const *tcm
 
     for (size_t pos = 0; pos < alphSize; pos++) {
         if ((1 << pos) & ambElem) { // if pos is set in ambElem, meaning pos is possible value of ambElem
-            curCost = tcm[pos * alphSize + nucleotide];
+            curCost = (int) tcm[pos * alphSize + nucleotide];
             if (curCost < min) {
                 min = curCost;
             }
@@ -107,10 +107,10 @@ void initializeAlignmentMtx( alignment_matrices_t *retMtx
 }
 
 
-void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
-                   , unsigned int       *tcm
-                   , size_t              alphSize
-                   , unsigned int        gap_open
+void setUp2dCostMtx( cost_matrices_2d_t   *retCostMtx
+                   , unsigned short const *tcm
+                   , unsigned short        gap_open
+                   , size_t                alphSize
                    )
 {
 
@@ -136,7 +136,7 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
                , alphSize
                , combinations
                , do_aff
-               , gap_open
+               , (int) gap_open
                , is_metric
                , all_elements
                );
@@ -202,10 +202,10 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
 }
 
 
-void setUp3dCostMtx( cost_matrices_3d_t *retMtx
-                   , unsigned int       *tcm
-                   , size_t              alphSize
-                   , unsigned int        gap_open
+void setUp3dCostMtx( cost_matrices_3d_t   *retMtx
+                   , unsigned short const *tcm
+                   , unsigned short        gap_open
+                   , size_t                alphSize
                    )
 {
     // first allocate retMatrix
@@ -223,7 +223,7 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                , alphSize
                , combinations
                , do_aff
-               , gap_open
+               , (int) gap_open
                , all_elements );
 
     for (elem_t ambElem1 = 1; ambElem1 <= all_elements; ambElem1++) { // for every possible value of ambElem1, ambElem2, ambElem3

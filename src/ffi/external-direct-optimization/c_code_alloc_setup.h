@@ -24,10 +24,10 @@
  *
  *  Requires symmetric, if not metric, matrix.
  */
-int distance( unsigned int const *tcm
-            , size_t              alphSize
-            , elem_t              nucleotide
-            , elem_t              ambElem
+int distance( unsigned short const *tcm
+            , size_t                alphSize
+            , elem_t                nucleotide
+            , elem_t                ambElem
             );
 
 
@@ -73,10 +73,10 @@ void resetCharValues( dyn_character_t *retChar );
  *  No longer setting max, as algorithm to do so is unclear: see note below.
  *  Not sure which of two loops to set prepend and tail arrays is correct.
  */
-void setUp2dCostMtx( cost_matrices_2d_t *retMtx
-                   , unsigned int       *tcm
-                   , size_t              alphSize
-                   , unsigned int        gap_open
+void setUp2dCostMtx( cost_matrices_2d_t   *retMtx
+                   , unsigned short const *tcm
+                   , unsigned short        gap_open
+                   , size_t                alphSize
                    );
 
 
@@ -84,10 +84,10 @@ void setUp2dCostMtx( cost_matrices_2d_t *retMtx
  *  I attempted to do with with a return of void *, but was having trouble with allocation, and was forced to move
  *  it outside this fn.
  */
-void setUp3dCostMtx( cost_matrices_3d_t *retMtx
-                   , unsigned int       *tcm
-                   , size_t              alphSize
-                   , unsigned int        gap_open
+void setUp3dCostMtx( cost_matrices_3d_t   *retMtx
+                   , unsigned short const *tcm
+                   , unsigned short        gap_open
+                   , size_t                alphSize
                    );
 
 

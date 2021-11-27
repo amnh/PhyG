@@ -36,8 +36,8 @@ import qualified Data.Matrix.Unboxed.Mutable           as M
 import qualified Data.Vector                           as V
 import           Data.Vector.Generic                   (Vector, (!))
 import qualified Data.Vector.Generic                   as GV
+import qualified Data.Vector.Primitive.Mutable         as MUV
 import qualified Data.Vector.Unboxed                   as UV
-import qualified Data.Vector.Unboxed.Mutable           as MUV
 import           DirectOptimization.Pairwise.Direction
 import           DirectOptimization.Pairwise.Internal
 
@@ -51,36 +51,36 @@ import           DirectOptimization.Pairwise.Internal
 -- algorithm is to generate a traversal matrix, then perform a traceback.
 {-# SCC        swappingDO #-}
 {-# INLINEABLE swappingDO #-}
-{-# SPECIALISE swappingDO :: (WideState -> WideState -> (WideState, Word)) -> WideDynamicCharacter -> WideDynamicCharacter -> (Word, WideDynamicCharacter) #-}
-{-# SPECIALISE swappingDO :: (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
 swappingDO
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      )
-  => TCMλ e
+  => TCM2Dλ e
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Word, OpenDynamicCharacter v e)
+  -> (Distance, OpenDynamicCharacter v e)
 swappingDO = directOptimizationFromDirectionMatrix buildDirectionMatrix
 
 
 {-# SCC        buildDirectionMatrix #-}
 {-# INLINEABLE buildDirectionMatrix #-}
-{-# SPECIALISE buildDirectionMatrix :: WideState -> (WideState -> WideState -> (WideState, Word)) -> UV.Vector WideState -> UV.Vector WideState -> (Word, Matrix Direction) #-}
-{-# SPECIALISE buildDirectionMatrix :: HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, Matrix Direction) #-}
+{-# SPECIALISE buildDirectionMatrix :: WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (Distance, Matrix Direction) #-}
+{-# SPECIALISE buildDirectionMatrix :: HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (Distance, Matrix Direction) #-}
 buildDirectionMatrix
   :: Vector v e
-  => e      -- ^ Gap state
-  -> TCMλ e -- ^ Metric between states producing the medoid of states.
-  -> v e    -- ^ Shorter dynamic character related to the "left column"
-  -> v e    -- ^ Longer  dynamic character related to the "top row"
-  -> (Word, Matrix Direction)
+  => e        -- ^ Gap state
+  -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
+  -> v e      -- ^ Shorter dynamic character related to the "left column"
+  -> v e      -- ^ Longer  dynamic character related to the "top row"
+  -> (Distance, Matrix Direction)
 buildDirectionMatrix gap tcmλ lesserLeft longerTop = fullMatrix
   where
-    costλ x y = snd $ tcmλ x y
-    rows      = GV.length lesserLeft + 1
-    cols      = GV.length longerTop  + 1
+    costλ = getCostλ tcmλ
+    rows  = GV.length lesserLeft + 1
+    cols  = GV.length longerTop  + 1
 
     fullMatrix = runST $ do
       mDir <- M.new (rows, cols)
@@ -134,5 +134,5 @@ buildDirectionMatrix gap tcmλ lesserLeft longerTop = fullMatrix
 
       c <- MUV.unsafeRead v (cols - 1)
       m <- unsafeFreeze mDir
-      pure (c, m)
+      pure (fromIntegral c, m)
 

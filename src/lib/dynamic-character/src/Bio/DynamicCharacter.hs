@@ -439,7 +439,7 @@ generateCharacter
   -> OpenDynamicCharacter v e
 generateCharacter n f = runST $ do
     char <- newTempCharacter n
-    forM_ [ 0 .. n - 1] $ \i -> 
+    forM_ [ 0 .. n - 1] $ \i ->
         let (# x, y, z #) = f i
         in  setAlign char (fromEnum i) x y z
     freezeTempCharacter char

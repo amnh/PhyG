@@ -73,8 +73,8 @@ import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
 import qualified GeneralUtilities as GU
-import           Data.MetricRepresentation
-import qualified Data.TCM                  as TCM
+import           Measure.Compact
+import qualified Measure.SymbolChangeMatrix.Dense                  as TCM
 import qualified Input.FastAC  as FAC
 
 
@@ -139,7 +139,7 @@ getTNTData inString fileName =
                         ++ show numChar ++ "):" ++ show  incorrectLengthList)
                     else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
                     else
-                        -- check non-Additive alphabet to be numbers
+                        -- check non-L1Norm alphabet to be numbers
                         -- integerize and reweight additive chars (including in ambiguities)
                         let curNames = fmap ((T.filter (/= '"') . T.filter C.isPrint) . fst) sortedData
                             curData = fmap snd sortedData
@@ -662,14 +662,14 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                     in
                     if isNothing stateNumber then
                         if firstState == "?" then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString "-1" : newAlph) (ST.fromString "-1" : newStates)
-                        else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
+                        else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: L1Norm character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
                 let gutsList  = words $ filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
                     newStateNumberStringList = fmap (((takeWhile (/='.') . show) . (/ scaleFactor)) . fromJust) newStateNumberList
                 in
-                if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
+                if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: L1Norm character not a number (Int/Float) " ++ firstState)
                 else
                     let newAmbigState =  ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
                     in

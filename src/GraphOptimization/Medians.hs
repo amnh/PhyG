@@ -60,8 +60,8 @@ import Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
-import qualified Data.MetricRepresentation                                   as MR
-import qualified Data.TCM.Dense                                              as TCMD
+import qualified Measure.Compact                                   as MR
+import qualified Measure.States.Dense                                              as TCMD
 import qualified Data.Vector                                                 as V
 import qualified Data.Vector.Generic                                         as GV
 import           Data.Word
@@ -190,7 +190,7 @@ interUnion thisWeight leftChar rightChar =
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --trace ("DiscreteMetric: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
     newCharacter
 
@@ -204,7 +204,7 @@ localUnion leftChar rightChar =
         newCharacter = emptyCharacter { stateBVFinal = unionVect
                                       }
     in
-    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --trace ("DiscreteMetric: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
     newCharacter
 
@@ -238,7 +238,7 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
+    --trace ("L1Norm: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
      --   ++ (show newRangeCosts))
     newCharcater
 
@@ -259,7 +259,7 @@ intervalUnion leftChar rightChar =
         newCharcater = emptyCharacter { rangeFinal = V.zip newMinRange newMaxRange
                                       }
     in
-    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangeFinal leftChar) ++ "\t" ++ (show $ rangeFinal rightChar)
+    --trace ("L1Norm: " ++ (show newCost) ++ "\t" ++ (show $ rangeFinal leftChar) ++ "\t" ++ (show $ rangeFinal rightChar)
      --   ++ (show newRangeCosts))
     newCharcater
 
@@ -360,14 +360,14 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
         (r, mempty, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType `elem` [WideSeq, AminoSeq] then
-        let coefficient = MR.minInDelCost (wideTCM charInfo)
-            (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
+        let coefficient = MR.maxEdit (wideTCM charInfo)
+            (cost, r) = widePairwiseDO coefficient (MR.getTCM2Dλ $ wideTCM charInfo) wide1 wide2
         in
         (mempty, r, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType == HugeSeq           then
-        let coefficient = MR.minInDelCost (hugeTCM charInfo)
-            (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
+        let coefficient = MR.maxEdit (hugeTCM charInfo)
+            (cost, r) = hugePairwiseDO coefficient (MR.getTCM2Dλ $ hugeTCM charInfo) huge1 huge2
         in
         (mempty, mempty, r, weight charInfo * fromIntegral cost)
 
@@ -384,9 +384,9 @@ getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInf
 getDOMedian
   :: Double
   -> S.Matrix Int
-  -> TCMD.DenseTransitionCostMatrix
-  -> MR.MetricRepresentation Word64
-  -> MR.MetricRepresentation BV.BitVector
+  -> TCMD.TCMρ
+  -> MR.CompactMeasure Word64
+  -> MR.CompactMeasure BV.BitVector
   -> CharType
   -> CharacterData
   -> CharacterData
@@ -415,11 +415,11 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 
     newWideCharacterData =
         let newCost     = thisWeight * fromIntegral cost
-            coefficient = MR.minInDelCost thisWideTCM
+            coefficient = MR.maxEdit thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
                 coefficient
-                (MR.retreivePairwiseTCM thisWideTCM)
+                (MR.getTCM2Dλ thisWideTCM)
                 (wideGapped leftChar) (wideGapped rightChar)
         in  blankCharacterData
               { widePrelim    = extractMedians r
@@ -431,11 +431,11 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
 
     newHugeCharacterData =
         let newCost     = thisWeight * fromIntegral cost
-            coefficient = MR.minInDelCost thisHugeTCM
+            coefficient = MR.maxEdit thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
                 coefficient
-                (MR.retreivePairwiseTCM thisHugeTCM)
+                (MR.getTCM2Dλ thisHugeTCM)
                 (hugeGapped leftChar) (hugeGapped rightChar)
         in  blankCharacterData
               { hugePrelim = extractMedians r

@@ -95,7 +95,7 @@ newtype Vector a = NEV { unwrap :: V.Vector a }
 
 
 -- |
--- Generation biases towards medium length.
+-- Measure.Compact.biases towards medium length.
 instance Arbitrary a => Arbitrary (Vector a) where
 
     arbitrary = do

@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Bio.TCM
+-- Module      :  Measure.Symbols
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -12,10 +12,10 @@
 -- Exposes row-major monomorphic maps, folds, and traversals.
 -----------------------------------------------------------------------------
 
-module Data.TCM
+module Measure.Symbols
   ( TCM()
-  , TCMDiagnosis(..)
-  , TCMStructure(..)
+  , DiagnosisOfSCM(..)
+  , StructureOfSCM(..)
     -- * Construction
   , fromCols
   , fromList
@@ -29,4 +29,4 @@ module Data.TCM
   , diagnoseTcm
   ) where
 
-import Data.TCM.Internal
+import Measure.Symbols.Dense.Internal

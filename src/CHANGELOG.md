@@ -1,9 +1,16 @@
 
+## Changes from `measurability`
+
+	* Major refacotring of SCMs and TCMs
+
+	* Pre-computed specialized measures
+
+
 ## Changes from `dynamic-character-refactor`
 
 	* Corrected computational defect in `Data.TCM.Overlap`
 
-	* Updated `MetricRepresentation` to correctly store, computute, and memoize TCMs
+	* Updated `CompactMeasure` to correctly store, computute, and memoize TCMs
 
 	* Fixed numerous defects in Ukkonen string alignment
 

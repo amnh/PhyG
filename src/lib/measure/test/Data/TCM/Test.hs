@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------
 -- |
--- Module      :  Data.TCM.Test
+-- Module      :  Measure.SymbolChangeMatrix.Dense.Test
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -13,18 +13,18 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Data.TCM.Test
+module Measure.SymbolChangeMatrix.Dense.Test
   ( testSuite
   ) where
 
-import Data.Bifunctor        (bimap)
+import Data.Bifunctor                   (bimap)
 import Data.MonoTraversable
-import Data.TCM
 import Data.Word
-import Test.HUnit.Custom     (assertException)
+import Measure.SymbolChangeMatrix.Dense
+import Test.HUnit.Custom                (assertException)
 import Test.Tasty
-import Test.Tasty.HUnit      as HU
-import Test.Tasty.QuickCheck as QC hiding (generate)
+import Test.Tasty.HUnit                 as HU
+import Test.Tasty.QuickCheck            as QC hiding (generate)
 
 
 -- |
@@ -44,7 +44,7 @@ testPropertyCases = testGroup "Invariant Properties"
 
 
 testExampleCases :: TestTree
-testExampleCases = testGroup "Example Cases for Data.TCM"
+testExampleCases = testGroup "Example Cases for Measure.SymbolChangeMatrix.Dense"
     [ documentationCases
     ]
 
@@ -52,12 +52,12 @@ testExampleCases = testGroup "Example Cases for Data.TCM"
 -- Generate cases for TcmStructure diagnosis
 
 
-structureType :: TCM -> TCMStructure
+structureType :: TCM -> StructureOfSCM
 structureType = tcmStructure . diagnoseTcm
 
 
 diagnoseTcmCases :: TestTree
-diagnoseTcmCases = testGroup "Example cases for TCMDiagnosis"
+diagnoseTcmCases = testGroup "Example cases for DiagnosisOfSCM"
     [ QC.testProperty
         "generate k \\(i,j) -> n * i + m * j is non-symmetric for n \\= m"
         nonSymmetricProp
@@ -65,11 +65,11 @@ diagnoseTcmCases = testGroup "Example cases for TCMDiagnosis"
         "generate k \\(i,j) -> a * (i * j) + b * (i + j) + c is at worst symmetric"
         symmetricProp
     , QC.testProperty
-        "generate k \\(i,j) -> (max i j) - (min i j) is Additive"
+        "generate k \\(i,j) -> (max i j) - (min i j) is L1Norm"
         additiveProp
     , QC.testProperty
-        "generate k \\(i,j) -> if i == j then 0 else 1 is NonAdditive"
-        nonAdditiveProp
+        "generate k \\(i,j) -> if i == j then 0 else 1 is DiscreteMetric"
+        nonL1NormProp
     ]
   where
     nonSymmetricProp :: (Positive Int, Positive  Int, Positive  Int) -> Property
@@ -88,20 +88,20 @@ diagnoseTcmCases = testGroup "Example cases for TCMDiagnosis"
     additiveProp (Positive k) =
       let g :: (Int, Int) -> Int
           g (i,j) = max i j - min i j
-      in  structureType (generate (k + 1) g) === Additive
+      in  structureType (generate (k + 1) g) === L1Norm
 
-    nonAdditiveProp :: Positive Int -> Property
-    nonAdditiveProp (Positive k) =
+    nonL1NormProp :: Positive Int -> Property
+    nonL1NormProp (Positive k) =
       let g :: (Int, Int) -> Int
           g (i,j) = if i == j then 0 else 1
-      in  structureType (generate (k + 2) g) === NonAdditive
+      in  structureType (generate (k + 2) g) === DiscreteMetric
                                   -- │
                                   -- │
                                   -- └─┬ Ensure matrix is at least 3 x 3 as k = 2 case is both
                                   --   └ additive and nonadditive.
 
 
--- Generate cases for TCMDiagnosis factoring
+-- Generate cases for DiagnosisOfSCM factoring
 
 
 factoringDiagnosisCases :: TestTree
@@ -112,7 +112,7 @@ factoringDiagnosisCases = testGroup "Example cases for factoredTcm and factoredW
     factorProp :: TCM -> Property
     factorProp tcm =
       let
-        TCMDiagnosis{..} = diagnoseTcm tcm
+        DiagnosisOfSCM{..} = diagnoseTcm tcm
         weight = fromIntegral factoredWeight
       in
         omap (* (weight :: Word32)) factoredTcm

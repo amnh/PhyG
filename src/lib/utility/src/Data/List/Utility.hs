@@ -1,7 +1,3 @@
-{-# LANGUAGE BangPatterns           #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.List.Utility
@@ -16,7 +12,30 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.List.Utility where
+{-# LANGUAGE BangPatterns           #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+
+module Data.List.Utility
+  ( transpose
+  , isSingleton
+  , prepend
+  , duplicates
+  , mostCommon
+  , occurrences
+  , chunksOf
+  , equalityOf
+  , catMaybes1
+  , subsetOf
+  , invariantTransformation
+  , transitivePropertyHolds
+  , pairwiseSequence
+  , maximaBy
+  , minimaBy
+  , foldZipWith
+  , foldZipWith3  
+  ) where
 
 import           Control.Lens            (Lens', lens)
 import           Data.Foldable

@@ -6,8 +6,9 @@ module Main (main) where
 import Bio.DynamicCharacter
 import Data.Foldable
 import Data.List                                  (isPrefixOf, uncons)
-import Data.MetricRepresentation
 import Data.Word
+import Measure.Compact
+import Measure.Unit
 import System.Environment                         (getArgs)
 import Test.Aligners
 import Test.QuickCheck.Instances.DynamicCharacter
@@ -76,18 +77,18 @@ performImplementationComparison :: DNA -> DNA -> IO ()
 performImplementationComparison lhs rhs = putStrLn . fst $ gatherContexts chosenMetric lhs rhs
 
 
-chosenMetric :: MetricRepresentation Word32
+chosenMetric :: CompactMeasure Word32
 chosenMetric = snd . head $ metricChoices
 
 
 gatherContexts
-  :: MetricRepresentation Word32
+  :: CompactMeasure Word32
   -> DNA
   -> DNA
   -> (String, Bool)
 gatherContexts tcm (DNA lhs) (DNA rhs) = (contextRendering, contextSameness)
   where
-    alignmentλs :: [(String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter))]
+    alignmentλs :: [(String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter))]
     alignmentλs = selectAlignmentλ tcm
 
     alignmentResults =
@@ -137,6 +138,6 @@ renderContexts m n xs = unlines . (\x -> [prefix] <> x <> [suffix]) . fmap f $ t
 
 
 selectAlignmentλ
-  :: MetricRepresentation Word32
-  -> [ (String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter)) ]
+  :: CompactMeasure Word32
+  -> [ (String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter)) ]
 selectAlignmentλ metric = fmap ($ metric) <$> alignmentChoices

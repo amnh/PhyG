@@ -22,19 +22,20 @@ import Bio.DynamicCharacter
 import Data.Bifunctor
 import Data.Bits
 import Data.Coerce
-import Data.MetricRepresentation
-import Data.TCM                                   (fromList)
-import Data.TCM.Dense
 import Data.Word
 import DirectOptimization.Pairwise
 import DirectOptimization.Pairwise.Swapping
 import DirectOptimization.Pairwise.Ukkonen
 import Foreign.C.Types                            (CUInt(..))
+import Measure.Diagnosis
+import Measure.Compact
+import Measure.States.Dense
+import Measure.Symbols.Dense                      (fromList)
 import Test.QuickCheck.Instances.DynamicCharacter
 
 
 alignmentMetricCombinations
-  :: [ (String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Word, SlimDynamicCharacter)) ]
+  :: [ (String, SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter)) ]
 alignmentMetricCombinations = do
     -- Generate all combinations
     (mLabel, metric ) <- metricChoices
@@ -45,43 +46,43 @@ alignmentMetricCombinations = do
 
 alignmentChoices
   :: [ ( String
-       ,    MetricRepresentation Word32
+       ,    CompactMeasure Word32
          -> SlimDynamicCharacter
          -> SlimDynamicCharacter
-         -> (Word, SlimDynamicCharacter)
+         -> (Distance, SlimDynamicCharacter)
        )
      ]
 alignmentChoices =
-      [ ("FFI Code", slimPairwiseDO . metricRepresentationToDenseTCM )
-      , ("Swapping", swappingDO . translateSlimStateTCM )
-      , ("Ukkonens", \m -> ukkonenDO (maxInDelCost m) (translateSlimStateTCM m) )
-      ]
+    [ ("FFI Code", slimPairwiseDO . metricRepresentationToDenseTCM )
+    , ("Swapping", swappingDO . translateSlimStateTCM )
+    , ("Ukkonens", \m -> ukkonenDO (maxEdit m) (translateSlimStateTCM m) )
+    ]
 
 
-metricRepresentationToDenseTCM :: MetricRepresentation a -> DenseTransitionCostMatrix
+metricRepresentationToDenseTCM :: CompactMeasure a -> TCMρ
 metricRepresentationToDenseTCM =
-      generateDenseTransitionCostMatrix 0 (toEnum (length nucleotideAlphabet)) . retreiveSCM
+    fromSCMλ (toEnum (length nucleotideAlphabet)) 0 . getSCMλ
 
 
-translateSlimStateTCM :: MetricRepresentation Word32 -> SlimState -> SlimState -> (SlimState, Word)
+translateSlimStateTCM :: CompactMeasure Word32 -> TCM2Dλ SlimState
 translateSlimStateTCM m =
-      let tcm = retreivePairwiseTCM m
-          c2w = coerce :: SlimState -> Word32
-          w2c = coerce :: Word32 -> SlimState
-      in  \x y -> first w2c $ tcm (c2w x) (c2w y)
+    let tcm = getTCM2Dλ m
+        c2w = coerce :: SlimState -> Word32
+        w2c = coerce :: Word32 -> SlimState
+    in  \x y -> second w2c $ tcm (c2w x) (c2w y)
 
 
-metricChoices :: [(String, MetricRepresentation Word32)]
+metricChoices :: [(String, CompactMeasure Word32)]
 metricChoices =
-      [ ("Discrete Metric", discreteMetric)
-      , ("1st Linear Norm", linearNorm len)
-      , ("Sub-InDel (1:2)", subInDel 1 2  )
-      , ("Sub-InDel (2:1)", subInDel 2 1  )
-      ]
+    [ ("Discrete Metric", discreteMetric len)
+    , ("1st Linear Norm", linearNorm     len)
+    , ("Sub-InDel (1:2)", subInDel 1 2      )
+    , ("Sub-InDel (2:1)", subInDel 2 1      )
+    ]
   where
     len = toEnum $ finiteBitSize nucleotideGap
 
-    subInDel :: Word -> Word -> MetricRepresentation Word32
-    subInDel x g = metricRepresentation . snd . fromList $
+    subInDel :: Word -> Word -> CompactMeasure Word32
+    subInDel x g = metricRepresentation . factoredSCM . fromList $
         let indices = [ 0 .. length nucleotideAlphabet - 1 ]
         in  [ if i == j then 0 else if i == 0 || j == 0 then g else x | i <- indices, j <- indices ]
