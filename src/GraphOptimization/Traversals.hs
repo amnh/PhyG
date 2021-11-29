@@ -980,7 +980,7 @@ postOrderTreeTraversal (_, _, blockDataVect) leafGraph startVertex inGraph  =
 postDecorateTree' :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> SimpleGraph -> PhylogeneticGraph
 postDecorateTree' curDecGraph blockCharInfo curNode simpleGraph = postDecorateTree simpleGraph curDecGraph blockCharInfo curNode 
 
--- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then reurns postorder
+-- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
 postDecorateTree :: SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph

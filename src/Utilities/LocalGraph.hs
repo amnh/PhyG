@@ -445,6 +445,7 @@ nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
 -- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.
+-- Does NOT Contain starting nodes
 -- call with ([], [])
 nodesAndEdgesAfter :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList

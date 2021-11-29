@@ -139,7 +139,14 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 -- returns a tuple of the cost, node to add, edges to add, edge to delete
-addTaxonWagner ::  GlobalSettings -> Int -> Int -> PhylogeneticGraph -> Int -> DecoratedGraph -> LG.LEdge EdgeInfo -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
+addTaxonWagner ::  GlobalSettings 
+               -> Int 
+               -> Int 
+               -> PhylogeneticGraph 
+               -> Int 
+               -> DecoratedGraph 
+               -> LG.LEdge EdgeInfo 
+               -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
 addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) leafToAdd leafDecGraph targetEdge =
    let edge0 = (numVerts, leafToAdd, 0.0)
        edge1 = (fst3 targetEdge, numVerts, 0.0)

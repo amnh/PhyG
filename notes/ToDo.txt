@@ -470,13 +470,6 @@ to render--would have repeated subtrees after network vertex
 	leave no overall root component untouched
 
 
-189) For NF data instance VertexInfo
-	import GHC.generics, control.deepseq
-
-	language extensions derive generic, derive anyclass
-
-	when declare type deriveing generic, deriving NFData
-
 191) Should slim final be a triple?  Save on conversion back and forth perhps
 
 194) Alex Data.Alphabet usefule funciotns for coding and uncoding functions
@@ -491,19 +484,18 @@ to render--would have repeated subtrees after network vertex
 
 200) Tasty and quickcheck for tests
 
-204) Add parlist chunk finctionality for wagner
+204) Add parlist chunk finctionality for wagner and EUN
 	https://hackage.haskell.org/package/parallel-3.2.2.0/docs/Control-Parallel-Strategies.html
 
-205) Go through parallel stuff in distance wagner and distances
- use chunck  `using` PU.myParListChunkRDS 
+207) Incremental optimization with delta for cost at root--need to update other node costs
+	past convergance?  Prob yes
 
-206) getBestBlockResolution 
-
-	change to maximum -- could be dangerous if missing some part of network
-	perhaps if starverte is NOthing as is other wise maximuim
-	
-
-	
+208) NNI/SPR/TBR with netwprks directly (invade all edges subject to coeval constaints)
 
 
+209) refactor postorder to be separate functions
+
+210) preorder to deal with multiple roots
+
+211) Swap preorder on base graph, add back nodes from pruned on original, then preorder
 
