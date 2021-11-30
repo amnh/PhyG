@@ -499,3 +499,4 @@ to render--would have repeated subtrees after network vertex
 
 211) Swap preorder on base graph, add back nodes from pruned on original, then preorder
 
+212) rerrot tree make morefficient--rewrite

@@ -70,7 +70,6 @@ import qualified Data.BitVector.LittleEndian as BV
 -- import Debug.Debug
 import Debug.Trace
 
-
 -- | updateDisplayTreesAndCost takes a softwired graph and updates
 -- display trees and graph cost based on resolutions at root
 updateDisplayTreesAndCost :: PhylogeneticGraph -> PhylogeneticGraph

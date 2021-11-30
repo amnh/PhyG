@@ -51,6 +51,7 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , updatePhylogeneticGraphCost
                                     , getW15NetPenalty
                                     , getW15RootCost
+                                    , generalizedGraphPostOrderTraversal
                                     ) where
 
 import           Types.Types
@@ -105,93 +106,120 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
 multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    else 
+        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
+            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex postOrderGraph
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
+
+-- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
+-- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
+-- operates with Tree functions
+-- need to add forest functionality--in principle just split into components and optimize them independently
+-- but get into root index issues the way this is written now. 
+-- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
+multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-        let -- for special casing of nonexact and single exact characters
-            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
-            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
+        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
+        in
+        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex postOrderGraph
+            
+    
+-- | generalizedGraphPostOrderTraversal performs the postorder pass 
+-- on a graph (tree, softWired, or hardWired) to determine the "preliminary" character states
+-- include penalty factor cost but not root cost which may or may not be wanted depending on context
+-- if full graph--yes, if a component yes or no.
+-- hence returnde das pair
+generalizedGraphPostOrderTraversal :: GlobalSettings -> Int -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> (PhylogeneticGraph, VertexCost, Int)
+generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph =
 
+    -- select postOrder function based on graph type 
+    let postOrderFunction = if (graphType inGS) == Tree then postOrderTreeTraversal
+                         else if (graphType inGS) == SoftWired then postOrderSoftWiredTraversal
+                         else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
-            -- post order pass-- rerooted because to keep track of rerooting in Graphs
-            outgroupRootedSoftWiredPostOrder = if startVertex == Nothing then postOrderSoftWiredTraversal inGS inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
-                                               else postOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
+        -- first traversal on outgroup roo
+        outgroupRooted = if startVertex == Nothing then postOrderFunction inGS inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+                        else postOrderFunction inGS inData leafGraph startVertex inSimpleGraph
 
-            -- root node--invariant even when rerooted
-            -- (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
-
-            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
+        -- start at start vertex--for components or ur-root for full graph
+        startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRooted
                               else [fromJust startVertex]
 
-            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) startVertexList
-            grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) childrenOfRoot
+        -- next edges (to vertex in list) to perform rerroting
+        -- progresses recursivey over adjacent edges to minimize node reoptimization
+        childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
+        grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) childrenOfRoot
 
-            -- create list of multi-traversals with original rooting first
-            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
-            -- they are taken from the fully labelled first input decorated graph later when output graph created
-            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
-            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
-            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-            recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph inGS SoftWired outgroupRootedSoftWiredPostOrder (head startVertexList) grandChildrenOfRoot
+        -- create list of multi-traversals with original rooting first
+        -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
+        -- they are taken from the fully labelled first input decorated graph later when output graph created
+        -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+        -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+        -- optimization to get O(log n) initial postorder assingment when mutsating graph.
+        recursiveRerootList = outgroupRooted : minimalReRootPhyloGraph inGS (graphType inGS) outgroupRooted (head startVertexList) grandChildrenOfRoot
 
-            finalizedPostOrderGraphList = L.sortOn snd6 $ fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
+        -- perform traceback on resolution caches is graphtype = softWired
+        recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
+                               else if (graphType inGS) == SoftWired then fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
+                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
-            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
-            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
-            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
-            -- are propagated to the Decorated graph field after the preorder pass.
-            -- doesn't have to be sorted, but should minimize assignments
-            graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
 
-            -- same root cost if same data and number of roots
-            localRootCost = if (rootCost inGS) == NoRootCost then 0.0
-                       else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRootedSoftWiredPostOrder
-                       else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+        finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList'
 
+        -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
+        -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
+        -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+        -- are propagated to the Decorated graph field after the preorder pass.
+        -- doesn't have to be sorted, but should minimize assignments
+        graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
+
+        -- same root cost if same data and number of roots
+        localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRooted
+                        else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+
+    in
+    -- only static characters
+    if nonExactChars == 0 then 
+        let penaltyFactor  = if (graphType inGS == Tree) then 0.0
+                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRooted
+                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+
+            outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
         in
-
-        -- Update post-order:
-        --  1) traceback to get best resolutions
-        --  2) back proppagate resolutions to vertex info
-        --  3) update display/character trees
-        -- Preorder on updated post-order graph 
-        -- trace ("Pre-penalty: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
-
-        -- only static characters
-        if nonExactChars == 0 then 
-            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRootedSoftWiredPostOrder
+        (outgroupRooted', localRootCost, head startVertexList)
+    else if nonExactChars == 1 then
+        let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
+                                 else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                                 else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+            newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
-                outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + localRootCost + (snd6 outgroupRootedSoftWiredPostOrder))
+            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+        in
+        (finalizedPostOrderGraph, localRootCost, head startVertexList)
+    -- multiple dynamic characters--cjecks for best root for each character
+    else 
+        let penaltyFactor  = if (graphType inGS == Tree) then 0.0
+                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
+                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False (head startVertexList) outgroupRootedSoftWiredPostOrder'
-            in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
+            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+        in
+        (graphWithBestAssignments', localRootCost, head startVertexList)
 
-        -- single dynamic character
-        else if nonExactChars == 1 then
-            let penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
-                                     else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
-                                     else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-                newCostList = zipWith3 U.add3 penaltyFactorList (replicate (length finalizedPostOrderGraphList) localRootCost) (fmap snd6 finalizedPostOrderGraphList)
+               
 
-                finalizedPostOrderGraphList' = L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
-
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (head startVertexList) $ head finalizedPostOrderGraphList'
-            in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
-
-        -- multiple dynamic characters
-        else 
-            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
-                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-
-                graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  localRootCost + (snd6 graphWithBestAssignments))
-
-                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (head startVertexList) graphWithBestAssignments'
-            in
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
-        -- )
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph
@@ -759,67 +787,6 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
         in
         modifyDisplayData resolutionTemplate (tail characterDataVList) ((resolutionTemplate {displayData = curBlockData}) : curResolutionList)
 
-
--- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
--- traversal cost for all nonexact charcters--the initial rooting is used for exact characters 
--- operates with Tree functions
--- need to add forest functionality--in principle just split into components and optimize them independently
--- but get into root index issues the way this is written now. 
--- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
-multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
-    else
-        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
-            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
-
-            -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
-            -- here initial root.
-            outgroupRootedPhyloGraph = if startVertex == Nothing then postOrderTreeTraversal inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
-                                       else postOrderTreeTraversal inData leafGraph startVertex inSimpleGraph
-
-            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph
-                              else [fromJust startVertex]
-
-                                      
-            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) startVertexList
-            grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
-
-            -- create list of multi-traversals with original rooting first
-            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
-            -- they are taken from the fully labelled first input decorated graph later when output graph created
-            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
-            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
-            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph inGS Tree outgroupRootedPhyloGraph (head startVertexList) grandChildrenOfRoot
-
-            minCostGraphListRecursive = L.sortOn snd6 recursiveRerootList
-
-            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
-            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
-            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
-            -- are propagated to the Decorated graph field after the preorder pass.
-            -- sorting may help with assignments (fewer)
-            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment minCostGraphListRecursive -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
-
-            -- this for debuggin purposes
-            --allPreorderList = fmap (preOrderTreeTraversal inGS (finalAssignment inGS)) recursiveRerootList
-
-        in
-        -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
-        --preOrderTreeTraversal inGS (finalAssignment inGS) outgroupRootedPhyloGraph
-        --preOrderTreeTraversal inGS  (finalAssignment inGS) $ head minCostGraphListRecursive 
-
-        -- special cases that don't require all the work
-
-        -- trace ("Nums:" ++ show (length minCostGraphListRecursive) ++ " " ++ show (fmap snd6 minCostGraphListRecursive)) (
-        if nonExactChars == 0 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False (head startVertexList) outgroupRootedPhyloGraph
-        else if nonExactChars == 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  (head startVertexList) $ head minCostGraphListRecursive
-        else PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  (head startVertexList) graphWithBestAssignments'
-        -- )
-
-
-
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph
 -- since this is meant to work with graphs that have or do not have reoptimized exact (=static-Add/NonAdd/MAtrix) characters 
@@ -956,8 +923,8 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
 -- vi post-order traversal, yields cost as well
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
-postOrderTreeTraversal :: ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal (_, _, blockDataVect) leafGraph startVertex inGraph  =
+postOrderTreeTraversal :: GlobalSettings ->  ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph startVertex inGraph  =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves  
@@ -1057,4 +1024,151 @@ postDecorateTree simpleGraph curDecGraph blockCharInfo curNode =
 
             -- ) -- )
 
+{-  This refactored out above
+multiTraverseFullyLabelSoftWired' :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired' inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    else
+        let -- for special casing of nonexact and single exact characters
+            nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
+
+
+            -- post order pass-- rerooted because to keep track of rerooting in Graphs
+            outgroupRootedSoftWiredPostOrder = if startVertex == Nothing then postOrderSoftWiredTraversal inGS inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+                                               else postOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
+
+            -- root node--invariant even when rerooted
+            -- (outgroupRootIndex, _) = head $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
+
+            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedSoftWiredPostOrder
+                              else [fromJust startVertex]
+
+            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) startVertexList
+            grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedSoftWiredPostOrder)) childrenOfRoot
+
+            -- create list of multi-traversals with original rooting first
+            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
+            -- they are taken from the fully labelled first input decorated graph later when output graph created
+            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
+            recursiveRerootList = outgroupRootedSoftWiredPostOrder : minimalReRootPhyloGraph inGS SoftWired outgroupRootedSoftWiredPostOrder (head startVertexList) grandChildrenOfRoot
+
+            finalizedPostOrderGraphList = L.sortOn snd6 $ fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
+
+            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
+            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
+            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+            -- are propagated to the Decorated graph field after the preorder pass.
+            -- doesn't have to be sorted, but should minimize assignments
+            graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
+
+            -- same root cost if same data and number of roots
+            localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+                       else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRootedSoftWiredPostOrder
+                       else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+
+        in
+
+        -- Update post-order:
+        --  1) traceback to get best resolutions
+        --  2) back proppagate resolutions to vertex info
+        --  3) update display/character trees
+        -- Preorder on updated post-order graph 
+        -- trace ("Pre-penalty: " ++ show (fmap snd6 finalizedPostOrderGraphList)) (
+
+        -- only static characters
+        if nonExactChars == 0 then 
+            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRootedSoftWiredPostOrder
+                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+
+                outgroupRootedSoftWiredPostOrder' = updatePhylogeneticGraphCost outgroupRootedSoftWiredPostOrder (penaltyFactor + localRootCost + (snd6 outgroupRootedSoftWiredPostOrder))
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False (head startVertexList) outgroupRootedSoftWiredPostOrder'
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
+
+        -- single dynamic character--checks rerooted values
+        else if nonExactChars == 1 then
+            let penaltyFactorList  = if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
+                                     else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
+                                     else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                newCostList = zipWith3 U.add3 penaltyFactorList (replicate (length finalizedPostOrderGraphList) localRootCost) (fmap snd6 finalizedPostOrderGraphList)
+
+                finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (head startVertexList) finalizedPostOrderGraph
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
+
+        -- multiple dynamic characters--cjecks for best root for each character
+        else 
+            let penaltyFactor  = if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                                 else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
+                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+
+                graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor +  localRootCost + (snd6 graphWithBestAssignments))
+
+                fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (head startVertexList) graphWithBestAssignments'
+            in
+            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph fullyOptimizedGraph
+        -- )
+
+-}
+{-Refactored above
+multiTraverseFullyLabelTree' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree' inGS inData leafGraph startVertex inSimpleGraph =
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    else
+        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+            -- exactCharacters = U.getNumberExactCharacters (thd3 inData)
+
+            -- initial traversal based on global outgroup and the "next" traversal points as children of existing traversal
+            -- here initial root.
+            outgroupRootedPhyloGraph = if startVertex == Nothing then postOrderTreeTraversal inGS inData leafGraph startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+                                       else postOrderTreeTraversal inGS inData leafGraph startVertex inSimpleGraph
+
+            startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRootedPhyloGraph
+                              else [fromJust startVertex]
+
+                                      
+            childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) startVertexList
+            grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRootedPhyloGraph)) childrenOfRoot
+
+            -- create list of multi-traversals with original rooting first
+            -- subsequent rerooting do not reoptimize exact characters (add nonadd etc) 
+            -- they are taken from the fully labelled first input decorated graph later when output graph created
+            -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
+            -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+            -- optimization to get O(log n) initial postorder assingment when mutsating graph.
+            recursiveRerootList = outgroupRootedPhyloGraph : minimalReRootPhyloGraph inGS (graphType inGS) outgroupRootedPhyloGraph (head startVertexList) grandChildrenOfRoot
+
+            finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
+
+            -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
+            -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that 
+            -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
+            -- are propagated to the Decorated graph field after the preorder pass.
+            -- sorting may help with assignments (fewer)
+            graphWithBestAssignments' = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList -- (recursiveRerootList !! 0) (recursiveRerootList !! 1) 
+
+            -- this for debuggin purposes
+            --allPreorderList = fmap (preOrderTreeTraversal inGS (finalAssignment inGS)) recursiveRerootList
+
+        in
+        -- Uncomment this to (and comment the following three cases) avoid traversal rerooting stuff for debugging
+        --preOrderTreeTraversal inGS (finalAssignment inGS) outgroupRootedPhyloGraph
+        --preOrderTreeTraversal inGS  (finalAssignment inGS) $ head minCostGraphListRecursive 
+
+        -- special cases that don't require all the work
+
+        -- trace ("Nums:" ++ show (length minCostGraphListRecursive) ++ " " ++ show (fmap snd6 minCostGraphListRecursive)) (
+        if nonExactChars == 0 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False (head startVertexList) outgroupRootedPhyloGraph
+        else if nonExactChars == 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  (head startVertexList) $ head finalizedPostOrderGraphList
+        else PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True  (head startVertexList) graphWithBestAssignments'
+        -- )
+
+-}
 
