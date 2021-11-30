@@ -380,8 +380,8 @@ doCharacterTraversal finalMethod rootIndex inCharInfo inGraph =
         inEdgeList = LG.labEdges inGraph
     in
     -- remove these two lines if working
-    if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
-    else
+    -- if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
+    -- else
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         let rootLabel = fromJust $ LG.lab inGraph rootIndex
             rootFinalVertData = createFinalAssignmentOverBlocks finalMethod RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
@@ -513,7 +513,9 @@ updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
           | otherwise = V.head $ V.head preOrderVertData -- (preOrderVertData V.! 0) V.! 0
 
     in
-    if isNothing maybePreOrderNodeLabel then error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
+    -- this can heppen in naked parent node of prunned subGraph in branch swapping
+    if isNothing maybePreOrderNodeLabel then emptyCharacter
+            -- error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
     else
         updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo)
     --)

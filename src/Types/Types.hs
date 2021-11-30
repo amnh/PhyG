@@ -345,6 +345,21 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
 
 instance NFData VertexInfo where rnf x = seq x ()
 
+-- | emptyVertex useful for graph rearrangements
+emptyVertexInfo :: VertexInfo
+emptyVertexInfo = VertexInfo { index        = (-1)  
+                             , bvLabel      = BV.fromBits [False]
+                             , parents      = mempty 
+                             , children     = mempty 
+                             , nodeType     = TreeNode -- root, leaf, network, tree
+                             , vertName     = T.pack "EmptyVertex"
+                             , vertData     = mempty
+                             , vertexResolutionData = mempty
+                             , vertexCost   = 0.0 
+                             , subGraphCost = 0.0
+                             } 
+
+
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
                             , maxLength :: VertexCost

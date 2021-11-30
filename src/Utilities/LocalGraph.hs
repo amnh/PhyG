@@ -421,9 +421,6 @@ pathToRoot' inGraph inNodeList curNodeList curEdgeList =
             in
             pathToRoot' inGraph (L.nub $ inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
 
-
-
-
 -- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
 -- and edges 'before' in the sense of leading to--ie between root and
 -- (not including)) that node
@@ -538,6 +535,16 @@ makeNodeEdgePairVect inGraph =
     if isEmpty inGraph then (V.empty, V.empty)
     else (V.fromList $ labNodes inGraph, V.fromList $ labEdges inGraph)
 
+-- | extractLeafGraph takes a Decorated graphs and cretes a graph from the leaves and no edges
+extractLeafGraph :: Gr a b -> Gr a b
+extractLeafGraph inGraph =
+    if isEmpty inGraph then G.empty
+    else 
+        let (_, leafNodes, _, _) = splitVertexList inGraph
+        in
+        mkGraph leafNodes []
+
+    
 
 
 

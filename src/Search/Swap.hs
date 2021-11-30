@@ -196,7 +196,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           -- create list of breaks
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 $ fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData doIA firstDecoratedGraph) splitGraphList graphRootList prunedGraphRootIndexList 
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstDecoratedGraph) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
@@ -221,7 +221,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
                          else snd6 $ head bestSwapGraphList
 
       in
-      trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList)) (
+      trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
       
       -- either no better or more of same cost graphs
       if bestSwapCost == curBestCost then swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost [firstGraph] ((tail inGraphList) ++ bestSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
@@ -240,28 +240,69 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
 -- reooting issues for single component
 -- need the cost to calculate the deltas later during rejoin--summed costs of the two comp[onets after splitting
 -- doIA option to only do IA optimization as opposed to full thing--should be enormously faster--but yet more approximate
-reoptimizeGraphFromVertex :: GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> DecoratedGraph -> Int -> Int -> (DecoratedGraph, VertexCost)
-reoptimizeGraphFromVertex inGS inData doIA origGraph inGraph startVertex prunedSubGraphRootVertex =
+-- cretes finel for base graph but only does preorder pass fo component if TBR swap
+reoptimizeGraphFromVertex :: GlobalSettings 
+                          -> ProcessedData 
+                          -> String 
+                          -> Bool 
+                          -> V.Vector (V.Vector CharInfo) 
+                          -> DecoratedGraph 
+                          -> DecoratedGraph 
+                          -> Int 
+                          -> Int 
+                          -> (DecoratedGraph, VertexCost)
+reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph startVertex prunedSubGraphRootVertex =
+
    trace ("RGFV: " ++ (show startVertex) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
-   let optimizedGraph = if not doIA then T.multiTraverseFullyLabelGraph inGS inData False False (Just startVertex) (GO.convertDecoratedToSimpleGraph inGraph)
-                        else 
-                           -- only reoptimize based on IA of leaves--will jibe with clipped subgraph
-                           error "IA swap not yet implemented"
+
+   -- create graph of base (with ur-root) and pruned (non-ur-root) components
+   let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
+       leafGraph = LG.extractLeafGraph inGraph
+
+       -- DO or IA for reoptimization for use of final sytartes later IA faster but more approximate
+       (postOrderBaseGraph, localRootCost, localStartVertex) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just startVertex) (GO.convertDecoratedToSimpleGraph inGraph)
+                            else error "IA reoptimizeGraphFromVertex not yet implemented"
+
+       -- pruned component cost
        prunedSubGraphCost = vertexCost $ fromJust $ LG.lab inGraph prunedSubGraphRootVertex
 
+       -- get pruned component nodes and edges
        parentPrunedNodeIndex = head $ LG.parents origGraph prunedSubGraphRootVertex
-       parentPrunedNode = (parentPrunedNodeIndex, fromJust $ LG.lab origGraph parentPrunedNodeIndex)
 
+       -- set same label as for pruned node so that edge length is zero
+       parentPrunedNode = (parentPrunedNodeIndex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
        (prunedNodes, prunedEdges) = LG.nodesAndEdgesAfter inGraph ([],[]) [parentPrunedNode]
 
-       newFullGraph = LG.mkGraph ((LG.labNodes $ thd6 optimizedGraph) ++ (parentPrunedNode : prunedNodes)) ((LG.labEdges $ thd6 optimizedGraph) ++ prunedEdges)  
-       
+       -- add back pruned component nodes and edges to post-order base component
+       fullPostOrderGraph = LG.mkGraph ((LG.labNodes $ thd6 postOrderBaseGraph) ++ (parentPrunedNode : prunedNodes)) ((LG.labEdges $ thd6 postOrderBaseGraph) ++ prunedEdges) 
+
+       -- this has block and character trees from postOrder of base graph and simple and cononical tree from fullPostOrderGraph
+       fullPostOrderPhylogeneticGraph = (GO.convertDecoratedToSimpleGraph fullPostOrderGraph, prunedSubGraphCost + (snd6 postOrderBaseGraph) + localRootCost, fullPostOrderGraph, fth6 postOrderBaseGraph, fft6 postOrderBaseGraph, charInfoVV) 
+
+       -- perform pre-order on base component 
+       completeSplitGraph = if (swapType /= "tbr") then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) localStartVertex fullPostOrderPhylogeneticGraph
+                            else -- TBR requires preorder for pruned component
+                                 error "TBR not yet implemented"
+
+       -- update and add back label for parentPrunedNode which is removed in the partial preorder pass
+       canonicalSplitGraph = thd6 completeSplitGraph
+       edgesFromParentPrunedNode = LG.out canonicalSplitGraph parentPrunedNodeIndex
+
+       -- crete new cnonical graph deleting the unlabelled parentPrunedNode and adding labelled version and teh edge from it (should be one)
+       canonicalSplitGraph' = LG.insEdges edgesFromParentPrunedNode $ LG.insNode parentPrunedNode $ LG.delNode parentPrunedNodeIndex canonicalSplitGraph
+
+
    in
-   trace ("RGFV-After: \n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newFullGraph) ++ " Pruned: " ++ (show prunedSubGraphRootVertex) 
-      ++ " From: "  ++ (show (head $ LG.parents inGraph prunedSubGraphRootVertex)) ++ "\n" 
-      ++ (show $ fmap fst prunedNodes) ++ " " ++ (show $ fmap LG.toEdge prunedEdges)) 
-   (newFullGraph, prunedSubGraphCost + (snd6 optimizedGraph))
+   trace ("RGFV-After: \n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph (thd6 completeSplitGraph)) ++ " Pruned: " ++ (show prunedSubGraphRootVertex) 
+      ++ " From: "  ++ (show $ fst parentPrunedNode) ++ "\n" 
+      ++ (show $ fmap fst prunedNodes) ++ " " ++ (show $ fmap LG.toEdge prunedEdges) ) ( -- ++ "\n" 
+   --    ++ (show $ (LG.labNodes canonicalSplitGraph') !! (fst parentPrunedNode)))
+
+   -- check if base graph has fewer than 3 leaves (5 nodes) -- then nowhere to readd and screwes things up later
+   if (length $ LG.nodes $ fst6 postOrderBaseGraph)  - (length prunedNodes ) < 5 then  trace ("Too few nodes") (LG.empty, infinity)
+   else (canonicalSplitGraph', prunedSubGraphCost + (snd6 postOrderBaseGraph) + localRootCost)
    )
+      )
 
 -- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)
 -- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
@@ -289,7 +330,8 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV
        candidateEditList = if (not steepest) then fmap (addSubGraph inGS doIA splitGraph prunedGraphRootIndex splitCost nakedNode charInfoVV) edgesToInvade 
                            else error "Steepest not yet implemented"
 
-       minCandidateCost = minimum $ fmap fst4 candidateEditList   
+       minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst4 candidateEditList   
+                          else infinity
    in
    trace ("RGKB: " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
    if minCandidateCost > curBestCost then []

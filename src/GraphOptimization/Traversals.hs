@@ -705,8 +705,7 @@ getBestBlockResolution inResBlockData =
         in
         if null validVect then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
         else (V.head displayMedianV, V.head displayCostV, V.head resCostV, V.head childIndexPairV)
-
-
+        
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
