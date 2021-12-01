@@ -647,7 +647,7 @@ getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (L
 getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else
-        trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
+        -- trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -656,7 +656,7 @@ getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
         in
 
         (minCost, maxCost)
-        )
+        -- )
 
 -- | getBlockCostPairsFinal takes a block of two nodes and character infomation and returns the min and max block branch costs
 getBlockCostPairsFinal :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)

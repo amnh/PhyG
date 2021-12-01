@@ -96,7 +96,7 @@ data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
 
 -- | Edge types
 data EdgeType = NetworkEdge | TreeEdge | PendantEdge
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Ord)
 
 -- | Command type structure
 type Command = (Instruction, [Argument])
@@ -365,7 +365,7 @@ data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
                             , maxLength :: VertexCost
                             , midRangeLength :: VertexCost
                             , edgeType  :: EdgeType
-                            } deriving stock (Show, Eq)
+                            } deriving stock (Show, Eq, Ord)
 
 instance NFData EdgeInfo where rnf x = seq x ()
 

@@ -54,6 +54,7 @@ import qualified GraphOptimization.PreOrderFunctions as PRE
 import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
+import qualified Data.List as L
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
@@ -157,6 +158,7 @@ swapSPRTBR swapType inGS inData numToKeep steepest counter numLeaves leafGraph l
       else  
          let (swappedGraphs, counter) = swapAll swapType inGS inData numToKeep steepest counter (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
          in 
+         trace ("SSPRTBR: " ++ (show counter))
          (swappedGraphs, counter)
       
 -- | swapAll performs branch swapping on all 'break' edges and all readditions
@@ -224,7 +226,12 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
       
       -- either no better or more of same cost graphs
-      if bestSwapCost == curBestCost then swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost [firstGraph] ((tail inGraphList) ++ bestSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+      if bestSwapCost == curBestCost then 
+         let newCurSameBestList = if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
+                                  else curSameBetterList
+             graphsToSwap = bestSwapGraphList L.\\ newCurSameBestList               
+         in
+         swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost newCurSameBestList ((tail inGraphList) ++ graphsToSwap) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] bestSwapGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
@@ -234,6 +241,102 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       )
       )
 
+
+
+
+-- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)
+-- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
+-- uses delta
+-- NNI sorts edges on propinquity taking first 2 edges
+-- TBR does the rerooting of pruned subtree
+-- originalConnectionOfPruned is the "naked" node that was creted when teh graph was split and will 
+-- be used for the rejoin node in the middle of th einvaded edge
+rejoinGraphKeepBest :: GlobalSettings 
+                    -> String 
+                    -> VertexCost 
+                    -> Int 
+                    -> Bool 
+                    -> Bool 
+                    -> V.Vector (V.Vector CharInfo) 
+                    -> (DecoratedGraph, VertexCost) 
+                    -> LG.Node 
+                    -> LG.Node 
+                    -> LG.Node 
+                    -> LG.LEdge EdgeInfo 
+                    -> [(SimpleGraph, VertexCost)]
+rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitEdge = 
+   let outgroupEdges = LG.out splitGraph graphRoot
+       edgesToInvade = (LG.labEdges splitGraph) L.\\ outgroupEdges
+       candidateEditList = if (not steepest) then fmap (addSubGraph inGS doIA splitGraph prunedGraphRootIndex splitCost nakedNode charInfoVV) edgesToInvade 
+                           else error "Steepest not yet implemented"
+
+       minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst4 candidateEditList   
+                          else infinity
+   in
+   trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
+   if minCandidateCost > curBestCost then []
+   else 
+      let bestEdits = filter ((== minCandidateCost). fst4) candidateEditList
+          splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
+          swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
+      in
+      zip swapSimpleGraphList (L.replicate (length swapSimpleGraphList) minCandidateCost)
+   )
+
+-- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
+applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, LG.LNode a, [LG.LEdge b], LG.Edge) ->  LG.Gr a b
+applyGraphEdits inGraph editStuff@(_, nodeToAdd, edgesToAdd, edgeToDelete) = 
+   let editedGraph = LG.insEdges edgesToAdd $ LG.delEdge edgeToDelete inGraph
+   in
+   trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 
+   editedGraph
+   
+
+
+-- | addSubTree "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
+addSubGraph :: GlobalSettings 
+            -> Bool 
+            -> DecoratedGraph 
+            -> LG.Node 
+            -> VertexCost 
+            -> LG.Node 
+            -> V.Vector (V.Vector CharInfo) 
+            -> LG.LEdge EdgeInfo 
+            -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
+addSubGraph inGS doIA inGraph prunedGraphRootIndex splitCost nakedNode charInfoVV targetEdge@(eNode, vNode, targetlabel) =  
+   let existingEdgeCost = minLength targetlabel
+       edge0 = (nakedNode, vNode, 0.0)
+       edge1 = (eNode, nakedNode, 0.0)
+       -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
+       newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
+       delta = getSubGraphDelta targetEdge doIA inGraph prunedGraphRootIndex charInfoVV
+   in
+   
+   -- do not redo origal edge so retun infinite cost and dummy edits
+   if (eNode == nakedNode) then  trace ("ASG: break edge") (infinity, (-1, TL.empty), [], (-1,-1))
+   else trace ("ASG: " ++ (show (eNode, vNode, nakedNode)))  (delta + splitCost, newNode, [edge0, edge1], (eNode, vNode)) -- edge 2
+   
+
+
+-- | getSubGraphDelta calcualted cost of adding a subgraph into and edge
+getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> LG.Node -> V.Vector (V.Vector CharInfo) -> VertexCost
+getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex charInfoVV = 
+   let existingEdgeCost = minLength targetlabel
+       subGraphVertData = vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex
+       eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
+       vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+
+       -- create edge union 'character' blockData
+       -- based on final assignments--need to filter gaps if DO, not itIA
+       edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
+
+       -- Use edge union data for delta to edge data
+       costMethod = if doIA then ImpliedAlignment
+                    else DirectOptimization
+
+       subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
+   in
+   subGraphEdgeUnionCost
 
 -- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex
 -- for softwired--need to deal with popocount at root
@@ -253,7 +356,7 @@ reoptimizeGraphFromVertex :: GlobalSettings
                           -> (DecoratedGraph, VertexCost)
 reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph startVertex prunedSubGraphRootVertex =
 
-   trace ("RGFV: " ++ (show startVertex) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
+   trace ("RGFV: startVertex " ++ (show startVertex) ++ " prunedVertex " ++ (show prunedSubGraphRootVertex) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
 
    -- create graph of base (with ur-root) and pruned (non-ur-root) components
    let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
@@ -270,7 +373,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph
        parentPrunedNodeIndex = head $ LG.parents origGraph prunedSubGraphRootVertex
 
        -- set same label as for pruned node so that edge length is zero
-       parentPrunedNode = (parentPrunedNodeIndex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
+       parentPrunedNode = (parentPrunedNodeIndex, fromJust $ LG.lab origGraph parentPrunedNodeIndex)
        (prunedNodes, prunedEdges) = LG.nodesAndEdgesAfter inGraph ([],[]) [parentPrunedNode]
 
        -- add back pruned component nodes and edges to post-order base component
@@ -304,95 +407,6 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph
    )
       )
 
--- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)
--- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
--- uses delta
--- NNI sorts edges on propinquity taking first 2 edges
--- TBR does the rerooting of pruned subtree
--- originalConnectionOfPruned is the "naked" node that was creted when teh graph was split and will 
--- be used for the rejoin node in the middle of th einvaded edge
-rejoinGraphKeepBest :: GlobalSettings 
-                    -> String 
-                    -> VertexCost 
-                    -> Int 
-                    -> Bool 
-                    -> Bool 
-                    -> V.Vector (V.Vector CharInfo) 
-                    -> (DecoratedGraph, VertexCost) 
-                    -> LG.Node 
-                    -> LG.Node 
-                    -> LG.Node 
-                    -> LG.LEdge EdgeInfo 
-                    -> [(SimpleGraph, VertexCost)]
-rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitEdge = 
-   let outgroupEdges = LG.out splitGraph graphRoot
-       edgesToInvade = (LG.labEdges splitGraph) L.\\ (originalSplitEdge : outgroupEdges)
-       candidateEditList = if (not steepest) then fmap (addSubGraph inGS doIA splitGraph prunedGraphRootIndex splitCost nakedNode charInfoVV) edgesToInvade 
-                           else error "Steepest not yet implemented"
-
-       minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst4 candidateEditList   
-                          else infinity
-   in
-   trace ("RGKB: " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
-   if minCandidateCost > curBestCost then []
-   else 
-      let bestEdits = filter ((== minCandidateCost). fst4) candidateEditList
-          splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
-          swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
-      in
-      zip swapSimpleGraphList (L.replicate (length swapSimpleGraphList) minCandidateCost)
-   )
-
--- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
-applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, LG.LNode a, [LG.LEdge b], LG.Edge) ->  LG.Gr a b
-applyGraphEdits inGraph (_, nodeToAdd, edgesToAdd, edgeToDelete) = 
-   let editedGraph = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inGraph
-   in
-   trace ("AGE: " ++ (LG.prettify editedGraph)) 
-   editedGraph
-   
-
-
--- | addSubTree "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
-addSubGraph :: GlobalSettings 
-            -> Bool 
-            -> DecoratedGraph 
-            -> LG.Node 
-            -> VertexCost 
-            -> LG.Node 
-            -> V.Vector (V.Vector CharInfo) 
-            -> LG.LEdge EdgeInfo 
-            -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
-addSubGraph inGS doIA inGraph prunedGraphRootIndex splitCost nakedNode charInfoVV targetEdge@(eNode, vNode, targetlabel) =  
-   let existingEdgeCost = minLength targetlabel
-       edge0 = (nakedNode, vNode, 0.0)
-       edge1 = (eNode, nakedNode, 0.0)
-       -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
-       newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
-       delta = getSubGraphDelta targetEdge doIA inGraph prunedGraphRootIndex charInfoVV
-   in
-   (delta + splitCost, newNode, [edge0, edge1], (eNode, vNode)) -- edge 2
-
-
--- | getSubGraphDelta calcualted cost of adding a subgraph into and edge
-getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> LG.Node -> V.Vector (V.Vector CharInfo) -> VertexCost
-getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex charInfoVV = 
-   let existingEdgeCost = minLength targetlabel
-       subGraphVertData = vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex
-       eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-       vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
-
-       -- create edge union 'character' blockData
-       -- based on final assignments--need to filter gaps if DO, not itIA
-       edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
-
-       -- Use edge union data for delta to edge data
-       costMethod = if doIA then ImpliedAlignment
-                    else DirectOptimization
-
-       subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
-   in
-   subGraphEdgeUnionCost
 
 -- | swapSteepest performs branch swapping greedily swithcing to found graph if better
 swapSteepest   :: String 
