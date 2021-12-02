@@ -1090,18 +1090,29 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
 -- to the 3rd and 4th input vectors
 slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
 slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
+   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode))) (
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode
           firstGN = GV.head  gappedNode
       in
-      -- no "new gap"
-      if firstRGN == firstGN then
-         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
-      else
+
+      -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
+      -- can copmplete the remainder of the slide as gaps only
+      if GV.null gappedNode then
+        let gapList = replicate  (GV.length reGappedNode) (bit gapIndex)
+        in
+        (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
+
+      else if firstRGN /= firstGN then
          let gap = bit gapIndex
          in
          slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
+      
+      -- no "new gap"  
+      else -- if firstRGN == firstGN then
+         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
+    -- )
 
 
 -- | getFinal3Way takes parent final assignment (including indel characters) and descendent
