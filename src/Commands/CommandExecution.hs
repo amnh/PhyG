@@ -238,6 +238,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "graphs" `elem` commandList then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
+                trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at cost " ++ (show $ fmap snd6 curGraphs))
                 (graphString, outfileName, writeMode)
 
             else if "displaytrees" `elem` commandList then
