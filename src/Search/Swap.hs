@@ -63,7 +63,7 @@ swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia"]
 
 -- | swapMaster processes and spawns the swap functions
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-swapMaster inArgs inGS inData rSeed inGraphList =
+swapMaster inArgs inGS inData rSeed inGraphList = 
    trace ("Swapping " ++ (show $ length inGraphList) ++ " graph(s)") (
    if null inGraphList then []
    else 
@@ -90,7 +90,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              leafDecGraph = T.makeLeafGraph inData
              leafGraphSoftWired = T.makeLeafGraphSoftWired inData
              hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
-             charInfoVV = V.map thd3 $ thd3 inData
+             charInfoVV = six6 $ head inGraphList
 
              -- process args for swap
              doNNI = any ((=="nni").fst) lcArgList
@@ -185,7 +185,9 @@ swapAll  :: String
          -> ([PhylogeneticGraph], Int)
 swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    trace ("SWAPALLL Num: " ++ (show $ length inGraphList) ++ " returning: " ++ (show $ length curSameBetterList) ++ " counter: " ++ (show counter))  (
-   if null inGraphList then trace ("Swap All Done") (curSameBetterList, counter)
+   if null inGraphList then 
+      trace ("Swap All Done") 
+      (inGraphList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -214,10 +216,9 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           candidateSwapGraphList = filter ((== minimumCandidateGraphCost). snd) swapPairList
 
           
-          -- this should be incremental--full 2-pass for now]
-          reoptimizedSwapGraphList = if (graphType inGS == Tree) then fmap (T.multiTraverseFullyLabelTree inGS inData leafDecGraph Nothing) (fmap fst candidateSwapGraphList)
-                                     else if (graphType inGS == SoftWired) then fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraphSoftWired Nothing) (fmap fst candidateSwapGraphList)
-                                     else errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
+          -- this should be incremental--full 2-pass for now
+          reoptimizedSwapGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) $ fmap fst candidateSwapGraphList
+                                     
 
           -- selects best graph list based on full optimization
           bestSwapGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] reoptimizedSwapGraphList
@@ -229,19 +230,19 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
       
       -- either no better or more of same cost graphs
-      trace ("BSG: " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList)) (
+      trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList)) (
       if bestSwapCost == curBestCost then 
          let newCurSameBestList = if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   else curSameBetterList
              graphsToSwap = bestSwapGraphList L.\\ newCurSameBestList               
          in
-         trace ("Same cost")
+         trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ (tail inGraphList) ++ graphsToSwap) ++ " more to swap")
          swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost newCurSameBestList ((tail inGraphList) ++ graphsToSwap) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
-         trace ("Better cost")
-         swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] bestSwapGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         trace ("Better cost: " ++ (show bestSwapCost)  ++ " with " ++ (show $ length $ (tail inGraphList) ++ bestSwapGraphList) ++ " more to swap")
+         swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else 
@@ -415,7 +416,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph
    --    ++ (show $ (LG.labNodes canonicalSplitGraph') !! (fst parentPrunedNode)))
 
    -- check if base graph has fewer than 3 leaves (5 nodes) -- then nowhere to readd and screwes things up later
-   if (length $ LG.nodes $ fst6 postOrderBaseGraph)  - (length prunedNodes ) < 5 then  trace ("Too few nodes") (LG.empty, infinity)
+   if (length $ LG.nodes $ fst6 postOrderBaseGraph)  - (length prunedNodes ) < 4 then  trace ("Too few nodes") (LG.empty, infinity)
    else (canonicalSplitGraph', prunedSubGraphCost + (snd6 postOrderBaseGraph) + localRootCost)
    )
       )

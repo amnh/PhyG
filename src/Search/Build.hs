@@ -111,6 +111,7 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
              nameStringVect = fmap TL.unpack nameTextVect
              distMatrix = M.fromLists pairwiseDistances
          in
+         trace ("Building Distance Wagner") (
          let refinement
                | doTBR = "tbr"
                | doSPR = "spr"
@@ -126,21 +127,27 @@ buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
          in
          if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
          else
-            -- trace (show inArgs ++ " Yielded " ++ (show $ length treeList''') ++ " trees")
+            trace ("Distance build yielded " ++ (show $ length treeList''') ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')))
             treeList'''
+         )
 
       else 
          -- character build 
-         trace ("Building Character Wager") (
+         trace ("Building Character Wagner") (
          let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates) 
-             graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
+             -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
          in
+         {-
          if (graphType inGS == SoftWired) then 
             -- multi-traverse reroots graphs
-            graphList
+            treeList
          else if (graphType inGS == Tree) then 
             treeList
          else errorWithoutStackTrace ("Graph type " ++ (show $ graphType inGS) ++ " not implemented")
+         )
+         -}
+         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
+         treeList
          )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
