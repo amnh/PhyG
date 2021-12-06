@@ -47,6 +47,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , getFinal3WayWideHuge
                                             , preOrderTreeTraversal
                                             , getBlockCostPairsFinal
+                                            , setFinalToPreliminaryStates
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -668,7 +669,7 @@ getBlockCostPairsFinal finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
     (minCost, maxCost)
 
 -- | getCharacterDistFinal takes a pair of characters and character type, returning the minimum and maximum character distances
--- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be n in num characters/sequence length
+-- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be O(n) in num characters/sequence length
 getCharacterDistFinal :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
 getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
@@ -1378,3 +1379,34 @@ nonMinCostStatesToMaxCost stateIndexList minStateCost tripleVect =
                                        else (maxBound :: StateCost ,b,c)
 
 
+-- | setFinalToPreliminaryStates takes VertexBlockData and sets the final values to Preliminary
+setFinalToPreliminaryStates :: VertexBlockData -> VertexBlockData
+setFinalToPreliminaryStates inVertBlockData =
+    if V.null inVertBlockData then mempty
+    else 
+        fmap setBlockPrelimToFinal inVertBlockData
+
+-- | setBlockPrelimToFinal sets characyters in a block preliminary data to final
+setBlockPrelimToFinal :: V.Vector CharacterData -> V.Vector CharacterData
+setBlockPrelimToFinal inCharVect = 
+    if V.null inCharVect then mempty 
+    else fmap setPrelimToFinalCharacterData inCharVect
+
+-- | setPrelimToFinalCharacterData takes a single chartcater and sets preliminary values to final
+setPrelimToFinalCharacterData :: CharacterData -> CharacterData
+setPrelimToFinalCharacterData inChar =
+    inChar {                 stateBVFinal       = snd3 $ stateBVPrelim inChar
+                           , rangeFinal         = snd3 $ rangePrelim inChar
+                           , matrixStatesFinal  = matrixStatesPrelim inChar
+                           , slimAlignment      = slimGapped inChar
+                           , slimFinal          = slimPrelim inChar
+                           , slimIAFinal        = snd3 $ slimIAPrelim inChar
+                         
+                           , wideAlignment      = wideGapped inChar
+                           , wideFinal          = widePrelim inChar
+                           , wideIAFinal        = snd3 $ wideIAPrelim inChar
+
+                           , hugeAlignment      = hugeGapped inChar
+                           , hugeFinal          = hugePrelim inChar
+                           , hugeIAFinal        = snd3 $ hugeIAPrelim inChar
+            }

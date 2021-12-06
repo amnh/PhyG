@@ -519,7 +519,7 @@ union2Single filterGaps firstVertChar secondVertChar inCharInfo =
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
--- | createEdgeUnionOverBlocks cretes the union of the final states characters on an edge
+-- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data 
 -- this is used fir delta's in edge invastion in Wagner and SPR/TBR

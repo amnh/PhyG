@@ -679,7 +679,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges
-                        uniqueGraphList = getUniqueGraphs nonZeroEdgeListGraphPairList []
+                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs nonZeroEdgeListGraphPairList []
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList

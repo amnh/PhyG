@@ -502,3 +502,7 @@ to render--would have repeated subtrees after network vertex
 212) rerrot tree make morefficient--rewrite
 
 213) musl for static binaries
+
+214) Check median left right order for static charcaters--make sure same as dynamic
+	And for IA assignments as well
+

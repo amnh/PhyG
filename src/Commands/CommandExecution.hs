@@ -132,7 +132,7 @@ setCommand argList globalSettings processedData =
     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ show argList)
     else
         if head commandList == "outgroup"  then
-            let outTaxonName = T.pack $ filter (/= '"') $ head optionList
+            let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
                 outTaxonIndex = V.elemIndex outTaxonName leafNameVect
 
             in
@@ -238,7 +238,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "graphs" `elem` commandList then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
-                trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at cost " ++ (show $ fmap snd6 curGraphs))
+                trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
                 (graphString, outfileName, writeMode)
 
             else if "displaytrees" `elem` commandList then

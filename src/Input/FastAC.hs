@@ -134,11 +134,11 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
 
             (hugeWeightFactor, localHugeTCM)
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
+              | otherwise                    = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
 
             tcmWeightFactor = thd3 localTCM
             thisAlphabet =
