@@ -115,13 +115,13 @@ getTNTData inString fileName =
                 in
                 if isNothing semiColonLineNumber then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
                 else
-                    let dataBlock = filter ((>0).T.length) $ take (fromJust semiColonLineNumber) restFile
+                    let dataBlock = filter ((>0).T.length) $ fmap (T.filter C.isPrint) $ take (fromJust semiColonLineNumber) restFile
                         charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
                         (_, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
-                    -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder)) (
-                    if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error")
+                    -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder, numDataLines, numTax)) (
+                    if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error ")
                     else
                         let sortedData = glueInterleave fileName dataBlock numTax numChar []
                             charNumberList = fmap (length . snd) sortedData
@@ -147,7 +147,7 @@ getTNTData inString fileName =
                         in
                         -- trace (show (curNames, curData'))
                         (zip curNames curData',charInfoData')
-                    ) --))
+                    ) -- ) --)
 
 -- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
 -- lines later
