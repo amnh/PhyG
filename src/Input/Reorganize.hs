@@ -196,52 +196,53 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         -- remove inactive characters
         if not fCharActivity || (length fAlphabet < 2) then
             -- trace ("Innactive") 
-            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect) else (if isNothing intWeight then
-                                                                                                                                                                        -- add to unchanged pile
-                                                                                                                                                                        let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter)
+            organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect) 
+        else (if isNothing intWeight then
+               -- add to unchanged pile
+               let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter)
 
-                                                                                                                                                                        in
-                                                                                                                                                                        -- trace ("Unchanged character:" ++ (show $ length $ fst currentUnchangedCharacter) ++ " Name:" ++ (T.unpack $ name firstCharacter) ++ " " ++ (show (charType firstCharacter))
-                                                                                                                                                                        --    ++ " " ++ (show $ fst currentUnchangedCharacter)) 
-                                                                                                                                                                        -- trace ("Character Weight non-integer:" ++ show fCharWeight) 
-                                                                                                                                                                        organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               in
+               -- trace ("Unchanged character:" ++ (show $ length $ fst currentUnchangedCharacter) ++ " Name:" ++ (T.unpack $ name firstCharacter) ++ " " ++ (show (charType firstCharacter))
+               --    ++ " " ++ (show $ fst currentUnchangedCharacter)) 
+               -- trace ("Character Weight non-integer:" ++ show fCharWeight) 
+               organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
 
-                                                                                                                                                                    -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since miossing character will be empoty and throw an error on V.head
-                                                                                                                                                                    else if fCharType `notElem` exactCharacterTypes
-                                                                                                                                                                        then errorWithoutStackTrace "Blocks with more than one Non-Exact Character not yet implemented"
+           -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since miossing character will be empoty and throw an error on V.head
+           else if fCharType `notElem` exactCharacterTypes
+               then errorWithoutStackTrace "Blocks with more than one Non-Exact Character not yet implemented"
 
-                                                                                                                                                                    -- non-additive characters
-                                                                                                                                                                    else if fCharType == NonAdd then
-                                                                                                                                                                        let replicateNumber = fromJust intWeight
-                                                                                                                                                                            currentNonAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
-                                                                                                                                                                        in
-                                                                                                                                                                        -- trace ("Non-Additive") (
-                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        else organizeBlockData (replicate replicateNumber currentNonAdditiveCharacter ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        -- )
+           -- non-additive characters
+           else if fCharType == NonAdd then
+               let replicateNumber = fromJust intWeight
+                   currentNonAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+               in
+               -- trace ("Non-Additive") (
+               if replicateNumber == 1 then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               else organizeBlockData (replicate replicateNumber currentNonAdditiveCharacter ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               -- )
 
-                                                                                                                                                                    -- additive characters    
-                                                                                                                                                                    else if fCharType == Add then
-                                                                                                                                                                        let replicateNumber = fromJust intWeight
-                                                                                                                                                                            currentAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
-                                                                                                                                                                        in
-                                                                                                                                                                        -- trace ("Additive") (
-                                                                                                                                                                        if replicateNumber == 1 then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        else organizeBlockData nonAddCharList (replicate replicateNumber currentAdditiveCharacter ++ addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        -- )
+           -- additive characters    
+           else if fCharType == Add then
+               let replicateNumber = fromJust intWeight
+                   currentAdditiveCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+               in
+               -- trace ("Additive") (
+               if replicateNumber == 1 then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               else organizeBlockData nonAddCharList (replicate replicateNumber currentAdditiveCharacter ++ addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               -- )
 
-                                                                                                                                                                    -- matrix characters--more complex since need to check for matrix identity
-                                                                                                                                                                    else if fCharType == Matrix then
-                                                                                                                                                                        let replicateNumber = fromJust intWeight
-                                                                                                                                                                            currentMatrixCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
-                                                                                                                                                                            newMatrixCharacterList = addMatrixCharacter matrixCharListList fCharMatrix currentMatrixCharacter replicateNumber
-                                                                                                                                                                        in
-                                                                                                                                                                        -- trace ("Matrix") (
-                                                                                                                                                                        organizeBlockData nonAddCharList addCharList newMatrixCharacterList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-                                                                                                                                                                        -- )
+           -- matrix characters--more complex since need to check for matrix identity
+           else if fCharType == Matrix then
+               let replicateNumber = fromJust intWeight
+                   currentMatrixCharacter = (V.toList $ fmap V.head characterDataVectVect, firstCharacter)
+                   newMatrixCharacterList = addMatrixCharacter matrixCharListList fCharMatrix currentMatrixCharacter replicateNumber
+               in
+               -- trace ("Matrix") (
+               organizeBlockData nonAddCharList addCharList newMatrixCharacterList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               -- )
 
-                                                                                                                                                                    -- error in thype
-                                                                                                                                                                    else error ("Unrecognized/nont implemented charcter type: " ++ show fCharType))
+           -- error in thype
+           else error ("Unrecognized/nont implemented charcter type: " ++ show fCharType))
         -- )
 
 -- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
@@ -348,7 +349,7 @@ combineNonAdditveCharacters nonAddCharList charTemplate currentBVList =
     else
         -- first Character
         let (charDataList, _) = head nonAddCharList
-            prelimBVList = fmap ((V.head . fst3) . stateBVPrelim) charDataList
+            prelimBVList = fmap ((V.head . snd3) . stateBVPrelim) charDataList
         in
         combineNonAdditveCharacters (tail nonAddCharList) charTemplate (prelimBVList : currentBVList)
 
@@ -366,21 +367,21 @@ combineAdditveCharacters addCharList charTemplate currentRangeList =
     else
         -- first Character
         let (charDataList, _) = head addCharList
-            prelimRangeList = fmap ((V.head . fst3) . rangePrelim) charDataList
+            prelimRangeList = fmap ((V.head . snd3) . rangePrelim) charDataList
         in
         combineAdditveCharacters (tail addCharList) charTemplate (prelimRangeList : currentRangeList)
 
 -- | makeNonAddCharacterList takes a taxon list of characters 
 -- convertes chars to single vector and makes new character for the taxon
--- assumes a leaf so snd and 3rd fields are mempty
+-- assumes a leaf so all fields same
 makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
-makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (V.fromList bvList, mempty, mempty)}
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (V.fromList bvList, V.fromList bvList, V.fromList bvList)}
 
 -- | makeAddCharacterList takes a taxon list of characters 
 -- to single vector and makes new character for the taxon
--- assums a leaf so snd and 3rd fileds are mempty
+-- assums a leaf so so all fields same
 makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
-makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (V.fromList rangeList, mempty, mempty)}
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (V.fromList rangeList, V.fromList rangeList, V.fromList rangeList)}
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters 
 -- replicates character by integer weight 

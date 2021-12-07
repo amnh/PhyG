@@ -330,8 +330,10 @@ recodeRawData inTaxNames inData inCharInfo curCharData =
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
-    emptyCharacter { stateBVPrelim = (V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True), mempty, mempty)
-                   , stateBVFinal  = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
+    let missingChar = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
+    in 
+    emptyCharacter { stateBVPrelim = (missingChar, missingChar, missingChar)
+                   , stateBVFinal  = missingChar
                    }
 
 
@@ -343,7 +345,9 @@ missingAdditive inCharInfo =
                         (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
                         (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
   in
-  emptyCharacter { rangePrelim = (missingRange, mempty, mempty) }
+  emptyCharacter { rangePrelim = (missingRange, missingRange, missingRange) 
+                 , rangeFinal = missingRange
+                 }
 
 
 -- | missingMatrix is additive missing character value, all 1's based on alphabet size
@@ -353,7 +357,8 @@ missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0 :: StateCost , [] ,[])
   in
-  emptyCharacter { matrixStatesPrelim = V.singleton (V.replicate numStates missingState) }
+  emptyCharacter { matrixStatesPrelim = V.singleton (V.replicate numStates missingState) 
+                 , matrixStatesFinal= V.singleton (V.replicate numStates missingState)}
 
 
 -- | getMissingValue takes the charcater type ans returns the appropriate missineg data value
@@ -633,7 +638,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         --single state
         if firstCharType == NonAdd then
             let stateBV = getStateBitVector (alphabet firstCharInfo) firstState
-                newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, mempty, mempty) }
+                newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -642,7 +647,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), mempty, mempty) }
+                    newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange),mempty) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 

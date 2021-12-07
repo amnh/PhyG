@@ -69,6 +69,7 @@ import           DirectOptimization.Pairwise
 import           GeneralUtilities
 import qualified SymMatrix                                                   as S
 import           Types.Types
+import Debug.Trace
 
 
 --import qualified Data.Alphabet as DALPH
@@ -177,15 +178,15 @@ localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interB
 -- in post-order pass to create preliminary states assignment
 -- assumes a single weight for all
 -- performs two passes though chars to get cost of assignments
--- fst3 $ rangePrelim left/rightChar due to triple in prelim
+-- snd3 $ rangePrelim left/rightChar due to triple in prelim
 interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight leftChar rightChar =
-    let intersectVect =  V.zipWith localAnd (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
-        unionVect = V.zipWith localOr (fst3 $ stateBVPrelim leftChar) (fst3 $ stateBVPrelim rightChar)
+    let intersectVect =  V.zipWith localAnd (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
+        unionVect = V.zipWith localOr (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
         numUnions = V.length $ V.filter BV.isZeroVector intersectVect
         newCost = thisWeight * fromIntegral numUnions
         newStateVect = V.zipWith localAndOr intersectVect unionVect
-        newCharacter = emptyCharacter { stateBVPrelim = (newStateVect, fst3 $ stateBVPrelim leftChar, fst3 $ stateBVPrelim rightChar)
+        newCharacter = emptyCharacter { stateBVPrelim = (snd3 $ stateBVPrelim leftChar, newStateVect, snd3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
@@ -210,8 +211,8 @@ localUnion leftChar rightChar =
 
 -- | getNewRange takes min and max range of two additive charcaters and returns
 -- a triple of (newMin, newMax, Cost)
-getNewRange :: (Int, Int, Int, Int) -> (Int, Int, Int)
-getNewRange inStuff@(lMin, lMax, rMin, rMax) =
+getNewRange :: Int-> Int -> Int -> Int -> (Int, Int, Int)
+getNewRange lMin lMax rMin rMax =
     -- subset
     if (rMin >= lMin) && (rMax <= lMax) then (rMin, rMax, 0)
     else if  (lMin >= rMin) && (lMax <= rMax) then (lMin, lMax, 0)
@@ -221,31 +222,31 @@ getNewRange inStuff@(lMin, lMax, rMin, rMax) =
     -- newInterval
     else if lMax <= rMin then (lMax, rMin, rMin - lMax)
     else if rMax <= lMin then (rMax, lMin, lMin - rMax)
-    else error ("This can't happen " ++ show inStuff)
+    else error ("This can't happen " ++ (show (lMin, lMax, rMin, rMax)))
 
 -- | intervalAdd takes two additive chars and creates newCharcter as 2-median
 -- in post-order pass to create preliminary states assignment
 -- assumes a single weight for all
--- fst3 $ rangePrelim left/rightChar due to triple in prelim
+-- snd3 $ rangePrelim left/rightChar due to triple in prelim
 intervalAdd :: Double -> CharacterData -> CharacterData -> CharacterData
 intervalAdd thisWeight leftChar rightChar =
-    let newRangeCosts = V.map getNewRange $ V.zip4 (V.map fst $ fst3 $ rangePrelim leftChar) (V.map snd $ fst3 $ rangePrelim leftChar) (V.map fst $ fst3 $ rangePrelim rightChar) (V.map snd $ fst3 $ rangePrelim rightChar)
+    let newRangeCosts = V.zipWith4 getNewRange (V.map fst $ snd3 $ rangePrelim leftChar) (V.map snd $ snd3 $ rangePrelim leftChar) (V.map fst $ snd3 $ rangePrelim rightChar) (V.map snd $ snd3 $ rangePrelim rightChar)
         newMinRange = V.map fst3 newRangeCosts
         newMaxRange = V.map snd3 newRangeCosts
         newCost = thisWeight * fromIntegral (V.sum $ V.map thd3 newRangeCosts)
-        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, fst3 $ rangePrelim leftChar, fst3 $ rangePrelim rightChar)
+        newCharcater = emptyCharacter { rangePrelim = (snd3 $ rangePrelim leftChar, V.zip newMinRange newMaxRange, snd3 $ rangePrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
     --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
-     --   ++ (show newRangeCosts))
+    --   ++ (show newRangeCosts))
     newCharcater
 
 -- | getUnionRange takes min and max range of two additive charcaters and returns
 -- a pair of (newMin, newMax)
-getUnionRange :: (Int, Int, Int, Int) -> (Int, Int)
-getUnionRange (lMin, lMax, rMin, rMax) =
+getUnionRange :: Int -> Int -> Int -> Int -> (Int, Int)
+getUnionRange lMin lMax rMin rMax =
     (min lMin rMin, max lMax rMax)
 
 -- | intervalUnion takes two additive chars and creates newCharcter as 2-union
@@ -253,7 +254,7 @@ getUnionRange (lMin, lMax, rMin, rMax) =
 -- final states used and produced
 intervalUnion :: CharacterData -> CharacterData -> CharacterData
 intervalUnion leftChar rightChar =
-    let newRangeCosts = V.map getUnionRange $ V.zip4 (V.map fst $ rangeFinal leftChar) (V.map snd $ rangeFinal leftChar) (V.map fst $ rangeFinal rightChar) (V.map snd $ rangeFinal rightChar)
+    let newRangeCosts = V.zipWith4 getUnionRange (V.map fst $ rangeFinal leftChar) (V.map snd $ rangeFinal leftChar) (V.map fst $ rangeFinal rightChar) (V.map snd $ rangeFinal rightChar)
         newMinRange = V.map fst newRangeCosts
         newMaxRange = V.map snd newRangeCosts
         newCharcater = emptyCharacter { rangeFinal = V.zip newMinRange newMaxRange

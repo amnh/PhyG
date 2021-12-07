@@ -849,9 +849,9 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
    if childType == RootNode then
 
       if localCharType == Add then
-         childChar {rangeFinal = fst3 $ rangePrelim childChar}
+         childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
       else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
 
@@ -876,9 +876,9 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
 
    else if childType == LeafNode then
       -- since leaf no neeed to precess final alignment fields for sequence characters
-      if localCharType == Add then childChar {rangeFinal = fst3 $ rangePrelim childChar}
+      if localCharType == Add then childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = fst3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
       else if localCharType == Matrix then
          childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}

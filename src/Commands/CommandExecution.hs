@@ -442,8 +442,8 @@ makeCharLine (blockDatum, charInfo) =
                         else if localType `elem`  [Add, NonAdd, Matrix] then (show localType)
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
-        (stringPrelim, stringFinal) = if localType == Add then (show $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-                                      else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ fst3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
+        (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
+                                      else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
                                       else if localType `elem` [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq]
                                       then case localType of
