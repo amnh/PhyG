@@ -51,6 +51,7 @@ import           Data.Maybe
 import qualified GraphOptimization.Traversals as T
 import qualified Data.Vector as V
 import qualified GraphOptimization.PreOrderFunctions as PRE
+import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
@@ -340,12 +341,14 @@ addSubGraph inGS doIA inGraph prunedGraphRootIndex splitCost nakedNode charInfoV
       -- trace ("ASG: break edge") 
       (infinity, (-1, TL.empty), [], (-1,-1))
    else
-      trace ("ASG: " ++ (show (delta, splitCost)))  
+      trace ("ASG: " ++ (show (delta, splitCost)) ++ " => " ++ (show $ delta + splitCost))  
       (delta + splitCost, newNode, [edge0, edge1], (eNode, vNode)) -- edge 2
    
 
 
--- | getSubGraphDelta calcualted cost of adding a subgraph into and edge
+-- | getSubGraphDelta calculated cost of adding a subgraph into and edge
+-- for SPR use the preliminary of subGraph to final of e and v nodes
+-- can use median fruntions for postorder if set final-> prelim or e and f
 getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> LG.Node -> V.Vector (V.Vector CharInfo) -> VertexCost
 getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex charInfoVV = 
    let existingEdgeCost = minLength targetlabel
@@ -361,11 +364,18 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex c
        costMethod = if doIA then ImpliedAlignment
                     else DirectOptimization
 
-       subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
+       subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData edgeUnionVertData charInfoVV []
+                              else error "IA not yet implemented in getSubGraphDelta"
 
-       costNewE = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData eNodeVertData charInfoVV
-       costNewV = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData vNodeVertData charInfoVV
-       costEV = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) eNodeVertData vNodeVertData charInfoVV
+       -- subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
+
+       dummyE = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData eNodeVertData charInfoVV []
+       dummyV = M.createEdgeUnionOverBlocks (not doIA) vNodeVertData vNodeVertData charInfoVV []
+       dummySGV = M.createEdgeUnionOverBlocks (not doIA) (PRE.setFinalToPreliminaryStates subGraphVertData) (PRE.setFinalToPreliminaryStates subGraphVertData) charInfoVV []
+
+       costNewE = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE subGraphVertData charInfoVV []
+       costNewV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyV subGraphVertData charInfoVV []
+       costEV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE dummyV charInfoVV []
 
        subGraphEdgeUnionCost' = (costNewE + costNewV - costEV) / 2.0
       
@@ -419,7 +429,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph
        -- parentPruneNodeVertData = PRE.setFinalToPreliminaryStates $ vertData parentPruneNodeDataLabel
        parentPrunedNode = (parentPrunedNodeIndex, parentPruneNodeDataLabel) -- parentPruneNodeDataLabel {vertData =  parentPruneNodeVertData})
 
-       (prunedNodes, prunedEdges) = LG.nodesAndEdgesAfter inGraph ([],[]) [parentPrunedNode]
+       (prunedNodes, prunedEdges) = LG.nodesAndEdgesAfter origGraph ([],[]) [parentPrunedNode]
        -- prunedNodes = (prunedSubGraphRootVertex, prunedSubGraphRootLabelPrelimToFinal) : (filter ((/= prunedSubGraphRootVertex).fst) prunedNodes')
 
        -- add back pruned component nodes and edges to post-order base component
@@ -450,7 +460,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inGraph
    -- check if base graph has fewer than 3 leaves (5 nodes) -- then nowhere to readd and screwes things up later
    -- if (length $ LG.nodes $ fst6 postOrderBaseGraph)  - (length prunedNodes ) < 0 then  trace ("Too few nodes") (LG.empty, infinity)
    -- else 
-   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Main subGraph cost " ++ (show (snd6 postOrderBaseGraph)) ++ " pruned subgraph cost " ++ (show prunedSubGraphCost))
+   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Main subGraph cost " ++ (show (snd6 postOrderBaseGraph)) ++ " pruned subgraph cost " ++ (show prunedSubGraphCost) ++ " at node " ++ (show prunedSubGraphRootVertex))
    (canonicalSplitGraph', prunedSubGraphCost + (snd6 postOrderBaseGraph) + localRootCost)
    -- )
    --   )

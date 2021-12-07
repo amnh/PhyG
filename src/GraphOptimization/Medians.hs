@@ -97,7 +97,7 @@ median2NonExact = V.zipWith3 median2SingleNonExact
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
--- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used for post-order assignments
 -- this is from preliminary states
 median2Single :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
@@ -202,7 +202,8 @@ interUnion thisWeight leftChar rightChar =
 localUnion :: CharacterData -> CharacterData -> CharacterData
 localUnion leftChar rightChar =
     let unionVect = V.zipWith localOr (stateBVFinal leftChar) (stateBVFinal rightChar)
-        newCharacter = emptyCharacter { stateBVFinal = unionVect
+        newCharacter = emptyCharacter { stateBVPrelim = (unionVect, unionVect, unionVect)
+                                      , stateBVFinal = unionVect
                                       }
     in
     --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
@@ -251,13 +252,14 @@ getUnionRange lMin lMax rMin rMax =
 
 -- | intervalUnion takes two additive chars and creates newCharcter as 2-union
 -- min of all lower, max of all higher
--- final states used and produced
+-- final states used and assigned to obthe prelim and final for use in swap delta
 intervalUnion :: CharacterData -> CharacterData -> CharacterData
 intervalUnion leftChar rightChar =
     let newRangeCosts = V.zipWith4 getUnionRange (V.map fst $ rangeFinal leftChar) (V.map snd $ rangeFinal leftChar) (V.map fst $ rangeFinal rightChar) (V.map snd $ rangeFinal rightChar)
         newMinRange = V.map fst newRangeCosts
         newMaxRange = V.map snd newRangeCosts
-        newCharcater = emptyCharacter { rangeFinal = V.zip newMinRange newMaxRange
+        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange)
+                                      , rangeFinal = V.zip newMinRange newMaxRange
                                       }
     in
     --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangeFinal leftChar) ++ "\t" ++ (show $ rangeFinal rightChar)
@@ -339,7 +341,9 @@ unionMatrix thisMatrix firstVertChar secondVertChar =
   else
     let numStates = length thisMatrix
         initialMatrixVector = getUnionVector thisMatrix numStates <$> V.zip (matrixStatesFinal firstVertChar) (matrixStatesFinal secondVertChar)
-        newCharacter = emptyCharacter { matrixStatesFinal = initialMatrixVector }
+        newCharacter = emptyCharacter { matrixStatesPrelim = initialMatrixVector 
+                                      , matrixStatesFinal = initialMatrixVector 
+                                      }
         in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
@@ -456,6 +460,7 @@ createUngappedMedianSequence = const extractMedians
 -- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
 -- takes IAFInal for each node, creates union of IAFinals states
 -- gaps need to be fitered if DO used later (as in Wagner), or as in SPR/TBR rearragement
+-- sets finmal and IA states for Swap delta heuristics
 getDynamicUnion
   :: Bool
   -> CharType
@@ -474,19 +479,34 @@ getDynamicUnion filterGaps thisType leftChar rightChar
         let r   = GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
             r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
-        in  blankCharacterData {slimFinal = r'}
+        in  blankCharacterData { slimPrelim = r'
+                               , slimGapped = (r', r',r')
+                               , slimFinal = r'
+                               , slimIAPrelim = (r, r, r)
+                               , slimIAFinal = r
+                               }
 
     newWideCharacterData =
         let r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
             r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
-        in  blankCharacterData {wideFinal = r'}
+        in  blankCharacterData { widePrelim = r'
+                               , wideGapped = (r', r',r')
+                               , wideFinal = r'
+                               , wideIAPrelim = (r, r, r)
+                               , wideIAFinal = r
+                               }
 
     newHugeCharacterData =
         let r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
             r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
-        in  blankCharacterData {hugeFinal = r'}
+        in  blankCharacterData { hugePrelim = r'
+                               , hugeGapped = (r', r',r')
+                               , hugeFinal = r'
+                               , hugeIAPrelim = (r, r, r)
+                               , hugeIAFinal = r
+                               }
 
 -- | union2 takes the vectors of characters and applies union2Single to each character
 -- used for edge states in buikd and rearrangement

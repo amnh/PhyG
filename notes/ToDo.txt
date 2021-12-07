@@ -509,3 +509,5 @@ to render--would have repeated subtrees after network vertex
 215) het.pg error
 
 216) static branch lengths wrong
+
+217) check swap delta cost for matrix charcaters
