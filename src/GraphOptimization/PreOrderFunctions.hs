@@ -690,7 +690,7 @@ getEdgeWeightMap :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> MAP.Map 
 getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode) =
     if MAP.null nodeMap then error "Empty node map in getEdgeWeight"
     else
-        trace ("GEW: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
+        trace ("GEWM: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeMap MAP.! uNode
             vNodeInfo = vertData $ snd $ nodeMap MAP.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV

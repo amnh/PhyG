@@ -421,15 +421,19 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
                                                 else 
                                                    -- Use IA assingment but ONLY reoptimize the IA states 
                                                    error "IA reoptimizeGraphFromVertex not yet implemented"
-       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+       postOrderBaseDecGraph = LG.insNode startPrunedParentNode $ thd6 postOrderBaseGraph
+       postOrderBaseGraph' = (fst6 postOrderBaseGraph, snd6 postOrderBaseGraph, postOrderBaseDecGraph, fth6 postOrderBaseGraph, fft6 postOrderBaseGraph, six6 postOrderBaseGraph)
+
+       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex False postOrderBaseGraph'
 
        -- create fully optimized pruned graph
        (postOrderPrunedGraph, _, _) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
                                         else 
                                           -- Use IA assingment but ONLY reoptimize the IA states 
                                           error "IA reoptimizeGraphFromVertex not yet implemented"
-
-       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+       postOrderPrunedDecGraph = LG.insNode startPrunedParentNode $ thd6 postOrderPrunedGraph
+       postOrderPrunedGraph' = (fst6 postOrderPrunedGraph, snd6 postOrderPrunedGraph, postOrderPrunedDecGraph, fth6 postOrderPrunedGraph, fft6 postOrderPrunedGraph, six6 postOrderPrunedGraph)
+       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex False postOrderPrunedGraph
 
        -- get root node of base graph
        startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -452,9 +456,10 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
        splitGraphCost = (snd6 fullBaseGraph) + (snd6 fullPrunedGraph) + localRootCost
 
    in
-   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show $ snd6 fullPrunedGraph) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode) ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph))
+   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show $ snd6 fullPrunedGraph) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode) ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
+   trace ("SG:" ++ (show fullSplitGraph))
    (fullSplitGraph, splitGraphCost)
-
+   )
 
 
 
