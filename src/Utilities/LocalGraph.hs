@@ -167,6 +167,19 @@ out = G.out
 parents :: Gr a b -> Node -> [Node]
 parents inGraph inNode = fst3 <$> G.inn inGraph inNode
 
+
+-- | labParents returns the labelled parents of a node
+labParents :: (Eq a) => Gr a b -> Node -> [LNode a]
+labParents inGraph inNode =
+    let parentNodeList = parents inGraph inNode
+        parentLabelList = fmap (lab inGraph) parentNodeList
+        hasNothing = Nothing `elem` parentLabelList
+        parentLabelList' = fmap fromJust parentLabelList
+    in
+    if hasNothing then error "Unlabeled nodes in labParents"
+    else zip parentNodeList parentLabelList'
+        
+
 -- | descendants of unlabelled node
 descendants :: Gr a b -> Node -> [Node]
 descendants inGraph inNode = snd3 <$> G.out inGraph inNode
@@ -176,11 +189,11 @@ labDescendants :: (Eq a) => Gr a b -> LNode a -> [LNode a]
 labDescendants inGraph inNode =
     let nodeList = snd3 <$> G.out inGraph (fst inNode)
         maybeLabelList = fmap (lab inGraph) nodeList
-        nothingList = filter (== Nothing) maybeLabelList
+        hasNothing = Nothing `elem` maybeLabelList
         labelList = fmap fromJust maybeLabelList
         labNodeList = zip nodeList labelList
     in
-    if not $ null nothingList then error "Unlabeled nodes in labDescendants"
+    if hasNothing then error "Unlabeled nodes in labDescendants"
     else labNodeList
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
@@ -439,13 +452,13 @@ nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesBefore" ++ show intoLabNodeList)
     else nodesAndEdgesBefore inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ tail inNodeList)
 
--- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
+-- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.
 -- Does NOT Contain starting nodes
 -- call with ([], [])
-nodesAndEdgesAfter :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
-nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList
+nodesAndEdgesAfter' :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
   | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesAfter"
   | null inNodeList = curResults
   | otherwise =
@@ -456,7 +469,14 @@ nodesAndEdgesAfter inGraph curResults@(curNodes, curEdges) inNodeList
         fromLabNodeList = zip fromNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
-    else nodesAndEdgesAfter inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
+    else nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
+
+-- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
+-- and edges 'after' in the sense of leading from-ie between (not including)) that node
+-- and all the way to any leaves is connects to.
+-- Does NOT Contain starting nodes
+nodesAndEdgesAfter :: (Eq a, Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNodeList
 
 -- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
 -- does one at a time and makes a graph and recurses

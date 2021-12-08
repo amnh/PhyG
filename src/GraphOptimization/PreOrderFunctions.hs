@@ -107,7 +107,7 @@ preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex inPGraph@(inSimple,
                                  if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod preOrderBlockVect' inCharInfoVV inDecorated
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod rootIndex preOrderBlockVect' inCharInfoVV inDecorated
         in
         {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -456,8 +456,8 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges inGS finalMethd preOrderBlockTreeVV inCharInfoVV inGraph =
+assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Int -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else
@@ -472,12 +472,8 @@ assignPreorderStatesAndEdges inGS finalMethd preOrderBlockTreeVV inCharInfoVV in
             blockTreePairVV =  fmap (fmap LG.makeNodeEdgePairVect) preOrderBlockTreeVV
 
             -- update edge labels--for softwired need to account for not all edges in all block/display trees
-            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList $ L.sortOn fst newNodeList)) postOrderEdgeList
-                          else 
-                            let rootIndexList = fmap fst $ LG.getRoots inGraph  
-                            in 
-                                if (length rootIndexList /= 1) then error ("Root number not 1 in assignPreorderStatesAndEdges" ++ (show rootIndexList))
-                                else fmap (updateEdgeInfoSoftWired finalMethd inCharInfoVV blockTreePairVV (head rootIndexList)) postOrderEdgeList
+            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList newNodeList)) postOrderEdgeList
+                          else fmap (updateEdgeInfoSoftWired finalMethd inCharInfoVV blockTreePairVV rootIndex) postOrderEdgeList
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
@@ -648,7 +644,7 @@ getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (L
 getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else
-        -- trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
+        trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -657,7 +653,7 @@ getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
         in
 
         (minCost, maxCost)
-        -- )
+        )
 
 -- | getBlockCostPairsFinal takes a block of two nodes and character infomation and returns the min and max block branch costs
 getBlockCostPairsFinal :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)
