@@ -97,7 +97,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        blockCharInfo = V.map thd3 $ thd3 inData
 
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves False $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
    in
@@ -130,7 +130,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                        else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
+          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves False $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves
                           else T.multiTraverseFullyLabelGraph inGS inData False False Nothing newSimple'   
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph

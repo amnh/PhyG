@@ -378,9 +378,10 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex c
        costEV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE dummyV charInfoVV []
 
        subGraphEdgeUnionCost' = (costNewE + costNewV - costEV) / 2.0
-      
+
    in
    trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
+   -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
    subGraphEdgeUnionCost
 
 
@@ -420,7 +421,7 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
                                                 else 
                                                    -- Use IA assingment but ONLY reoptimize the IA states 
                                                    error "IA reoptimizeGraphFromVertex not yet implemented"
-       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex postOrderBaseGraph
+       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
        -- create fully optimized pruned graph
        (postOrderPrunedGraph, _, _) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
@@ -428,7 +429,7 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
                                           -- Use IA assingment but ONLY reoptimize the IA states 
                                           error "IA reoptimizeGraphFromVertex not yet implemented"
 
-       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex postOrderPrunedGraph
+       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
 
        -- get root node of base graph
        startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -515,7 +516,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inSplit
        fullPostOrderPhylogeneticGraph = (GO.convertDecoratedToSimpleGraph fullPostOrderGraph, prunedSubGraphCost + (snd6 postOrderBaseGraph) + localRootCost, fullPostOrderGraph, fth6 postOrderBaseGraph, fft6 postOrderBaseGraph, charInfoVV) 
 
        -- perform pre-order on base component 
-       completeSplitGraph = if (swapType /= "tbr") then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) localStartVertex fullPostOrderPhylogeneticGraph
+       completeSplitGraph = if (swapType /= "tbr") then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) localStartVertex False fullPostOrderPhylogeneticGraph
                             else -- TBR requires preorder for pruned component
                                  error "TBR not yet implemented"
 

@@ -109,7 +109,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
     else 
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
-            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex postOrderGraph
+            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex False postOrderGraph
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
 
@@ -126,7 +126,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
         in
-        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex postOrderGraph
+        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex False postOrderGraph
             
     
 -- | generalizedGraphPostOrderTraversal performs the postorder pass 

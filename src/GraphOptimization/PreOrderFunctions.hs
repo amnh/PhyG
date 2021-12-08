@@ -70,6 +70,7 @@ import qualified GraphOptimization.Medians as M
 import qualified Utilities.LocalGraph as LG
 import qualified SymMatrix                   as S
 import qualified Graphs.GraphOperations as GO
+import qualified Data.Map as MAP
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -91,8 +92,8 @@ import qualified Graphs.GraphOperations as GO
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
     else
@@ -107,7 +108,7 @@ preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex inPGraph@(inSimple,
                                  if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod rootIndex preOrderBlockVect' inCharInfoVV inDecorated
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
         {-
         let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -456,8 +457,8 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Int -> V.Vector (V.Vector DecoratedGraph) -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV inCharInfoVV inGraph =
+assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Int -> V.Vector (V.Vector DecoratedGraph) -> Bool -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else
@@ -472,8 +473,14 @@ assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV inCha
             blockTreePairVV =  fmap (fmap LG.makeNodeEdgePairVect) preOrderBlockTreeVV
 
             -- update edge labels--for softwired need to account for not all edges in all block/display trees
-            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList newNodeList)) postOrderEdgeList
-                          else fmap (updateEdgeInfoSoftWired finalMethd inCharInfoVV blockTreePairVV rootIndex) postOrderEdgeList
+            -- map for case where tree does not contain all leaves as in swap procedures
+            -- needs to be updated for softwired as well
+            nodeMap = MAP.fromList $ zip (fmap fst newNodeList) newNodeList
+            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then 
+                                if useMap then fmap (updateEdgeInfoTreeMap finalMethd inCharInfoVV nodeMap) postOrderEdgeList
+                                else fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList newNodeList)) postOrderEdgeList
+                          else 
+                                fmap (updateEdgeInfoSoftWired finalMethd inCharInfoVV blockTreePairVV rootIndex) postOrderEdgeList
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
@@ -617,9 +624,6 @@ edgeInVect (u, v) edgeVect =
         else if (v, u) == (a, b) then True
         else edgeInVect (u, v) (V.tail edgeVect)
 
-
-
-
 -- | updateEdgeInfoTree takes a Decorated graph--fully labelled post and preorder and and edge and 
 -- gets edge info--basically lengths
 -- this for a tree in that all edges are present in all character/block trees
@@ -638,8 +642,30 @@ updateEdgeInfoTree finalMethod inCharInfoVV nodeVector (uNode, vNode, edgeLabel)
         in
         (uNode, vNode, newEdgeLabel)
 
+
+-- | updateEdgeInfoTreeMap takes a Decorated graph--fully labelled post and preorder and and edge and 
+-- gets edge info--basically lengths
+-- this for a tree in that all edges are present in all character/block trees
+-- uses MAP as opposed to index
+updateEdgeInfoTreeMap :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> MAP.Map Int (LG.LNode VertexInfo) -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo
+updateEdgeInfoTreeMap finalMethod inCharInfoVV nodeMap (uNode, vNode, edgeLabel) =
+    if MAP.null nodeMap then error "Empty node MAP in updateEdgeInfo"
+    else
+        let (minW, maxW) = getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode)
+            midW = (minW + maxW) / 2.0
+            localEdgeType = edgeType edgeLabel
+            newEdgeLabel = EdgeInfo { minLength = minW
+                                    , maxLength = maxW
+                                    , midRangeLength = midW
+                                    , edgeType  = localEdgeType
+                                    }
+        in
+        (uNode, vNode, newEdgeLabel)
+
 -- | getEdgeWeight takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
 -- basically a min/max distance between the two
+-- the indexing depends on the graph having all leaves in the graph which may not happen
+-- during graph swapping
 getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
 getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
@@ -647,6 +673,26 @@ getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
         trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
+            blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
+            minCost = sum $ fmap fst blockCostPairs
+            maxCost = sum $ fmap snd blockCostPairs
+        in
+
+        (minCost, maxCost)
+        )
+
+-- | getEdgeWeightMap takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
+-- basically a min/max distance between the two
+-- in this case based on map or vertices rather than direct indexing.
+-- the indexing depends on the graph having all leaves in the graph which may not happen
+-- during graph swapping
+getEdgeWeightMap :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> MAP.Map Int (LG.LNode VertexInfo) -> (Int, Int) -> (VertexCost, VertexCost)
+getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode) =
+    if MAP.null nodeMap then error "Empty node map in getEdgeWeight"
+    else
+        trace ("GEW: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
+        let uNodeInfo = vertData $ snd $ nodeMap MAP.! uNode
+            vNodeInfo = vertData $ snd $ nodeMap MAP.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
             minCost = sum $ fmap fst blockCostPairs
             maxCost = sum $ fmap snd blockCostPairs
