@@ -357,7 +357,8 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex c
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
 
        -- create edge union 'character' blockData
-       -- based on final assignments--need to filter gaps if DO, not itIA
+       -- based on final assignments but set to preliminary
+       -- need to filter gaps if DO, not itIA
        edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
        -- Use edge union data for delta to edge data
@@ -369,6 +370,7 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex c
 
        -- subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
 
+       
        dummyE = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData eNodeVertData charInfoVV []
        dummyV = M.createEdgeUnionOverBlocks (not doIA) vNodeVertData vNodeVertData charInfoVV []
        dummySGV = M.createEdgeUnionOverBlocks (not doIA) (PRE.setFinalToPreliminaryStates subGraphVertData) (PRE.setFinalToPreliminaryStates subGraphVertData) charInfoVV []
@@ -378,11 +380,16 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph prunedGraphRootIndex c
        costEV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE dummyV charInfoVV []
 
        subGraphEdgeUnionCost' = (costNewE + costNewV - costEV) / 2.0
+       
 
    in
-   trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
-   -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
-   subGraphEdgeUnionCost
+   if null subGraphVertData || null eNodeVertData || null vNodeVertData then
+    trace ("GSD nulls:" ++ (show $ fmap length [subGraphVertData, eNodeVertData, vNodeVertData]))
+    subGraphEdgeUnionCost
+   else  
+    --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
+    -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
+    min subGraphEdgeUnionCost  subGraphEdgeUnionCost'
 
 
 -- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex
@@ -421,25 +428,29 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
                                                 else 
                                                    -- Use IA assingment but ONLY reoptimize the IA states 
                                                    error "IA reoptimizeGraphFromVertex not yet implemented"
-       postOrderBaseDecGraph = LG.insNode startPrunedParentNode $ thd6 postOrderBaseGraph
+       {- postOrderBaseDecGraph = LG.insNode startPrunedParentNode $ thd6 postOrderBaseGraph
        postOrderBaseGraph' = (fst6 postOrderBaseGraph, snd6 postOrderBaseGraph, postOrderBaseDecGraph, fth6 postOrderBaseGraph, fft6 postOrderBaseGraph, six6 postOrderBaseGraph)
+       -}
 
-       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex False postOrderBaseGraph'
+       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
        -- create fully optimized pruned graph
        (postOrderPrunedGraph, _, _) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
                                         else 
                                           -- Use IA assingment but ONLY reoptimize the IA states 
                                           error "IA reoptimizeGraphFromVertex not yet implemented"
+       {-
        postOrderPrunedDecGraph = LG.insNode startPrunedParentNode $ thd6 postOrderPrunedGraph
        postOrderPrunedGraph' = (fst6 postOrderPrunedGraph, snd6 postOrderPrunedGraph, postOrderPrunedDecGraph, fth6 postOrderPrunedGraph, fft6 postOrderPrunedGraph, six6 postOrderPrunedGraph)
-       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex False postOrderPrunedGraph
+       -}
+       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+
 
        -- get root node of base graph
        startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
 
        -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
-       startPrunedNode = (prunedSubGraphRootVertex, fromJust $ LG.lab (thd6 fullPrunedGraph) prunedSubGraphRootVertex)
+       startPrunedNode = (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
        startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
        startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
@@ -456,10 +467,10 @@ reoptimizeGraphFromVertex' inGS inData swapType doIA charInfoVV origGraph inSpli
        splitGraphCost = (snd6 fullBaseGraph) + (snd6 fullPrunedGraph) + localRootCost
 
    in
-   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show $ snd6 fullPrunedGraph) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode) ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
-   trace ("SG:" ++ (show fullSplitGraph))
+   trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show $ snd6 fullPrunedGraph) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)) -- ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
+   --trace ("SG:" ++ (show fullSplitGraph))
    (fullSplitGraph, splitGraphCost)
-   )
+   
 
 
 

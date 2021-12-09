@@ -670,7 +670,7 @@ getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (L
 getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else
-        trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
+        -- trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -679,7 +679,7 @@ getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
         in
 
         (minCost, maxCost)
-        )
+        -- )
 
 -- | getEdgeWeightMap takes a preorder decorated decorated graph and an edge and gets the weight information for that edge
 -- basically a min/max distance between the two
@@ -690,7 +690,7 @@ getEdgeWeightMap :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> MAP.Map 
 getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode) =
     if MAP.null nodeMap then error "Empty node map in getEdgeWeight"
     else
-        trace ("GEWM: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
+        -- trace ("GEWM: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeMap MAP.! uNode
             vNodeInfo = vertData $ snd $ nodeMap MAP.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -699,7 +699,7 @@ getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode) =
         in
 
         (minCost, maxCost)
-        )
+        -- )
 
 -- | getBlockCostPairsFinal takes a block of two nodes and character infomation and returns the min and max block branch costs
 getBlockCostPairsFinal :: AssignmentMethod -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> (VertexCost, VertexCost)

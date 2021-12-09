@@ -506,8 +506,8 @@ to render--would have repeated subtrees after network vertex
 214) Check median left right order for static charcaters--make sure same as dynamic
 	And for IA assignments as well
 
-215) het.pg error
-
 216) static branch lengths wrong
 
 217) check swap delta cost for matrix charcaters
+
+218) Use postorder for cost--then preorder after
