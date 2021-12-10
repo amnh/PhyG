@@ -65,65 +65,65 @@ swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia"]
 -- | swapMaster processes and spawns the swap functions
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphList = 
-   trace ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
    if null inGraphList then []
    else 
+      trace ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
           checkCommandList = U.checkCommandArgs "swap" fstArgList swapArgList
-   in
-   -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
-   else 
-       let keepList = filter ((=="keep").fst) lcArgList
-           keepNum
-            | length keepList > 1 =
-              errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
-            | null keepList = Just 1
-            | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
-      in
-      if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (snd $ head keepList))
-      else 
-         let -- getting values to be passed for graph diagnosis later
-             numLeaves = V.length $ fst3 inData
-             leafGraph = T.makeSimpleLeafGraph inData
-             leafDecGraph = T.makeLeafGraph inData
-             leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-             hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
-             charInfoVV = six6 $ head inGraphList
+     in
+     -- check for valid command options
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
+     else 
+         let keepList = filter ((=="keep").fst) lcArgList
+             keepNum
+              | length keepList > 1 =
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
+              | null keepList = Just 1
+              | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+        in
+        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (snd $ head keepList))
+        else 
+           let -- getting values to be passed for graph diagnosis later
+               numLeaves = V.length $ fst3 inData
+               leafGraph = T.makeSimpleLeafGraph inData
+               leafDecGraph = T.makeLeafGraph inData
+               leafGraphSoftWired = T.makeLeafGraphSoftWired inData
+               hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
+               charInfoVV = six6 $ head inGraphList
 
-             -- process args for swap
-             doNNI = any ((=="nni").fst) lcArgList
-             doSPR' = any ((=="spr").fst) lcArgList
-             doTBR = any ((=="tbr").fst) lcArgList
-             doIA = any ((=="ia").fst) lcArgList
-             doSteepest' = any ((=="steepest").fst) lcArgList
-             doAll = any ((=="all").fst) lcArgList
-             doSPR = if (not doNNI && not doSPR' && not doTBR) then True
-                     else doSPR'
-             doSteepest = if (not doSteepest' && not doAll) then True
-                          else doSteepest'
-             (newGraphList, counterNNI)  = if doNNI then 
-                                             let graphPairList = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
-                                                 (graphListList, counterList) = unzip graphPairList
-                                             in (concat graphListList, sum counterList)
-                                           else (inGraphList, 0)
-             (newGraphList', counterSPR)  = if doSPR then 
-                                             let graphPairList = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
-                                                 (graphListList, counterList) = unzip graphPairList
-                                             in (concat graphListList, sum counterList)
-                                           else (newGraphList, 0)
+               -- process args for swap
+               doNNI = any ((=="nni").fst) lcArgList
+               doSPR' = any ((=="spr").fst) lcArgList
+               doTBR = any ((=="tbr").fst) lcArgList
+               doIA = any ((=="ia").fst) lcArgList
+               doSteepest' = any ((=="steepest").fst) lcArgList
+               doAll = any ((=="all").fst) lcArgList
+               doSPR = if (not doNNI && not doSPR' && not doTBR) then True
+                       else doSPR'
+               doSteepest = if (not doSteepest' && not doAll) then True
+                            else doSteepest'
+               (newGraphList, counterNNI)  = if doNNI then 
+                                               let graphPairList = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
+                                                   (graphListList, counterList) = unzip graphPairList
+                                               in (concat graphListList, sum counterList)
+                                             else (inGraphList, 0)
+               (newGraphList', counterSPR)  = if doSPR then 
+                                               let graphPairList = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
+                                                   (graphListList, counterList) = unzip graphPairList
+                                               in (concat graphListList, sum counterList)
+                                             else (newGraphList, 0)
 
-             (newGraphList'', counterTBR) = if doTBR then 
-                                             let graphPairList =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
-                                                 (graphListList, counterList) = unzip graphPairList
-                                             in (concat graphListList, sum counterList)
-                                           else (newGraphList', 0)
-            in
-            trace ("After swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-            newGraphList''
-   )
+               (newGraphList'', counterTBR) = if doTBR then 
+                                               let graphPairList =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
+                                                   (graphListList, counterList) = unzip graphPairList
+                                               in (concat graphListList, sum counterList)
+                                             else (newGraphList', 0)
+              in
+              trace ("After swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+              newGraphList''
+     )
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs

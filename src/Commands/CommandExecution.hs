@@ -233,13 +233,22 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "diagnosis" `elem` commandList then
                 let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs [0.. ((length curGraphs) - 1)])
                 in
-                (dataString, outfileName, writeMode)
+                if null curGraphs then 
+                    trace ("No graphs to diagnose")
+                    ("No graphs to diagnose", outfileName, writeMode)
+                else 
+                    trace ("Diagnosing " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    (dataString, outfileName, writeMode)
 
             else if "graphs" `elem` commandList then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
-                trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
-                (graphString, outfileName, writeMode)
+                if null curGraphs then 
+                    trace ("No graphs to report")
+                    ("No graphs to report", outfileName, writeMode)
+                else 
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    (graphString, outfileName, writeMode)
 
             else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
@@ -249,7 +258,11 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList (outgroupIndex globalSettings)) canonicalGraphPairList)
                     -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
-                (blockStringList, outfileName, writeMode)
+                if null curGraphs || (graphType globalSettings) /= SoftWired then 
+                    trace ("No soft-wired graphs to report display trees")
+                    ("No soft-wired graphs to report display trees", outfileName, writeMode)
+                else 
+                    (blockStringList, outfileName, writeMode)
 
             else if "pairdist" `elem` commandList then
                 let nameData = L.intercalate "," (V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
@@ -260,7 +273,11 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "reconcile" `elem` commandList then
                 let (reconcileString, _) = R.makeReconcileGraph reconcileCommandList argList (fmap fst6 curGraphs)
                 in
-                (reconcileString, outfileName, writeMode)
+                if null curGraphs then 
+                    trace ("No graphs to reconcile")
+                    ("No graphs to reconcile", outfileName, writeMode)
+                else 
+                    (reconcileString, outfileName, writeMode)
 
 
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
