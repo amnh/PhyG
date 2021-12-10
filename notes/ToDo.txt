@@ -511,3 +511,10 @@ to render--would have repeated subtrees after network vertex
 217) check swap delta cost for matrix charcaters
 
 218) Use postorder for cost--then preorder after
+
+219) remove all the parent child stuff from vertex--never used, rely on grpah functions
+
+220) Migrate outputs to alphabet functions for ambiguity
+
+221) Outputs with char changes in positions apolist type
+
