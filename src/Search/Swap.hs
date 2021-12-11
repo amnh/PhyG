@@ -307,9 +307,9 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV
       -- )
 
 -- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
-applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, LG.LNode a, [LG.LEdge b], LG.Edge) ->  LG.Gr a b
-applyGraphEdits inGraph editStuff@(_, nodeToAdd, edgesToAdd, edgeToDelete) = 
-   let editedGraph = LG.insEdges edgesToAdd $ LG.delEdge edgeToDelete inGraph
+applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, LG.LNode a, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
+applyGraphEdits inGraph editStuff@(_, nodeToAdd, edgesToAdd, edgesToDelete) = 
+   let editedGraph = LG.insEdges edgesToAdd $ LG.delEdges edgesToDelete inGraph
    in
    -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 
    editedGraph
@@ -514,7 +514,7 @@ addSubGraphSteepest :: GlobalSettings
                      -> LG.Node 
                      -> V.Vector (V.Vector CharInfo) 
                      -> [LG.LEdge EdgeInfo] 
-                     -> [(VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)] 
+                     -> [(VertexCost, LG.LNode TL.Text, [LG.LEdge Double], [LG.Edge])] 
 addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost curBestCost nakedNode charInfoVV targetEdgeList =  
    if null targetEdgeList then []
    else 
@@ -530,14 +530,14 @@ addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost cu
           subGraphVertDataList = if swapType == "spr" ||swapType == "nni"  then [vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex]
                                  else error "Steepest TBR not yet implemented"
 
-          delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
+          (delta, tbrEdgesAdd, tbrEdgesDelete) = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
       in
       -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
       if (eNode == nakedNode) then addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost curBestCost nakedNode charInfoVV (tail targetEdgeList)
 
       -- better heursitic cost
-      else if (delta + splitCost < curBestCost) then [(delta + splitCost, newNode, [edge0, edge1], (eNode, vNode))] 
+      else if (delta + splitCost < curBestCost) then [(delta + splitCost, newNode, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)] 
 
       -- not better heuristic cost
       else addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost curBestCost nakedNode charInfoVV (tail targetEdgeList)
@@ -553,7 +553,7 @@ addSubGraph :: GlobalSettings
             -> LG.Node 
             -> V.Vector (V.Vector CharInfo) 
             -> LG.LEdge EdgeInfo 
-            -> [(VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)] 
+            -> [(VertexCost, LG.LNode TL.Text, [LG.LEdge Double], [LG.Edge])] 
 addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost nakedNode charInfoVV targetEdge@(eNode, vNode, targetlabel) =  
    let existingEdgeCost = minLength targetlabel
        edge0 = (nakedNode, vNode, 0.0)
@@ -563,23 +563,23 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost nakedNode 
        subGraphVertDataList = if swapType == "spr" ||swapType == "nni"  then [vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex]
                            else error "Steepest TBR not yet implemented"
 
-       delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
+       (delta, tbrEdgesAdd, tbrEdgesDelete) = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
    in
    
    -- do not redo origal edge so retun infinite cost and dummy edits
    
    if (eNode == nakedNode) then  
       -- trace ("ASG: break edge") 
-      [(infinity, (-1, TL.empty), [], (-1,-1))]
+      [(infinity, (-1, TL.empty), [], [])]
    else
       -- trace ("ASG: " ++ (show (delta, splitCost)) ++ " => " ++ (show $ delta + splitCost))  
-      [(delta + splitCost, newNode, [edge0, edge1], (eNode, vNode))] -- edge 2
+      [(delta + splitCost, newNode, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)] -- edge 2
    
 
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
 -- for SPR use the preliminary of subGraph to final of e and v nodes
 -- can use median fruntions for postorder if set final-> prelim or e and f
-getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  [VertexBlockData] -> VertexCost
+getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  [VertexBlockData] -> (VertexCost, [LG.LEdge Double], [LG.Edge])
 getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphVertDataList = 
    let existingEdgeCost = minLength targetlabel
        eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
@@ -618,12 +618,8 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphVer
        
 
    in
-   if null subGraphVertData || null eNodeVertData || null vNodeVertData then
-    trace ("GSD nulls:" ++ (show $ fmap length [subGraphVertData, eNodeVertData, vNodeVertData]))
-    subGraphEdgeUnionCost
-   else  
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
     -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
     --min subGraphEdgeUnionCost  subGraphEdgeUnionCost'
-    subGraphEdgeUnionCost
+    (subGraphEdgeUnionCost, [], [])
 
