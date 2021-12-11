@@ -527,9 +527,10 @@ addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost cu
 
           -- for SPRT/NNI only need preliminary state of root-pruned node
           -- for TBR ther are multiple verticces created for each edge
-          subGraphVertData = if swapType == "spr" ||swapType == "nni"  then vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex
-                             else error "Steepest TBR not yet implemented"
-          delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertData
+          subGraphVertDataList = if swapType == "spr" ||swapType == "nni"  then [vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex]
+                                 else error "Steepest TBR not yet implemented"
+
+          delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
       in
       -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
@@ -559,9 +560,10 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost nakedNode 
        edge1 = (eNode, nakedNode, 0.0)
        -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
        newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
-       subGraphVertData = if swapType == "spr" ||swapType == "nni"  then vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex
+       subGraphVertDataList = if swapType == "spr" ||swapType == "nni"  then [vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex]
                            else error "Steepest TBR not yet implemented"
-       delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertData
+
+       delta = getSubGraphDelta targetEdge doIA inGraph charInfoVV subGraphVertDataList
    in
    
    -- do not redo origal edge so retun infinite cost and dummy edits
@@ -577,11 +579,12 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost nakedNode 
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
 -- for SPR use the preliminary of subGraph to final of e and v nodes
 -- can use median fruntions for postorder if set final-> prelim or e and f
-getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  VertexBlockData -> VertexCost
-getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphVertData= 
+getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  [VertexBlockData] -> VertexCost
+getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphVertDataList = 
    let existingEdgeCost = minLength targetlabel
        eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+       subGraphVertData = head subGraphVertDataList
 
        -- create edge union 'character' blockData
        -- based on final assignments but set to preliminary
