@@ -484,7 +484,7 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost nakedNode 
        (nodesAfterPrunedRoot, _) = LG.nodesAndEdgesAfter inGraph [(prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)]
        onlySPR = length nodesAfterPrunedRoot < 3
        subGraphEdgeVertDataPairList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex)]
-                                      else getPrunedEdgeData doIA inGraph prunedGraphRootIndex charInfoVV
+                                      else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootIndex charInfoVV
 
        -- get deltas and edges for TBR rerooting of pruned subgraph
        deltaEdgePairList = fmap (getSubGraphDelta targetEdge doIA inGraph charInfoVV) subGraphEdgeVertDataPairList
@@ -528,14 +528,15 @@ getTBREdgeEdits inGraph prunedGraphRootIndex rerootEdge =
 
 -- | getPrunedEdgeData takes fully optimized pruned data and returns edge list
 -- and edge data for TBR additions
-getPrunedEdgeData ::  Bool -> DecoratedGraph -> Int -> V.Vector (V.Vector CharInfo) -> [(LG.Edge, VertexBlockData)]
-getPrunedEdgeData doIA inGraph prunedGraphRootIndex charInfoVV =
+getPrunedEdgeData ::  GraphType -> Bool -> DecoratedGraph -> Int -> V.Vector (V.Vector CharInfo) -> [(LG.Edge, VertexBlockData)]
+getPrunedEdgeData graphType doIA inGraph prunedGraphRootIndex charInfoVV =
    if LG.isEmpty inGraph then error "Empty graph in getPrunedEdgeData"
    else 
       let (_, edgeAfterList) = LG.nodesAndEdgesAfter inGraph [(prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)]
 
           -- this so not rerooted on network edge--screws things up
-          nonNetWorkEdgeList = filter ((== False) . (LG.isNetworkLabEdge inGraph)) edgeAfterList
+          nonNetWorkEdgeList = if graphType /= Tree then filter ((== False) . (LG.isNetworkLabEdge inGraph)) edgeAfterList
+                               else edgeAfterList
          
           -- oringal pruned root
           prunedRootEdges = LG.out inGraph prunedGraphRootIndex
