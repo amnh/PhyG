@@ -311,6 +311,15 @@ isLeaf  inGraph inNode = G.outdeg inGraph inNode == 0
 isNetworkNode  :: Gr a b -> Node -> Bool
 isNetworkNode  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
 
+
+-- | - | isNetworkEdge checks if edge is network edge 
+isNetworkEdge  :: Gr a b -> Edge -> Bool
+isNetworkEdge  inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
+
+-- | - | isNetworkLabEdge checks if edge is network edge 
+isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
+isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
+
 -- | isTreeNode checks if node is network node 
 isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (G.indeg inGraph inNode == 1) && (G.outdeg inGraph inNode > 0)

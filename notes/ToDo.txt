@@ -518,3 +518,6 @@ to render--would have repeated subtrees after network vertex
 
 221) Outputs with char changes in positions apolist type
 
+222) abstract steepest and all functions to simplify code
+
+223) Is sorting edges oni length ofr steepest effective?
