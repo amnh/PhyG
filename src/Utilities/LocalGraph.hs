@@ -419,9 +419,9 @@ prettify inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else G.prettify inGraph
 
--- | pathToRoot takes a greaph and a vertex and reurns a pair of lists 
+-- | pathToRoot takes a graph and a vertex and reurns a pair of lists 
 -- of vertices and edges to root(s) in order of encountering them to root
--- if a tree--not necessrily if network
+-- if a tree--not necessarily if network--should work
 pathToRoot :: (Eq a, Eq b) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
 pathToRoot inGraph inNode =
     if G.isEmpty inGraph then error "Empty graph in pathToRoot"
