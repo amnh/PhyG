@@ -355,7 +355,13 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
           edgesToInvade = if steepest then (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode])  L.\\ (outgroupEdges ++ prunedSubTreeEdges)
                           else (LG.labEdges splitGraph) L.\\ (outgroupEdges ++ prunedSubTreeEdges)
-          candidateEditList = concatMap (addSubGraph inGS swapType doIA splitGraph prunedGraphRootIndex splitCost nakedNode charInfoVV) edgesToInvade `using` PU.myParListChunkRDS
+
+          prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
+          (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
+          onlySPR = length nodesAfterPrunedRoot < 3
+       
+
+          candidateEditList = concatMap (addSubGraph inGS swapType doIA splitGraph prunedGraphRootNode splitCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV) edgesToInvade `using` PU.myParListChunkRDS
 
 
           minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst3 candidateEditList   
@@ -440,17 +446,17 @@ addSubGraphSteepest inGS swapType doIA inGraph prunedGraphRootIndex splitCost cu
           existingEdgeCost = minLength targetlabel
           edge0 = (nakedNode, vNode, 0.0)
           edge1 = (eNode, nakedNode, 0.0)
+          targetEdgeData = makeEdgeData doIA inGraph charInfoVV targetEdge
           -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
           --newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
 
           -- for SPRT/NNI only need preliminary state of root-pruned node
           -- for TBR ther are multiple verticces created for each edge
-          subGraphEdgeVertDataPairList = if swapType == "spr" ||swapType == "nni"  then [((-1, -1), vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex)]
+          subGraphEdgeVertDataTripleList = if swapType == "spr" ||swapType == "nni"  then [((-1, -1), vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex, ([],[]))]
                                          else error "Steepest TBR not yet implemented"
 
-          (delta, rerootEdge) = getSubGraphDelta targetEdge doIA inGraph charInfoVV (head subGraphEdgeVertDataPairList)
-          tbrEdgesAdd = []
-          tbrEdgesDelete =[]
+          (delta, rerootEdge, (tbrEdgesAdd, tbrEdgesDelete)) = getSubGraphDelta targetEdgeData doIA inGraph charInfoVV (head subGraphEdgeVertDataTripleList)
+          
       in
       -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
@@ -468,35 +474,39 @@ addSubGraph :: GlobalSettings
             -> String
             -> Bool 
             -> DecoratedGraph 
-            -> LG.Node 
+            -> LG.LNode VertexInfo
             -> VertexCost 
             -> LG.Node 
+            -> Bool
+            -> [LG.LEdge EdgeInfo]
             -> V.Vector (V.Vector CharInfo) 
             -> LG.LEdge EdgeInfo 
             -> [(VertexCost, [LG.LEdge Double], [LG.Edge])] 
-addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost parentPrunedRoot charInfoVV targetEdge@(eNode, vNode, targetlabel) =  
+addSubGraph inGS swapType doIA inGraph prunedGraphRootNode splitCost parentPrunedRoot onlySPR edgesInPrunedSubGraph charInfoVV targetEdge@(eNode, vNode, targetlabel) =  
    let existingEdgeCost = minLength targetlabel
-       edge0 = (nakedNode, vNode, 0.0)
-       edge1 = (eNode, nakedNode, 0.0)
+       edge0 = (parentPrunedRoot, vNode, 0.0)
+       edge1 = (eNode, parentPrunedRoot, 0.0)
+       targetEdgeData = makeEdgeData doIA inGraph charInfoVV targetEdge 
        -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
        --newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
        -- if subtree fewer than 3 leaves then can only do an SPR rearragement--no rerro0ts
-       (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter inGraph [(prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)]
-       onlySPR = length nodesAfterPrunedRoot < 3
-       subGraphEdgeVertDataPairList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ fromJust $ LG.lab inGraph prunedGraphRootIndex)]
-                                      else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootIndex charInfoVV
+       -- prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)
+       -- (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter inGraph [prunedGraphRootNode]
+       -- onlySPR = length nodesAfterPrunedRoot < 3
+       subGraphEdgeVertDataTripleList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
+                                      else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
 
        -- get deltas and edges for TBR rerooting of pruned subgraph
-       deltaEdgePairList = fmap (getSubGraphDelta targetEdge doIA inGraph charInfoVV) subGraphEdgeVertDataPairList
+       deltaEdgeTripleList = fmap (getSubGraphDelta targetEdgeData doIA inGraph charInfoVV) subGraphEdgeVertDataTripleList `using` PU.myParListChunkRDS
 
-       delta = minimum $ fmap fst deltaEdgePairList
+       delta = minimum $ fmap fst3 deltaEdgeTripleList
 
-       (_, minDeltaEdgeList) = unzip $ filter ((== delta) . fst) deltaEdgePairList
+       minDeltaEditList = fmap thd3 $ filter ((== delta) . fst3) deltaEdgeTripleList
 
 
        -- get TBR edits if rerooting took place
-       tbrEdgeEditList = if length subGraphEdgeVertDataPairList == 1 then []
-                         else fmap (getTBREdgeEdits inGraph prunedGraphRootIndex edgesInPrunedSubGraph) minDeltaEdgeList
+       tbrEdgeEditList = if length subGraphEdgeVertDataTripleList == 1 then []
+                         else minDeltaEditList
 
        (tbrEdgesToAddList, tbeEdgesToDeleteList) = unzip tbrEdgeEditList
 
@@ -508,12 +518,12 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost parentPrun
    
    -- do not redo origal edge so retun infinite cost and dummy edits
    
-   if (eNode == nakedNode) then  
+   if (eNode == parentPrunedRoot) then  
       -- trace ("ASG: break edge") 
       [(infinity, [], [])]
    else
       -- SPR or single reroot TBR case
-      if length subGraphEdgeVertDataPairList == 1 then [(delta + splitCost, [edge0, edge1], [(eNode, vNode)])]
+      if length subGraphEdgeVertDataTripleList == 1 then [(delta + splitCost, [edge0, edge1], [(eNode, vNode)])]
       
       -- TBR reroots 
       else zip3 deltaCostList edgesToAddList edgesToDeleteList
@@ -521,16 +531,32 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootIndex splitCost parentPrun
 
 -- | getTBREdgeEdits takes and edge and returns the list of edita to pruned subgraph 
 -- as a pair of edges to add and those to delete
+-- since reroot edge is directed (e,v), edges away from v will have correct
+-- orientation. Edges between 'e' and the root will have to be flipped
+-- original root edges and rerort edge are deleted and new root and edge spanning orginal root created
 -- returns ([add], [delete])
-getTBREdgeEdits :: DecoratedGraph -> Int -> [LG.LEdge EdgeInfo] -> LG.Edge -> ([LG.LEdge Double],[LG.Edge])
-getTBREdgeEdits inGraph prunedGraphRootIndex edgesInPrunedSubGraph rerootEdge =
-   let originalRootEdgeNodes = LG.descendents inGraph prunedGraphRootIndex
+getTBREdgeEdits :: DecoratedGraph -> LG.LNode VertexInfo -> [LG.LEdge EdgeInfo] -> LG.Edge -> ([LG.LEdge Double],[LG.Edge])
+getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
+   --trace ("Gettiung TBR Edits for " ++ (show rerootEdge)) (
+   let prunedGraphRootIndex = fst prunedGraphRootNode
+       originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
        originalRootEdges = LG.out inGraph prunedGraphRootIndex
-       newRootEdges = [(prunedGraphRootIndex, fst rerootEdge, 0.0 ),(prunedGraphRootIndex, fst rerootEdge, 0.0)]
+       
+       -- get path from new root edge fst vertex to orginal root and flip those edges
+       closerToPrunedRootEdgeNode = (fst rerootEdge, fromJust $ LG.lab inGraph $ fst rerootEdge)
+       (nodesInPath, edgesinPath) = LG.postOrderPathToNode inGraph closerToPrunedRootEdgeNode prunedGraphRootNode 
+       
+       -- don't want original root edges to be flipped since deleted
+       edgesToFlip = edgesinPath L.\\ originalRootEdges
+       flippedEdges = fmap GO.convertToSimpleEdge $ fmap LG.flipLEdge edgesToFlip
 
-       --- need check orientation on this
-       -- get path from old root to new and flip those edges  LG.pathToRoot
-       newEdgeOnOldRoot = (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, 0.0)
+       -- new edges on new root position and spanning old root
+       -- ad in closer vertex to root to make sure direction of edge is correct
+       newEdgeOnOldRoot = if (snd3 $ head originalRootEdges) `elem` ((fst rerootEdge) : (fmap fst nodesInPath)) then (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, 0.0)
+                          else (snd3 $ last originalRootEdges, snd3 $ head originalRootEdges, 0.0)
+       newRootEdges = [(prunedGraphRootIndex, fst rerootEdge, 0.0 ),(prunedGraphRootIndex, snd rerootEdge, 0.0)]
+
+
    in
    -- original root edge so no change
    if (fst rerootEdge) `elem` originalRootEdgeNodes &&  (snd rerootEdge) `elem` originalRootEdgeNodes then ([],[])
@@ -541,39 +567,47 @@ getTBREdgeEdits inGraph prunedGraphRootIndex edgesInPrunedSubGraph rerootEdge =
       -- add new root edges 
       -- and new edge on old root--but need orientation
       -- flip edges from new root to old (delete and add list) 
-      (newRootEdges, originalRootEdges : originalRootEdges)
+      --trace ("\n\nIn Graph:\n"++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\nTBR Edits: " ++ (show (rerootEdge, prunedGraphRootIndex, fmap LG.toEdge flippedEdges))
+      --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
+      (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges)))
+      --)
 
 
 -- | getPrunedEdgeData takes fully optimized pruned data and returns edge list
 -- and edge data for TBR additions
-getPrunedEdgeData ::  GraphType -> Bool -> DecoratedGraph -> Int -> V.Vector (V.Vector CharInfo) -> [(LG.Edge, VertexBlockData)]
-getPrunedEdgeData graphType doIA inGraph prunedGraphRootIndex charInfoVV =
+getPrunedEdgeData ::  GraphType -> Bool -> DecoratedGraph -> LG.LNode VertexInfo -> [LG.LEdge EdgeInfo] -> V.Vector (V.Vector CharInfo) -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
+getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV =
    if LG.isEmpty inGraph then error "Empty graph in getPrunedEdgeData"
    else 
-      let (_, edgeAfterList) = LG.nodesAndEdgesAfter inGraph [(prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)]
+      let -- (_, edgeAfterList) = LG.nodesAndEdgesAfter inGraph [prunedGraphRootNode]
 
           -- this so not rerooted on network edge--screws things up
-          nonNetWorkEdgeList = if graphType /= Tree then filter ((== False) . (LG.isNetworkLabEdge inGraph)) edgeAfterList
-                               else edgeAfterList
+          nonNetWorkEdgeList = if graphType /= Tree then filter ((== False) . (LG.isNetworkLabEdge inGraph)) edgesInPrunedSubGraph
+                               else edgesInPrunedSubGraph
          
           -- oringal pruned root
-          prunedRootEdges = LG.out inGraph prunedGraphRootIndex
+          prunedRootEdges = LG.out inGraph $ fst prunedGraphRootNode
 
           -- new virtual edge of oringal root 2 edges
           virtualRootEdge = (snd3 $ head prunedRootEdges, snd3 $ last prunedRootEdges, thd3 $ head prunedRootEdges)
 
           -- edges availabel for testing
           edgeAfterList' = virtualRootEdge : (nonNetWorkEdgeList L.\\ prunedRootEdges)
-          edgeDataList = fmap (makeEdgeData doIA inGraph charInfoVV) edgeAfterList' 
+
+          -- could be parallelized
+          edgeDataList = fmap (makeEdgeData doIA inGraph charInfoVV) edgeAfterList' `using` PU.myParListChunkRDS
+
+          -- get potential TBR edits--here so not recalculated multiple times for each prune
+          edgeEdits = fmap (getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph) (fmap LG.toEdge edgeAfterList') `using` PU.myParListChunkRDS
       in
       if length prunedRootEdges /= 2 then error ("Incorrect number of out edges (should be 2) in root of pruned graph: " ++ (show $ length prunedRootEdges))
       else
-         trace ("Pruned reroots: " ++ (show $ fmap LG.toEdge edgeAfterList' ))  
-         zip (fmap LG.toEdge edgeAfterList') edgeDataList
+         -- trace ("Pruned reroots: " ++ (show $ fmap LG.toEdge edgeAfterList' ))  
+         zip3 (fmap LG.toEdge edgeAfterList') edgeDataList edgeEdits
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
 makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
-makeEdgeData doIA inGraph charInfoVV inEdge=
+makeEdgeData doIA inGraph charInfoVV inEdge =
    let eNode = fst3 inEdge
        vNode = snd3 inEdge
        eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
@@ -586,23 +620,24 @@ makeEdgeData doIA inGraph charInfoVV inEdge=
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
 -- for SPR use the preliminary of subGraph to final of e and v nodes
 -- can use median fruntions for postorder if set final-> prelim or e and f
-getSubGraphDelta :: LG.LEdge EdgeInfo -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  (LG.Edge, VertexBlockData) -> (VertexCost, LG.Edge)
-getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphEdgeVertDataPair = 
-   let existingEdgeCost = minLength targetlabel
-       eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-       vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
-       subGraphVertData = snd subGraphEdgeVertDataPair
+getSubGraphDelta :: VertexBlockData -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  (LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge])) -> (VertexCost, LG.Edge, ([LG.LEdge Double],[LG.Edge]))
+getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertData, edgeSubGraphEdits) = 
+   let --existingEdgeCost = minLength targetlabel
+       --eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
+       --NodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+       -- subGraphVertData = snd subGraphEdgeVertDataPair
 
        -- create edge union 'character' blockData
        -- based on final assignments but set to preliminary
        -- need to filter gaps if DO, not itIA
-       edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
+       --edgeUnionVertData = makeEdgeData doIA inGraph charInfoVV evEdge
+       -- edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
        -- Use edge union data for delta to edge data
        costMethod = if doIA then ImpliedAlignment
                     else DirectOptimization
 
-       subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData edgeUnionVertData charInfoVV []
+       subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData evEdgeData charInfoVV []
                               else error "IA not yet implemented in getSubGraphDelta"
 
        -- subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
@@ -625,11 +660,15 @@ getSubGraphDelta (eNode, vNode, targetlabel) doIA inGraph charInfoVV subGraphEdg
        
 
    in
+   if null subGraphVertData || null evEdgeData then 
+      trace ("SGD null :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData)))
+      (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
     -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
     --min subGraphEdgeUnionCost  subGraphEdgeUnionCost'
-
-   (subGraphEdgeUnionCost, fst subGraphEdgeVertDataPair)
+   else 
+      trace ("SGD no null:" ++ (show (subGraphEdgeUnionCost,edgeToJoin)))
+      (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
 
 
 -- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex

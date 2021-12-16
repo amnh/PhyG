@@ -89,12 +89,13 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
     if null networkVertexList then 
         let leafGraph = makeLeafGraph inData
         in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
-    else errorWithoutStackTrace "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type"
-      | graphType inGS == SoftWired = 
-        let leafGraph = makeLeafGraphSoftWired inData
-        in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
-      | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
-      | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
+    else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n" 
+                                    ++ (LG.prettify inGraph))
+  | graphType inGS == SoftWired = 
+    let leafGraph = makeLeafGraphSoftWired inData
+    in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
+  | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
+  | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges

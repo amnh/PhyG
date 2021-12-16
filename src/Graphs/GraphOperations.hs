@@ -42,6 +42,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , contractOneOneEdges
                                , getNodeType
                                , convertDecoratedToSimpleGraph
+                               , convertToSimpleEdge
                                , graphCostFromNodes
                                , switchRootTree
                                , dichotomizeRoot
@@ -556,13 +557,21 @@ convertDecoratedToSimpleGraph inDec =
         newNodeLabels = fmap vertName $ fmap snd decNodeList
         simpleNodes = zip (fmap fst decNodeList) newNodeLabels
 
+        {-
         decEdgeList = LG.labEdges inDec
         sourceList = fmap fst3 decEdgeList
         sinkList = fmap snd3 decEdgeList
         newEdgeLables = replicate (length sourceList) 0.0  -- fmap midRangeLength $ fmap thd3 decEdgeList
-        simpleEdgeList = zip3 sourceList sinkList newEdgeLables
+        simpleEdgeList = zip3 sourceList sinkList newEdgeLables 
+        -}
+        simpleEdgeList = fmap convertToSimpleEdge $ LG.labEdges inDec
     in
     LG.mkGraph simpleNodes simpleEdgeList
+
+
+-- | convertToSimpleEdge takes a lables edge and relabels with 0.0
+convertToSimpleEdge :: LG.LEdge b -> LG.LEdge Double
+convertToSimpleEdge (a, b, _) = (a, b, 0.0)
 
 -- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
 --  of its nodes

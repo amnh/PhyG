@@ -419,7 +419,7 @@ prettify inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else G.prettify inGraph
 
--- | pathToRoot takes a graph and a vertex and reurns a pair of lists 
+-- | pathToRoot takes a graph and a vertex and returns a pair of lists 
 -- of vertices and edges to root(s) in order of encountering them to root
 -- if a tree--not necessarily if network--should work
 pathToRoot :: (Eq a, Eq b) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
@@ -427,7 +427,7 @@ pathToRoot inGraph inNode =
     if G.isEmpty inGraph then error "Empty graph in pathToRoot"
     else pathToRoot' inGraph [inNode] [] []
 
--- | pathToRoot with accumulators
+-- | pathToRoot' with accumulators
 pathToRoot' :: (Eq a, Eq b) => Gr a b -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
 pathToRoot' inGraph inNodeList curNodeList curEdgeList =
     if null inNodeList then (L.nub $ reverse curNodeList, L.nub $ reverse curEdgeList)
@@ -439,9 +439,36 @@ pathToRoot' inGraph inNodeList curNodeList curEdgeList =
         else
             let inLEdges = inn inGraph (fst inNode)
                 inNodes = fmap fst3 inLEdges
+                --inLabNodes = concatMap (labParents inGraph) (fmap fst3 inLEdges)
                 inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
             in
             pathToRoot' inGraph (L.nub $ inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
+
+-- | postOrderPathToNode takes a graph and two vertices nd returns a pair of lists 
+-- of vertices and edges to beteween them in order of encountering them from first to second
+-- the path is post order to root so if second vertex is leaf-side of firtst node will hit root and fail
+postOrderPathToNode :: (Eq a, Eq b) => Gr a b -> LNode a -> LNode a -> ([LNode a], [LEdge b])
+postOrderPathToNode inGraph startNode endNode =
+    if G.isEmpty inGraph then error "Empty graph in pathToRoot"
+    else postOrderPathToNode' inGraph endNode [startNode] [] []
+
+-- | postOrderPathToNode' with accumulators
+postOrderPathToNode' :: (Eq a, Eq b) => Gr a b -> LNode a -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
+postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
+    if null inNodeList then (L.nub $ reverse curNodeList, L.nub $ reverse curEdgeList)
+    else
+        let inNode = head inNodeList
+        in
+        -- root would already be inlist of nodes visited
+        if (fst inNode) == (fst endNode) then postOrderPathToNode' inGraph endNode (tail inNodeList) curNodeList curEdgeList
+        else if isRoot inGraph (fst inNode) then error ("postOrderPathToNode hit root before end node.  Root index  " ++ (show $ fst inNode) 
+            ++  " edges " ++ (show $ fmap toEdge curEdgeList))
+        else
+            let inLEdges = inn inGraph (fst inNode)
+                inNodes = fmap fst3 inLEdges
+                inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
+            in
+            postOrderPathToNode' inGraph endNode (L.nub $ inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
 
 -- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
 -- and edges 'before' in the sense of leading to--ie between root and

@@ -252,6 +252,8 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , globalCost         :: VertexCost
                                      } deriving stock (Show, Eq, Generic)
 
+instance NFData CharacterData where rnf x = seq x ()
+
 -- | emptyCharcater useful for intialization and missing data
 emptyCharacter :: CharacterData
 emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
