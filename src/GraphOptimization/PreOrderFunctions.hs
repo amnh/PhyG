@@ -95,7 +95,7 @@ import qualified Data.Map as MAP
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
-    if LG.isEmpty (thd6 inPGraph) then emptyPhylogeneticGraph
+    if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
@@ -110,17 +110,19 @@ preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex useMap inPGraph@(in
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
-        {-
-        let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
-            blockPre = GO.showDecGraphs preOrderBlockVect
-        in
-        trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
-        -}
-        (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-        -- )
+        if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ (show rootIndex))
+        else 
+            {-
+            let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
+                blockPre = GO.showDecGraphs preOrderBlockVect
+            in
+            trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+            -}
+            (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+            -- )
 
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
--- does an additional pot and pre order pass to assign IA fileds and final fields in slim/wide/huge
+-- does an additional post and pre order pass to assign IA fileds and final fields in slim/wide/huge
 makeIAAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
 makeIAAssignments finalMethod rootIndex = V.zipWith (makeCharacterIA finalMethod rootIndex)
 
@@ -986,7 +988,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
          -- trace ("SF Tree: " ++ (show isLeft) ++ " FA': " ++  (show finalAssignment) ++ "\nFA: " ++ (show finalGapped) ++ "\nSAP: " ++
          --   (show $ slimAlignment parentChar) ++ "\nSGP: " ++ (show $ slimGapped parentChar) ++ "\nSGC: " ++ (show $ slimGapped childChar))
          --trace ("SF Tree: " ++ (show finalGapped))
-         childChar {slimFinal = finalAssignmentDO, slimAlignment = finalGapped}
+         childChar {slimFinal = GV.filter (/= 0) finalAssignmentDO, slimAlignment = finalGapped}
          -- For debugging IA/DO bug 
          -- childChar {slimFinal = mempty, slimAlignment = finalGapped}
 
@@ -1002,7 +1004,7 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                     extractMedians finalAssignmentDOGapped
                                  else extractMedians finalGapped
          in
-         childChar {wideFinal = finalAssignmentDO, wideAlignment = finalGapped}
+         childChar {wideFinal = GV.filter (/= 0) finalAssignmentDO, wideAlignment = finalGapped}
 
       else if localCharType == HugeSeq then
          let finalGapped = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
@@ -1013,10 +1015,10 @@ setFinal finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar
                                         childGapped = (mempty, mempty, hugeGapped childChar)
                                         finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
                                     in
-                                    extractMedians finalAssignmentDOGapped
+                                     extractMedians finalAssignmentDOGapped
                                  else extractMedians finalGapped
          in
-         childChar {hugeFinal = finalAssignmentDO, hugeAlignment = finalGapped}
+         childChar {hugeFinal = GV.filter (/= zeroBits) finalAssignmentDO, hugeAlignment = finalGapped}
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 

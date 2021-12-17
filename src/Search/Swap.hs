@@ -206,7 +206,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList `using` PU.myParListChunkRDS
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstDecoratedGraph) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstGraph) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
@@ -300,7 +300,7 @@ swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSame
           
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstDecoratedGraph) splitGraphList graphRootList prunedGraphRootIndexList 
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstGraph) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- reoptimized fully in steepest returns PhylogheneticGraph 
           reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
@@ -573,9 +573,15 @@ getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
       --)
 
 
--- | getPrunedEdgeData takes fully optimized pruned data and returns edge list
--- and edge data for TBR additions
-getPrunedEdgeData ::  GraphType -> Bool -> DecoratedGraph -> LG.LNode VertexInfo -> [LG.LEdge EdgeInfo] -> V.Vector (V.Vector CharInfo) -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
+-- | getPrunedEdgeData takes fully optimized pruned data and returns edge list, edge data for TBR additions,
+-- and graph edits for that edge reroot
+getPrunedEdgeData :: GraphType 
+                  -> Bool 
+                  -> DecoratedGraph 
+                  -> LG.LNode VertexInfo 
+                  -> [LG.LEdge EdgeInfo] 
+                  -> V.Vector (V.Vector CharInfo) 
+                  -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
 getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV =
    if LG.isEmpty inGraph then error "Empty graph in getPrunedEdgeData"
    else 
@@ -602,7 +608,7 @@ getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGra
       in
       if length prunedRootEdges /= 2 then error ("Incorrect number of out edges (should be 2) in root of pruned graph: " ++ (show $ length prunedRootEdges))
       else
-         -- trace ("Pruned reroots: " ++ (show $ fmap LG.toEdge edgeAfterList' ))  
+         --trace ("PED: " ++ (show  $ zip (fmap length edgeDataList) (fmap LG.toEdge edgeAfterList')) ++ " SG edges: " ++ (show $ fmap LG.toEdge edgesInPrunedSubGraph))  
          zip3 (fmap LG.toEdge edgeAfterList') edgeDataList edgeEdits
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
@@ -613,14 +619,19 @@ makeEdgeData doIA inGraph charInfoVV inEdge =
        eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
    in
-   M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
+   M.createEdgeUnionOverBlocks doIA (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
 
 
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
 -- for SPR use the preliminary of subGraph to final of e and v nodes
 -- can use median fruntions for postorder if set final-> prelim or e and f
-getSubGraphDelta :: VertexBlockData -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) ->  (LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge])) -> (VertexCost, LG.Edge, ([LG.LEdge Double],[LG.Edge]))
+getSubGraphDelta :: VertexBlockData 
+                 -> Bool 
+                 -> DecoratedGraph 
+                 -> V.Vector (V.Vector CharInfo) 
+                 -> (LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge])) 
+                 -> (VertexCost, LG.Edge, ([LG.LEdge Double],[LG.Edge]))
 getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertData, edgeSubGraphEdits) = 
    let --existingEdgeCost = minLength targetlabel
        --eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
@@ -660,14 +671,15 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
        
 
    in
-   if null subGraphVertData || null evEdgeData then 
-      trace ("SGD null :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData)))
+   if null subGraphVertData || null evEdgeData || (subGraphEdgeUnionCost == 0.0) then 
+      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData)) ++ "\nInGraph:\n"  
+        ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
     -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
     --min subGraphEdgeUnionCost  subGraphEdgeUnionCost'
    else 
-      trace ("SGD no null:" ++ (show (subGraphEdgeUnionCost,edgeToJoin)))
+      -- trace ("SGD no 0:" ++ (show (subGraphEdgeUnionCost,edgeToJoin)))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
 
 
@@ -687,15 +699,16 @@ reoptimizeGraphFromVertex :: GlobalSettings
                           -> String 
                           -> Bool 
                           -> V.Vector (V.Vector CharInfo) 
-                          -> DecoratedGraph 
+                          -> PhylogeneticGraph 
                           -> DecoratedGraph 
                           -> Int 
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
-reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inSplitGraph startVertex prunedSubGraphRootVertex =
+reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph inSplitGraph startVertex prunedSubGraphRootVertex =
 
        -- these required for full optimization
    let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
+       origGraph = thd6 origPhyloGraph
        leafGraph = LG.extractLeafGraph origGraph
 
        -- crete simple graph version of split for post order pass
@@ -710,37 +723,44 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origGraph inSplit
        
        fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
-       -- create fully optimized pruned graph
-       (postOrderPrunedGraph, _, _) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
-                                        else 
-                                          -- Use IA assingment but ONLY reoptimize the IA states 
-                                          error "IA reoptimizeGraphFromVertex not yet implemented"
-       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
-
-
-       -- get root node of base graph
-       startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
+       -- create fully optimized pruned graph.  Post order tehn preorder
 
        -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
        startPrunedNode = (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
        startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
        startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
+
+       (postOrderPrunedGraph, _, prunedRoot) = if not doIA then T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
+                                               else 
+                                                   -- Use IA assingment but ONLY reoptimize the IA states 
+                                                   error "IA reoptimizeGraphFromVertex not yet implemented"
+
+       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+      
+       -- get root node of base graph
+       startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
+
+       
        
        -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
        (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
 
-       (prunedGraphNonRootNodes, prunedGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
+       (prunedGraphNonRootNodes, prunedGraphEdges) = if LG.isLeaf (thd6 origPhyloGraph) prunedSubGraphRootVertex then ([],[])
+                                                     else LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
 
        -- make fully optimized graph from base and split components
        fullSplitGraph = LG.mkGraph ([startBaseNode, startPrunedNode, startPrunedParentNode] ++  baseGraphNonRootNodes ++ prunedGraphNonRootNodes) (startPrunedParentEdge : (baseGraphEdges ++ prunedGraphEdges))
 
        -- cost of split graph to be later combined with re-addition delta for heuristic graph cost
-       splitGraphCost = (snd6 fullBaseGraph) + (snd6 fullPrunedGraph) + localRootCost
+       prunedCost = if LG.isLeaf (thd6 origPhyloGraph) prunedSubGraphRootVertex then 0
+                    else snd6 fullPrunedGraph
+       splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
 
    in
-   --trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show $ snd6 fullPrunedGraph) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)) -- ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
-   --trace ("SG:" ++ (show fullSplitGraph))
+   -- trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
+   --   ++ "\nBaseGraphNodes\n" ++ (show baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ startPrunedNode : prunedGraphNonRootNodes)) -- ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
+   -- trace ("SG:" ++ (show fullSplitGraph))
    (fullSplitGraph, splitGraphCost)
    
 -- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph

@@ -149,7 +149,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVert
 
         -- start at start vertex--for components or ur-root for full graph
         startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRooted
-                              else [fromJust startVertex]
+                          else [fromJust startVertex]
 
         -- next edges (to vertex in list) to perform rerroting
         -- progresses recursivey over adjacent edges to minimize node reoptimization
@@ -931,7 +931,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph startVertex inGraph 
         let rootIndex = if startVertex == Nothing then  fst $ head $ LG.getRoots inGraph
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
-            newTree = postDecorateTree inGraph leafGraph blockCharInfo rootIndex
+            newTree = postDecorateTree inGraph leafGraph blockCharInfo rootIndex rootIndex
         in
         -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
         if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
@@ -944,14 +944,14 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph startVertex inGraph 
         --)
 
 -- | postDecorateTree' is wrapper for postDecorateTree to alow for mapping
-postDecorateTree' :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> SimpleGraph -> PhylogeneticGraph
-postDecorateTree' curDecGraph blockCharInfo curNode simpleGraph = postDecorateTree simpleGraph curDecGraph blockCharInfo curNode 
+postDecorateTree' :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
+postDecorateTree' curDecGraph blockCharInfo rootIndex curNode simpleGraph = postDecorateTree simpleGraph curDecGraph blockCharInfo rootIndex curNode 
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
-postDecorateTree :: SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
-postDecorateTree simpleGraph curDecGraph blockCharInfo curNode =
+postDecorateTree :: SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
+postDecorateTree simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
@@ -972,8 +972,8 @@ postDecorateTree simpleGraph curDecGraph blockCharInfo curNode =
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren
-            leftChildTree = postDecorateTree simpleGraph curDecGraph blockCharInfo leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
+            leftChildTree = postDecorateTree simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                                  else leftChildTree
             newSubTree = thd6 rightLeftChildTree
             (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
@@ -1017,9 +1017,12 @@ postDecorateTree simpleGraph curDecGraph blockCharInfo curNode =
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
             in
+            -- th curnode == roiot index for pruned subtrees
             -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
-            if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+
+            --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
             -- ) -- )

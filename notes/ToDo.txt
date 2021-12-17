@@ -521,3 +521,7 @@ to render--would have repeated subtrees after network vertex
 222) abstract steepest and all functions to simplify code
 
 223) Is sorting edges oni length ofr steepest effective?
+
+225) option to not do branch lengths--don't need in SPR/TBR
+
+226) SPR root state -- should be union of two descendants

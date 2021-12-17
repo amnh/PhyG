@@ -386,6 +386,7 @@ getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterDa
 getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
 -- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
+-- works on preliminary states
 getDOMedian
   :: Double
   -> S.Matrix Int
@@ -458,16 +459,20 @@ createUngappedMedianSequence = const extractMedians
 -}
 
 -- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
--- takes IAFInal for each node, creates union of IAFinals states
+-- if using IA--takes IAFInal for each node, creates union of IAFinals states
+-- if Do then calculated DO medians and takes union of left and right states
 -- gaps need to be fitered if DO used later (as in Wagner), or as in SPR/TBR rearragement
--- sets finmal and IA states for Swap delta heuristics
-getDynamicUnion
-  :: Bool
-  -> CharType
-  -> CharacterData
-  -> CharacterData
-  -> CharacterData
-getDynamicUnion filterGaps thisType leftChar rightChar
+-- sets final and IA states for Swap delta heuristics
+getDynamicUnion :: Bool
+                -> Bool
+                -> CharType
+                -> CharacterData
+                -> CharacterData
+                -> TCMD.DenseTransitionCostMatrix
+                -> MR.MetricRepresentation Word64
+                -> MR.MetricRepresentation BV.BitVector
+                -> CharacterData
+getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWideTCM thisHugeTCM
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
   | thisType == HugeSeq           = newHugeCharacterData
@@ -476,9 +481,15 @@ getDynamicUnion filterGaps thisType leftChar rightChar
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let r   = GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
+        let r  = if doIA then GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
+                 else 
+                    let (_, (lG, _, rG)) = slimPairwiseDO thisSlimTCM (makeDynamicCharacterFromSingleVector $ slimFinal leftChar) (makeDynamicCharacterFromSingleVector $ slimFinal rightChar)
+                    in
+                    GV.zipWith (.|.) lG rG
+
             r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
+
         in  blankCharacterData { slimPrelim = r'
                                , slimGapped = (r', r',r')
                                , slimFinal = r'
@@ -488,7 +499,7 @@ getDynamicUnion filterGaps thisType leftChar rightChar
 
     newWideCharacterData =
         let r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if doIA then GV.filter (/= (bit gapIndex)) r
                  else r
         in  blankCharacterData { widePrelim = r'
                                , wideGapped = (r', r',r')
@@ -499,7 +510,7 @@ getDynamicUnion filterGaps thisType leftChar rightChar
 
     newHugeCharacterData =
         let r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if doIA then GV.filter (/= (bit gapIndex)) r
                  else r
         in  blankCharacterData { hugePrelim = r'
                                , hugeGapped = (r', r',r')
@@ -510,19 +521,22 @@ getDynamicUnion filterGaps thisType leftChar rightChar
 
 -- | union2 takes the vectors of characters and applies union2Single to each character
 -- used for edge states in buikd and rearrangement
-union2 ::  Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
-union2 filterGaps = V.zipWith3 (union2Single filterGaps)
+union2 ::  Bool -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
+union2 doIA filterGaps = V.zipWith3 (union2Single doIA filterGaps)
 
 -- | union2Single takes character data and returns union character data 
 -- union2Single assumes that the character vectors in the various states are the same length
--- that is--all leaves (hencee other vertices later) have the same number of each type of character
+-- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used IAFinal states for dynamic characters
 -- used in heurstic greaph build and rearrangement
-union2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> CharacterData
-union2Single filterGaps firstVertChar secondVertChar inCharInfo =
+union2Single :: Bool -> Bool -> CharacterData -> CharacterData -> CharInfo -> CharacterData
+union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisMatrix  = costMatrix inCharInfo
         thisActive  = activity inCharInfo
+        thisSlimTCM = slimTCM inCharInfo
+        thisWideTCM = wideTCM inCharInfo
+        thisHugeTCM = hugeTCM inCharInfo
     in
     if not thisActive then firstVertChar
     else if thisType == Add then
@@ -535,7 +549,7 @@ union2Single filterGaps firstVertChar secondVertChar inCharInfo =
         unionMatrix thisMatrix firstVertChar secondVertChar
 
     else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
-        getDynamicUnion filterGaps thisType firstVertChar secondVertChar
+        getDynamicUnion doIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -543,15 +557,16 @@ union2Single filterGaps firstVertChar secondVertChar inCharInfo =
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
 -- extracts the triple for each block and creates new block data 
--- this is used fir delta's in edge invastion in Wagner and SPR/TBR
+-- this is used for delta's in edge invastion in Wagner and SPR/TBR
 -- filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
 createEdgeUnionOverBlocks :: Bool
+                          -> Bool
                           -> VertexBlockData
                           -> VertexBlockData
                           -> V.Vector (V.Vector CharInfo)
                           -> [V.Vector CharacterData]
                           -> V.Vector (V.Vector CharacterData)
-createEdgeUnionOverBlocks filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
+createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
@@ -564,7 +579,7 @@ createEdgeUnionOverBlocks filterGaps leftBlockData rightBlockData blockCharInfoV
             firstBlockMedian
               | (leftBlockLength == 0) = V.head rightBlockData
               | (rightBlockLength == 0) = V.head leftBlockData 
-              | otherwise = union2 filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+              | otherwise = union2 doIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
-        createEdgeUnionOverBlocks filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+        createEdgeUnionOverBlocks doIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
