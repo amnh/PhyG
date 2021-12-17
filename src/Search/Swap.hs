@@ -710,6 +710,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
    let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
        origGraph = thd6 origPhyloGraph
        leafGraph = LG.extractLeafGraph origGraph
+       noBranchLengths = True
 
        -- crete simple graph version of split for post order pass
        splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
@@ -721,7 +722,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
                                                    -- Use IA assingment but ONLY reoptimize the IA states 
                                                    error "IA reoptimizeGraphFromVertex not yet implemented"
        
-       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+       fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
        -- create fully optimized pruned graph.  Post order tehn preorder
 
@@ -736,7 +737,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
                                                    -- Use IA assingment but ONLY reoptimize the IA states 
                                                    error "IA reoptimizeGraphFromVertex not yet implemented"
 
-       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+       fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
       
        -- get root node of base graph
        startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)

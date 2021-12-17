@@ -92,8 +92,8 @@ import qualified Data.Map as MAP
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
-preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal inGS finalMethod calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
     else
@@ -108,7 +108,7 @@ preOrderTreeTraversal inGS finalMethod hasNonExact rootIndex useMap inPGraph@(in
                                  if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
         if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ (show rootIndex))
         else 
@@ -459,8 +459,8 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
-assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Int -> V.Vector (V.Vector DecoratedGraph) -> Bool -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
+assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> V.Vector (V.Vector DecoratedGraph) -> Bool -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
+assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges  rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else
@@ -486,7 +486,8 @@ assignPreorderStatesAndEdges inGS finalMethd rootIndex preOrderBlockTreeVV useMa
         in
         -- make new graph
         -- LG.mkGraph newNodeList' newEdgeList
-        LG.mkGraph newNodeList newEdgeList
+        if calculateBranchEdges then LG.mkGraph newNodeList newEdgeList
+        else LG.mkGraph newNodeList postOrderEdgeList
         --)
 
 -- | updateNodeWithPreorder takes the preorder decorated graphs (by block and character) and updates the

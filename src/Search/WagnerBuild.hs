@@ -97,7 +97,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        blockCharInfo = V.map thd3 $ thd3 inData
 
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves False $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False hasNonExactChars numLeaves False $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
    in
@@ -130,7 +130,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                        else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) hasNonExactChars numLeaves False $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False hasNonExactChars numLeaves False $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelGraph inGS inData False False Nothing newSimple'   
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
@@ -168,12 +168,12 @@ addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _,
 -- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
 -- must be DO for this--isolated leaves won't have IA
 getDelta :: Int -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
-getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
-   let existingEdgeCost = minLength targetlabel
-       leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
+getDelta leafToAdd (eNode, vNode, _) inDecGraph charInfoVV =
+   let leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
        eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
-
+       -- existingEdgeCost = minLength targetlabel
+       
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
        -- based on final assignments

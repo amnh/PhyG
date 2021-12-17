@@ -104,13 +104,14 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
 -- canonical tree or if an infinity cost is returned and if a trace warning is thrown if so.
 -- in general--input trees should use "pruneEdges" during search--not
 -- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
+-- first Bool for calcualting breanch edger weights
 multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else 
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
-            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex False postOrderGraph
+            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (nonExactChars > 0) localStartVertex False postOrderGraph
             in
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
 
@@ -127,7 +128,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph startVertex inSimpleGraph
         in
-        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) (nonExactChars > 0) localStartVertex False postOrderGraph
+        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True (nonExactChars > 0) localStartVertex False postOrderGraph
             
     
 -- | generalizedGraphPostOrderTraversal performs the postorder pass 

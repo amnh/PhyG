@@ -525,3 +525,5 @@ to render--would have repeated subtrees after network vertex
 225) option to not do branch lengths--don't need in SPR/TBR
 
 226) SPR root state -- should be union of two descendants
+
+227) Modify chunk parallel like seqParMap if thread==1 do nothing
