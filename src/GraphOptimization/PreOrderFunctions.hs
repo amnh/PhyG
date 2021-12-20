@@ -46,6 +46,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , getFinal3WaySlim
                                             , getFinal3WayWideHuge
                                             , preOrderTreeTraversal
+                                            , preOrderTreeTraversalStaticIA
                                             , getBlockCostPairsFinal
                                             , setFinalToPreliminaryStates
                                             ) where
@@ -104,8 +105,7 @@ preOrderTreeTraversal inGS finalMethod calculateBranchLengths hasNonExact rootIn
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
-            preOrderBlockVect' = -- if (finalMethod == ImpliedAlignment) && hasNonExact then V.zipWith makeIAAssignments finalMethod preOrderBlockVect inCharInfoVV
-                                 if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+            preOrderBlockVect' = if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
@@ -121,6 +121,40 @@ preOrderTreeTraversal inGS finalMethod calculateBranchLengths hasNonExact rootIn
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
             -- )
 
+
+-- | preOrderTreeTraversalStaticIA performs preOrderTreeTraversal but only on static and IA fields of dynamic
+-- assumes IA feilds haev been set postorder
+preOrderTreeTraversalStaticIA :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversalStaticIA inGS finalMethod calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+    --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
+    if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
+    else error "preOrderTreeTraversal not yet implemented"
+        {-
+        -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
+        -- mapped recursive call over blkocks, later characters
+        let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod rootIndex) inCharInfoVV blockCharacterDecoratedVV
+
+            -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
+            -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
+            preOrderBlockVect' = if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+                                 else preOrderBlockVect
+
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
+        in
+        if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversalStaticIA at root index rootIndex: " ++ (show rootIndex))
+        else 
+            {-
+            let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
+                blockPre = GO.showDecGraphs preOrderBlockVect
+            in
+            trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+            -}
+            (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+            -- )
+        -}
+
+
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional post and pre order pass to assign IA fileds and final fields in slim/wide/huge
 makeIAAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
@@ -133,13 +167,14 @@ makeCharacterIA finalMethod rootIndex inGraph charInfo =
     if charType charInfo `notElem` nonExactCharacterTypes then inGraph
     else
         let postOrderIATree = postOrderIA inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
-            preOrderIATree = preOrderIA postOrderIATree finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] 
+            preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] 
         in
         preOrderIATree
 
 -- | postOrderIA performs a post-order IA pass assigning leaf preliminary states
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
 -- matrix
+-- should eb OK for any root--or partial graph as in for breanch swapping
 postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
 postOrderIA inGraph charInfo inNodeList =
     if null inNodeList then inGraph
@@ -282,8 +317,8 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
 
 -- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
 -- the "final" fields are also set by filtering out gaps and 0.
-preOrderIA :: DecoratedGraph -> AssignmentMethod -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
-preOrderIA inGraph finalMethod charInfo inNodePairList =
+preOrderIA :: DecoratedGraph -> Int -> AssignmentMethod -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
+preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
     if null inNodePairList then inGraph
     else
         let (inNode@(nodeIndex, nodeLabel), (_, parentNodeLabel)) = head inNodePairList
@@ -301,9 +336,9 @@ preOrderIA inGraph finalMethod charInfo inNodePairList =
         else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ show (length childNodes))
 
         -- leaf done in post-order
-        else if nodeType nodeLabel == LeafNode then preOrderIA inGraph finalMethod charInfo (tail inNodePairList)
+        else if nodeType nodeLabel == LeafNode then preOrderIA inGraph rootIndex finalMethod charInfo (tail inNodePairList)
 
-        else if nodeType nodeLabel == RootNode then
+        else if nodeType nodeLabel == RootNode || nodeIndex == rootIndex then
             let newCharacter
                   | characterType `elem` [SlimSeq, NucSeq] =
                      inCharacter { slimIAFinal = extractMediansGapped $ slimIAPrelim inCharacter'
@@ -323,7 +358,7 @@ preOrderIA inGraph finalMethod charInfo inNodePairList =
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
             -- trace ("PreIARoot: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
-            preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- single child, take parent final assignments, but keep postorder assignments    
         else if length childNodes == 1 then
@@ -347,7 +382,7 @@ preOrderIA inGraph finalMethod charInfo inNodePairList =
                     parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
                 in
                 -- trace ("PreIANet: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter)) 
-                preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+                preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- 2 children, make 3-way 
         else
@@ -361,7 +396,7 @@ preOrderIA inGraph finalMethod charInfo inNodePairList =
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
             -- trace ("PreIATree: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal finalCharacter) ++ " Final: " ++ (show $ slimFinal finalCharacter)) 
-            preOrderIA newGraph finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- )
 
@@ -460,7 +495,7 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
 -- but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
 assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> V.Vector (V.Vector DecoratedGraph) -> Bool -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
-assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges  rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
+assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
     --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else

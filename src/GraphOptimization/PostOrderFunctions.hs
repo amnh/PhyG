@@ -45,6 +45,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticNetwork
                                              , rerootPhylogeneticNetwork'
                                              , createVertexDataOverBlocks
+                                             , createVertexDataOverBlocksStaticIA
                                              , divideDecoratedGraphByBlockAndCharacterTree
                                              , divideDecoratedGraphByBlockAndCharacterSoftWired
                                              , getOutDegree1VertexAndGraph
@@ -583,6 +584,16 @@ createVertexDataOverBlocksNonExact :: VertexBlockData
                                    -> [V.Vector (CharacterData, VertexCost)]
                                    -> V.Vector (V.Vector (CharacterData, VertexCost))
 createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
+
+-- | createVertexDataOverBlocksStaticIA is an  application of generalCreateVertexDataOverBlocks with exact charcater median calculation
+-- and IA claculation for dynmaic characters--not full optimizations
+createVertexDataOverBlocksStaticIA :: VertexBlockData
+                                   -> VertexBlockData
+                                   -> V.Vector (V.Vector CharInfo)
+                                   -> [V.Vector (CharacterData, VertexCost)]
+                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
+createVertexDataOverBlocksStaticIA = generalCreateVertexDataOverBlocks M.median2StaticIA
+
 
 -- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)  
 -- and only non-exact (basically sequence) characters based on the median function passed

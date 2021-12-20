@@ -44,6 +44,7 @@ module GraphOptimization.Medians  ( median2
                                   , median2Single
                                   , median2NonExact
                                   , median2SingleNonExact
+                                  , median2StaticIA
                                   -- , createUngappedMedianSequence
                                   , intervalAdd
                                   , interUnion
@@ -93,6 +94,13 @@ median2 = V.zipWith3 median2Single
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2NonExact :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
 median2NonExact = V.zipWith3 median2SingleNonExact
+
+-- | median2StaticIA takes the vectors of characters and applies median2SingleStaticIA to each
+-- character for parallel fmap over all then parallelized by type and sequences
+-- this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
+-- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
+median2StaticIA :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2StaticIA = V.zipWith3 median2SingleStaticIA
 
 
 -- | median2Single takes character data and returns median character and cost
@@ -158,6 +166,43 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
             (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
+
+
+-- | median2SingleStaticIA takes character data and returns median character and cost
+-- median2SingleStaticIA assumes that the character vectors in the various states are the same length
+-- that is--all leaves (hence other vertices later) have the same number of each type of character
+-- used for post-order assignments
+-- this is from preliminary states
+median2SingleStaticIA :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
+    let thisType    = charType inCharInfo
+        thisWeight  = weight inCharInfo
+        thisMatrix  = costMatrix inCharInfo
+        thisSlimTCM = slimTCM inCharInfo
+        thisWideTCM = wideTCM inCharInfo
+        thisHugeTCM = hugeTCM inCharInfo
+        thisActive  = activity inCharInfo
+    in
+    if not thisActive then (firstVertChar, 0)
+    else if thisType == Add then
+        let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar
+        in
+        (newCharVect, localCost  newCharVect)
+
+    else if thisType == NonAdd then
+        let newCharVect = interUnion thisWeight firstVertChar secondVertChar
+        in
+        (newCharVect, localCost  newCharVect)
+
+    else if thisType == Matrix then
+      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+        in
+        --trace (show $ alphabet inCharInfo)
+        (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then error "StaticIA not yet implemented"
+
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
 -- | localOr wrapper for BV.or for vector elements
