@@ -119,17 +119,15 @@ preOrderTreeTraversal inGS finalMethod calculateBranchLengths hasNonExact rootIn
 
 
 -- | preOrderTreeTraversalStaticIA performs preOrderTreeTraversal but only on static and IA fields of dynamic
--- assumes IA feilds haev been set postorder
+-- assumes IA fields have been set postorder
 preOrderTreeTraversalStaticIA :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversalStaticIA inGS finalMethod calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
-    else error "preOrderTreeTraversal not yet implemented"
-        {-
-        -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
+    else 
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.zipWith (doBlockTraversal finalMethod rootIndex) inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.zipWith (doBlockTraversalStaticIA ImpliedAlignment rootIndex) inCharInfoVV blockCharacterDecoratedVV
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
@@ -148,7 +146,7 @@ preOrderTreeTraversalStaticIA inGS finalMethod calculateBranchLengths hasNonExac
             -}
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
             -- )
-        -}
+        -- }
 
 
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
@@ -330,10 +328,12 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
 
         -- 2 children, make 3-way 
         else
-            let childLabels = fmap snd childNodes
+            let {-
+                childLabels = fmap snd childNodes
                 leftChar = V.head $ V.head $ vertData $ head childLabels
                 rightChar = V.head $ V.head $ vertData $ last childLabels
-                finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter leftChar rightChar
+                -}
+                finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter -- leftChar rightChar
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
@@ -429,6 +429,97 @@ makeFinalAndChildren finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
         in
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
         makeFinalAndChildren finalMethod inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
+        --)
+
+
+
+-- | doBlockTraversalStaticIA takes a block of postorder decorated character trees character info  
+-- could be moved up preOrderTreeTraversal, but like this for legibility
+-- only operates on static and IA assignment
+doBlockTraversalStaticIA :: AssignmentMethod -> Int -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
+doBlockTraversalStaticIA finalMethod rootIndex inCharInfoV traversalDecoratedVect =
+    --doBlockTraversalStaticIA ("BlockT:" ++ (show $ fmap charType inCharInfoV)) 
+    V.zipWith (doCharacterTraversalStaticIA finalMethod rootIndex) inCharInfoV traversalDecoratedVect
+
+-- | doCharacterTraversalStaticIA performs preorder traversal on single character tree
+-- with single charInfo
+-- this so each character can be independently "rooted" for optimal traversals.
+-- only operates on static and IA assignment
+doCharacterTraversalStaticIA :: AssignmentMethod -> Int -> CharInfo -> DecoratedGraph -> DecoratedGraph
+doCharacterTraversalStaticIA finalMethod rootIndex inCharInfo inGraph =
+    -- find root--index should = number of leaves 
+    --trace ("charT:" ++ (show $ charType inCharInfo)) (
+    let isolateNodeList = LG.getIsolatedNodes inGraph
+        (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
+        inEdgeList = LG.labEdges inGraph
+    in
+    -- remove these two lines if working
+    -- if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
+    -- else
+        -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
+        let rootLabel = fromJust $ LG.lab inGraph rootIndex
+            rootFinalVertData = createFinalAssignmentOverBlocksStaticIA finalMethod RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False
+            rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
+
+            -- left / right to match post-order
+            rootChildrenBV = fmap (bvLabel . snd) rootChildren
+            rootChildrenIsLeft
+              | length rootChildrenBV == 1 = [True]
+              | head rootChildrenBV > (rootChildrenBV !! 1) = [False, True]
+              | otherwise = [True, False]
+            newRootNode = (rootIndex, rootLabel {vertData = rootFinalVertData})
+            rootChildrenPairs = zip3 rootChildren (replicate (length rootChildren) newRootNode) rootChildrenIsLeft
+            upDatedNodes = makeFinalAndChildrenStaticIA finalMethod inGraph rootChildrenPairs [newRootNode] inCharInfo
+
+            -- update isolated nodes with final == preliminary as with root nodes (and leaves, but without postorder logic)
+            updatedIsolateNodes = fmap (updateIsolatedNodeStaticIA finalMethod inCharInfo) isolateNodeList
+        in
+        -- hope this is the most efficient way since all nodes have been remade
+        -- trace (U.prettyPrintVertexInfo $ snd newRootNode)
+        LG.mkGraph (upDatedNodes ++ updatedIsolateNodes) inEdgeList
+        --)
+
+-- | updateIsolatedNodeStaticIA updates the final states of an isolated node as if it were a root with final=preliminary
+-- states without preorder logic as in regular leaves
+-- NB IA length won't match if compared since not in graph
+updateIsolatedNodeStaticIA :: AssignmentMethod -> CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+updateIsolatedNodeStaticIA finalMethod inCharInfo (inNodeIndex, inNodeLabel) = 
+    let newVertData = createFinalAssignmentOverBlocksStaticIA finalMethod RootNode (vertData inNodeLabel) (vertData inNodeLabel) inCharInfo True False
+    in
+    (inNodeIndex, inNodeLabel {vertData = newVertData})
+
+-- | makeFinalAndChildrenStaticIA takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a liss of updated nodes
+-- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
+-- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
+makeFinalAndChildrenStaticIA :: AssignmentMethod
+                     -> DecoratedGraph
+                     -> [(LG.LNode VertexInfo, LG.LNode VertexInfo, Bool)]
+                     -> [LG.LNode VertexInfo]
+                     -> CharInfo
+                     -> [LG.LNode VertexInfo]
+makeFinalAndChildrenStaticIA finalMethod inGraph nodesToUpdate updatedNodes inCharInfo =
+    --trace ("mFAC:" ++ (show $ charType inCharInfo)) (
+    if null nodesToUpdate then updatedNodes
+    else
+        let (firstNode, firstParent, isLeft) = head nodesToUpdate
+            firstLabel = snd firstNode
+            firstNodeType = nodeType firstLabel
+            firstVertData = vertData firstLabel
+            firstParentVertData = vertData $ snd firstParent
+            firstChildren = LG.labDescendants inGraph firstNode
+
+            -- this OK with one or two children
+            firstChildrenBV = fmap (bvLabel . snd) firstChildren
+            firstChildrenIsLeft
+              | length firstChildrenBV == 1 = [True]
+              | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
+              | otherwise = [True, False]
+            firstFinalVertData = createFinalAssignmentOverBlocksStaticIA finalMethod firstNodeType firstVertData firstParentVertData inCharInfo isLeft (length firstChildren == 1)
+            newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
+            childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
+        in
+        -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
+        makeFinalAndChildrenStaticIA finalMethod inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
         --)
 
 -- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates 
@@ -814,6 +905,25 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
     (minimum costList, maximum costList)
 
 
+-- | createFinalAssignmentOverBlocksStaticIA takes vertex data (child or current vertex) and creates the final 
+-- assignment from parent (if not root or leaf) and 'child' ie current vertex
+-- if root or leaf preliminary is assigned to final
+   -- need to watch zipping for missing sequence data
+-- this creates the IA during preorder from which final assignments are contructed
+-- via addition post and preorder passes on IA fields.
+-- only operates on static and IA fields
+createFinalAssignmentOverBlocksStaticIA :: AssignmentMethod
+                                -> NodeType
+                                -> VertexBlockData
+                                -> VertexBlockData
+                                -> CharInfo
+                                -> Bool
+                                -> Bool
+                                -> VertexBlockData
+createFinalAssignmentOverBlocksStaticIA finalMethod childType childBlockData parentBlockData charInfo isLeft isOutDegree1 =
+   -- if root or leaf final assignment <- preliminary asssignment
+   V.zipWith (assignFinal finalMethod childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
+
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
 -- if root or leaf preliminary is assigned to final
@@ -832,10 +942,144 @@ createFinalAssignmentOverBlocks finalMethod childType childBlockData parentBlock
    -- if root or leaf final assignment <- preliminary asssignment
    V.zipWith (assignFinal finalMethod childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
 
-  -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
+
+-- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments
 assignFinal :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
 assignFinal finalMethod childType isLeft charInfo isOutDegree1 = V.zipWith (setFinal finalMethod childType isLeft charInfo isOutDegree1)
+
+-- | assignFinalStaticIA takes a vertex type and single block of zip3 of child info, parent info, and character type 
+-- to create pre-order assignments
+-- only operates on Static and IA fields
+assignFinalStaticIA :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
+assignFinalStaticIA finalMethod childType isLeft charInfo isOutDegree1 = V.zipWith (setFinalStaticIA finalMethod childType isLeft charInfo isOutDegree1)
+
+-- | setFinalStaticIA takes a vertex type and single character of zip3 of child info, parent info, and character type 
+-- to create pre-order assignments
+   -- | setFinalHTU takes a single character and its parent and sets the final state to prelim based 
+-- on character info. 
+-- non exact charcaters are vectors of characters of same type
+-- this does the same things for sequence types, but also 
+-- performs preorder logic for exact characters
+-- operates only on static and IA fields
+setFinalStaticIA :: AssignmentMethod -> NodeType -> Bool -> CharInfo -> Bool -> CharacterData-> CharacterData -> CharacterData
+setFinalStaticIA finalMethod childType isLeft charInfo isOutDegree1 childChar parentChar =
+   let localCharType = charType charInfo
+       symbolCount = toEnum $ length $ costMatrix charInfo :: Int
+       inCharacter = childChar
+   in
+   -- Three cases, Root, leaf, HTU
+   --trace ("set final:" ++ (show isLeft) ++ " " ++ (show isOutDegree1) ++ " " ++ (show $ slimAlignment parentChar) ++ " " 
+   --   ++ (show $ slimGapped parentChar) ++ " " ++ (show $ slimGapped childChar)) (
+   if childType == RootNode then
+
+      if localCharType == Add then
+         childChar {rangeFinal = snd3 $ rangePrelim childChar}
+
+      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
+
+      else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
+
+      -- need to set both final and alignment for sequence characters
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+         childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim inCharacter}
+
+      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
+         childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim inCharacter}
+
+      else if localCharType == HugeSeq then
+         childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter}
+
+      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+
+   else if childType == LeafNode then
+      -- since leaf no neeed to precess final alignment fields for sequence characters
+      if localCharType == Add then childChar {rangeFinal = snd3 $ rangePrelim childChar}
+
+      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
+
+      else if localCharType == Matrix then
+         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
+
+      -- need to set both final and alignment for sequence characters
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+         childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim inCharacter} 
+
+      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
+         childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim inCharacter}
+
+      else if localCharType == HugeSeq then
+         childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter} 
+
+      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+
+   else if childType == TreeNode && not isOutDegree1 then
+
+      if localCharType == Add then
+         -- add logic for pre-order
+         let finalAssignment' = additivePreorder (rangePrelim childChar) (rangeFinal parentChar)
+         in
+         childChar {rangeFinal = finalAssignment'}
+
+      else if localCharType == NonAdd then
+         -- add logic for pre-order
+         let finalAssignment' = nonAdditivePreorder (stateBVPrelim childChar) (stateBVFinal parentChar)
+         in
+         childChar {stateBVFinal = finalAssignment'}
+
+      else if localCharType == Matrix then
+         -- add logic for pre-order
+         let finalAssignment' = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
+         in
+         childChar {matrixStatesFinal = finalAssignment'}
+
+      -- need to set both final and alignment for sequence characters
+      else if localCharType `elem` nonExactCharacterTypes then
+         let finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentChar 
+         in
+         finalCharacter
+
+
+      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+
+   -- display tree indegree=outdegree=1
+   -- since display trees here--indegree should be one as well
+   else if isOutDegree1 then
+      -- trace ("InOut1 preorder") (
+      if localCharType == Add then
+         -- add logic for pre-order
+         let lFinalAssignment = rangeFinal parentChar
+         in
+         childChar {rangeFinal = lFinalAssignment}
+
+      else if localCharType == NonAdd then
+         -- add logic for pre-order
+         let lFinalAssignment = stateBVFinal parentChar
+         in
+         childChar {stateBVFinal = lFinalAssignment}
+
+      else if localCharType == Matrix then
+         -- add logic for pre-order
+         let lFinalAssignment = matrixStatesFinal parentChar
+         in
+         childChar {matrixStatesFinal = lFinalAssignment}
+
+      -- need to set both final and alignment for sequence characters
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+         -- trace ("SF Net: " ++ (show $ slimAlignment parentChar))
+         childChar { slimIAFinal = slimIAFinal parentChar}
+
+      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
+         childChar { wideIAFinal = wideIAFinal parentChar}
+
+      else if localCharType == HugeSeq then
+         childChar { hugeIAFinal = hugeIAFinal parentChar}
+
+      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+      -- )
+
+   else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
+   -- )
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type 
 -- to create pre-order assignments

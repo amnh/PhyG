@@ -528,8 +528,11 @@ to render--would have repeated subtrees after network vertex
 
 227) Modify chunk parallel like seqParMap if thread==1 do nothing
 
-22) makeIAPrelimCharacter  -- can't get cost pairs to return correctly
+228) makeIAPrelimCharacter  -- can't get cost pairs to return correctly
 	terrible hack on node cost
 	GraphOptimization.Medians
-	
+
+229) Abstract all tHE POST/PREORDER 
+	and StaticIA versions
+
 

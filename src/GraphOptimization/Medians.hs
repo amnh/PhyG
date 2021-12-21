@@ -677,7 +677,8 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
                 }
      else error ("Unrecognized character type " ++ show characterType)
 
--- | makeIAFinalharacter takes two characters and performs 2-way assignment 
+{-
+-- | makeIAFinalCharacter takes two characters and performs 2-way assignment 
 -- based on character type and nodeChar--only IA fields are modified
 makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar =
@@ -708,6 +709,44 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
                  , hugeFinal = finalChar
                  }
      else error ("Unrecognized character type " ++ show characterType)
+-}
+
+
+-- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+-- this pulls from current node for left and right states
+makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData-> CharacterData
+makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
+     let characterType = charType charInfo
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then
+        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansLeftGapped $ slimIAPrelim nodeChar) (extractMediansRightGapped $ slimIAPrelim nodeChar)
+            finalChar =  if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                         else slimFinal nodeChar 
+        in
+        nodeChar { slimIAFinal = finalIAChar
+                 , slimFinal = finalChar
+                 }
+     else if characterType `elem` [WideSeq, AminoSeq] then
+        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansLeftGapped $ wideIAPrelim nodeChar) (extractMediansRightGapped $ wideIAPrelim nodeChar)
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                        else wideFinal nodeChar 
+        in
+        nodeChar { wideIAFinal = finalIAChar
+                 , wideFinal = finalChar
+                 }
+     else if characterType == HugeSeq then
+        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansLeftGapped $ hugeIAPrelim nodeChar) (extractMediansRightGapped $ hugeIAPrelim nodeChar)
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                        else hugeFinal nodeChar 
+        in
+        nodeChar { hugeIAFinal = finalIAChar
+                 , hugeFinal = finalChar
+                 }
+     else error ("Unrecognized character type " ++ show characterType)
+
+
+
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
 get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt

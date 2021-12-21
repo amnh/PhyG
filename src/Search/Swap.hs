@@ -510,7 +510,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
                        else DirectOptimization
 
           subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData evEdgeData charInfoVV []
-                                 else error "IA not yet implemented in getSubGraphDelta"
+                                  else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA subGraphVertData evEdgeData charInfoVV []
 
 
       in
@@ -709,7 +709,7 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
                     else DirectOptimization
 
        subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData evEdgeData charInfoVV []
-                              else error "IA not yet implemented in getSubGraphDelta"
+                              else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA subGraphVertData evEdgeData charInfoVV []
 
        -- subGraphEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal costMethod) subGraphVertData edgeUnionVertData charInfoVV
 
@@ -777,7 +777,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
       let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
           origGraph = thd6 origPhyloGraph
           leafGraph = LG.extractLeafGraph origGraph
-          noBranchLengths = True
+          calcBranchLengths = False
 
           -- create simple graph version of split for post order pass
           splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
@@ -787,7 +787,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just startVertex) splitGraphSimple
                                                    
           
-          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
           -- create fully optimized pruned graph.  Post order tehn preorder
 
@@ -800,7 +800,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
                                                 
 
-          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
          
           -- get root node of base graph
           startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -846,7 +846,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
       let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
             origGraph = thd6 origPhyloGraph
             leafGraph = LG.extractLeafGraph origGraph
-            noBranchLengths = True
+            calcBranchLengths = False
 
             -- create simple graph version of split for post order pass
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
@@ -856,7 +856,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             postOrderBaseGraph = T.postOrderTreeTraversalStaticIA inGS inData leafGraph (Just startVertex) splitGraphSimple
             baseGraphCost = snd6 postOrderBaseGraph
             
-            fullBaseGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+            fullBaseGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
                               else if (rootCost inGS) == Wheeler2015Root then T.getW15RootCost inData postOrderBaseGraph
@@ -875,7 +875,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             postOrderPrunedGraph =  T.postOrderTreeTraversalStaticIA inGS inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
             prunedGraphCost = snd6 postOrderPrunedGraph                             
 
-            fullPrunedGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) noBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+            fullPrunedGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
 
             -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
             (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
@@ -889,7 +889,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             splitGraphCost = baseGraphCost + prunedGraphCost + localRootCost
 
       in
-
+      trace ("ROGFVIA: " ++ (show splitGraphCost))
       (fullSplitGraph, splitGraphCost)
 
 
