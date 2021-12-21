@@ -973,7 +973,7 @@ postOrderTreeTraversalStaticIA inGS (_, _, blockDataVect) leafGraph startVertex 
 -- labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
--- optimized static and IA feilds of dynamic only
+-- optimizes static and IA fields of dynamic only--so IA fields must have been created ahead of time
 postDecorateTreeStaticIA :: SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
 postDecorateTreeStaticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) nothing to do and return

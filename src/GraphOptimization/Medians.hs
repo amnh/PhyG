@@ -45,6 +45,8 @@ module GraphOptimization.Medians  ( median2
                                   , median2NonExact
                                   , median2SingleNonExact
                                   , median2StaticIA
+                                  , makeIAPrelimCharacter
+                                  , makeIAFinalCharacter
                                   -- , createUngappedMedianSequence
                                   , intervalAdd
                                   , interUnion
@@ -54,6 +56,11 @@ module GraphOptimization.Medians  ( median2
                                   , pairwiseDO
                                   , makeDynamicCharacterFromSingleVector
                                   , createEdgeUnionOverBlocks
+                                  , get2WaySlim
+                                  , get2WayWideHuge
+                                  , getFinal3WaySlim
+                                  , getFinal3WayWideHuge
+                                  , generalSequenceDiff          
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -71,6 +78,8 @@ import           GeneralUtilities
 import qualified SymMatrix                                                   as S
 import           Types.Types
 import Debug.Trace
+import           Foreign.C.Types             (CUInt)
+import qualified Data.Vector.Storable         as SV
 
 
 --import qualified Data.Alphabet as DALPH
@@ -168,7 +177,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
 
 
--- | median2SingleStaticIA takes character data and returns median character and cost
+-- | median2SingleStaticIA takes character data and returns median character and cost for Static and IA fields of dynamic
 -- median2SingleStaticIA assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used for post-order assignments
@@ -200,7 +209,11 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then error "StaticIA not yet implemented"
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
+      let newCharVect = makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
+        in
+        --trace (show $ alphabet inCharInfo)
+        (newCharVect, localCost  newCharVect) 
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -628,3 +641,224 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
         in
         createEdgeUnionOverBlocks doIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
+
+-- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+-- the cost assignment is terrible for all dynmaic charcters--can'tr seem to get the pairs with cost tu return correctly
+makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
+     let characterType = charType charInfo
+         thisMatrix  = costMatrix charInfo
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then
+        let prelimChar = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+            cost = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+        in
+        -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
+        nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
+                , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
+                , localCost = (weight charInfo) * (fromIntegral cost)
+                }
+     else if characterType `elem` [WideSeq, AminoSeq] then
+        let prelimChar  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
+            (minCostList, _) = unzip $ GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
+        in
+        nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
+                , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
+                , localCost = (weight charInfo) * (fromIntegral $ sum minCostList)
+                }
+     else if characterType == HugeSeq then
+        let prelimChar  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
+            (minCostList, _) = unzip $ GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
+        in
+        nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
+                , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
+                , localCost = (weight charInfo) * (fromIntegral $ sum minCostList)
+                }
+     else error ("Unrecognized character type " ++ show characterType)
+
+-- | makeIAFinalharacter takes two characters and performs 2-way assignment 
+-- based on character type and nodeChar--only IA fields are modified
+makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar =
+     let characterType = charType charInfo
+     in
+     if characterType `elem` [SlimSeq, NucSeq] then
+        let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+            finalChar =  if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                         else slimFinal nodeChar 
+        in
+        nodeChar { slimIAFinal = finalIAChar
+                 , slimFinal = finalChar
+                 }
+     else if characterType `elem` [WideSeq, AminoSeq] then
+        let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                        else wideFinal nodeChar 
+        in
+        nodeChar { wideIAFinal = finalIAChar
+                 , wideFinal = finalChar
+                 }
+     else if characterType == HugeSeq then
+        let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
+            finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
+                        else hugeFinal nodeChar 
+        in
+        nodeChar { hugeIAFinal = finalIAChar
+                 , hugeFinal = finalChar
+                 }
+     else error ("Unrecognized character type " ++ show characterType)
+
+-- | get2WaySlim takes two slim vectors an produces a preliminary median
+get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
+   let -- (median, costList) = V.unzip $ SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
+        median = SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
+   in
+   median
+
+-- | get2WaySlimCost takes two slim vectors an produces a preliminary median
+get2WaySlimCost :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> Int
+get2WaySlimCost lSlimTCM descendantLeftPrelim descendantRightPrelim =
+   let -- (median, costList) = V.unzip $ SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
+        costList = SV.zipWith (local2WaySlimCost lSlimTCM) descendantLeftPrelim descendantRightPrelim
+   in
+   GV.sum costList
+
+-- | local2WaySlim takes pair of CUInt and retuns median
+local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt
+local2WaySlim lSlimTCM b c =
+ let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
+      -- c' = if c == zeroBits then gap else c
+      -- (median, _) = TCMD.lookupPairwise lSlimTCM (b `shiftL` 1) c -- shiflt is a temp fix for 2-way oddness
+      (median, _) = TCMD.lookupPairwise lSlimTCM b c
+ in
+ 
+ -- if b == zeroBits || c == zeroBits then trace ("Uh oh zero bits on") median
+ -- trace ("Hello 2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show (median, cost)))
+ -- else median
+ median
+
+
+ -- | local2WaySlimCost takes pair of CUInt and retuns cost of median
+local2WaySlimCost :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> Int
+local2WaySlimCost lSlimTCM b c =
+ let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
+      -- c' = if c == zeroBits then gap else c
+      -- (median, _) = TCMD.lookupPairwise lSlimTCM (b `shiftL` 1) c -- shiflt is a temp fix for 2-way oddness
+      (_, cost) = TCMD.lookupPairwise lSlimTCM b c
+ in
+ 
+ -- if b == zeroBits || c == zeroBits then trace ("Uh oh zero bits on") median
+ -- trace ("Hello 2Way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ " => " ++ (show (median, cost)))
+ -- else median
+ fromEnum cost
+
+
+-- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
+local2WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a
+local2WayWideHuge lWideTCM b c =
+   let  -- b' = if b == zeroBits then gap else b
+        -- c' = if c == zeroBits then gap else c
+        (median, _) = MR.retreivePairwiseTCM lWideTCM b c
+   in
+   --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+   median
+
+
+-- | get2WayWideHuge like get2WaySlim but for wide and huge characters
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
+get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
+   let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
+   in
+   median
+
+{- cannot get thid to work 
+-- | get2WayWideHuge like get2WaySlim but for wide and huge characters
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
+get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
+   let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
+   in
+   median
+
+-- | get2WayWideHugeCost like get2WaySlim but for wide and huge characters
+get2WayWideHugeCost :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
+get2WayWideHugeCost whTCM  descendantLeftPrelim descendantRightPrelim =
+   let costList = GV.zipWith (local2WayWideHugeCost whTCM) descendantLeftPrelim descendantRightPrelim
+   in
+   costList
+
+-- | local2WayWideHugeCost takes triples for wide and huge sequence types and returns cost
+local2WayWideHugeCost :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> Int
+local2WayWideHugeCost lWideTCM b c =
+   let  -- b' = if b == zeroBits then gap else b
+        -- c' = if c == zeroBits then gap else c
+        (_, cost) = MR.retreivePairwiseTCM lWideTCM b c
+   in
+   --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+   fromEnum cost
+-}
+
+
+
+-- | getFinal3Way takes parent final assignment (including indel characters) and descendent
+-- preliminary gapped assingment from postorder and creates a gapped final assignment based on 
+-- minimum cost median for the three inputs.  THis is done to preserve the ImpliedAlignment
+-- information to create a final assingment with out an additional DO call to keep the 
+-- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
+-- used as true final sequence assignments using M.createUngappedMedianSequence
+getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
+   let newFinal = SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
+   in
+   newFinal
+
+-- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
+getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a -> v a
+getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
+   let newFinal = GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
+   in
+   newFinal
+
+-- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
+local3WayWideHuge :: (FiniteBits a) => MR.MetricRepresentation a -> a -> a -> a -> a
+local3WayWideHuge lWideTCM b c d =
+   let  -- b' = if b == zeroBits then gap else b
+        -- c' = if c == zeroBits then gap else c
+        -- d' = if d == zeroBits then gap else d
+        (median, _) = MR.retreiveThreewayTCM lWideTCM b c d
+   in
+   -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
+   median
+
+-- | local3WaySlim takes triple of CUInt and retuns median
+local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
+local3WaySlim lSlimTCM b c d =
+ -- trace ("L3WS: " ++ (show (b,c,d))) (
+ let  -- b' = if b == zeroBits then gap else b
+      -- c' = if c == zeroBits then gap else c
+      -- d' = if d == zeroBits then gap else d
+ in
+ -- trace ("L3WS: " ++ (show (b',c',d'))) (
+ let (median, _) = TCMD.lookupThreeway lSlimTCM b c d
+ in
+ -- trace ("3way: " ++ (show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show (median, cost)))
+ median
+ -- )
+
+ -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
+-- cost differences using matrix values
+-- if value has no bits on--it is set to 0th bit on for GAP
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff thisMatrix numStates uState vState =
+    -- trace ("GSD: " ++ (show (numStates, uState, vState))) (
+    let uState' = if uState == zeroBits then bit gapIndex else uState
+        vState' = if vState == zeroBits then bit gapIndex else vState
+        uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
+        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
+        uvCombinations = cartProd uStateList vStateList
+        costOfPairs = fmap (thisMatrix S.!) uvCombinations
+    in
+    -- trace ("GSD: " ++ (show uStateList) ++ " " ++ (show vStateList) ++ " min " ++ (show $ minimum costOfPairs) ++ " max " ++ (show $  maximum costOfPairs))
+    (minimum costOfPairs, maximum costOfPairs)
+    -- )
