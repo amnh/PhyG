@@ -731,9 +731,9 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
        
 
    in
-   -- remove thbis check when things are working
+   -- remove this check when things are working
    if null subGraphVertData || null evEdgeData || (subGraphEdgeUnionCost == 0.0) then 
-      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData)) ++ "\nInGraph:\n"  
+      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) ++ "\nInGraph:\n"  
         ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
@@ -845,7 +845,9 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
    else 
       let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
             origGraph = thd6 origPhyloGraph
-            leafGraph = LG.extractLeafGraph origGraph
+
+            -- create leaf graphs--but copy IA final to prelim
+            leafGraph = GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph
             calcBranchLengths = False
 
             -- create simple graph version of split for post order pass
@@ -867,8 +869,8 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
 
             --Create pruned graph
             -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
-            startPrunedNode = (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
-            startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
+            startPrunedNode = GO.makeIAPrelimFromFinal (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
+            startPrunedParentNode =  head $ LG.labParents origGraph prunedSubGraphRootVertex
             startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
 
@@ -889,8 +891,15 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             splitGraphCost = baseGraphCost + prunedGraphCost + localRootCost
 
       in
-      trace ("ROGFVIA: " ++ (show splitGraphCost))
-      (fullSplitGraph, splitGraphCost)
+      -- remove when working
+      -- trace ("ROGFVIA split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)) (
+      if splitGraphCost == 0 then
+         error ("Split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)
+            ++ " Split graph simple:\n" ++ (LG.prettify splitGraphSimple) 
+            ++ "\nFull:\n" ++ (show inSplitGraph)
+            ++ "\nOriginal Graph:\n" ++ (show origGraph))
+      else (fullSplitGraph, splitGraphCost)
+      --)
 
 
           

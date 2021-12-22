@@ -52,6 +52,10 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , splitGraphOnEdge
                                , getEdgeSplitList
                                , selectPhylogeneticGraph
+                               , copyIAFinalToPrelim
+                               , copyIAPrelimToFinal
+                               , makeIAFinalFromPrelim
+                               , makeIAPrelimFromFinal
                                ) where
 
 import qualified Data.List                 as L
@@ -65,7 +69,12 @@ import qualified Utilities.LocalGraph      as LG
 import qualified Data.Char              as C
 import qualified Utilities.Utilities    as U
 import           Data.Maybe
+import qualified Data.Vector.Generic                                         as GV
+import qualified Data.Vector.Storable         as SV
 import           Text.Read
+import qualified GraphOptimization.Medians as M
+import           Bio.DynamicCharacter
+
 -- import Debug.Debug
 
 -- | getEdgeSplitList takes a graph and returns list of edges
@@ -728,4 +737,62 @@ getNonZeroEdges inGraph =
             (_, nonZeroEdgeList) = unzip $ filter ((>epsilon) . fst) $ zip  minCostEdgeList edgeList
         in
         (L.sortOn fst3 nonZeroEdgeList, inGraph)
+
+-- | copyIAFinalToPrelim takes a Decorated graph and copies
+-- the IA final fields to preliminary IA states--this for IA only optimization
+-- inswapping and other operations.  Thi sis done becasue the "preliminary" IA states
+-- are only known after full post/pre traversals
+copyIAFinalToPrelim :: DecoratedGraph -> DecoratedGraph
+copyIAFinalToPrelim inGraph =
+  if LG.isEmpty inGraph then error "Empty input graph in copyIAFinalToPrelim"
+  else
+    let nodes = LG.labNodes inGraph
+        edges = LG.labEdges inGraph
+        newNodes = fmap makeIAPrelimFromFinal nodes
+    in
+    LG.mkGraph newNodes edges
+
+-- | makeIAPrelimFromFinal updates the label of a node for IA states
+-- setting preliminary to final
+makeIAPrelimFromFinal :: LG.LNode VertexInfo -> LG.LNode VertexInfo
+makeIAPrelimFromFinal (index, label) =
+  let labData = vertData label
+      newLabData = fmap (fmap f) labData
+  in
+  (index, label {vertData = newLabData})
+  where f c = if (GV.null $ slimIAFinal c) && (GV.null  $ wideIAFinal c) && (GV.null  $ hugeIAFinal c) then c
+              else if (not $ GV.null $ slimIAFinal c) then c {slimIAPrelim = M.makeDynamicCharacterFromSingleVector $ slimIAFinal c}
+              else if (not $ GV.null $ wideIAFinal c) then c {wideIAPrelim = M.makeDynamicCharacterFromSingleVector $ wideIAFinal c}
+              else c {hugeIAPrelim = M.makeDynamicCharacterFromSingleVector $ hugeIAFinal c}
+
+
+-- | copyIAPrelimToFinal takes a Decorated graph and copies
+-- the IA prelim fields to final IA states--this for IA only optimization
+-- inswapping and other operations.  THis is fdone for root and leaf vertices
+copyIAPrelimToFinal :: DecoratedGraph -> DecoratedGraph
+copyIAPrelimToFinal inGraph =
+  if LG.isEmpty inGraph then error "Empty input graph in copyIAFinalToPrelim"
+  else
+    let nodes = LG.labNodes inGraph
+        edges = LG.labEdges inGraph
+        newNodes = fmap makeIAFinalFromPrelim nodes
+    in
+    LG.mkGraph newNodes edges
+
+-- | makeIAFinalFomPrelim updates the label of a node for IA states
+-- setting final to preliminary 
+makeIAFinalFromPrelim:: LG.LNode VertexInfo -> LG.LNode VertexInfo
+makeIAFinalFromPrelim (index, label) =
+  let labData = vertData label
+      newLabData = fmap (fmap f) labData
+  in
+  (index, label {vertData = newLabData})
+  where f c = let newSlimIAFinal = extractMediansGapped $ slimIAPrelim c
+                  newWideIAFinal = extractMediansGapped $ wideIAPrelim c
+                  newHugeIAFinal = extractMediansGapped $ hugeIAPrelim c
+              in
+              if (GV.null $ snd3 $ slimIAPrelim c) && (GV.null $ snd3 $ wideIAPrelim c) && (GV.null $ snd3 $ hugeIAPrelim c) then c
+              else if (not $ GV.null $ snd3 $ slimIAPrelim c) then c {slimIAFinal = newSlimIAFinal}
+              else if (not $ GV.null $ snd3 $ wideIAPrelim c) then c {wideIAFinal = newWideIAFinal}
+              else c {hugeIAFinal = newHugeIAFinal}
 

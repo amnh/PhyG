@@ -536,3 +536,4 @@ to render--would have repeated subtrees after network vertex
 	and StaticIA versions
 
 
+230) Check unique for use in swapp queue addition and keep

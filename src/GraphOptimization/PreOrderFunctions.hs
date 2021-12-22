@@ -131,10 +131,10 @@ preOrderTreeTraversalStaticIA inGS finalMethod calculateBranchLengths hasNonExac
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
-            preOrderBlockVect' = if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
-                                 else preOrderBlockVect
+            -- preOrderBlockVect' = if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+            --                     else preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
+            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect useMap inCharInfoVV inDecorated
         in
         if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversalStaticIA at root index rootIndex: " ++ (show rootIndex))
         else 
@@ -922,7 +922,7 @@ createFinalAssignmentOverBlocksStaticIA :: AssignmentMethod
                                 -> VertexBlockData
 createFinalAssignmentOverBlocksStaticIA finalMethod childType childBlockData parentBlockData charInfo isLeft isOutDegree1 =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith (assignFinal finalMethod childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
+   V.zipWith (assignFinalStaticIA finalMethod childType isLeft charInfo isOutDegree1) childBlockData parentBlockData
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final 
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
