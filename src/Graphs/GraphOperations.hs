@@ -52,6 +52,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , splitGraphOnEdge
                                , getEdgeSplitList
                                , selectPhylogeneticGraph
+                               , getUniqueGraphs
                                , copyIAFinalToPrelim
                                , copyIAPrelimToFinal
                                , makeIAFinalFromPrelim

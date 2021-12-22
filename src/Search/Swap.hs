@@ -149,7 +149,7 @@ swapSPRTBR swapType inGS inData numToKeep steepest numLeaves leafGraph leafDecGr
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
-      -- steepest takes immediate best
+      -- steepest takes immediate best--does not keep equall cost
       if steepest then 
          let (swappedGraphs, counter) = swapSteepest swapType inGS inData numToKeep True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
@@ -236,9 +236,10 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if bestSwapCost == curBestCost then 
-         --this needs to be better--informed by zero-length edges
-         let newCurSameBestList = if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
-                                  else curSameBetterList
+         --equality informed by zero-length edges
+         let newCurSameBestList = GO.getUniqueGraphs [(LG.labEdges firstDecoratedGraph, firstGraph)] (zip (fmap LG.labEdges $ fmap thd6 curSameBetterList) curSameBetterList)
+                                  -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
+                                  -- else curSameBetterList
              graphsToSwap = ((tail inGraphList) ++ bestSwapGraphList) L.\\ newCurSameBestList               
          in
          --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ (tail inGraphList) ++ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
@@ -248,13 +249,14 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
          -- trace ("Better cost: " ++ (show bestSwapCost))
-         swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost bestSwapGraphList ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else 
          -- trace ("Worse cost")
-         let newCurSameBestList = if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
-                                  else curSameBetterList
+         let newCurSameBestList = GO.getUniqueGraphs [(LG.labEdges firstDecoratedGraph, firstGraph)] (zip (fmap LG.labEdges $ fmap thd6 curSameBetterList) curSameBetterList)
+                                  -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
+                                  -- else curSameBetterList
          in
          swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
       -- )
@@ -321,7 +323,7 @@ swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSame
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if (bestSwapCost < curBestCost) then 
          --trace ("Steepest better")
-         swapSteepest swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost [] (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapSteepest swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else (inGraphList, counter + 1)
