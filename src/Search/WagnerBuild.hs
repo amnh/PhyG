@@ -97,7 +97,8 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        blockCharInfo = V.map thd3 $ thd3 inData
 
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False hasNonExactChars numLeaves False $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+       calculateBranchLengths = False -- must be True for delata using existing edge
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree initialTree leafDecGraph blockCharInfo numLeaves numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
    in
@@ -127,11 +128,15 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
 
           newSimple' = if V.length additionSequence == 1 then GO.rerootTree (outgroupIndex inGS) newSimple
-                       else newSimple
+                       else GO.rerootTree (outgroupIndex inGS) newSimple
+                       -- else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          newPhyloGraph = if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False hasNonExactChars numLeaves False $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves numLeaves
-                          else T.multiTraverseFullyLabelGraph inGS inData False False Nothing newSimple'   
+          calculateBranchLengths = False -- must be True for delata using existing edge
+          newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
+                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                          else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple' 
+                          
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )
@@ -168,11 +173,11 @@ addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _,
 -- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
 -- must be DO for this--isolated leaves won't have IA
 getDelta :: Int -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
-getDelta leafToAdd (eNode, vNode, _) inDecGraph charInfoVV =
+getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
    let leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
        eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
-       -- existingEdgeCost = minLength targetlabel
+       existingEdgeCost = minLength targetlabel
        
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
@@ -190,14 +195,17 @@ getDelta leafToAdd (eNode, vNode, _) inDecGraph charInfoVV =
           -- Use edge union data for delta to edge data
           dLeafEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV
 
+          dLeafEVAddCost = (dLeafENode + dLeafVNode - existingEdgeCost) / 2
+
           -- should be able to use existing information--but for now using this
           -- existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) eNodeVertData vNodeVertData charInfoVV
       in
       -- trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
       -- dLeafENode + dLeafVNode - existingEdgeCost
-      -- trace ("Delta: " ++ (show dLeafEdgeUnionCost))
+      -- trace ("Delta: " ++ (show dLeafEdgeUnionCost) ++ " vs " ++ (show dLeafEVAddCost))
       
-
+      -- min dLeafEdgeUnionCost dLeafEVAddCost
+      -- dLeafEVAddCost
       dLeafEdgeUnionCost
       -- )
 

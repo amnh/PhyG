@@ -535,5 +535,6 @@ to render--would have repeated subtrees after network vertex
 229) Abstract all tHE POST/PREORDER 
 	and StaticIA versions
 
+231) chnge delta calcualtion--to edge calculateoin wag style--missing good graphs
 
-230) Check unique for use in swapp queue addition and keep
+232) rediagnose preorder pass if chnage final assignment
