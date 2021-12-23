@@ -452,7 +452,7 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
           -- for SPRT/NNI only need preliminary state of root-pruned node
           -- for TBR ther are multiple verticces created for each edge
           subGraphEdgeVertDataTripleList = if swapType == "spr" ||swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
-                                         else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
+                                           else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
 
           -- this is SPR/NNI
           (delta, rerootEdge, (tbrEdgesAdd, tbrEdgesDelete)) = getSubGraphDelta targetEdgeData doIA inGraph charInfoVV (head subGraphEdgeVertDataTripleList)
@@ -734,8 +734,9 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
    in
    -- remove this check when things are working
    if null subGraphVertData || null evEdgeData || (subGraphEdgeUnionCost == 0.0) then 
-      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) ++ "\nInGraph:\n"  
-        ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
+      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) )
+      --  ++ "\nInGraph:\n"  
+      --  ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
     -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
@@ -907,14 +908,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             ++ "\nFull:\n" ++ (show inSplitGraph)
             ++ "\nOriginal Graph:\n" ++ (show origGraph))
       else (fullSplitGraph, splitGraphCost)
-      --)
-
-
-          
-
-
-
-
+      -- )
 
 -- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
 applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
