@@ -538,3 +538,6 @@ to render--would have repeated subtrees after network vertex
 231) chnge delta calcualtion--to edge calculateoin wag style--missing good graphs
 
 232) rediagnose preorder pass if chnage final assignment
+
+233) Check through <= delta in swap and wagner build
+

@@ -214,10 +214,10 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           -- this cost prob doesn't include the root/net penalty--so need to figure out
           swapPairList = concat $ L.zipWith5 (rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV) reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
 
-          -- keeps only "best" heuristic swap costs graphs
-          minimumCandidateGraphCost = if (null swapPairList) then infinity
-                                      else minimum $ fmap snd swapPairList
-          candidateSwapGraphList = filter ((== minimumCandidateGraphCost). snd) swapPairList
+          -- keeps better heuristic swap costs graphs based on current best as opposed to minimum heuristic costs
+          -- minimumCandidateGraphCost = if (null swapPairList) then infinity
+          --                             else minimum $ fmap snd swapPairList
+          candidateSwapGraphList = filter ((<= curBestCost). snd) swapPairList
 
           
           -- this should be incremental--full 2-pass for now
@@ -374,7 +374,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
       if minCandidateCost > curBestCost then []
       else 
-         let bestEdits = filter ((== minCandidateCost). fst3) candidateEditList
+         let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if checkk all equal or better than curent best
              splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
@@ -475,7 +475,7 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
 
       -- better heursitic cost
       -- reoptimize to check  cost
-      else if (delta + splitCost < curBestCost) then 
+      else if (delta + splitCost <= curBestCost) then 
          let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
              swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
              reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
