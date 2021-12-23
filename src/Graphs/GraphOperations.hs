@@ -580,8 +580,8 @@ convertDecoratedToSimpleGraph inDec =
 
 
 -- | convertToSimpleEdge takes a lables edge and relabels with 0.0
-convertToSimpleEdge :: LG.LEdge b -> LG.LEdge Double
-convertToSimpleEdge (a, b, _) = (a, b, 0.0)
+convertToSimpleEdge :: LG.LEdge EdgeInfo -> LG.LEdge Double
+convertToSimpleEdge (a, b, c) = (a, b, minLength c)
 
 -- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
 --  of its nodes

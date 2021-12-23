@@ -190,7 +190,7 @@ swapAll  :: String
 swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("ALL") (
    if null inGraphList then 
-      (curSameBetterList, counter)
+      (GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -285,7 +285,7 @@ swapSteepest   :: String
 swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("steepest") (
    if null inGraphList then 
-      (curSameBetterList, counter)
+      (GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
