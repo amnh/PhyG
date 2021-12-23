@@ -357,8 +357,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV
    else
       let outgroupEdges = LG.out splitGraph graphRoot
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
-          edgesToInvade = if steepest then (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode])  L.\\ (outgroupEdges ++ prunedSubTreeEdges)
-                          else (LG.labEdges splitGraph) L.\\ (outgroupEdges ++ prunedSubTreeEdges)
+          edgesToInvade = (LG.labEdges splitGraph) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
 
           prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
           (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
@@ -405,7 +404,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep steepest 
       let ((splitGraph, splitCost), graphRoot, prunedGraphRootIndex, nakedNode, originalSplitNode) = head splitInfoList
           outgroupEdges = LG.out splitGraph graphRoot
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
-          edgesToInvade = (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ (outgroupEdges ++ prunedSubTreeEdges)
+          edgesToInvade = (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
           
 
           prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
