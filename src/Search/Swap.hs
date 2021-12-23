@@ -786,10 +786,11 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
 
 
           -- create optimized base graph
-          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just startVertex) splitGraphSimple
+          -- True for staticIA
+          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph True (Just startVertex) splitGraphSimple
                                                    
           
-          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) doIA calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
           -- create fully optimized pruned graph.  Post order tehn preorder
 
@@ -799,10 +800,10 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
 
-          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
+          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
                                                 
 
-          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) doIA calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
          
           -- get root node of base graph
           startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -857,10 +858,12 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
 
             --Create base graph
             -- create postorder assignment--but only from single traversal
-            postOrderBaseGraph = T.postOrderTreeTraversalStaticIA inGS inData leafGraph (Just startVertex) splitGraphSimple
+            -- True flag fior staticIA
+            postOrderBaseGraph = T.postOrderTreeTraversal inGS inData leafGraph True (Just startVertex) splitGraphSimple
             baseGraphCost = snd6 postOrderBaseGraph
             
-            fullBaseGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+            -- True flag fior staticIA
+            fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
                               else if (rootCost inGS) == Wheeler2015Root then T.getW15RootCost inData postOrderBaseGraph
@@ -876,10 +879,12 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
 
-            postOrderPrunedGraph =  T.postOrderTreeTraversalStaticIA inGS inData leafGraph (Just prunedSubGraphRootVertex) splitGraphSimple
+            -- True flag fior staticIA
+            postOrderPrunedGraph =  T.postOrderTreeTraversal inGS inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
             prunedGraphCost = snd6 postOrderPrunedGraph                             
 
-            fullPrunedGraph = PRE.preOrderTreeTraversalStaticIA inGS (finalAssignment inGS) calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+            -- True flag fior staticIA
+            fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
 
             -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
             (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]

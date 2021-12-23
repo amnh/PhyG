@@ -94,7 +94,7 @@ makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.
 -- for parallel fmap over all then parallelized by type and sequences
 -- used for distances and post-order assignments
 median2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2 = V.zipWith3 median2Single
+median2 = V.zipWith3 (median2Single False)
 
 
 -- | median2NonExact takes the vectors of characters and applies median2NonExact to each
@@ -109,7 +109,7 @@ median2NonExact = V.zipWith3 median2SingleNonExact
 -- this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2StaticIA :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2StaticIA = V.zipWith3 median2SingleStaticIA
+median2StaticIA = V.zipWith3 (median2Single True)
 
 
 -- | median2Single takes character data and returns median character and cost
@@ -117,8 +117,9 @@ median2StaticIA = V.zipWith3 median2SingleStaticIA
 -- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used for post-order assignments
 -- this is from preliminary states
-median2Single :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2Single firstVertChar secondVertChar inCharInfo =
+-- staticIA for dynm,aic assumes all same length
+median2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2Single staticIA firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
@@ -145,7 +146,8 @@ median2Single firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
-      let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      let newCharVect = if staticIA then makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
+                        else getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
@@ -644,7 +646,8 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
 -- based on character type and nodeChar--only IA fields are modified
--- the cost assignment is terrible for all dynmaic charcters--can'tr seem to get the pairs with cost tu return correctly
+-- the cost assignment is terrible for all dynmaic charcters
+--can'tr seem to get the pairs with cost tu return correctly--so a real hack on this
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo

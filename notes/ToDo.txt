@@ -531,6 +531,7 @@ to render--would have repeated subtrees after network vertex
 228) makeIAPrelimCharacter  -- can't get cost pairs to return correctly
 	terrible hack on node cost
 	GraphOptimization.Medians
+	makeIAPrelimCharacter
 
 229) Abstract all tHE POST/PREORDER 
 	and StaticIA versions
@@ -540,4 +541,10 @@ to render--would have repeated subtrees after network vertex
 232) rediagnose preorder pass if chnage final assignment
 
 233) Check through <= delta in swap and wagner build
+
+234) create alternate spr-tbr for when find new in steepest
+
+235) check edges for splitting and readding--make sure not missing some edges--especially near root
+
+
 
