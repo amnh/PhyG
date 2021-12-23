@@ -786,11 +786,11 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
 
 
           -- create optimized base graph
-          -- True for staticIA
-          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph True (Just startVertex) splitGraphSimple
+          -- False for staticIA
+          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
                                                    
           
-          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) doIA calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
           -- create fully optimized pruned graph.  Post order tehn preorder
 
@@ -800,10 +800,12 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
 
-          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
+          -- False for staticIA
+          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
                                                 
 
-          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) doIA calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+          -- False for staticIA
+          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
          
           -- get root node of base graph
           startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
