@@ -57,6 +57,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , copyIAPrelimToFinal
                                , makeIAFinalFromPrelim
                                , makeIAPrelimFromFinal
+                               , topologicalEqual
+                               , getTopoUniqPhylogeneticGraph
                                ) where
 
 import qualified Data.List                 as L
@@ -698,7 +700,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges
-                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs nonZeroEdgeListGraphPairList []
+                        uniqueGraphList = L.sortOn snd6 $ getTopoUniqPhylogeneticGraph True curGraphs -- ngetUniqueGraphs nonZeroEdgeListGraphPairList []
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
@@ -796,4 +798,53 @@ makeIAFinalFromPrelim (index, label) =
               else if (not $ GV.null $ snd3 $ slimIAPrelim c) then c {slimIAFinal = newSlimIAFinal}
               else if (not $ GV.null $ snd3 $ wideIAPrelim c) then c {wideIAFinal = newWideIAFinal}
               else c {hugeIAFinal = newHugeIAFinal}
+
+
+-- | getTopoUniqPhylogeneticGraph takes a list of phylogenetic graphs and returns 
+-- list of topologically unique graphs--operatres on simple graph field
+-- noZeroEdges flag passed to remove zero weight edges 
+getTopoUniqPhylogeneticGraph :: Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+getTopoUniqPhylogeneticGraph nonZeroEdges inPhyloGraphList = 
+  if null inPhyloGraphList then []
+  else 
+      let uniqueBoolList = createUniqueBoolList nonZeroEdges (fmap fst6 inPhyloGraphList) []
+          boolPair = zip inPhyloGraphList uniqueBoolList
+      in
+      fmap fst $ filter ((== True) . snd) boolPair
+
+-- | createUniqueBoolList creates a list of Bool if graphs are unique--first occurrence is True, others False
+createUniqueBoolList :: Bool -> [SimpleGraph] -> [(SimpleGraph,Bool)] -> [Bool]
+createUniqueBoolList nonZeroEdges inGraphList boolAccum =
+  if null inGraphList then reverse $ fmap snd boolAccum
+  else 
+    let firstGraph = head inGraphList 
+    in
+    if null boolAccum then createUniqueBoolList nonZeroEdges (tail inGraphList) ((firstGraph,True) : boolAccum)
+    else
+        let checkList = filter (== True) $ fmap (topologicalEqual nonZeroEdges firstGraph) (fmap fst boolAccum)
+        in
+        if null checkList then createUniqueBoolList nonZeroEdges (tail inGraphList) ((firstGraph,True) : boolAccum)
+        else createUniqueBoolList nonZeroEdges (tail inGraphList) ((firstGraph, False) : boolAccum)
+
+
+
+-- | topologicalEqual takes two simple graphs and returns True if graphs have same nodes and edges
+-- option to exclude zero weight edges 
+topologicalEqual :: Bool -> SimpleGraph -> SimpleGraph -> Bool
+topologicalEqual nonZeroEdges g1 g2 =
+  if LG.isEmpty g1 && LG.isEmpty g2 then True
+  else if  LG.isEmpty g1 || LG.isEmpty g2 then False
+  else 
+      let nodesG1 = LG.labNodes g1
+          nodesG2 = LG.labNodes g2
+          edgesG1 = if nonZeroEdges then fmap LG.toEdge $ filter ((> 0). thd3) $ LG.labEdges g1
+                    else LG.edges g1 
+          edgesG2 = if nonZeroEdges then fmap LG.toEdge $ filter ((> 0). thd3) $ LG.labEdges g2
+                    else LG.edges g2
+      in
+      if nodesG1 == nodesG2 && edgesG1 == edgesG2 then True
+      else False
+
+
+
 

@@ -190,7 +190,7 @@ swapAll  :: String
 swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("ALL") (
    if null inGraphList then 
-      (GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] curSameBetterList, counter)
+      (GO.getTopoUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -237,7 +237,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if bestSwapCost == curBestCost then 
          --equality informed by zero-length edges
-         let newCurSameBestList = GO.getUniqueGraphs [(LG.labEdges firstDecoratedGraph, firstGraph)] (zip (fmap LG.labEdges $ fmap thd6 curSameBetterList) curSameBetterList)
+         let newCurSameBestList = GO.getTopoUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
              graphsToSwap = ((tail inGraphList) ++ bestSwapGraphList) L.\\ newCurSameBestList               
@@ -254,7 +254,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- didn't find equal or better graphs
       else 
          -- trace ("Worse cost")
-         let newCurSameBestList = GO.getUniqueGraphs [(LG.labEdges firstDecoratedGraph, firstGraph)] (zip (fmap LG.labEdges $ fmap thd6 curSameBetterList) curSameBetterList)
+         let newCurSameBestList = GO.getTopoUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
          in
@@ -285,7 +285,7 @@ swapSteepest   :: String
 swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("steepest") (
    if null inGraphList then 
-      (GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] curSameBetterList, counter)
+      (GO.getTopoUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
