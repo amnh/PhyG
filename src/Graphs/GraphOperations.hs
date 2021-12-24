@@ -59,9 +59,11 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , makeIAPrelimFromFinal
                                , topologicalEqual
                                , getTopoUniqPhylogeneticGraph
+                               , getBVUniqPhylogeneticGraph
                                ) where
 
 import qualified Data.List                 as L
+import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Text.Lazy            as T
 import qualified Data.Vector               as V
 import           Debug.Trace
@@ -700,7 +702,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges
-                        uniqueGraphList = L.sortOn snd6 $ getTopoUniqPhylogeneticGraph True curGraphs -- ngetUniqueGraphs nonZeroEdgeListGraphPairList []
+                        uniqueGraphList = L.sortOn snd6 $ getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs -- ngetUniqueGraphs nonZeroEdgeListGraphPairList []
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
@@ -845,6 +847,77 @@ topologicalEqual nonZeroEdges g1 g2 =
       if nodesG1 == nodesG2 && edgesG1 == edgesG2 then True
       else False
 
+-- | topologicalBVEqual takes two Decorated graphs and returns True if graphs have same nodes
+-- by bitvector (sorted)
+-- option to exclude nodes that are end of zero weight edges 
+topologicalBVEqual :: Bool -> DecoratedGraph -> DecoratedGraph -> Bool
+topologicalBVEqual nonZeroEdges g1 g2 =
+  if LG.isEmpty g1 && LG.isEmpty g2 then True
+  else if  LG.isEmpty g1 || LG.isEmpty g2 then False
+  else 
+      let bvNodesG1 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g1
+          bvNodesG2 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g2
+          edgesG1 = LG.labEdges g1
+          edgesG2 = LG.labEdges g2
+      in
+      if bvNodesG1 == bvNodesG2 then True
+      else False
+
+-- | getEdgeMinLengthToNode takes a labelled node and returns the min length of
+-- the edge leading to the node
+getEdgeMinLengthToNode ::[LG.LEdge EdgeInfo] ->  LG.LNode a -> Double
+getEdgeMinLengthToNode  edgeList (node, _)=
+  let foundEdge = L.find ((== node) . snd3) edgeList
+  in
+  -- root node will be nor be in in edge set and need so set > 0
+  if foundEdge == Nothing then 1.0 --  error ("Edge not found in getEdgeMinLengthToNode: node " ++ (show node) ++ " edge list " ++ (show edgeList))
+  else minLength $ thd3 $ fromJust foundEdge
+
+-- | getBVUniqPhylogeneticGraph takes a list of phylogenetic graphs and returns 
+-- list of topologically unique graphs based on their node bitvector assignments
+-- operatres on Decorated graph field
+-- noZeroEdges flag passed to remove zero weight edges 
+getBVUniqPhylogeneticGraph :: Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+getBVUniqPhylogeneticGraph nonZeroEdges inPhyloGraphList = 
+  if null inPhyloGraphList then []
+  else 
+      let bvGraphList = fmap (getBVNodeList nonZeroEdges) $ fmap thd6 inPhyloGraphList
+          uniqueBoolList = createBVUniqueBoolList bvGraphList []
+          boolPair = zip inPhyloGraphList uniqueBoolList
+      in
+      fmap fst $ filter ((== True) . snd) boolPair
+
+
+-- | getBVNodeList takes a DecoratedGraph and returns sorted list (by BV) of nodes
+-- removes node with zero edge weight to them if specified
+getBVNodeList :: Bool -> DecoratedGraph -> [BV.BitVector]  
+getBVNodeList nonZeroEdges inGraph =
+  if LG.isEmpty inGraph then []
+  else 
+      let nodeList =  LG.labNodes inGraph
+          edgeList = LG.labEdges inGraph
+          minLengthList = fmap (getEdgeMinLengthToNode edgeList) nodeList
+          nodePairList = filter ((> 0) . snd) $ zip nodeList minLengthList
+          bvNodeList  =  if nonZeroEdges then L.sort $ fmap bvLabel $ fmap snd $ fmap fst nodePairList
+                         else L.sort $ fmap bvLabel $ fmap snd nodeList
+          in
+          bvNodeList
+          
+-- | createBVUniqueBoolList creates a list of Bool if graphs are unique by bitvecector node list
+-- first occurrence is True, others False
+-- assumes edges filterd b=y lenght already
+createBVUniqueBoolList :: [[BV.BitVector]] -> [([BV.BitVector],Bool)] -> [Bool]
+createBVUniqueBoolList inBVGraphListList boolAccum =
+  if null inBVGraphListList then reverse $ fmap snd boolAccum
+  else 
+    let firstGraphList = head inBVGraphListList 
+    in
+    if null boolAccum then createBVUniqueBoolList  (tail inBVGraphListList) ((firstGraphList,True) : boolAccum)
+    else
+        let checkList = filter (== True) $ fmap (== firstGraphList) (fmap fst boolAccum)
+        in
+        if null checkList then createBVUniqueBoolList  (tail inBVGraphListList) ((firstGraphList,True) : boolAccum)
+        else createBVUniqueBoolList  (tail inBVGraphListList) ((firstGraphList, False) : boolAccum)
 
 
 

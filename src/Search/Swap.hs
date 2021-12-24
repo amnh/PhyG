@@ -63,6 +63,7 @@ swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia"]
 
 
 -- | swapMaster processes and spawns the swap functions
+-- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphList = 
    if null inGraphList then []
@@ -82,8 +83,15 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
               | null keepList = Just 1
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+             moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
+             maxMoveEdgeDist  
+              | length moveLimitList > 1 =
+                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
+              | null moveLimitList = Just (maxBound :: Int) 
+              | otherwise = readMaybe (head moveLimitList) :: Maybe Int
         in
-        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (snd $ head keepList))
+        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (head keepList))
+        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
         else 
            let -- getting values to be passed for graph diagnosis later
                numLeaves = V.length $ fst3 inData
@@ -105,18 +113,18 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
                (newGraphList, counterNNI)  = if doNNI then 
-                                               let graphPairList = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
+                                               let graphPairList = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
-                                               let graphPairList = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
+                                               let graphPairList = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
-                                               let graphPairList =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
+                                               let graphPairList =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (concat graphListList, sum counterList)
                                              else (newGraphList', 0)
@@ -135,6 +143,7 @@ swapSPRTBR  :: String
             -> GlobalSettings 
             -> ProcessedData
             -> Int 
+            -> Int 
             -> Bool 
             -> Int
             -> SimpleGraph 
@@ -145,23 +154,23 @@ swapSPRTBR  :: String
             -> Bool
             -> PhylogeneticGraph 
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType inGS inData numToKeep steepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraph = 
+swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraph = 
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
       -- steepest takes immediate best--does not keep equall cost
       if steepest then 
-         let (swappedGraphs, counter) = swapSteepest swapType inGS inData numToKeep True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         let (swappedGraphs, counter) = swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
              -- swap "all" after steepest descent
-             (swappedGraphs', counter') = swapAll swapType inGS inData numToKeep True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+             (swappedGraphs', counter') = swapAll swapType inGS inData numToKeep maxMoveEdgeDist True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
          in
          (swappedGraphs', counter')
 
       -- All does all swaps before taking best
       else  
          -- trace ("Going into SwapAll") (
-         let (swappedGraphs, counter) = swapAll swapType inGS inData numToKeep False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         let (swappedGraphs, counter) = swapAll swapType inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
          in 
          -- trace ("SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          (swappedGraphs, counter)
@@ -173,6 +182,7 @@ swapSPRTBR swapType inGS inData numToKeep steepest numLeaves leafGraph leafDecGr
 swapAll  :: String 
          -> GlobalSettings 
          -> ProcessedData 
+         -> Int 
          -> Int 
          -> Bool 
          -> Int 
@@ -187,10 +197,10 @@ swapAll  :: String
          -> V.Vector (V.Vector CharInfo) 
          -> Bool
          -> ([PhylogeneticGraph], Int)
-swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
+swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("ALL") (
    if null inGraphList then 
-      (GO.getTopoUniqPhylogeneticGraph True curSameBetterList, counter)
+      (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -212,7 +222,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
           -- this cost prob doesn't include the root/net penalty--so need to figure out
-          swapPairList = concat $ L.zipWith5 (rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV) reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
+          swapPairList = concat $ L.zipWith5 (rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV) reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
 
           -- keeps better heuristic swap costs graphs based on current best as opposed to minimum heuristic costs
           -- minimumCandidateGraphCost = if (null swapPairList) then infinity
@@ -237,28 +247,28 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if bestSwapCost == curBestCost then 
          --equality informed by zero-length edges
-         let newCurSameBestList = GO.getTopoUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
+         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
              graphsToSwap = ((tail inGraphList) ++ bestSwapGraphList) L.\\ newCurSameBestList               
          in
          --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ (tail inGraphList) ++ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
          --    ++ " graphs in 'best' list")
-         swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
          -- trace ("Better cost: " ++ (show bestSwapCost))
-         swapAll swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost bestSwapGraphList ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else 
          -- trace ("Worse cost")
-         let newCurSameBestList = GO.getTopoUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
+         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (firstGraph : curSameBetterList)
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
          in
-         swapAll swapType inGS inData numToKeep steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
       -- )
       -- )
       -- )
@@ -268,6 +278,7 @@ swapAll swapType inGS inData numToKeep steepest counter curBestCost curSameBette
 swapSteepest   :: String 
                -> GlobalSettings 
                -> ProcessedData 
+               -> Int 
                -> Int 
                -> Bool 
                -> Int 
@@ -282,10 +293,10 @@ swapSteepest   :: String
                -> V.Vector (V.Vector CharInfo) 
                -> Bool
                -> ([PhylogeneticGraph], Int)
-swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
+swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("steepest") (
    if null inGraphList then 
-      (GO.getTopoUniqPhylogeneticGraph True curSameBetterList, counter)
+      (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -307,7 +318,7 @@ swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSame
           reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstGraph) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- reoptimized fully in steepest returns PhylogheneticGraph 
-          reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
+          reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep maxMoveEdgeDist True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
 
           -- this should be incremental--full 2-pass for now
           -- reoptimizedSwapGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing $ fst $ head swapPairList 
@@ -323,7 +334,7 @@ swapSteepest swapType inGS inData numToKeep steepest counter curBestCost curSame
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if (bestSwapCost < curBestCost) then 
          --trace ("Steepest better")
-         swapSteepest swapType inGS inData numToKeep steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else (inGraphList, counter + 1)
@@ -342,6 +353,7 @@ rejoinGraphKeepBest :: GlobalSettings
                     -> String 
                     -> VertexCost 
                     -> Int 
+                    -> Int 
                     -> Bool 
                     -> Bool 
                     -> V.Vector (V.Vector CharInfo) 
@@ -351,13 +363,16 @@ rejoinGraphKeepBest :: GlobalSettings
                     -> LG.Node 
                     -> LG.Node 
                     -> [(SimpleGraph, VertexCost)]
-rejoinGraphKeepBest inGS swapType curBestCost numToKeep steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitNode = 
+rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitNode = 
    -- case where swap split retunred empty because too few nodes in remaining graph to add to
    if LG.isEmpty splitGraph then []
    else
       let outgroupEdges = LG.out splitGraph graphRoot
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
-          edgesToInvade = (LG.labEdges splitGraph) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
+
+          --only sort if limited egde rejoins
+          edgesToInvade = if maxMoveEdgeDist == (maxBound :: Int) then (LG.labEdges splitGraph) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
+                          else take maxMoveEdgeDist $ (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges
 
           prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
           (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
@@ -392,26 +407,27 @@ rejoinGraphKeepBestSteepest :: GlobalSettings
                              -> String 
                              -> VertexCost 
                              -> Int 
+                             -> Int 
                              -> Bool 
                              -> Bool 
                              -> V.Vector (V.Vector CharInfo) 
                              -> [((DecoratedGraph, VertexCost) , LG.Node , LG.Node , LG.Node , LG.Node)]
                              -> [(PhylogeneticGraph, VertexCost)]
-rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep steepest doIA charInfoVV splitInfoList = 
+rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV splitInfoList = 
    if null splitInfoList then []
    else
       -- trace ("In rejoin steepes with split node " ++ (show $ fft5 $ head splitInfoList)) (
       let ((splitGraph, splitCost), graphRoot, prunedGraphRootIndex, nakedNode, originalSplitNode) = head splitInfoList
           outgroupEdges = LG.out splitGraph graphRoot
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
-          edgesToInvade = (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
+          edgesToInvade = take maxMoveEdgeDist $ (GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
           
 
           prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
           (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
           onlySPR = length nodesAfterPrunedRoot < 3
           
-          candidateGraphList = addSubGraphSteepest inGS inData swapType doIA splitGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV edgesToInvade 
+          candidateGraphList = addSubGraphSteepest inGS inData swapType doIA splitGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV edgesToInvade
 
       in
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
@@ -419,7 +435,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep steepest 
       -- case where swap split retunred empty because too few nodes in remaining graph to add to
       if LG.isEmpty splitGraph || null candidateGraphList then []
       else if (snd6 $ head candidateGraphList) < curBestCost then [(head candidateGraphList, snd6 $ head candidateGraphList)]
-      else rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep steepest doIA charInfoVV (tail splitInfoList) 
+      else rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV (tail splitInfoList) 
       -- ))
 
 -- | addSubGraphSteepest "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
@@ -451,7 +467,7 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
 
           -- for SPRT/NNI only need preliminary state of root-pruned node
           -- for TBR ther are multiple verticces created for each edge
-          subGraphEdgeVertDataTripleList = if swapType == "spr" ||swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
+          subGraphEdgeVertDataTripleList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
                                            else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
 
           -- this is SPR/NNI
