@@ -3,14 +3,14 @@ build-type:     Simple
 
 name:           phygraph
 version:        0.1.0.0
---description:    Please see the README on GitHub at <https://github.com/githubuser/PhyGraph#readme>
---homepage:       https://github.com/githubuser/PhyGraph#readme
---bug-reports:    https://github.com/githubuser/PhyGraph/issues
---author:         Ward Wheeler
---maintainer:     wheeler@amnh.org
---copyright:      2021 Ward Wheeler
---license:        BSD3
---license-file:   LICENSE
+description:    Please see the README on GitHub at <https://github.com/githubuser/PhyGraph#readme>
+homepage:       https://github.com/githubuser/PhyGraph#readme
+bug-reports:    https://github.com/githubuser/PhyGraph/issues
+author:         Ward Wheeler
+maintainer:     wheeler@amnh.org
+copyright:      2021 Ward Wheeler
+license:        BSD-3-Clause
+license-file:   LICENSE
 
 -- for static linking add options -static -optl-static -optl-pthread
 -- GKW cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
