@@ -55,6 +55,10 @@ import qualified Utilities.Utilities          as U
 import qualified Input.Reorganize             as R
 -- import qualified Utilities.LocalGraph         as LG
 
+-- | debugRandomFlag sets flag for debugging randomization
+debugRandomFlag :: Bool
+debugRandomFlag = False
+
 -- | main driver
 main :: IO ()
 main = do
@@ -73,7 +77,8 @@ main = do
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
-    let seedList = randomIntList timeD
+    let seedList = if not debugRandomFlag then randomIntList timeD
+                   else [0..]
 
 
     -- Process commands to get list of actions
