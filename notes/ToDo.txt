@@ -546,5 +546,7 @@ to render--would have repeated subtrees after network vertex
 
 235) check edges for splitting and readding--make sure not missing some edges--especially near root
 
+236) Check order or branche readdition confirm sequence in closest order
 
+237) Check BV graph equality--including zero-length edges
 
