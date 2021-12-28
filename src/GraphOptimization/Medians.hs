@@ -654,8 +654,10 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
          thisMatrix  = costMatrix charInfo
      in
      if characterType `elem` [SlimSeq, NucSeq] then
-        let prelimChar = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
-            cost = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+--        let prelimChar = get2WaySlim     (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+--            cost       = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+        let (prelimChar, cost) = get2WaySlim     (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+--                   = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
@@ -663,20 +665,18 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
                 , localCost = (weight charInfo) * (fromIntegral cost)
                 }
      else if characterType `elem` [WideSeq, AminoSeq] then
-        let prelimChar  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
-            (minCostList, _) = unzip $ GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
+        let (prelimChar, minCost)  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
         in
         nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
-                , localCost = (weight charInfo) * (fromIntegral $ sum minCostList)
+                , localCost = (weight charInfo) * (fromIntegral minCost)
                 }
      else if characterType == HugeSeq then
-        let prelimChar  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
-            (minCostList, _) = unzip $ GV.toList $ GV.zipWith (generalSequenceDiff thisMatrix (length thisMatrix))  (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
+        let (prelimChar, minCost)  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
         in
         nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
-                , localCost = (weight charInfo) * (fromIntegral $ sum minCostList)
+                , localCost = (weight charInfo) * (fromIntegral minCost)
                 }
      else error ("Unrecognized character type " ++ show characterType)
 
@@ -752,12 +752,19 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
 
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
-get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
-   let -- (median, costList) = V.unzip $ SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
-        median = SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
-   in
-   median
+get2WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
+get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
+   let len   = GV.length descendantLeftPrelim
+       vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (CUInt, Word)
+       gen v = let med i = fst $ v V.! i in GV.generate len med
+       add   = V.foldl' (\x e -> x + snd e) 0
+   in  (,) <$> gen <*> add $ vt
+
+
+-- | get2WaySlim takes two slim vectors an produces a preliminary median
+get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> (SV.Vector CUInt, Word)
+get2WaySlim lSlimTCM = get2WayGeneric (TCMD.lookupPairwise lSlimTCM)
+
 
 -- | get2WaySlimCost takes two slim vectors an produces a preliminary median
 get2WaySlimCost :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> Int
@@ -766,6 +773,12 @@ get2WaySlimCost lSlimTCM descendantLeftPrelim descendantRightPrelim =
         costList = SV.zipWith (local2WaySlimCost lSlimTCM) descendantLeftPrelim descendantRightPrelim
    in
    GV.sum costList
+
+
+-- | get2WayWideHuge like get2WaySlim but for wide and huge characters
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> (v a, Word)
+get2WayWideHuge whTCM = get2WayGeneric (MR.retreivePairwiseTCM whTCM)
+
 
 -- | local2WaySlim takes pair of CUInt and retuns median
 local2WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt
@@ -807,13 +820,6 @@ local2WayWideHuge lWideTCM b c =
    --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median
 
-
--- | get2WayWideHuge like get2WaySlim but for wide and huge characters
-get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a
-get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
-   let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
-   in
-   median
 
 {- cannot get thid to work 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
