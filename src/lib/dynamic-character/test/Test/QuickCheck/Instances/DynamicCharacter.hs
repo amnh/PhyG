@@ -48,7 +48,7 @@ import           Data.Vector.Generic    (Vector)
 import qualified Data.Vector.Generic    as GV
 import qualified Data.Vector.Storable   as SV
 import           Foreign.C.Types        (CUInt(..))
-import           Measure.Compact.
+import           Measure.Compact
 import           Test.Tasty.QuickCheck  hiding ((.&.))
 
 

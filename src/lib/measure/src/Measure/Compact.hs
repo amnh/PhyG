@@ -91,8 +91,8 @@ import GHC.Generics
 -- Use the 'getSCMλ', 'getTCM2Dλ', 'getTCM3Dλ', and 'getTCMρ' to the retrieve the
 -- desired functions.
 data  CompactMeasure a
-    = ExplicitLayoutρ   {-# UNPACK #-} SCMρ {-# UNPACK #-} TCMρ
-    | ExplicitLayoutλ   {-# UNPACK #-} SCMρ {-# UNPACK #-} Distance {-# UNPACK #-} Distance (TCM2Dλ a) (TCM3Dλ a)
+    = ExplicitLayoutρ   {-# UNPACK #-} SCMρ        {-# UNPACK #-} TCMρ
+    | ExplicitLayoutλ   {-# UNPACK #-} SCMρ        {-# UNPACK #-} Distance {-# UNPACK #-} Distance (TCM2Dλ a) (TCM3Dλ a)
     | DiscreteCrossGapρ {-# UNPACK #-} TCMρ
     | DiscreteCrossGapλ {-# UNPACK #-} SymbolCount {-# UNPACK #-} Distance {-# UNPACK #-} Distance
     | DiscreteMetricρ   {-# UNPACK #-} TCMρ
@@ -113,7 +113,7 @@ instance Eq (CompactMeasure a) where
     (==) (DiscreteMetricλ   n          ) (DiscreteMetricλ   n'          ) = n == n'
     (==) (LinearNormρ       tcm        ) (LinearNormρ       tcm'        ) = symbolCount tcm == symbolCount tcm'
     (==) (LinearNormλ       n          ) (LinearNormλ       n'          ) = n == n'
-    (==) _ _                                                             = False
+    (==) _ _                                                              = False
 
 
 instance HasDenseMatrix (CompactMeasure a) where
