@@ -87,7 +87,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              maxMoveEdgeDist  
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
-              | null moveLimitList = Just (maxBound :: Int) 
+              | null moveLimitList = Just ((maxBound :: Int) `div` 2) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
         in
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (head keepList))
