@@ -1,18 +1,27 @@
 allow-newer:
-    active,
+    aeson,
     base,
-    Cabal,
+    base-compat,
+    bytestring,
+    containers,
     ghc-prim,
-    integer-gmp,
+    hashable,
     lens,
-    MissingH,
-    optparse-applicative,
-    QuickCheck,
+    mtl,
+    primative,
+    semigroupoids,
     template-haskell,
+    text,
     th-abstraction
 
-constraints: th-abstraction >= 0.4.0.0
-    
+constraints:
+    aeson          >= 2.0,
+    bytestring     >= 0.11,
+    containers     >= 0.6.5,
+    hashable       >= 1.4,
+    text           >= 2.0,
+    th-abstraction >= 0.4
+
 package *
     ghc-options: -fwrite-ide-info -hiedir=.hie
 
@@ -22,18 +31,7 @@ packages: .
 
 source-repository-package
   type: git
-  location: https://github.com/diagrams/active
-  tag: ca23431a8dfa013992f9164ccc882a3277361f17
-
-source-repository-package
-  type: git
   location: https://github.com/recursion-ninja/bv-little
   tag: 308a88efc90b8184c5593c7dba552373c3eac270
 
-source-repository-package
-  type: git
-  location: https://github.com/diagrams/diagrams-lib
-  tag: 6f66ce6bd5aed81d8a1330c143ea012724dbac3c
-
---with-compiler: ghc-9.0.1
 with-compiler: ghc
