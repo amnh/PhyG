@@ -11,7 +11,6 @@ allow-newer:
     primative,
     semigroupoids,
     template-haskell,
-    text,
     th-abstraction
 
 constraints:
@@ -19,7 +18,6 @@ constraints:
     bytestring     >= 0.11,
     containers     >= 0.6.5,
     hashable       >= 1.4,
-    text           >= 2.0,
     th-abstraction >= 0.4
 
 package *
