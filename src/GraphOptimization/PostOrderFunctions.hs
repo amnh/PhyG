@@ -534,18 +534,18 @@ getBestResolutionList startVertex checkPopCount inRDList =
             in
             (fmap LG.mkGraphPair (V.toList bestDisplayList), minCost)
         else
-            let minPopCount = minimum $ fmap popCount displayPopList
+            let maxPopCount = maximum $ fmap popCount displayPopList
                 displayBVList = V.zip3 displayTreeList displayCostList displayPopList
 
-                -- must have al;l leaves if startvzertex == Nothing, component maximum otherwise
+                -- must have all leaves if startvzertex == Nothing, component maximum otherwise
                 -- this for getting cost of component of a softwired network
                 validDisplayList = if startVertex == Nothing then V.filter (BV.isZeroVector . thd3) displayBVList
-                                   else V.filter ((== minPopCount) . (popCount . thd3)) displayBVList
+                                   else V.filter ((== maxPopCount) . (popCount . thd3)) displayBVList
                 validMinCost = V.minimum $ fmap snd3 validDisplayList
                 (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
             --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ show inRDList)
+            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionList" ++ show inRDList)
             else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
                     -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 

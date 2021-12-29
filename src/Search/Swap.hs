@@ -198,7 +198,7 @@ swapAll  :: String
          -> Bool
          -> ([PhylogeneticGraph], Int)
 swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
-   --trace ("ALL") (
+   trace ("ALL") (
    if null inGraphList then 
       (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
@@ -206,12 +206,10 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
           firstDecoratedGraph = thd6 firstGraph
           (firstRootIndex, _) = head $ LG.getRoots firstDecoratedGraph
 
-          -- filter out edges from root since no use--would just rejoin
-          firstEdgeList = filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
-
           -- determine edges to break on--'bridge' edges only for network
-          breakEdgeList = if (graphType inGS) == Tree then firstEdgeList
-                          else GO.getEdgeSplitList firstDecoratedGraph
+          -- filter out edges from root since no use--would just rejoin
+          breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
+                          else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
 
           -- create list of breaks
           splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList `using` PU.myParListChunkRDS
@@ -241,7 +239,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
                          else snd6 $ head bestSwapGraphList
 
       in
-      -- trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
+      trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
       -- trace ("(Est, [FP]): " ++ (show minimumCandidateGraphCost) ++ " " ++ (show $ fmap snd6 reoptimizedSwapGraphList)) (
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
@@ -270,8 +268,8 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
          in
          swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
       -- )
-      -- )
-      -- )
+      )
+      )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
    -- infomrs evaluation--less parallelism
@@ -843,7 +841,7 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
 
       in
-      -- trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
+      trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode))
       --   ++ "\nBaseGraphNodes\n" ++ (show baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ startPrunedNode : prunedGraphNonRootNodes)) -- ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
       -- trace ("SG:" ++ (show fullSplitGraph))
       (fullSplitGraph, splitGraphCost)

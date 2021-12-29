@@ -387,10 +387,10 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
         let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
-            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex
+            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
         in
         --trace ("It Begins at " ++ show rootIndex) (
-        if not $ LG.isRoot inSimpleGraph rootIndex then
+        if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
             let localRootList = fst <$> LG.getRoots inSimpleGraph
                 localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
                 currentRootEdges = LG.out inSimpleGraph rootIndex
@@ -400,14 +400,14 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
         -- )
 
 -- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
-postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> SimpleGraph -> PhylogeneticGraph
-postDecorateSoftWired' inGS curDecGraph blockCharInfo curNode simpleGraph = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode
+postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
+postDecorateSoftWired' inGS curDecGraph blockCharInfo rootIndex curNode simpleGraph = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode
 
 -- | postDecorateSoftWired begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled 
 -- and then recurses to root postorder labelling vertices and edges as it goes
 -- this for a single root
-postDecorateSoftWired :: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> PhylogeneticGraph
-postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode =
+postDecorateSoftWired :: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
+postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
@@ -420,8 +420,8 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo curNode =
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren
-            leftChildTree = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rightChild
+            leftChildTree = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                                  else leftChildTree
         in
         -- Checks on children
@@ -575,7 +575,7 @@ softWiredPostOrderTraceBack rootIndex inGraph  =
         LG.mkGraph softWiredUpdatedNodes inEdgeList
 
 -- | softWiredPrelimTraceback takes a list of nodes to update (with left right index info) based
--- on resolution data, recurses with left right indices pre-order to leaves, keeping list og updated nodes
+-- on resolution data, recurses with left right indices pre-order to leaves, keeping list of updated nodes
 softWiredPrelimTraceback :: DecoratedGraph
                         -> [(LG.LNode VertexInfo, V.Vector (Maybe Int, Maybe Int), Bool)]
                         -> [LG.LNode VertexInfo]
@@ -685,6 +685,12 @@ getBestBlockResolution inResBlockData =
         let -- makes sure all leaves in resolution
             displayPopList = fmap (complement . displayBVLabel) inResBlockData
 
+            -- this for non full graph root--uses highest number of bits on--make sure all taxa in
+            -- should be fine for a subgraph that has a single edge a base--may not be correct
+            -- for a sunbgaph that has conections outside of its graph root.
+            displayPopList' = fmap (popCount . displayBVLabel) inResBlockData
+            maxPop = maximum displayPopList'
+
 
 
             -- subgraph cost
@@ -699,15 +705,22 @@ getBestBlockResolution inResBlockData =
             -- resolution medians
             displayDataList = fmap displayData inResBlockData
 
+            {-
             -- take only those will all leaves in, then minimum cost
             quintVect = V.zip5 displayPopList displayCostList resolutionCostList childResolutionList displayDataList
             validVect = V.filter (BV.isZeroVector . fst5) quintVect
             validMinCost = V.minimum $ fmap snd5 validVect
+            -}
+
+            -- these for "best" this will largest leaf set
+            quintVect' =  V.zip5 displayPopList' displayCostList resolutionCostList childResolutionList displayDataList
+            validVect' = V.filter ((== maxPop) . fst5) quintVect'
+            validMinCost' = V.minimum $ fmap snd5 validVect'
 
             -- ONly takes first of potentially multiple soliutions to begin traceback
-            (_, displayCostV, resCostV, childIndexPairV, displayMedianV) = V.unzip5 $ V.filter  ((== validMinCost) . snd5) validVect
+            (_, displayCostV, resCostV, childIndexPairV, displayMedianV) = V.unzip5 $ V.filter  ((== validMinCost') . snd5) validVect'
         in
-        if null validVect then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
+        if null validVect' then error "Null valid quad in getBestBlockResolution--perhaps not root node or forest component"
         else (V.head displayMedianV, V.head displayCostV, V.head resCostV, V.head childIndexPairV)
 
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information

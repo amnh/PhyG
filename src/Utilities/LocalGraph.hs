@@ -307,6 +307,10 @@ noComponents = DFS.noComponents
 isLeaf  :: Gr a b -> Node -> Bool
 isLeaf  inGraph inNode = G.outdeg inGraph inNode == 0
 
+-- | isOutDeg1Node checks if node has a single child
+isOutDeg1Node :: Gr a b -> Node -> Bool
+isOutDeg1Node inGraph inNode =  G.outdeg inGraph inNode == 1
+
 -- | isNetworkNode checks if node is network node 
 isNetworkNode  :: Gr a b -> Node -> Bool
 isNetworkNode  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
@@ -599,9 +603,5 @@ extractLeafGraph inGraph =
         let (_, leafNodes, _, _) = splitVertexList inGraph
         in
         mkGraph leafNodes []
-
-    
-
-
 
 

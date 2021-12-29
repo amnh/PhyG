@@ -84,23 +84,23 @@ import           Bio.DynamicCharacter
 
 -- | getEdgeSplitList takes a graph and returns list of edges
 -- that split a graph increasing the number of components by 1
--- using articulation point nodes.  Each edge that originates on
--- an artculation point is taken as a bridge.
--- not all of these are useful for network splitting during SPR/TBR
--- root and network nodes ( and their derived edges) are not included
--- for a tree all non-root edges would be returned
+-- this is quadratic (I assume)
+-- should change to Tarjan's algorithm (linear)
 getEdgeSplitList :: LG.Gr a b -> [LG.LEdge b]
 getEdgeSplitList inGraph = 
   if LG.isEmpty inGraph then error ("Empty graph in getEdgeSplitList")
   else 
-      let artPointList = LG.artPoint inGraph
-          (_, _, treeNodeList, _) = LG.splitVertexList inGraph
-          treeArtPointNodeList = filter (`elem` (fmap fst treeNodeList)) artPointList
+      let origNumComponents = LG.noComponents inGraph
+          origEdgeList = LG.labEdges inGraph
+          edgeDeleteComponentNumberList = fmap LG.noComponents $ fmap (flip LG.delEdge inGraph) (fmap LG.toEdge origEdgeList)
+          bridgeList =  fmap snd $ filter ((> origNumComponents) . fst) $ zip edgeDeleteComponentNumberList origEdgeList
 
-          -- get edge list 
-          edgeList = LG.labEdges inGraph
+          -- filkter out edges starting in an outdegree 1 node (network or in out 1) node
+          -- this would promote an HTU to a leaf
+          bridgeList' = filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
-      filter ((`elem` treeArtPointNodeList).fst3) edgeList
+      trace ("GESL: Components: " ++ (show edgeDeleteComponentNumberList))
+      bridgeList'
 
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
@@ -121,8 +121,8 @@ splitGraphOnEdge inGraph (e,v,l) =
           -- make new graph
           splitGraph = LG.insEdge newEdge $ LG.delEdges edgesToDelete inGraph
       in
-      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show childrenENode))
-      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show parentsENode))
+      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
+      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
       else 
           (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
 
