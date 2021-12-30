@@ -383,7 +383,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
           minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst3 candidateEditList   
                              else infinity
       in
-      -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
+      trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
       if minCandidateCost > curBestCost then []
       else 
          let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if checkk all equal or better than curent best
@@ -391,7 +391,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
          zip swapSimpleGraphList (L.replicate (length swapSimpleGraphList) minCandidateCost)
-      -- )
+      )
 
 -- | rejoinGraphKeepBestSteepest rejoins split trees on available edges (non-root, and not original split)
 -- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
@@ -841,9 +841,10 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
 
       in
-      trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode))
-      --   ++ "\nBaseGraphNodes\n" ++ (show baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ startPrunedNode : prunedGraphNonRootNodes)) -- ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)) (
-      -- trace ("SG:" ++ (show fullSplitGraph))
+      trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
+         ++ "\nBaseGraphNodes\n" ++ (show $ L.sort  $ fmap fst baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ fmap fst $ startPrunedNode : prunedGraphNonRootNodes) 
+         ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)
+         ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
       (fullSplitGraph, splitGraphCost)
 
       

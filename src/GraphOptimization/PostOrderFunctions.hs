@@ -410,7 +410,7 @@ getOutDegree1VertexAndGraph :: (Show a, Show b)
                             -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [BlockDisplayForest])
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
 
-    --trace ("In out=1") (
+    trace ("In out=1: " ++ (show curNode)) (
     let childResolutionData = vertexResolutionData childLabel
 
         curNodeResolutionData = addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
@@ -456,7 +456,8 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
     in
     --trace ("NV1: " ++ show newVertex)
     (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
-    --)
+    -- (newGraph, False, newVertex, 0.0, mempty)
+    )
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
 -- staright copy would not add this node or edge to subtree in resolutions
@@ -507,7 +508,7 @@ getAllResolutionList  inRDList =
                 (displayList, costList, _) = V.unzip3 validDisplayList
             in
             --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if V.null validDisplayList then error ("Null validDisplayList in getBestResolutionList" ++ show inRDList)
+            if V.null validDisplayList then error ("Null validDisplayList in getAllResolutionList" ++ show inRDList)
             else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList displayList)
                     -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 
@@ -545,7 +546,7 @@ getBestResolutionList startVertex checkPopCount inRDList =
                 (bestDisplayList, _, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
             in
             --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionList" ++ show inRDList)
+            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionList" ++ (show (startVertex,inRDList)))
             else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
                     -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList 

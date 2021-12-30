@@ -497,7 +497,7 @@ nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
 -- and all the way to any leaves is connects to.
 -- Does NOT Contain starting nodes
 -- call with ([], [])
-nodesAndEdgesAfter' :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter' :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
   | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesAfter"
   | null inNodeList = curResults
@@ -509,13 +509,17 @@ nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
         fromLabNodeList = zip fromNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
-    else nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
+    else nodesAndEdgesAfter' inGraph (L.nubBy indexMatchNode $ fromLabNodeList ++ curNodes, L.nubBy indexMatchEdge $ fromEdgeList ++ curEdges) (L.nubBy  indexMatchNode $ fromLabNodeList ++ tail inNodeList)
+
+    where indexMatchNode (a, _) (b, _) = if a == b then True else False
+          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
+
 
 -- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.
 -- Does NOT Contain starting nodes
-nodesAndEdgesAfter :: (Eq a, Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter :: (Eq a, Eq b,Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNodeList
 
 -- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
