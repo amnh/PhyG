@@ -50,6 +50,11 @@ import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import GeneralUtilities
 
+-- Can create a delta (outgroup rooted cost) before and after insertion with incremental post-order based on 
+-- nodes to optimize being total nodes L.\\ the descendents of the two v and v'
+-- would be a "true" vakue that ciould then be rerooted etc
+
+
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- naive for now
