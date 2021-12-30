@@ -410,7 +410,7 @@ getOutDegree1VertexAndGraph :: (Show a, Show b)
                             -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [BlockDisplayForest])
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
 
-    trace ("In out=1: " ++ (show curNode)) (
+    -- trace ("In out=1: " ++ (show curNode)) (
     let childResolutionData = vertexResolutionData childLabel
 
         curNodeResolutionData = addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
@@ -457,7 +457,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
     --trace ("NV1: " ++ show newVertex)
     (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
     -- (newGraph, False, newVertex, 0.0, mempty)
-    )
+    -- )
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
 -- staright copy would not add this node or edge to subtree in resolutions

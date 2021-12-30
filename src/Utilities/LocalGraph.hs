@@ -43,6 +43,8 @@ module Utilities.LocalGraph  where
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.DFS as DFS
 import qualified Data.Graph.Inductive.Query.ArtPoint as AP
+import qualified Data.Graph.Inductive.Basic as B
+import qualified Data.Graph.Inductive.Query.BCC as BCC
 import qualified GraphFormatUtilities              as GFU
 --import qualified Data.Text as T
 import qualified Data.Text.Lazy as T
@@ -51,6 +53,7 @@ import           Data.GraphViz                     as GV
                                                     --Label (..))
 import           Data.GraphViz.Commands.IO         as GVIO
 import qualified Data.Graph.Inductive.Graph        as G
+
 import           System.IO
 import GeneralUtilities
 import Data.Maybe
@@ -268,7 +271,7 @@ mkGraph = G.mkGraph
 mkGraphPair ::  ([LNode a], [LEdge b]) -> Gr a b
 mkGraphPair (nodeList, edgeList) = G.mkGraph nodeList edgeList
 
--- | components list of list of nodes (graphalyze can return graph list)
+-- | components list of list of nodes (G.Graphalyze can return graph list)
 components :: Gr a b -> [[Node]]
 components = DFS.components
 
@@ -472,7 +475,11 @@ postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
                 inNodes = fmap fst3 inLEdges
                 inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
             in
-            postOrderPathToNode' inGraph endNode (L.nub $ inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
+            postOrderPathToNode' inGraph endNode (L.nubBy indexMatchNode $ inLabNodes ++ tail inNodeList) (L.nubBy indexMatchNode $ inLabNodes ++ curNodeList) (L.nubBy indexMatchEdge $ inLEdges ++ curEdgeList)
+
+    where indexMatchNode (a, _) (b, _) = if a == b then True else False
+          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
+
 
 -- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
 -- and edges 'before' in the sense of leading to--ie between root and
@@ -490,7 +497,10 @@ nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
         intoLabNodeList = zip intoNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesBefore" ++ show intoLabNodeList)
-    else nodesAndEdgesBefore inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ tail inNodeList)
+    else nodesAndEdgesBefore inGraph (L.nubBy indexMatchNode $ intoLabNodeList ++ curNodes, L.nubBy indexMatchEdge $ intoEdgeList ++ curEdges) (L.nubBy  indexMatchNode $ intoLabNodeList ++ tail inNodeList)
+
+    where indexMatchNode (a, _) (b, _) = if a == b then True else False
+          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
 
 -- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
@@ -580,8 +590,8 @@ reindexEdges inNodeIndex curList edgeList =
 
 
 -- | artPoint calls ap to get artoculation points of graph
-artPoint :: Gr a b -> [Node]
-artPoint inGraph = AP.ap inGraph
+artPoint :: (Eq b) => Gr a b -> [Node]
+artPoint inGraph = AP.ap $ B.undir inGraph
 
 
 -- | makeNodeEdgePair takes a graph and extracts list of nodes and edges 
@@ -608,4 +618,129 @@ extractLeafGraph inGraph =
         in
         mkGraph leafNodes []
 
+-- | makes graph undirected
+undir :: (Eq b) => Gr a b -> Gr a b
+undir inGraph = B.undir inGraph
 
+-- | finds bi connectred components of a graph
+bcc ::  Gr a b -> [Gr a b]
+bcc inGraph = BCC.bcc inGraph
+
+
+
+{-
+FGL articulation point code--could be modified to get brisge edges in linear time}
+------------------------------------------------------------------------------
+-- Tree for storing the DFS numbers and back edges for each node in the graph.
+-- Each node in this tree is of the form (v,n,b) where v is the vertex number,
+-- n is its DFS number and b is the list of nodes (and their DFS numbers) that
+-- lead to back back edges for that vertex v.
+------------------------------------------------------------------------------
+data DFSTree a = B (a,a,[(a,a)]) [DFSTree a]
+     deriving (Eq, Show, Read)
+
+------------------------------------------------------------------------------
+-- Tree for storing the DFS and low numbers for each node in the graph.
+-- Each node in this tree is of the form (v,n,l) where v is the vertex number,
+-- n is its DFS number and l is its low number.
+------------------------------------------------------------------------------
+data LOWTree a = Brc (a,a,a) [LOWTree a]
+     deriving (Eq, Show, Read)
+
+------------------------------------------------------------------------------
+-- Finds the back edges for a given node.
+------------------------------------------------------------------------------
+getBackEdges :: Node -> [[(Node,Int)]] -> [(Node,Int)]
+getBackEdges _ [] = []
+getBackEdges v ls   = map head (filter (elem (v,0)) (tail ls))
+
+------------------------------------------------------------------------------
+-- Builds a DFS tree for a given graph. Each element (v,n,b) in the tree
+-- contains: the node number v, the DFS number n, and a list of backedges b.
+------------------------------------------------------------------------------
+dfsTree :: Int -> Node -> [Node] -> [[(Node,Int)]] -> Gr a b -> ([DFSTree Int],Gr a b,Int)
+dfsTree n _ []      _ g             = ([],g,n)
+dfsTree n _ _       _ g | isEmpty g = ([],g,n)
+dfsTree n u (v:vs) ls g = case G.match v g of
+                            (Nothing, g1) -> dfsTree n u vs ls g1
+                            (Just c , g1) -> (B (v,n+1,bck) ts:ts', g3, k)
+                             where  bck        = getBackEdges v ls
+                                    (ts, g2,m) = dfsTree (n+1) v sc ls' g1
+                                    (ts',g3,k) = dfsTree m v vs ls g2
+                                    ls'        = ((v,n+1):sc'):ls
+                                    sc'        = map (\x->(x,0)) sc
+                                    sc         = G.suc' c
+
+------------------------------------------------------------------------------
+-- Finds the minimum between a dfs number and a list of back edges' dfs
+-- numbers.
+------------------------------------------------------------------------------
+minbckEdge :: Int -> [(Node,Int)] -> Int
+minbckEdge n [] = n
+minbckEdge n bs = min n (minimum (map snd bs))
+
+------------------------------------------------------------------------------
+-- Returns the low number for a node in a subtree.
+------------------------------------------------------------------------------
+getLow :: LOWTree Int -> Int
+getLow (Brc (_,_,l) _) = l
+
+------------------------------------------------------------------------------
+-- Builds a low tree from a DFS tree. Each element (v,n,low) in the tree
+-- contains: the node number v, the DFS number n, and the low number low.
+------------------------------------------------------------------------------
+lowTree :: DFSTree Int -> LOWTree Int
+lowTree (B (v,n,[]  ) [] ) = Brc (v,n,n) []
+lowTree (B (v,n,bcks) [] ) = Brc (v,n,minbckEdge n bcks) []
+lowTree (B (v,n,bcks) trs) = Brc (v,n,lowv) ts
+                             where lowv     = min (minbckEdge n bcks) lowChild
+                                   lowChild = minimum (map getLow ts)
+                                   ts       = map lowTree trs
+
+------------------------------------------------------------------------------
+-- Builds a low tree for a given graph. Each element (v,n,low) in the tree
+-- contains: the node number v, the DFS number n, and the low number low.
+------------------------------------------------------------------------------
+getLowTree :: Gr a b -> Node -> LOWTree Int
+getLowTree g v = lowTree (head dfsf)
+                  where (dfsf, _, _) = dfsTree 0 0 [v] [] g
+
+------------------------------------------------------------------------------
+-- Tests if a node in a subtree is an articulation point. An non-root node v
+-- is an articulation point iff there exists at least one child w of v such
+-- that lowNumber(w) >= dfsNumber(v). The root node is an articulation point
+-- iff it has two or more children.
+------------------------------------------------------------------------------
+isap :: LOWTree Int -> Bool
+isap (Brc (_,_,_) []) = False
+isap (Brc (_,1,_) ts) = length ts > 1
+isap (Brc (_,n,_) ts) = not (null ch)
+                        where ch = filter ( >= n) (map getLow ts)
+
+------------------------------------------------------------------------------
+-- Finds the articulation points by traversing the low tree.
+------------------------------------------------------------------------------
+arp :: LOWTree Int -> [Node]
+arp (Brc (v,1,_) ts) | length ts > 1         = v:concatMap arp ts
+                     | otherwise             =   concatMap arp ts
+arp (Brc (v,n,l) ts) | isap (Brc (v,n,l) ts) = v:concatMap arp ts
+                     | otherwise             =   concatMap arp ts
+
+------------------------------------------------------------------------------
+-- Finds the articulation points of a graph starting at a given node.
+------------------------------------------------------------------------------
+artpoints :: Gr a b -> Node -> [Node]
+artpoints g v = arp (getLowTree g v)
+
+{-|
+   Finds the articulation points for a connected undirected graph,
+   by using the low numbers criteria:
+
+   a) The root node is an articulation point iff it has two or more children.
+
+   b) An non-root node v is an articulation point iff there exists at least
+      one child w of v such that lowNumber(w) >= dfsNumber(v).
+-}
+ap' :: Gr a b -> [Node]
+ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
+-}

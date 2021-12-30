@@ -84,9 +84,10 @@ import           Bio.DynamicCharacter
 
 -- | getEdgeSplitList takes a graph and returns list of edges
 -- that split a graph increasing the number of components by 1
--- this is quadratic (I assume)
+-- this is quadratic 
 -- should change to Tarjan's algorithm (linear)
-getEdgeSplitList :: LG.Gr a b -> [LG.LEdge b]
+--everyhting else in there is O(n^2-3) so maybe doesn't matter 
+getEdgeSplitList :: (Eq b) => LG.Gr a b -> [LG.LEdge b]
 getEdgeSplitList inGraph = 
   if LG.isEmpty inGraph then error ("Empty graph in getEdgeSplitList")
   else 
@@ -99,7 +100,7 @@ getEdgeSplitList inGraph =
           -- this would promote an HTU to a leaf
           bridgeList' = filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
-      trace ("GESL: Components: " ++ (show edgeDeleteComponentNumberList))
+      -- trace ("AP: " ++ (show $ LG.ap $ LG.undir inGraph) ++ "GESL: Components: " ++ (show edgeDeleteComponentNumberList))
       bridgeList'
 
 

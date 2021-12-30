@@ -528,14 +528,6 @@ to render--would have repeated subtrees after network vertex
 
 227) Modify chunk parallel like seqParMap if thread==1 do nothing
 
-228) makeIAPrelimCharacter  -- can't get cost pairs to return correctly
-	terrible hack on node cost
-	GraphOptimization.Medians
-	makeIAPrelimCharacter
-
-229) Abstract all tHE POST/PREORDER 
-	and StaticIA versions
-
 231) chnge delta calcualtion--to edge calculateoin wag style--missing good graphs
 
 232) rediagnose preorder pass if chnage final assignment
@@ -552,6 +544,5 @@ to render--would have repeated subtrees after network vertex
 
 238) add set seed command
 	for replicability of randomized searches
-	
 
-
+239) IA swapping for network--perhoaps not due to non-uniquwe aspwect of resolutions

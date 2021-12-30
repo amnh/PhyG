@@ -55,7 +55,6 @@ import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
-import qualified Data.List as L
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
@@ -198,7 +197,7 @@ swapAll  :: String
          -> Bool
          -> ([PhylogeneticGraph], Int)
 swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
-   trace ("ALL") (
+   --trace ("ALL") (
    if null inGraphList then 
       (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
@@ -239,7 +238,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
                          else snd6 $ head bestSwapGraphList
 
       in
-      trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
+      -- trace ("Breakable Edges :" ++ (show $ fmap LG.toEdge breakEdgeList) ++ "\nIn graph:\n" ++ (LG.prettify $ fst6 firstGraph)) (
       -- trace ("(Est, [FP]): " ++ (show minimumCandidateGraphCost) ++ " " ++ (show $ fmap snd6 reoptimizedSwapGraphList)) (
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
@@ -268,8 +267,8 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
          in
          swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
       -- )
-      )
-      )
+      -- )
+      -- )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
    -- infomrs evaluation--less parallelism
@@ -383,7 +382,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
           minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst3 candidateEditList   
                              else infinity
       in
-      trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
+      -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
       if minCandidateCost > curBestCost then []
       else 
          let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if checkk all equal or better than curent best
@@ -391,7 +390,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
          zip swapSimpleGraphList (L.replicate (length swapSimpleGraphList) minCandidateCost)
-      )
+      -- )
 
 -- | rejoinGraphKeepBestSteepest rejoins split trees on available edges (non-root, and not original split)
 -- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
@@ -841,10 +840,12 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
 
       in
+      {-
       trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
          ++ "\nBaseGraphNodes\n" ++ (show $ L.sort  $ fmap fst baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ fmap fst $ startPrunedNode : prunedGraphNonRootNodes) 
          ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
+      -}
       (fullSplitGraph, splitGraphCost)
 
       
