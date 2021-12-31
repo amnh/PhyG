@@ -57,6 +57,9 @@ import Data.Maybe
 -- nodes to optimize being total nodes L.\\ the descendents of the two v and v'
 -- would be a "true" value that ciould then be rerooted etc
 
+-- Need a "steepest" that takes first better netowrk for add and delete.
+-- Choose order in max branch length, root-end, leaf-end, and at random
+
 -- | insertAllNetEdges deletes network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
