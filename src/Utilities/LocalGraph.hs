@@ -435,34 +435,36 @@ pathToRoot inGraph inNode =
     else pathToRoot' inGraph [inNode] [] []
 
 -- | pathToRoot' with accumulators
+-- filter operators basically for networks so not retrace paths
 pathToRoot' :: (Eq a, Eq b) => Gr a b -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
 pathToRoot' inGraph inNodeList curNodeList curEdgeList =
-    if null inNodeList then (L.nub $ reverse curNodeList, L.nub $ reverse curEdgeList)
+    if null inNodeList then (reverse curNodeList, reverse curEdgeList)
     else
         let inNode = head inNodeList
         in
         -- root would already be inlist of nodes visited
         if isRoot inGraph (fst inNode) then pathToRoot' inGraph (tail inNodeList) curNodeList curEdgeList
         else
-            let inLEdges = inn inGraph (fst inNode)
-                inNodes = fmap fst3 inLEdges
+            let inLEdges = filter (`notElem` curEdgeList) $ inn inGraph (fst inNode)
+                inNodes = filter (`notElem` (fmap fst curNodeList)) $ fmap fst3 inLEdges
                 --inLabNodes = concatMap (labParents inGraph) (fmap fst3 inLEdges)
                 inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
             in
-            pathToRoot' inGraph (L.nub $ inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
+            pathToRoot' inGraph (inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
 
 -- | postOrderPathToNode takes a graph and two vertices nd returns a pair of lists 
 -- of vertices and edges to beteween them in order of encountering them from first to second
--- the path is post order to root so if second vertex is leaf-side of firtst node will hit root and fail
+-- the path is post order to root so if second vertex is leaf-side of first node will hit root and fail
 postOrderPathToNode :: (Eq a, Eq b) => Gr a b -> LNode a -> LNode a -> ([LNode a], [LEdge b])
 postOrderPathToNode inGraph startNode endNode =
     if G.isEmpty inGraph then error "Empty graph in pathToRoot"
     else postOrderPathToNode' inGraph endNode [startNode] [] []
 
 -- | postOrderPathToNode' with accumulators
+-- filter operators basically for networks so not retrace paths
 postOrderPathToNode' :: (Eq a, Eq b) => Gr a b -> LNode a -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
 postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
-    if null inNodeList then (L.nub $ reverse curNodeList, L.nub $ reverse curEdgeList)
+    if null inNodeList then (reverse curNodeList, reverse curEdgeList)
     else
         let inNode = head inNodeList
         in
@@ -471,59 +473,59 @@ postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
         else if isRoot inGraph (fst inNode) then error ("postOrderPathToNode hit root before end node.  Root index  " ++ (show $ fst inNode) 
             ++  " edges " ++ (show $ fmap toEdge curEdgeList))
         else
-            let inLEdges = inn inGraph (fst inNode)
-                inNodes = fmap fst3 inLEdges
+            let inLEdges = filter (`notElem` curEdgeList) $ inn inGraph (fst inNode)
+                inNodes = filter (`notElem` (fmap fst curNodeList)) $ fmap fst3 inLEdges
                 inLabNodes = zip inNodes (fmap (fromJust . lab inGraph) inNodes)
             in
-            postOrderPathToNode' inGraph endNode (L.nubBy indexMatchNode $ inLabNodes ++ tail inNodeList) (L.nubBy indexMatchNode $ inLabNodes ++ curNodeList) (L.nubBy indexMatchEdge $ inLEdges ++ curEdgeList)
-
-    where indexMatchNode (a, _) (b, _) = if a == b then True else False
-          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
-
+            postOrderPathToNode' inGraph endNode (inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
 
 -- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
 -- and edges 'before' in the sense of leading to--ie between root and
 -- (not including)) that node
 -- call with ([], [])
-nodesAndEdgesBefore :: (Eq a, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+-- filter operators basically for networks so not retrace paths
+nodesAndEdgesBefore :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
   | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesBefore"
   | null inNodeList = curResults
   | otherwise =
-    let intoEdgeList = inn inGraph (fst $ head inNodeList)
-        intoNodeList = fmap fst3 intoEdgeList
+    let intoEdgeList = filter (`notElem` curEdges) $ inn inGraph (fst $ head inNodeList)
+        intoNodeList = filter (`notElem` (fmap fst curNodes)) $ fmap fst3 intoEdgeList
         labelMaybeList = fmap (lab inGraph) intoNodeList
         labelList = fmap fromJust labelMaybeList
         intoLabNodeList = zip intoNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesBefore" ++ show intoLabNodeList)
-    else nodesAndEdgesBefore inGraph (L.nubBy indexMatchNode $ intoLabNodeList ++ curNodes, L.nubBy indexMatchEdge $ intoEdgeList ++ curEdges) (L.nubBy  indexMatchNode $ intoLabNodeList ++ tail inNodeList)
-
-    where indexMatchNode (a, _) (b, _) = if a == b then True else False
-          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
+    else nodesAndEdgesBefore inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ tail inNodeList)
 
 -- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.
 -- Does NOT Contain starting nodes
 -- call with ([], [])
+-- filter operators basically for networks so not retrace paths
 nodesAndEdgesAfter' :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
   | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesAfter"
   | null inNodeList = curResults
   | otherwise =
-    let fromEdgeList = out inGraph (fst $ head inNodeList)
-        fromNodeList = fmap snd3 fromEdgeList
+    let fromEdgeList = filter (`notElem` curEdges) $ out inGraph (fst $ head inNodeList)
+        fromNodeList = filter (`notElem` (fmap fst curNodes)) $ fmap snd3 fromEdgeList
         labelMaybeList = fmap (lab inGraph) fromNodeList
         labelList = fmap fromJust labelMaybeList
         fromLabNodeList = zip fromNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
-    else nodesAndEdgesAfter' inGraph (L.nubBy indexMatchNode $ fromLabNodeList ++ curNodes, L.nubBy indexMatchEdge $ fromEdgeList ++ curEdges) (L.nubBy  indexMatchNode $ fromLabNodeList ++ tail inNodeList)
+    else nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
 
-    where indexMatchNode (a, _) (b, _) = if a == b then True else False
-          indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
+-- | indexMatchNode returns True if two labelled nodes have same index
+indexMatchNode :: LNode a -> LNode a -> Bool
+indexMatchNode (a, _) (b, _) = if a == b then True else False
+          
 
+-- | indexMatchEdge returns True if two labelled edges have same node indices
+indexMatchEdge :: LEdge b -> LEdge b -> Bool
+indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
 
 -- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
