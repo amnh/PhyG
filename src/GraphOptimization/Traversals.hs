@@ -39,6 +39,7 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
                                     , multiTraverseFullyLabelSoftWired
+                                    , multiTraverseFullyLabelHardWired
                                     , checkUnusedEdgesPruneInfty
                                     , makeLeafGraph
                                     , makeSimpleLeafGraph
@@ -94,8 +95,14 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
   | graphType inGS == SoftWired = 
     let leafGraph = makeLeafGraphSoftWired inData
     in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
-  | graphType inGS == HardWired = errorWithoutStackTrace "Hard-wired graph optimization not yet supported"
+  | graphType inGS == HardWired = 
+    let leafGraph = makeLeafGraph inData
+    in multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
   | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
+
+
+multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = error "Hardwired traversal not implementd"
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges

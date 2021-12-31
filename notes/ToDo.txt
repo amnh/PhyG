@@ -546,3 +546,5 @@ to render--would have repeated subtrees after network vertex
 	for replicability of randomized searches
 
 239) IA swapping for network--perhoaps not due to non-uniquwe aspwect of resolutions
+
+240)  Need to devfelop some shorcut for network stuff--all full traversals now

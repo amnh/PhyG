@@ -496,8 +496,8 @@ postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
 -- (not including)) that node
 -- call with ([], [])
 -- filter operators basically for networks so not retrace paths
-nodesAndEdgesBefore :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
-nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
+nodesAndEdgesBefore' :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesBefore' inGraph curResults@(curNodes, curEdges) inNodeList
   | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesBefore"
   | null inNodeList = curResults
   | otherwise =
@@ -508,7 +508,15 @@ nodesAndEdgesBefore inGraph curResults@(curNodes, curEdges) inNodeList
         intoLabNodeList = zip intoNodeList labelList
     in
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesBefore" ++ show intoLabNodeList)
-    else nodesAndEdgesBefore inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ tail inNodeList)
+    else nodesAndEdgesBefore' inGraph (intoLabNodeList ++ curNodes, intoEdgeList ++ curEdges) (intoLabNodeList ++ tail inNodeList)
+
+-- | nodesAndEdgesBefore takes a graph and list of nodes to get list of nodes
+-- and edges 'before' in the sense of leading to--ie between root and
+-- (not including)) that node
+-- filter operators basically for networks so not retrace paths
+-- wrapper without accuulator
+nodesAndEdgesBefore :: (Eq a, Eq b, Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesBefore inGraph inNodeList = nodesAndEdgesBefore' inGraph ([],[]) inNodeList
 
 -- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
@@ -530,6 +538,13 @@ nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
     if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
     else nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
 
+-- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
+-- and edges 'after' in the sense of leading from-ie between (not including)) that node
+-- and all the way to any leaves is connects to.
+-- wrapper wihtout accumulator
+nodesAndEdgesAfter :: (Eq a, Eq b,Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
+nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNodeList
+
 -- | indexMatchNode returns True if two labelled nodes have same index
 indexMatchNode :: LNode a -> LNode a -> Bool
 indexMatchNode (a, _) (b, _) = if a == b then True else False
@@ -538,13 +553,6 @@ indexMatchNode (a, _) (b, _) = if a == b then True else False
 -- | indexMatchEdge returns True if two labelled edges have same node indices
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
 indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
-
--- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
--- and edges 'after' in the sense of leading from-ie between (not including)) that node
--- and all the way to any leaves is connects to.
--- Does NOT Contain starting nodes
-nodesAndEdgesAfter :: (Eq a, Eq b,Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
-nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNodeList
 
 -- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
 -- does one at a time and makes a graph and recurses
