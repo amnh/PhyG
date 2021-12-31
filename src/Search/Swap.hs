@@ -199,7 +199,7 @@ swapAll  :: String
 swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("ALL") (
    if null inGraphList then 
-      (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
+      (take numToKeep $ GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -293,7 +293,7 @@ swapSteepest   :: String
 swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
    --trace ("steepest") (
    if null inGraphList then 
-      (GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
+      (take numToKeep $ GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph

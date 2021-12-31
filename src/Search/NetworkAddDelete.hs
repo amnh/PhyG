@@ -49,10 +49,58 @@ import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import GeneralUtilities
+import qualified Graphs.GraphOperations  as GO
 
 -- Can create a delta (outgroup rooted cost) before and after insertion with incremental post-order based on 
 -- nodes to optimize being total nodes L.\\ the descendents of the two v and v'
--- would be a "true" vakue that ciould then be rerooted etc
+-- would be a "true" value that ciould then be rerooted etc
+
+-- | deleteAllNetEdges deletes network edges one each each round until no better or additional 
+-- graphs are found
+-- call with ([], infinity) [single input graph]
+deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+deleteAllNetEdges inGS inData numToKeep (curBestGraphList, curBestGraphCost) inPhyloGraphList =
+   if null inPhyloGraphList then take numToKeep curBestGraphList
+   else
+      let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
+          (newGraphList, newGraphCost) = deleteEachNetEdge inGS inData numToKeep (head inPhyloGraphList)
+      in
+      -- worse graphs found--go on 
+      if  newGraphCost > currentCost then deleteAllNetEdges inGS inData numToKeep ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+
+      -- "steepest style descent" abandons existing list if better cost found
+      else if newGraphCost < currentCost then deleteAllNetEdges inGS inData numToKeep (newGraphList, newGraphCost) newGraphList 
+
+      -- equal cost
+      -- not sure if should add new graphs to queue to do edge deletion again
+      else 
+         -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
+         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
+         in
+         deleteAllNetEdges inGS inData numToKeep (newCurSameBestList, currentCost) (tail inPhyloGraphList)
+
+
+
+
+-- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
+-- and returns best list of new Phylogenetic Graphs and cost
+-- even if worse--could be used for simulated annealing later
+-- if equal returns unique graph list
+deleteEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> PhylogeneticGraph -> ([PhylogeneticGraph], VertexCost)
+deleteEachNetEdge inGS inData numToKeep inPhyloGraph =
+   if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteAllNetEdges"
+   else
+      let currentCost = snd6 inPhyloGraph
+          networkEdgeList = LG.netEdges $ thd6 inPhyloGraph
+          newGraphList = fmap (deleteNetEdge inGS inData inPhyloGraph) networkEdgeList `using`  PU.myParListChunkRDS
+          minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
+          minCost = snd6 $ head minCostGraphList
+      in
+      -- no network edges to delete
+      if null networkEdgeList then ([inPhyloGraph], currentCost)
+      else if minCost /= currentCost then (minCostGraphList, minCost)
+      else (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
+
 
 
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph

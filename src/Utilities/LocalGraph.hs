@@ -327,6 +327,18 @@ isNetworkEdge  inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg 
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
 isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
 
+-- | labNetEdges takes a graph and returns list of network labelled edges
+labNetEdges :: Gr a b -> [LEdge b]
+labNetEdges inGraph = 
+    if isEmpty inGraph then error "Empty graph in labNetEdges"
+    else filter (isNetworkLabEdge inGraph) $ labEdges inGraph
+
+-- | netEdges takes a graph and returns list of network edges
+netEdges :: Gr a b -> [Edge]
+netEdges inGraph = 
+    if isEmpty inGraph then error "Empty graph in labNetEdges"
+    else filter (isNetworkEdge inGraph) $ edges inGraph
+
 -- | isTreeNode checks if node is network node 
 isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (G.indeg inGraph inNode == 1) && (G.outdeg inGraph inNode > 0)
