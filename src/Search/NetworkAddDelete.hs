@@ -60,7 +60,7 @@ import Data.Maybe
 -- Need a "steepest" that takes first better netowrk for add and delete.
 -- Choose order in max branch length, root-end, leaf-end, and at random
 
--- | insertAllNetEdges deletes network edges one each each round until no better or additional 
+-- | insertAllNetEdges adds network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
 insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -96,7 +96,7 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
 
           candidateNetworkEdgeList = getPermissibleEdgePairs (thd6 inPhyloGraph)
 
-          newGraphList = fmap (insertNetEdge inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS
+          newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
 
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = snd6 $ head minCostGraphList
@@ -185,9 +185,13 @@ isAncDescEdge inGraph (a,_,_) (b, _, _) =
       else if aBV .&. bBV == bBV then True
       else False     
 
+-- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations
+insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGraph ->  (LG.LEdge b, LG.LEdge b) -> [PhylogeneticGraph]
+insertNetEdgeBothDirections inGS inData inPhyloGraph (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph) [(u,v), (v,u)]
+
 -- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 -- contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
--- does not check any egde reasonable-ness properties
+-- does not check any edge reasonable-ness properties
 -- new edge directed from first to second edge
 -- naive for now
 insertNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> PhylogeneticGraph

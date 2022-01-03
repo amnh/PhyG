@@ -249,13 +249,14 @@ executable phyg
                   Input.Reorganize
                   Input.TNTUtilities
                   Search.Build
-                  Search.DistanceWagner
                   Search.DistanceMethods
-                  Search.WagnerBuild
-                  Search.Swap
+                  Search.DistanceWagner
                   Search.NetworkAddDelete 
-                  Types.Types
+                  Search.Refinement
+                  Search.Swap
+                  Search.WagnerBuild
                   Types.DistanceTypes
+                  Types.Types
                   Utilities.Distances
                   Utilities.DistanceUtilities
                   Utilities.LocalGraph

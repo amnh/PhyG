@@ -61,11 +61,13 @@ import qualified Data.Char              as C
 import qualified Search.Build           as B
 import qualified Search.Swap            as SW
 import qualified Reconciliation.ReconcileGraphs as R
+import qualified GraphOptimization.Traversals as TRA
+import qualified Search.Refinement as REF
 
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype","compressresolutions", "finalassignment", "graphfactor", "rootcost"]
+setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost"]
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
@@ -78,7 +80,7 @@ reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile"
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
-selectArgList = ["best", "all", "unique", "random"]
+selectArgList = ["best", "all", "unique", "atrandom"]
 
 
 -- | executeCommands reads input files and returns raw data
@@ -92,7 +94,12 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         -- skip "Read" and "Rename "commands already processed
         if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
-        -- report command
+        
+        -- other commands
+        else if firstOption == Build then
+            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
+            in
+            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
@@ -102,18 +109,21 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
-        else if firstOption == Set then
-            let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
+        else if firstOption == Refine then
+            let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
             in
-            executeCommands newGlobalSettings rawData newProcessedData curGraphs pairwiseDist seedList (tail commandList)
-        else if firstOption == Build then
-            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
-            in
-            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
+            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Set then
+            -- if set changes graph aspects--may nned to reoptimize
+            let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
+                newGraphs = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
+                            else fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+            in
+            executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Swap then
             let newGraphList = SW.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
             in
@@ -281,6 +291,17 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
 
 
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+
+-- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
+-- graph type, optimality criterion etc.
+requireReoptimization :: GlobalSettings -> GlobalSettings -> Bool 
+requireReoptimization gsOld gsNew =
+    if graphType gsOld /= graphType gsNew then True
+    else if optimalityCriterion gsOld /= optimalityCriterion gsNew then True
+    else if finalAssignment gsOld /= finalAssignment gsNew then True
+    else if graphFactor gsOld /= graphFactor gsNew then True
+    else if rootCost gsOld /= rootCost gsNew then True
+    else False
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
 outputBlockTrees :: [String] -> Int -> (String , V.Vector [BlockDisplayForest]) -> String

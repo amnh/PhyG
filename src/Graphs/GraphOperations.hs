@@ -686,7 +686,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
            else
                 let doBest    = not $ not (any ((=="best").fst) lcArgList)
                     doAll     = not $ not (any ((=="all").fst) lcArgList)
-                    doRandom  = not $ not (any ((=="random").fst) lcArgList)
+                    doRandom  = not $ not (any ((=="atrandom").fst) lcArgList)
                     doUnique  = not $ not (any ((=="unique").fst) lcArgList)
                     numberToKeep
                       | null lcArgList = Just (maxBound :: Int)

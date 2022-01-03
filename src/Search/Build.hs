@@ -63,11 +63,30 @@ import Debug.Trace
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
-buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "tree", "graph", "best","none","otu","spr","tbr"]
+buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "tree", "graph", "best","none","otu","spr","tbr","nad"]
 
--- | buildGraph takes build options and returns contructed graphList 
+-- | buildGraph wraps around build tree--build trees and adds network edges after build if network
+-- with appropriate options
+-- transforms graph type to Tree for builds then back to initial graph type
 buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
-buildGraph inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
+buildGraph inArgs inGS inData pairwiseDistances seed = 
+   let localGraphType = graphType inGS 
+       treeGS = inGS {graphType = Tree}
+       firstTrees = buildTree inArgs treeGS inData pairwiseDistances seed
+   in
+   if localGraphType /= Tree then 
+      -- transform to correct graphType fromTree
+      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees)
+
+      -- add network edges in later command
+
+   else firstTrees
+
+
+
+-- | buildTree takes build options and returns contructed graphList 
+buildTree :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
+buildTree inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList

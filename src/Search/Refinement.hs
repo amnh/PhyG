@@ -34,8 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
-module Search.Refinement  ( blah
-                          , blah2
+module Search.Refinement  ( refineGraph
+                          , refineArgList
                           ) where
 
 import Types.Types
@@ -54,9 +54,9 @@ import Data.Maybe
 import qualified Search.Swap as S
 import qualified Search.NetworkAddDelete as N
 
-blah :: PhylogeneticGraph -> PhylogeneticGraph
-blah a = a
+refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+refineGraph firstArgs inGS processedData seed inGraphList = inGraphList
 
-blah2 :: PhylogeneticGraph -> PhylogeneticGraph
-blah2 a = a
+refineArgList :: [String]
+refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", "netdel"]
 

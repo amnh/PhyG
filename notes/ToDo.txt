@@ -528,7 +528,7 @@ to render--would have repeated subtrees after network vertex
 
 227) Modify chunk parallel like seqParMap if thread==1 do nothing
 
-231) chnge delta calcualtion--to edge calculateoin wag style--missing good graphs
+231) change tree delta calcualtion--to edge calculation wag style--missing good graphs
 
 232) rediagnose preorder pass if chnage final assignment
 
@@ -548,3 +548,14 @@ to render--would have repeated subtrees after network vertex
 239) IA swapping for network--perhoaps not due to non-uniquwe aspwect of resolutions
 
 240)  Need to devfelop some shorcut for network stuff--all full traversals now
+
+241) For forest output, check edges versus additional root cost and filter
+
+242) transform among tree, softwired, hardwired
+	all, first, last, atRandom display trees via net edge deletion
+
+243) IA outpout as fasta
+
+244) make more sensible command processing with file of allowable commands and their options
+	as a pair of lists etc.
+	
