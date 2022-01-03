@@ -131,10 +131,11 @@ getPermissibleEdgePairs inGraph =
 --    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
 -- the result should apply to a new edge in either direction
 isEdgePairPermissible :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeInfo])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
-isEdgePairPermissible inGraph constraintList (edge1, edge2) =
+isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
    if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
    else 
-       if edge1 == edge2 then False
+       if u == u' then False
+       else if edge1 == edge2 then False
        else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
        else if not (meetsAllCoevalConstraints constraintList edge1 edge2) then False
        else if (isAncDescEdge inGraph edge1 edge2) then False
@@ -221,7 +222,9 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
            startVertex = Nothing
 
            -- full two-pass optimization
-           newPhyloGraph = if (graphType inGS == SoftWired) then trace ("INE") T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+           newPhyloGraph = if (graphType inGS == SoftWired) then 
+                                trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
+                                T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"                   
        in
