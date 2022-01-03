@@ -89,7 +89,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | null moveLimitList = Just ((maxBound :: Int) `div` 2) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
         in
-        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer: "  ++ show (head keepList))
+        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
         else 
            let -- getting values to be passed for graph diagnosis later
@@ -256,7 +256,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
          -- trace ("Better cost: " ++ (show bestSwapCost))
-         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList ((tail inGraphList) ++ bestSwapGraphList)  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList (bestSwapGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
 
       -- didn't find equal or better graphs
       else 

@@ -63,18 +63,20 @@ import Data.Maybe
 -- | insertAllNetEdges adds network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
-insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-insertAllNetEdges inGS inData numToKeep (curBestGraphList, curBestGraphCost) inPhyloGraphList =
-   if null inPhyloGraphList then take numToKeep curBestGraphList
+insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+insertAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCost) inPhyloGraphList =
+   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
       let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
           (newGraphList, newGraphCost) = insertEachNetEdge inGS inData numToKeep (head inPhyloGraphList)
       in
       -- worse graphs found--go on 
-      if  newGraphCost > currentCost then insertAllNetEdges inGS inData numToKeep ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+      if  newGraphCost > currentCost then insertAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList) 
 
       -- "steepest style descent" abandons existing list if better cost found
-      else if newGraphCost < currentCost then insertAllNetEdges inGS inData numToKeep (newGraphList, newGraphCost) newGraphList 
+      else if newGraphCost < currentCost then 
+         trace ("Found a new edge to insert")
+         insertAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
 
       -- equal cost
       -- not sure if should add new graphs to queue to do edge deletion again
@@ -82,7 +84,7 @@ insertAllNetEdges inGS inData numToKeep (curBestGraphList, curBestGraphCost) inP
          -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
          let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
          in
-         insertAllNetEdges inGS inData numToKeep (newCurSameBestList, currentCost) (tail inPhyloGraphList)
+         insertAllNetEdges inGS inData numToKeep (counter + 1) (newCurSameBestList, currentCost) (tail inPhyloGraphList)
 
 -- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
 -- and returns best list of new Phylogenetic Graphs and cost
@@ -101,10 +103,12 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = snd6 $ head minCostGraphList
       in
-      -- no network edges to delete
+      trace ("Trying " ++ (show $ length candidateNetworkEdgeList) ++ " candidate network edges (both directions)") (
+      -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
       else if minCost /= currentCost then (minCostGraphList, minCost)
       else (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
+      )
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
 -- of edges that can be joined by a network edge and meet all necessary conditions
@@ -130,7 +134,8 @@ isEdgePairPermissible :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeI
 isEdgePairPermissible inGraph constraintList (edge1, edge2) =
    if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
    else 
-       if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
+       if edge1 == edge2 then False
+       else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
        else if not (meetsAllCoevalConstraints constraintList edge1 edge2) then False
        else if (isAncDescEdge inGraph edge1 edge2) then False
        else True
@@ -216,7 +221,7 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
            startVertex = Nothing
 
            -- full two-pass optimization
-           newPhyloGraph = if (graphType inGS == SoftWired) then T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+           newPhyloGraph = if (graphType inGS == SoftWired) then trace ("INE") T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"                   
        in
@@ -225,18 +230,18 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
 -- | deleteAllNetEdges deletes network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
-deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-deleteAllNetEdges inGS inData numToKeep (curBestGraphList, curBestGraphCost) inPhyloGraphList =
-   if null inPhyloGraphList then take numToKeep curBestGraphList
+deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+deleteAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCost) inPhyloGraphList =
+   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
       let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
           (newGraphList, newGraphCost) = deleteEachNetEdge inGS inData numToKeep (head inPhyloGraphList)
       in
       -- worse graphs found--go on 
-      if  newGraphCost > currentCost then deleteAllNetEdges inGS inData numToKeep ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+      if  newGraphCost > currentCost then deleteAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList) 
 
       -- "steepest style descent" abandons existing list if better cost found
-      else if newGraphCost < currentCost then deleteAllNetEdges inGS inData numToKeep (newGraphList, newGraphCost) newGraphList 
+      else if newGraphCost < currentCost then deleteAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
 
       -- equal cost
       -- not sure if should add new graphs to queue to do edge deletion again
@@ -244,7 +249,7 @@ deleteAllNetEdges inGS inData numToKeep (curBestGraphList, curBestGraphCost) inP
          -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
          let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
          in
-         deleteAllNetEdges inGS inData numToKeep (newCurSameBestList, currentCost) (tail inPhyloGraphList)
+         deleteAllNetEdges inGS inData numToKeep  (counter + 1)  (newCurSameBestList, currentCost) (tail inPhyloGraphList)
 
 -- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
 -- and returns best list of new Phylogenetic Graphs and cost
