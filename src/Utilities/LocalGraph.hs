@@ -645,7 +645,7 @@ extractLeafGraph inGraph =
 undir :: (Eq b) => Gr a b -> Gr a b
 undir inGraph = B.undir inGraph
 
--- | finds bi connectred components of a graph
+-- | finds bi connected components of a graph
 bcc ::  Gr a b -> [Gr a b]
 bcc inGraph = BCC.bcc inGraph
 

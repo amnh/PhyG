@@ -120,6 +120,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (nonExactChars > 0) localStartVertex False postOrderGraph
             in
+            trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
@@ -866,12 +867,12 @@ chooseBetterCharacter firstGraph secondGraph
     let firstGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots firstGraph)
         secondGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots secondGraph)
     in
-    -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
+    --trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
     if firstGraphCost == 0 then (secondGraph, secondGraphCost)
     else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
     else if secondGraphCost < firstGraphCost then (secondGraph, secondGraphCost)
     else (firstGraph, firstGraphCost)
-        -- )
+    -- )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully

@@ -558,4 +558,7 @@ to render--would have repeated subtrees after network vertex
 
 244) make more sensible command processing with file of allowable commands and their options
 	as a pair of lists etc.
-	
+
+245) for multiple blocks--make sure actually taking best block for network--costs look like 0
+
+246) more compact vertex info graph part?
