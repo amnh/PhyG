@@ -60,6 +60,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , topologicalEqual
                                , getTopoUniqPhylogeneticGraph
                                , getBVUniqPhylogeneticGraph
+                               , makeDummyLabEdge
                                ) where
 
 import qualified Data.List                 as L
@@ -272,90 +273,6 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
 -- | rerootTree' flipped version of rerootGraph
 rerootTree' :: (Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
-
-{-
---NB--DOES NOT WORK FOR GRAPOHS at least
--- | rerootGraph reroots a single rooted graph
--- for a graph this may result in multiple graphs if rerooting on indegree > 1 (netowrk) node
--- rootIndex is an invariant always the root--no nodes are creted or destroyed
-
--- 1) removes exisiting root edges (must be only 1) (rootIndex -> a, rootINdex -> b)
--- 2) creates new edge where root was (a->b)
--- 3) checks if rerootindex node has indegree > 1, if so splits call to subreroot function
--- 4) sub reroot removes edge terminating in rerootIndex (c -> rerootIndex)
--- 5) adds two new reroot edges (rootIndex -> c, rootIndex -> rerootIndex)
--- 6) flips edges as needed via preorder traversal till edge flipping no longer needed (incremetnal optimization) 
--- each time remaking graph
-rerootGraph :: (Eq b) => LG.Gr a b -> Int -> Int -> [LG.Gr a b]
-rerootGraph inGraph inRootIndex rerootIndex = 
-  if LG.isEmpty inGraph then [inGraph]
-  else 
-    let rootList = LG.getRoots inGraph
-        origRootIndex = if inRootIndex /= (-1) then inRootIndex
-                        else if length rootList /= 1 then error ("Root number <> 1: " ++ (show $ fmap fst rootList))
-                        else fst $ head rootList
-        origRootEdgeList = if (length $ LG.out inGraph origRootIndex) /= 2 then error ("Require two edges at root:" ++ (show $ fmap LG.toEdge $ LG.out inGraph origRootIndex))
-                           else LG.out inGraph origRootIndex
-
-        -- this if to check for leaf as end of edge
-        origRootNewEdge = (snd3 $ head origRootEdgeList, snd3 $ last origRootEdgeList, thd3 $ head origRootEdgeList)
-        rerootEdgeList = LG.inn inGraph rerootIndex
-        newGraphList = fmap (rerootGraph' inGraph origRootIndex rerootIndex origRootEdgeList origRootNewEdge) rerootEdgeList
-    in
-    trace ("NRE:" ++ (show $ LG.toEdge origRootNewEdge))
-    newGraphList
-
--- | rerootGraph' takes single edge and roots on that edge, creting new edges and directing remaining edges
-rerootGraph' :: (Eq b) => LG.Gr a b -> Int -> Int -> [LG.LEdge b] -> LG.LEdge b -> LG.LEdge b-> LG.Gr a b 
-rerootGraph' inGraph origRootIndex rerootIndex origRootEdgeList origRootNewEdge rerootEdge =
-  let -- this due to edge not getting redirected if connected to edge involved in new root or is leaf
-      origRootNewEdge' = if (LG.isLeaf inGraph $ fst3 origRootNewEdge) then LG.flipLEdge origRootNewEdge
-                         else if ((snd3 origRootNewEdge) `elem` [fst3 rerootEdge, snd3 rerootEdge]) then LG.flipLEdge origRootNewEdge 
-                         else origRootNewEdge
-
-      newRerootEdges = [(origRootIndex, fst3 rerootEdge, thd3 rerootEdge) , (origRootIndex, snd3 rerootEdge, thd3 rerootEdge)]
-
-      newGraph = LG.insEdges (origRootNewEdge' : newRerootEdges) $ LG.delLEdges (rerootEdge : origRootEdgeList) inGraph
-
-      -- need to check for edges indegree to root children and flip
-      inEdgesToRootChldren = concatMap (LG.inn newGraph) [fst3 rerootEdge,  snd3 rerootEdge]
-      notFromRootInEdges = inEdgesToRootChldren L.\\ newRerootEdges
-
-      -- update graph
-      newGraph' = LG.insEdges (fmap LG.flipLEdge notFromRootInEdges) $ LG.delLEdges notFromRootInEdges newGraph
-  in
-  trace ("Inserting :" ++ (show $ fmap LG.toEdge  (origRootNewEdge' : newRerootEdges)) ++ " root flip: " ++ (show $ fmap LG.toEdge notFromRootInEdges))
-  redirectEdgesDamped newGraph' newRerootEdges
-
--- | redirectEdgesDamped takes a graph and a list of vertices
--- the oout edges from the vertices are checked for correct direction
--- if edges already correct--then returns, else recurses to descendant vertices of edge
-redirectEdgesDamped :: LG.Gr a b -> [LG.LEdge b] -> LG.Gr a b
-redirectEdgesDamped inGraph edgeList =
-  trace ("RDI:" ++ (show $ fmap LG.toEdge edgeList)) (
-  if null edgeList then inGraph
-  else 
-     let nodeList = fmap snd3 edgeList
-         outEdgeList = concatMap (LG.out inGraph) nodeList
-         (flippedEdges, needToBeFlippedEdges) = unzip $ flipIfNeeded  nodeList outEdgeList
-         newGraph = LG.insEdges flippedEdges $ LG.delLEdges needToBeFlippedEdges inGraph
-      in
-      redirectEdgesDamped newGraph flippedEdges 
-  )
-
--- | flipIfNeeded takes a list of nodes and an edge and if the first field of edge is in node list
--- flips the vertex.  Returns flipeped and original edge
-flipIfNeeded ::[Int] -> [LG.LEdge b] -> [(LG.LEdge b, LG.LEdge b)]
-flipIfNeeded nodeList inEdgeList =
-  trace ("Flip:" ++ (show nodeList) ++ " edge " ++ (show $ fmap LG.toEdge inEdgeList)) (
-  if null inEdgeList then []
-  else 
-    let firstEdge@(a,b,c) = head inEdgeList
-    in
-    if b `elem` nodeList then ((b,a,c),firstEdge) : flipIfNeeded nodeList (tail inEdgeList)
-    else flipIfNeeded nodeList (tail inEdgeList)
-  )
--}
 
 -- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
@@ -922,3 +839,6 @@ createBVUniqueBoolList inBVGraphListList boolAccum =
 
 
 
+-- | makeDummyLabEdge takes an unlabelled edge and adds a dummy label
+makeDummyLabEdge :: LG.Edge -> LG.LEdge EdgeInfo
+makeDummyLabEdge (u,v) = (u,v,dummyEdge)

@@ -448,6 +448,7 @@ pathToRoot inGraph inNode =
 
 -- | pathToRoot' with accumulators
 -- filter operators basically for networks so not retrace paths
+-- includes roots as nodes 
 pathToRoot' :: (Eq a, Eq b) => Gr a b -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
 pathToRoot' inGraph inNodeList curNodeList curEdgeList =
     if null inNodeList then (reverse curNodeList, reverse curEdgeList)

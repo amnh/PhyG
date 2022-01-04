@@ -226,6 +226,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
 
             graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
+        trace ("GPOT: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
                
