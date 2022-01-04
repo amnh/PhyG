@@ -101,7 +101,8 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
           newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
 
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
-          minCost = snd6 $ head minCostGraphList
+          minCost = if null minCostGraphList then infinity
+                    else snd6 $ head minCostGraphList
       in
       trace ("Trying " ++ (show $ length candidateNetworkEdgeList) ++ " candidate network edges (both directions)") (
       -- no network edges to insert
@@ -266,7 +267,8 @@ deleteEachNetEdge inGS inData numToKeep inPhyloGraph =
           networkEdgeList = LG.netEdges $ thd6 inPhyloGraph
           newGraphList = fmap (deleteNetEdge inGS inData inPhyloGraph) networkEdgeList `using`  PU.myParListChunkRDS
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
-          minCost = snd6 $ head minCostGraphList
+          minCost = if null minCostGraphList then infinity 
+                    else snd6 $ head minCostGraphList
       in
       -- no network edges to delete
       if null networkEdgeList then ([inPhyloGraph], currentCost)
