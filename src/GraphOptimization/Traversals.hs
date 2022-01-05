@@ -120,7 +120,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (nonExactChars > 0) localStartVertex False postOrderGraph
             in
-            trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
+            -- trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum 
@@ -227,7 +227,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
 
             graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
-        trace ("GPOT: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
+        -- trace ("GPOT: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
                

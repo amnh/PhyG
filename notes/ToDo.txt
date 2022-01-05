@@ -562,3 +562,15 @@ to render--would have repeated subtrees after network vertex
 245) for multiple blocks--make sure actually taking best block for network--costs look like 0
 
 246) more compact vertex info graph part?
+
+247) net add del steepest
+	with # and atRandom
+
+248) net move net edge (add/delete 1)
+
+249) net/tree recombine using spr/tbr split add functions
+
+250) ia for net swapping and final
+
+251) USe reconcile for Trees as well?
+ 

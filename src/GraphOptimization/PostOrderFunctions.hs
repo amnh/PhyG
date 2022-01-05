@@ -723,9 +723,10 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         -- else if (length nodesToOptimize == 1) then inPhyGraph
         else
           
+          {-
           trace ("New RootIndex :" ++ (show (rerootIndex, isNetworkNode, parentIsNetworkNode)) ++ " To optimize:" ++ (show $ fmap fst nodesToOptimize) ++ "\nOG:\n"
           ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nRRG:" ++ ((LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph))) (
-          
+          -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
           if inGraphType == Tree then (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
           else
@@ -733,7 +734,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
             let (displayGraphVL, lDisplayCost) = extractDisplayTrees Nothing True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
-            )          
+            -- )          
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 -- basically at root and network edge originally 'to' network edge
@@ -811,9 +812,11 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
             in
             if length origRootEdges /= 2 then error ("Root does not have two children in rectifyGraphDecorated: " ++ (show origRootEdges))
             else 
+                {-
                 trace ("Original root edges:" ++ (show origRootEdges) 
                     ++ " Insertions:" ++ (show (LG.toEdge origVirtualRootEdge, fmap LG.toEdge newRootChildEdges, fmap LG.toEdge flippedEdgesToOldRoot, fmap LG.toEdge edgesToAddBack))
                     ++ "\nDeletions:" ++ (show ((newRootEdge, origRootEdges,edgePathToRoot))))
+                -}
                 (newGraph, nodesToReoptimize)
 
 

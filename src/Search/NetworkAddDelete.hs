@@ -104,11 +104,14 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
           minCost = if null minCostGraphList then infinity
                     else snd6 $ head minCostGraphList
       in
-      trace ("Trying " ++ (show $ length candidateNetworkEdgeList) ++ " candidate network edges (both directions)") (
+      trace ("Examining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edges pairs (trying both directions)") (
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
-      else if minCost /= currentCost then (minCostGraphList, minCost)
-      else (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
+      else if minCost /= currentCost then 
+         trace ("IENE: " ++ (show (minCost, currentCost)) ++ " from " ++ (show $ fmap snd6 newGraphList) ++ " yeilding " ++ (show $ fmap snd6  minCostGraphList))
+         (minCostGraphList, minCost)
+      else 
+         (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
       )
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
@@ -224,11 +227,12 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
 
            -- full two-pass optimization
            newPhyloGraph = if (graphType inGS == SoftWired) then 
-                                trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
+                                -- trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
                                 T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"                   
        in
+       trace ("INE Cost: " ++ (show $ snd6 newPhyloGraph))
        newPhyloGraph
 
 -- | deleteAllNetEdges deletes network edges one each each round until no better or additional 

@@ -620,10 +620,12 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges
-                        uniqueGraphList = L.sortOn snd6 $ getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs -- ngetUniqueGraphs nonZeroEdgeListGraphPairList []
+                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
-                    else if doBest then take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
+                    else if doBest then 
+                      -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
+                      take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
                     else if doRandom then
                          let randList = head $ shuffleInt seed 1 [0..(length curGraphs - 1)]
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
@@ -633,21 +635,32 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                     else
                         filter ((== minGraphCost).snd6) uniqueGraphList
 
+-- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
+getUniqueGraphs :: Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+getUniqueGraphs removeZeroEdges inGraphList =
+  if null inGraphList then []
+  else 
+    let inGraphEdgeList = if removeZeroEdges then fmap (filter ((> 0.0) . minLength . thd3)) $ fmap LG.labEdges $ fmap thd6 inGraphList
+                          else fmap LG.labEdges $ fmap thd6 inGraphList
+    in
+    getUniqueGraphs' (zip inGraphEdgeList inGraphList) []
+
+
 
 -- | could use FGL '==' ?
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
-getUniqueGraphs :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
-getUniqueGraphs inGraphPairList currentUniquePairs =
+getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
+getUniqueGraphs' inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
     else
         let firstPair@(firstEdges, _) = head inGraphPairList
         in
-        if null currentUniquePairs then getUniqueGraphs (tail inGraphPairList) [firstPair]
+        if null currentUniquePairs then getUniqueGraphs' (tail inGraphPairList) [firstPair]
         else
             let equalList = filter (== True) $ fmap ((== firstEdges) . fst) currentUniquePairs
             in
-            if null equalList then getUniqueGraphs (tail inGraphPairList) (firstPair : currentUniquePairs)
-            else getUniqueGraphs (tail inGraphPairList) currentUniquePairs
+            if null equalList then getUniqueGraphs' (tail inGraphPairList) (firstPair : currentUniquePairs)
+            else getUniqueGraphs' (tail inGraphPairList) currentUniquePairs
 
 
 -- getNonZeroEdges takes a DecortatedGraph and returns the sorted list of non-zero length (< epsilon) edges
