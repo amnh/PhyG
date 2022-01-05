@@ -73,6 +73,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types
+import           Measure.Unit.SymbolIndex
 
 
 -- |
@@ -530,7 +531,7 @@ renderDynamicCharacter (lc,mc,rc) = unlines
 
 
 buildGap :: Bits e => e -> e
-buildGap e = buildNil e `setBit` gapIndex
+buildGap e = buildNil e `setBit` atSymbolIndex gapIndex
 
 
 buildNil :: Bits e => e -> e
@@ -540,5 +541,5 @@ buildNil e = e `xor` e
 buildGapAndNil :: Bits e => e -> (# e, e #)
 buildGapAndNil e =
   let nil = buildNil e
-      gap = nil `setBit` gapIndex
+      gap = nil `setBit` atSymbolIndex gapIndex
   in  (# gap, nil #)

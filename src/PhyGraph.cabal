@@ -35,6 +35,25 @@ extra-source-files:
     ffi/memoized-tcm/costMatrixWrapper.h
     ffi/memoized-tcm/dynamicCharacterOperations.h
 
+
+flag Debug
+  Description: Compile with debugging flags
+  Default:     False
+  Manual:      True
+
+
+flag Optimize
+  Description: Compile with full optimizations
+  Default:     False
+  Manual:      True
+
+
+flag Forego-Sanity
+  Description: Compile with full optimizations
+  Default:     False
+  Manual:      True
+
+
 -- Group of buildinfo specifications to correctly build and link to the C & C++:
 -- FFI code.
 common ffi-buildinfo
@@ -65,72 +84,80 @@ common ffi-buildinfo
   include-dirs:
     ffi/external-direct-optimization
 
+
 common ghc-flags
 
   ghc-options:
---    -rtsopts          
-    -- Debugging flags
-    -debug
-    -g 
---    -ddump-stg-from-core
---    -ddump-cmm
---    -ddump-to-file   
-    -- -prof
-    -fprof-auto
-    -fprof-cafs
-    -optc -rdynamic          
-
-    -- Optimization flags
---    -O0
-    -O2
-    -threaded
-    -fexcess-precision
-    -fexpose-all-unfoldings
-    -flate-specialise
-    -foptimal-applicative-do
-    -fspecialize-aggressively
-    -fstatic-argument-transformation
-    -- Usability flags
     -fdiagnostics-color=always
     -fhide-source-paths
     -j
-    -- Sanity check warnings
-    -Wall
-    -Wcompat
-    -Wdodgy-foreign-imports
-    -Wduplicate-exports
-    -Wempty-enumerations
-    -Widentities
-    -Wincomplete-patterns
-    -Wincomplete-record-updates
-    -Wincomplete-uni-patterns
-    -Wmissed-specialisations          
-    -Wmissing-deriving-strategies          
-    -Wmissing-fields
-    -Wmissing-home-modules
-    -Wmissing-signatures
-    -Wmissing-export-lists
-    -Wnoncanonical-monad-instances
-    -Wnoncanonical-monoid-instances
-    -Woverflowed-literals
-    -Woverlapping-patterns
-    -Wredundant-constraints
-    -Wsemigroup
-    -Wtabs
-    -Wunrecognised-warning-flags
-    -Wunused-binds
-    -Wunused-do-bind
-    -Wunused-foralls
-    -Wunused-imports
-    -Wunused-matches
-    -Wwrong-do-bind
-    -Wpartial-fields
 
+  ghc-prof-options:
+    -fprof-auto
+    -fprof-cafs
+    -optc
+    -rdynamic
 
-  if impl(ghc >= 8.10)
+  if flag(Debug)
     ghc-options:
-      -Wderiving-defaults
-      -Wunused-packages
+      -debug
+      -g 
+      -ddump-stg-from-core
+      -ddump-cmm
+      -ddump-to-file
+
+  if !flag(Optimize)
+    ghc-options:
+      -O0
+  else
+    ghc-options:
+      -O2
+      -threaded
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -foptimal-applicative-do
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+
+  if !flag(Forego-Sanity)
+    ghc-options:
+      -Wall
+      -Wcompat
+      -Wdodgy-foreign-imports
+      -Wduplicate-exports
+      -Wempty-enumerations
+      -Widentities
+      -Wincomplete-patterns
+      -Wincomplete-record-updates
+      -Wincomplete-uni-patterns
+--      -Wmissed-specialisations          
+      -Wmissing-deriving-strategies          
+      -Wmissing-fields
+      -Wmissing-home-modules
+      -Wmissing-signatures
+      -Wmissing-export-lists
+      -Wnoncanonical-monad-instances
+      -Wnoncanonical-monoid-instances
+      -Woverflowed-literals
+      -Woverlapping-patterns
+      -Wredundant-constraints
+      -Wsemigroup
+      -Wtabs
+      -Wunrecognised-warning-flags
+      -Wunused-binds
+      -Wunused-do-bind
+      -Wunused-foralls
+      -Wunused-imports
+      -Wunused-matches
+      -Wwrong-do-bind
+      -Wpartial-fields
+
+    if impl(ghc >= 8.10)
+      ghc-options:
+        -Wderiving-defaults
+        -Wunused-packages
+
 
 -- Global deviations from Haskell98
 common language-specs
@@ -172,10 +199,6 @@ executable phyg
   main-is: phygraph.hs
 
   ghc-options:  -Wall
-                -Wincomplete-patterns
-                -threaded 
-                -O2
-                -XBangPatterns
                 -rtsopts
                 -- for weeder
 --                -fwrite-ide-info 
@@ -193,7 +216,7 @@ executable phyg
 
   build-depends:  alphabet
                 , dynamic-character
-                , measure
+                , measure-transition
                 , base >=4.10
                 , containers >=0.6
                 , graphviz
@@ -225,7 +248,7 @@ executable phyg
                --, Graphalyze
  
                 
-  default-extensions : BangPatterns                
+  default-extensions: BangPatterns
 
   default-language: Haskell2010
 
@@ -293,6 +316,7 @@ library alphabet
     lib/alphabet/src
 
   build-depends:
+    measure-unit,
     utility,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
@@ -341,7 +365,9 @@ library dynamic-character
 
   build-depends:
     alphabet,
-    measure,
+    measure-class,
+    measure-transition,
+    measure-unit,
     utility,
     base                     >= 4.11      && < 5.0,
     bv-little,
@@ -370,14 +396,39 @@ library dynamic-character
     DirectOptimization.Pairwise.Wide
 
 
--- Library for working with Measures, Metrics, SCMs, and TCMS in various representations.
+-- Library defining units of measures.
 
--- General purpose library for working with transition cost matrices (MEASUREs)
--- and symbol change matrices (SCMs). Specialization options are provided
--- for the discrete metric (non-additive) and the L1 norm (additive) MEASUREs &
--- SCMs. Exposes a memoized binding for sparsely indexed, large MEASUREs.
+library measure-class
 
-library measure
+  import:
+    ghc-flags,
+    language-specs,
+
+  default-language:
+    Haskell2010
+
+  hs-source-dirs:
+    lib/measure/class/src
+
+  build-depends:
+    measure-unit,
+    base          >= 4.11      && < 5.0,
+    deepseq       >= 1.4       && < 2.0,
+    semigroupoids >= 5.3       && < 5.4,
+
+  exposed-modules:
+    Measure.Centroid
+    Measure.Dispersion
+    Measure.Distance
+    Measure.Distance.Metricity
+
+  other-modules:
+    Measure.Dispersion.General
+    Measure.Dispersion.Types
+    Measure.Distance.Types
+
+
+library measure-transition
 
   import:
     ffi-buildinfo,
@@ -388,9 +439,11 @@ library measure
     Haskell2010
 
   hs-source-dirs:
-    lib/measure/src
+    lib/measure/transition/src
 
   build-depends:
+    measure-class,
+    measure-unit,
     utility,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
@@ -401,29 +454,47 @@ library measure
     vector                   >= 0.12.0.3  && < 0.13,
 
   exposed-modules:
-    Measure.Compact
-    Measure.Diagnosis
-    Measure.Matrix
-    Measure.Metricity
-    Measure.States.Dense
-    Measure.Symbols.Dense
-    Measure.Unit
+    Measure.Transition.Compact
+    Measure.Transition.Diagnosis
+    Measure.Transition.Matrix
+    Measure.Transition.States.Dense
+    Measure.Transition.Symbols
+    Measure.Transition.Symbols.Dense
 
   other-modules:
     Data.Hashable.Memoize
-    Measure.Compact.Discrete
-    Measure.Compact.DiscreteCrossGap
-    Measure.Compact.L1Norm
-    Measure.Compact.Overlap
-    Measure.Matrix.Class
-    Measure.Matrix.Types
-    Measure.States.Dense.Allocation
-    Measure.States.Dense.Structure
-    Measure.Symbols.Unsafe
-    Measure.Symbols.Internal
-    Measure.Unit.Distance
-    Measure.Unit.SymbolIndex
+    Measure.Transition.Compact.Discrete
+    Measure.Transition.Compact.DiscreteCrossGap
+    Measure.Transition.Compact.L1Norm
+    Measure.Transition.Matrix.Class
+    Measure.Transition.Matrix.Types
+    Measure.Transition.States.Dense.Allocation
+    Measure.Transition.States.Dense.Structure
+    Measure.Transition.Symbols.Unsafe
+    Measure.Transition.Symbols.Internal
+
+
+library measure-unit
+
+  import:
+    ghc-flags,
+    language-specs,
+
+  default-language:
+    Haskell2010
+
+  hs-source-dirs:
+    lib/measure/unit/src
+
+  build-depends:
+    base     >= 4.11      && < 5.0,
+    deepseq  >= 1.4       && < 2.0,
+    hashable >= 1.3       && < 2.0,
+
+  exposed-modules:
+    Measure.Unit.SymbolChangeCost
     Measure.Unit.SymbolCount
+    Measure.Unit.SymbolIndex
 
 
 -- Collection of utility functions and data structures
@@ -498,7 +569,7 @@ test-suite test-dynamic-character
   build-depends:
     alphabet,
     dynamic-character,
-    measure,
+    measure-transition,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,
@@ -546,7 +617,7 @@ executable inspect-dynamic-character
   build-depends:
     alphabet,
     dynamic-character,
-    measure,
+    measure-transition,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,

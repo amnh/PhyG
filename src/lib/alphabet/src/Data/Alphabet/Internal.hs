@@ -73,6 +73,8 @@ import           Data.Word
 import           GHC.Exts                            (IsList(fromList), Item)
 import           GHC.Generics                        (Generic)
 import           Numeric.Natural
+import           Measure.Unit.SymbolCount
+import           Measure.Unit.SymbolIndex
 import           Prelude                             hiding (lookup, unzip, zip)
 import           Test.QuickCheck
 --import           Test.QuickCheck.Arbitrary.Instances ()
@@ -83,8 +85,8 @@ import           Test.QuickCheck
 --
 -- /NOTE:/ This index value is very important for many gap-related operations,
 -- both internally for the 'Alphabet' module/linbrary and externally in general.
-gapIndex :: Int
-gapIndex = 0
+gapIndex :: SymbolIndex
+gapIndex =  SymbolIndex 0
 
 
 -- |
@@ -99,7 +101,7 @@ data Alphabet a =
     deriving stock    (Data, Generic, Functor, Typeable)
 
 
-type instance Key Alphabet = Int
+type instance Key Alphabet = SymbolIndex
 
 
 -- Newtypes for corecing and consolidation of alphabet input processing logic
@@ -198,16 +200,21 @@ instance Foldable1 Alphabet where
 instance FoldableWithKey Alphabet where
 
     {-# INLINE foldrWithKey #-}
-    foldrWithKey f e = foldrWithKey f e . symbolVector
+    foldrWithKey f e = foldrWithKey (f . fromSymbolIndex) e . symbolVector
 
     {-# INLINE foldlWithKey #-}
-    foldlWithKey f e = foldlWithKey f e . symbolVector
+    foldlWithKey f e = foldlWithKey (flip (flip f . fromSymbolIndex)) e . symbolVector
 
 
 instance FoldableWithKey1 Alphabet where
 
     {-# INLINE foldMapWithKey1 #-}
-    foldMapWithKey1 f = foldMapWithKey1 f . symbolVector
+    foldMapWithKey1 f = foldMapWithKey1 (f . fromSymbolIndex) . symbolVector
+
+
+instance HasSymbolCount (Alphabet a) where
+
+    symbolCount = SymbolCount . toEnum . length . symbolVector
 
 
 instance Indexable Alphabet where
@@ -241,7 +248,7 @@ instance (Eq a, IsString a) => InternalClass (AlphabetInputTuple a) where
 instance Lookup Alphabet where
 
     {-# INLINE lookup #-}
-    lookup i = lookup i . symbolVector
+    lookup i = lookup (atSymbolIndex i) . symbolVector
 
 
 instance Ord a => Ord (Alphabet a) where
@@ -321,14 +328,15 @@ getSubsetIndices a s
   where
     vec = symbolVector a
     gap = gapSymbol a
-    low = gapIndex + 1
+    idx = atSymbolIndex gapIndex
+    low = idx + 1
 
     inputHadGap = Set.member gap s
     consumeSet  = Set.toAscList . Set.delete gap
     produceSet  = addGapVal . Int.fromDistinctAscList
 
     addGapVal
-      | inputHadGap = Int.insert gapIndex
+      | inputHadGap = Int.insert idx
       | otherwise   = id
 
     -- Faster binary search for a sorted alphabet
@@ -366,13 +374,14 @@ getSubsetIndex a s zero
   where
     vec = symbolVector a
     gap = gapSymbol a
-    low = gapIndex + 1
+    idx = atSymbolIndex gapIndex
+    low = idx + 1
 
     consumeSet  = Set.toAscList . Set.delete gap
     inputHadGap = Set.member gap s
 
     addGapVal
-      | inputHadGap = (`setBit` gapIndex)
+      | inputHadGap = (`setBit` idx)
       | otherwise   = id
 
     -- Faster binary search for a sorted alphabet
@@ -554,8 +563,8 @@ truncateAtMaxSymbol symbols alphabet =
       Nothing -> alphabet
       Just i  ->
         case alphabetStateNames alphabet of
-          [] -> fromSymbols               . take (i + 1) $      alphabetSymbols alphabet
-          xs -> fromSymbolsWithStateNames . take (i + 1) $ zip (alphabetSymbols alphabet) xs
+          [] -> fromSymbols               . take (atSymbolIndex i + 1) $      alphabetSymbols alphabet
+          xs -> fromSymbolsWithStateNames . take (atSymbolIndex i + 1) $ zip (alphabetSymbols alphabet) xs
   where
     maxIndex = foldlWithKey' f Nothing alphabet
     f e k v
@@ -601,10 +610,10 @@ fromTuple  = ASNI
 -- {-# SPECIALISE withinVec :: Vector ShortText -> ShortText -> Int -> Either Int Int #-}
 withinVec :: Ord a => Vector a -> a -> Int -> Either Int Int
 withinVec v e m
-  | e == gap  = Right gapIndex
+  | e == gap  = Right $ atSymbolIndex gapIndex
   | otherwise = go m  $ length v - 1
   where
-    gap = v ! gapIndex
+    gap = v ! atSymbolIndex gapIndex
     -- Perform a binary search on the unboxed vector
     -- to determine if a symbol is present.
     --
@@ -618,3 +627,7 @@ withinVec v e m
                           EQ -> Right md
                           LT -> go    (md + 1) hi
                           GT -> go lo (md - 1)
+
+
+fromSymbolIndex :: Int -> SymbolIndex
+fromSymbolIndex = SymbolIndex . toEnum
