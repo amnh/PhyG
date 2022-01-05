@@ -427,7 +427,7 @@ type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [Blo
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph
-emptyPhylogeneticGraph = (LG.empty, 0.0, LG.empty, V.empty, V.empty, V.empty)
+emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
 
 -- | RawData type processed from input to be passed to characterData
 -- to recode into usable form

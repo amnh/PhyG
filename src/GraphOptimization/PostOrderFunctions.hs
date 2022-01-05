@@ -717,7 +717,10 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         in
         --trace ("rerootPhylogeneticGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nNew\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph)
         -- trace ( "\nFinal\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph')) (
-        if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
+
+        -- this for forbiden condition where rerooting a graph creates parent and child nodes boyth network  
+        if null touchedNodes then emptyPhylogeneticGraph
+        else if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
 
         -- Same root, so no need to redo
         -- else if (length nodesToOptimize == 1) then inPhyGraph
@@ -764,12 +767,17 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inG
             
 
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
+-- this can be abstracted if dummy graph set to some input edge label
 rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
 rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
     if LG.isEmpty inGraph then (LG.empty, [])
     else
         -- sanity check of phylogenetic graph 
-        if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode))
+        if isNetworkNode && parentIsNetworkNode then trace ("Graph with parent and child nodes network vertices--skipping reroot") (LG.empty, [])
+            {-
+            error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode) 
+            ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+            -}
 
         else
             -- get nodes and edged on path from old to new root
