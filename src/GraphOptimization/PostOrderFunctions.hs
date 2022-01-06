@@ -782,7 +782,9 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
     if LG.isEmpty inGraph then (LG.empty, [])
     else
         -- sanity check of phylogenetic graph 
-        if isNetworkNode && parentIsNetworkNode then trace ("Graph with parent and child nodes network vertices--skipping reroot") (LG.empty, [])
+        if isNetworkNode && parentIsNetworkNode then 
+            -- trace ("Graph with parent and child nodes network vertices--skipping reroot") 
+            (LG.empty, [])
 
         else 
             -- get nodes and edged on path from old to new root
@@ -827,7 +829,9 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
 
             in
             if length origRootEdges /= 2 then error ("Root does not have two children in rectifyGraphDecorated: " ++ (show origRootEdges))
-            else if hasNetLeaf then trace ("Graph with HTU network vertex--skipping reroot") (LG.empty, [])
+            else if hasNetLeaf then 
+                --trace ("Graph with HTU network vertex--skipping reroot") 
+                (LG.empty, [])
             else 
                 {-
                 trace ("Original root edges:" ++ (show origRootEdges) 

@@ -75,7 +75,7 @@ insertAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
 
       -- "steepest style descent" abandons existing list if better cost found
       else if newGraphCost < currentCost then 
-         trace ("Found a new edge to insert")
+         -- trace ("Found a new edge to insert")
          insertAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
 
       -- equal cost
