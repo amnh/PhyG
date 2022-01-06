@@ -231,15 +231,26 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
            -- graph optimization from root
            startVertex = Nothing
 
+           -- experimental delata without edge penalty factor
+           (_, uCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData $ fromJust $ LG.lab (thd6 inPhyloGraph) u)
+           (_, uCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData $ fromJust $ LG.lab (thd6 newPhyloGraph) u)   
+           (_, uPrimeCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData $ fromJust $ LG.lab (thd6 inPhyloGraph) u')
+           (_, uPrimeCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData $ fromJust $ LG.lab (thd6 newPhyloGraph) u')   
+
+           delta = uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore 
+
            -- full two-pass optimization
            newPhyloGraph = if (graphType inGS == SoftWired) then 
                                 -- trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
                                 T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
-                           else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"                   
+                           else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"  
+
        in
        -- trace ("INE Cost: " ++ (show $ snd6 newPhyloGraph))
-       newPhyloGraph
+       -- trace ("INE Delta :" ++ (show delta) ++ " from " ++ (show (uCostBefore, uCostAfter, uPrimeCostBefore, uPrimeCostAfter)))
+       if delta < 0 then newPhyloGraph
+       else emptyPhylogeneticGraph
        -- )
 
 -- | deleteAllNetEdges deletes network edges one each each round until no better or additional 

@@ -268,6 +268,7 @@ getW15NetPenalty inGraph =
             numLeaves = length leafList
             divisor = 4.0 * (fromIntegral numLeaves) - 4.0
         in
+        trace ("W15:" ++ (show (numLeaves, divisor, blockPenaltyList))) 
         (sum $ blockPenaltyList) / divisor
 
 
