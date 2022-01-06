@@ -172,7 +172,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this 
         -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-        recursiveRerootList = filter ((/= 0.0) . snd6) $ outgroupRooted : minimalReRootPhyloGraph inGS (graphType inGS) outgroupRooted (head startVertexList) grandChildrenOfRoot
+        recursiveRerootList = outgroupRooted : minimalReRootPhyloGraph inGS (graphType inGS) outgroupRooted (head startVertexList) grandChildrenOfRoot
 
         -- perform traceback on resolution caches is graphtype = softWired
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
@@ -499,11 +499,11 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                     rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
                     newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree
 
-                    -- (displayGraphVL, lDisplayCost) = if (nodeType newVertexLabel) == RootNode then PO.extractDisplayTrees True resolutionBlockVL
-                                                     -- else (mempty, 0.0)
+                    (displayGraphVL, lDisplayCost) = if curNode == rootIndex then PO.extractDisplayTrees (Just curNode) True resolutionBlockVL
+                                                     else (mempty, 0.0)
 
                 in
-                (simpleGraph, 0.0, newGraph, mempty, mempty, blockCharInfo)
+                (simpleGraph, lDisplayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
 
                 {-
                 if (nodeType newVertexLabel) == RootNode then 

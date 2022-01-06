@@ -576,3 +576,6 @@ to render--would have repeated subtrees after network vertex
 
 252) Check final assingment output for dispolay trees and networks due to "hack" at traversal traceback line 677
 
+253) test ladderization of graphs
+
+254) add net condiions for initial input for validity--time etc

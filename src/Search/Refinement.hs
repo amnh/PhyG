@@ -71,7 +71,7 @@ refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", 
 
 -- | netEdgeArgList argiments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "nad"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -106,7 +106,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                -- process args for netEdgeMaster
                doNetAdd = any ((=="netadd").fst) lcArgList
-               doNetDelete = any ((=="netdel").fst) lcArgList
+               doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
                doAddDelete = any ((=="nad").fst) lcArgList
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
@@ -114,19 +114,20 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             else doSteepest'
 
                -- performo add/delete operations 
-               (newGraphList, counterAdd) = if doNetDelete || doAddDelete then 
-                                                let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) inGraphList) `using` PU.myParListChunkRDS
+               (newGraphList, counterDelete) = if doNetDelete || doAddDelete then 
+                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) inGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
                                             else (inGraphList, 0)   
 
 
-               (newGraphList', counterDelete) = if doNetAdd || doAddDelete then 
+               (newGraphList', counterAdd) = if doNetAdd || doAddDelete then 
                                                 let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
                                             else (newGraphList, 0)   
            in
-           trace ("After network edge add/delete: " ++ (show $ length newGraphList') ++ " resulting graphs with add/delete rounds (total): " ++ (show counterAdd) ++ " Add, " ++ (show counterDelete))
+           trace ("After network edge add/delete: " ++ (show $ length newGraphList') ++ " resulting graphs with add/delete rounds (total): " ++ (show counterAdd) ++ " Add, " 
+            ++ (show counterDelete) ++ " Delete")
            newGraphList'
      )

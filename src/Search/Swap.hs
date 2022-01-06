@@ -336,7 +336,7 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
       -- didn't find equal or better graphs
       else (inGraphList, counter + 1)
       
-      --)
+      -- )
 
 
 -- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)
@@ -644,7 +644,7 @@ getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
       --trace ("\n\nIn Graph:\n"++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\nTBR Edits: " ++ (show (rerootEdge, prunedGraphRootIndex, fmap LG.toEdge flippedEdges))
       --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
       (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges)))
-      --)
+      -- )
 
 
 -- | getPrunedEdgeData takes fully optimized pruned data and returns edge list, edge data for TBR additions,
@@ -841,12 +841,13 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
 
       in
       
-      -- trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode))
-         {-
+      {-
+      trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
+         
          ++ "\nBaseGraphNodes\n" ++ (show $ L.sort  $ fmap fst baseGraphNonRootNodes) ++ "\nPruned nodes from root: " ++ "\n" ++ (show $ fmap fst $ startPrunedNode : prunedGraphNonRootNodes) 
          ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
-         -}
+      -}   
       (fullSplitGraph, splitGraphCost)
 
       
@@ -863,8 +864,8 @@ reoptimizeGraphFromVertexIA :: GlobalSettings
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
 reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSplitGraph startVertex prunedSubGraphRootVertex =
-   if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeGraphFromVertexIA"
-   else 
+   --if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeGraphFromVertexIA"
+   --else 
       let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
             origGraph = thd6 origPhyloGraph
 

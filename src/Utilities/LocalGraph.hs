@@ -442,6 +442,16 @@ prettify inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else G.prettify inGraph
 
+-- | prettyIndices prints graph to String only using indices
+prettyIndices :: (Show a, Show b) => Gr a b -> String
+prettyIndices inGraph =
+    if G.isEmpty inGraph then "Empty Graph"
+    else 
+        let nodeList = concat $ fmap (++ ",") $ fmap show $ nodes inGraph
+            edgeList = concat $ fmap (++ "\n") $ fmap show $ edges inGraph
+        in
+        nodeList ++ "\n" ++ edgeList
+
 -- | pathToRoot takes a graph and a vertex and returns a pair of lists 
 -- of vertices and edges to root(s) in order of encountering them to root
 -- if a tree--not necessarily if network--should work
