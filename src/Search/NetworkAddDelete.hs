@@ -109,7 +109,7 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
       else if minCost /= currentCost then 
-         trace ("IENE: " ++ (show (minCost, currentCost)) ++ " from " ++ (show $ fmap snd6 newGraphList) ++ " yeilding " ++ (show $ fmap snd6  minCostGraphList))
+         -- trace ("IENE: " ++ (show (minCost, currentCost)) ++ " from " ++ (show $ fmap snd6 newGraphList) ++ " yeilding " ++ (show $ fmap snd6  minCostGraphList))
          (minCostGraphList, minCost)
       else 
          (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
@@ -142,7 +142,8 @@ isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
    else 
        if u == u' then False
        else if v == v' then False
-       else if LG.toEdge edge1 == LG.toEdge edge2 then False
+       -- equality implied in above two 
+       -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
        else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
        else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
        else if not (meetsAllCoevalConstraints constraintList edge1 edge2) then False
@@ -210,7 +211,7 @@ insertNetEdgeBothDirections inGS inData inPhyloGraph (u,v) = fmap (insertNetEdge
 -- naive for now
 insertNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> PhylogeneticGraph
 insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
-   trace ("InsertEdge " ++ (show ((u,v), (u',v'))) ++ " into:\n " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 inPhyloGraph)) (
+   -- trace ("InsertEdge " ++ (show ((u,v), (u',v'))) ++ " into:\n " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 inPhyloGraph)) (
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in insNetEdge"
    else 
        let inSimple = fst6 inPhyloGraph
@@ -237,9 +238,9 @@ insertNetEdge inGS inData inPhyloGraph ((u,v, _), (u',v', _)) =
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"                   
        in
-       trace ("INE Cost: " ++ (show $ snd6 newPhyloGraph))
+       -- trace ("INE Cost: " ++ (show $ snd6 newPhyloGraph))
        newPhyloGraph
-       )
+       -- )
 
 -- | deleteAllNetEdges deletes network edges one each each round until no better or additional 
 -- graphs are found

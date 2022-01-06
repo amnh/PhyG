@@ -573,4 +573,6 @@ to render--would have repeated subtrees after network vertex
 250) ia for net swapping and final
 
 251) USe reconcile for Trees as well?
- 
+
+252) Check final assingment output for dispolay trees and networks due to "hack" at traversal traceback line 677
+

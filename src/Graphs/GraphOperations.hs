@@ -853,5 +853,5 @@ createBVUniqueBoolList inBVGraphListList boolAccum =
 
 
 -- | makeDummyLabEdge takes an unlabelled edge and adds a dummy label
-makeDummyLabEdge :: LG.Edge -> LG.LEdge EdgeInfo
-makeDummyLabEdge (u,v) = (u,v,dummyEdge)
+makeDummyLabEdge :: EdgeInfo -> LG.Edge -> LG.LEdge EdgeInfo
+makeDummyLabEdge edgeLab (u,v) = (u,v,edgeLab)

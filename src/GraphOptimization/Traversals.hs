@@ -195,7 +195,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList)) (
+    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList)) (
     -- only static characters
     if nonExactChars == 0 then 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -231,7 +231,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    )
+    -- )
 
                
 
@@ -665,13 +665,17 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
 
     -- non-root node--return the index resolution information
     else
+        -- trace ("GRD Length:" ++ (show $ V.length $ vertexResolutionData nodeLabel) ++ " " ++ (show $ fmap fromJust parentResolutionIndexVect) ++ "\n" ++ (show $ vertexResolutionData nodeLabel)) (
         let parentIndexVect = fmap fromJust parentResolutionIndexVect
 
             -- get resolution data from node label
             resolutionData = vertexResolutionData nodeLabel
 
             -- get the correct (via index) resolution data for each block
-            resolutionsByBlockV = V.zipWith (V.!) resolutionData parentIndexVect
+            -- complex for network node since keeps left right sort of array, but only first element maters--this hack keepsm thingfs ok for
+            -- tree-like tracebakc assignment
+            resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) $ V.head parentIndexVect)
+                                  else V.zipWith (V.!) resolutionData parentIndexVect
 
             -- get other resolution info
             charDataVV = fmap displayData resolutionsByBlockV

@@ -100,7 +100,8 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
         nodeChildren = LG.descendants inGraph curNodeIndex  -- should be 1 or 2, not zero since all leaves already in graph
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
-    if not $ null foundCurChildern then
+    if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren) ++ "\nGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
+    else if not $ null foundCurChildern then 
       -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
       reOptimizeNodes inGS localGraphType charInfoVectVect inGraph (tail oldNodeList ++ [curNode])
 
@@ -110,6 +111,7 @@ reOptimizeNodes inGS localGraphType charInfoVectVect inGraph oldNodeList =
         --reOptimizeNodes inGS localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
 
     else
+        -- trace ("RON: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren)) (
         let leftChild = head nodeChildren
             rightChild = last nodeChildren
             -- leftChildLabel = fromJust $ LG.lab inGraph leftChild
@@ -709,10 +711,10 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
 
-        -- rerooted diplay forests--don't care about costs--I hope (hence Bool False)
+        -- rerooted display forests--don't care about costs--I hope (hence Bool False)
         newBlockDisplayForestVV = if V.null blockDisplayForestVV then mempty
                                   --else fmap (fmap (GO.rerootTree rerootIndex)) blockDisplayForestVV
-                                  else fmap (fmap (rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex)) blockDisplayForestVV
+                                  else fmap (fmap (rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex)) blockDisplayForestVV
 
         in
         --trace ("rerootPhylogeneticGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nNew\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph)
@@ -739,10 +741,12 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
             -- )          
 
+
+{-
 -- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
 -- basically at root and network edge originally 'to' network edge
-rectifyGraph :: (Eq b) => Bool -> Int ->  Bool -> Int -> LG.Gr a b -> LG.Gr a b
-rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
+rectifyGraph' :: (Eq b) => Bool -> Int ->  Bool -> Int -> LG.Gr a b -> LG.Gr a b
+rectifyGraph' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
     if LG.isEmpty inGraph then LG.empty
     else
         -- sanity check of phylogenetic graph 
@@ -764,50 +768,58 @@ rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inG
         -- I think it has to do with the relabelling of nodes between Network and Tree
         -- when reentering on next rooting
         else inGraph 
-            
+-}
 
--- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
+-- | rectifyGraphDecorated' wrapper around rectifyGraphDecorated for graph only
+rectifyGraphDecorated' :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> DecoratedGraph
+rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph = fst $ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph 
+
+{-
+-- | rectifyGraph 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For  Graph--thee should be able to be combined
 -- this can be abstracted if dummy graph set to some input edge label
-rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
-rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
+rectifyGraph' :: (Eq a) => Bool -> Int ->  Bool -> Int -> LG.Gr a EdgeInfo -> (LG.Gr a EdgeInfo, [LG.LNode a])
+rectifyGraph' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
     if LG.isEmpty inGraph then (LG.empty, [])
     else
         -- sanity check of phylogenetic graph 
         if isNetworkNode && parentIsNetworkNode then trace ("Graph with parent and child nodes network vertices--skipping reroot") (LG.empty, [])
-            {-
-            error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode) 
-            ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
-            -}
 
-        else
+        else 
             -- get nodes and edged on path from old to new root
             let (nodePathToRoot, edgePathToRoot') = LG.pathToRoot inGraph (rerootIndex, fromJust $ LG.lab inGraph rerootIndex)
                 edgePathToRoot =  fmap LG.toEdge edgePathToRoot'
                 origRootEdges = fmap LG.toEdge $ LG.out inGraph originalRootIndex
-                origVirtualRootEdge = if ((snd $ head origRootEdges) `elem` (fmap fst nodePathToRoot)) then GO.makeDummyLabEdge (snd $ head origRootEdges, snd $ last origRootEdges)
-                                      else GO.makeDummyLabEdge (snd $ last origRootEdges, snd $ head origRootEdges)
-                
+
+                -- set localDummyEdge of correct type
+                dEdge = thd3 $ head edgePathToRoot'
+
+                origVirtualRootEdge = if ((snd $ head origRootEdges) `elem` (fmap fst nodePathToRoot)) then GO.makeDummyLabEdge dEdge (snd $ head origRootEdges, snd $ last origRootEdges)
+                                      else GO.makeDummyLabEdge dEdge (snd $ last origRootEdges, snd $ head origRootEdges)
+                    
                 -- arbitrarily chooses one of multiple parent vertices is network edge
                 -- dummy third field for new root edges
                 parentNewRoot = LG.parents inGraph rerootIndex
                 newRootEdge =  (head parentNewRoot ,rerootIndex)
                 otherEdgesFromParentNewRoot = fmap LG.toEdge $ filter ((/= rerootIndex) . snd3) $ LG.out inGraph (head parentNewRoot)
-                newRootChildEdges = fmap GO.makeDummyLabEdge [(originalRootIndex, head parentNewRoot), (originalRootIndex, rerootIndex)]
+                newRootChildEdges = fmap (GO.makeDummyLabEdge dEdge) [(originalRootIndex, head parentNewRoot), (originalRootIndex, rerootIndex)]
 
-                --make new graph--init here to not flip original edge to root
-                flippedEdgesToOldRoot = fmap GO.makeDummyLabEdge $ fmap LG.flipEdge $ edgePathToRoot L.\\ (newRootEdge : origRootEdges)
+                    --make new graph--init here to not flip original edge to root
+                flippedEdgesToOldRoot = fmap (GO.makeDummyLabEdge dEdge)$ fmap LG.flipEdge $ edgePathToRoot L.\\ (newRootEdge : origRootEdges)
 
                 --nodesTouchedFlippedEdgesIndices = (fmap fst3 flippedEdgesToOldRoot) `L.union` (fmap snd3 flippedEdgesToOldRoot)
-                --nodesTouchedFlippedLabels = fmap fromJust $ fmap (LG.lab inGraph) nodesTouchedFlippedEdgesIndices
+                    --nodesTouchedFlippedLabels = fmap fromJust $ fmap (LG.lab inGraph) nodesTouchedFlippedEdgesIndices
 
                 edgesToDelete = (newRootEdge :  origRootEdges) ++ edgePathToRoot
 
                 -- check if network edghe  to be creted by rerooting is deleted
-                edgesToAddBack = fmap GO.makeDummyLabEdge $ filter (`elem` edgesToDelete) otherEdgesFromParentNewRoot
+                edgesToAddBack = fmap (GO.makeDummyLabEdge dEdge) $ filter (`elem` edgesToDelete) otherEdgesFromParentNewRoot
 
                 edgesToInsert = ((origVirtualRootEdge : newRootChildEdges) ++ flippedEdgesToOldRoot ++ edgesToAddBack) L.\\ (fmap LG.flipLEdge edgesToAddBack)
 
                 newGraph = LG.insEdges edgesToInsert $ LG.delEdges edgesToDelete inGraph
+
+                -- check for HTU with outdegree 0 due to rerooting issues--could have nested networks
+                hasNetLeaf = True `elem` (fmap (LG.isNetworkLeaf newGraph) (LG.nodes newGraph))
 
                 -- get touched nodes
                 newRootNodeIndexList = [head parentNewRoot, rerootIndex]
@@ -815,10 +827,11 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 newRootNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ zip newRootNodeIndexList newRootNodeLabelIndex
 
                 nodesToReoptimize = nodePathToRoot `L.union` newRootNodeList
-                                    
+                                        
 
             in
             if length origRootEdges /= 2 then error ("Root does not have two children in rectifyGraphDecorated: " ++ (show origRootEdges))
+            else if hasNetLeaf then trace ("Graph with HTU network vertex--skipping reroot") (LG.empty, [])
             else 
                 {-
                 trace ("Original root edges:" ++ (show origRootEdges) 
@@ -826,9 +839,75 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                     ++ "\nDeletions:" ++ (show ((newRootEdge, origRootEdges,edgePathToRoot))))
                 -}
                 (newGraph, nodesToReoptimize)
+-}
 
 
+-- | rectifyGraphDecorated 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
+-- this can be abstracted if dummy graph set to some input edge label
+rectifyGraphDecorated :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
+rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
+    if LG.isEmpty inGraph then (LG.empty, [])
+    else
+        -- sanity check of phylogenetic graph 
+        if isNetworkNode && parentIsNetworkNode then trace ("Graph with parent and child nodes network vertices--skipping reroot") (LG.empty, [])
 
+        else 
+            -- get nodes and edged on path from old to new root
+            let (nodePathToRoot, edgePathToRoot') = LG.pathToRoot inGraph (rerootIndex, fromJust $ LG.lab inGraph rerootIndex)
+                edgePathToRoot =  fmap LG.toEdge edgePathToRoot'
+                origRootEdges = fmap LG.toEdge $ LG.out inGraph originalRootIndex
+                origVirtualRootEdge = if ((snd $ head origRootEdges) `elem` (fmap fst nodePathToRoot)) then GO.makeDummyLabEdge dummyEdge (snd $ head origRootEdges, snd $ last origRootEdges)
+                                      else GO.makeDummyLabEdge dummyEdge (snd $ last origRootEdges, snd $ head origRootEdges)
+                    
+                -- arbitrarily chooses one of multiple parent vertices is network edge
+                -- dummy third field for new root edges
+                parentNewRoot = LG.parents inGraph rerootIndex
+                newRootEdge =  (head parentNewRoot ,rerootIndex)
+                otherEdgesFromParentNewRoot = fmap LG.toEdge $ filter ((/= rerootIndex) . snd3) $ LG.out inGraph (head parentNewRoot)
+                newRootChildEdges = fmap (GO.makeDummyLabEdge dummyEdge) [(originalRootIndex, head parentNewRoot), (originalRootIndex, rerootIndex)]
+
+                    --make new graph--init here to not flip original edge to root
+                flippedEdgesToOldRoot = fmap (GO.makeDummyLabEdge dummyEdge) $ fmap LG.flipEdge $ edgePathToRoot L.\\ (newRootEdge : origRootEdges)
+
+                --nodesTouchedFlippedEdgesIndices = (fmap fst3 flippedEdgesToOldRoot) `L.union` (fmap snd3 flippedEdgesToOldRoot)
+                    --nodesTouchedFlippedLabels = fmap fromJust $ fmap (LG.lab inGraph) nodesTouchedFlippedEdgesIndices
+
+                edgesToDelete = (newRootEdge :  origRootEdges) ++ edgePathToRoot
+
+                -- check if network edghe  to be creted by rerooting is deleted
+                edgesToAddBack = fmap (GO.makeDummyLabEdge dummyEdge) $ filter (`elem` edgesToDelete) otherEdgesFromParentNewRoot
+
+                edgesToInsert = ((origVirtualRootEdge : newRootChildEdges) ++ flippedEdgesToOldRoot ++ edgesToAddBack) L.\\ (fmap LG.flipLEdge edgesToAddBack)
+
+                newGraph = LG.insEdges edgesToInsert $ LG.delEdges edgesToDelete inGraph
+
+                -- check for HTU with outdegree 0 due to rerooting issues--could have nested networks
+                hasNetLeaf = True `elem` (fmap (LG.isNetworkLeaf newGraph) (LG.nodes newGraph))
+
+                -- get touched nodes
+                newRootNodeIndexList = [head parentNewRoot, rerootIndex]
+                newRootNodeLabelIndex = fmap (fromJust . LG.lab inGraph) newRootNodeIndexList
+                newRootNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ zip newRootNodeIndexList newRootNodeLabelIndex
+
+                nodesToReoptimize = nodePathToRoot `L.union` newRootNodeList
+                                        
+
+            in
+            if length origRootEdges /= 2 then error ("Root does not have two children in rectifyGraphDecorated: " ++ (show origRootEdges))
+            else if hasNetLeaf then trace ("Graph with HTU network vertex--skipping reroot") (LG.empty, [])
+            else 
+                {-
+                trace ("Original root edges:" ++ (show origRootEdges) 
+                    ++ " Insertions:" ++ (show (LG.toEdge origVirtualRootEdge, fmap LG.toEdge newRootChildEdges, fmap LG.toEdge flippedEdgesToOldRoot, fmap LG.toEdge edgesToAddBack))
+                    ++ "\nDeletions:" ++ (show ((newRootEdge, origRootEdges,edgePathToRoot))))
+                -}
+                if (length $ LG.getIsolatedNodes newGraph) > 0 || (length $ LG.getRoots newGraph) > 1 then 
+                    trace ("Isolated nodes: " ++ (show $ fmap fst $ LG.getIsolatedNodes newGraph) ++ " roots " ++ (show $ fmap fst $ LG.getRoots newGraph)) (newGraph, nodesToReoptimize)
+                else (newGraph, nodesToReoptimize)
+                
+
+
+{-
 -- | rectifyGraph' 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
 rectifyGraphDecorated' :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
 rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
@@ -858,7 +937,7 @@ rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode reroo
         -- parent of root point is network--flip and retype nodes
         -- this is incorrect so skipped
         else (inGraph, [])
-
+-}
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
 -- continaing a list of decorated tryees that are the display trees for that block

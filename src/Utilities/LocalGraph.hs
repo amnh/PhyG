@@ -318,6 +318,10 @@ isOutDeg1Node inGraph inNode =  G.outdeg inGraph inNode == 1
 isNetworkNode  :: Gr a b -> Node -> Bool
 isNetworkNode  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
 
+-- | isNetworkLeaf checks if node is network node and a leaf--usually an error condition in phylogenetic networks 
+isNetworkLeaf  :: Gr a b -> Node -> Bool
+isNetworkLeaf  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
+
 
 -- | - | isNetworkEdge checks if edge is network edge 
 isNetworkEdge  :: Gr a b -> Edge -> Bool
