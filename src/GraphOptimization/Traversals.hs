@@ -268,7 +268,7 @@ getW15NetPenalty inGraph =
             numLeaves = length leafList
             divisor = 4.0 * (fromIntegral numLeaves) - 4.0
         in
-        trace ("W15:" ++ (show (numLeaves, divisor, blockPenaltyList))) 
+        -- trace ("W15:" ++ (show (numLeaves, divisor, blockPenaltyList))) 
         (sum $ blockPenaltyList) / divisor
 
 
@@ -280,8 +280,9 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
     else 
         let blockTreeEdgeList = L.nubBy undirectedEdgeEquality $ concatMap LG.edges blockTreeList
             numExtraEdges = length $ undirectedEdgeMinus blockTreeEdgeList treeEdgeList
-            blockCost = vertexCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
+            blockCost = subGraphCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
         in
+        -- trace ("GBW: " ++ (show (numExtraEdges, blockCost, blockTreeEdgeList)) ++ "\n" ++ (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList))) 
         blockCost * (fromIntegral numExtraEdges) 
 
 -- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has 
@@ -366,7 +367,9 @@ sumTreeCostLists firstList secondList =
             checkList = filter (== False) $ zipWith LG.equal firstGraphList secondGraphList
         in
         if null checkList then error ("Graph lists not same : " ++ (show checkList))
-        else trace ("Graphs match ") zip firstGraphList newCostList
+        else 
+            -- trace ("Graphs match ") 
+            zip firstGraphList newCostList
 
 
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions to create the correct vertex states,
