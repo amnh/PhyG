@@ -579,3 +579,5 @@ to render--would have repeated subtrees after network vertex
 253) test ladderization of graphs
 
 254) add net condiions for initial input for validity--time etc
+
+255) Add option to print searach infomation and timings as csv

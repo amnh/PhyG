@@ -36,6 +36,7 @@ Portability :  portable (I hope)
 
 module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , insertAllNetEdges
+                                , moveAllNetEdges
                                 ) where
 
 import Types.Types
@@ -54,12 +55,51 @@ import Data.Bits
 import Data.Maybe
 import qualified Data.Vector as V
 
--- Can create a delta (outgroup rooted cost) before and after insertion with incremental post-order based on 
--- nodes to optimize being total nodes L.\\ the descendents of the two v and v'
--- would be a "true" value that ciould then be rerooted etc
-
 -- Need a "steepest" that takes first better netowrk for add and delete.
 -- Choose order in max branch length, root-end, leaf-end, and at random
+
+
+-- | moveAllNetEdges removes each edge and adds an edge to all possible plasses each round 
+-- until no better or additional graphs are found
+-- call with ([], infinity) [single input graph]
+moveAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> ([PhylogeneticGraph], VertexCost) -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+moveAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCost) inPhyloGraphList =
+   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
+   else 
+      let firstPhyloGraph = head inPhyloGraphList
+          currentCost = min curBestGraphCost (snd6 firstPhyloGraph)
+          netEdgeList = LG.labNetEdges (thd6 firstPhyloGraph)
+          newGraphList' = concatMap (deleteOneNetAddAll inGS inData numToKeep currentCost firstPhyloGraph) netEdgeList
+          newGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList'
+          newGraphCost = snd6 $ head newGraphList
+      in
+      if  newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+      else if newGraphCost < currentCost then
+         trace ("Found better move")
+         moveAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
+
+      else 
+         -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
+         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
+         in
+         moveAllNetEdges inGS inData numToKeep (counter + 1) (newCurSameBestList, currentCost) (tail inPhyloGraphList)
+
+      
+-- | deleteOneNetAddAll deletes the specified edge from a graph--creating a fully optimized new one--then readds
+-- and keeps best based on delta, reoptimizes those and compares to the oringal cost
+-- if better or ssame keeps as per usual
+deleteOneNetAddAll :: GlobalSettings -> ProcessedData -> Int -> VertexCost -> PhylogeneticGraph -> LG.LEdge EdgeInfo -> [PhylogeneticGraph]
+deleteOneNetAddAll inGS inData numToKeep currentCost inPhyloGraph edgeToDelete = 
+   if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
+   else
+      -- True to force reoptimization of delete
+      let deletedEdgeGraph = deleteNetEdge inGS inData inPhyloGraph True (LG.toEdge edgeToDelete)
+          (insertedGraphList, minNewCost) = insertEachNetEdge inGS inData numToKeep (Just $ snd6 inPhyloGraph) deletedEdgeGraph
+      in
+      if minNewCost <= currentCost then GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] insertedGraphList
+      else [] 
+
+
 
 -- | insertAllNetEdges adds network edges one each each round until no better or additional 
 -- graphs are found
@@ -69,7 +109,7 @@ insertAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
       let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
-          (newGraphList, newGraphCost) = insertEachNetEdge inGS inData numToKeep (head inPhyloGraphList)
+          (newGraphList, newGraphCost) = insertEachNetEdge inGS inData numToKeep Nothing (head inPhyloGraphList)
       in
       -- worse graphs found--go on 
       if  newGraphCost > currentCost then insertAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList) 
@@ -91,8 +131,8 @@ insertAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
 -- and returns best list of new Phylogenetic Graphs and cost
 -- even if worse--could be used for simulated annealing later
 -- if equal returns unique graph list
-insertEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> PhylogeneticGraph -> ([PhylogeneticGraph], VertexCost)
-insertEachNetEdge inGS inData numToKeep inPhyloGraph =
+insertEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> Maybe VertexCost -> PhylogeneticGraph -> ([PhylogeneticGraph], VertexCost)
+insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
    else
       let currentCost = snd6 inPhyloGraph
@@ -100,7 +140,7 @@ insertEachNetEdge inGS inData numToKeep inPhyloGraph =
           candidateNetworkEdgeList = getPermissibleEdgePairs (thd6 inPhyloGraph)
 
           -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
-          newGraphList = fmap (insertNetEdge inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS
+          newGraphList = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS
 
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = if null minCostGraphList then infinity
@@ -202,16 +242,17 @@ isAncDescEdge inGraph (a,_,_) (b, _, _) =
       else False     
 
 -- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations
-insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGraph ->  (LG.LEdge b, LG.LEdge b) -> [PhylogeneticGraph]
-insertNetEdgeBothDirections inGS inData inPhyloGraph (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph) [(u,v), (v,u)]
+insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGraph ->  Maybe VertexCost -> (LG.LEdge b, LG.LEdge b) -> [PhylogeneticGraph]
+insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 
 -- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 -- contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
 -- does not check any edge reasonable-ness properties
 -- new edge directed from first to second edge
 -- naive for now
-insertNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> PhylogeneticGraph
-insertNetEdge inGS inData inPhyloGraph edgePair@((u,v, _), (u',v', _)) =
+-- predeletecost ofr edge move
+insertNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Maybe VertexCost -> (LG.LEdge b, LG.LEdge b) -> PhylogeneticGraph
+insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v', _)) =
    -- trace ("InsertEdge " ++ (show ((u,v), (u',v'))) ++ " into:\n " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 inPhyloGraph)) (
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in insNetEdge"
    else 
@@ -249,9 +290,15 @@ insertNetEdge inGS inData inPhyloGraph edgePair@((u,v, _), (u',v', _)) =
 
        in
        -- trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta))) (
-       if heuristicDelta + edgeAddDelta < 0 then newPhyloGraph
-       else emptyPhylogeneticGraph
-       -- )
+
+       -- preDelete cost changes criterion for edge move
+       if preDeleteCost == Nothing then 
+          if heuristicDelta + edgeAddDelta < 0 then newPhyloGraph
+          else emptyPhylogeneticGraph
+       else 
+          if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
+          else emptyPhylogeneticGraph
+          -- )
 
 -- | heuristicAddDelta takes teh existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoprtimizes starting nodes of two edges.  Returns cost delta based on 
@@ -318,7 +365,7 @@ deleteAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
       let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
-          (newGraphList, newGraphCost) = deleteEachNetEdge inGS inData numToKeep (head inPhyloGraphList)
+          (newGraphList, newGraphCost) = deleteEachNetEdge inGS inData numToKeep False (head inPhyloGraphList)
       in
       -- worse graphs found--go on 
       if  newGraphCost > currentCost then deleteAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList) 
@@ -338,13 +385,13 @@ deleteAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
 -- and returns best list of new Phylogenetic Graphs and cost
 -- even if worse--could be used for simulated annealing later
 -- if equal returns unique graph list
-deleteEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> PhylogeneticGraph -> ([PhylogeneticGraph], VertexCost)
-deleteEachNetEdge inGS inData numToKeep inPhyloGraph =
+deleteEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> Bool ->  PhylogeneticGraph -> ([PhylogeneticGraph], VertexCost)
+deleteEachNetEdge inGS inData numToKeep force inPhyloGraph =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteAllNetEdges"
    else
       let currentCost = snd6 inPhyloGraph
           networkEdgeList = LG.netEdges $ thd6 inPhyloGraph
-          newGraphList = fmap (deleteNetEdge inGS inData inPhyloGraph) networkEdgeList `using`  PU.myParListChunkRDS
+          newGraphList = fmap (deleteNetEdge inGS inData inPhyloGraph force) networkEdgeList `using`  PU.myParListChunkRDS
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = if null minCostGraphList then infinity 
                     else snd6 $ head minCostGraphList
@@ -359,8 +406,9 @@ deleteEachNetEdge inGS inData numToKeep inPhyloGraph =
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- naive for now
-deleteNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> LG.Edge -> PhylogeneticGraph
-deleteNetEdge inGS inData inPhyloGraph edgeToDelete =
+-- force requires reoptimization no matter what--used for net move
+deleteNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
+deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
    else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else 
@@ -385,7 +433,8 @@ deleteNetEdge inGS inData inPhyloGraph edgeToDelete =
                            else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
-       if heuristicDelta - edgeAddDelta < 0 then newPhyloGraph
+       if force then newPhyloGraph
+       else if heuristicDelta - edgeAddDelta < 0 then newPhyloGraph
        else emptyPhylogeneticGraph
        
 

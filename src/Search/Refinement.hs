@@ -67,11 +67,11 @@ refineGraph inArgs inGS inData seed inGraphList =
 
 -- | refinement arguments
 refineArgList :: [String]
-refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", "netdel", "nad"]
+refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", "netdel", "netdelete", "nad","netmove"]
 
 -- | netEdgeArgList argiments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -108,6 +108,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                doNetAdd = any ((=="netadd").fst) lcArgList
                doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
                doAddDelete = any ((=="nad").fst) lcArgList
+               doMove = any ((=="netmove").fst) lcArgList
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
                doSteepest = if (not doSteepest' && not doAll) then True
@@ -126,8 +127,15 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
                                             else (newGraphList, 0)   
+
+               (newGraphList'', counterMove) = if doMove then 
+                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
+                                                    (graphListList, counterList) = unzip graphPairList
+                                                in (concat graphListList, sum counterList)
+                                            else (newGraphList', 0)   
+
            in
-           trace ("After network edge add/delete: " ++ (show $ length newGraphList') ++ " resulting graphs with add/delete rounds (total): " ++ (show counterAdd) ++ " Add, " 
-            ++ (show counterDelete) ++ " Delete")
+           trace ("After network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
+            ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
            newGraphList'
      )
