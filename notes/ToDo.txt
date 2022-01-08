@@ -581,3 +581,9 @@ to render--would have repeated subtrees after network vertex
 254) add net condiions for initial input for validity--time etc
 
 255) Add option to print searach infomation and timings as csv
+
+256) For recombination
+	use split on edge as in swapping, check pruned graph root BV
+	exchange and proceed as for swapping--in making new grahs etc
+	Must use DO--not same IA o;timization
+ 
