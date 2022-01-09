@@ -74,13 +74,9 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        treeGS = inGS {graphType = Tree}
        firstTrees = buildTree inArgs treeGS inData pairwiseDistances seed
    in
-   if localGraphType /= Tree then 
-      -- transform to correct graphType fromTree
-      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees)
-
-      -- add network edges in later command
-
-   else firstTrees
+   --trace ("BG:" ++ (show (graphType inGS, graphType treeGS))) (
+   firstTrees
+   -- )
 
 
 
@@ -156,18 +152,13 @@ buildTree inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
          let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates) 
              -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
          in
-         {-
-         if (graphType inGS == SoftWired) then 
-            -- multi-traverse reroots graphs
+         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList))) (
+         if (graphType inGS) /= Tree then 
+            -- transform to correct graphType fromTree
+            fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList)
+         else 
             treeList
-         else if (graphType inGS == Tree) then 
-            treeList
-         else errorWithoutStackTrace ("Graph type " ++ (show $ graphType inGS) ++ " not implemented")
-         )
-         -}
-         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
-         treeList
-         )
+         ))
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)

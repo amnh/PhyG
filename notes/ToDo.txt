@@ -586,4 +586,5 @@ to render--would have repeated subtrees after network vertex
 	use split on edge as in swapping, check pruned graph root BV
 	exchange and proceed as for swapping--in making new grahs etc
 	Must use DO--not same IA o;timization
+257) check persmisible edges after build--seems too restricitve--tree with 0 possible?
  

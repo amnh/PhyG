@@ -133,7 +133,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                        -- else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          -- Fals eflag for static IA--can't do when adding in new leaves 
+          -- False flag for static IA--can't do when adding in new leaves 
           calculateBranchLengths = False -- must be True for delata using existing edge
           newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                           if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree False newSimple' leafDecGraph charInfoVV numLeaves numLeaves

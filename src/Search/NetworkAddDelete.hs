@@ -146,7 +146,7 @@ insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
           minCost = if null minCostGraphList then infinity
                     else snd6 $ head minCostGraphList
       in
-      trace ("Examining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edges pairs (trying both directions)") (
+      trace ("Examining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
       else if minCost /= currentCost then 
@@ -165,7 +165,7 @@ getPermissibleEdgePairs inGraph =
        let edgeList = LG.labEdges inGraph
            edgePairs = cartProd edgeList edgeList
            contraintList = getGraphCoevalConstraints inGraph
-           edgeTestList = fmap (isEdgePairPermissible inGraph contraintList) edgePairs
+           edgeTestList = fmap (isEdgePairPermissible inGraph contraintList) edgePairs `using`  PU.myParListChunkRDS
            pairList = filter ((== True) . snd) $ zip edgePairs edgeTestList
        in
        -- trace ("CArtProd:" ++ (show $ cartProd (fmap LG.toEdge edgeList) (fmap LG.toEdge edgeList)))
@@ -206,14 +206,14 @@ getCoevalConstraintEdges inGraph inNode =
 
 
 -- | getGraphCoevalConstraints takes a greaph and returns coeval constraints based on network nodes
-getGraphCoevalConstraints :: (Eq a, Eq b, Show a) => LG.Gr a b -> [([LG.LEdge b],[LG.LEdge b])]
+getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => LG.Gr a b -> [([LG.LEdge b],[LG.LEdge b])]
 getGraphCoevalConstraints inGraph =
    if LG.isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
    else 
        let (_, _, _, networkNodeList) = LG.splitVertexList inGraph
        in
        if null networkNodeList then []
-       else fmap (getCoevalConstraintEdges inGraph) networkNodeList
+       else fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS
 
 -- | meetsAllCoevalConstraints checks constraint pair list and examines
 -- whether one edge is fomr before and one after--if so fails False
