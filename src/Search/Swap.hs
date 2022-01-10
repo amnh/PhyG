@@ -35,6 +35,7 @@ Portability :  portable (I hope)
 -}
 
 module Search.Swap  ( swapMaster
+                    , reoptimizeSplitGraphFromVertexTuple
                     ) where
 
 import Types.Types
@@ -214,7 +215,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
           splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList `using` PU.myParListChunkRDS
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstGraph) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
@@ -312,7 +313,7 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
           
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV firstGraph) splitGraphList graphRootList prunedGraphRootIndexList 
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- reoptimized fully in steepest returns PhylogheneticGraph 
           reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep maxMoveEdgeDist True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
@@ -363,6 +364,8 @@ rejoinGraphKeepBest :: GlobalSettings
 rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitNode = 
    -- case where swap split retunred empty because too few nodes in remaining graph to add to
    if LG.isEmpty splitGraph then []
+   -- this more for fusing situations
+   else if splitCost > curBestCost then []
    else
       let outgroupEdges = LG.out splitGraph graphRoot
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
@@ -398,7 +401,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
 -- NNI sorts edges on propinquity taking first 2 edges
 -- TBR does the rerooting of pruned subtree
 -- originalConnectionOfPruned is the "naked" node that was creted when teh graph was split and will 
--- be used for the rejoin node in the middle of th einvaded edge
+-- be used for the rejoin node in the middle of the invaded edge
 rejoinGraphKeepBestSteepest :: GlobalSettings 
                              -> ProcessedData
                              -> String 
@@ -453,6 +456,8 @@ addSubGraphSteepest :: GlobalSettings
                      -> [PhylogeneticGraph]
 addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV targetEdgeList =  
    if null targetEdgeList then []
+   -- this more for graph fusing checks
+   else if splitCost > curBestCost then []
    else 
       let targetEdge@(eNode, vNode, targetlabel) = head targetEdgeList
           existingEdgeCost = minLength targetlabel
@@ -759,7 +764,7 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
 
 
--- | reoptimizeGraphFromVertex fully labels the component graph that is connected to the specified vertex
+-- | reoptimizeSplitGraphFromVertex fully labels the component graph that is connected to the specified vertex
 -- retuning that graph with 2 optimized components and their cost
 -- both components goo through multi-traversal optimizations
 -- doIA option to only do IA optimization as opposed to full thing--should be enormously faster--but yet more approximate
@@ -772,25 +777,24 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
       -- 3) returns graph and summed cost of two components
 -- if doIA is TRUE then call function that onl;y optimizes the IA assignments on the "original graph" after split.
 -- this keeps teh IA chracters in sunc across the two graphs
-reoptimizeGraphFromVertex :: GlobalSettings 
+reoptimizeSplitGraphFromVertex :: GlobalSettings 
                           -> ProcessedData 
-                          -> String 
                           -> Bool 
                           -> V.Vector (V.Vector CharInfo) 
-                          -> PhylogeneticGraph 
+                          -- -> PhylogeneticGraph 
                           -> DecoratedGraph 
                           -> Int 
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
-reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph inSplitGraph startVertex prunedSubGraphRootVertex =
+reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex =
    if doIA then 
       -- only reoptimize the IA states for dynamic characters
-      reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSplitGraph startVertex prunedSubGraphRootVertex 
+      reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex 
    else
       -- perform full optimizations of nodes
       -- these required for full optimization
       let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
-          origGraph = thd6 origPhyloGraph
+          origGraph = inSplitGraph -- thd6 origPhyloGraph
           leafGraph = LG.extractLeafGraph origGraph
           calcBranchLengths = False
 
@@ -828,14 +832,14 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
           -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
           (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
 
-          (prunedGraphNonRootNodes, prunedGraphEdges) = if LG.isLeaf (thd6 origPhyloGraph) prunedSubGraphRootVertex then ([],[])
+          (prunedGraphNonRootNodes, prunedGraphEdges) = if LG.isLeaf origGraph prunedSubGraphRootVertex then ([],[])
                                                         else LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
 
           -- make fully optimized graph from base and split components
           fullSplitGraph = LG.mkGraph ([startBaseNode, startPrunedNode, startPrunedParentNode] ++  baseGraphNonRootNodes ++ prunedGraphNonRootNodes) (startPrunedParentEdge : (baseGraphEdges ++ prunedGraphEdges))
 
           -- cost of split graph to be later combined with re-addition delta for heuristic graph cost
-          prunedCost = if LG.isLeaf (thd6 origPhyloGraph) prunedSubGraphRootVertex then 0
+          prunedCost = if LG.isLeaf origGraph prunedSubGraphRootVertex then 0
                        else snd6 fullPrunedGraph
           splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
 
@@ -850,24 +854,33 @@ reoptimizeGraphFromVertex inGS inData swapType doIA charInfoVV origPhyloGraph in
       -}   
       (fullSplitGraph, splitGraphCost)
 
+-- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
+reoptimizeSplitGraphFromVertexTuple :: GlobalSettings 
+                          -> ProcessedData 
+                          -> Bool 
+                          -> V.Vector (V.Vector CharInfo) 
+                          -> (DecoratedGraph, Int , Int)
+                          -> (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTuple inGS inData  doIA charInfoVV (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+   reoptimizeSplitGraphFromVertex inGS inData  doIA charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex
+
       
--- | reoptimizeGraphFromVertexIA performs operations of reoptimizeGraphFromVertex for static charcaters
+-- | reoptimizeSplitGraphFromVertexIA performs operations of reoptimizeSplitGraphFromVertex for static charcaters
 -- but dynamic characters--only update IA assignments and initialized from origPhylo graph (at leaves) to keep IA characters in sync
 -- since all "static" only need single traversal post order pass
-reoptimizeGraphFromVertexIA :: GlobalSettings 
+reoptimizeSplitGraphFromVertexIA :: GlobalSettings 
                           -> ProcessedData 
-                          -> String 
                           -> V.Vector (V.Vector CharInfo) 
-                          -> PhylogeneticGraph 
+                          -- -> PhylogeneticGraph 
                           -> DecoratedGraph 
                           -> Int 
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
-reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSplitGraph startVertex prunedSubGraphRootVertex =
-   --if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeGraphFromVertexIA"
+reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex =
+   --if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
    --else 
       let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
-            origGraph = thd6 origPhyloGraph
+            origGraph = inSplitGraph -- thd6 origPhyloGraph
 
             -- create leaf graphs--but copy IA final to prelim
             leafGraph = GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph
@@ -909,7 +922,7 @@ reoptimizeGraphFromVertexIA inGS inData swapType charInfoVV origPhyloGraph inSpl
             -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
             (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
 
-            (prunedGraphNonRootNodes, prunedGraphEdges) = if LG.isLeaf (thd6 origPhyloGraph) prunedSubGraphRootVertex then ([],[])
+            (prunedGraphNonRootNodes, prunedGraphEdges) = if LG.isLeaf origGraph prunedSubGraphRootVertex then ([],[])
                                                           else LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
 
             -- make fully optimized graph from base and split components

@@ -87,7 +87,7 @@ type Argument = (String, String)
 
 
 --For rename format rename:(a,b,c,...,y,z) => a-y renamed to z
-data Instruction = NotACommand | Read | Report | Build | Swap | Refine | Run | Set | Transform | Support | Rename | Select | Reblock
+data Instruction = NotACommand | Build | Fuse | Read | Reblock | Refine | Rename | Report | Run | Select | Set | Swap -- | Transform | Support 
     deriving stock (Show, Eq)
 
 -- | Node variety

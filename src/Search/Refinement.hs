@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.Refinement  ( refineGraph
                           , refineArgList
                           , netEdgeMaster
+                          , fuseGraphs
                           ) where
 
 import Types.Types
@@ -59,6 +60,65 @@ import qualified Data.Vector as V
 import Data.Maybe
 import           Data.Char
 import           Text.Read
+import qualified Search.Fuse as F
+
+-- | fuseArgList arguments
+fuseArgList :: [String]
+fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once"]
+
+-- | fuseGraphs is a wrapper for graph recombination
+-- the functions make heavy use of branch swapping functions in Search.Swap 
+fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+fuseGraphs inArgs inGS inData seed inGraphList =
+   if null inGraphList then []
+   else 
+      trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
+      let fstArgList = fmap (fmap toLower . fst) inArgs
+          sndArgList = fmap (fmap toLower . snd) inArgs
+          lcArgList = zip fstArgList sndArgList
+          checkCommandList = U.checkCommandArgs "fuse" fstArgList fuseArgList
+     in
+     -- check for valid command options
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
+     else 
+         let keepList = filter ((=="keep").fst) lcArgList
+             keepNum
+              | length keepList > 1 =
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
+              | null keepList = Just 1
+              | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+             moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
+             maxMoveEdgeDist  
+              | length moveLimitList > 1 =
+                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " ++ show inArgs)
+              | null moveLimitList = Just ((maxBound :: Int) `div` 2) 
+              | otherwise = readMaybe (head moveLimitList) :: Maybe Int
+        in
+        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
+        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
+        else 
+           let -- process args for fuse placement
+               doNNI' = any ((=="nni").fst) lcArgList
+               doSPR' = any ((=="spr").fst) lcArgList
+               doTBR = any ((=="tbr").fst) lcArgList
+               doSteepest' = any ((=="steepest").fst) lcArgList
+               doAll = any ((=="all").fst) lcArgList
+               doSteepest = if (not doSteepest' && not doAll) then True
+                            else doSteepest'
+               doSPR = if doTBR then False
+                       else doSPR'
+               doNNI = if doSPR || doTBR then False
+                       else doNNI'
+               returnBest = any ((=="best").fst) lcArgList
+               returnUnique = any ((=="unique").fst) lcArgList
+               doSingleRound = any ((=="once").fst) lcArgList
+           in
+           -- perform graph fuse operations 
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seed (fromJust keepNum) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound inGraphList
+           in                             
+           trace ("After graph fusing : " ++ (show $ length newGraphList) ++ " resulting graphs with fuse rounds (total): " ++ (show counterFuse))
+           newGraphList
+      )
 
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]

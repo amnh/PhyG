@@ -94,12 +94,22 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         -- skip "Read" and "Rename "commands already processed
         if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
+        else if firstOption == Reblock then error ("Reblock command should already have been processed: " ++ show (firstOption, firstArgs))
+        else if firstOption == Run then error ("Run command should already have been processed: " ++ show (firstOption, firstArgs))
         
         -- other commands
         else if firstOption == Build then
             let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
             in
             executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Refine then
+            let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
+            in
+            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Fuse then
+            let newGraphList = REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
+            in
+            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
@@ -109,10 +119,6 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
-        else if firstOption == Refine then
-            let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
-            in
-            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
             in

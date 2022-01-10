@@ -251,6 +251,7 @@ executable phyg
                   Search.Build
                   Search.DistanceMethods
                   Search.DistanceWagner
+                  Search.Fuse
                   Search.NetworkAddDelete 
                   Search.Refinement
                   Search.Swap

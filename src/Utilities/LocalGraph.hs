@@ -530,6 +530,7 @@ nodesAndEdgesBefore' inGraph curResults@(curNodes, curEdges) inNodeList
 -- (not including)) that node
 -- filter operators basically for networks so not retrace paths
 -- wrapper without accuulator
+-- Does NOT Contain starting nodes
 nodesAndEdgesBefore :: (Eq a, Eq b, Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesBefore inGraph inNodeList = nodesAndEdgesBefore' inGraph ([],[]) inNodeList
 
@@ -557,6 +558,7 @@ nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.
 -- wrapper wihtout accumulator
+-- Does NOT Contain starting nodes
 nodesAndEdgesAfter :: (Eq a, Eq b,Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNodeList
 

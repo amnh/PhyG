@@ -141,7 +141,7 @@ removeComments inLineList =
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
-allowedCommandList = ["read", "build", "run", "report", "set", "rename", "reblock", "swap", "select"]
+allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "report", "run", "select", "set", "swap"]
 
 
 -- | getInstruction returns the command type from an input String
@@ -149,18 +149,17 @@ allowedCommandList = ["read", "build", "run", "report", "set", "rename", "rebloc
 getInstruction :: String -> [String] -> Instruction
 getInstruction inString possibleCommands
     | null inString = error "Empty command String"
-    | fmap toLower inString == "read"      = Read
-    | fmap toLower inString == "run"       = Run
     | fmap toLower inString == "build"     = Build
-    | fmap toLower inString == "swap"      = Swap
-    | fmap toLower inString == "refine"    = Refine
-    | fmap toLower inString == "report"    = Report
-    | fmap toLower inString == "set"       = Set
-    | fmap toLower inString == "transform" = Transform
-    | fmap toLower inString == "support"   = Support
-    | fmap toLower inString == "rename"    = Rename
+    | fmap toLower inString == "fuse"      = Fuse
+    | fmap toLower inString == "read"      = Read
     | fmap toLower inString == "reblock"   = Reblock
+    | fmap toLower inString == "refine"    = Rename
+    | fmap toLower inString == "rename"    = Rename
+    | fmap toLower inString == "report"    = Report
+    | fmap toLower inString == "run"       = Run
     | fmap toLower inString == "select"    = Select
+    | fmap toLower inString == "set"       = Set
+    | fmap toLower inString == "swap"      = Swap
     | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
         in  errorWithoutStackTrace $ fold
