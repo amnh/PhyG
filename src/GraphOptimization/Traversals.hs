@@ -195,7 +195,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList)) (
+    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList)) (
     -- only static characters
     if nonExactChars == 0 then 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -231,7 +231,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    -- )
+    )
 
                
 

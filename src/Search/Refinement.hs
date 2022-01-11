@@ -114,9 +114,9 @@ fuseGraphs inArgs inGS inData seed inGraphList =
                doSingleRound = any ((=="once").fst) lcArgList
            in
            -- perform graph fuse operations 
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seed (fromJust keepNum) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound inGraphList
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seed (fromJust keepNum) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound inGraphList
            in                             
-           trace ("After graph fusing : " ++ (show $ length newGraphList) ++ " resulting graphs with fuse rounds (total): " ++ (show counterFuse))
+           trace ("Graph fusing : " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
            newGraphList
       )
 

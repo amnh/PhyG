@@ -109,7 +109,7 @@ getEdgeSplitList inGraph =
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
 -- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
 -- node returned.  The naked node is used for rejoining the two components during rearrangement
--- (SplitGraph, root of component that has original root, root of component that was cut off, naked node left over)
+-- (SplitGraph, root of component that has original root, root of component that was cut off, parent of pruned subgraph node left over)
 -- this function does not check whether edge is a 'bridge'
 splitGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
 splitGraphOnEdge inGraph (e,v,l) =

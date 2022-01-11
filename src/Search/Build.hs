@@ -149,16 +149,13 @@ buildTree inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
       else 
          -- character build 
          trace ("Building Character Wagner") (
-         let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates) 
+         let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
+             treeList =  fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
              -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
          in
-         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList))) (
-         if (graphType inGS) /= Tree then 
-            -- transform to correct graphType fromTree
-            fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList)
-         else 
-            treeList
-         ))
+         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList))) 
+         treeList
+         )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
