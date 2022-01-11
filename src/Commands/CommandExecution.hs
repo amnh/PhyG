@@ -127,7 +127,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
                 newGraphs = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
-                            else fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+                            else trace ("Reoptimizing Graphs...") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
             in
             executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Swap then

@@ -70,19 +70,20 @@ buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "chara
 -- transforms graph type to Tree for builds then back to initial graph type
 buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
 buildGraph inArgs inGS inData pairwiseDistances seed = 
-   let localGraphType = graphType inGS 
+   let inputGraphType = graphType inGS 
        treeGS = inGS {graphType = Tree}
-       firstTrees = buildTree inArgs treeGS inData pairwiseDistances seed
+       firstTrees = buildTree inArgs treeGS inputGraphType inData pairwiseDistances seed
    in
    --trace ("BG:" ++ (show (graphType inGS, graphType treeGS))) (
-   firstTrees
+   if inputGraphType == Tree then firstTrees
+   else trace ("     Rediagnosing as " ++ (show (graphType inGS))) fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees)
    -- )
 
 
 
 -- | buildTree takes build options and returns contructed graphList 
-buildTree :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
-buildTree inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
+buildTree :: [Argument] -> GlobalSettings -> GraphType -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
+buildTree inArgs inGS inputGraphType inData@(nameTextVect, _, _) pairwiseDistances seed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
@@ -148,6 +149,7 @@ buildTree inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances seed =
 
       else 
          -- character build 
+         -- final diagnosis in input graph type
          trace ("Building Character Wagner") (
          let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
              treeList =  fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')

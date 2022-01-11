@@ -588,3 +588,4 @@ to render--would have repeated subtrees after network vertex
 	Must use DO--not same IA o;timization
 257) check persmisible edges after build--seems too restricitve--tree with 0 possible?
  
+258) graph factor making assumptions about graphtype

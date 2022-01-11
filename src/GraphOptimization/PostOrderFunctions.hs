@@ -810,7 +810,7 @@ rerootPhylogeneticGraph  inGS inGraphType isNetworkNode originalRootIndex parent
         -- trace ( "\nFinal\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph')) (
 
         -- this for forbiden condition where rerooting a graph creates parent and child nodes boyth network  
-        if null touchedNodes then emptyPhylogeneticGraph
+        if (null touchedNodes) && (inGraphType /= Tree) then emptyPhylogeneticGraph
         else if newSimpleGraph == LG.empty then emptyPhylogeneticGraph
 
         -- Same root, so no need to redo
