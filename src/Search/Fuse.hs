@@ -71,6 +71,7 @@ fuseAllGraphs :: GlobalSettings
               -> Int 
               -> Int 
               -> Int
+              -> Int
               -> Bool 
               -> Bool 
               -> Bool 
@@ -81,7 +82,7 @@ fuseAllGraphs :: GlobalSettings
               -> Bool
               -> [PhylogeneticGraph] 
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeed keepNum counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound inGraphList = 
+fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound inGraphList = 
    if null inGraphList then ([], 0)
    else 
       let -- getting values to be passed for graph diagnosis later
@@ -97,7 +98,7 @@ fuseAllGraphs inGS inData rSeed keepNum counter doNNI doSPR doTBR doSteepest doA
          -- get fuse pairs
          graphPairList = getListPairs inGraphList
 
-         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
+         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -119,12 +120,12 @@ fuseAllGraphs inGS inData rSeed keepNum counter doNNI doSPR doTBR doSteepest doA
             if fuseBest > curBest then (allBestList, counter + 1)
 
             -- found better   
-            else if fuseBest < curBest then fuseAllGraphs inGS inData rSeed keepNum (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
+            else if fuseBest < curBest then fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
             
             -- equal cost
             else 
                -- found novel graph of equal cost
-               if length allBestList /= length inGraphList then fuseAllGraphs inGS inData rSeed keepNum (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
+               if length allBestList /= length inGraphList then fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
 
                -- nothing novel
                else (allBestList, counter + 1)
@@ -145,6 +146,7 @@ fusePair :: GlobalSettings
          -> V.Vector (V.Vector CharInfo) 
          -> Int 
          -> Int 
+         -> Int 
          -> Bool 
          -> Bool 
          -> Bool 
@@ -152,7 +154,7 @@ fusePair :: GlobalSettings
          -> Bool 
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum doNNI doSPR doTBR doSteepest doAll (leftGraph, rightGraph) =
+fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
@@ -196,6 +198,21 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 leftBaseRightPrunedSplitGraphList leftGraphRootIndexList rightPrunedGraphRootIndexList) `using` PU.myParListChunkRDS
 
           rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 rightBaseLeftPrunedSplitGraphList rightGraphRootIndexList leftPrunedGraphRootIndexList) `using` PU.myParListChunkRDS
+
+          -- perform swap-like fuse operations
+          -- needs to be abstracted outn to a function given all th ecomplex arguments
+          {-
+          swapType = if doTBR then "tbr"
+                     else if doSPPR then "spr"
+                     else if doNNI then "nni"
+                     else "nni"
+          maxMoveEdgeDist' = if not doTBR && not doSPR && not doNNI then 2
+                             else maxMoveEdgeDist
+          doIA = False
+          
+          leftRightFuseList = if doSteepest then rejoinGraphKeepBestSteepest inGS inData swapType (snd6 leftGraph) numToKeep maxMoveEdgeDist' True doIA (six6 leftGraph) $ L.zip5 leftRightOptimizedSplitGraphCostList leftGraphRootIndexList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
+                              else error "Blah"
+          -}
 
 
           -- | get fuse graphs via swap function

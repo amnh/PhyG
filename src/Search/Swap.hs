@@ -36,6 +36,8 @@ Portability :  portable (I hope)
 
 module Search.Swap  ( swapMaster
                     , reoptimizeSplitGraphFromVertexTuple
+                    , rejoinGraphKeepBestSteepest
+                    , rejoinGraphKeepBest
                     ) where
 
 import Types.Types

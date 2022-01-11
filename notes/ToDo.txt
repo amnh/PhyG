@@ -589,3 +589,6 @@ to render--would have repeated subtrees after network vertex
 257) check persmisible edges after build--seems too restricitve--tree with 0 possible?
  
 258) graph factor making assumptions about graphtype
+	needs to be fixed--especialy for delta--there is the main issue
+
+259) set versus transform options set all at beginning, transform change later
