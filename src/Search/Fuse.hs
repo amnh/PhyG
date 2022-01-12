@@ -165,7 +165,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
                               else filter ((/= leftRootIndex) . fst3) $ GO.getEdgeSplitList leftDecoratedGraph
           leftSplitTupleList = fmap (GO.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList `using` PU.myParListChunkRDS
-          (leftSplitGraphList, leftGraphRootIndexList, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPruned) = L.unzip4 leftSplitTupleList
+          (leftSplitGraphList, leftGraphRootIndexList, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
@@ -175,7 +175,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
                               else filter ((/= rightRootIndex) . fst3) $ GO.getEdgeSplitList rightDecoratedGraph
           rightSplitTupleList = fmap (GO.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList `using` PU.myParListChunkRDS
-          (rightSplitGraphList, rightGraphRootIndexList, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPruned) = L.unzip4 rightSplitTupleList
+          (rightSplitGraphList, rightGraphRootIndexList, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
@@ -183,37 +183,37 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           leftRightMatchList = zipWith (==) leftPrunedGraphBVList rightPrunedGraphBVList
 
           -- only take compatible, non-identical pairs with > 1 terminal--otherwise basically SPR move or nmothing (if identical)
-          -- (leftValidTupleList, rightValidTupleList, _, _)  = L.unzip4 $ filter ((> 2) . popCount . fth4) $ filter ((== True) . thd4) $ L.zip4 leftSplitTupleList rightSplitTupleList leftRightMatchList leftRightOrList
-          switchableList = L.zipWith4 (getCompatibleNonIdenticalSplits numLeaves) leftSplitTupleList rightSplitTupleList leftRightMatchList leftPrunedGraphBVList
-          (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList rightSplitTupleList switchableList
-          -- (leftValidTupleList, rightValidTupleList) = L.unzip $ concat $ L.zipWith4 (getCompatibleNonIdenticalSplits numLeaves) leftSplitTupleList rightSplitTupleList leftRightMatchList leftPrunedGraphBV
-
+          recombinablePairList = L.zipWith4 (getCompatibleNonIdenticalSplits numLeaves) leftSplitTupleList rightSplitTupleList leftRightMatchList leftPrunedGraphBVList
+          (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList rightSplitTupleList recombinablePairList
+          
 
           -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
-          leftBaseRightPrunedSplitGraphList = fmap (exchangePrunedGraphs numLeaves) (zip leftValidTupleList rightValidTupleList) `using` PU.myParListChunkRDS
-          rightBaseLeftPrunedSplitGraphList = fmap (exchangePrunedGraphs numLeaves) (zip rightValidTupleList leftValidTupleList) `using` PU.myParListChunkRDS
+          -- retuns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
+          (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList) = L.unzip4 (fmap (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList) `using` PU.myParListChunkRDS)
+          (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList) = L.unzip4 (fmap (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList) `using` PU.myParListChunkRDS)
 
-          -- reoptimize splitGraphs so ready for readdition
+          -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
           -- False for doIA
-          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 leftBaseRightPrunedSplitGraphList leftGraphRootIndexList rightPrunedGraphRootIndexList) `using` PU.myParListChunkRDS
+          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
 
-          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 rightBaseLeftPrunedSplitGraphList rightGraphRootIndexList leftPrunedGraphRootIndexList) `using` PU.myParListChunkRDS
+          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
 
-          -- perform swap-like fuse operations
-          -- needs to be abstracted outn to a function given all th ecomplex arguments
-          {-
-          swapType = if doTBR then "tbr"
-                     else if doSPPR then "spr"
-                     else if doNNI then "nni"
-                     else "nni"
-          maxMoveEdgeDist' = if not doTBR && not doSPR && not doNNI then 2
-                             else maxMoveEdgeDist
-          doIA = False
-          
-          leftRightFuseList = if doSteepest then rejoinGraphKeepBestSteepest inGS inData swapType (snd6 leftGraph) numToKeep maxMoveEdgeDist' True doIA (six6 leftGraph) $ L.zip5 leftRightOptimizedSplitGraphCostList leftGraphRootIndexList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
-                              else error "Blah"
-          -}
+          -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
+          -- otherwise no point in recombination
+          leftBaseBVList  = fmap bvLabel $ fmap fromJust $ zipWith LG.lab (fmap fst leftRightOptimizedSplitGraphCostList) leftRightGraphRootIndexList
+          rightBaseBVList = fmap bvLabel $ fmap fromJust $ zipWith LG.lab (fmap fst rightLeftOptimizedSplitGraphCostList) rightLeftGraphRootIndexList
+          baseGraphDifferentList = zipWith (/=) leftBaseBVList rightBaseBVList
 
+          -- re-add pruned component to base component left-right and right-left
+          -- need cure best cost
+          curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
+
+          leftRightFusedGraphList = recombineComponents maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll curBetterCost baseGraphDifferentList leftRightOptimizedSplitGraphCostList leftRightGraphRootIndexList leftRightPrunedRootIndexList leftRightPrunedParentRootIndexList leftOriginalConnectionOfPrunedList
+          rightLeftFusedGraphList = recombineComponents maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll curBetterCost baseGraphDifferentList rightLeftOptimizedSplitGraphCostList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList rightLeftPrunedParentRootIndexList rightOriginalConnectionOfPrunedList
+
+
+          -- get "best" fused graphs from leftRight and rightLeft
+          bestFusedGraphs = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
 
           -- | get fuse graphs via swap function
       in
@@ -222,7 +222,27 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
          trace ("FP: " ++ (show $ length leftValidTupleList) ++ "num (Left,Right) " ++ (show (length leftBaseRightPrunedSplitGraphList, length rightBaseLeftPrunedSplitGraphList)) 
             ++ "\nLeftRight splitCost " ++ (show $ fmap snd leftRightOptimizedSplitGraphCostList)
             ++ "\nrightLeft splitCost " ++ (show $ fmap snd rightLeftOptimizedSplitGraphCostList)) 
-         [leftGraph, rightGraph]  
+         bestFusedGraphs 
+
+-- | recombineComponents takes readdition arguments (swap, steepest etc) and wraps the swap-stype rejoining of components
+recombineComponents :: Int 
+                    -> Bool 
+                    -> Bool 
+                    -> Bool 
+                    -> Bool 
+                    -> Bool
+                    -> VertexCost
+                    -> [Bool]
+                    -> [(DecoratedGraph, VertexCost)]
+                    -> [Int]
+                    -> [Int]
+                    -> [Int]
+                    -> [Int]
+                    -> [PhylogeneticGraph]
+recombineComponents maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll curBestCost baseGraphDifferentList splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList = 
+   []
+
+
 
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph, 
 -- the bitVector equality list of pruned roots, the bitvector of the root of the pruned graph on left 
@@ -252,8 +272,8 @@ getCompatibleNonIdenticalSplits numLeaves leftSplitTuple rightSplitTuple leftRig
 
 -- | exchangePrunedGraphs creates a new "splitGraph" containing both first (base) and second (pruned) graph components
 -- both components need to have HTU and edges reindexed to be in sync
-exchangePrunedGraphs :: Int -> ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node)) -> DecoratedGraph
-exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple) =
+exchangePrunedGraphs :: Int -> ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node), LG.Node) -> (DecoratedGraph, Int , Int, Int)
+exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode) =
    let (firstSplitGraph, firstGraphRootIndex, firstPrunedGraphRootIndex, firstOriginalConnectionOfPruned) = firstGraphTuple
        (secondSplitGraph, secondGraphRootIndex, secondPrunedGraphRootIndex, secondOriginalConnectionOfPruned) = secondGraphTuple
 
@@ -278,38 +298,48 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple) =
        secondPrunedGraphEdgeList = (head $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) : secondPrunedGraphEdgeList'
 
        -- reindex base and pruned partitions (HTUs and edges) to get in sync and make combinable
-       (baseGraphNode, baseGraphEdges, numBaseHTUs) = reindexSubGraph numLeaves 0 firstBaseGraphNodeList firstBaseGraphEdgeList
-       (prunedGraphNode, prunedGraphEdges, _) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList
+       (baseGraphNodes, baseGraphEdges, numBaseHTUs, reindexedBreakEdgeNode) = reindexSubGraph numLeaves 0 firstBaseGraphNodeList firstBaseGraphEdgeList breakEdgeNode
+       (prunedGraphNodes, prunedGraphEdges, _, _) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList breakEdgeNode
    
        -- create and reindex new split graph
-       newSplitGraph = LG.mkGraph (baseGraphNode ++ prunedGraphNode) (baseGraphEdges ++ prunedGraphEdges) 
+       newSplitGraph = LG.mkGraph (baseGraphNodes ++ prunedGraphNodes) (baseGraphEdges ++ prunedGraphEdges) 
+
+       -- get graph root Index, pruned root index, pruned root parent index
+       -- firstGraphRootIndex should not have changed in reindexing--same as numLeaves
+       prunedParentRootIndex = fst $ head $ (LG.getRoots newSplitGraph) L.\\ [firstGraphRootNode]
+       prunedRootIndex = head $ LG.descendants newSplitGraph prunedParentRootIndex
 
    in
-   if (length $ LG.parents secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Parent number not equal to 1 in node " 
+   if (length $ LG.getRoots newSplitGraph) /= 2 then error ("Not 2 components in split graph: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+   else if (length $ LG.descendants newSplitGraph prunedParentRootIndex) /= 1 then error ("Too many children of parentPrunedNode: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+   else if (length $ LG.parents secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Parent number not equal to 1 in node " 
       ++ (show secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
-   else if (length $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Edge incedent tor p[runed graph not equal to 1 in node " 
+   else if (length $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Edge incedent tor pruned graph not equal to 1 in node " 
       ++ (show $ fmap LG.toEdge $  LG.inn secondSplitGraph secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
    else
-      trace ("First Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
+      trace ("Nodes: " ++ (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) ++ " First Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
          ++ "\nSecond Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
          ++ "\nNew split graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
          )
-      newSplitGraph
+      (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)
 
 
 -- | reindexSubGraph reindexes the non-leaf nodes and edges of a subgraph to allow topological combination of subgraphs 
 -- the leaf indices are unchanges but HTUs are changes ot in order enumeration statting with an input offset
-reindexSubGraph :: Int -> Int -> [LG.LNode VertexInfo] -> [LG.LEdge b] -> ([LG.LNode VertexInfo], [LG.LEdge b], Int)
-reindexSubGraph numLeaves offset nodeList edgeList =
-   if null nodeList || null edgeList then ([],[], offset)
+reindexSubGraph :: Int -> Int -> [LG.LNode VertexInfo] -> [LG.LEdge b] -> LG.Node -> ([LG.LNode VertexInfo], [LG.LEdge b], Int, LG.Node)
+reindexSubGraph numLeaves offset nodeList edgeList origBreakEdge =
+   if null nodeList || null edgeList then ([],[], offset, origBreakEdge)
    else 
       -- create map of node indices from list
       let (newNodeList, indexList) = unzip $ getPairList numLeaves offset nodeList
           indexMap = MAP.fromList indexList
           newEdgeList = fmap (reIndexEdge indexMap) edgeList
+          newBreakEdge = MAP.lookup origBreakEdge indexMap
       in
-      trace ("RISG:" ++ (show (fmap fst newNodeList, numLeaves)))
-      (newNodeList, newEdgeList, 1 + (maximum $ fmap fst newNodeList) - numLeaves)
+      if newBreakEdge == Nothing then error  ("Map index for break edge node not found: " ++ (show origBreakEdge))
+      else 
+         trace ("RISG:" ++ (show (fmap fst newNodeList, numLeaves))) 
+         (newNodeList, newEdgeList, 1 + (maximum $ fmap fst newNodeList) - numLeaves, fromJust newBreakEdge)
 
 -- | reIndexEdge takes a map and a labelled edge and returns new indices same label edge based on map
 reIndexEdge :: MAP.Map Int Int -> LG.LEdge b -> LG.LEdge b
