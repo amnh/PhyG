@@ -56,6 +56,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , createBlockResolutions
                                              , updateDisplayTreesAndCost
                                              , getAllResolutionList
+                                             , getBestResolutionListPair
                                              ) where
 
 import           Data.Bits
@@ -643,6 +644,49 @@ getBestResolutionList startVertex checkPopCount inRDList =
                     lDisplayTreeList' = fmap (updateRootCost validMinCost) lDisplayTreeList 
                 in
                 (lDisplayTreeList', validMinCost)
+            -- )
+
+            -- )
+
+-- | getBestResolutionListPair takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees 
+-- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
+-- startVertex for a component-- to allow for not every leaf being in componnet but still getting softwired cost
+-- returns list of pairs
+getBestResolutionListPair :: Maybe Int -> Bool -> ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
+getBestResolutionListPair startVertex checkPopCount inRDList =
+    --trace ("GBRL: " ++ (show inRDList)) (
+    if null inRDList then error "Null resolution list"
+    else
+        let displayTreeList = fmap displaySubGraph inRDList
+            displayCostList = fmap displayCost inRDList
+            displayPopList = fmap (complement . displayBVLabel) inRDList
+        in
+        if not checkPopCount then
+            let minCost = minimum displayCostList
+                displayCostPairList = V.zip displayTreeList displayCostList
+                (bestDisplayList, minCostList) = V.unzip $ V.filter ((== minCost) . snd) displayCostPairList
+            in
+            zip (fmap LG.mkGraphPair (V.toList bestDisplayList)) (V.toList minCostList)
+        else
+            let minPopCount = minimum $ fmap popCount displayPopList  --max since complemented above
+                displayBVList = V.zip3 displayTreeList displayCostList displayPopList
+
+                -- must have all leaves if startvzertex == Nothing, component maximum otherwise
+                -- this for getting cost of component of a softwired network
+                validDisplayList = if startVertex == Nothing then V.filter (BV.isZeroVector . thd3) displayBVList
+                                   else V.filter ((== minPopCount) . (popCount . thd3)) displayBVList
+                validMinCost = V.minimum $ fmap snd3 validDisplayList
+                (bestDisplayList, minCostList, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
+            in
+            --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
+            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionListPair" ++ (show (startVertex,inRDList)))
+            else
+                let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
+
+                    -- update root cost of display trees for use later (e.g. net penalties, outputting display forrests)
+                    lDisplayTreeList' = fmap (updateRootCost validMinCost) lDisplayTreeList 
+                in
+                zip lDisplayTreeList' (V.toList minCostList)
             -- )
 
             -- )

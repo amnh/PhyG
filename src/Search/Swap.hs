@@ -36,8 +36,7 @@ Portability :  portable (I hope)
 
 module Search.Swap  ( swapMaster
                     , reoptimizeSplitGraphFromVertexTuple
-                    , rejoinGraphKeepBestSteepest
-                    , rejoinGraphKeepBest
+                    , rejoinGraphKeepBestTuple
                     ) where
 
 import Types.Types
@@ -340,6 +339,20 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
       else (inGraphList, counter + 1)
       
       -- )
+
+-- | rejoinGraphKeepBestTuple wrapper for rejoinGraphKeepBest but with last 5 arguments as a tuple
+rejoinGraphKeepBestTuple :: GlobalSettings 
+                            -> String 
+                            -> VertexCost 
+                            -> Int 
+                            -> Int 
+                            -> Bool 
+                            -> Bool 
+                            -> V.Vector (V.Vector CharInfo) 
+                            -> ((DecoratedGraph, VertexCost), LG.Node, LG.Node, LG.Node, LG.Node) 
+                            -> [(SimpleGraph, VertexCost)]
+rejoinGraphKeepBestTuple inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV ((splitGraph, splitCost), graphRoot, prunedGraphRootIndex, nakedNode, originalSplitNode) =
+   rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV (splitGraph, splitCost) graphRoot prunedGraphRootIndex nakedNode originalSplitNode
 
 
 -- | rejoinGraphKeepBest rejoins split trees on available edges (non-root, and not original split)

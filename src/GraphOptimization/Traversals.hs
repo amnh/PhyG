@@ -195,7 +195,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
+    --trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     -- only static characters
     if nonExactChars == 0 then 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -232,7 +232,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    )
+    -- )
 
                
 
@@ -273,8 +273,8 @@ getW15NetPenalty inGraph =
         (sum $ blockPenaltyList) / divisor
 
 
--- | getBlockW2015 takes teh list of trees for a block, gets teh root cost and determines the individual
--- penlaty cost of that block
+-- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual
+-- penalty cost of that block
 getBlockW2015 :: [LG.Edge] -> Int -> [BlockDisplayForest] -> VertexCost
 getBlockW2015 treeEdgeList rootIndex blockTreeList =
     if null treeEdgeList || null blockTreeList then 0.0
@@ -344,8 +344,9 @@ extractLowestCostDisplayTree :: PhylogeneticGraph -> ([BlockDisplayForest], Vert
 extractLowestCostDisplayTree inGraph =
  if LG.isEmpty $ thd6 inGraph then error "Empty graph in extractLowestCostDisplayTree" 
  else 
-    let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
-        blockResolutionLL = V.toList $ fmap PO.getAllResolutionList (vertexResolutionData outgroupRootLabel)
+    let (outGroupIndex, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
+        -- blockResolutionLL = V.toList $ fmap PO.getAllResolutionList (vertexResolutionData outgroupRootLabel)
+        blockResolutionLL = V.toList $ fmap (PO.getBestResolutionListPair (Just outGroupIndex) False) (vertexResolutionData outgroupRootLabel)
         displayTreeBlockList = L.transpose blockResolutionLL
         displayTreePairList = L.foldl1' sumTreeCostLists displayTreeBlockList
         minimumCost = minimum $ fmap snd displayTreePairList
