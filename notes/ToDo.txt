@@ -592,3 +592,7 @@ to render--would have repeated subtrees after network vertex
 	needs to be fixed--especialy for delta--there is the main issue
 
 259) set versus transform options set all at beginning, transform change later
+
+260) In fuse--removed identity of components check
+	Should be tested in large data sets
+

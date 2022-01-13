@@ -190,7 +190,8 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           -- get compatible split pairs via checking bv of root index of pruned subgraphs
           leftRightMatchList = zipWith (==) leftPrunedGraphBVList' rightPrunedGraphBVList'
 
-          -- only take compatible, non-identical pairs with > 1 terminal--otherwise basically SPR move or nmothing (if identical)
+          -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nmothing (if identical)
+            -- oalso checks that prune and splits don't match between the grap[hs to be recombined]
           recombinablePairList = L.zipWith4 (getCompatibleNonIdenticalSplits numLeaves) leftSplitTupleList' rightSplitTupleList' leftRightMatchList leftPrunedGraphBVList'
           (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
           
@@ -263,7 +264,7 @@ recombineComponents :: GlobalSettings
                     -> [PhylogeneticGraph]
 recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList = 
    -- check and see if any reconnecting to do
-   -- trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
+   --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
    else
       let swapType = if doTBR then "tbr"
@@ -305,7 +306,8 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR do
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph, 
 -- the bitVector equality list of pruned roots, the bitvector of the root of the pruned graph on left 
 -- (this could be either since filter for identity--just to check leaf numbers)
--- checks that the leaf sets of the pruned suubgraphs are equal, greater than 1 leaf, fewer thanm nuleaves - 2, and non-identical
+-- checks that the leaf sets of the pruned subgraphs are equal, greater than 1 leaf, fewer thanm nleaves - 2, and non-identical
+-- removed identity check fo now--so much time to do that (O(n)) may not be worth it
 getCompatibleNonIdenticalSplits :: Int 
                                 -> (DecoratedGraph, LG.Node, LG.Node, LG.Node) 
                                 -> (DecoratedGraph, LG.Node, LG.Node, LG.Node) 
@@ -315,16 +317,26 @@ getCompatibleNonIdenticalSplits :: Int
 getCompatibleNonIdenticalSplits numLeaves leftSplitTuple rightSplitTuple leftRightMatch leftPrunedGraphBV = 
    
    if not leftRightMatch then False
-   else if popCount leftPrunedGraphBV < 2 then False
+   else if popCount leftPrunedGraphBV < 3 then False
    else if popCount leftPrunedGraphBV > (numLeaves - 3) then False 
-   else 
+   else
+      -- check for pruned components non-identical 
       let (leftNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((thd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (thd4 leftSplitTuple))]
-          leftBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
+          leftPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
           (rightNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((thd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (thd4 rightSplitTuple))]
-          rightBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
+          rightPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
+
+          
+          (leftNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((snd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (snd4 leftSplitTuple))]
+          leftBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
+          (rightNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((snd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (snd4 rightSplitTuple))]
+          rightBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
+          
       in
-      if leftBVNodeList == rightBVNodeList then False
-      else True
+      --if leftPrunedBVNodeList == rightPrunedBVNodeList then False
+      -- else if leftBaseBVNodeList == rightBaseBVNodeList then False
+      --else True
+      True
         
            
 
