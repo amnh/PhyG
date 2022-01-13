@@ -153,7 +153,7 @@ getInstruction inString possibleCommands
     | fmap toLower inString == "fuse"      = Fuse
     | fmap toLower inString == "read"      = Read
     | fmap toLower inString == "reblock"   = Reblock
-    | fmap toLower inString == "refine"    = Rename
+    | fmap toLower inString == "refine"    = Refine
     | fmap toLower inString == "rename"    = Rename
     | fmap toLower inString == "report"    = Report
     | fmap toLower inString == "run"       = Run

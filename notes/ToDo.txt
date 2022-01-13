@@ -596,3 +596,4 @@ to render--would have repeated subtrees after network vertex
 260) In fuse--removed identity of components check
 	Should be tested in large data sets
 
+261 ) change fmap blah $ fmap beh to fmap (blah . bleh)

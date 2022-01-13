@@ -201,7 +201,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
@@ -211,7 +211,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then fmap getW15NetPenalty finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
@@ -224,7 +224,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
@@ -257,14 +257,17 @@ getW15RootCost (_, _, blockDataV) inGraph =
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length
-getW15NetPenalty :: PhylogeneticGraph -> VertexCost
-getW15NetPenalty inGraph =
+getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
+getW15NetPenalty startVertex inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else
-        let (bestTreeList, _) = extractLowestCostDisplayTree inGraph
+        let (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
-            rootIndex = fst $ head $ LG.getRoots (fst6 inGraph)
+            rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
+                        else fromJust startVertex
             blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+
+            -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
             numLeaves = length leafList
             divisor = 4.0 * (fromIntegral numLeaves) - 4.0
@@ -340,13 +343,17 @@ undirectedEdgeMinus firstList secondList =
 -- and determines the total cost (over all blocks) of each display tree 
 -- the lowest cost display tree(s) as list are returned with cost
 -- this is used in Wheeler (2015) network penalty
-extractLowestCostDisplayTree :: PhylogeneticGraph -> ([BlockDisplayForest], VertexCost) 
-extractLowestCostDisplayTree inGraph =
+extractLowestCostDisplayTree :: Maybe Int -> PhylogeneticGraph -> ([BlockDisplayForest], VertexCost) 
+extractLowestCostDisplayTree startVertex inGraph =
  if LG.isEmpty $ thd6 inGraph then error "Empty graph in extractLowestCostDisplayTree" 
  else 
-    let (outGroupIndex, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
-        -- blockResolutionLL = V.toList $ fmap PO.getAllResolutionList (vertexResolutionData outgroupRootLabel)
-        blockResolutionLL = V.toList $ fmap (PO.getBestResolutionListPair (Just outGroupIndex) False) (vertexResolutionData outgroupRootLabel)
+    let -- get componen t or global root label
+        rootLabel = if startVertex == Nothing then snd $ head $ LG.getRoots (thd6 inGraph)
+                    else fromJust $ LG.lab (thd6 inGraph) (fromJust startVertex)
+
+        -- get resolution data for start/rpoot vertex
+        blockResolutionLL = V.toList $ fmap PO.getAllResolutionList (vertexResolutionData rootLabel)
+        --blockResolutionLL = V.toList $ fmap (PO.getBestResolutionListPair startVertex False) (vertexResolutionData rootLabel)
         displayTreeBlockList = L.transpose blockResolutionLL
         displayTreePairList = L.foldl1' sumTreeCostLists displayTreeBlockList
         minimumCost = minimum $ fmap snd displayTreePairList

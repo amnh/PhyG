@@ -95,10 +95,21 @@ fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTB
 
          curBest = minimum $ fmap snd6 inGraphList
 
+         curBestGraph = head $ filter ((== curBest) . snd6) inGraphList
+
+         -- get net penalty estyimate from optimial graph for delta recombine later
+         inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
+                             else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                             else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing curBestGraph
+                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+         inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
+
+
          -- get fuse pairs
          graphPairList = getListPairs inGraphList
 
-         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
+         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV inGraphNetPenaltyFactor rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -144,6 +155,7 @@ fusePair :: GlobalSettings
          -> DecoratedGraph
          -> Bool
          -> V.Vector (V.Vector CharInfo) 
+         -> VertexCost
          -> Int 
          -> Int 
          -> Int 
@@ -154,7 +166,7 @@ fusePair :: GlobalSettings
          -> Bool 
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll (leftGraph, rightGraph) =
+fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV netPenalty rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
@@ -203,9 +215,9 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
 
           -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
           -- False for doIA
-          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
+          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
 
-          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
+          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
 
           -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
           -- otherwise no point in recombination

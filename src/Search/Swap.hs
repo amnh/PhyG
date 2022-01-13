@@ -159,19 +159,27 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest numLeaves lea
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
+      let inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
+                             else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                             else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
+                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+          inGraphNetPenaltyFactor = inGraphNetPenalty / (snd6 inGraph)
+      in
+      -- trace ("SSPRTBR:" ++ (show inGraphNetPenaltyFactor)) (
       -- steepest takes immediate best--does not keep equall cost
       if steepest then 
-         let (swappedGraphs, counter) = swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         let (swappedGraphs, counter) = swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
 
              -- swap "all" after steepest descent
-             (swappedGraphs', counter') = swapAll swapType inGS inData numToKeep maxMoveEdgeDist True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+             (swappedGraphs', counter') = swapAll swapType inGS inData numToKeep maxMoveEdgeDist True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in
          (swappedGraphs', counter')
 
       -- All does all swaps before taking best
       else  
          -- trace ("Going into SwapAll") (
-         let (swappedGraphs, counter) = swapAll swapType inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         let (swappedGraphs, counter) = swapAll swapType inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in 
          -- trace ("SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          (swappedGraphs, counter)
@@ -197,8 +205,9 @@ swapAll  :: String
          -> Bool
          -> V.Vector (V.Vector CharInfo) 
          -> Bool
+         -> VertexCost
          -> ([PhylogeneticGraph], Int)
-swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
+swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor =
    --trace ("ALL") (
    if null inGraphList then 
       (take numToKeep $ GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
@@ -216,7 +225,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
           splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList `using` PU.myParListChunkRDS
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV netPenaltyFactor) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
@@ -253,12 +262,12 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
          in
          --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ (tail inGraphList) ++ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
          --    ++ " graphs in 'best' list")
-         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
          -- trace ("Better cost: " ++ (show bestSwapCost))
-         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList (bestSwapGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList (bestSwapGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
 
       -- didn't find equal or better graphs
       else 
@@ -267,7 +276,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
          in
-         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
       -- )
       -- )
       -- )
@@ -291,8 +300,9 @@ swapSteepest   :: String
                -> Bool
                -> V.Vector (V.Vector CharInfo) 
                -> Bool
+               -> VertexCost
                -> ([PhylogeneticGraph], Int)
-swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA =
+swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor =
    --trace ("steepest") (
    if null inGraphList then 
       (take numToKeep $ GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
@@ -314,7 +324,7 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
           
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV) splitGraphList graphRootList prunedGraphRootIndexList 
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV netPenaltyFactor) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- reoptimized fully in steepest returns PhylogheneticGraph 
           reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType curBestCost numToKeep maxMoveEdgeDist True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
@@ -333,7 +343,7 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if (bestSwapCost < curBestCost) then 
          --trace ("Steepest better")
-         swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA
+         swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
 
       -- didn't find equal or better graphs
       else (inGraphList, counter + 1)
@@ -790,21 +800,23 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
       -- 1) optimizes two components seprately fomr their "root"
       -- 2) takes nodes and edges for each and cretes new graph
       -- 3) returns graph and summed cost of two components
+      -- 4) adds in root and netPenalty factor estimates since net penalty can only be calculated on full graph
+            -- part of this is turning off net penalty cost when optimizing base and pruned graph components 
 -- if doIA is TRUE then call function that onl;y optimizes the IA assignments on the "original graph" after split.
 -- this keeps teh IA chracters in sunc across the two graphs
 reoptimizeSplitGraphFromVertex :: GlobalSettings 
                           -> ProcessedData 
                           -> Bool 
                           -> V.Vector (V.Vector CharInfo) 
-                          -- -> PhylogeneticGraph 
+                          -> VertexCost 
                           -> DecoratedGraph 
                           -> Int 
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex =
+reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
    if doIA then 
       -- only reoptimize the IA states for dynamic characters
-      reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex 
+      reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex 
    else
       -- perform full optimizations of nodes
       -- these required for full optimization
@@ -819,10 +831,10 @@ reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV inSplitGraph startVer
 
           -- create optimized base graph
           -- False for staticIA
-          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
+          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
                                                    
           
-          fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+          fullBaseGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
           -- create fully optimized pruned graph.  Post order tehn preorder
 
@@ -833,11 +845,11 @@ reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV inSplitGraph startVer
 
 
           -- False for staticIA
-          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal inGS nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
+          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
                                                 
 
           -- False for staticIA
-          fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+          fullPrunedGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
          
           -- get root node of base graph
           startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -856,7 +868,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV inSplitGraph startVer
           -- cost of split graph to be later combined with re-addition delta for heuristic graph cost
           prunedCost = if LG.isLeaf origGraph prunedSubGraphRootVertex then 0
                        else snd6 fullPrunedGraph
-          splitGraphCost = (snd6 fullBaseGraph) + prunedCost + localRootCost
+          splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost)) + localRootCost
 
       in
       
@@ -874,10 +886,11 @@ reoptimizeSplitGraphFromVertexTuple :: GlobalSettings
                           -> ProcessedData 
                           -> Bool 
                           -> V.Vector (V.Vector CharInfo) 
+                          -> VertexCost
                           -> (DecoratedGraph, Int , Int)
                           -> (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexTuple inGS inData  doIA charInfoVV (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
-   reoptimizeSplitGraphFromVertex inGS inData  doIA charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex
+reoptimizeSplitGraphFromVertexTuple inGS inData  doIA charInfoVV netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+   reoptimizeSplitGraphFromVertex inGS inData  doIA charInfoVV netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
       
 -- | reoptimizeSplitGraphFromVertexIA performs operations of reoptimizeSplitGraphFromVertex for static charcaters
@@ -886,12 +899,12 @@ reoptimizeSplitGraphFromVertexTuple inGS inData  doIA charInfoVV (inSplitGraph, 
 reoptimizeSplitGraphFromVertexIA :: GlobalSettings 
                           -> ProcessedData 
                           -> V.Vector (V.Vector CharInfo) 
-                          -- -> PhylogeneticGraph 
+                          -> VertexCost 
                           -> DecoratedGraph 
                           -> Int 
                           -> Int 
                           -> (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex prunedSubGraphRootVertex =
+reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
    --if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
    --else 
       let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
@@ -907,11 +920,11 @@ reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex
             --Create base graph
             -- create postorder assignment--but only from single traversal
             -- True flag fior staticIA
-            postOrderBaseGraph = T.postOrderTreeTraversal inGS inData leafGraph True (Just startVertex) splitGraphSimple
+            postOrderBaseGraph = T.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just startVertex) splitGraphSimple
             baseGraphCost = snd6 postOrderBaseGraph
             
             -- True flag fior staticIA
-            fullBaseGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
+            fullBaseGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
                               else if (rootCost inGS) == Wheeler2015Root then T.getW15RootCost inData postOrderBaseGraph
@@ -928,11 +941,11 @@ reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex
 
 
             -- True flag fior staticIA
-            postOrderPrunedGraph =  T.postOrderTreeTraversal inGS inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
+            postOrderPrunedGraph =  T.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
             prunedGraphCost = snd6 postOrderPrunedGraph                             
 
             -- True flag fior staticIA
-            fullPrunedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
+            fullPrunedGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) prunedSubGraphRootVertex True postOrderPrunedGraph
 
             -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd6)
             (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
@@ -943,7 +956,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV inSplitGraph startVertex
             -- make fully optimized graph from base and split components
             fullSplitGraph = LG.mkGraph ([startBaseNode, startPrunedNode, startPrunedParentNode] ++  baseGraphNonRootNodes ++ prunedGraphNonRootNodes) (startPrunedParentEdge : (baseGraphEdges ++ prunedGraphEdges))
 
-            splitGraphCost = baseGraphCost + prunedGraphCost + localRootCost
+            splitGraphCost = ((1.0 + netPenaltyFactor) * (baseGraphCost + prunedGraphCost)) + localRootCost
 
       in
       -- remove when working

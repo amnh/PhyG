@@ -123,6 +123,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData seed inGraphList = 
+   trace ("IN refine") 
    netEdgeMaster inArgs inGS inData seed inGraphList
 
 -- | refinement arguments

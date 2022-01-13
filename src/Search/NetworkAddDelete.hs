@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , insertAllNetEdges
                                 , moveAllNetEdges
+                                , deltaPenaltyAdjustment
                                 ) where
 
 import Types.Types
@@ -73,7 +74,8 @@ moveAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCos
           newGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList'
           newGraphCost = snd6 $ head newGraphList
       in
-      if  newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+      if null netEdgeList then trace ("\tNo network edges to move") ([], counter)
+      else if  newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
       else if newGraphCost < currentCost then
          trace ("Found better move")
          moveAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
@@ -146,7 +148,7 @@ insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
           minCost = if null minCostGraphList then infinity
                     else snd6 $ head minCostGraphList
       in
-      trace ("Examining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
+      trace ("\tExamining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
       else if minCost /= currentCost then 
@@ -342,7 +344,7 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
 
 -- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
 -- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calcualtion of penalty
--- if PMDLGraph -- KMDL not hyet implemented
+-- if PMDLGraph -- KMDL not yet implemented
 -- if NoNetworkPenalty then 0
 deltaPenaltyAdjustment :: GraphFactor -> Int -> PhylogeneticGraph -> VertexCost
 deltaPenaltyAdjustment edgeCostModel numLeaves inGraph =
@@ -397,7 +399,7 @@ deleteEachNetEdge inGS inData numToKeep force inPhyloGraph =
                     else snd6 $ head minCostGraphList
       in
       -- no network edges to delete
-      if null networkEdgeList then ([inPhyloGraph], currentCost)
+      if null networkEdgeList then trace ("\tNo network edges to delete") ([inPhyloGraph], currentCost)
       else if minCost /= currentCost then (minCostGraphList, minCost)
       else (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : minCostGraphList, currentCost)
 
