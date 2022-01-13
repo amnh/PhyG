@@ -777,7 +777,7 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
    in
    -- remove this check when things are working
    if null subGraphVertData || null evEdgeData || (subGraphEdgeUnionCost == 0.0) then 
-      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) )
+      -- trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) )
       --  ++ "\nInGraph:\n"  
       --  ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 

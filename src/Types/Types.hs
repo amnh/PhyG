@@ -443,6 +443,7 @@ type RawData = ([TermData], [CharInfo])
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
 -- "Naive" "Optimized" and "Transformed" darta are this type after different processing steps
+-- the first and second vectors are size number of leaves, teh third is number of blocks
 type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 
 -- | Block data  is the basic data unit that is optimized on a display tree
@@ -456,7 +457,7 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 -- Initially set to input filename of character
 --    Fields:
 --        1) name of the block--intially taken from input filenames
---        2) vector of vertex/leaf data with vector of character data for each node
+--        2) vector of vertex/leaf data with vector of character data for each leaf
 --        3) Vector of character information for characters in the block
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 

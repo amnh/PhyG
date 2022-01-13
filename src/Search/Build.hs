@@ -60,26 +60,81 @@ import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
 import qualified Search.DistanceWagner   as DW
 import Debug.Trace
+import qualified Utilities.Distances     as DD
+import qualified ParallelUtilities       as PU
+import Control.Parallel.Strategies
+
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
-buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "tree", "graph", "best","none","otu","spr","tbr","nad"]
+buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "displaytrees", "graph"]
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
 -- transforms graph type to Tree for builds then back to initial graph type
 buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
 buildGraph inArgs inGS inData pairwiseDistances seed = 
-   let inputGraphType = graphType inGS 
+   let fstArgList = fmap (fmap toLower . fst) inArgs
+       sndArgList = fmap (fmap toLower . snd) inArgs
+       lcArgList = zip fstArgList sndArgList
+       checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
+
+       buildBlock = filter ((=="block").fst) lcArgList
+       numDisplayTrees
+            | length buildBlock > 1 =
+              errorWithoutStackTrace ("Multiple block number specifications in command--can have only one: " ++ show inArgs)
+            | null buildBlock = Just (maxBound :: Int)
+            | otherwise = readMaybe (snd $ head buildBlock) :: Maybe Int
+       doEUN' = any ((=="eun").fst) lcArgList
+       doCUN' = any ((=="cun").fst) lcArgList
+       doEUN = if not doEUN' && not doCUN' then True
+               else doEUN'
+       doCUN = if doEUN' && doCUN' then 
+                  trace ("\tBuildBlock options EUN and CUN both specified--defaulting to EUN")
+                  False
+               else doCUN'
+       returnTrees' = any ((=="displaytrees").fst) lcArgList
+       returnGraph' = any ((=="graph").fst) lcArgList
+       returnRandomDisplayTrees = any ((=="atrandom").fst) lcArgList
+       buildDistance = any ((=="distance").fst) lcArgList
+   
+       -- temprary change (if needed) to buyild tree structures
+       inputGraphType = graphType inGS 
        treeGS = inGS {graphType = Tree}
-       firstTrees = buildTree inArgs treeGS inputGraphType inData pairwiseDistances seed
+
+       (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
+                     else (returnGraph', returnTrees')
+
+       -- initial build of trees from combined data--or by blocks
+       firstTrees = if null buildBlock then buildTree inArgs treeGS inputGraphType inData pairwiseDistances seed
+                    else -- removing taxa with missing data for block
+                        let processedDataList = U.getProcessDataByBlock True inData
+                            distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
+                                                 else [] 
+                            blockTrees = concat (fmap (buildTree' inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+
+                            -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
+                            returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees
+                        in
+                        returnGraphs
    in
    --trace ("BG:" ++ (show (graphType inGS, graphType treeGS))) (
-   if inputGraphType == Tree then firstTrees
-   else trace ("     Rediagnosing as " ++ (show (graphType inGS))) fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees)
+   if inputGraphType == Tree || (not . null) buildBlock  then firstTrees
+   else trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
+      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees) `using` PU.myParListChunkRDS
    -- )
 
+-- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
+-- as per the arguments producing a set of displayTrees (ordered or resolved random), and/or the reconciled graph 
+-- all outputs are re-optimzed and ready to go
+reconcileBlockTrees ::  GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  [PhylogeneticGraph]
+reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees =
+   []
 
+-- | buildTree' wrapps build tree and changes order of arguments for mapping
+buildTree' :: [Argument] -> GlobalSettings -> GraphType -> Int -> ([[VertexCost]], ProcessedData) -> [PhylogeneticGraph]
+buildTree' inArgs inGS inputGraphType seed (pairwiseDistances, inData) = 
+   buildTree inArgs inGS inputGraphType inData pairwiseDistances seed
 
 -- | buildTree takes build options and returns contructed graphList 
 buildTree :: [Argument] -> GlobalSettings -> GraphType -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
@@ -93,8 +148,8 @@ buildTree inArgs inGS inputGraphType inData@(nameTextVect, _, _) pairwiseDistanc
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
    else
 
-      let buildDistance = filter ((=="distance").fst) lcArgList
-          buildCharacter = filter ((=="character").fst) lcArgList
+      let buildDistance = any ((=="distance").fst) lcArgList
+          buildCharacter = any ((=="character").fst) lcArgList
           repPairList = filter ((=="replicates").fst) lcArgList
           numReplicates
             | length repPairList > 1 =
@@ -109,11 +164,11 @@ buildTree inArgs inGS inputGraphType inData@(nameTextVect, _, _) pairwiseDistanc
             | otherwise = readMaybe (snd $ head keepPairList) :: Maybe Int
 
       in
-      if not (null buildDistance) && not (null buildCharacter) then
+      if buildDistance && buildCharacter then
          errorWithoutStackTrace ("Cannot specify both 'character' and 'distance' builds in same build command" ++ show inArgs)
       else if isNothing numReplicates then errorWithoutStackTrace ("Replicates specification not an integer: "  ++ show (snd $ head repPairList))
       else if isNothing numToSave then errorWithoutStackTrace ("Best specification not an integer: "  ++ show (snd $ head keepPairList))
-      else if not $ null buildDistance then
+      else if buildDistance then
          -- distance build
          -- do all options in line and add together for return tree list
          let doDWag  = any ((=="dwag").fst) lcArgList

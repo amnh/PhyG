@@ -132,53 +132,6 @@ bitVectToCharState' localAlphabet bitValue
                 (\ i -> [localAlphabet !! i | bitValue `testBit` i])
                 [0 .. symbolCountH - 1]
 
-{-}
-    --if DNA use IUPAC ambiguity codes
-    if localAlphabet == ["A","C","G","T","-"] then 
-        let numBit = (BV.toUnsignedNumber inBit) 
-        in 
-        if numBit == 1 then "A"
-        else if numBit == 2 then "C"
-        else if numBit == 4 then "G"
-        else if numBit == 8 then "T"
-        else if numBit == 16 then "-"
-        -- IUPAC ambiguity
-        else if numBit == 5 then "R"
-        else if numBit == 10 then "Y"
-        else if numBit == 3 then "M"
-        else if numBit == 9 then "W"
-        else if numBit == 6 then "S"
-        else if numBit == 12 then "K"
-        else if numBit == 14 then "B"
-        else if numBit == 13 then "D"
-        else if numBit == 11 then "H"
-        else if numBit == 7 then "V"
-        else if numBit == 15 then "N"
-        -- indel ambiguity
-        else if numBit == 17 then "A|"
-        else if numBit == 18 then "C|"
-        else if numBit == 20 then "G|"
-        else if numBit == 24 then "T|"
-        else if numBit == 21 then "R|"
-        else if numBit == 26 then "Y|"
-        else if numBit == 19 then "M|"
-        else if numBit == 25 then "W|"
-        else if numBit == 22 then "S|"
-        else if numBit == 28 then "K|"
-        else if numBit == 30 then "B|"
-        else if numBit == 29 then "D|"
-        else if numBit == 27 then "H|"
-        else if numBit == 23 then "V|"
-        else if numBit == 31 then "?"
-        else error ("Unrecognized bit coded ambiguity group " ++ show numBit) 
-    else     
-        let bitBoolPairList = zip (BV.toBits inBit) localAlphabet
-            (_, stateList) = unzip $ filter ((==True).fst) bitBoolPairList
-            in
-            intercalate "," stateList
-
-
--}
 
 -- | filledDataFields takes rawData and checks taxon to see what percent
 -- "characters" are found.
@@ -334,43 +287,6 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
     else inPair
 
 
-{-
--- | getBridgeList takes a Decorated graph and returns the list of edges that, if removed, will
--- split the graph, that is increase the number of unconnected components
--- this is useful in graph rearrangement
--- root connected edges are not returned-- but in a general graph context can be bridges
-getBridgeList :: DecoratedGraph -> [LG.LEdge EdgeInfo]
-getBridgeList inGraph =
-    if LG.isEmpty inGraph then []
-    else
-        let vertexList = LG.labNodes inGraph
-            labEdgeList = LG.labEdges inGraph
-            vertBVList = fmap (bvLabel . snd) networkVertexList
-            vertPairVect = V.fromList $ L.sortOn fst $ zip (fmap fst vertexList) vertBVList
-            (_, _, _, networkVertexList) = LG.splitVertexList inGraph
-            netVertBVList = fmap (bvLabel . snd) networkVertexList
-            -- netVertPairList = zip (fmap fst networkVertexList) netVertBVList
-            bridgeList = getBridgeList' vertPairVect netVertBVList labEdgeList
-
-        in
-        if null networkVertexList then labEdgeList
-        else bridgeList
-
--- | getBridgeList takes a vector of (vertex, bitvector label) pairs, a list of network 
--- vertex bitvector labels, and a list of labelled edge and returns a list of bridge edges 
--- checks whether for each edge (u,v), the bitvector labels of all the network nodes are 
--- `compatible' with bit vector of vertex v.  a, and b are compatible if a .&. b = a, b, or empty
-getBridgeList' :: V.Vector (Int, BV.BitVector) -> [BV.BitVector] -> [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
-getBridgeList' vertexPairVect netVertBVList inEdgeList =
-    if null inEdgeList then []
-    else
-        let firstEdge@(_, vVertex, _) = head inEdgeList
-            isBridge = GU.isBVCompatible (snd $ vertexPairVect V.! vVertex) netVertBVList
-        in
-        if isBridge then firstEdge : getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
-        else getBridgeList' vertexPairVect netVertBVList (tail inEdgeList)
--}
-
 -- | prettyPrintVertexInfo returns a string with formated version of 
 -- vertex info
 prettyPrintVertexInfo :: VertexInfo -> String
@@ -388,3 +304,33 @@ prettyPrintVertexInfo inVertData =
 -- | add3 adds three values
 add3 :: (Num a) => a -> a -> a -> a
 add3 x y z = x + y + z
+
+-- | getProcessDataByBlock takes ProcessData and returns a list of Processed data with one block 
+-- per processed data element
+-- argument to filter terminals with missing taxa
+-- wraps around getProcessDataByBlock' with counter
+getProcessDataByBlock :: Bool -> ProcessedData -> [ProcessedData] 
+getProcessDataByBlock filterMissing (nameVect, nameBVVect, blockDataVect) = reverse $ getProcessDataByBlock' filterMissing 0 (nameVect, nameBVVect, blockDataVect)
+
+
+-- | getProcessDataByBlock' called by getProcessDataByBlock with counter
+-- and later reversed
+getProcessDataByBlock' :: Bool -> Int -> ProcessedData -> [ProcessedData] 
+getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVect) = 
+    if V.null blockDataVect then []
+    else if counter == (V.length blockDataVect) then []
+    else 
+        let thisBlockData = blockDataVect V.! counter
+        in
+        if not filterMissing then (nameVect, nameBVVect, V.singleton thisBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
+        else 
+            let (blockName, charDataLeafVect, blockCharInfo) = thisBlockData
+                isMissingVect = V.map V.null charDataLeafVect
+                (nonMissingNameVect, nonMissingBVVect, nonMissingLeafData, _) = V.unzip4 $ V.filter ((== False) . GU.fth4) (V.zip4 nameVect nameBVVect charDataLeafVect isMissingVect)
+                nonMissingBlockData = (blockName, nonMissingLeafData, blockCharInfo)
+            in
+            (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect) 
+
+
+
+
