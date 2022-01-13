@@ -119,7 +119,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         returnGraphs
    in
    --trace ("BG:" ++ (show (graphType inGS, graphType treeGS))) (
-   if inputGraphType == Tree || (not . null) buildBlock  then firstTrees
+   if inputGraphType == Tree || null buildBlock  then firstTrees
    else trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
       fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees) `using` PU.myParListChunkRDS
    -- )
