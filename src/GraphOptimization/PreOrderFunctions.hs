@@ -102,7 +102,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
-        if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ (show rootIndex))
+        if null preOrderBlockVect then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ (show rootIndex) ++ " This can be caused if the graphType not set correctly.")
         else 
             {-
             let blockPost = GO.showDecGraphs blockCharacterDecoratedVV

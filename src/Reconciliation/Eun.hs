@@ -38,8 +38,12 @@ Portability :  portable (I hope)
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Reconciliation.Eun (reconcile) where
+module Reconciliation.Eun ( reconcile
+                          , makeProcessedGraph
+                          , addGraphLabels) 
+                          where
 
+import Types.Types
 import qualified Reconciliation.Adams              as A
 import           Control.Parallel.Strategies
 import qualified Data.Bits                         as B
@@ -65,7 +69,7 @@ import           ParallelUtilities                 as PU
 import           System.Environment
 import           System.IO
 import           Debug.Trace
-
+import qualified Utilities.LocalGraph        as LG
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -455,7 +459,7 @@ reIndexLEdge vertexMap inEdge =
 -- new node set in teh total leaf set form all graphs plus teh local HTUs renumbered up based on added leaves
 -- the map contains leaf mappings based on label of leaf, the HTUs extend that map with stright integers.
 -- edges are re-indexed based on that map
-reIndexAndAddLeavesEdges :: [G.LNode String] -> ([G.LNode String], P.Gr a a) -> P.Gr String String
+reIndexAndAddLeavesEdges :: [G.LNode String] -> ([G.LNode String], P.Gr a b) -> P.Gr String String
 reIndexAndAddLeavesEdges totallLeafSet (inputLeafList, inGraph) =
   if G.isEmpty inGraph then G.empty
   else
@@ -564,29 +568,6 @@ combinable comparison bvList bvIn
       where checkBitVectors a b
               = let c = BV.and [a, b] in
                   c == a || c == b || c == 0
-
-{-
--- | combineComponents takes uses either exact match (identity) of Nelson combinable
--- components to get "intersection" set to
--- allow for different leave sets will be nm in lengths of two lists of bit vectors
--- return symmetrical compatible elements (a->b and b->a)
--- not confident of null behavior.  Idea is that something does not contradict nothing
-combineComponents :: String -> [BV.BV] -> [BV.BV] -> [BV.BV]
-combineComponents comparison firstList secondList
-  | null firstList && null secondList = []
-  | comparison == "combinable" = -- combinable sensu Nelson 1979
-    if null firstList then secondList
-    else if null secondList then firstList
-    else
-      let firstCombinableSecond = concat $ parmap rdeepseq (combinable comparison secondList) firstList
-          secondCombinableFirst = concat $ parmap rdeepseq (combinable comparison firstList) secondList
-      in
-      L.nub $ firstCombinableSecond ++ secondCombinableFirst
-  | comparison == "identity" =
-    if null firstList || null secondList then []
-    else concat $ parmap rdeepseq (combinable comparison secondList) firstList
-  | otherwise = errorWithoutStackTrace("Comparison method " ++ comparison ++ " unrecognized (combinable/identity)")
--}
 
 -- | getGraphCompatibleList takes a list of graphs (list of node Bitvectors)
 -- and retuns a list of each graph a bitvector node is compatible with
@@ -784,7 +765,7 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
 
 -- | reconcile is the overall function to drive all methods 
 reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
-reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,inputGraphList) =
+reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
   
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
         processedGraphs = fmap reAnnotateGraphs inputGraphList  `using` PU.myParListChunkRDS
@@ -880,5 +861,23 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
     else errorWithoutStackTrace("Graph combination method " ++ method ++ " is not implemented")
 
     
-
-
+-- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes
+-- the nodes and edges of the input graphs consistenly
+-- String as oposed to Text due tyo reuse of code in Eun.c
+makeProcessedGraph :: [LG.LNode T.Text] -> SimpleGraph -> SimpleGraph
+makeProcessedGraph leafTextList inGraph =
+  if null leafTextList then error "Null leaf list in makeFullLeafSetGraph"
+  else if LG.isEmpty inGraph then error "Empty graph in makeFullLeafSetGraph"
+  else 
+    let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
+        leafStringList = fmap nodeToString leafTextList
+        graphLeafStringList = fmap nodeToString graphleafTextList
+        reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
+        textNodes = fmap nodeToText $ LG.labNodes reIndexedGraph
+        textEdges = fmap edgeToText $ LG.labEdges reIndexedGraph
+         
+    in
+    LG.mkGraph textNodes textEdges
+    where nodeToString (a,b) = (a, T.unpack b)
+          nodeToText   (a,b) = (a, T.pack b)
+          edgeToText   (a,b,_) = (a,b,0.0)

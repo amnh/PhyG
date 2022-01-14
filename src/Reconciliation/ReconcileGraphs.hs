@@ -237,17 +237,5 @@ getOutputFormat inTextList =
          else if outFormat == "newick" then "fenewick"
          else getOutputFormat (tail inTextList)
 
-{-
-errorWithoutStackTrace("\n\nError--No input parameters.\nParameters that can be set:"
-        ++ "\n\tReconcile:eun|cun|strict|majority|Adams "
-        ++ "\n\tCompare:combinable|identity "
-        ++ "\n\tThreshold:0-100 (must be integer)"
-        ++ "\n\tOutFormat:Dot|FENewick"
-        ++ "\n\tConnect:True|False"
-        ++ "\n\tEdgeLabel:True|False"
-        ++ "\n\tVertexLabel:True|False"
-        ++ "\n\tOutFile:filename"
-        ++ "\n\tInput files (may include wildcards) without preceeding \"option:\""
-        ++ "\n\tRequires at least a single input graph file (and at least two input graphs)."
-        ++ "\n\tDefault values reconcile:EUN, compare:combinable threeshold:0, outformat:dot, outfile:euncon.out\n\n")
--}
+
+-- | 
