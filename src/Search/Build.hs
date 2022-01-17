@@ -125,11 +125,11 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         in
                         fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) returnGraphs `using` PU.myParListChunkRDS
    in
-   --trace ("BG:" ++ (show (graphType inGS, graphType treeGS))) (
+   trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
    if inputGraphType == Tree || (not . null) buildBlock  then firstTrees
    else trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
       fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees) `using` PU.myParListChunkRDS
-   -- )
+   )
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
@@ -236,11 +236,12 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
          -- final diagnosis in input graph type
          trace ("Building Character Wagner") (
          let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
+             charInfoVV = V.map thd3 $ thd3 inData
              treeList =  if not simpleTreeOnly then fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
                          else 
                             let numTrees = length treeList'
                             in 
-                            L.zip6 (fmap fst6 treeList') (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees V.empty)
+                            L.zip6 (fmap fst6 treeList') (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
              -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
          in
          trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList))) 
@@ -254,12 +255,13 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
    let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" []
        distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
        distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
+       charInfoVV = V.map thd3 $ thd3 inData
    in
    if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
    else
       let simpleWag = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph
       in
-      (simpleWag, 0.0, LG.empty, V.empty, V.empty, V.empty)
+      (simpleWag, 0.0, LG.empty, V.empty, V.empty, charInfoVV)
 
 -- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
 -- random addition sequence Wagner trees fully decorated tree (as Graph)
@@ -270,13 +272,14 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
        randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
+       charInfoVV = V.map thd3 $ thd3 inData
    in
    if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraph inGS inData False False Nothing . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
    else 
       let numTrees = length randomizedAdditionWagnerSimpleGraphList
           simpleRDWagList = fmap ((GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
       in
-      L.zip6 simpleRDWagList (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees V.empty)
+      L.zip6 simpleRDWagList (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
 
 -- | neighborJoin takes Processed data and pairwise distance matrix and returns
 -- Neighbor-Joining tree as fully decorated tree (as Graph)
@@ -285,12 +288,13 @@ neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refin
    let njTree = DM.neighborJoining leafNames distMatrix outgroupValue
        njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
        njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
+       charInfoVV = V.map thd3 $ thd3 inData
    in
    if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
    else 
       let simpleNJ = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph
       in
-      (simpleNJ, 0.0, LG.empty, V.empty, V.empty, V.empty)
+      (simpleNJ, 0.0, LG.empty, V.empty, V.empty, charInfoVV)
 
 
 -- | wPGMA takes Processed data and pairwise distance matrix and returns
@@ -301,9 +305,10 @@ wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
    let wpgmaTree = DM.wPGMA leafNames distMatrix outgroupValue
        wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
        wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
+       charInfoVV = V.map thd3 $ thd3 inData
    in
    if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)
    else 
       let simpleWPGMA = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph
       in
-      (simpleWPGMA, 0.0, LG.empty, V.empty, V.empty, V.empty)
+      (simpleWPGMA, 0.0, LG.empty, V.empty, V.empty, charInfoVV)

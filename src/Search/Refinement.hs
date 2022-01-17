@@ -123,7 +123,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData seed inGraphList = 
-   trace ("IN refine") 
+   trace ("In refine") 
    netEdgeMaster inArgs inGS inData seed inGraphList
 
 -- | refinement arguments
@@ -163,7 +163,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                leafDecGraph = T.makeLeafGraph inData
                leafGraphSoftWired = T.makeLeafGraphSoftWired inData
                hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
-               charInfoVV = six6 $ head inGraphList
+               charInfoVV = fmap thd3 $ thd3 inData -- six6 $ head inGraphList
 
                -- process args for netEdgeMaster
                doNetAdd = any ((=="netadd").fst) lcArgList

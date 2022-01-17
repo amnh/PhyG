@@ -284,23 +284,25 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired" 
 
             
-           -- calcualete heursitic graph delta
+           -- calculates heursitic graph delta
            (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo) 
 
            edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
 
 
        in
-       -- trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta))) (
+       trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)) (
 
        -- preDelete cost changes criterion for edge move
        if preDeleteCost == Nothing then 
           if heuristicDelta + edgeAddDelta < 0 then newPhyloGraph
           else emptyPhylogeneticGraph
+          
        else 
+         -- no net add cost becasue the numbe rof net nodes is unchaned in add/delete when preDelete cost /= Noting
           if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
           else emptyPhylogeneticGraph
-          -- )
+          )
 
 -- | heuristicAddDelta takes teh existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoprtimizes starting nodes of two edges.  Returns cost delta based on 
