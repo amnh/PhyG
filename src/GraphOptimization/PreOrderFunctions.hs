@@ -983,7 +983,8 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
          childChar {matrixStatesFinal = lFinalAssignment}
 
       -- need to set both final and alignment for sequence characters
-      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+      else if (localCharType == SlimSeq) || (localCharType == NucSeq) then parentChar
+         {-
          trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let slimGapped' = M.makeDynamicCharacterFromSingleVector $ extractMediansGapped $ slimGapped childChar
              finalGappedO = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
@@ -998,6 +999,7 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
                         -- , slimIAPrelim = slimIAPrelim parentChar
                         , slimIAFinal = slimFinal parentChar}
         )
+        -}
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
