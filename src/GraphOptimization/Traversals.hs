@@ -154,7 +154,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- first traversal on outgroup roo
-        outgroupRooted = if startVertex == Nothing then postOrderFunction inGS inData leafGraph staticIA startVertex $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
+        outgroupRooted = if startVertex == Nothing then postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph -- $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
                         else postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
 
         -- start at start vertex--for components or ur-root for full graph
@@ -420,7 +420,7 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
                 localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
                 currentRootEdges = LG.out inSimpleGraph rootIndex
             in
-            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inSimpleGraph)
+            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
         else newSoftWired
         -- )
 

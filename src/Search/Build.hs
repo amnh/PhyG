@@ -125,11 +125,11 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         in
                         fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) returnGraphs `using` PU.myParListChunkRDS
    in
-   trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
+   -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
    if inputGraphType == Tree || (not . null) buildBlock  then firstTrees
    else trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
       fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees) `using` PU.myParListChunkRDS
-   )
+   -- )
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands

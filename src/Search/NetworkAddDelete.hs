@@ -291,7 +291,9 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 
 
        in
-       trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)) (
+       trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)
+         ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
+         ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
 
        -- preDelete cost changes criterion for edge move
        if preDeleteCost == Nothing then 

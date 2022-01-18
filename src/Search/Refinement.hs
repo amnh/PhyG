@@ -137,7 +137,7 @@ netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "n
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
-   if graphType inGS == Tree then trace ("Cannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
+   if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
    else 
       trace ("Network edge add/delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
       let fstArgList = fmap (fmap toLower . fst) inArgs

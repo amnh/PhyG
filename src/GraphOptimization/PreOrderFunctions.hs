@@ -835,10 +835,10 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalAssignment' = extractMedians $ slimGapped childChar
          in
-         --trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show $ slimGapped childChar)) (
+         trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show $ slimGapped childChar)) (
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar {slimFinal = finalAssignment', slimAlignment = slimGapped childChar}
-         --)
+         )
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAssignment' = extractMedians $ wideGapped childChar
@@ -865,13 +865,14 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         --trace ("TNFinal-Leaf:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) 
+         trace ("TNFinal-Leaf:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar {slimFinal = finalAssignment', slimAlignment = finalAlignment, slimIAPrelim = finalAlignment, slimIAFinal = extractMediansGapped $ finalAlignment}
-         
+         )
+
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
              finalAssignment' = extractMedians finalAlignment
@@ -910,8 +911,8 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         -- trace ("TNFinal-Tree:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) 
-         let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         trace ("TNFinal-Tree:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
+         let finalGappedT = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
@@ -921,11 +922,11 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
                                     in
                                     extractMedians finalAssignmentDOGapped
                                     -- really could/should be mempty since overwritten by IA later
-                                 else extractMedians finalGapped
+                                 else extractMedians finalGappedT
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar {slimFinal = GV.filter (/= 0) finalAssignmentDO, slimAlignment = finalGapped}
-         
+         else childChar {slimFinal = GV.filter (/= 0) finalAssignmentDO, slimAlignment = finalGappedT}
+         )
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -983,14 +984,20 @@ setFinal finalMethod staticIA childType isLeft charInfo isOutDegree1 childChar p
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         --trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
+         trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
+         let slimGapped' = M.makeDynamicCharacterFromSingleVector $ extractMediansGapped $ slimGapped childChar
+             finalGappedO = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+             finalGappedO' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) slimGapped' -- (slimGapped childChar) -- slimAlignment parentChar
+             finalGappedO'' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped parentChar)
+             
+         in
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
-                   , slimAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar) -- slimAlignment parentChar
-                   -- , slimGapped = slimGapped parentChar
-                   -- , slimIAPrelim = slimIAPrelim parentChar
-                   , slimIAFinal = slimFinal parentChar}
-        --)
+                        , slimAlignment = finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
+                        , slimGapped = finalGappedO --slimGapped parentChar
+                        -- , slimIAPrelim = slimIAPrelim parentChar
+                        , slimIAFinal = slimFinal parentChar}
+        )
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
