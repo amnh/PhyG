@@ -597,3 +597,6 @@ to render--would have repeated subtrees after network vertex
 	Should be tested in large data sets
 
 261 ) change fmap blah $ fmap beh to fmap (blah . bleh)
+
+262) turn off IA for non-Trees  is a tree thing anyway.
+	can generate IA if desired at end with display trees

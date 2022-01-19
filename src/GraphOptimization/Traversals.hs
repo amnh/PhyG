@@ -481,17 +481,17 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
-                    newVertexLabel = VertexInfo {  index = curNode
-                                            , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
-                                            , parents = V.fromList $ LG.parents simpleGraph curNode
-                                            , children = V.fromList nodeChildren
-                                            , nodeType = GO.getNodeType simpleGraph curNode
-                                            , vertName = T.pack $ "HTU" ++ show curNode
-                                            , vertData = mempty --empty because of resolution data
-                                            , vertexResolutionData = resolutionBlockVL
-                                            , vertexCost = 0.0 --newCost
-                                            , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
-                                            }
+                    newVertexLabel = VertexInfo { index = curNode
+                                                , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
+                                                , parents = V.fromList $ LG.parents simpleGraph curNode
+                                                , children = V.fromList nodeChildren
+                                                , nodeType = GO.getNodeType simpleGraph curNode
+                                                , vertName = T.pack $ "HTU" ++ show curNode
+                                                , vertData = mempty --empty because of resolution data
+                                                , vertexResolutionData = resolutionBlockVL
+                                                , vertexCost = 0.0 --newCost
+                                                , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                                }
 
                     leftEdgeType
                       | leftChildNodeType == NetworkNode = NetworkEdge
@@ -563,7 +563,7 @@ assignVertexBlockData nodeDataList blockIndex inGraph =
         where updateVertData inVertexInfo newVertData = inVertexInfo {vertData = V.singleton newVertData}
 
 -- | softWiredPostOrderTraceBack takes resolution data and assigns correct resolution median to preliminary 
--- data ssignments.  Proceeds via typical pre-order pass over tree
+-- data ssignments.  Proceeds via typical pre-order pass over display tree
 softWiredPostOrderTraceBack :: Int -> DecoratedGraph -> DecoratedGraph
 softWiredPostOrderTraceBack rootIndex inGraph  =
     if LG.isEmpty inGraph then LG.empty
@@ -639,7 +639,7 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
                 firstChildren = LG.labDescendants inGraph firstNode
                 firstChildrenBV = fmap (bvLabel . snd) firstChildren
                 firstChildrenIsLeft
-                  | length firstChildrenBV == 1 = [True]
+                  | length firstChildrenBV == 1 = [True] -- seems dumb but may assume lenght == 2 later
                   | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
                   | otherwise = [True, False]
 
@@ -687,7 +687,8 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- get the correct (via index) resolution data for each block
             -- complex for network node since keeps left right sort of array, but only first element maters--this hack keepsm thingfs ok for
             -- tree-like tracebakc assignment
-            resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) $ V.head parentIndexVect)
+            resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then 
+                                        V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
                                   else V.zipWith (V.!) resolutionData parentIndexVect
 
             -- get other resolution info
@@ -700,7 +701,11 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- if euqla cost display trees, may have multiple possible preliminary states
             leftRightIndexVect = fmap (head . childResolutions) resolutionsByBlockV
         in
-        (charDataVV, lSubGraphCost, localResolutionCost, leftRightIndexVect)
+        if V.null resolutionData then
+           error ("Null resolution data in getResolutionDataAndIndices at node with label:" ++ (show nodeLabel)) 
+        else 
+            trace ("GRDI: " ++ (show $ nodeType nodeLabel) ++ " " ++ (show $ V.length resolutionData) ++ " " ++ (show parentIndexVect))
+            (charDataVV, lSubGraphCost, localResolutionCost, leftRightIndexVect)
         -- )
 
 -- | getBestBlockResolution takes vertexResolutionData and returns the best (lowest cost) resolution and associated data
