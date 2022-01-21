@@ -618,3 +618,12 @@ preOrderTreeTraversal
 	crete display trees
 
 265) turn off ia for wide and huge network
+
+266) make reroot for netowek on bridge edges only  vector set up
+	need linear algrithm for bridge edges
+
+267) checks for phylogenetic graphs
+	
+268) On trees for block build
+
+
