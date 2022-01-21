@@ -106,29 +106,37 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        treeGS = inGS {graphType = Tree}
 
        (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
-                     else (returnGraph', returnTrees')
+                                     else 
+                                       if returnGraph' || returnTrees' then (returnGraph', returnTrees')
+                                       else (True, False)
 
        -- initial build of trees from combined data--or by blocks
-       firstTrees = if null buildBlock then 
+       firstGraphs = if null buildBlock then 
                         let simpleTreeOnly = False
                         in
                         buildTree simpleTreeOnly inArgs treeGS inputGraphType inData pairwiseDistances seed
                     else -- removing taxa with missing data for block
+                        trace ("Block building initial graph(s)") (
                         let simpleTreeOnly = True
                             processedDataList = U.getProcessDataByBlock True inData
                             distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
-                                                 else [] 
+                                                 else replicate (length processedDataList) [] 
                             blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
 
                             -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
                             returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
                         in
-                        fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) returnGraphs `using` PU.myParListChunkRDS
+                        trace (concatMap LG.prettify returnGraphs)
+                        fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
+                        )
    in
    -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
-   if inputGraphType == Tree || (not . null) buildBlock  then firstTrees
-   else trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
-      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstTrees) `using` PU.myParListChunkRDS
+   if inputGraphType == Tree || (not . null) buildBlock then 
+      -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) 
+      firstGraphs
+   else 
+      -- trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
+      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
    -- )
 
 -- should be moved to a single file for import
@@ -145,13 +153,13 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
    -- put graphs in state for reconciliation function
       -- add in leaves not present due to missing data
       -- can just insert the nodes
-      let numLeaves = V.length $ fst3 inData
-          fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
+      let -- numLeaves = V.length $ fst3 inData
+          -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst6 blockTrees
-          fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
-          reconcileArgList = if doEUN then [("eun", [])]
-                             else [("cun", [])]
-          reconciledGraph = snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList fullLeafGraphList
+          -- fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
+          reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", [])]
+                             else [("cun", []), ("vertexLabel:true", [])]
+          reconciledGraph = GO.ladderizeGraph $ snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList simpleGraphList
           displayGraphs = []
       in
       if returnGraph && not returnTrees then [reconciledGraph]

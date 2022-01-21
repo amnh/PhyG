@@ -304,7 +304,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
         unusedEdges = undirectedEdgeMinus simpleEdgeList displayEdgeSet
     in
     -- no unused edges all OK
-    if null unusedEdges then inGraph
+    if null unusedEdges then trace (LG.prettify $ fst6 inGraph) inGraph
 
     -- unused edges--do not prune return "infinite cost"
     else if not pruneEdges then (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
