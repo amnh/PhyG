@@ -314,7 +314,7 @@ type VertexBlockData = V.Vector (V.Vector CharacterData)
 type ResolutionVertexData = V.Vector ResolutionBlockData
 
 -- | ResolutionBlockData contains a list of ResolutionData
--- this list contains all the potetnial resolutions of a softwired
+-- this list contains all the potential resolutions of a softwired
 -- networtk vertex
 type ResolutionBlockData = V.Vector ResolutionData
 

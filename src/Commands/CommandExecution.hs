@@ -161,8 +161,12 @@ setCommand argList globalSettings processedData =
                   | (head optionList == "hardwired") = HardWired
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
             in
-            trace ("Graphtype set to " ++ head optionList)
-            (globalSettings {graphType = localGraphType}, processedData)
+            if localGraphType /= Tree then 
+                trace ("Graphtype set to " ++ (head optionList) ++ " and final assignment to DO")
+                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData)
+            else 
+                trace ("Graphtype set to " ++ head optionList)
+                (globalSettings {graphType = localGraphType}, processedData)
         else if head commandList == "criterion"  then
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
@@ -185,8 +189,15 @@ setCommand argList globalSettings processedData =
                   | ((head optionList == "ia") || (head optionList == "impliedalignment")) = ImpliedAlignment
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. FinalAssignment  '" ++ (head optionList) ++ "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'")
             in
-            trace ("FinalAssignment set to " ++ head optionList)
-            (globalSettings {finalAssignment = localMethod}, processedData)
+            if (graphType globalSettings) == Tree then
+                trace ("FinalAssignment set to " ++ head optionList)
+                (globalSettings {finalAssignment = localMethod}, processedData)
+            else if localMethod == DirectOptimization then
+                (globalSettings {finalAssignment = localMethod}, processedData)
+            else 
+                trace ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs" ++ head optionList)
+                (globalSettings {finalAssignment = DirectOptimization}, processedData)
+
         else if head commandList == "graphfactor"  then
             let localMethod
                   | (head optionList == "nopenalty") = NoNetworkPenalty

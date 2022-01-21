@@ -78,7 +78,7 @@ main = do
     timeD <- getSystemTimeSeconds
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
     let seedList = if not debugRandomFlag then randomIntList timeD
-                   else randomIntList 0
+                   else randomIntList 123456
 
 
     -- Process commands to get list of actions

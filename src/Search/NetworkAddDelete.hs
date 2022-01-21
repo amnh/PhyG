@@ -77,7 +77,7 @@ moveAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCos
       if null netEdgeList then trace ("\tNo network edges to move") ([], counter)
       else if  newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
       else if newGraphCost < currentCost then
-         trace ("Found better move")
+         -- trace ("Found better move")
          moveAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
 
       else 
@@ -291,9 +291,9 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 
 
        in
-       trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)
-         ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
-         ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
+       -- trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)
+       --  ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
+       --  ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
 
        -- preDelete cost changes criterion for edge move
        if preDeleteCost == Nothing then 
@@ -304,7 +304,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
          -- no net add cost becasue the numbe rof net nodes is unchaned in add/delete when preDelete cost /= Noting
           if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
           else emptyPhylogeneticGraph
-          )
+       --   )
 
 -- | heuristicAddDelta takes teh existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoprtimizes starting nodes of two edges.  Returns cost delta based on 

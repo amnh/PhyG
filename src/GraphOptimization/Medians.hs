@@ -60,26 +60,26 @@ module GraphOptimization.Medians  ( median2
                                   , get2WayWideHuge
                                   , getFinal3WaySlim
                                   , getFinal3WayWideHuge
-                                  , generalSequenceDiff          
+                                  , generalSequenceDiff
                                   ) where
 
 import           Bio.DynamicCharacter
-import Data.Alphabet
+import           Data.Alphabet
 import           Data.Bits
-import qualified Data.BitVector.LittleEndian                                 as BV
+import qualified Data.BitVector.LittleEndian as BV
 import           Data.Foldable
-import qualified Data.MetricRepresentation                                   as MR
-import qualified Data.TCM.Dense                                              as TCMD
-import qualified Data.Vector                                                 as V
-import qualified Data.Vector.Generic                                         as GV
+import qualified Data.MetricRepresentation   as MR
+import qualified Data.TCM.Dense              as TCMD
+import qualified Data.Vector                 as V
+import qualified Data.Vector.Generic         as GV
+import qualified Data.Vector.Storable        as SV
 import           Data.Word
+import           Debug.Trace
 import           DirectOptimization.Pairwise
-import           GeneralUtilities
-import qualified SymMatrix                                                   as S
-import           Types.Types
-import Debug.Trace
 import           Foreign.C.Types             (CUInt)
-import qualified Data.Vector.Storable         as SV
+import           GeneralUtilities
+import qualified SymMatrix                   as S
+import           Types.Types
 
 
 --import qualified Data.Alphabet as DALPH
@@ -170,7 +170,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisActive  = activity inCharInfo
         dummyStaticCharacter = emptyCharacter
     in
-    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0) 
+    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0)
     else (if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
             let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
             in
@@ -211,11 +211,11 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then 
+    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
       let newCharVect = makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
         in
         --trace (show $ alphabet inCharInfo)
-        (newCharVect, localCost  newCharVect) 
+        (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
@@ -401,15 +401,15 @@ unionMatrix thisMatrix firstVertChar secondVertChar =
   else
     let numStates = length thisMatrix
         initialMatrixVector = getUnionVector thisMatrix numStates <$> V.zip (matrixStatesFinal firstVertChar) (matrixStatesFinal secondVertChar)
-        newCharacter = emptyCharacter { matrixStatesPrelim = initialMatrixVector 
-                                      , matrixStatesFinal = initialMatrixVector 
+        newCharacter = emptyCharacter { matrixStatesPrelim = initialMatrixVector
+                                      , matrixStatesFinal = initialMatrixVector
                                       }
         in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
         newCharacter
 
--- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of 
+-- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of
 -- DO medians and cost.  This is used in final state assignment
 pairwiseDO :: CharInfo
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
@@ -421,7 +421,7 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     if thisType `elem` [SlimSeq,   NucSeq]      then
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
         in
-        --trace ("pDO:" ++ (show (GV.length $ fst3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2))) 
+        --trace ("pDO:" ++ (show (GV.length $ fst3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2)))
         (r, mempty, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType `elem` [WideSeq, AminoSeq] then
@@ -542,7 +542,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
 
     newSlimCharacterData =
         let r  = if doIA then GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
-                 else 
+                 else
                     let (_, (lG, _, rG)) = slimPairwiseDO thisSlimTCM (makeDynamicCharacterFromSingleVector $ slimFinal leftChar) (makeDynamicCharacterFromSingleVector $ slimFinal rightChar)
                     in
                     GV.zipWith (.|.) lG rG
@@ -584,7 +584,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
 union2 ::  Bool -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
 union2 doIA filterGaps = V.zipWith3 (union2Single doIA filterGaps)
 
--- | union2Single takes character data and returns union character data 
+-- | union2Single takes character data and returns union character data
 -- union2Single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used IAFinal states for dynamic characters
@@ -601,10 +601,10 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     if not thisActive then firstVertChar
     else if thisType == Add then
         intervalUnion firstVertChar secondVertChar
-        
+
     else if thisType == NonAdd then
         localUnion firstVertChar secondVertChar
-        
+
     else if thisType == Matrix then
         unionMatrix thisMatrix firstVertChar secondVertChar
 
@@ -616,7 +616,7 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
 
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
--- extracts the triple for each block and creates new block data 
+-- extracts the triple for each block and creates new block data
 -- this is used for delta's in edge invastion in Wagner and SPR/TBR
 -- filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
 createEdgeUnionOverBlocks :: Bool
@@ -638,13 +638,13 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
             -- missing data cases first or zip defaults to zero length
             firstBlockMedian
               | (leftBlockLength == 0) = V.head rightBlockData
-              | (rightBlockLength == 0) = V.head leftBlockData 
+              | (rightBlockLength == 0) = V.head leftBlockData
               | otherwise = union2 doIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         createEdgeUnionOverBlocks doIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 
--- | makeIAPrelimCharacter takes two characters and performs 2-way assignment 
+-- | makeIAPrelimCharacter takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
 -- the cost assignment is terrible for all dynmaic charcters
 --can'tr seem to get the pairs with cost tu return correctly--so a real hack on this
@@ -681,7 +681,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      else error ("Unrecognized character type " ++ show characterType)
 
 {-
--- | makeIAFinalCharacter takes two characters and performs 2-way assignment 
+-- | makeIAFinalCharacter takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
 makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar =
@@ -690,7 +690,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
      if characterType `elem` [SlimSeq, NucSeq] then
         let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
             finalChar =  if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                         else slimFinal nodeChar 
+                         else slimFinal nodeChar
         in
         nodeChar { slimIAFinal = finalIAChar
                  , slimFinal = finalChar
@@ -698,7 +698,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
      else if characterType `elem` [WideSeq, AminoSeq] then
         let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
             finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                        else wideFinal nodeChar 
+                        else wideFinal nodeChar
         in
         nodeChar { wideIAFinal = finalIAChar
                  , wideFinal = finalChar
@@ -706,7 +706,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
      else if characterType == HugeSeq then
         let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
             finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                        else hugeFinal nodeChar 
+                        else hugeFinal nodeChar
         in
         nodeChar { hugeIAFinal = finalIAChar
                  , hugeFinal = finalChar
@@ -715,7 +715,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar leftChar rightChar
 -}
 
 
--- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment 
+-- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
 -- this pulls from current node for left and right states
 makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData-> CharacterData
@@ -725,7 +725,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      if characterType `elem` [SlimSeq, NucSeq] then
         let finalIAChar = getFinal3WaySlim (slimTCM charInfo) (slimIAFinal parentChar) (extractMediansLeftGapped $ slimIAPrelim nodeChar) (extractMediansRightGapped $ slimIAPrelim nodeChar)
             finalChar =  if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                         else slimFinal nodeChar 
+                         else slimFinal nodeChar
         in
         nodeChar { slimIAFinal = finalIAChar
                  , slimFinal = finalChar
@@ -733,7 +733,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      else if characterType `elem` [WideSeq, AminoSeq] then
         let finalIAChar = getFinal3WayWideHuge (wideTCM charInfo) (wideIAFinal parentChar) (extractMediansLeftGapped $ wideIAPrelim nodeChar) (extractMediansRightGapped $ wideIAPrelim nodeChar)
             finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                        else wideFinal nodeChar 
+                        else wideFinal nodeChar
         in
         nodeChar { wideIAFinal = finalIAChar
                  , wideFinal = finalChar
@@ -741,7 +741,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      else if characterType == HugeSeq then
         let finalIAChar = getFinal3WayWideHuge (hugeTCM charInfo) (hugeIAFinal parentChar) (extractMediansLeftGapped $ hugeIAPrelim nodeChar) (extractMediansRightGapped $ hugeIAPrelim nodeChar)
             finalChar = if finalMethod == ImpliedAlignment then extractMedians $ makeDynamicCharacterFromSingleVector finalIAChar
-                        else hugeFinal nodeChar 
+                        else hugeFinal nodeChar
         in
         nodeChar { hugeIAFinal = finalIAChar
                  , hugeFinal = finalChar
@@ -771,10 +771,10 @@ get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a ->
 get2WayWideHuge whTCM = get2WayGeneric (MR.retreivePairwiseTCM whTCM)
 
 -- | getFinal3Way takes parent final assignment (including indel characters) and descendent
--- preliminary gapped assingment from postorder and creates a gapped final assignment based on 
+-- preliminary gapped assingment from postorder and creates a gapped final assignment based on
 -- minimum cost median for the three inputs.  THis is done to preserve the ImpliedAlignment
--- information to create a final assingment with out an additional DO call to keep the 
--- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
+-- information to create a final assingment with out an additional DO call to keep the
+-- creation linear in sequence length.  Since gaps remain--they must be filtered when output or
 -- used as true final sequence assignments using M.createUngappedMedianSequence
 getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
@@ -815,7 +815,7 @@ local3WaySlim lSlimTCM b c d =
  median
  -- )
 
- -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer 
+ -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
 generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)

@@ -600,3 +600,21 @@ to render--would have repeated subtrees after network vertex
 
 262) turn off IA for non-Trees  is a tree thing anyway.
 	can generate IA if desired at end with display trees
+	perhaps change to grandparent not parent if paren in1out1
+
+263) postorder/preorder softwired
+
+generalizedGraphPostOrderTraversal ->
+postOrderSoftWiredTraversal
+	post decorate sofwired
+		getOutDegree1VertexAndGraph
+		createBlockResolutions
+	minimalReRootPhyloGraph
+	updateAndFinalizePostOrderSoftWired
+preOrderTreeTraversal
+
+
+264) resolutoin bloick data--change to unlablled edges--much cleaner, then change function to 
+	crete display trees
+
+265) turn off ia for wide and huge network
