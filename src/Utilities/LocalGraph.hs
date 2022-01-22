@@ -135,6 +135,10 @@ toLEdge = G.toLEdge
 toLEdge' :: b -> Edge -> LEdge b
 toLEdge' inLabel inEdge = G.toLEdge inEdge inLabel
 
+-- | deg mapes to fgl deg
+deg :: Gr a b -> Node -> Int
+deg inGraph inNode = G.deg inGraph inNode 
+
 -- | maps to indeg
 indeg :: Gr a b -> LNode a -> Int
 indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
@@ -362,6 +366,7 @@ getRoots inGraph =
         rootList
 
 -- | getIsolatedNodes returns list of labelled nodes with indegree=outdegree=0
+-- should change to use G.deg == 0
 getIsolatedNodes :: Gr a b -> [LNode a]
 getIsolatedNodes inGraph = 
     if isEmpty inGraph then []
@@ -589,8 +594,9 @@ contractIn1Out1Edges inGraph =
                     newEdgeToAdd    = (fst3 inEdgeToDelete, snd3 outEdgeToDelete, thd3 inEdgeToDelete)
                     reindexedNodes = reindexNodes (fst nodeToDelete) [] $ labNodes inGraph
                     reindexedEdges = reindexEdges (fst nodeToDelete) [] (newEdgeToAdd : (labEdges inGraph))
+
                     newGraph = mkGraph reindexedNodes reindexedEdges
-                    -- newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete inGraph -- $ delLEdges [inEdgeToDelete, outEdgeToDelete] inGraph
+                    --newGraph = insEdge newEdgeToAdd $ delLNode nodeToDelete inGraph
                 in
                 -- trace ("Deleting Node " ++ show (fst nodeToDelete) ++ " " ++ show (inEdgeToDelete, outEdgeToDelete) ++ " inserting " ++ show  newEdgeToAdd)
                 contractIn1Out1Edges newGraph

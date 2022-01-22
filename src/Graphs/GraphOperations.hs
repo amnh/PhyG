@@ -61,6 +61,7 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , getTopoUniqPhylogeneticGraph
                                , getBVUniqPhylogeneticGraph
                                , makeDummyLabEdge
+                               , contractIn1Out1EdgesRename
                                ) where
 
 import qualified Data.List                 as L
@@ -82,6 +83,23 @@ import qualified GraphOptimization.Medians as M
 import           Bio.DynamicCharacter
 
 -- import Debug.Debug
+
+-- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
+-- does one at a time and makes a graph and recurses
+contractIn1Out1EdgesRename :: SimpleGraph -> SimpleGraph
+contractIn1Out1EdgesRename inGraph =
+  let newGraph = LG.contractIn1Out1Edges inGraph
+      newNodes = LG.labNodes newGraph
+      nodeLabels = fmap (makeSimpleLabel newGraph) newNodes
+      newNodes' = zip (fmap fst newNodes) nodeLabels
+
+      newEdges = LG.labEdges newGraph
+  in
+  --newGraph
+  trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
+  LG.mkGraph newNodes' newEdges
+  where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then T.pack $ "HTU"  ++ show a
+                                    else b
 
 -- | getEdgeSplitList takes a graph and returns list of edges
 -- that split a graph increasing the number of components by 1
@@ -852,8 +870,6 @@ createBVUniqueBoolList inBVGraphListList boolAccum =
         in
         if null checkList then createBVUniqueBoolList  (tail inBVGraphListList) ((firstGraphList,True) : boolAccum)
         else createBVUniqueBoolList  (tail inBVGraphListList) ((firstGraphList, False) : boolAccum)
-
-
 
 -- | makeDummyLabEdge takes an unlabelled edge and adds a dummy label
 makeDummyLabEdge :: EdgeInfo -> LG.Edge -> LG.LEdge EdgeInfo

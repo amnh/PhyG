@@ -312,7 +312,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
     -- unused but pruned--need to prune nodes and reoptimize to get final assignments correct
     else
         let newSimpleGraph = LG.delEdges unusedEdges inSimple
-            contractedSimple = LG.contractIn1Out1Edges newSimpleGraph
+            contractedSimple = GO.contractIn1Out1EdgesRename newSimpleGraph
         in
         if warnPruneEdges then
             trace ("Pruning " ++ (show $ length unusedEdges) ++ " unused edges and reoptimizing graph")

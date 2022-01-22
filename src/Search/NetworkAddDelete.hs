@@ -418,7 +418,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
    else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else 
-       let delSimple = LG.contractIn1Out1Edges $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
+       let delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
 
            -- prune other edges if now unused
