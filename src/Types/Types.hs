@@ -362,6 +362,9 @@ emptyVertexInfo = VertexInfo { index        = (-1)
                              , subGraphCost = 0.0
                              } 
 
+-- | usefule in some cases
+dummyNode :: LG.LNode VertexInfo
+dummyNode = (-1, emptyVertexInfo)
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data  EdgeInfo = EdgeInfo   { minLength :: VertexCost

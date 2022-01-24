@@ -61,7 +61,7 @@ wPGMA :: V.Vector String -> M.Matrix Double -> Int -> TreeWithData
 wPGMA leafNames distMatrix outgroup =
   if M.null distMatrix then error "Null matrix in WPGMA"
   else
-    trace "\nBuilding WPGMA tree" (
+    trace "\n\tBuilding WPGMA tree" (
     let numLeaves = V.length leafNames
         leafVertexVect = V.fromList [0..(numLeaves - 1)]
         ((vertexVect, edgeVect), finalMatrix) = addTaxaWPGMA distMatrix numLeaves (leafVertexVect, V.empty) []
@@ -76,7 +76,7 @@ wPGMA leafNames distMatrix outgroup =
 
 -- | pulls dWagner function from module Wagner
 doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> [V.Vector Int]-> [TreeWithData]
-doWagnerS = trace "\nBuilding Wagner tree"
+doWagnerS = trace "\n\tBuilding Wagner tree"
   W.doWagnerS
 
 -- | pulls Wagner refinement from Wagner module
@@ -89,7 +89,7 @@ neighborJoining :: V.Vector String -> M.Matrix Double -> Int -> TreeWithData
 neighborJoining leafNames distMatrix outgroup =
     if M.null distMatrix then error "Null matrix in neighborJoining"
     else
-        trace "\nBuilding NJ tree" (
+        trace "\n\tBuilding NJ tree" (
         -- get intial matrices
         let -- initialBigDMatrix = makeDMatrix distMatrix [] -- 0 0 []
             numLeaves = V.length leafNames
@@ -255,7 +255,7 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
     let progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
     if last progress == '0' then
-      trace (progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
+      trace ("\t\t"++ progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
       addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
@@ -287,7 +287,7 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
     let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
     in
     if last progress == '0' then
-      trace (progress ++ "%")
+      trace ("\t\t"++ progress ++ "%")
       addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 

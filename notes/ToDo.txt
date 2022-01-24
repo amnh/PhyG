@@ -624,6 +624,6 @@ preOrderTreeTraversal
 
 267) checks for phylogenetic graphs
 	
-268) On trees for block build
-
+269) move generat graph functions
+	ie those qwith Gr a b interfaces to LocalGraphs
 

@@ -62,7 +62,7 @@ getPairwiseDistances (nameVect, _, blockDataVect)
     let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect
         summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
     in
-    trace ("Generating pairwise distances for " ++ show (V.length blockDataVect) ++ " character blocks")
+    trace ("\tGenerating pairwise distances for " ++ show (V.length blockDataVect) ++ " character blocks")
     S.toFullLists summedBlock
 
 

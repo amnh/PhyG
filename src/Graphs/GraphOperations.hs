@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Graphs.GraphOperations ( ladderizeGraph
+module Graphs.GraphOperations (  ladderizeGraph
                                , verifyTimeConsistency
                                , rerootTree
                                , rerootTree'
@@ -62,6 +62,8 @@ module Graphs.GraphOperations ( ladderizeGraph
                                , getBVUniqPhylogeneticGraph
                                , makeDummyLabEdge
                                , contractIn1Out1EdgesRename
+                               , renameSimpleGraphNodes
+                               , generateDisplayTreesRandom
                                ) where
 
 import qualified Data.List                 as L
@@ -81,6 +83,8 @@ import qualified Data.Vector.Storable         as SV
 import           Text.Read
 import qualified GraphOptimization.Medians as M
 import           Bio.DynamicCharacter
+import qualified ParallelUtilities            as PU
+import Control.Parallel.Strategies
 
 -- import Debug.Debug
 
@@ -88,17 +92,27 @@ import           Bio.DynamicCharacter
 -- does one at a time and makes a graph and recurses
 contractIn1Out1EdgesRename :: SimpleGraph -> SimpleGraph
 contractIn1Out1EdgesRename inGraph =
-  let newGraph = LG.contractIn1Out1Edges inGraph
-      newNodes = LG.labNodes newGraph
-      nodeLabels = fmap (makeSimpleLabel newGraph) newNodes
-      newNodes' = zip (fmap fst newNodes) nodeLabels
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let newGraph = LG.contractIn1Out1Edges inGraph
+    in
+    renameSimpleGraphNodes newGraph
 
-      newEdges = LG.labEdges newGraph
-  in
-  --newGraph
-  trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
-  LG.mkGraph newNodes' newEdges
-  where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then T.pack $ "HTU"  ++ show a
+
+-- | renameSimpleGraphNodes takes nodes and renames HTU nodes based on index
+renameSimpleGraphNodes :: SimpleGraph -> SimpleGraph
+renameSimpleGraphNodes inGraph =
+  if LG.isEmpty inGraph then LG.empty
+    else 
+      let inNodes = LG.labNodes inGraph
+          nodeLabels = fmap (makeSimpleLabel inGraph) inNodes
+          newNodes = zip (fmap fst inNodes) nodeLabels
+          newEdges = LG.labEdges inGraph
+    in
+    --newGraph
+    -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
+    LG.mkGraph newNodes newEdges
+    where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then T.pack $ "HTU"  ++ show a
                                     else b
 
 -- | getEdgeSplitList takes a graph and returns list of edges
@@ -417,16 +431,74 @@ getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesT
       getContractGraphEdits (tail inEdgeNodeList) (firstInEdges ++ firstOutEdges ++ edgesToDelete, newEdge : edgesToAdd, firstNode : nodesToDelete)
 
 
--- | generateDisplayTrees takes a graph list and recursively generates
+-- | generateDisplayTreesRandom generates display trees up to input number by choosing 
+-- to keep indegree nodes > 1 unifomaly at random
+generateDisplayTreesRandom :: (Show a, Show b, Eq a, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b] 
+generateDisplayTreesRandom seed numDisplayTrees inGraph =
+  if LG.isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
+  else 
+    let atRandomList = take numDisplayTrees $ randomIntList seed
+        randDisplayTreeList = fmap (randomlyResolveGraphToTree inGraph) atRandomList `using` PU.myParListChunkRDS
+    in
+    randDisplayTreeList
+
+-- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges 
+-- uniformly at random and deleting all others from graph
+-- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed,l graph reindexed
+-- but not renamed
+randomlyResolveGraphToTree :: (Show a, Show b, Eq a) => LG.Gr a b -> Int -> LG.Gr a b
+randomlyResolveGraphToTree inGraph randVal =
+  if LG.isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
+  else 
+    let (_, leafList, _, _) = LG.splitVertexList inGraph
+        inEdgeListByVertex = fmap (LG.inn inGraph) (LG.nodes inGraph)
+        randList = fmap abs $ randomIntList randVal
+        edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap LG.toEdge) inEdgeListByVertex)
+        newTree = LG.delEdges edgesToDelete inGraph
+        newTree' = LG.removeNonLeafOut0Nodes leafList newTree
+        newTree'' = LG.contractIn1Out1Edges newTree'
+        reindexTree = LG.reindexGraph newTree''
+    in
+    -- trace ("RRGT\n" ++ (LG.prettify inGraph) ++ "\n to delete " ++ (show edgesToDelete) ++ "\nNew graph:\n" ++ (LG.prettify newTree)
+    --   ++ "\nnewTree'\n" ++ (LG.prettify newTree') ++ "\nnewTree''\n" ++ (LG.prettify newTree'') ++ "\reindex\n" ++ (LG.prettify reindexTree))
+    reindexTree
+
+-- | chooseOneDumpRest takes random val and chooses to keep tht edge in list returniong list of edges to delete
+chooseOneDumpRest :: Int -> [LG.Edge] -> [LG.Edge]
+chooseOneDumpRest randVal inEdgeList =
+  if null inEdgeList then []
+  else if length inEdgeList == 1 then []
+  else 
+    let numEdgesIn = length inEdgeList
+        (_, indexToKeep) = divMod randVal numEdgesIn
+    in
+    -- trace ("CODR: " ++ (show inEdgeList) ++ " keeping " ++ (show $ inEdgeList !! indexToKeep) ++ " deleting " ++ (show $ inEdgeList L.\\ [inEdgeList !! indexToKeep]) ++ "based on " ++ (show (randVal, indexToKeep)))
+    inEdgeList L.\\ [inEdgeList !! indexToKeep]
+
+
+
+-- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface
+generateDisplayTrees :: (Eq a) => LG.Gr a b -> [LG.Gr a b]
+generateDisplayTrees inGraph = 
+    let (_, leafList, _, _) = LG.splitVertexList inGraph
+    in
+    generateDisplayTrees' leafList [inGraph] []
+
+-- | generateDisplayTrees' takes a graph list and recursively generates
 -- a list of trees created by progresively resolving each network vertex into a tree vertex
 -- in each input graph
--- creating up to 2**m (m network vertices) trees.  This only resolves the indegree
--- edges.  Indegree 1 outdegree 1 edges ARE NOT contracted when created or encountered.
--- call -> generateDisplayTrees  [startGraph] []
+-- creating up to 2**m (m network vertices) trees.  
+-- call -> generateDisplayTrees'  [startGraph] []
 -- the second and third args contain graphs that need more work and graphs that are done (ie trees)
-generateDisplayTrees :: [LG.Gr a b] -> [LG.Gr a b] -> [LG.Gr a b]
-generateDisplayTrees curGraphList treeList  =
-  if null curGraphList then treeList
+generateDisplayTrees' :: (Eq a) => [LG.LNode a] -> [LG.Gr a b] -> [LG.Gr a b] -> [LG.Gr a b]
+generateDisplayTrees' leafList curGraphList treeList  =
+  if null curGraphList then 
+      let treeList' = fmap (LG.removeNonLeafOut0Nodes leafList) treeList
+          treeList'' = fmap LG.contractIn1Out1Edges treeList'
+          reindexedTreeList = fmap LG.reindexGraph treeList''
+      in
+      reindexedTreeList
+
   else
     let firstGraph = head curGraphList
     in
@@ -435,11 +507,11 @@ generateDisplayTrees curGraphList treeList  =
         let nodeList = LG.labNodes firstGraph
             inNetEdgeList = filter ((>1).length) $ fmap (LG.inn firstGraph) $ fmap fst nodeList
         in
-        if null inNetEdgeList then generateDisplayTrees (tail curGraphList) (firstGraph : treeList)
+        if null inNetEdgeList then generateDisplayTrees' leafList (tail curGraphList) (firstGraph : treeList)
         else
           let newGraphList = splitGraphListFromNode inNetEdgeList [firstGraph]
           in
-          generateDisplayTrees (newGraphList ++ (tail curGraphList)) treeList
+          generateDisplayTrees' leafList (newGraphList ++ (tail curGraphList)) treeList
 
 -- | splitGraphListFromNode take a graph and a list of edges for indegree > 1 node
 -- removes each in edge in turn to create a new graph and maintains any in 1 out 1 nodes

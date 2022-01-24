@@ -930,7 +930,7 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
         if isNetworkNode || parentIsNetworkNode then
             -- trace ("Graph with parent and child nodes network vertices--skipping reroot")
             (LG.empty, [])
-        -- can;t rerrot on netowrk node
+        -- can't reroot on network node--can cause alot of problems
         else
             -- get nodes and edged on path from old to new root
             let (nodePathToRoot, edgePathToRoot') = LG.pathToRoot inGraph (rerootIndex, fromJust $ LG.lab inGraph rerootIndex)

@@ -60,6 +60,8 @@ import Data.Maybe
 import Debug.Trace
 import qualified Data.List as L
 import qualified Data.Vector                 as V
+import qualified Data.Map as MAP
+
 
 
 
@@ -578,7 +580,7 @@ indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
 
 -- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
 -- does one at a time and makes a graph and recurses
-contractIn1Out1Edges :: (Show a, Show b) => Gr a b -> Gr a b
+contractIn1Out1Edges :: Gr a b -> Gr a b
 contractIn1Out1Edges inGraph =
     if G.isEmpty inGraph then G.empty
     else
@@ -672,7 +674,41 @@ bcc ::  Gr a b -> [Gr a b]
 bcc inGraph = BCC.bcc inGraph
 
 
+-- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
+-- but not in the leaf node list
+-- does not reindex graph
+removeNonLeafOut0Nodes :: (Eq a) => [LNode a] -> Gr a b -> Gr a b
+removeNonLeafOut0Nodes leafList inGraph =
+    if null leafList then error "Null leaf list in removeNonLeafOut0Nodes"
+    else if isEmpty inGraph then empty
+    else 
+        let nonLeafList = (labNodes inGraph) L.\\ leafList
+            outdegreePairList = zip nonLeafList (fmap (outdeg inGraph) nonLeafList)
+            (zeroOutNodeList, _) = unzip $ filter ((==0) .snd) outdegreePairList
+        in
+        if null zeroOutNodeList then inGraph
+        else 
+            let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
+            in
+            removeNonLeafOut0Nodes leafList newGraph
 
+-- | reindexGraph takes a graph and reindexes nodes and edges such that nodes 
+-- are sequential and the firt field matches their node index
+reindexGraph :: Gr a b -> Gr a b
+reindexGraph inGraph =
+    if isEmpty inGraph then empty
+    else 
+        let nodeList = labNodes inGraph
+            newIndexList = [0..(length nodeList - 1)]
+            nodeIndexPair = zip (fmap fst nodeList) newIndexList
+            nodeIndexMap = MAP.fromList nodeIndexPair
+            newNodeList = fmap (makeNewNode nodeIndexMap) nodeList
+            newEdgeList = fmap (makeNewEdge nodeIndexMap) (labEdges inGraph)
+        in
+        mkGraph newNodeList newEdgeList
+
+    where makeNewNode indexMap (a,b) = (fromJust $ MAP.lookup a indexMap, b)
+          makeNewEdge indexMap (a,b,c) = (fromJust $ MAP.lookup a indexMap, fromJust $ MAP.lookup b indexMap, c)
 {-
 FGL articulation point code--could be modified to get brisge edges in linear time}
 ------------------------------------------------------------------------------

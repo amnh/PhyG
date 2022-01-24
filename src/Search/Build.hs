@@ -70,7 +70,7 @@ import qualified Reconciliation.Eun    as E
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
-buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "displaytrees", "graph"]
+buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "first", "displaytrees", "graph"]
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -86,7 +86,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        numDisplayTrees
             | length buildBlock > 1 =
               errorWithoutStackTrace ("Multiple block number specifications in command--can have only one: " ++ show inArgs)
-            | null buildBlock = Just (maxBound :: Int)
+            | null (snd $ head buildBlock) = Just (maxBound :: Int)
             | otherwise = readMaybe (snd $ head buildBlock) :: Maybe Int
        doEUN' = any ((=="eun").fst) lcArgList
        doCUN' = any ((=="cun").fst) lcArgList
@@ -98,17 +98,23 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                else doCUN'
        returnTrees' = any ((=="displaytrees").fst) lcArgList
        returnGraph' = any ((=="graph").fst) lcArgList
-       returnRandomDisplayTrees = any ((=="atrandom").fst) lcArgList
+       returnRandomDisplayTrees' = any ((=="atrandom").fst) lcArgList
+       returnFirst' = any ((=="first").fst) lcArgList
        buildDistance = any ((=="distance").fst) lcArgList
    
        -- temprary change (if needed) to buyild tree structures
        inputGraphType = graphType inGS 
        treeGS = inGS {graphType = Tree}
 
+       -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
        (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
                                      else 
                                        if returnGraph' || returnTrees' then (returnGraph', returnTrees')
-                                       else (True, False)
+                                       else (False, True)
+
+       -- default to retuirn reandom and overrides if both specified
+       (returnRandomDisplayTrees, returnFirst) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
+                                                else (True, False)
 
        -- initial build of trees from combined data--or by blocks
        firstGraphs = if null buildBlock then 
@@ -126,16 +132,19 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                             -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
                             returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
                         in
-                        trace (concatMap LG.prettify returnGraphs)
+                        -- trace (concatMap LG.prettify returnGraphs)
                         fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
                         )
+       costString = if (not . null) firstGraphs then  ("Block build yielded " ++ (show $ length firstGraphs) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
+                    else "\t\tBlock build returned 0 graphs"
    in
    -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
    if inputGraphType == Tree || (not . null) buildBlock then 
       -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) 
-      firstGraphs
+      if null buildBlock then firstGraphs
+      else trace (costString) firstGraphs
    else 
-      -- trace ("     Rediagnosing as " ++ (show (graphType inGS))) 
+      trace ("\tRediagnosing as " ++ (show (graphType inGS))) 
       fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
    -- )
 
@@ -159,14 +168,20 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
           -- fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
           reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", [])]
                              else [("cun", []), ("vertexLabel:true", [])]
-          reconciledGraph = GO.ladderizeGraph $ snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList simpleGraphList
-          displayGraphs = []
+
+          -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
+          reconciledGraphInitial = snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList simpleGraphList
+          reconciledGraph = GO.ladderizeGraph reconciledGraphInitial
+          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
+                           else GO.generateDisplayTreesRandom seed numDisplayTrees reconciledGraph
+          displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
       if returnGraph && not returnTrees then [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else 
          reconciledGraph : displayGraphs
+         
 
 -- | buildTree' wrapps build tree and changes order of arguments for mapping
 buildTree' :: Bool-> [Argument] -> GlobalSettings -> GraphType -> Int -> ([[VertexCost]], ProcessedData) -> [PhylogeneticGraph]
@@ -219,7 +234,7 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
              nameStringVect = fmap TL.unpack nameTextVect
              distMatrix = M.fromLists pairwiseDistances
          in
-         trace ("Building Distance Wagner") (
+         trace ("\tBuilding Distance Wagner") (
          let refinement
                | doTBR = "tbr"
                | doSPR = "spr"
@@ -235,14 +250,17 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
          in
          if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
          else
-            trace ("Distance build yielded " ++ (show $ length treeList''') ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')))
+            let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')))
+                                  else ""
+            in
+            trace ("\tDistance build yielded " ++ (show $ length treeList''') ++ " trees" ++ costRangeString)
             treeList'''
          )
 
       else 
          -- character build 
          -- final diagnosis in input graph type
-         trace ("Building Character Wagner") (
+         trace ("\tBuilding Character Wagner") (
          let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
              charInfoVV = V.map thd3 $ thd3 inData
              treeList =  if not simpleTreeOnly then fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
@@ -252,7 +270,10 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
                             L.zip6 (fmap fst6 treeList') (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
              -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
          in
-         trace ("Character build yielded " ++ (show $ length treeList) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList))) 
+         let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList', maximum $ fmap snd6 treeList')))
+                               else ""
+         in
+         trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " trees" ++ costRangeString)
          treeList
          )
 
