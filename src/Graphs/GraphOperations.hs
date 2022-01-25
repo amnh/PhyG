@@ -119,7 +119,8 @@ renameSimpleGraphNodes inGraph =
 -- that split a graph increasing the number of components by 1
 -- this is quadratic 
 -- should change to Tarjan's algorithm (linear)
---everyhting else in there is O(n^2-3) so maybe doesn't matter 
+-- everyhting else in there is O(n^2-3) so maybe doesn't matter 
+-- filters out edges with parent nodes that are out degree 1 and root edges
 getEdgeSplitList :: (Show a, Show b, Eq b) => LG.Gr a b -> [LG.LEdge b]
 getEdgeSplitList inGraph = 
   if LG.isEmpty inGraph then error ("Empty graph in getEdgeSplitList")
@@ -127,16 +128,24 @@ getEdgeSplitList inGraph =
       let origNumComponents = LG.noComponents inGraph
           origEdgeList = LG.labEdges inGraph
           edgeDeleteComponentNumberList = fmap LG.noComponents $ fmap (flip LG.delEdge inGraph) (fmap LG.toEdge origEdgeList)
-          bridgeList =  fmap snd $ filter ((> origNumComponents) . fst) $ zip edgeDeleteComponentNumberList origEdgeList
+          bridgeList = fmap snd $ filter ((> origNumComponents) . fst) $ zip edgeDeleteComponentNumberList origEdgeList
 
           -- filter out edges starting in an outdegree 1 node (network or in out 1) node
-          -- this would promote an HTU to a leaf
-          bridgeList' = filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
-      in
-       trace ("AP: " ++ (show $ LG.ap' $ LG.undir inGraph) ++ "GESL: Components: " ++ (show edgeDeleteComponentNumberList)
-        ++ "\nGESL: " ++ (show $ fmap LG.toEdge bridgeList')) --  ++ "\n" ++ (LG.prettify inGraph)) 
-      bridgeList'
+          -- this would promote an HTU to a leaf later.  Its a bridge, but not what need
+          bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
 
+          parentOfBridgeNodeList = filter (not . LG.isRoot inGraph) $  filter  (not . LG.isOutDeg1Node inGraph) $ LG.ap' $ LG.undir inGraph
+          bridgeTarjanList = filter ((`elem` parentOfBridgeNodeList) .fst3) origEdgeList
+      in
+       
+       {-
+       if bridgeTarjanList /=  bridgeList' then 
+        trace ("Not same: " ++ (show parentOfBridgeNodeList) ++ "\n" ++ (show $ fmap LG.toEdge bridgeTarjanList) ++ "\n" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph)) 
+        bridgeList'
+       else bridgeList'
+       -}
+
+       bridgeList'
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
 -- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'

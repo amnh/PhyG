@@ -627,3 +627,6 @@ preOrderTreeTraversal
 269) move generat graph functions
 	ie those qwith Gr a b interfaces to LocalGraphs
 
+270) IA for softwired based on disp;lay trees
+	logic gor in1 out 1 with Alex
+

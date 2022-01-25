@@ -102,7 +102,7 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
 
 
 multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = error "Hardwired traversal not implementd"
+multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph 
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges
@@ -119,9 +119,9 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
         let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
             (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (nonExactChars > 0) localStartVertex False postOrderGraph
-            in
-            -- trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
-            checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
+        in
+        -- trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
+        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters
@@ -151,6 +151,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
     -- select postOrder function based on graph type
     let postOrderFunction = if (graphType inGS) == Tree then postOrderTreeTraversal
                          else if (graphType inGS) == SoftWired then postOrderSoftWiredTraversal
+                         else if (graphType inGS) == HardWired then postOrderTreeTraversal
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- first traversal on outgroup roo
@@ -172,11 +173,12 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this
         -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-        recursiveRerootList = outgroupRooted : minimalReRootPhyloGraph inGS (graphType inGS) outgroupRooted (head startVertexList) grandChildrenOfRoot
+        recursiveRerootList = outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
 
         -- perform traceback on resolution caches is graphtype = softWired
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
                                else if (graphType inGS) == SoftWired then fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
+                               else if (graphType inGS) == HardWired then recursiveRerootList 
                                else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
 
@@ -199,7 +201,8 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
     -- only static characters
     if nonExactChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
-                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             --it is its own penalty due to counting all changes in in2 out 1 nodes
+                             else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
@@ -209,7 +212,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         (outgroupRooted', localRootCost, head startVertexList)
     else if nonExactChars == 1 then
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
-                                 else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                                 else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
@@ -222,7 +225,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
     -- multiple dynamic characters--cjecks for best root for each character
     else
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
-                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
@@ -897,21 +900,22 @@ chooseBetterCharacter firstGraph secondGraph
 -- reoptimizing the minimum number of vertices each time (2) but could be more depending
 -- on graph topology
 -- NB--only deals with post-order assignments
-minimalReRootPhyloGraph :: GlobalSettings -> GraphType -> PhylogeneticGraph -> Int -> [LG.Node] -> [PhylogeneticGraph]
-minimalReRootPhyloGraph inGS localGraphType inGraph originalRoot nodesToRoot =
+minimalReRootPhyloGraph :: GlobalSettings -> PhylogeneticGraph -> Int -> [LG.Node] -> [PhylogeneticGraph]
+minimalReRootPhyloGraph inGS inGraph originalRoot nodesToRoot =
     -- trace ("MRR: " ++ (show nodesToRoot) ++ " " ++ (show $ fmap (LG.descendants (thd6 inGraph)) nodesToRoot)) (
     if null nodesToRoot then []
     else
         let firstRerootIndex = head nodesToRoot
             nextReroots = LG.descendants (thd6 inGraph) firstRerootIndex ++ tail nodesToRoot
             newGraph
-              | localGraphType == Tree = PO.rerootPhylogeneticGraph' inGS Tree False False inGraph originalRoot firstRerootIndex
-              | localGraphType == SoftWired = PO.rerootPhylogeneticNetwork' inGS inGraph originalRoot firstRerootIndex
-              | otherwise = errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show localGraphType)
+              | (graphType inGS)  == Tree = PO.rerootPhylogeneticGraph' inGS False False inGraph originalRoot firstRerootIndex
+              | (graphType inGS)  == SoftWired = PO.rerootPhylogeneticNetwork' inGS inGraph originalRoot firstRerootIndex
+              | (graphType inGS)  == HardWired = PO.rerootPhylogeneticNetwork' inGS inGraph originalRoot firstRerootIndex
+              | otherwise = errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show (graphType inGS))
         in
         -- trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
-        if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS localGraphType inGraph originalRoot nextReroots
-        else newGraph : minimalReRootPhyloGraph inGS localGraphType newGraph originalRoot nextReroots
+        if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS inGraph originalRoot nextReroots
+        else newGraph : minimalReRootPhyloGraph inGS newGraph originalRoot nextReroots
         -- ) -- )
 
 
@@ -999,14 +1003,11 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
     -- if node in there (leaf) nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
-            -- identify/create the virtual edge this node would have been created from
-            -- this for traversal focus use for character
-            -- impliedRootEdge = getVirtualRootEdge curDecGraph curNode
         in
         if isNothing nodeLabel then error ("Null label for node " ++ show curNode)
         else
+            -- checks for node already in graph--either leaf or pre-optimized node in Hardwired
             -- trace ("In graph :" ++ (show curNode) ++ " " ++ (show nodeLabel))
-            --  replicating curaDecGraph with number opf blocks--but all the same for tree
             (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
     -- Need to make node
@@ -1027,15 +1028,47 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
         if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
         else if null nodeChildren then error ("Leaf not in graph in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
 
-        -- make node from childern
+        -- out-degree 1 should not happen with Tree but will with HardWired graph
+        else if length nodeChildren == 1 then
+            -- make node from single child and single new edge to child
+            -- takes characters in blocks--but for tree really all same block
+            let childVertexData = vertData leftChildLabel
+                newVertex = VertexInfo {  index = curNode
+                                        -- same as child--could and perhaps should prepend 1 to make distinct
+                                        , bvLabel = bvLabel leftChildLabel 
+                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                        , children = V.fromList nodeChildren
+                                        , nodeType = GO.getNodeType simpleGraph curNode
+                                        , vertName = T.pack $ "HTU" ++ show curNode
+                                        , vertData = childVertexData
+                                        -- this not used for Hardwired or Tree
+                                        , vertexResolutionData = mempty
+                                        , vertexCost = 0.0
+                                        , subGraphCost = subGraphCost leftChildLabel
+                                        }
+                newEdgesLabel = EdgeInfo {    minLength = 0.0
+                                            , maxLength = 0.0
+                                            , midRangeLength = 0.0
+                                            , edgeType = TreeEdge
+                                         }
+                newEdges = LG.toEdge <$> LG.out simpleGraph curNode
+                newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
+
+            in
+            -- th curnode == roiot index for pruned subtrees
+            -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
+
+            --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+
+        -- make node from 2 children
         else
-            -- trace ("Making " ++ (show curNode) ++ " from " ++ (show nodeChildren) ++ "Labels " ++ "\n" ++ (show leftChildLabel) ++ "\n" ++ (show rightChildLabel)) (
             -- make node from children and new edges to children
             -- takes characters in blocks--but for tree really all same block
-            let -- leftChildLabel = fromJust $ LG.lab newSubTree leftChild
-                -- rightChildLabel = fromJust $ LG.lab newSubTree rightChild
-
-                -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+            let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                 -- larger bitvector is Right, smaller or equal Left
 
                 newCharData = if staticIA then PO.createVertexDataOverBlocksStaticIA  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []

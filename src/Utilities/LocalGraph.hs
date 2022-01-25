@@ -710,6 +710,18 @@ reindexGraph inGraph =
     where makeNewNode indexMap (a,b) = (fromJust $ MAP.lookup a indexMap, b)
           makeNewEdge indexMap (a,b,c) = (fromJust $ MAP.lookup a indexMap, fromJust $ MAP.lookup b indexMap, c)
 
+-- | isBridge uses naive (component number) procedure to determine if edge is a bridge O(n)
+isBridge :: Gr a b -> Edge -> Bool
+isBridge inGraph inNode = 
+  if isEmpty inGraph then error ("Empty graph in isBridge")
+  else
+     let numComponents =  noComponents inGraph
+         numComponents' = noComponents $ delEdge inNode inGraph
+     in
+     numComponents' > numComponents
+
+
+
 -- FGL articulation point code--could be modified to get brisge edges in linear time}
 ------------------------------------------------------------------------------
 -- Tree for storing the DFS numbers and back edges for each node in the graph.
@@ -796,8 +808,9 @@ isap :: LOWTree Int -> Bool
 isap (Brc (_,_,_) []) = False
 isap (Brc (_,1,_) ts) = length ts > 1
 isap (Brc (_,n,_) ts) = not (null ch)
+                        -- modify for bridges
+                        -- where ch = filter ( >= n) (map getLow ts)
                         where ch = filter ( >= n) (map getLow ts)
-
 ------------------------------------------------------------------------------
 -- Finds the articulation points by traversing the low tree.
 ------------------------------------------------------------------------------
