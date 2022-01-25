@@ -709,8 +709,8 @@ reindexGraph inGraph =
 
     where makeNewNode indexMap (a,b) = (fromJust $ MAP.lookup a indexMap, b)
           makeNewEdge indexMap (a,b,c) = (fromJust $ MAP.lookup a indexMap, fromJust $ MAP.lookup b indexMap, c)
-{-
-FGL articulation point code--could be modified to get brisge edges in linear time}
+
+-- FGL articulation point code--could be modified to get brisge edges in linear time}
 ------------------------------------------------------------------------------
 -- Tree for storing the DFS numbers and back edges for each node in the graph.
 -- Each node in this tree is of the form (v,n,b) where v is the vertex number,
@@ -824,4 +824,3 @@ artpoints g v = arp (getLowTree g v)
 -}
 ap' :: Gr a b -> [Node]
 ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
--}

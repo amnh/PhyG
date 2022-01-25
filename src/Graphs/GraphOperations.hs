@@ -133,8 +133,8 @@ getEdgeSplitList inGraph =
           -- this would promote an HTU to a leaf
           bridgeList' = filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
-      -- trace ("AP: " ++ (show $ LG.ap $ LG.undir inGraph) ++ "GESL: Components: " ++ (show edgeDeleteComponentNumberList))
-      --trace ("GESL: " ++ (show $ fmap LG.toEdge bridgeList') ++ "\n" ++ (LG.prettify inGraph)) 
+       trace ("AP: " ++ (show $ LG.ap' $ LG.undir inGraph) ++ "GESL: Components: " ++ (show edgeDeleteComponentNumberList)
+        ++ "\nGESL: " ++ (show $ fmap LG.toEdge bridgeList')) --  ++ "\n" ++ (LG.prettify inGraph)) 
       bridgeList'
 
 
