@@ -363,7 +363,8 @@ updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabe
     (inNodeIndex, inNodeLabel {vertData = newVertData})
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a list of updated nodes
--- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to their children
+-- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to other nodes first, then
+-- their children -- thi sis important for preorder of hardwired graphs since can have 2 parents a single child. 
 -- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
 makeFinalAndChildren :: GlobalSettings
                      -> AssignmentMethod
@@ -395,12 +396,29 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
               | otherwise = [True, False]
             firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData inCharInfo isLeft isIn1Out1 isIn2Out1
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
-            childrenPairs = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
+            
+            -- check children if indegree == 2 then don't add to nodes to do if in there already
+
+            childrenTriple  = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
+            childrenTriple' = if (graphType inGS) == HardWired then filter (indeg2NotInNodeList inGraph (tail nodesToUpdate)) childrenTriple
+                              else childrenTriple
+
         in
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
-        makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
+        -- makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
+        -- childrenPair after nodess to do for hardWired to ensure both parent done before child
+        makeFinalAndChildren inGS finalMethod staticIA inGraph ((tail nodesToUpdate) ++ childrenTriple') (newFirstNode : updatedNodes) inCharInfo
         --)
 
+-- | indeg2NotInNodeList checcks a node agains a list by index (fst) if node is indegree 2 and 
+-- already in the list of n odes "todo" filter out as will already be optimized in appropriate pre-order 
+indeg2NotInNodeList :: LG.Gr a b -> [(LG.LNode a, LG.LNode a, Bool)] -> (LG.LNode a, LG.LNode a, Bool) -> Bool
+indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _) =
+ if LG.isEmpty inGraph then error "Empty graph in indeg2NotInNodeList"
+ else 
+    if LG.indeg inGraph childNode < 2 then True
+    else if childIndex `elem` (fmap (fst . fst3) checkNodeList) then False
+    else True
 
 
 
@@ -1219,7 +1237,7 @@ stateFirstClosestToSecond (a,b) (x,y) =
    if distASecond <= distBSecond then a
    else b
 
--- | lciClosest returns thhe "largest closed interval" between the first interval
+-- | lciClosest returns the "largest closed interval" between the first interval
 -- and the closest state in the second interval
  -- assumes a <= b, x<= y
 lciClosest :: (Int, Int) -> (Int, Int) -> (Int, Int)
@@ -1229,7 +1247,7 @@ lciClosest (a,b) (x,y)
   | otherwise = error ("I don't think this should happen in lciClosest" ++ show (a,b,x,y))
 
  -- | intervalIntersection is bit-analogue intersection for additive character operations
- -- takes two intervals and returnas intesection
+ -- takes two intervals and returnas range intersection
  -- Nothing signifies an empty intersection
  -- assumes a <= b, x<= y
 intervalIntersection :: (Int, Int) -> (Int, Int) -> Maybe (Int, Int)
@@ -1246,11 +1264,6 @@ intervalIntersection (a,b) (x,y) =
 intervalUnion :: (Int, Int) -> (Int, Int) -> (Int, Int)
 intervalUnion (a,b) (x,y) = (min a x, max b y)
 
-{-
--- | largestClosedInterval is the maximum interval created from two intervals
-largestClosedInterval :: (Int, Int) -> (Int, Int) -> (Int, Int)
-largestClosedInterval = intervalUnion
--}
 
 -- | makeNonAdditiveCharacterFinal takes vertex preliminary, and child preliminary states with well as parent final state
 -- and constructs final state assignment
@@ -1269,9 +1282,9 @@ makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
       nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
    -- )
 
--- | makeMatrixCharacterFinal vertex preliminaryavnd parent final state
+-- | makeMatrixCharacterFinal vertex preliminary and parent final state
 -- and constructs final state assignment
--- really just tracks the states on a traceback and sets the cost to maxBound:: Int for states not in the traceback
+-- really just tracks the states on a traceback and sets the cost to maxBound :: Int for states not in the traceback
 -- path
 -- Bool for left right node
 makeMatrixCharacterFinal :: Bool -> V.Vector MatrixTriple -> V.Vector MatrixTriple -> V.Vector MatrixTriple

@@ -263,6 +263,7 @@ executable phyg
                   Utilities.LocalGraph
                   Utilities.LocalSequence
                   Utilities.TcmHash
+                  Utilities.ThreeWayFunctions
                   Utilities.Utilities
                   Reconciliation.Adams
                   Reconciliation.Eun

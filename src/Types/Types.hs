@@ -189,9 +189,9 @@ type NameBV = BV.BitVector
 type NameText = T.Text
 
 -- | TYpes for Matrix/Sankoff characters
-    -- Triple contains infor from left and right child--could be only one
+    -- Triple contains info from left and right child--could be only one
     -- use fst then
-    -- finals state alsovector of triple--but need to keep min cost
+    -- finals state also vector of triple--but need to keep min cost
     -- for final assignments
     -- filter by local costVect to get 'best' states an each node
 type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
