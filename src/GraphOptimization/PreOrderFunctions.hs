@@ -876,13 +876,19 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let finalAssignment' = extractMedians $ wideGapped childChar
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
-         else childChar {wideFinal = finalAssignment', wideAlignment = wideGapped childChar}
+         else childChar { wideFinal = finalAssignment' 
+                        , wideAlignment = if isTree then wideGapped childChar
+                                          else mempty
+                        }
 
       else if localCharType == HugeSeq then
          let finalAssignment' = extractMedians $ hugeGapped childChar
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
-         else childChar {hugeFinal = finalAssignment', hugeAlignment = hugeGapped childChar}
+         else childChar { hugeFinal = finalAssignment'
+                        , hugeAlignment = if isTree then hugeGapped childChar
+                                          else mempty
+                        }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -905,10 +911,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
                         , slimAlignment = if isTree then finalAlignment
                                           else mempty
-                        , slimIAPrelim = if isTree then finalAlignment
-                                         else mempty
-                        , slimIAFinal = if isTree then extractMediansGapped $ finalAlignment
-                                        else mempty
+                        , slimIAPrelim  = if isTree then finalAlignment
+                                          else mempty
+                        , slimIAFinal  =  if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
                         }
          -- )
 
@@ -917,14 +923,28 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
              finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
-         else childChar {wideFinal = finalAssignment', wideAlignment = finalAlignment, wideIAPrelim = finalAlignment, wideIAFinal = extractMediansGapped $ finalAlignment}
+         else childChar { wideFinal = finalAssignment'
+                        , wideAlignment = if isTree then finalAlignment
+                                          else mempty
+                        , wideIAPrelim =  if isTree then finalAlignment
+                                          else mempty
+                        , wideIAFinal =   if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
+                        }
 
       else if localCharType == HugeSeq then
          let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
              finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
-         else childChar {hugeFinal = finalAssignment', hugeAlignment = finalAlignment, hugeIAPrelim = finalAlignment, hugeIAFinal = extractMediansGapped $ finalAlignment}
+         else childChar { hugeFinal = finalAssignment'
+                        , hugeAlignment = if isTree then finalAlignment
+                                          else mempty
+                        , hugeIAPrelim =  if isTree then finalAlignment
+                                          else mempty
+                        , hugeIAFinal =   if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
+                        }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -951,7 +971,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          --  trace ("TNFinal-Tree:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
-         let finalGappedT = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
@@ -961,11 +981,11 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                     in
                                     extractMedians finalAssignmentDOGapped
                                     -- really could/should be mempty since overwritten by IA later
-                                 else extractMedians finalGappedT
+                                 else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = GV.filter (/= 0) finalAssignmentDO
-                        , slimAlignment = if isTree then finalGappedT
+                        , slimAlignment = if isTree then finalGapped
                                           else mempty
                         }
          -- )
@@ -983,7 +1003,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar {wideFinal = GV.filter (/= 0) finalAssignmentDO, wideAlignment = finalGapped}
+         else childChar { wideFinal = GV.filter (/= 0) finalAssignmentDO
+                        , wideAlignment = if isTree then finalGapped
+                                          else mempty
+                        }
 
       else if localCharType == HugeSeq then
          let finalGapped = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
@@ -998,12 +1021,16 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar {hugeFinal = GV.filter (/= zeroBits) finalAssignmentDO, hugeAlignment = finalGapped}
+         else childChar { hugeFinal = GV.filter (/= zeroBits) finalAssignmentDO
+                        , hugeAlignment = if isTree then finalGapped
+                                          else mempty
+                        }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
+   -- this doens't work--need to redo pass logic--perhaps by doing "grandparent" 
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
       if localCharType == Add then
@@ -1047,17 +1074,22 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
-         else childChar { wideFinal = wideFinal parentChar
-                   , wideAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-                   -- , wideIAPrelim = wideIAPrelim parentChar
-                   , wideIAFinal = wideFinal parentChar}
+         else childChar { wideFinal = if isTree then wideFinal parentChar
+                                      else mempty
+                        , wideAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+                       -- , wideIAPrelim = wideIAPrelim parentChar
+                        , wideIAFinal = wideFinal parentChar
+                        }
 
       else if localCharType == HugeSeq then
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
-         else childChar { hugeFinal = hugeFinal parentChar
-                   , hugeAlignment =  DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-                   -- , hugeIAPrelim = hugeIAPrelim parentChar
-                   , hugeIAFinal = hugeFinal parentChar}
+         else childChar { hugeFinal = if isTree then hugeFinal parentChar
+                                      else mempty
+                        , hugeAlignment =  DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+                        -- , hugeIAPrelim = hugeIAPrelim parentChar
+                        , hugeIAFinal = if isTree then hugeFinal parentChar
+                                       else mempty
+                        }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
       -- )
