@@ -42,6 +42,7 @@ ToDo:
 
 
 module Utilities.ThreeWayFunctions  ( threeMedianFinal
+                                    , addGapsToChildren
                                     ) where
 
 import           Bio.DynamicCharacter
@@ -52,6 +53,8 @@ import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
 import           Debug.Trace
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
@@ -59,6 +62,10 @@ import qualified GraphOptimization.Medians   as M
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified SymMatrix                   as S
+import           Foreign.C.Types             (CUInt)
+import           Data.Word
+import qualified Data.MetricRepresentation   as MR
+import qualified Data.TCM.Dense              as TCMD
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -85,13 +92,31 @@ threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode =
       in curNode {matrixStatesFinal = threeFinal}
       
    else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-      curNode
+      let threeFinal = threeWaySlim charInfo parent1 parent2 curNode
+      in 
+      curNode { slimFinal = threeFinal
+              , slimAlignment = mempty
+              , slimIAPrelim = mempty
+              , slimIAFinal = mempty
+              }
          
    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-      curNode
+      let threeFinal = threeWayWide charInfo parent1 parent2 curNode
+      in 
+      curNode { wideFinal = threeFinal
+              , wideAlignment = mempty
+              , wideIAPrelim = mempty
+              , wideIAFinal = mempty
+              }
       
    else if localCharType == HugeSeq then
-      curNode
+      let threeFinal = threeWayHuge charInfo parent1 parent2 curNode
+      in 
+      curNode { hugeFinal = threeFinal
+              , hugeAlignment = mempty
+              , hugeIAPrelim = mempty
+              , hugeIAFinal = mempty
+              }
       
    else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
@@ -198,4 +223,224 @@ getBestPairCostAndState costMatrix maxCost numStates childStateCostV medianState
    where g cM mC mS pC pS = if pC == mC then (mC, pS)
                                else (cM S.! (mS, pS), pS)
 
+-- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
+-- 2) inserting gaps to make all 3 line up
+-- 3) creating 3-medians
+-- 4) choosing lowest cost median 
+threeWaySlim ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> SV.Vector CUInt
+threeWaySlim charInfo parent1 parent2 curNode =
+   let -- pairwise median structures 
+       p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
+       p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
+       p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
 
+       -- get 3rd to pairwise
+       p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
+       p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
+       p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+
+       (a1,b1,c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
+       (median1, cost1) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a1 b1 c1 
+
+       (a2,b2,c2) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
+       (median2, cost2) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a2 b2 c2 
+
+       (a3,b3,c3) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
+       (median3, cost3) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a3 b3 c3 
+
+       minCost = minimum [cost1, cost2, cost3]
+
+   in
+   if cost1 == minCost then median1
+   else if cost2 == minCost then median2
+   else median3
+
+
+
+-- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
+-- 2) inserting gaps to make all 3 line up
+-- 3) creating 3-medians
+-- 4) choosing lowest cost median 
+threeWayWide ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> UV.Vector Word64
+threeWayWide charInfo parent1 parent2 curNode = 
+   let -- pairwise median structures 
+       p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
+       p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
+       p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+
+       -- get 3rd to pairwise
+       p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
+       p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
+       p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+
+       (a1,b1,c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
+       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a1 b1 c1 
+
+       (a2,b2,c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
+       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2 
+
+       (a3,b3,c3) = addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
+       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3 
+
+       minCost = minimum [cost1, cost2, cost3]
+
+   in
+   if cost1 == minCost then median1
+   else if cost2 == minCost then median2
+   else median3
+
+-- | threeWayHuge take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
+-- 2) inserting gaps to make all 3 line up
+-- 3) creating 3-medians
+-- 4) choosing lowest cost median 
+threeWayHuge ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> V.Vector BV.BitVector
+threeWayHuge charInfo parent1 parent2 curNode = 
+   let -- pairwise median structures 
+       p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
+       p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
+       p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+
+       -- get 3rd to pairwise
+       p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
+       p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
+       p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+
+       (a1,b1,c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
+       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1 
+
+       (a2,b2,c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
+       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2 
+
+       (a3,b3,c3) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
+       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a3 b3 c3 
+
+       minCost = minimum [cost1, cost2, cost3]
+
+   in
+   if cost1 == minCost then median1
+   else if cost2 == minCost then median2
+   else median3
+
+
+
+-- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
+addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
+addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
+   let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
+   in
+   if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
+      ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
+   else (reGappedParentFinal, reGappedLeft, reGappedRight)
+
+-- | slideRegap takes two version of same vectors (1st and snd) one with additional gaps and if the two aren't equal then adds gaps
+-- to the 3rd and 4th input vectors
+slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
+slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
+   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode))) (
+   if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
+   else
+      let firstRGN = GV.head reGappedNode
+          firstGN = GV.head  gappedNode
+      in
+
+      -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
+      -- can copmplete the remainder of the slide as gaps only
+      if GV.null gappedNode then
+        let gapList = replicate  (GV.length reGappedNode) (bit gapIndex)
+        in
+        (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
+
+      else if firstRGN /= firstGN then
+         let gap = bit gapIndex
+         in
+         slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
+
+      -- no "new gap"
+      else -- if firstRGN == firstGN then
+         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
+    -- )
+
+-- | get3WayGeneric takes thee vectors and produces a (median, cost) pair
+get3WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> e -> (e, Word)) -> v e -> v e -> v e -> (v e, Word)
+get3WayGeneric tcm in1 in2 in3 =
+   let len   = GV.length in1
+       vt    = V.generate len $ \i -> tcm (in1 GV.! i) (in2 GV.! i) (in3 GV.! i)
+       gen v = let med i = fst $ v V.! i in GV.generate len med
+       add   = V.foldl' (\x e -> x + snd e) 0
+   in  (,) <$> gen <*> add $ vt
+
+
+{-
+Couldn't get types to work
+
+-- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
+-- 2) inserting gaps to make all 3 line up
+-- 3) creating 3-medians
+-- 4) choosing lowest cost median 
+threeWayGeneric :: (FiniteBits e, GV.Vector v e) => CharInfo -> CharacterData -> CharacterData -> CharacterData -> v e
+threeWayGeneric charInfo parent1 parent2 curNode =
+   let localCharType = charType charInfo
+      -- pairwise medina structures 
+       p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
+       p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
+       p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+
+       -- get 3rd to pairwise
+       p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
+       p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
+       p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+
+       (median1, cost1) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+                              let (a1,b1,c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
+                              in
+                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a1 b1 c1 
+                           else if localCharType `elem` [AminoSeq, WideSeq] then 
+                              let (a1,b1,c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
+                              in
+                              get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a1 b1 c1 
+                           else if localCharType == HugeSeq then 
+                              let (a1,b1,c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
+                              in
+                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1 
+                           else error ("Unrecognized character type: " ++ show localCharType)
+
+       (median2, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+                              let (a2,b2,c2) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
+                              in
+                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a2 b2 c2 
+                           else if localCharType `elem` [AminoSeq, WideSeq] then 
+                              let (a2,b2,c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
+                              in
+                              get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2 
+                           else if localCharType == HugeSeq then 
+                              let (a2,b2,c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
+                              in
+                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2  
+                           else error ("Unrecognized character type: " ++ show localCharType)
+
+       (median3, cost3) =  if localCharType `elem` [SlimSeq, NucSeq]  then
+                              let (a3,b3,c3) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
+                              in
+                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a3 b3 c3 
+                           else if localCharType `elem` [AminoSeq, WideSeq] then
+                              let (a3,b3,c3) = addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
+                              in
+                               get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3 
+                           else if localCharType == HugeSeq then 
+                              let (a3,b3,c3) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
+                              in
+                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a3 b3 c3
+                           else error ("Unrecognized character type: " ++ show localCharType)
+
+       
+       minCost = minimum [cost1, cost2, cost3]
+
+   in
+   if cost1 == minCost then median1
+   else if cost2 == minCost then median2
+   else median3
+-}

@@ -63,6 +63,7 @@ import qualified Graphs.GraphOperations      as GO
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+import qualified Utilities.ThreeWayFunctions as TW
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -1133,61 +1134,25 @@ makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
    let localCharType = charType charInfo
    in
    if localCharType `elem` [SlimSeq, NucSeq] then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (fst3 gappedLeftRight) (fst3 nodeChar)
+      let (parentGapped, leftChildGapped, rightChildGapped) = TW.addGapsToChildren  (fst3 gappedLeftRight) (fst3 nodeChar)
           newFinalGapped = M.getFinal3WaySlim (slimTCM charInfo) parentGapped leftChildGapped rightChildGapped
       in
       (M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty, mempty)
 
    else if localCharType `elem` [AminoSeq, WideSeq] then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (snd3 gappedLeftRight) (snd3 nodeChar)
+      let (parentGapped, leftChildGapped, rightChildGapped) = TW.addGapsToChildren  (snd3 gappedLeftRight) (snd3 nodeChar)
           newFinalGapped = M.getFinal3WayWideHuge (wideTCM charInfo) parentGapped leftChildGapped rightChildGapped
       in
       (mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped, mempty)
 
    else if localCharType == HugeSeq then
-      let (parentGapped, leftChildGapped, rightChildGapped) = addGapsToChildren  (thd3 gappedLeftRight) (thd3 nodeChar)
+      let (parentGapped, leftChildGapped, rightChildGapped) = TW.addGapsToChildren  (thd3 gappedLeftRight) (thd3 nodeChar)
           newFinalGapped = M.getFinal3WayWideHuge (hugeTCM charInfo)  parentGapped leftChildGapped rightChildGapped
       in
       (mempty, mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped)
 
    else error ("Unrecognized character type: " ++ show localCharType)
 
--- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
-addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
-addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
-   let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
-   in
-   if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
-      ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
-   else (reGappedParentFinal, reGappedLeft, reGappedRight)
-
--- | slideRegap takes two version of same vectors (1st and snd) one with additional gaps and if the two aren't equal then adds gaps
--- to the 3rd and 4th input vectors
-slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
-slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
-   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode))) (
-   if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
-   else
-      let firstRGN = GV.head reGappedNode
-          firstGN = GV.head  gappedNode
-      in
-
-      -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
-      -- can copmplete the remainder of the slide as gaps only
-      if GV.null gappedNode then
-        let gapList = replicate  (GV.length reGappedNode) (bit gapIndex)
-        in
-        (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
-
-      else if firstRGN /= firstGN then
-         let gap = bit gapIndex
-         in
-         slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
-
-      -- no "new gap"
-      else -- if firstRGN == firstGN then
-         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
-    -- )
 
 
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
