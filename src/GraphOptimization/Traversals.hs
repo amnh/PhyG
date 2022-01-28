@@ -197,7 +197,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    --trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
+    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     -- only static characters
     if nonExactChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -235,7 +235,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    -- )
+    )
 
 
 
@@ -914,9 +914,10 @@ minimalReRootPhyloGraph inGS inGraph originalRoot nodesToRoot =
               | otherwise = errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show (graphType inGS))
         in
         -- trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
+        -- trace ("MRR: " ++ (show $ snd6 inGraph) ++ " -> " ++ (show $ snd6 newGraph)) (
         if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS inGraph originalRoot nextReroots
         else newGraph : minimalReRootPhyloGraph inGS newGraph originalRoot nextReroots
-        -- ) -- )
+        -- ) )
 
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation

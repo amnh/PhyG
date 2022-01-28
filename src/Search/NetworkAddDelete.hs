@@ -72,17 +72,18 @@ moveAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCos
           netEdgeList = LG.labNetEdges (thd6 firstPhyloGraph)
           newGraphList' = concatMap (deleteOneNetAddAll inGS inData numToKeep currentCost firstPhyloGraph) netEdgeList
           newGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList'
-          newGraphCost = snd6 $ head newGraphList
+          newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
+                         else infinity
       in
       if null netEdgeList then trace ("\tNo network edges to move") ([], counter)
-      else if  newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail inPhyloGraphList)
+      else if newGraphCost > currentCost then moveAllNetEdges inGS inData numToKeep (counter + 1) (firstPhyloGraph : curBestGraphList, currentCost) (tail inPhyloGraphList)
       else if newGraphCost < currentCost then
          -- trace ("Found better move")
          moveAllNetEdges inGS inData numToKeep (counter + 1) (newGraphList, newGraphCost) (newGraphList ++ (tail inPhyloGraphList))
 
       else 
-         -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
-         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
+         -- new graph list contains the input graph if equal and filterd unique already in deleteEachNetEdge
+         let newCurSameBestList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
          in
          moveAllNetEdges inGS inData numToKeep (counter + 1) (newCurSameBestList, currentCost) (tail inPhyloGraphList)
 
@@ -125,7 +126,7 @@ insertAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
       -- not sure if should add new graphs to queue to do edge deletion again
       else 
          -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
-         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
+         let newCurSameBestList =  GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
          in
          insertAllNetEdges inGS inData numToKeep (counter + 1) (newCurSameBestList, currentCost) (tail inPhyloGraphList)
 
@@ -137,12 +138,13 @@ insertEachNetEdge :: GlobalSettings -> ProcessedData -> Int -> Maybe VertexCost 
 insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
    else
-      let currentCost = snd6 inPhyloGraph
+      let currentCost = if preDeleteCost == Nothing then snd6 inPhyloGraph
+                        else fromJust preDeleteCost
 
           candidateNetworkEdgeList = getPermissibleEdgePairs (thd6 inPhyloGraph)
 
           -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
-          newGraphList = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS
+          newGraphList = filter (/= emptyPhylogeneticGraph) (fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
 
           minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = if null minCostGraphList then infinity
@@ -280,14 +282,18 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
            newPhyloGraph = if (graphType inGS == SoftWired) then 
                                 -- trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
                                 T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
-                           else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
-                           else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired" 
+                           else if (graphType inGS == HardWired) then 
+                                -- trace ("Insert NewSimple\n:" ++ (LG.prettify newSimple)) 
+                                T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
+                           else error "Unsupported graph type in insertNetEdge.  Must be soft or hard wired" 
 
             
            -- calculates heursitic graph delta
            (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo) 
+                                          
 
            edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
+                          
 
 
        in
@@ -295,8 +301,11 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
        --  ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
        --  ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
 
+       -- force evaluation for HardWired
+       if (graphType inGS) == HardWired then newPhyloGraph
+       
        -- preDelete cost changes criterion for edge move
-       if preDeleteCost == Nothing then 
+       else if preDeleteCost == Nothing then 
           if heuristicDelta + edgeAddDelta < 0 then newPhyloGraph
           else emptyPhylogeneticGraph
           
@@ -384,7 +393,7 @@ deleteAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphC
       -- not sure if should add new graphs to queue to do edge deletion again
       else 
          -- new grapjh list contains the input graph if equal and filterd unique already in deleteEachNetEdge
-         let newCurSameBestList = GO.getBVUniqPhylogeneticGraph True (curBestGraphList ++ newGraphList)
+         let newCurSameBestList =  GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
          in
          deleteAllNetEdges inGS inData numToKeep  (counter + 1)  (newCurSameBestList, currentCost) (tail inPhyloGraphList)
 
@@ -412,6 +421,21 @@ deleteEachNetEdge inGS inData numToKeep force inPhyloGraph =
 
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
+-- but only returns simple graph field 
+deleteNetEdgeSimple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
+deleteNetEdgeSimple inGS inData inPhyloGraph force edgeToDelete =
+ if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
+   else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
+   else 
+       let delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph 
+       in
+       -- 3rd field out of sync byut may be needed for leaf graph later
+       (delSimple, snd6 inPhyloGraph, thd6 inPhyloGraph, fth6 inPhyloGraph, fft6 inPhyloGraph, six6 inPhyloGraph)
+
+
+
+-- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
+-- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- naive for now
 -- force requires reoptimization no matter what--used for net move
 deleteNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
@@ -432,15 +456,19 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
            startVertex = Nothing
 
            (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
+                                    
 
            edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
+                          
            
            -- full two-pass optimization
            newPhyloGraph = if (graphType inGS == SoftWired) then T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
-                           else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
+                           else if (graphType inGS == HardWired) then 
+                              -- trace ("Delete delSimple\n:" ++ (LG.prettify delSimple)) 
+                              T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
-       if force then newPhyloGraph
+       if force || (graphType inGS) == HardWired then newPhyloGraph
        else if heuristicDelta - edgeAddDelta < 0 then newPhyloGraph
        else emptyPhylogeneticGraph
        

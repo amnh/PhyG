@@ -633,3 +633,4 @@ preOrderTreeTraversal
 271) Restructure code
 	IA stuff in module
 	Tree/SoftWired/HArdWired as well 
+272) net move--no need to reoptimize everyhting in delete step

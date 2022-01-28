@@ -139,7 +139,6 @@ netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [Phylog
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
    if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
    else 
-      trace ("Network edge add/delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
@@ -175,28 +174,34 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
 
-               -- performo add/delete operations 
+               -- perform add/delete/move operations 
                (newGraphList, counterDelete) = if doNetDelete || doAddDelete then 
+                                                trace ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.deleteAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) inGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
+                                                )
                                             else (inGraphList, 0)   
 
 
                (newGraphList', counterAdd) = if doNetAdd || doAddDelete then 
+                                                trace ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
+                                                )
                                             else (newGraphList, 0)   
 
                (newGraphList'', counterMove) = if doMove then 
+                                                trace ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.moveAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (concat graphListList, sum counterList)
+                                                )
                                             else (newGraphList', 0)   
 
            in
            trace ("After network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
            newGraphList'
-     )
+     

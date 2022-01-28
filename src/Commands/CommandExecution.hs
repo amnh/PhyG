@@ -195,7 +195,7 @@ setCommand argList globalSettings processedData =
             else if localMethod == DirectOptimization then
                 (globalSettings {finalAssignment = localMethod}, processedData)
             else 
-                trace ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs" ++ head optionList)
+                trace ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs")
                 (globalSettings {finalAssignment = DirectOptimization}, processedData)
 
         else if head commandList == "graphfactor"  then
