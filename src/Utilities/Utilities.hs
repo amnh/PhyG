@@ -332,5 +332,14 @@ getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVec
             (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect) 
 
 
+-- | copyToNothing takes VertexBlockData and copies to VertexBlockDataMaybe
+-- data as nothing
+copyToNothing :: VertexBlockData -> VertexBlockDataMaybe
+copyToNothing vbd = fmap setNothing vbd
+    where setNothing a = V.replicate (V.length a) Nothing
 
 
+-- | copyToJust takes VertexBlockData and copies to VertexBlockDataMaybe
+-- data as Just CharacterData
+copyToJust :: VertexBlockData -> VertexBlockDataMaybe
+copyToJust vbd = fmap (fmap Just) vbd

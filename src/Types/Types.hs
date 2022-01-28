@@ -308,6 +308,11 @@ type LeafData = (NameText, V.Vector CharacterData)
 -- blocks of character data for  a given vertex
 type VertexBlockData = V.Vector (V.Vector CharacterData)
 
+-- | VertexBlockDataMaybe vector over maybe  blocks of character data in block (Vector)
+-- blocks of character data for  a given vertex
+type VertexBlockDataMaybe = V.Vector (V.Vector (Maybe CharacterData))
+
+
 -- | ResolutionData contains vertex information for soft-wired network components
 -- these are used in the idenitification of minimal cost display trees for a block of
 -- data that follow the same display tree

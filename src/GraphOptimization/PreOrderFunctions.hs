@@ -63,6 +63,7 @@ import qualified Graphs.GraphOperations      as GO
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+import qualified Utilities.Utilities         as U
 import qualified Utilities.ThreeWayFunctions as TW
 
 
@@ -97,8 +98,8 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             preOrderBlockVect = V.zipWith (doBlockTraversal inGS finalMethod staticIA rootIndex) inCharInfoVV blockCharacterDecoratedVV
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
-            -- always do IA pass--but only assign to final if finalMethod == ImpliedAlignment
-            preOrderBlockVect' = if hasNonExact then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+            -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
+            preOrderBlockVect' = if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
@@ -331,8 +332,10 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
     -- if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
     -- else
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
+        -- since root cannot have 2nd parent
         let rootLabel = fromJust $ LG.lab inGraph rootIndex
-            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) inCharInfo True False False
+            nothingVertData = U.copyToNothing (vertData rootLabel)
+            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData inCharInfo True False False
             rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
 
             -- left / right to match post-order
@@ -359,7 +362,8 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
 updateIsolatedNode :: GlobalSettings -> AssignmentMethod -> Bool -> CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
 updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabel) =
     -- root so final = preliminary
-    let newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) inCharInfo True False False
+    let nothingVertData = U.copyToNothing (vertData inNodeLabel)
+        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData inCharInfo True False False
     in
     (inNodeIndex, inNodeLabel {vertData = newVertData})
 
@@ -380,12 +384,27 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
     if null nodesToUpdate then updatedNodes
     else
         let (firstNode, firstParent, isLeft) = head nodesToUpdate
+
+            -- get current node data
             firstLabel = snd firstNode
             firstNodeType = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstVertData = vertData firstLabel
-            firstParentVertData = vertData $ snd firstParent
-            firstChildren = LG.labDescendants inGraph firstNode
+
+            -- get node parent data--check if more than one
             firstParents = LG.labParents inGraph $ fst firstNode
+
+            -- if single parent then as usual--else take head of two so no confusion as to whichn is which
+            -- this is holdover from no indegree 2 nodes--could be simplified and return structures changed
+            firstParentVertData = if (length firstParents == 1) then vertData $ snd firstParent
+                                  else vertData $ snd $ head firstParents
+
+            secondParentData = if (length firstParents == 1) then U.copyToNothing firstParentVertData
+                               else U.copyToJust $ vertData $ snd $ last firstParents
+            
+            -- child data
+            firstChildren = LG.labDescendants inGraph firstNode
+
+            -- booleans for further pass
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
             isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- harwired can happen, need to pass both parents
 
@@ -395,7 +414,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
               | length firstChildrenBV == 1 = [True]
               | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
               | otherwise = [True, False]
-            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData inCharInfo isLeft isIn1Out1 isIn2Out1
+            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
             
             -- check children if indegree == 2 then don't add to nodes to do if in there already
@@ -819,20 +838,32 @@ createFinalAssignmentOverBlocks :: GlobalSettings
                                 -> NodeType
                                 -> VertexBlockData
                                 -> VertexBlockData
+                                -> VertexBlockDataMaybe -- second parent if indegree 2 node
                                 -> CharInfo
                                 -> Bool
                                 -> Bool
                                 -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData charInfo isLeft isInOutDegree1 isIn2Out1 =
+createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData parent2BlockDataM charInfo isLeft isInOutDegree1 isIn2Out1 =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1) childBlockData parentBlockData
+   V.zipWith3 (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1) childBlockData parentBlockData parent2BlockDataM
 
 
 -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type
 -- to create pre-order assignments
-assignFinal ::  GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharacterData
-assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 = V.zipWith (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1)
+assignFinal :: GlobalSettings 
+            -> AssignmentMethod 
+            -> Bool 
+            -> NodeType 
+            -> Bool 
+            -> CharInfo 
+            -> Bool 
+            -> Bool 
+            -> V.Vector CharacterData 
+            -> V.Vector CharacterData 
+            -> V.Vector (Maybe CharacterData) 
+            -> V.Vector CharacterData
+assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 = V.zipWith3 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1)
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type
 -- to create pre-order assignments
@@ -843,8 +874,8 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
 -- no IA for networks--at least for now.Bool -> 
-setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> CharacterData-> CharacterData -> CharacterData
-setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar =
+setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> CharacterData -> CharacterData -> Maybe CharacterData -> CharacterData
+setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
        isTree = (graphType inGS) == Tree
@@ -1096,7 +1127,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- )
 
       --for Hardwired graphs
-   else if isIn2Out1 then error ("in 2 out 1 final not yet implemented")
+   else if isIn2Out1 then 
+        if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal") 
+        else TW.threeMedianFinal  inGS finalMethod charInfo parentChar (fromJust parent2CharM) childChar
    
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )

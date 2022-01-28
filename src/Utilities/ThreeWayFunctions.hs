@@ -95,27 +95,18 @@ threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode =
       let threeFinal = threeWaySlim charInfo parent1 parent2 curNode
       in 
       curNode { slimFinal = threeFinal
-              , slimAlignment = mempty
-              , slimIAPrelim = mempty
-              , slimIAFinal = mempty
               }
          
    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
       let threeFinal = threeWayWide charInfo parent1 parent2 curNode
       in 
       curNode { wideFinal = threeFinal
-              , wideAlignment = mempty
-              , wideIAPrelim = mempty
-              , wideIAFinal = mempty
               }
       
    else if localCharType == HugeSeq then
       let threeFinal = threeWayHuge charInfo parent1 parent2 curNode
       in 
       curNode { hugeFinal = threeFinal
-              , hugeAlignment = mempty
-              , hugeIAPrelim = mempty
-              , hugeIAFinal = mempty
               }
       
    else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -184,14 +175,14 @@ getMinStatePair costMatrix maxCost numStates p1CostV p2CostV curCostV =
        medianChildCostPairVect = fmap (getBestPairCostAndState costMatrix maxCost numStates curCostV) [0..(numStates - 1)]
 
        -- get 3 sum costs and best state value
-       threeWayStateCostList = zipWith3 a3 bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
+       threeWayStateCostList = zipWith3 a bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
        minThreeWayCost = minimum threeWayStateCostList
 
        finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
 
    in 
    V.fromList finalStateCostL
-   where a3 a b c = a + b + c
+   where a a b c = a + b + c
 
 -- | assignBestMax checks 3-way median state cost and if minimum sets to that otherwise sets to max
 -- double 2nd field for 2-child type asumption
@@ -281,7 +272,7 @@ threeWayWide charInfo parent1 parent2 curNode =
        (a2,b2,c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
        (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2 
 
-       (a3,b3,c3) = addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
+       (a3,b3,c3)= addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
        (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3 
 
        minCost = minimum [cost1, cost2, cost3]
@@ -309,7 +300,7 @@ threeWayHuge charInfo parent1 parent2 curNode =
        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
 
        (a1,b1,c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
-       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1 
+       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1
 
        (a2,b2,c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
        (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2 
@@ -373,15 +364,13 @@ get3WayGeneric tcm in1 in2 in3 =
    in  (,) <$> gen <*> add $ vt
 
 
-{-
-Couldn't get types to work
-
+{-Not using this now--but could-}
 -- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via 
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
 -- 4) choosing lowest cost median 
-threeWayGeneric :: (FiniteBits e, GV.Vector v e) => CharInfo -> CharacterData -> CharacterData -> CharacterData -> v e
+threeWayGeneric :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 threeWayGeneric charInfo parent1 parent2 curNode =
    let localCharType = charType charInfo
       -- pairwise medina structures 
@@ -394,53 +383,70 @@ threeWayGeneric charInfo parent1 parent2 curNode =
        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
 
-       (median1, cost1) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
-                              let (a1,b1,c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
-                              in
-                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a1 b1 c1 
-                           else if localCharType `elem` [AminoSeq, WideSeq] then 
-                              let (a1,b1,c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
-                              in
-                              get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a1 b1 c1 
-                           else if localCharType == HugeSeq then 
-                              let (a1,b1,c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
-                              in
-                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1 
-                           else error ("Unrecognized character type: " ++ show localCharType)
+       (median1Slim, median1Wide, median1Huge, cost1) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+                                                            let (a,b,c) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
+                                                                (median, cost) = get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a b c
+                                                            in
+                                                            (median, mempty, mempty, cost)
+                                                         else if localCharType `elem` [AminoSeq, WideSeq] then 
+                                                            let (a,b,c) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
+                                                            in
+                                                            (mempty, median, mempty, cost)
+                                                         else if localCharType == HugeSeq then 
+                                                            let (a,b,c) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
+                                                            in
+                                                            (mempty, mempty, median, cost)
+                                                         else error ("Unrecognized character type: " ++ show localCharType)
 
-       (median2, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
-                              let (a2,b2,c2) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
-                              in
-                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a2 b2 c2 
-                           else if localCharType `elem` [AminoSeq, WideSeq] then 
-                              let (a2,b2,c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
-                              in
-                              get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2 
-                           else if localCharType == HugeSeq then 
-                              let (a2,b2,c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
-                              in
-                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2  
-                           else error ("Unrecognized character type: " ++ show localCharType)
+       (median2Slim, median2Wide, median2Huge, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+                                                            let (a,b,c) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
+                                                                (median, cost) = get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a b c
+                                                            in
+                                                            (median, mempty, mempty, cost)
+                                                         else if localCharType `elem` [AminoSeq, WideSeq] then 
+                                                            let (a,b,c) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
+                                                            in
+                                                            (mempty, median, mempty, cost)
+                                                         else if localCharType == HugeSeq then 
+                                                            let (a,b,c) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
+                                                            in
+                                                            (mempty, mempty, median, cost)
+                                                         else error ("Unrecognized character type: " ++ show localCharType)
 
-       (median3, cost3) =  if localCharType `elem` [SlimSeq, NucSeq]  then
-                              let (a3,b3,c3) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
-                              in
-                              get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a3 b3 c3 
-                           else if localCharType `elem` [AminoSeq, WideSeq] then
-                              let (a3,b3,c3) = addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
-                              in
-                               get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3 
-                           else if localCharType == HugeSeq then 
-                              let (a3,b3,c3) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
-                              in
-                              get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a3 b3 c3
-                           else error ("Unrecognized character type: " ++ show localCharType)
+       (median3Slim, median3Wide, median3Huge, cost3) =  if localCharType `elem` [SlimSeq, NucSeq]  then
+                                                            let (a,b,c) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
+                                                                (median, cost) = get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a b c
+                                                            in
+                                                            (median, mempty, mempty, cost)
+                                                         else if localCharType `elem` [AminoSeq, WideSeq] then
+                                                            let (a,b,c) = addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
+                                                            in
+                                                             (mempty, median, mempty, cost)
+                                                         else if localCharType == HugeSeq then 
+                                                            let (a,b,c) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
+                                                                (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
+                                                            in
+                                                            (mempty, mempty, median, cost)
+                                                         else error ("Unrecognized character type: " ++ show localCharType)
 
        
        minCost = minimum [cost1, cost2, cost3]
+       (medianBestSlim, medianBestWide, medianBestHuge) =  if cost1 == minCost then (median1Slim, median1Wide, median1Huge)
+                                                           else if cost2 == minCost then (median2Slim, median2Wide, median2Huge)
+                                                           else (median3Slim, median3Wide, median1Huge)
 
+   
    in
-   if cost1 == minCost then median1
-   else if cost2 == minCost then median2
-   else median3
--}
+   -- set for correct data type
+   if localCharType `elem` [SlimSeq, NucSeq]  then emptyCharacter {slimFinal = medianBestSlim}
+      
+   else if localCharType `elem` [AminoSeq, WideSeq] then emptyCharacter {wideFinal = medianBestWide}
+       
+   else if localCharType == HugeSeq then emptyCharacter {hugeFinal = medianBestHuge}
+       
+   else error ("Unrecognized character type: " ++ show localCharType) 
