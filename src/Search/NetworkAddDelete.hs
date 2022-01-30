@@ -55,6 +55,7 @@ import qualified Graphs.GraphOperations  as GO
 import Data.Bits
 import Data.Maybe
 import qualified Data.Vector as V
+import qualified GraphOptimization.Medians as M
 
 -- Need a "steepest" that takes first better netowrk for add and delete.
 -- Choose order in max branch length, root-end, leaf-end, and at random
@@ -324,6 +325,14 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 heuristicAddDelta :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> LG.Node -> LG.Node -> (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo)
 heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
+  else if graphType inGS == HardWired then
+      let uvVertData = M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u, v, dummyEdge)
+          uvPrimeData =  M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u', v', dummyEdge)
+          hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks uvVertData uvPrimeData (six6 inPhyloGraph) []
+      in
+      (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
+
+  -- softwired 
   else
       let uLab =      fromJust $ LG.lab (thd6 inPhyloGraph) u
           uPrimeLab = fromJust $ LG.lab (thd6 inPhyloGraph) u'
@@ -481,6 +490,9 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
 heuristicDeleteDelta :: GlobalSettings -> PhylogeneticGraph -> LG.Edge -> (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo)
 heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
+  else if graphType inGS == HardWired then 
+      -- ensures delete--will always be lower or equakl cost if delete edge from HardWired
+      (-1, dummyNode, dummyNode)
   else
       let inGraph = thd6 inPhyloGraph
           u  = head $ LG.parents inGraph n1

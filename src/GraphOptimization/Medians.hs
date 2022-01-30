@@ -55,6 +55,7 @@ module GraphOptimization.Medians  ( median2
                                   , getDOMedianCharInfo
                                   , pairwiseDO
                                   , makeDynamicCharacterFromSingleVector
+                                  , makeEdgeData
                                   , createEdgeUnionOverBlocks
                                   , get2WaySlim
                                   , get2WayWideHuge
@@ -80,6 +81,8 @@ import           Foreign.C.Types             (CUInt)
 import           GeneralUtilities
 import qualified SymMatrix                   as S
 import           Types.Types
+import qualified Utilities.LocalGraph    as LG
+import Data.Maybe
 
 
 --import qualified Data.Alphabet as DALPH
@@ -588,7 +591,7 @@ union2 doIA filterGaps = V.zipWith3 (union2Single doIA filterGaps)
 -- union2Single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hence other vertices later) have the same number of each type of character
 -- used IAFinal states for dynamic characters
--- used in heurstic greaph build and rearrangement
+-- used in heurstic graph build and rearrangement
 union2Single :: Bool -> Bool -> CharacterData -> CharacterData -> CharInfo -> CharacterData
 union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
@@ -613,6 +616,13 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
+-- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
+makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
+makeEdgeData doIA inGraph charInfoVV (eNode, vNode, _) =
+   let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
+       vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+   in
+   createEdgeUnionOverBlocks doIA (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and

@@ -490,7 +490,7 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
           existingEdgeCost = minLength targetlabel
           edge0 = (nakedNode, vNode, 0.0)
           edge1 = (eNode, nakedNode, 0.0)
-          targetEdgeData = makeEdgeData doIA inGraph charInfoVV targetEdge
+          targetEdgeData = M.makeEdgeData doIA inGraph charInfoVV targetEdge
           -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
           --newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
 
@@ -592,7 +592,7 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootNode splitCost parentPrune
    let existingEdgeCost = minLength targetlabel
        edge0 = (parentPrunedRoot, vNode, 0.0)
        edge1 = (eNode, parentPrunedRoot, 0.0)
-       targetEdgeData = makeEdgeData doIA inGraph charInfoVV targetEdge 
+       targetEdgeData = M.makeEdgeData doIA inGraph charInfoVV targetEdge 
        -- edge2 = (nakedNode, prunedGraphRootIndex, 0.0)
        --newNode = (nakedNode, TL.pack ("HTU" ++ (show nakedNode)))
        -- if subtree fewer than 3 leaves then can only do an SPR rearragement--no rerro0ts
@@ -707,7 +707,7 @@ getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGra
           edgeAfterList' = virtualRootEdge : (nonNetWorkEdgeList L.\\ prunedRootEdges)
 
           -- could be parallelized
-          edgeDataList = fmap (makeEdgeData doIA inGraph charInfoVV) edgeAfterList' `using` PU.myParListChunkRDS
+          edgeDataList = fmap (M.makeEdgeData doIA inGraph charInfoVV) edgeAfterList' `using` PU.myParListChunkRDS
 
           -- get potential TBR edits--here so not recalculated multiple times for each prune
           edgeEdits = fmap (getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph) (fmap LG.toEdge edgeAfterList') `using` PU.myParListChunkRDS
@@ -716,17 +716,6 @@ getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGra
       else
          --trace ("PED: " ++ (show  $ zip (fmap length edgeDataList) (fmap LG.toEdge edgeAfterList')) ++ " SG edges: " ++ (show $ fmap LG.toEdge edgesInPrunedSubGraph))  
          zip3 (fmap LG.toEdge edgeAfterList') edgeDataList edgeEdits
-
--- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
-makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
-makeEdgeData doIA inGraph charInfoVV inEdge =
-   let eNode = fst3 inEdge
-       vNode = snd3 inEdge
-       eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-       vNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-   in
-   M.createEdgeUnionOverBlocks doIA (not doIA) eNodeVertData vNodeVertData charInfoVV []
-
 
 
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
@@ -747,7 +736,7 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
        -- create edge union 'character' blockData
        -- based on final assignments but set to preliminary
        -- need to filter gaps if DO, not itIA
-       --edgeUnionVertData = makeEdgeData doIA inGraph charInfoVV evEdge
+       --edgeUnionVertData = M.makeEdgeData doIA inGraph charInfoVV evEdge
        -- edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
        -- Use edge union data for delta to edge data
