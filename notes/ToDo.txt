@@ -636,3 +636,7 @@ preOrderTreeTraversal
 272) net move--no need to reoptimize everyhting in delete step
 
 272) check default numb to keep 1/2 etc
+
+273) for edges--don't use as split edge if "sister" edge incident on network node
+	-- or sister node is network node
+
