@@ -104,10 +104,15 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
     if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren) ++ "\nGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
+    
+    -- if node in multiple times due to network--put off optimizatin till last time
+    else if curNodeIndex `elem` (fmap fst $ tail oldNodeList) then reOptimizeNodes inGS charInfoVectVect inGraph (tail oldNodeList)
+
     else if not $ null foundCurChildern then
       -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
       reOptimizeNodes inGS charInfoVectVect inGraph (tail oldNodeList ++ [curNode])
 
+    
     -- somehow root before others -- remove if not needed after debug
     else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
         error ("Root first :" ++ (show $ fmap fst oldNodeList) ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
@@ -980,6 +985,11 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
             else if hasNetLeaf then
                 --trace ("Graph with HTU network vertex--skipping reroot")
                 (LG.empty, [])
+            {-
+            else if LG.cyclic newGraph then
+                trace ("Cycle")
+                (LG.empty, [])
+            -}
             else
                 {-
                 trace ("Original root edges:" ++ (show origRootEdges)

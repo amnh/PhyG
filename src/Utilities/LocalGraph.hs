@@ -61,6 +61,7 @@ import Debug.Trace
 import qualified Data.List as L
 import qualified Data.Vector                 as V
 import qualified Data.Map as MAP
+import qualified Cyclic                            as C
 
 
 
@@ -837,3 +838,7 @@ artpoints g v = arp (getLowTree g v)
 -}
 ap' :: Gr a b -> [Node]
 ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
+
+-- | cyclic maps to cyclic funcitn in moduel Cyclic.hs
+cyclic :: Gr a b -> Bool
+cyclic inGraph = C.cyclic inGraph

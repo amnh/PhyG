@@ -71,7 +71,7 @@ moveAllNetEdges inGS inData numToKeep counter (curBestGraphList, curBestGraphCos
       let firstPhyloGraph = head inPhyloGraphList
           currentCost = min curBestGraphCost (snd6 firstPhyloGraph)
           netEdgeList = LG.labNetEdges (thd6 firstPhyloGraph)
-          newGraphList' = concatMap (deleteOneNetAddAll inGS inData numToKeep currentCost firstPhyloGraph) netEdgeList
+          newGraphList' = concatMap (deleteOneNetAddAll inGS inData numToKeep currentCost firstPhyloGraph) netEdgeList -- parallelizes later
           newGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList'
           newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
                          else infinity

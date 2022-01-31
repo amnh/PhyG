@@ -173,7 +173,9 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this
         -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
-        recursiveRerootList = outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
+        -- hardwired reroot cause much pain
+        recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
+                              else outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
 
         -- perform traceback on resolution caches is graphtype = softWired
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
@@ -197,7 +199,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
+    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     -- only static characters
     if nonExactChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -235,7 +237,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    )
+    -- )
 
 
 

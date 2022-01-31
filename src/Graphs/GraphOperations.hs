@@ -132,10 +132,7 @@ getEdgeSplitList inGraph =
 
           -- filter out edges starting in an outdegree 1 node (network or in out 1) node
           -- this would promote an HTU to a leaf later.  Its a bridge, but not what need
-          bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
-
-          parentOfBridgeNodeList = filter (not . LG.isRoot inGraph) $  filter  (not . LG.isOutDeg1Node inGraph) $ LG.ap' $ LG.undir inGraph
-          bridgeTarjanList = filter ((`elem` parentOfBridgeNodeList) .fst3) origEdgeList
+          bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter ((not. LG.isNetworkNode inGraph) . snd3)  $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
        
        {-
