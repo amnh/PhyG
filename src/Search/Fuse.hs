@@ -295,7 +295,10 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR do
 
           -- this based on heuristic deltas
           bestFuseCost = minimum $ fmap snd recombinedSimpleGraphCostPairList
-          bestFuseSimpleGraphs = fmap fst $ filter ((== bestFuseCost) . snd) recombinedSimpleGraphCostPairList
+
+          -- check harwired for cycles
+          bestFuseSimpleGraphs = if (graphType inGS == HardWired ) then fmap fst $ filter ((== bestFuseCost) . snd) $ filter ((== False) . (LG.cyclic . fst)) $ recombinedSimpleGraphCostPairList
+                                 else fmap fst $ filter ((== bestFuseCost) . snd) recombinedSimpleGraphCostPairList
           
       in
       --trace ("Checking in fusing") (

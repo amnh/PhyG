@@ -842,7 +842,13 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
         -- could just update with needges? from simple graph rerooting
         (newDecGraph, touchedNodes)  = if (graphType inGS) == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
                                        else if (graphType inGS) == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
-                                       else if (graphType inGS) == HardWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
+                                       else if (graphType inGS) == HardWired then 
+                                         if (not . LG.cyclic) inSimple then 
+                                            let (newDecGraph', touchedNodes') = rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
+                                            in
+                                            if (not . LG.cyclic) newDecGraph' then (newDecGraph', touchedNodes')
+                                            else (LG.empty, [])
+                                         else (LG.empty, []) 
                                        else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))
 
         newSimpleGraph = GO.convertDecoratedToSimpleGraph newDecGraph
@@ -985,6 +991,7 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
             else if hasNetLeaf then
                 --trace ("Graph with HTU network vertex--skipping reroot")
                 (LG.empty, [])
+            
             {-
             else if LG.cyclic newGraph then
                 trace ("Cycle")

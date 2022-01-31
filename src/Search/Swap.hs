@@ -238,7 +238,8 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
           -- keeps better heuristic swap costs graphs based on current best as opposed to minimum heuristic costs
           -- minimumCandidateGraphCost = if (null swapPairList) then infinity
           --                             else minimum $ fmap snd swapPairList
-          candidateSwapGraphList = filter ((== False) . (LG.cyclic . fst)) $ filter ((<= curBestCost). snd) swapPairList
+          candidateSwapGraphList = if (graphType inGS == HardWired) then filter ((== False) . (LG.cyclic . fst)) $ filter ((<= curBestCost). snd) swapPairList
+                                   else filter ((<= curBestCost). snd) swapPairList
 
           
           -- this should be incremental--full 2-pass for now
@@ -272,7 +273,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
-         trace ("\t->" ++ (show bestSwapCost))
+         trace ("\t->" ++ (show bestSwapCost) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
          swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost bestSwapGraphList (bestSwapGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
 
       -- didn't find equal or better graphs
@@ -417,7 +418,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
           minCandidateCost = if (not $ null candidateEditList) then minimum $ fmap fst3 candidateEditList   
                              else infinity
       in
-      -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
+      trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph splitGraph)) (
       if minCandidateCost > curBestCost then []
       else 
          let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if checkk all equal or better than curent best
@@ -425,7 +426,7 @@ rejoinGraphKeepBest inGS swapType curBestCost numToKeep maxMoveEdgeDist steepest
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
          zip swapSimpleGraphList (L.replicate (length swapSimpleGraphList) minCandidateCost)
-      -- )
+      )
 
 -- | rejoinGraphKeepBestSteepest rejoins split trees on available edges (non-root, and not original split)
 -- if steepest is False does not sort order of edges, other wise sorts in order of closeness to original edge
@@ -529,7 +530,12 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
              swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
              reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
          in
-         if (snd6 reoptimizedCandidateGraph < curBestCost) then [reoptimizedCandidateGraph]
+         if (snd6 reoptimizedCandidateGraph < curBestCost) then 
+            if (graphType inGS == HardWired) then
+                -- check for cycles in HardWired
+                if (not . LG.cyclic) swapSimpleGraph then [reoptimizedCandidateGraph]
+                else []
+            else [reoptimizedCandidateGraph]
          else addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV (tail targetEdgeList)
 
       -- not better heuristic cost

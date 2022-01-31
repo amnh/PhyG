@@ -135,13 +135,7 @@ getEdgeSplitList inGraph =
           bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter ((not. LG.isNetworkNode inGraph) . snd3)  $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
        
-       {-
-       if bridgeTarjanList /=  bridgeList' then 
-        trace ("Not same: " ++ (show parentOfBridgeNodeList) ++ "\n" ++ (show $ fmap LG.toEdge bridgeTarjanList) ++ "\n" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph)) 
-        bridgeList'
-       else bridgeList'
-       -}
-
+       trace ("BridgeList" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph)) 
        bridgeList'
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components

@@ -285,7 +285,8 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
                                 T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
                            else if (graphType inGS == HardWired) then 
                                 -- trace ("Insert NewSimple\n:" ++ (LG.prettify newSimple)) 
-                                T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
+                                if (not . LG.cyclic) newSimple then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
+                                else emptyPhylogeneticGraph
                            else error "Unsupported graph type in insertNetEdge.  Must be soft or hard wired" 
 
             
@@ -474,7 +475,8 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
            newPhyloGraph = if (graphType inGS == SoftWired) then T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
                            else if (graphType inGS == HardWired) then 
                               -- trace ("Delete delSimple\n:" ++ (LG.prettify delSimple)) 
-                              T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
+                              if (not . LG.cyclic) delSimple then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
+                              else emptyPhylogeneticGraph
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
        if force || (graphType inGS) == HardWired then newPhyloGraph

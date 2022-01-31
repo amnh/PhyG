@@ -177,6 +177,33 @@ out = G.out
 parents :: Gr a b -> Node -> [Node]
 parents inGraph inNode = fst3 <$> G.inn inGraph inNode
 
+-- | grandParents of unlabelled node
+grandParents :: Gr a b -> Node -> [Node]
+grandParents inGraph inNode =
+    let nodeParents = parents inGraph inNode
+    in
+    concatMap (parents inGraph) nodeParents
+
+-- | sharedGrandParents sees if a node has common grandparents
+sharedGrandParents :: Gr a b -> Node -> Bool
+sharedGrandParents inGraph inNode = 
+    let parentList = parents inGraph inNode
+        grandParentLists = fmap (parents inGraph) parentList
+        intersection = L.foldl1' L.intersect grandParentLists
+    in
+    --True
+    if null intersection then False else True
+
+-- | incestuousGraph  cehcks if any nodces with shared grandparents
+incestuousGraph :: Gr a b -> Bool
+incestuousGraph inGraph =
+    if isEmpty inGraph then error ("Empty graph in incestuousGraph")
+    else 
+        let nodeList = nodes inGraph
+            naughtyList = filter (==True) $ fmap (sharedGrandParents inGraph) nodeList
+        in
+        if null naughtyList then False
+        else True
 
 -- | labParents returns the labelled parents of a node
 labParents :: (Eq a) => Gr a b -> Node -> [LNode a]
