@@ -64,10 +64,12 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , contractIn1Out1EdgesRename
                                , renameSimpleGraphNodes
                                , generateDisplayTreesRandom
+                               , hasNetNodeAncestorViolation
                                ) where
 
 import qualified Data.List                 as L
 import qualified Data.BitVector.LittleEndian as BV
+import Data.Bits
 import qualified Data.Text.Lazy            as T
 import qualified Data.Vector               as V
 import           Debug.Trace
@@ -135,7 +137,7 @@ getEdgeSplitList inGraph =
           bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter ((not. LG.isNetworkNode inGraph) . snd3)  $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
       in
        
-       trace ("BridgeList" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph)) 
+       -- trace ("BridgeList" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph)) 
        bridgeList'
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
@@ -556,12 +558,11 @@ deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
 -- must be compatible A intersect B = A|B|Empty for teh graph to be time consistant.
 -- would be edge based to check before and a network edge were to be added
 
---Logic wrong--may have to look at each pair of in-nodes to network edge
-
+--Only checks ancestor descendent edges for now-- not full tinme consistencey
 verifyTimeConsistency :: SimpleGraph -> SimpleGraph
 verifyTimeConsistency inGraph =
    if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
-   else inGraph
+   else LG.transitiveReduceGraph inGraph
 
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
@@ -946,3 +947,38 @@ createBVUniqueBoolList inBVGraphListList boolAccum =
 -- | makeDummyLabEdge takes an unlabelled edge and adds a dummy label
 makeDummyLabEdge :: EdgeInfo -> LG.Edge -> LG.LEdge EdgeInfo
 makeDummyLabEdge edgeLab (u,v) = (u,v,edgeLab)
+
+-- | netNodeAncestorViolation checks whether one of the edge into a netowrk node (in 2)
+-- is cinnected to an ancestor (via the other parent) of the node
+-- this is a form of time violation since the parents of a network node must be
+-- at least possibly coeval
+-- this uses the bit vector label of nodes.  If the other child of either parent node
+-- of a network node has non-zero intersection between the BV label of the network node
+-- and that other child of parent then they conecting edge is from and ancestral node hence a time violation
+-- O(n) n netork nodes in Graph, but checks all nodes to see if network 
+hasNetNodeAncestorViolation :: LG.Gr VertexInfo b -> Bool
+hasNetNodeAncestorViolation inGraph =
+  if LG.isEmpty inGraph then error "Empty graph in hasNetNodeAncestorViolation"
+  else
+    let (_, _, _, netWorkNodeList) =  LG.splitVertexList inGraph
+        hasAncViolationList = filter (== True) $ fmap (nodeAncViolation inGraph) netWorkNodeList
+    in
+    -- trace ("HNV: " ++ (show $ (not . null) hasAncViolationList))
+    (not . null) hasAncViolationList
+
+-- | nodeAncViolation checks a single node fo ancestrpo connection--he ceviolation
+-- should be O(1).  Return True if violation
+nodeAncViolation :: LG.Gr VertexInfo b -> LG.LNode VertexInfo -> Bool
+nodeAncViolation inGraph inNode =
+  let parentList = LG.labParents inGraph (fst inNode)
+  in
+  if length parentList /= 2 then error ("Parent number should be 2: " ++ (show $ fst inNode) ++ " <- " ++ (show $ fmap fst parentList)) 
+  else 
+    let sisterNodes = concatMap (LG.sisterLabNodes inGraph) parentList
+        sisterBVData = fmap (bvLabel . snd) sisterNodes
+        inNodeBVData = bvLabel $ snd inNode
+        sisterBVIntersections = fmap (.&. inNodeBVData) sisterBVData
+        isAncInNode = filter (== inNodeBVData) sisterBVIntersections
+    in
+    (not . null) isAncInNode
+

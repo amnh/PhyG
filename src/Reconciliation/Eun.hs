@@ -410,17 +410,17 @@ addAndReIndexEdges keepMethod indexedNodes edgesToExamine uniqueReIndexedEdges =
 -- | testEdge nodeList fullEdgeList) counter
 -- chnage to input graph and delete edge from graph as opposed to making new graphs each time.
 -- should be much faster using P.delLEdge (since only one edge to delete)
-testEdge :: P.Gr BV.BV (BV.BV, BV.BV) -> G.LEdge (BV.BV,BV.BV) -> [G.LEdge (BV.BV,BV.BV)]
+testEdge :: (Eq b) => P.Gr a b -> G.LEdge b -> [G.LEdge b]
 testEdge fullGraph candidateEdge@(e,u,_) =
-  let (newGraph :: P.Gr BV.BV (BV.BV, BV.BV)) = G.delLEdge candidateEdge fullGraph
+  let newGraph = G.delLEdge candidateEdge fullGraph
       bfsNodes = BFS.bfs e newGraph
       foundU = L.find (== u) bfsNodes
   in
   [candidateEdge | isNothing foundU]
 
 -- | makeEUN take list of nodes and edges, deletes each edge (e,u) in turn makes graph,
--- checks for path between nodes e and u, if there is delete edge otherwise keep edeg in list for new graph
-makeEUN ::  [G.LNode BV.BV] -> [G.LEdge (BV.BV,BV.BV)] -> P.Gr BV.BV (BV.BV, BV.BV) -> P.Gr BV.BV (BV.BV, BV.BV)
+-- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
+makeEUN ::  (Eq b, NFData b) => [G.LNode a] -> [G.LEdge b] -> P.Gr a b -> P.Gr a b
 makeEUN nodeList fullEdgeList fullGraph =
   let -- counterList = [0..(length fullEdgeList - 1)]
       -- requiredEdges = concat $ fmap (testEdge nodeList fullEdgeList) counterList

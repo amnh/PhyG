@@ -640,3 +640,4 @@ preOrderTreeTraversal
 273) for edges--don't use as split edge if "sister" edge incident on network node
 	-- or sister node is network node
 
+274) need to check for cyclicity and time vaiolation in softwired?

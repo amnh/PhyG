@@ -42,6 +42,7 @@ module Utilities.LocalGraph  where
 
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.DFS as DFS
+import qualified Data.Graph.Inductive.Query.BFS as BFS
 import qualified Data.Graph.Inductive.Query.ArtPoint as AP
 import qualified Data.Graph.Inductive.Basic as B
 import qualified Data.Graph.Inductive.Query.BCC as BCC
@@ -173,6 +174,18 @@ lab = G.lab
 out :: Gr a b -> Node -> [LEdge b]
 out = G.out
 
+-- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
+-- as input node
+sisterLabNodes :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+sisterLabNodes inGraph inNode = 
+    if isEmpty inGraph then error "Empty graph in sisterLabNodes"
+    else 
+        let parentNodeList = labParents inGraph (fst inNode)
+            otherChildrenOfParentsList = (concatMap (labDescendants inGraph) parentNodeList) L.\\ [inNode]
+        in
+        -- shoudl not need nub for phylogenetic graphs but whatever
+        L.nub otherChildrenOfParentsList
+
 -- | parents of unlabelled node
 parents :: Gr a b -> Node -> [Node]
 parents inGraph inNode = fst3 <$> G.inn inGraph inNode
@@ -187,23 +200,15 @@ grandParents inGraph inNode =
 -- | sharedGrandParents sees if a node has common grandparents
 sharedGrandParents :: Gr a b -> Node -> Bool
 sharedGrandParents inGraph inNode = 
-    let parentList = parents inGraph inNode
-        grandParentLists = fmap (parents inGraph) parentList
-        intersection = L.foldl1' L.intersect grandParentLists
-    in
-    --True
-    if null intersection then False else True
-
--- | incestuousGraph  cehcks if any nodces with shared grandparents
-incestuousGraph :: Gr a b -> Bool
-incestuousGraph inGraph =
-    if isEmpty inGraph then error ("Empty graph in incestuousGraph")
+    if isEmpty inGraph then error "Empty gaph in sharedGrandParents"
+    else if isRoot inGraph inNode then False
     else 
-        let nodeList = nodes inGraph
-            naughtyList = filter (==True) $ fmap (sharedGrandParents inGraph) nodeList
+        let parentList = parents inGraph inNode
+            grandParentLists = fmap (parents inGraph) parentList
+            intersection = L.foldl1' L.intersect grandParentLists
         in
-        if null naughtyList then False
-        else True
+        --True
+        if null intersection then False else True
 
 -- | labParents returns the labelled parents of a node
 labParents :: (Eq a) => Gr a b -> Node -> [LNode a]
@@ -868,4 +873,27 @@ ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
 
 -- | cyclic maps to cyclic funcitn in moduel Cyclic.hs
 cyclic :: Gr a b -> Bool
-cyclic inGraph = C.cyclic inGraph
+cyclic inGraph = 
+    -- trace ("Cyclic:" ++ (show $ C.cyclic inGraph))
+    C.cyclic inGraph
+
+-- | testEdge nodeList fullEdgeList) counter
+-- chnage to input graph and delete edge from graph as opposed to making new graphs each time.
+-- should be much faster using P.delLEdge (since only one edge to delete)
+testEdge :: (Eq b) => P.Gr a b -> G.LEdge b -> [G.LEdge b]
+testEdge fullGraph candidateEdge@(e,u,_) =
+  let newGraph = G.delLEdge candidateEdge fullGraph
+      bfsNodes = BFS.bfs e newGraph
+      foundU = L.find (== u) bfsNodes
+  in
+  [candidateEdge | isNothing foundU]
+
+-- | transitiveReduceGraph take list of nodes and edges, deletes each edge (e,u) in turn makes graph,
+-- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
+-- transitive reduction  Aho et al. 1972
+transitiveReduceGraph ::  (Eq b) => Gr a b -> Gr a b
+transitiveReduceGraph fullGraph =
+  let requiredEdges = fmap (testEdge fullGraph) (labEdges fullGraph)
+      newGraph = G.mkGraph (labNodes fullGraph) (concat requiredEdges)
+  in
+  newGraph
