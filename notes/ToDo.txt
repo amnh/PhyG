@@ -641,3 +641,5 @@ preOrderTreeTraversal
 	-- or sister node is network node
 
 274) need to check for cyclicity and time vaiolation in softwired?
+
+275) Harwired SPR issue--work around by using restricitve TBR

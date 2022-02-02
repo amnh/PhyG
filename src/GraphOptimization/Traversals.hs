@@ -180,7 +180,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- perform traceback on resolution caches is graphtype = softWired
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
                                else if (graphType inGS) == SoftWired then fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
-                               else if (graphType inGS) == HardWired then recursiveRerootList 
+                               else if (graphType inGS) == HardWired then recursiveRerootList
                                else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
 

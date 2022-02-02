@@ -104,34 +104,41 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                charInfoVV = six6 $ head inGraphList
 
                -- process args for swap
-               doNNI = any ((=="nni").fst) lcArgList
+               doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
-               doTBR = any ((=="tbr").fst) lcArgList
+               doTBR' = any ((=="tbr").fst) lcArgList
                doIA' = any ((=="ia").fst) lcArgList
                doIA = if (graphType inGS /= Tree) then trace ("\tIgnoring 'IA' swap option for non-Tree") False
                       else doIA'
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
-               doSPR = if (not doNNI && not doSPR' && not doTBR) then True
-                       else doSPR'
+               doSPR'' = if (not doNNI' && not doSPR' && not doTBR') then True
+                         else doSPR'
+
+              -- Workaround for Hardwired SPR issue
+               (doTBR, doSPR, doNNI) = if (doSPR'' || doNNI') && (graphType inGS == HardWired) then 
+                                            trace ("Warning NNI and SPR Branchswapping are performed by TBR for HardWired Graphs")
+                                            (True, False, False)
+                                       else (doTBR', doSPR'', doNNI')
+
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
                (newGraphList, counterNNI)  = if doNNI then 
                                                let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
-                                               in (concat graphListList, sum counterList)
+                                               in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
                                                let graphPairList2 = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in 
-                                               (concat graphListList, sum counterList)
+                                               (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
                                                let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
-                                               in (concat graphListList, sum counterList)
+                                               in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
               trace ("After swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
@@ -256,7 +263,7 @@ swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest counter curBestC
           -- selects best graph list based on full optimization
           bestSwapGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] reoptimizedSwapGraphList
 
-          bestSwapCost = if null swapPairList || null candidateSwapGraphList || null reoptimizedSwapGraphList || null bestSwapGraphList then infinity
+          bestSwapCost = if null breakEdgeList || null swapPairList || null candidateSwapGraphList || null reoptimizedSwapGraphList || null bestSwapGraphList then infinity
                          else snd6 $ head bestSwapGraphList
 
       in
@@ -347,7 +354,7 @@ swapSteepest swapType inGS inData numToKeep maxMoveEdgeDist steepest counter cur
           -- reoptimizedSwapGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing $ fst $ head swapPairList 
                                      
 
-          bestSwapCost = if null reoptimizedSwapGraphList then infinity
+          bestSwapCost = if null breakEdgeList || null reoptimizedSplitGraphList || null reoptimizedSwapGraphList then infinity
                          else snd $ head reoptimizedSwapGraphList
 
       in
@@ -515,8 +522,11 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
 
           -- for SPRT/NNI only need preliminary state of root-pruned node
           -- for TBR ther are multiple verticces created for each edge
-          subGraphEdgeVertDataTripleList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
+          doSPR = if swapType == "spr" || swapType == "nni" || onlySPR then True
+                  else False
+          subGraphEdgeVertDataTripleList = if doSPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
                                            else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
+                                           
 
           -- this is SPR/NNI
           (delta, rerootEdge, (tbrEdgesAdd, tbrEdgesDelete)) = getSubGraphDelta targetEdgeData doIA inGraph charInfoVV (head subGraphEdgeVertDataTripleList)
@@ -541,7 +551,10 @@ addSubGraphSteepest inGS inData swapType doIA inGraph prunedGraphRootNode splitC
       else if (delta + splitCost <= curBestCost) then 
          let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
              swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
-             reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+             reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                         else 
+                                            if (not . LG.cyclic) swapSimpleGraph then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                            else emptyPhylogeneticGraph
          in
          if (snd6 reoptimizedCandidateGraph < curBestCost) then 
             if (graphType inGS /= Tree) then
@@ -623,8 +636,10 @@ addSubGraph inGS swapType doIA inGraph prunedGraphRootNode splitCost parentPrune
        -- prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)
        -- (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter inGraph [prunedGraphRootNode]
        -- onlySPR = length nodesAfterPrunedRoot < 3
-       subGraphEdgeVertDataTripleList = if swapType == "spr" || swapType == "nni" || onlySPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
-                                      else getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
+       doSPR = if swapType == "spr" || swapType == "nni" || onlySPR then True
+               else False
+       subGraphEdgeVertDataTripleList = if doSPR then [((-1, -1), vertData $ snd prunedGraphRootNode, ([],[]))]
+                                        else take 2 $ getPrunedEdgeData (graphType inGS) doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV
 
        -- get deltas and edges for TBR rerooting of pruned subgraph
        deltaEdgeTripleList = fmap (getSubGraphDelta targetEdgeData doIA inGraph charInfoVV) subGraphEdgeVertDataTripleList `using` PU.myParListChunkRDS
@@ -709,7 +724,7 @@ getPrunedEdgeData :: GraphType
                   -> Bool 
                   -> DecoratedGraph 
                   -> LG.LNode VertexInfo 
-                  -> [LG.LEdge EdgeInfo] 
+                  -> [LG.LEdge EdgeInfo]
                   -> V.Vector (V.Vector CharInfo) 
                   -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
 getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV =
@@ -763,9 +778,11 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
        --edgeUnionVertData = M.makeEdgeData doIA inGraph charInfoVV evEdge
        -- edgeUnionVertData = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData vNodeVertData charInfoVV []
 
-       -- Use edge union data for delta to edge data
+       {--
+       Use edge union data for delta to edge data
        costMethod = if doIA then ImpliedAlignment
                     else DirectOptimization
+       -}
 
        subGraphEdgeUnionCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks subGraphVertData evEdgeData charInfoVV []
                               else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA subGraphVertData evEdgeData charInfoVV []
@@ -791,17 +808,19 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
 
    in
    -- remove this check when things are working
+   {-
    if null subGraphVertData || null evEdgeData || (subGraphEdgeUnionCost == 0.0) then 
-      -- trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) )
+      trace ("SGD null or 0 :" ++ (show (edgeToJoin, length subGraphVertData, length evEdgeData, subGraphEdgeUnionCost)) )
       --  ++ "\nInGraph:\n"  
       --  ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\n" ++ (show inGraph))
       (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits) 
     --trace ("GSD:" ++ (show ((costNewE, costNewV, costEV))) ++ " -> " ++ (show subGraphEdgeUnionCost') ++  " v " ++ (show subGraphEdgeUnionCost))
     -- trace ("Delta: " ++ (show subGraphEdgeUnionCost))
-    --min subGraphEdgeUnionCost  subGraphEdgeUnionCost'
-   else 
+    --min raphEdgeUnionCost  subGraphEdgeUnionCost'
+   else
+   -} 
       -- trace ("SGD no 0:" ++ (show (subGraphEdgeUnionCost,edgeToJoin)))
-      (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
+    (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
 
 
 -- | reoptimizeSplitGraphFromVertex fully labels the component graph that is connected to the specified vertex
