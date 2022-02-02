@@ -117,7 +117,13 @@ fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTB
       in
       trace ("\tFusing " ++ (show $ length graphPairList) ++ " graph pairs") (
       if null newGraphList then (inGraphList, counter + 1)
-      else if returnUnique then (GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] (inGraphList ++ newGraphList), counter + 1)
+      else if returnUnique then 
+         let uniqueList = GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] (inGraphList ++ newGraphList)
+         in
+         if fuseBest < curBest then 
+               fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound uniqueList
+         else (uniqueList, counter + 1)
+
       else -- return best
          -- only do one round of fusing 
          if singleRound then (GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] (inGraphList ++ newGraphList), counter + 1)
@@ -131,7 +137,8 @@ fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTB
             if fuseBest > curBest then (allBestList, counter + 1)
 
             -- found better   
-            else if fuseBest < curBest then fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
+            else if fuseBest < curBest then 
+               fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
             
             -- equal cost
             else 

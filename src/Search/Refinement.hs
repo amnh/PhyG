@@ -179,7 +179,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                 trace ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.deleteAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) inGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
-                                                in (concat graphListList, sum counterList)
+                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 )
                                             else (inGraphList, 0)   
 
@@ -188,7 +188,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                 trace ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
-                                                in (concat graphListList, sum counterList)
+                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 )
                                             else (newGraphList, 0)   
 
@@ -196,7 +196,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                 trace ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
                                                 let graphPairList = fmap (N.moveAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
-                                                in (concat graphListList, sum counterList)
+                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 )
                                             else (newGraphList', 0)   
 
