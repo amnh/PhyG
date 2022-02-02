@@ -274,24 +274,29 @@ recombineComponents :: GlobalSettings
                     -> [Int]
                     -> [Int]
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList = 
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' doSteepest doAll charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList = 
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
    else
-      let swapType = if doTBR then "tbr"
+      -- top line to cover SPR HarWired bug
+      let (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR', doNNI', inMaxMoveEdgeDist, False)
+                                                                 else
+                                                                     if doNNI' then (True, False, False, 2, True)
+                                                                     else if doSPR' then (True, False, False, inMaxMoveEdgeDist, True)
+                                                                     else (doTBR', doSPR', doNNI', inMaxMoveEdgeDist, False)
+          swapType = if doTBR then "tbr"
                      else if doSPR then "spr"
                      else if doNNI then "nni"
                      else "spr" -- will be set with 2 as maxMoveEdgeDist
-          maxMoveEdgeDist = if not doTBR && not doSPR && not doNNI then 2
-                          else inMaxMoveEdgeDist
+
           doIA = False --- since splits not created together, IA won't be consistent between components
 
           graphDataList = L.zip5 splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList
 
           -- do "all additions" --steepest really doens't have meaning here since will not pop out to recombine on new graph
           -- False for doSteepest
-          recombinedSimpleGraphCostPairList = concat (fmap (S.rejoinGraphKeepBestTuple inGS swapType curBestCost numToKeep maxMoveEdgeDist False doIA charInfoVV) graphDataList `using` PU.myParListChunkRDS)
+          recombinedSimpleGraphCostPairList = concat (fmap (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost numToKeep maxMoveEdgeDist False doIA charInfoVV) graphDataList `using` PU.myParListChunkRDS)
 
           -- this based on heuristic deltas
           bestFuseCost = minimum $ fmap snd recombinedSimpleGraphCostPairList
