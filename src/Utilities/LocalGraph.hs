@@ -925,6 +925,21 @@ getGraphCoevalConstraints inGraph =
        if null networkNodeList then []
        else fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS
 
+-- | getGraphCoevalConstraintsNodes takes a graph and returns coeval constraints based on network nodes
+-- and nodes as a triple
+getGraphCoevalConstraintsNodes :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [(LNode a, [LEdge b],[LEdge b])]
+getGraphCoevalConstraintsNodes inGraph =
+   if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
+   else 
+       let (_, _, _, networkNodeList) = splitVertexList inGraph
+       in
+       if null networkNodeList then []
+       else 
+            let (edgeBeforeList, edgeAfterList) = unzip (fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS)
+            in zip3 networkNodeList edgeBeforeList edgeAfterList
+
+
+
 -- | meetsAllCoevalConstraints checks constraint pair list and examines
 -- whether one edge is fomr before and one after--if so fails False
 -- else True if all pass

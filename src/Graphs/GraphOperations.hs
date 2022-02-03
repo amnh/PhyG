@@ -110,23 +110,50 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
-        -- contracte any remaining  in=out=1 nodes and rename HTUs
-        phyloGraph = contractIn1Out1EdgesRename timeConsistentGraph
     in
-    phyloGraph
+    timeConsistentGraph
 
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable 
 -- for swapping etc
 -- recursively removes the `most' inconsistent edge (breaks the highest number of time consistent conditions)
+-- contracts and renames edges at each stage
+-- O (n *m) n nodes, m network nodes.  Probbably could be done more efficiently by retainliung beforeafter list and not 
+-- remaking graph each time.
 makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
 makeGraphTimeConsistent inGraph = 
   if LG.isEmpty inGraph then LG.empty
   else 
-    let coevalConstraintList = LG.getGraphCoevalConstraints inGraph
+    let coevalNodeConstraintList = LG.getGraphCoevalConstraintsNodes inGraph
+        networkEdgeList = concatMap (LG.inn inGraph) $ fmap fst $ fmap fst3 coevalNodeConstraintList
+        networkEdgeViolationList = fmap (numberTimeViolations coevalNodeConstraintList 0) networkEdgeList
+        maxViolations = maximum networkEdgeViolationList
+        edgeMaxViolations = fst $ head $ filter ((== maxViolations) . snd) $ zip networkEdgeList networkEdgeViolationList
     in
-    inGraph
+    if maxViolations == 0 then inGraph
+    else 
+      let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
+          newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
+      in
+      makeGraphTimeConsistent newGraph
+
+-- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
+-- if u is in the before list and v in the after list of a pir--then there is a time violation
+-- recursively counts and retunns the number of violations
+numberTimeViolations :: [(LG.LNode a, [LG.LEdge b], [LG.LEdge b])] -> Int -> LG.LEdge b -> Int
+numberTimeViolations inTripleList counter inEdge@(u,v,_) =
+  if null inTripleList then counter
+  else 
+    let (_, beforeEdgeList, afterEdgeList) = head inTripleList
+        uInBefore = u `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
+        vInAfter  = v `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
+    in
+    -- violates this time pair
+    if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
+
+    -- does not violate pair
+    else numberTimeViolations (tail inTripleList) counter inEdge
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
