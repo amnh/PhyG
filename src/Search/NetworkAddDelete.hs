@@ -169,7 +169,7 @@ getPermissibleEdgePairs inGraph =
    else 
        let edgeList = LG.labEdges inGraph
            edgePairs = cartProd edgeList edgeList
-           contraintList = getGraphCoevalConstraints inGraph
+           contraintList = LG.getGraphCoevalConstraints inGraph
            edgeTestList = fmap (isEdgePairPermissible inGraph contraintList) edgePairs `using`  PU.myParListChunkRDS
            pairList = filter ((== True) . snd) $ zip edgePairs edgeTestList
        in
@@ -192,46 +192,11 @@ isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
        -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
        else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
        else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
-       else if not (meetsAllCoevalConstraints constraintList edge1 edge2) then False
+       else if not (LG.meetsAllCoevalConstraints constraintList edge1 edge2) then False
        else if (isAncDescEdge inGraph edge1 edge2) then False
        else True
 
--- | getCoevalConstraintEdges takes a graph and a network node and creates two lists: one of edges
--- "before" (ie towards root) and a second "after (ie away from root) 
--- this defines a coeval constraint.  No network edge can be added that would be directed
--- from the before group to the after
-getCoevalConstraintEdges :: (Eq a, Eq b, Show a) => LG.Gr a b -> LG.LNode a -> ([LG.LEdge b],[LG.LEdge b])
-getCoevalConstraintEdges inGraph inNode =
-   if LG.isEmpty inGraph then error "Empty input graph in getCoevalConstraintEdges"
-   else 
-       let (_, edgeBeforeList) = LG.nodesAndEdgesBefore inGraph [inNode]
-           (_, edgeAfterList) = LG.nodesAndEdgesAfter inGraph [inNode]
-       in
-       (edgeBeforeList, edgeAfterList)
 
-
--- | getGraphCoevalConstraints takes a greaph and returns coeval constraints based on network nodes
-getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => LG.Gr a b -> [([LG.LEdge b],[LG.LEdge b])]
-getGraphCoevalConstraints inGraph =
-   if LG.isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
-   else 
-       let (_, _, _, networkNodeList) = LG.splitVertexList inGraph
-       in
-       if null networkNodeList then []
-       else fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS
-
--- | meetsAllCoevalConstraints checks constraint pair list and examines
--- whether one edge is fomr before and one after--if so fails False
--- else True if all pass
-meetsAllCoevalConstraints :: (Eq b) =>[([LG.LEdge b],[LG.LEdge b])] -> LG.LEdge b -> LG.LEdge b -> Bool
-meetsAllCoevalConstraints constraintList edge1 edge2 = 
-   if null constraintList then True
-   else 
-       let (beforeList, afterList) = head constraintList
-       in
-       if edge1 `elem` beforeList && edge2 `elem` afterList then False
-       else if edge2 `elem` beforeList && edge1 `elem` afterList then False
-       else meetsAllCoevalConstraints (tail constraintList) edge1 edge2
 
 -- | isAncDescEdge takes a graph and two edges and examines whethe either edge is the ancestor or descendent of the other
 -- this is done via examination of teh bitvector fields of the node

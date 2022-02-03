@@ -63,6 +63,9 @@ import qualified Data.List as L
 import qualified Data.Vector                 as V
 import qualified Data.Map as MAP
 import qualified Cyclic                            as C
+import qualified ParallelUtilities       as PU
+import Control.Parallel.Strategies
+
 
 
 
@@ -897,3 +900,40 @@ transitiveReduceGraph fullGraph =
       newGraph = G.mkGraph (labNodes fullGraph) (concat requiredEdges)
   in
   newGraph
+
+-- | getCoevalConstraintEdges takes a graph and a network node and creates two lists: one of edges
+-- "before" (ie towards root) and a second "after (ie away from root) 
+-- this defines a coeval constraint.  No network edge can be added that would be directed
+-- from the before group to the after
+getCoevalConstraintEdges :: (Eq a, Eq b, Show a) => Gr a b -> LNode a -> ([LEdge b],[LEdge b])
+getCoevalConstraintEdges inGraph inNode =
+   if isEmpty inGraph then error "Empty input graph in getCoevalConstraintEdges"
+   else 
+       let (_, edgeBeforeList) = nodesAndEdgesBefore inGraph [inNode]
+           (_, edgeAfterList) = nodesAndEdgesAfter inGraph [inNode]
+       in
+       (edgeBeforeList, edgeAfterList)
+
+
+-- | getGraphCoevalConstraints takes a greaph and returns coeval constraints based on network nodes
+getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [([LEdge b],[LEdge b])]
+getGraphCoevalConstraints inGraph =
+   if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
+   else 
+       let (_, _, _, networkNodeList) = splitVertexList inGraph
+       in
+       if null networkNodeList then []
+       else fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS
+
+-- | meetsAllCoevalConstraints checks constraint pair list and examines
+-- whether one edge is fomr before and one after--if so fails False
+-- else True if all pass
+meetsAllCoevalConstraints :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
+meetsAllCoevalConstraints constraintList edge1 edge2 = 
+   if null constraintList then True
+   else 
+       let (beforeList, afterList) = head constraintList
+       in
+       if edge1 `elem` beforeList && edge2 `elem` afterList then False
+       else if edge2 `elem` beforeList && edge1 `elem` afterList then False
+       else meetsAllCoevalConstraints (tail constraintList) edge1 edge2

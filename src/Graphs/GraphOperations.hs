@@ -65,6 +65,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , renameSimpleGraphNodes
                                , generateDisplayTreesRandom
                                , hasNetNodeAncestorViolation
+                               , convertGeneralGraphToPhylogeneticGraph
                                ) where
 
 import qualified Data.List                 as L
@@ -88,7 +89,44 @@ import           Bio.DynamicCharacter
 import qualified ParallelUtilities            as PU
 import Control.Parallel.Strategies
 
--- import Debug.Debug
+-- | convertGeneralGraphToPhylogeneticGraph inputs a SimpleGraph and converts it to a Phylogenetic graph by:
+--  1) transitive reduction -- removes anc <-> desc netork edges
+--  2) ladderizes -- all vertices are (in degree, outdegree) (0,1|2) (1,2) (2,1) (1,0) 
+--        by adding extra HTIs and edges
+--  3) checks time consistency and removes edges stepwise from
+--        those that violate the most  before/after splits of network edges
+--        arbitrary but deterministic
+--  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order 
+convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
+convertGeneralGraphToPhylogeneticGraph inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let -- transitive reduction
+        reducedGraph = LG.transitiveReduceGraph inGraph
+        
+        -- laderization of indegree and outdegree edges
+        ladderGraph = ladderizeGraph reducedGraph
+
+        -- time consistency (after those removed by transitrive reduction)
+        timeConsistentGraph = makeGraphTimeConsistent ladderGraph
+
+        -- contracte any remaining  in=out=1 nodes and rename HTUs
+        phyloGraph = contractIn1Out1EdgesRename timeConsistentGraph
+    in
+    phyloGraph
+
+
+-- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
+-- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable 
+-- for swapping etc
+-- recursively removes the `most' inconsistent edge (breaks the highest number of time consistent conditions)
+makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let coevalConstraintList = LG.getGraphCoevalConstraints inGraph
+    in
+    inGraph
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
