@@ -115,6 +115,97 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
     if LG.cyclic timeConsistentGraph then error ("Cycle in graph : \n" ++ (LG.prettify timeConsistentGraph))
     else timeConsistentGraph
 
+-- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
+removeParentsInChain :: SimpleGraph -> SimpleGraph
+removeParentsInChain inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else 
+      let (_, _, _, netVertexList) = LG.splitVertexList inGraph
+          parentNetVertList = fmap (LG.labParents inGraph) $ fmap fst netVertexList
+
+          -- get list of nodes that are transitively equal in age
+          concurrentList = mergeConcurrentNodeLists parentNetVertList []
+          concurrentPairList = concatMap getListPairs concurrentList
+
+          -- get pairs that violate concurrency
+          violatingConcurrentPairs = concatMap (concurrentViolatePair inGraph) concurrentPairList
+
+          -- get netowrk nodes with violations
+          parentNodeViolateList = concatMap pairToList violatingConcurrentPairs
+          childNodeViolateList = concatMap (LG.descendants inGraph) parentNodeViolateList
+          netNodeViolateList = filter (LG.isNetworkNode inGraph) childNodeViolateList
+
+          netEdgesThatViolate = fmap LG.toEdge $ LG.inn inGraph $ head netNodeViolateList
+
+          
+      in
+      if null violatingConcurrentPairs then inGraph
+      else if null netNodeViolateList then error ("Should be neNOde that violate")
+      else if null netEdgesThatViolate then error "Should be violating in edges"
+      else 
+        let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
+            newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
+        in
+        trace ("PIC")
+        removeParentsInChain newGraph
+    where pairToList (a,b) = [fst a, fst b]
+
+
+-- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair
+-- as list otherwise null list
+concurrentViolatePair :: SimpleGraph -> (LG.LNode NameText, LG.LNode NameText) -> [(LG.LNode NameText, LG.LNode NameText)]
+concurrentViolatePair inGraph (node1, node2) = 
+  if LG.isEmpty inGraph then error "Empty graph in concurrentViolatePair"
+  else 
+    let (nodesBeforeFirst, _)  = LG.nodesAndEdgesBefore inGraph [node1]
+        (nodesBeforeSecond, _) = LG.nodesAndEdgesBefore inGraph [node2]
+    in
+    if node2 `elem` nodesBeforeFirst then [(node1, node2)]
+    else if node1 `elem` nodesBeforeSecond then [(node1, node2)]
+    else []
+
+
+-- | mergeConcurrentNodeLists takes a list os lists  and returns a list os lists of merged lists
+-- lists are merged if they share any elements
+mergeConcurrentNodeLists :: [[LG.LNode NameText]] -> [[LG.LNode NameText]] -> [[LG.LNode NameText]]
+mergeConcurrentNodeLists inListList currentListList =
+  if null inListList then 
+    trace ("MCNL:" ++ (show $ fmap (fmap fst) currentListList))
+    currentListList
+
+  -- first case
+  else if null currentListList then mergeConcurrentNodeLists (tail inListList) [head inListList]
+  else
+    let firstList = head inListList
+        (intersectList, _) = unzip $ filter ((== True) . snd) $ zip (currentListList) (fmap (not . null) $ fmap (L.intersect firstList) currentListList)
+
+        (noIntersectLists, _) = unzip $ filter ((== False) . snd) $ zip (currentListList) (fmap (not . null) $ fmap (L.intersect firstList) currentListList)
+
+        mergedList = if null intersectList then firstList 
+                     else L.foldl' L.union firstList intersectList
+    in
+    trace ("MCL-F:" ++ (show $ fmap fst firstList) ++ " inter " ++ (show $ fmap (fmap fst) intersectList) ++ 
+      " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
+    mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
+
+-- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
+-- a form of time violation
+checkParentsChain :: SimpleGraph -> LG.LNode NameText -> [LG.LNode NameText] -> [LG.Edge]
+checkParentsChain inGraph netNode parentNodeList =
+  if LG.isEmpty inGraph then error "Empty graph in checkParentsChain"
+  else if length parentNodeList /= 2 then error ("Need to haev 2 parentys for net node: " ++ (show (fst netNode)) ++ " <- " ++ (show $ fmap fst parentNodeList)) 
+  else 
+    let firstParent = head parentNodeList
+        secondParent = last parentNodeList
+        (nodesBeforeFirst, _)  = LG.nodesAndEdgesBefore inGraph [firstParent]
+        (nodesBeforeSecond, _) = LG.nodesAndEdgesBefore inGraph [secondParent]
+    in
+    trace ("CPC:" ++ (show $ fst netNode) ++ " <- " ++ (show $ fmap fst parentNodeList) ++ "\nfirstParentBefore: " 
+      ++ (show $ fmap fst nodesBeforeFirst) ++ "\nsecondParentBefore: " ++ (show $ fmap fst nodesBeforeSecond)) (
+    if secondParent `elem` nodesBeforeFirst then [(fst firstParent, fst netNode)]
+    else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
+    else []
+    )
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable 
@@ -140,15 +231,15 @@ makeGraphTimeConsistent inGraph =
 
     -- is time consistent
     else if maxViolations == 0 then 
-      -- trace ("MTC:\n" ++ (LG.prettify inGraph)) 
-      inGraph
+      trace ("MTC 0:\n" ++ (LG.prettify inGraph)) 
+      removeParentsInChain inGraph
 
     -- has time violations
     else 
       let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
           newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
       in
-      -- trace ("MTC V:" ++ (show maxViolations))
+      trace ("MTC V:" ++ (show maxViolations))
       makeGraphTimeConsistent newGraph
 
 -- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists

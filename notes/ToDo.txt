@@ -645,3 +645,5 @@ preOrderTreeTraversal
 275) Harwired SPR issue--work around by using restricitve TBR
 
 277) Move all general graph functions to LG
+
+278) filter if two dwsxcndents are boith net nodes

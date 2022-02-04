@@ -121,18 +121,18 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         let simpleTreeOnly = False
                         in
                         buildTree simpleTreeOnly inArgs treeGS inputGraphType inData pairwiseDistances seed
-                    else -- removing taxa with missing data for block
+                     else -- removing taxa with missing data for block
                         trace ("Block building initial graph(s)") (
                         let simpleTreeOnly = True
                             processedDataList = U.getProcessDataByBlock True inData
-                            distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
+                            distanceMatrixList = if buildDistance then PU.myChunkParMapRDS DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
                                                  else replicate (length processedDataList) [] 
-                            blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+                            blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
 
                             -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
                             returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
                         in
-                        -- trace (concatMap LG.prettify returnGraphs)
+                        trace (concatMap LG.prettify returnGraphs)
                         fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
                         )
        costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
@@ -266,12 +266,14 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
          trace ("\tBuilding Character Wagner") (
          let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
              charInfoVV = V.map thd3 $ thd3 inData
-             treeList =  if not simpleTreeOnly then fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
+             treeList =  treeList' {-
+                         if not simpleTreeOnly then fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
                          else 
                             let numTrees = length treeList'
                             in 
                             L.zip6 (fmap fst6 treeList') (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
-             -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
+                            -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
+                        -}
          in
          let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList', maximum $ fmap snd6 treeList')))
                                else ""
