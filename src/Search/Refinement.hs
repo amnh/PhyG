@@ -116,7 +116,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
            -- perform graph fuse operations 
            let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seed (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound inGraphList
            in                             
-           trace ("Graph fusing : " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
+           trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
            newGraphList
       )
 
@@ -201,7 +201,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                             else (newGraphList', 0)   
 
            in
-           trace ("After network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
+           trace ("\tAfter network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
            newGraphList'
      

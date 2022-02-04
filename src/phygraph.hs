@@ -139,8 +139,8 @@ main = do
             ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
     else hPutStrLn stderr "All taxa contain data"
 
-    -- Ladderizes (resolves) input graphs and verifies that networks are time-consistent
-    let ladderizedGraphList = fmap GO.verifyTimeConsistency $ fmap GO.ladderizeGraph reconciledGraphs
+    -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
+    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphs
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)

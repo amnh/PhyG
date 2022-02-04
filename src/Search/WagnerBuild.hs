@@ -73,7 +73,7 @@ rasWagnerBuild inGS inData seed numReplicates =
 
           hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
       in
-      trace ("Building " ++ (show numReplicates) ++ " character Wagner replicates")
+      trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences `using` PU.myParListChunkRDS 
 

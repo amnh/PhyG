@@ -644,8 +644,4 @@ preOrderTreeTraversal
 
 275) Harwired SPR issue--work around by using restricitve TBR
 
-276) Method to resolve arbitrary reconciled graph into phylogenetic graph
-	for block build
-	remove anc-desc edges (done)
-	remove other time inconsistent edges not done
-
+277) Move all general graph functions to LG

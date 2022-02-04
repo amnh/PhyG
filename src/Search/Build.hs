@@ -112,9 +112,9 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                                        if returnGraph' || returnTrees' then (returnGraph', returnTrees')
                                        else (False, True)
 
-       -- default to retuirn reandom and overrides if both specified
+       -- default to return reandom and overrides if both specified
        (returnRandomDisplayTrees, returnFirst) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
-                                                else (True, False)
+                                                 else (True, False)
 
        -- initial build of trees from combined data--or by blocks
        firstGraphs = if null buildBlock then 
@@ -135,7 +135,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         -- trace (concatMap LG.prettify returnGraphs)
                         fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
                         )
-       costString = if (not . null) firstGraphs then  ("Block build yielded " ++ (show $ length firstGraphs) ++ " trees at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
+       costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
                     else "\t\tBlock build returned 0 graphs"
    in
    -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
@@ -171,7 +171,10 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
 
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
           reconciledGraphInitial = snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList simpleGraphList
-          reconciledGraph = GO.ladderizeGraph reconciledGraphInitial
+
+          -- ladderize, time consistent-ized
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
+
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
                            else GO.generateDisplayTreesRandom seed numDisplayTrees reconciledGraph
           displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'

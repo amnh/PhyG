@@ -35,7 +35,6 @@ Portability :  portable (I hope)
 -}
 
 module Graphs.GraphOperations (  ladderizeGraph
-                               , verifyTimeConsistency
                                , rerootTree
                                , rerootTree'
                                , generateDisplayTrees
@@ -111,7 +110,10 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
     in
-    timeConsistentGraph
+    -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
+    -- cycle check to make sure
+    if LG.cyclic timeConsistentGraph then error ("Cycle in graph : \n" ++ (LG.prettify timeConsistentGraph))
+    else timeConsistentGraph
 
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
@@ -131,11 +133,22 @@ makeGraphTimeConsistent inGraph =
         maxViolations = maximum networkEdgeViolationList
         edgeMaxViolations = fst $ head $ filter ((== maxViolations) . snd) $ zip networkEdgeList networkEdgeViolationList
     in
-    if maxViolations == 0 then inGraph
+    -- is a tree
+    if null coevalNodeConstraintList then 
+      -- trace ("MTC Null:\n" ++ (LG.prettify inGraph)) 
+      inGraph
+
+    -- is time consistent
+    else if maxViolations == 0 then 
+      -- trace ("MTC:\n" ++ (LG.prettify inGraph)) 
+      inGraph
+
+    -- has time violations
     else 
       let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
           newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
       in
+      -- trace ("MTC V:" ++ (show maxViolations))
       makeGraphTimeConsistent newGraph
 
 -- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
@@ -145,15 +158,21 @@ numberTimeViolations :: [(LG.LNode a, [LG.LEdge b], [LG.LEdge b])] -> Int -> LG.
 numberTimeViolations inTripleList counter inEdge@(u,v,_) =
   if null inTripleList then counter
   else 
-    let (_, beforeEdgeList, afterEdgeList) = head inTripleList
+    let ((tripleNode, _), beforeEdgeList, afterEdgeList) = head inTripleList
         uInBefore = u `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
         vInAfter  = v `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
     in
+    --trace ("NTV: " ++ (show (u,v)) ++ " node " ++ (show tripleNode) ++ "\nbefore: " ++ (show $ ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))) ++ "\nafter: " ++ (show $ ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList)))) (
+    
+    -- skipping its own split
+    if v == tripleNode || u == tripleNode then numberTimeViolations (tail inTripleList) counter inEdge
+    
     -- violates this time pair
-    if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
+    else if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
 
     -- does not violate pair
     else numberTimeViolations (tail inTripleList) counter inEdge
+    -- )
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
@@ -613,21 +632,6 @@ deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
         newGraph = LG.delLEdges edgesToDelete inGraph
     in
     newGraph : deleteEdgesCreateGraphs (tail netEdgeIndexPairList) (counter + 1) inGraph
-
-
--- | verifyTimeConsistency take a SimpleGraph and checks for time consistency
--- of network nodes to verify network nodes are not definately not coeval
--- basically, each set of network edges (usually 2) create a split in the set of nodes (and edges)
--- to those 'before' (ie leading to) and after (ie leadgin from) the heads of the network edges
--- thse sets can be generated for each vertex (cost n for traversal) and these sets of nodes
--- must be compatible A intersect B = A|B|Empty for teh graph to be time consistant.
--- would be edge based to check before and a network edge were to be added
-
---Only checks ancestor descendent edges for now-- not full tinme consistencey
-verifyTimeConsistency :: SimpleGraph -> SimpleGraph
-verifyTimeConsistency inGraph =
-   if LG.isEmpty inGraph then error ("Input Graph is empty in verifyTimeConsistency")
-   else LG.transitiveReduceGraph inGraph
 
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType

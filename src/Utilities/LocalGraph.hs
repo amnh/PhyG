@@ -874,7 +874,7 @@ artpoints g v = arp (getLowTree g v)
 ap' :: Gr a b -> [Node]
 ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
 
--- | cyclic maps to cyclic funcitn in moduel Cyclic.hs
+-- | cyclic maps to cyclic function in module Cyclic.hs
 cyclic :: Gr a b -> Bool
 cyclic inGraph = 
     -- trace ("Cyclic:" ++ (show $ C.cyclic inGraph))
