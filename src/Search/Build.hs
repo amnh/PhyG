@@ -125,9 +125,11 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                         trace ("Block building initial graph(s)") (
                         let simpleTreeOnly = True
                             processedDataList = U.getProcessDataByBlock True inData
-                            distanceMatrixList = if buildDistance then PU.myChunkParMapRDS DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
+                            distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
                                                  else replicate (length processedDataList) [] 
-                            blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
+                            
+                            blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+                            -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
 
                             -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
                             returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 

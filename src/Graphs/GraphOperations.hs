@@ -109,11 +109,14 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
+        -- remove sister-sister edge.  where two network nodes have same parents
+        noSisterSisterGraph = removeParentsInChain timeConsistentGraph
+
     in
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
     -- cycle check to make sure
-    if LG.cyclic timeConsistentGraph then error ("Cycle in graph : \n" ++ (LG.prettify timeConsistentGraph))
-    else timeConsistentGraph
+    if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
+    else noSisterSisterGraph
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: SimpleGraph -> SimpleGraph
@@ -150,6 +153,44 @@ removeParentsInChain inGraph =
         removeParentsInChain newGraph
     where pairToList (a,b) = [fst a, fst b]
 
+-- | removeSisterSisterEdges takes a graph and recursively removes a single edge fomr where two network
+-- edges have the same two parents
+removeSisterSisterEdges :: SimpleGraph -> SimpleGraph
+removeSisterSisterEdges inGraph = 
+  if LG.isEmpty inGraph then LG.empty
+  else 
+    let sisterSisterEdges = getSisterSisterEdgeList inGraph
+        newGraph = LG.delEdge (head sisterSisterEdges) inGraph
+        newGraph' = contractIn1Out1EdgesRename newGraph
+    in
+    if null sisterSisterEdges then inGraph
+    else 
+      trace ("Sister")
+      removeSisterSisterEdges  newGraph'
+      
+
+
+-- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
+-- have the same two parents
+getSisterSisterEdgeList :: SimpleGraph -> [LG.Edge]
+getSisterSisterEdgeList inGraph = 
+  if LG.isEmpty inGraph then []
+  else 
+      let (_, _, _, netVertexList) = LG.splitVertexList inGraph
+          netVertPairs = getListPairs $ fmap fst netVertexList
+          
+          parentsList = fmap (LG.parents inGraph) (fmap fst netVertexList)
+          parentPairs = getListPairs $ parentsList
+          
+          netAndParentPairs = zip netVertPairs parentPairs
+          sisterSisterPairs = filter sameParents netAndParentPairs
+          sisterSisterEdges = concatMap makeChildParentEdges sisterSisterPairs
+      in
+      if null sisterSisterPairs then []
+      else sisterSisterEdges
+      where sameParents (_, (b, c)) = if b == c then True else False
+            makeChildParentEdges ((a1,a2), (b, _)) = [(head b,a1), (last b,a1), (head b,a2), (last b,a2)]
+            
 
 -- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair
 -- as list otherwise null list
