@@ -139,7 +139,8 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                (newGraphList'', counterTBR) = if doTBR then 
                                                let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
-                                               in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                               in 
+                                               (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
               trace ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
@@ -187,6 +188,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
              -- swap "all" after steepest descent
              (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in
+         -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          (swappedGraphs', counter')
 
       -- All does all swaps before taking best
@@ -194,7 +196,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
          -- trace ("Going into SwapAll") (
          let (swappedGraphs, counter) = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in 
-         -- trace ("SSPRTBR: " ++ (show (length swappedGraphs, counter)))
+         -- trace ("All SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          (swappedGraphs, counter)
          -- )
          -- )
@@ -276,17 +278,18 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       if bestSwapCost == curBestCost then 
-         --equality informed by zero-length edges
-         let newCurSameBestList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] (firstGraph : curSameBetterList)
-                                  -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
-                                  -- else curSameBetterList
-             graphsToSwap = if (length newCurSameBestList < numToKeep) then GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (((tail inGraphList) ++ bestSwapGraphList) L.\\ newCurSameBestList)
-                            else GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] ((tail inGraphList) L.\\ newCurSameBestList) 
-                            
-         in
-         --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
-         --   ++ " graphs in 'best' list " ++ " max size " ++ (show numToKeep) ) -- ++ "\n" ++ (concat prettyBestSwapGraphList))
-         swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
+         if (length curSameBetterList == numToKeep) then swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor
+         else 
+             --equality informed by zero-length edges
+             let newCurSameBestList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] (firstGraph : curSameBetterList)
+                                      -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
+                                      -- else curSameBetterList
+                 graphsToSwap = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] ((tail inGraphList) L.\\ newCurSameBestList) 
+                                
+             in
+             --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
+                -- ++ " graphs in 'best' list " ++ " max size " ++ (show numToKeep) ) -- ++ "\n" ++ (concat prettyBestSwapGraphList))
+             swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
 
       -- better cost graphs
       else if (bestSwapCost < curBestCost) then 
@@ -301,8 +304,8 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
                                   -- else curSameBetterList
          in
          swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
-         --)
-      --)
+         -- )
+      -- )
       -- )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better

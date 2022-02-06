@@ -109,8 +109,11 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
+        -- removes ancestor descendent edges
+        noParentChainGraph = removeParentsInChain timeConsistentGraph
+        
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeParentsInChain timeConsistentGraph
+        noSisterSisterGraph = removeSisterSisterEdges noParentChainGraph
 
     in
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
@@ -149,7 +152,7 @@ removeParentsInChain inGraph =
         let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
             newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
         in
-        trace ("PIC")
+        -- trace ("PIC")
         removeParentsInChain newGraph
     where pairToList (a,b) = [fst a, fst b]
 
@@ -165,7 +168,7 @@ removeSisterSisterEdges inGraph =
     in
     if null sisterSisterEdges then inGraph
     else 
-      trace ("Sister")
+      -- trace ("Sister")
       removeSisterSisterEdges  newGraph'
       
 
@@ -211,7 +214,7 @@ concurrentViolatePair inGraph (node1, node2) =
 mergeConcurrentNodeLists :: [[LG.LNode NameText]] -> [[LG.LNode NameText]] -> [[LG.LNode NameText]]
 mergeConcurrentNodeLists inListList currentListList =
   if null inListList then 
-    trace ("MCNL:" ++ (show $ fmap (fmap fst) currentListList))
+    -- trace ("MCNL:" ++ (show $ fmap (fmap fst) currentListList))
     currentListList
 
   -- first case
@@ -225,8 +228,8 @@ mergeConcurrentNodeLists inListList currentListList =
         mergedList = if null intersectList then firstList 
                      else L.foldl' L.union firstList intersectList
     in
-    trace ("MCL-F:" ++ (show $ fmap fst firstList) ++ " inter " ++ (show $ fmap (fmap fst) intersectList) ++ 
-      " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
+    -- trace ("MCL-F:" ++ (show $ fmap fst firstList) ++ " inter " ++ (show $ fmap (fmap fst) intersectList) ++ 
+    --   " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
     mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
 
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
@@ -241,12 +244,12 @@ checkParentsChain inGraph netNode parentNodeList =
         (nodesBeforeFirst, _)  = LG.nodesAndEdgesBefore inGraph [firstParent]
         (nodesBeforeSecond, _) = LG.nodesAndEdgesBefore inGraph [secondParent]
     in
-    trace ("CPC:" ++ (show $ fst netNode) ++ " <- " ++ (show $ fmap fst parentNodeList) ++ "\nfirstParentBefore: " 
-      ++ (show $ fmap fst nodesBeforeFirst) ++ "\nsecondParentBefore: " ++ (show $ fmap fst nodesBeforeSecond)) (
+    -- trace ("CPC:" ++ (show $ fst netNode) ++ " <- " ++ (show $ fmap fst parentNodeList) ++ "\nfirstParentBefore: " 
+    --  ++ (show $ fmap fst nodesBeforeFirst) ++ "\nsecondParentBefore: " ++ (show $ fmap fst nodesBeforeSecond)) (
     if secondParent `elem` nodesBeforeFirst then [(fst firstParent, fst netNode)]
     else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
     else []
-    )
+    -- )
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable 
@@ -272,7 +275,7 @@ makeGraphTimeConsistent inGraph =
 
     -- is time consistent
     else if maxViolations == 0 then 
-      trace ("MTC 0:\n" ++ (LG.prettify inGraph)) 
+      -- trace ("MTC 0:\n" ++ (LG.prettify inGraph)) 
       removeParentsInChain inGraph
 
     -- has time violations
@@ -280,7 +283,7 @@ makeGraphTimeConsistent inGraph =
       let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
           newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
       in
-      trace ("MTC V:" ++ (show maxViolations))
+      -- trace ("MTC V:" ++ (show maxViolations))
       makeGraphTimeConsistent newGraph
 
 -- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
@@ -931,6 +934,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         filter ((== minGraphCost).snd6) uniqueGraphList
 
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
+-- maybe chnge to nub LG.pretify graphList?
 getUniqueGraphs :: Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 getUniqueGraphs removeZeroEdges inGraphList =
   if null inGraphList then []

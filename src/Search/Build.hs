@@ -134,7 +134,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                             -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
                             returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
                         in
-                        trace (concatMap LG.prettify returnGraphs)
+                        -- trace (concatMap LG.prettify returnGraphs)
                         fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
                         )
        costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
