@@ -343,3 +343,37 @@ copyToNothing vbd = fmap setNothing vbd
 -- data as Just CharacterData
 copyToJust :: VertexBlockData -> VertexBlockDataMaybe
 copyToJust vbd = fmap (fmap Just) vbd
+
+-- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost, 
+-- candidate graph cost (e') and a uniform random integer and returns a Bool to accept or reject
+-- the candidate solution
+-- the basic method is 
+--  1) accepts if current is better
+--  2) Other wise prob accept = exp(-(e' -e)/T)
+-- where T is a step from max to min 
+-- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
+-- curStep == 0 random walk (always accept)
+-- curStep == (numSteps -1) greedy False is not better
+simAnnealAccept :: AnnealingParameter -> VertexCost -> VertexCost -> Bool
+simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList) curBestCost candCost  =
+    let tempFactor = (fromIntegral $ numSteps - curStep) / ((maxTemp - minTemp) * (fromIntegral numSteps))
+
+        -- flipped order - (e' -e)
+        probAcceptance = exp ((curBestCost - candCost) * tempFactor)
+
+        -- multiplier for resolution 1000, 100 prob be ok
+        randMultiplier = 1000
+        intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
+
+        -- use remainder for testing--passing infinite list and take head
+        (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
+    in
+    -- lowest cost-- greedy
+    if candCost < curBestCost then True
+
+    -- not better and at lowest temp
+    else if curStep == (numSteps - 1) then False
+    
+    -- test for non-lowest temp conditions
+    else if intRandVal < intAccept then True
+    else False

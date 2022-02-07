@@ -61,7 +61,7 @@ import qualified GraphOptimization.Medians as M
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia"]
+swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps"]
 
 
 -- | swapMaster processes and spawns the swap functions
@@ -90,10 +90,41 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
               | null moveLimitList = Just ((maxBound :: Int) `div` 3) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
+             
+             maxTempList = filter ((=="maxtemp").fst) lcArgList
+             maxTemp'     
+              | length maxTempList > 1 =
+                errorWithoutStackTrace ("Multiple maximum annealing temperature value specifications in swap command--can have only one (e.g. maxTemp:100): " ++ show inArgs)
+              | null maxTempList = Just 100.0 
+              | otherwise = readMaybe (snd $ head maxTempList) :: Maybe Double
+
+             minTempList = filter ((=="mintemp").fst) lcArgList  
+             minTemp'   
+              | length minTempList > 1 =
+                errorWithoutStackTrace ("Multiple minimum annealing temperature value specifications in swap command--can have only one (e.g. minTemp:1.0): " ++ show inArgs)
+              | null minTempList = Just 1.0 
+              | otherwise = readMaybe (snd $ head minTempList) :: Maybe Double
+
+             stepsList   = filter ((=="steps").fst) lcArgList 
+             steps'   
+              | length stepsList > 1 =
+                errorWithoutStackTrace ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " ++ show inArgs)
+              | null stepsList = Just 10
+              | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
+
+             doAnnealing = any ((=="annealing").fst) lcArgList
+             
         in
-        trace ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs") (
-        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
+        let progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                             else ("Simulated Annealing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+        in trace (progressString) (
+        if isNothing keepNum       then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
+        
+        else if isNothing maxTemp' then errorWithoutStackTrace ("Maximum temp specification not a double (e.g. maxTemp:100.0): "  ++ show (snd $ head maxTempList))
+        else if isNothing minTemp' then errorWithoutStackTrace ("Minimum temp specification not a double (e.g. minTemp:1.0): "  ++ show (snd $ head minTempList))
+        else if isNothing steps'   then errorWithoutStackTrace ("Steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
+            
         else 
            let -- getting values to be passed for graph diagnosis later
                numLeaves = V.length $ fst3 inData
@@ -115,7 +146,19 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doSPR'' = if (not doNNI' && not doSPR' && not doTBR') then True
                          else doSPR'
 
-              -- Workaround for Hardwired SPR issue
+               -- simulated annealing parameters
+               simAnnealParams = if not doAnnealing then Nothing
+                                 else 
+                                    let steps = max 3 (fromJust steps')
+                                        maxTemp = max 100.0 (fromJust maxTemp')
+                                        minTemp'' = max 1.0 (fromJust minTemp')
+                                        minTemp = if minTemp'' > maxTemp then maxTemp / 100.0
+                                                  else minTemp''
+                                    in
+                                    Just (maxTemp, minTemp, steps, 0, randomIntList rSeed) 
+                                
+
+               -- Workaround for Hardwired SPR issue
                (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
                                                                       else
                                                                         if doNNI' then (True, False, False, Just 1, True)
@@ -125,27 +168,31 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
                (newGraphList, counterNNI)  = if doNNI then 
-                                               let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) inGraphList `using` PU.myParListChunkRDS
+                                               let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA simAnnealParams) inGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
-                                               let graphPairList2 = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList `using` PU.myParListChunkRDS
+                                               let graphPairList2 = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA simAnnealParams) newGraphList `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
-                                               let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) newGraphList' `using` PU.myParListChunkRDS
+                                               let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA simAnnealParams) newGraphList' `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
-              trace ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-              newGraphList''
-     )
+              let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+                              else ("\tAfter Simlated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs after " ++ (show $ thd5 $ fromJust simAnnealParams)  ++ " temperature steps and swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+                          
+              in 
+              trace (endString)
+              newGraphList''     
+            )
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -167,9 +214,10 @@ swapSPRTBR  :: String
             -> Bool
             -> V.Vector (V.Vector CharInfo) 
             -> Bool
+            -> Maybe AnnealingParameter
             -> PhylogeneticGraph 
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraph = 
+swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA simAnnealParams inGraph = 
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
@@ -181,12 +229,26 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
           inGraphNetPenaltyFactor = inGraphNetPenalty / (snd6 inGraph)
       in
       -- trace ("SSPRTBR:" ++ (show inGraphNetPenaltyFactor)) (
+
+      -- simulated annealing acceptance does a steepest with SA acceptance
+      -- then a swap steepest and all on annealed graph
+      if simAnnealParams /= Nothing then 
+         -- annealed should only yield a single graph
+         let (annealedGraph, anealedCounter) = trace ("Annealing") (inGraph, 0)
+
+             (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (min (snd6 inGraph) (snd6 annealedGraph)) [] [annealedGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+
+             -- swap "all" after steepest descent
+             (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+         in
+         -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
+         (swappedGraphs', counter')
       -- steepest takes immediate best--does not keep equall cost
-      if steepest then 
+      else if steepest then 
          let (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
 
              -- swap "all" after steepest descent
-             (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 inGraph) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+             (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          (swappedGraphs', counter')
