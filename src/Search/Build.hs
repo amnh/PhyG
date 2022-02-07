@@ -83,11 +83,12 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
 
        buildBlock = filter ((=="block").fst) lcArgList
+       displayBlock = filter ((=="displaytrees").fst) lcArgList
        numDisplayTrees
-            | length buildBlock > 1 =
-              errorWithoutStackTrace ("Multiple block number specifications in command--can have only one: " ++ show inArgs)
-            | null (snd $ head buildBlock) = Just (maxBound :: Int)
-            | otherwise = readMaybe (snd $ head buildBlock) :: Maybe Int
+            | length displayBlock > 1 =
+              errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " ++ show inArgs)
+            | null (snd $ head displayBlock) = Just 10
+            | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
        doEUN' = any ((=="eun").fst) lcArgList
        doCUN' = any ((=="cun").fst) lcArgList
        doEUN = if not doEUN' && not doCUN' then True
@@ -161,9 +162,7 @@ reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile"
 -- all outputs are re-optimzed and ready to go
 reconcileBlockTrees ::  GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> Bool -> [SimpleGraph]
 reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN  =
-   -- put graphs in state for reconciliation function
-      -- add in leaves not present due to missing data
-      -- can just insert the nodes
+    --trace ("Reconcile producing " ++ (show numDisplayTrees)) (
       let -- numLeaves = V.length $ fst3 inData
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst6 blockTrees
@@ -186,6 +185,7 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
          displayGraphs
       else 
          reconciledGraph : displayGraphs
+     -- )
          
 
 -- | buildTree' wrapps build tree and changes order of arguments for mapping

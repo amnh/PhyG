@@ -85,13 +85,13 @@ fuseGraphs inArgs inGS inData seed inGraphList =
              keepNum
               | length keepList > 1 =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
-              | null keepList = Just 1
+              | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
              moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
              maxMoveEdgeDist  
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " ++ show inArgs)
-              | null moveLimitList = Just ((maxBound :: Int) `div` 2) 
+              | null moveLimitList = Just ((maxBound :: Int) `div` 3) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
         in
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
@@ -151,7 +151,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
              keepNum
               | length keepList > 1 =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " ++ show inArgs)
-              | null keepList = Just 1
+              | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
          in
          if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))

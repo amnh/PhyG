@@ -82,13 +82,13 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              keepNum
               | length keepList > 1 =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
-              | null keepList = Just (length inGraphList)
+              | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
              moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
              maxMoveEdgeDist'  
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
-              | null moveLimitList = Just ((maxBound :: Int) `div` 2) 
+              | null moveLimitList = Just ((maxBound :: Int) `div` 3) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
         in
         trace ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs") (
