@@ -542,9 +542,6 @@ to render--would have repeated subtrees after network vertex
 
 237) Check BV graph equality--including zero-length edges
 
-238) add set seed command
-	for replicability of randomized searches
-
 239) IA swapping for network--perhoaps not due to non-uniquwe aspwect of resolutions
 
 240)  Need to devfelop some shorcut for network stuff--all full traversals now
@@ -639,8 +636,6 @@ preOrderTreeTraversal
 
 273) for edges--don't use as split edge if "sister" edge incident on network node
 	-- or sister node is network node
-
-274) need to check for cyclicity and time vaiolation in softwired?
 
 275) Harwired SPR issue--work around by using restricitve TBR
 

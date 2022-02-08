@@ -142,7 +142,6 @@ removeParentsInChain inGraph =
           netNodeViolateList = filter (LG.isNetworkNode inGraph) childNodeViolateList
 
           netEdgesThatViolate = fmap LG.toEdge $ LG.inn inGraph $ head netNodeViolateList
-
           
       in
       if null violatingConcurrentPairs then inGraph

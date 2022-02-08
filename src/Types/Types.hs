@@ -148,6 +148,7 @@ data  GlobalSettings
     , finalAssignment     :: AssignmentMethod
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
     , rootCost            :: RootCost
+    , seed                :: Int -- random seed
     } deriving stock (Show, Eq)
 
 

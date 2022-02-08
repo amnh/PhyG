@@ -43,7 +43,7 @@ import Data.Foldable
 import qualified Data.CSV               as CSV
 import qualified Data.List              as L
 import           Data.Maybe
--- import           Text.Read
+import           Text.Read
 import qualified Data.Text.Lazy         as T
 import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
@@ -67,7 +67,7 @@ import qualified Search.Refinement as REF
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost"]
+setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed"]
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
@@ -125,11 +125,11 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Set then
             -- if set changes graph aspects--may nned to reoptimize
-            let (newGlobalSettings, newProcessedData) = setCommand firstArgs globalSettings processedData
+            let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
                 newGraphs = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
                             else trace ("Reoptimizing Graphs...") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
             in
-            executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList (tail commandList)
+            executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList' (tail commandList)
         else if firstOption == Swap then
             let newGraphList = SW.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
             in
@@ -137,8 +137,8 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
-setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
-setCommand argList globalSettings processedData =
+setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalSettings, ProcessedData, [Int])
+setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
         checkCommandList = U.checkCommandArgs "set" commandList setArgList
@@ -153,7 +153,7 @@ setCommand argList globalSettings processedData =
 
             in
             if isNothing outTaxonIndex then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ T.unpack outTaxonName ++ " not found in input leaf list" ++ show (fmap (T.unpack) leafNameVect))
-            else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
+            else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData, inSeedList)
         else if head commandList == "graphtype"  then
             let localGraphType
                   | (head optionList == "tree") = Tree
@@ -163,10 +163,10 @@ setCommand argList globalSettings processedData =
             in
             if localGraphType /= Tree then 
                 trace ("Graphtype set to " ++ (head optionList) ++ " and final assignment to DO")
-                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData)
+                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData, inSeedList)
             else 
                 trace ("Graphtype set to " ++ head optionList)
-                (globalSettings {graphType = localGraphType}, processedData)
+                (globalSettings {graphType = localGraphType}, processedData, inSeedList)
         else if head commandList == "criterion"  then
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
@@ -174,7 +174,7 @@ setCommand argList globalSettings processedData =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
             in
             trace ("Optimality criterion set to " ++ head optionList)
-            (globalSettings {optimalityCriterion = localCriterion}, processedData)
+            (globalSettings {optimalityCriterion = localCriterion}, processedData, inSeedList)
         else if head commandList == "compressresolutions"  then
             let localCriterion
                   | (head optionList == "true") = True
@@ -182,7 +182,7 @@ setCommand argList globalSettings processedData =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. CompressResolutions '" ++ (head optionList) ++ "' is not 'true' or 'false'")
             in
             trace ("CompressResolutions set to " ++ head optionList)
-            (globalSettings {compressResolutions = localCriterion}, processedData)
+            (globalSettings {compressResolutions = localCriterion}, processedData, inSeedList)
         else if head commandList == "finalassignment"  then
             let localMethod
                   | ((head optionList == "do") || (head optionList == "directoptimization")) = DirectOptimization
@@ -191,12 +191,12 @@ setCommand argList globalSettings processedData =
             in
             if (graphType globalSettings) == Tree then
                 trace ("FinalAssignment set to " ++ head optionList)
-                (globalSettings {finalAssignment = localMethod}, processedData)
+                (globalSettings {finalAssignment = localMethod}, processedData, inSeedList)
             else if localMethod == DirectOptimization then
-                (globalSettings {finalAssignment = localMethod}, processedData)
+                (globalSettings {finalAssignment = localMethod}, processedData, inSeedList)
             else 
                 trace ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs")
-                (globalSettings {finalAssignment = DirectOptimization}, processedData)
+                (globalSettings {finalAssignment = DirectOptimization}, processedData, inSeedList)
 
         else if head commandList == "graphfactor"  then
             let localMethod
@@ -206,7 +206,7 @@ setCommand argList globalSettings processedData =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', or 'PMDL'")
             in
             trace ("GraphFactor set to " ++ head optionList)
-            (globalSettings {graphFactor = localMethod}, processedData)
+            (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
         else if head commandList == "rootcost"  then
             let localMethod
                   | (head optionList == "norootcost") = NoRootCost
@@ -215,8 +215,15 @@ setCommand argList globalSettings processedData =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. RootCost  '" ++ (head optionList) ++ "' is not 'NoRootCost', 'W15', or 'PMDL'")
             in
             trace ("RootCost set to " ++ head optionList)
-            (globalSettings {rootCost = localMethod}, processedData)
-        else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData)
+            (globalSettings {rootCost = localMethod}, processedData, inSeedList)
+        else if head commandList == "seed"  then
+            let localValue = readMaybe (head optionList) :: Maybe Int
+            in
+            if localValue == Nothing then error ("Set option 'seed' muts be set to an integer value (e.g. seed:123): " ++ (head optionList))
+            else 
+                trace ("Random Seed set to " ++ head optionList)
+                (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
+        else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 
 
