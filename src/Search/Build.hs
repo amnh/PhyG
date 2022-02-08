@@ -266,22 +266,16 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
          -- character build 
          -- final diagnosis in input graph type
          trace ("\tBuilding Character Wagner") (
-         let treeList' = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
+         let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
              charInfoVV = V.map thd3 $ thd3 inData
-             treeList =  treeList' {-
-                         if not simpleTreeOnly then fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 treeList')
-                         else 
-                            let numTrees = length treeList'
-                            in 
-                            L.zip6 (fmap fst6 treeList') (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
-                            -- graphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing)  (fmap fst6 treeList)
-                        -}
          in
-         let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList', maximum $ fmap snd6 treeList')))
+         let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
                                else ""
          in
-         trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " trees" ++ costRangeString)
-         treeList
+         trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " trees" ++ costRangeString) (
+         if (not simpleTreeOnly) then treeList
+         else GO.selectPhylogeneticGraph [("best", (show 1))] 0 ["best"] treeList
+         )
          )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns
