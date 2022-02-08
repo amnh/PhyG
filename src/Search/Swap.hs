@@ -187,7 +187,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                              else (newGraphList', 0)
               in
               let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-                              else ("\tAfter Simlated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs after " ++ (show $ thd5 $ fromJust simAnnealParams)  ++ " temperature steps and swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+                              else ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs after " ++ (show $ thd5 $ fromJust simAnnealParams)  ++ " temperature steps and swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
                           
               in 
               trace (endString)
@@ -217,7 +217,7 @@ swapSPRTBR  :: String
             -> Maybe AnnealingParameter
             -> PhylogeneticGraph 
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA simAnnealParams inGraph = 
+swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inSimAnnealParams inGraph = 
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
@@ -232,20 +232,27 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
 
       -- simulated annealing acceptance does a steepest with SA acceptance
       -- then a swap steepest and all on annealed graph
-      if simAnnealParams /= Nothing then 
+      if inSimAnnealParams /= Nothing then 
          -- annealed should only yield a single graph
-         let (annealedGraph, anealedCounter) = trace ("Annealing") (inGraph, 0)
+         trace ("\tAnnealing Swap") (
+         let (tempMax, tempMin, numberSteps, _, randIntList) = fromJust inSimAnnealParams
+             -- this to ensure current step set to 0
+             simAnnealParams = Just (tempMax, tempMin, numberSteps, 0, randIntList)
+             (annealedGraphs, anealedCounter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor simAnnealParams
 
-             (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (min (snd6 inGraph) (snd6 annealedGraph)) [] [annealedGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+             (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (min (snd6 inGraph) (snd6 $ head annealedGraphs)) [] annealedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
              -- swap "all" after steepest descent
              (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
-         (swappedGraphs', counter')
+         (swappedGraphs', anealedCounter)
+         )
+
       -- steepest takes immediate best--does not keep equall cost
+      -- NOthing for SimAnneal Params
       else if steepest then 
-         let (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+         let (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
              -- swap "all" after steepest descent
              (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
@@ -391,8 +398,9 @@ swapSteepest   :: String
                -> V.Vector (V.Vector CharInfo) 
                -> Bool
                -> VertexCost
+               -> Maybe AnnealingParameter
                -> ([PhylogeneticGraph], Int)
-swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor =
+swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor inSimAnnealVals =
    --trace ("steepest") (
    if null inGraphList then 
       (take numToKeep $ GO.getBVUniqPhylogeneticGraph True curSameBetterList, counter)
@@ -417,7 +425,7 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
           reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV netPenaltyFactor) splitGraphList graphRootList prunedGraphRootIndexList 
 
           -- create rejoins-- reoptimized fully in steepest returns PhylogheneticGraph 
-          reoptimizedSwapGraphList = rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist True doIA charInfoVV $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
+          (reoptimizedSwapGraphList, newAnnealVals) = rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist True doIA charInfoVV inSimAnnealVals $ L.zip5 reoptimizedSplitGraphList graphRootList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
 
           -- this should be incremental--full 2-pass for now
           -- reoptimizedSwapGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing $ fst $ head swapPairList 
@@ -431,10 +439,25 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
       
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
-      if (bestSwapCost < curBestCost) then 
+
+      if inSimAnnealVals /= Nothing then 
+        -- check that graphs were returned.  If nothing then return in Graph
+        if bestSwapCost == infinity then (inGraphList, counter + 1)
+        else 
+            --simulated Annealing check if at end of steps then return
+            let (maxT, minT, numSteps, curNumSteps, randIntList) = fromJust newAnnealVals
+            in
+            if (curNumSteps >= (numSteps - 1))  then 
+                (fmap fst reoptimizedSwapGraphList, counter + 1)
+            else 
+                let nextAnnealVals = Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList)
+                in
+                swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor nextAnnealVals
+
+      else if (bestSwapCost < curBestCost) then 
          --trace ("Steepest better")
          trace ("\t->" ++ (show bestSwapCost))
-         swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor 
+         swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor Nothing
 
       -- didn't find equal or better graphs
       else (inGraphList, counter + 1)
@@ -532,10 +555,11 @@ rejoinGraphKeepBestSteepest :: GlobalSettings
                              -> Bool 
                              -> Bool 
                              -> V.Vector (V.Vector CharInfo) 
+                             -> Maybe AnnealingParameter
                              -> [((DecoratedGraph, VertexCost) , LG.Node , LG.Node , LG.Node , LG.Node)]
-                             -> [(PhylogeneticGraph, VertexCost)]
-rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV splitInfoList = 
-   if null splitInfoList then []
+                             -> ([(PhylogeneticGraph, VertexCost)], Maybe AnnealingParameter)
+rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV inSimAnnealVals splitInfoList = 
+   if null splitInfoList then ([], inSimAnnealVals)
    else
       -- trace ("In rejoin steepes with split node " ++ (show $ fft5 $ head splitInfoList)) (
       let ((splitGraph, splitCost), graphRoot, prunedGraphRootIndex, nakedNode, originalSplitNode) = head splitInfoList
@@ -552,15 +576,27 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
           (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
           onlySPR = length nodesAfterPrunedRoot < 3
           
-          candidateGraphList = addSubGraphSteepest inGS inData swapType hardwiredSPR doIA splitGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV edgesToInvade
+          (candidateGraphList, newAnnealVals) = addSubGraphSteepest inGS inData swapType hardwiredSPR doIA splitGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals edgesToInvade
 
       in
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
       
       -- case where swap split retunred empty because too few nodes in remaining graph to add to
-      if LG.isEmpty splitGraph || null candidateGraphList then []
-      else if (snd6 $ head candidateGraphList) < curBestCost then [(head candidateGraphList, snd6 $ head candidateGraphList)]
-      else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV (tail splitInfoList) 
+      if LG.isEmpty splitGraph || null candidateGraphList then ([], newAnnealVals)
+
+      -- simulated Annealing--recurse if not at max steps
+      else if inSimAnnealVals /= Nothing then 
+         --simulated Annealing check if at end of steps then return
+        let (maxT, minT, numSteps, curNumSteps, randIntList) = fromJust newAnnealVals
+        in
+        if (curNumSteps >= (numSteps - 1))  then 
+            ([(head candidateGraphList, snd6 $ head candidateGraphList)], newAnnealVals)
+        else 
+            rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV newAnnealVals (tail splitInfoList)    
+        
+      -- normal steepest--only return if better
+      else if (snd6 $ head candidateGraphList) < curBestCost then ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
+      else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV Nothing (tail splitInfoList) 
       -- ))
 
 -- | addSubGraphSteepest "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
@@ -578,12 +614,13 @@ addSubGraphSteepest :: GlobalSettings
                      -> Bool
                      -> [LG.LEdge EdgeInfo]
                      -> V.Vector (V.Vector CharInfo) 
+                     -> Maybe AnnealingParameter
                      -> [LG.LEdge EdgeInfo] 
-                     -> [PhylogeneticGraph]
-addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV targetEdgeList =  
-   if null targetEdgeList then []
+                     -> ([PhylogeneticGraph], Maybe AnnealingParameter)
+addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals targetEdgeList =  
+   if null targetEdgeList then ([], inSimAnnealVals)
    -- this more for graph fusing checks
-   else if splitCost > curBestCost then []
+   else if (splitCost > curBestCost) && (inSimAnnealVals == Nothing) then ([], Nothing)
    else 
       let targetEdge@(eNode, vNode, targetlabel) = head targetEdgeList
           existingEdgeCost = minLength targetlabel
@@ -606,20 +643,50 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
           (delta, rerootEdge, (tbrEdgesAdd, tbrEdgesDelete)) = getSubGraphDelta targetEdgeData doIA inGraph charInfoVV (head subGraphEdgeVertDataTripleList)
 
           -- this if TBR --need to recurse through all reootings of pruned tree
-          newTBRList = getSubGraphDeltaTBR inGS inData targetEdgeData [edge0, edge1] (eNode, vNode) doIA inGraph splitCost curBestCost charInfoVV subGraphEdgeVertDataTripleList
+          (newTBRList, newAnnealVals) = getSubGraphDeltaTBR inGS inData targetEdgeData [edge0, edge1] (eNode, vNode) doIA inGraph splitCost curBestCost charInfoVV inSimAnnealVals subGraphEdgeVertDataTripleList
           
       in
       -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
-      if (eNode == nakedNode) then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV (tail targetEdgeList)
+      if (eNode == nakedNode) then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals (tail targetEdgeList)
 
       --TBR case
       else if length subGraphEdgeVertDataTripleList > 1 then 
-         if null newTBRList then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV (tail targetEdgeList)
+         if null newTBRList then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV newAnnealVals (tail targetEdgeList)
 
          -- must be better if non-empty list
-         else newTBRList
+         else (newTBRList, newAnnealVals)
 
+      -- SPR case
+
+      -- simulated annealing case
+      else if inSimAnnealVals /= Nothing then 
+        --simulated Annealing check if at end of steps then return
+        -- original sim anneal  values since is SPR case and not updated yet
+        let (maxT, minT, numSteps, curNumSteps, randIntList) = fromJust inSimAnnealVals
+            nextAnnealVals = Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList)
+            splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
+            swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
+            reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                        else 
+                                            if (not . LG.cyclic) swapSimpleGraph then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                            else emptyPhylogeneticGraph
+                
+        in
+        if (curNumSteps < (numSteps - 1))  then 
+            -- acceptance based on heuristic values
+            let acceptGraph = simAnnealAccept (fromJust inSimAnnealVals) curBestCost (delta + splitCost)
+            in
+            if acceptGraph then 
+                ([reoptimizedCandidateGraph], nextAnnealVals)
+
+            -- continue wiht next evaluation and new sim anneal values
+            else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV nextAnnealVals (tail targetEdgeList) 
+
+        -- hit end of steps.  Cooled 
+        else ([reoptimizedCandidateGraph], nextAnnealVals)
+            
+      -- regular non-SA case
       -- better heursitic cost
       -- reoptimize to check  cost
       else if (delta + splitCost <= curBestCost) then 
@@ -633,13 +700,13 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
          if (snd6 reoptimizedCandidateGraph < curBestCost) then 
             if (graphType inGS /= Tree) then
                 -- check for cycles and anc/desc time violations in Networks
-                if (not . LG.cyclic) swapSimpleGraph then filter ((== False) . (GO.hasNetNodeAncestorViolation . thd6)) [reoptimizedCandidateGraph]
-                else []
-            else [reoptimizedCandidateGraph]
-         else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV (tail targetEdgeList)
+                if (not . LG.cyclic) swapSimpleGraph then (filter ((== False) . (GO.hasNetNodeAncestorViolation . thd6)) [reoptimizedCandidateGraph], Nothing)
+                else ([], Nothing)
+            else ([reoptimizedCandidateGraph], Nothing)
+         else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV Nothing (tail targetEdgeList)
 
       -- not better heuristic cost
-      else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV (tail targetEdgeList)
+      else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV Nothing (tail targetEdgeList)
       -- )
 
 -- | getSubGraphDeltaTBR calculated cost of adding a subgraph into and edge
@@ -655,11 +722,12 @@ getSubGraphDeltaTBR :: GlobalSettings
                     -> VertexCost
                     -> VertexCost
                     -> V.Vector (V.Vector CharInfo) 
+                    -> Maybe AnnealingParameter
                     -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
-                    -> [PhylogeneticGraph]
-getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV subGraphEdgeVertDataTripleList = 
+                    -> ([PhylogeneticGraph], Maybe AnnealingParameter)
+getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV inSimAnnealVals subGraphEdgeVertDataTripleList = 
    -- found nothing better
-   if null subGraphEdgeVertDataTripleList then []
+   if null subGraphEdgeVertDataTripleList then ([], inSimAnnealVals)
    else 
       let (edgeToJoin, subGraphVertData, (tbrEdgesAdd, tbrEdgesDelete)) = head subGraphEdgeVertDataTripleList
          -- Use edge union data for delta to edge data
@@ -670,19 +738,45 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
                                   else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA subGraphVertData evEdgeData charInfoVV []
 
 
-      in
-      if subGraphEdgeUnionCost + splitCost < curBestCost then 
+      in 
+
+      
+      -- Simulated Annealing case
+      if inSimAnnealVals /= Nothing then 
+        let -- update annealing values for next round
+            (maxT, minT, numSteps, curNumSteps, randIntList) = fromJust inSimAnnealVals
+            nextAnnealVals = Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList)
+
+            -- optimize graph
+            splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
+            swapSimpleGraph = applyGraphEdits splitGraphSimple (subGraphEdgeUnionCost + splitCost, edgeToAddInList ++ tbrEdgesAdd, edgeToDeleteIn : tbrEdgesDelete)
+            reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                
+        in
+        if (curNumSteps < (numSteps - 1))  then 
+            -- accept based on heurisrtic cost
+            let acceptGraph = simAnnealAccept (fromJust inSimAnnealVals) curBestCost (subGraphEdgeUnionCost + splitCost)
+            in
+            if acceptGraph then  
+                ([reoptimizedCandidateGraph], nextAnnealVals)  
+            else 
+                getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV nextAnnealVals (tail subGraphEdgeVertDataTripleList)
+        else 
+            ([reoptimizedCandidateGraph], nextAnnealVals)  
+
+      -- regular TBR case
+      else if subGraphEdgeUnionCost + splitCost < curBestCost then 
          -- reoptimize and check
          let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
              swapSimpleGraph = applyGraphEdits splitGraphSimple (subGraphEdgeUnionCost + splitCost, edgeToAddInList ++ tbrEdgesAdd, edgeToDeleteIn : tbrEdgesDelete)
              reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
          in
-         if snd6 reoptimizedCandidateGraph < curBestCost then [reoptimizedCandidateGraph]
-         else getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV (tail subGraphEdgeVertDataTripleList)
+         if snd6 reoptimizedCandidateGraph < curBestCost then ([reoptimizedCandidateGraph], Nothing)
+         else getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV Nothing (tail subGraphEdgeVertDataTripleList)
 
       else
          -- move on 
-         getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV (tail subGraphEdgeVertDataTripleList)
+         getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV Nothing (tail subGraphEdgeVertDataTripleList)
 
 
 -- | addSubTree "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components

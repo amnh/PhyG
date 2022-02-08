@@ -642,3 +642,5 @@ preOrderTreeTraversal
 277) Move all general graph functions to LG
 
 278) filter if two dwsxcndents are boith net nodes
+
+278) Check order of edges--make sure break/readd in reasonable order for SA
