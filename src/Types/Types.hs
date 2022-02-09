@@ -476,4 +476,5 @@ type TempMin = Double
 type NumberSteps = Int
 type CurrentStep = Int
 type RandIntList = [Int]
-type AnnealingParameter = (TempMax, TempMin, NumberSteps, CurrentStep, RandIntList)
+type AnnealingRounds = Int
+type AnnealingParameter = (TempMax, TempMin, NumberSteps, CurrentStep, RandIntList, AnnealingRounds)

@@ -355,11 +355,13 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- curStep == 0 random walk (always accept)
 -- curStep == (numSteps -1) greedy False is not better
 simAnnealAccept :: AnnealingParameter -> VertexCost -> VertexCost -> Bool
-simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList) curBestCost candCost  =
-    let tempFactor = (fromIntegral $ numSteps - curStep) / ((maxTemp - minTemp) * (fromIntegral numSteps))
+simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCost candCost  =
+    let --tempFactor = (maxTemp - minTemp) * (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+        tempFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
 
         -- flipped order - (e' -e)
-        probAcceptance = exp ((curBestCost - candCost) * tempFactor)
+        -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
+        probAcceptance = exp ((curBestCost - candCost) / ((curBestCost / 2.0) * tempFactor))
 
         -- multiplier for resolution 1000, 100 prob be ok
         randMultiplier = 1000
@@ -369,11 +371,19 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList) curBestCost c
         (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
     in
     -- lowest cost-- greedy
-    if candCost < curBestCost then True
+    if candCost < curBestCost then 
+            trace ("SAB: " ++ (show curStep) ++ " True") 
+            True
 
     -- not better and at lowest temp
-    else if curStep == (numSteps - 1) then False
+    else if curStep == numSteps then
+            trace ("SAEnd: " ++ (show curStep) ++ " False") 
+            False
     
     -- test for non-lowest temp conditions
-    else if intRandVal < intAccept then True
-    else False
+    else if intRandVal < intAccept then 
+            trace ("SAAccept: " ++ (show (curStep, maxTemp, minTemp, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+            True
+    else 
+            trace ("SAReject: " ++ (show (curStep, maxTemp, minTemp, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+            False
