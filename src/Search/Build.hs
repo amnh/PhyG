@@ -87,6 +87,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        numDisplayTrees
             | length displayBlock > 1 =
               errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " ++ show inArgs)
+            | null displayBlock = Just 10
             | null (snd $ head displayBlock) = Just 10
             | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
        doEUN' = any ((=="eun").fst) lcArgList
