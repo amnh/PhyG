@@ -357,11 +357,11 @@ copyToJust vbd = fmap (fmap Just) vbd
 simAnnealAccept :: AnnealingParameter -> VertexCost -> VertexCost -> Bool
 simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCost candCost  =
     let --tempFactor = (maxTemp - minTemp) * (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-        tempFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-
-        -- flipped order - (e' -e)
+        stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+        tempFactor = curBestCost  * stepFactor 
+                -- flipped order - (e' -e)
         -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-        probAcceptance = exp ((curBestCost - candCost) / (curBestCost * tempFactor))
+        probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost) / tempFactor)
 
         -- multiplier for resolution 1000, 100 prob be ok
         randMultiplier = 1000
@@ -376,14 +376,14 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
             True
 
     -- not better and at lowest temp
-    else if curStep == numSteps then
+    else if curStep == (numSteps - 1) then
             trace ("SAEnd: " ++ (show curStep) ++ " False") 
             False
     
     -- test for non-lowest temp conditions
     else if intRandVal < intAccept then 
-            trace ("SAAccept: " ++ (show (curStep, maxTemp, minTemp, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+            trace ("SAAccept: " ++ (show (curStep, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
             True
     else 
-            trace ("SAReject: " ++ (show (curStep, maxTemp, minTemp, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+            trace ("SAReject: " ++ (show (curStep, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
             False
