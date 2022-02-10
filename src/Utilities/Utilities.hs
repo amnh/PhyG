@@ -361,7 +361,7 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
 
         -- flipped order - (e' -e)
         -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-        probAcceptance = exp ((curBestCost - candCost) / ((curBestCost / 2.0) * tempFactor))
+        probAcceptance = exp ((curBestCost - candCost) / (curBestCost * tempFactor))
 
         -- multiplier for resolution 1000, 100 prob be ok
         randMultiplier = 1000
