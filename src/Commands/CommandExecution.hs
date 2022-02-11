@@ -85,9 +85,9 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
-executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings)
+executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int])
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList commandList = do
-    if null commandList then return (curGraphs, globalSettings)
+    if null commandList then return (curGraphs, globalSettings, seedList)
     else do
         let (firstOption, firstArgs) = head commandList
 

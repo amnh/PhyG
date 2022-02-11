@@ -124,7 +124,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              
         in
         let progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                             else ("Simulated Annealing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                             else ("Simulated Annealing " ++ (show $ fromJust annealingRounds') ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ max 3 $ fromJust steps') ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
         in trace (progressString) (
         if isNothing keepNum       then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
@@ -204,7 +204,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                              else (newGraphList', 0)
               in
               let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-                              else ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs after " ++ (show $ thd6 $ fromJust simAnnealParams)  ++ " temperature steps and annealing rounds (total): " ++ (show $ six6 $ fromJust simAnnealParams))
+                              else ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs") 
                           
               in 
               trace (endString)
@@ -268,13 +268,13 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
       -- then a swap steepest and all on annealed graph
       if inSimAnnealParams /= Nothing then 
          -- annealed should only yield a single graph
-         trace ("\tAnnealing Swap") (
+         -- trace ("\tAnnealing Swap") (
          let -- create list of params with unique list of random values for rounds of annealing
              (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
              newSimAnnealParamList = generateUniqueRandList annealingRounds inSimAnnealParams
 
              -- this to ensure current step set to 0
-             (annealedGraphs', anealedCounter) = unzip $ fmap (swapSteepest swapType hardwiredSPR inGS inData 1 maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList
+             (annealedGraphs', anealedCounter) = unzip $ (fmap (swapSteepest swapType hardwiredSPR inGS inData 1 maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList `using` PU.myParListChunkRDS)
 
              annealedGraphs = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ concat annealedGraphs'
 
@@ -282,11 +282,13 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
 
              -- swap "all" after steepest descent
              (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+
+             uniqueGraphs = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (inGraph : swappedGraphs')
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
-         trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs'))
-         (swappedGraphs', sum anealedCounter)
-         )
+         -- trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs'))
+         (uniqueGraphs, sum anealedCounter)
+         -- )
 
 
       -- steepest takes immediate best--does not keep equall cost
@@ -561,6 +563,8 @@ rejoinGraphKeepBest inGS swapType hardWiredSPR curBestCost numToKeep maxMoveEdge
 
           prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
           (nodesAfterPrunedRoot, edgesInPrunedSubGraph) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
+
+          -- pruned subgraph too small to reroot in TBR
           onlySPR = length nodesAfterPrunedRoot < 3
        
 
@@ -573,7 +577,7 @@ rejoinGraphKeepBest inGS swapType hardWiredSPR curBestCost numToKeep maxMoveEdge
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph splitGraph)) (
       if minCandidateCost > curBestCost then []
       else 
-         let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if checkk all equal or better than curent best
+         let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if check all equal or better than curent best
              splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
@@ -686,7 +690,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
       in
       -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
-      if (eNode == nakedNode) then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals (tail targetEdgeList)
+      if doSPR && (eNode == nakedNode) then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals (tail targetEdgeList)
 
       --TBR case
       else if length subGraphEdgeVertDataTripleList > 1 then 
@@ -712,7 +716,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
                 
         in
         ([reoptimizedCandidateGraph], nextAnnealVals)
-        {-
+        {-  THis already done in addSubGraphSteepest
         -- "better case without reoptimization"
         if (delta + splitCost < curBestCost) then 
             trace  ("ASGS Better:" ++ (show $ snd6 reoptimizedCandidateGraph))
@@ -720,7 +724,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
 
         else if (curNumSteps < numSteps)  then 
             -- acceptance based on heuristic values
-            let acceptGraph = simAnnealAccept (fromJust inSimAnnealVals) curBestCost (delta + splitCost)
+            let acceptGraph = simAnnealAccept (fromJust newAnnealVals) curBestCost (delta + splitCost)
             in
             if acceptGraph then 
                 trace  ("ASGS Accept:" ++ (show $ snd6 reoptimizedCandidateGraph))
@@ -733,7 +737,8 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
 
         -- hit end of steps.  Cooled 
         else ([reoptimizedCandidateGraph], nextAnnealVals)
-        -}
+      -}
+        
       -- regular non-SA case
       -- better heursitic cost
       -- reoptimize to check  cost
@@ -774,7 +779,7 @@ getSubGraphDeltaTBR :: GlobalSettings
                     -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
                     -> ([PhylogeneticGraph], Maybe AnnealingParameter)
 getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV inSimAnnealVals subGraphEdgeVertDataTripleList = 
-   trace ("SGD") (
+   -- trace ("SGD") (
    -- found nothing better
    if null subGraphEdgeVertDataTripleList then ([], inSimAnnealVals)
    else 
@@ -827,7 +832,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
          -- move on 
          getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV Nothing (tail subGraphEdgeVertDataTripleList)
 
-         )
+         -- )
 
 -- | addSubTree "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
 -- does NOT reoptimize candidate trees--happens after return since tlooking at "all"
@@ -873,25 +878,32 @@ addSubGraph inGS swapType hardWiredSPR doIA inGraph prunedGraphRootNode splitCos
        tbrEdgeEditList = if length subGraphEdgeVertDataTripleList == 1 then []
                          else minDeltaEditList
 
-       (tbrEdgesToAddList, tbeEdgesToDeleteList) = unzip tbrEdgeEditList
+       (tbrEdgesToAddList, tbrEdgesToDeleteList) = unzip tbrEdgeEditList
 
        deltaCostList = replicate (length tbrEdgeEditList) (delta + splitCost)
        edgesToAddList = zipWith (++) (replicate (length tbrEdgeEditList) [edge0, edge1]) tbrEdgesToAddList
-       edgesToDeleteList = zipWith (:) (replicate (length tbrEdgeEditList) (eNode, vNode)) tbeEdgesToDeleteList
+       edgesToDeleteList = zipWith (:) (replicate (length tbrEdgeEditList) (eNode, vNode)) tbrEdgesToDeleteList
  
    in
    
    -- do not redo origal edge so retun infinite cost and dummy edits
-   
+   --trace ("ASG " ++ (show (length subGraphEdgeVertDataTripleList, delta, length tbrEdgeEditList, length deltaCostList, length edgesToAddList, length edgesToDeleteList))) (
+   {-
    if (eNode == parentPrunedRoot) then  
       -- trace ("ASG: break edge") 
       [(infinity, [], [])]
    else
+    -}
       -- SPR or single reroot TBR case
-      if length subGraphEdgeVertDataTripleList == 1 then [(delta + splitCost, [edge0, edge1], [(eNode, vNode)])]
+      if null tbrEdgeEditList then 
+        -- trace ("all single roots") 
+        [(delta + splitCost, [edge0, edge1], [(eNode, vNode)])]
       
       -- TBR reroots 
-      else zip3 deltaCostList edgesToAddList edgesToDeleteList
+      else 
+        -- trace ("all multiple roots") 
+        zip3 deltaCostList edgesToAddList edgesToDeleteList
+      -- )
    
 
 -- | getTBREdgeEdits takes and edge and returns the list of edita to pruned subgraph 
@@ -950,6 +962,7 @@ getPrunedEdgeData :: GraphType
 getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGraph charInfoVV =
    if LG.isEmpty inGraph then error "Empty graph in getPrunedEdgeData"
    else 
+      -- trace ("PED") (
       let -- (_, edgeAfterList) = LG.nodesAndEdgesAfter inGraph [prunedGraphRootNode]
 
           -- this so not rerooted on network edge--screws things up
@@ -973,8 +986,9 @@ getPrunedEdgeData graphType doIA inGraph prunedGraphRootNode edgesInPrunedSubGra
       in
       if length prunedRootEdges /= 2 then error ("Incorrect number of out edges (should be 2) in root of pruned graph: " ++ (show $ length prunedRootEdges))
       else
-         --trace ("PED: " ++ (show  $ zip (fmap length edgeDataList) (fmap LG.toEdge edgeAfterList')) ++ " SG edges: " ++ (show $ fmap LG.toEdge edgesInPrunedSubGraph))  
+         -- trace ("PED Lengths: " ++ (show  $ (length edgeAfterList', length edgeDataList, length edgeEdits)))  
          zip3 (fmap LG.toEdge edgeAfterList') edgeDataList edgeEdits
+    -- )
 
 
 -- | getSubGraphDelta calculated cost of adding a subgraph into and edge
@@ -987,9 +1001,9 @@ getSubGraphDelta :: VertexBlockData
                  -> (LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge])) 
                  -> (VertexCost, LG.Edge, ([LG.LEdge Double],[LG.Edge]))
 getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertData, edgeSubGraphEdits) = 
-   let --existingEdgeCost = minLength targetlabel
-       --eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-       --NodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+   let -- existingEdgeCost = minLength edgeToJoin
+       --eNodeVertData = vertData $ fromJust $ LG.lab inGraph (fst edgeToJoin)
+       --vNodeVertData = vertData $ fromJust $ LG.lab inGraph (snd edgeToJoin)
        -- subGraphVertData = snd subGraphEdgeVertDataPair
 
        -- create edge union 'character' blockData
@@ -1022,8 +1036,9 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
        costNewV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyV subGraphVertData charInfoVV []
        costEV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE dummyV charInfoVV []
 
-       subGraphEdgeUnionCost' = (costNewE + costNewV - existingEdgeCost) / 2.0
+       subGraphEdgeUnionCost' = (costNewE + costNewV - costEV) / 2.0
        -}
+       
        
 
    in
