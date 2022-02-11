@@ -61,7 +61,7 @@ import qualified GraphOptimization.Medians as M
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps"]
+swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated"]
 
 
 -- | swapMaster processes and spawns the swap functions
@@ -124,7 +124,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              
         in
         let progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                             else ("Simulated Annealing " ++ (show $ fromJust annealingRounds') ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ max 3 $ fromJust steps') ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                             else ("Simulated Annealing (Swapping) " ++ (show $ fromJust annealingRounds') ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ max 3 $ fromJust steps') ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
         in trace (progressString) (
         if isNothing keepNum       then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
@@ -154,8 +154,21 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doAll = any ((=="all").fst) lcArgList
                doSPR'' = if (not doNNI' && not doSPR' && not doTBR') then True
                          else doSPR'
+               
+               doSteepest = if (not doSteepest' && not doAll) then True
+                            else doSteepest'
+               
+               -- Workaround for Hardwired SPR issue
+               (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
+                                                                      else
+                                                                        if doNNI' then (True, False, False, Just 1, True)
+                                                                        else if doSPR'' then (True, False, False, maxMoveEdgeDist', True)
+                                                                        else (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
 
                -- simulated annealing parameters
+               -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
+               returnMutated = any ((=="returnmutated").fst) lcArgList
+
                simAnnealParams = if not doAnnealing then Nothing
                                  else 
                                     let steps = max 3 (fromJust steps')
@@ -170,34 +183,24 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                     Just (maxTemp, minTemp, steps, 0, randomIntList rSeed, annealingRounds) 
 
                                  
-
-               -- Workaround for Hardwired SPR issue
-               (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
-                                                                      else
-                                                                        if doNNI' then (True, False, False, Just 1, True)
-                                                                        else if doSPR'' then (True, False, False, maxMoveEdgeDist', True)
-                                                                        else (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
-
-               -- create simanneal random lists uniquely for each fmap
-               newSimAnnealParamList = generateUniqueRandList (length inGraphList) simAnnealParams
+               -- create simulated annealing random lists uniquely for each fmap
+               newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
 
 
-               doSteepest = if (not doSteepest' && not doAll) then True
-                            else doSteepest'
                (newGraphList, counterNNI)  = if doNNI then 
-                                               let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
-                                               let graphPairList2 = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList2 = fmap (swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
-                                               let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
+                                               let graphPairList3 =  fmap (swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -211,24 +214,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               newGraphList''     
             )
 
--- | generateUniqueRandList take a int and simulated anealing parameter slist and creates 
--- a list of SA paramter values with unique rnandomInt lists
--- sets current step to 0
-generateUniqueRandList :: Int -> Maybe AnnealingParameter -> [Maybe AnnealingParameter]
-generateUniqueRandList number inParams =
-    if number == 0 then []
-    else if inParams == Nothing then replicate number Nothing
-    else 
-        let (_, _, _, _, randIntList, _) = fromJust inParams  
-            randSeedList = take number randIntList
-            randIntListList = fmap randomIntList randSeedList
-            simAnnealParamList = replicate number inParams
-            newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList 
-        in
-        -- trace (show $ fmap (take 1) randIntListList)
-        newSimAnnealParamList
-
-        where updateSAParams (a,b,c,_,_,f) g = (a,b,c,0,g,f)
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
 -- runs both SPR and TBR depending on argument since so much duplicated functionality
@@ -249,9 +234,10 @@ swapSPRTBR  :: String
             -> Bool
             -> V.Vector (V.Vector CharInfo) 
             -> Bool
+            -> Bool
             -> (Maybe AnnealingParameter, PhylogeneticGraph) 
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA (inSimAnnealParams, inGraph) = 
+swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated (inSimAnnealParams, inGraph) = 
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
@@ -271,7 +257,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
          -- trace ("\tAnnealing Swap") (
          let -- create list of params with unique list of random values for rounds of annealing
              (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
-             newSimAnnealParamList = generateUniqueRandList annealingRounds inSimAnnealParams
+             newSimAnnealParamList = U.generateUniqueRandList annealingRounds inSimAnnealParams
 
              -- this to ensure current step set to 0
              (annealedGraphs', anealedCounter) = unzip $ (fmap (swapSteepest swapType hardwiredSPR inGS inData 1 maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList `using` PU.myParListChunkRDS)
@@ -287,7 +273,10 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          -- trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs'))
-         (uniqueGraphs, sum anealedCounter)
+
+         -- this Bool for Genetic Algorithm mutation step
+         if not returnMutated then (uniqueGraphs, sum anealedCounter)
+         else (annealedGraphs, sum anealedCounter)
          -- )
 
 
@@ -484,11 +473,12 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
 
+      -- check that graphs were returned.  If nothing then return in Graph
+      if bestSwapCost == infinity then (inGraphList, counter + 1)
+      
       -- Sim annealing
-      if inSimAnnealVals /= Nothing then 
-        -- check that graphs were returned.  If nothing then return in Graph
-        if bestSwapCost == infinity then (inGraphList, counter + 1)
-        else 
+      else if inSimAnnealVals /= Nothing then 
+
             --simulated Annealing check if at end of steps then return
             let (maxT, minT, numSteps, curNumSteps, randIntList, annealingRounds) = fromJust inSimAnnealVals
             in
@@ -706,7 +696,6 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
         --simulated Annealing check if at end of steps then return
         -- original sim anneal  values since is SPR case and not updated yet
         let (maxT, minT, numSteps, curNumSteps, randIntList, annealingRounds) = fromJust newAnnealVals
-            nextAnnealVals = Just (maxT, minT, numSteps, (curNumSteps ), tail randIntList, annealingRounds)
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
             swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
             reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
@@ -715,7 +704,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
                                             else emptyPhylogeneticGraph
                 
         in
-        ([reoptimizedCandidateGraph], nextAnnealVals)
+        ([reoptimizedCandidateGraph], newAnnealVals)
         {-  THis already done in addSubGraphSteepest
         -- "better case without reoptimization"
         if (delta + splitCost < curBestCost) then 
@@ -798,8 +787,10 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
       -- Simulated Annealing case
       if inSimAnnealVals /= Nothing then 
         let -- update annealing values for next round
-            (maxT, minT, numSteps, curNumSteps, randIntList, annealingRounds) = fromJust inSimAnnealVals
-            nextAnnealVals = Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList, annealingRounds)
+            (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealVals
+
+            -- jupdatye sim anneal values
+            nextAnnealVals = incrementSimAnnealParams inSimAnnealVals -- Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList, annealingRounds)
 
             -- optimize graph
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph

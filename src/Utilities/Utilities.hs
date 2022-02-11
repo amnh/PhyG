@@ -359,9 +359,12 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
     let --tempFactor = (maxTemp - minTemp) * (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
         stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
         tempFactor = curBestCost  * stepFactor 
+
+        candCost' = if curBestCost == candCost then candCost + 1
+                    else candCost
                 -- flipped order - (e' -e)
         -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-        probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost) / tempFactor)
+        probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
 
         -- multiplier for resolution 1000, 100 prob be ok
         randMultiplier = 1000
@@ -373,19 +376,46 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
     -- lowest cost-- greedy
     -- trace ("RA " ++ (show intAccept)) (
     if candCost < curBestCost then 
-            -- trace ("SAB: " ++ (show curStep) ++ " True") 
+            trace ("SAB: " ++ (show curStep) ++ " True") 
             True
 
     -- not better and at lowest temp
-    else if curStep == (numSteps - 1) then
-            -- trace ("SAEnd: " ++ (show curStep) ++ " False") 
+    else if curStep >= (numSteps - 1) then
+            trace ("SAEnd: " ++ (show curStep) ++ " False") 
             False
     
     -- test for non-lowest temp conditions
     else if intRandVal < intAccept then 
-            -- trace ("SAAccept: " ++ (show (curStep, candCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+            trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
             True
     else 
-            -- trace ("SAReject: " ++ (show (curStep, candCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+            trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
             False
     -- )
+
+-- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
+incrementSimAnnealParams :: Maybe AnnealingParameter -> Maybe AnnealingParameter
+incrementSimAnnealParams inParams =
+    let (maxTemp, minTemp, numSteps, curStep, randIntList, rounds) = fromJust inParams
+    in
+    if inParams == Nothing then error "Simulated anneling parameters = Nothing"
+    else Just (maxTemp, minTemp, numSteps, curStep + 1, tail randIntList, rounds) 
+
+-- | generateUniqueRandList take a int and simulated anealing parameter slist and creates 
+-- a list of SA paramter values with unique rnandomInt lists
+-- sets current step to 0
+generateUniqueRandList :: Int -> Maybe AnnealingParameter -> [Maybe AnnealingParameter]
+generateUniqueRandList number inParams =
+    if number == 0 then []
+    else if inParams == Nothing then replicate number Nothing
+    else 
+        let (_, _, _, _, randIntList, _) = fromJust inParams  
+            randSeedList = take number randIntList
+            randIntListList = fmap GU.randomIntList randSeedList
+            simAnnealParamList = replicate number inParams
+            newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList 
+        in
+        -- trace (show $ fmap (take 1) randIntListList)
+        newSimAnnealParamList
+
+        where updateSAParams (a,b,c,_,_,f) g = (a,b,c,0,g,f)

@@ -132,7 +132,7 @@ refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", 
 
 -- | netEdgeArgList argiments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove", "annealing", "maxtemp", "mintemp", "steps", "returnmutated"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -153,6 +153,37 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " ++ show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+
+             -- simulated anealing options
+             maxTempList = filter ((=="maxtemp").fst) lcArgList
+             maxTemp'     
+              | length maxTempList > 1 =
+                errorWithoutStackTrace ("Multiple maximum annealing temperature value specifications in netEdge command--can have only one (e.g. maxTemp:100): " ++ show inArgs)
+              | null maxTempList = Just 11.0 
+              | otherwise = readMaybe (snd $ head maxTempList) :: Maybe Double
+
+             minTempList = filter ((=="mintemp").fst) lcArgList  
+             minTemp'   
+              | length minTempList > 1 =
+                errorWithoutStackTrace ("Multiple minimum annealing temperature value specifications in netEdge command--can have only one (e.g. minTemp:1.0): " ++ show inArgs)
+              | null minTempList = Just 1.0 
+              | otherwise = readMaybe (snd $ head minTempList) :: Maybe Double
+
+             stepsList   = filter ((=="steps").fst) lcArgList 
+             steps'   
+              | length stepsList > 1 =
+                errorWithoutStackTrace ("Multiple annealing steps value specifications in netEdge command--can have only one (e.g. steps:10): " ++ show inArgs)
+              | null stepsList = Just 10
+              | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
+
+             annealingList = filter ((=="annealing").fst) lcArgList
+             annealingRounds'
+              | length annealingList > 1 =
+                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in netEdge command--can have only one: " ++ show inArgs)
+              | null annealingList = Just 1
+              | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
+
+             doAnnealing = any ((=="annealing").fst) lcArgList
          in
          if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
          else 
@@ -174,34 +205,66 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
 
-               -- perform add/delete/move operations 
-               (newGraphList, counterDelete) = if doNetDelete || doAddDelete then 
-                                                trace ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
-                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) inGraphList) `using` PU.myParListChunkRDS
+               -- simulated annealing parameters
+               -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
+               returnMutated = any ((=="returnmutated").fst) lcArgList
+
+               simAnnealParams = if not doAnnealing then Nothing
+                                 else 
+                                    let steps = max 3 (fromJust steps')
+                                        maxTemp = max 20.1 (fromJust maxTemp')
+                                        minTemp'' = max 0.1 (fromJust minTemp')
+                                        minTemp = if minTemp'' > maxTemp then maxTemp / 100.0
+                                                  else minTemp''
+                                        annealingRounds = if annealingRounds' == Nothing then 1
+                                                          else if fromJust annealingRounds' < 1 then 1
+                                                          else fromJust annealingRounds'
+                                    in
+                                    Just (maxTemp, minTemp, steps, 0, randomIntList rSeed, annealingRounds) 
+
+                                 
+               -- create simulated annealing random lists uniquely for each fmap
+               newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
+
+               -- perform add/delete/move operations
+               bannerText = if simAnnealParams /= Nothing then 
+                     ("Simulated Annealing (Network edge moves) " ++ (show $ six6 $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ thd6 $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                            else if doNetDelete || doAddDelete then 
+                              ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                            else if doNetAdd || doAddDelete then 
+                              ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                            else if doMove then
+                              ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                            else ""
+
+            in
+            trace (bannerText) (
+               
+            let (newGraphList, counterDelete) = if doNetDelete || doAddDelete then 
+                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData (fromJust keepNum) 0 returnMutated ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                )
-                                            else (inGraphList, 0)   
+                                                
+                                               else (inGraphList, 0)   
 
 
-               (newGraphList', counterAdd) = if doNetAdd || doAddDelete then 
-                                                trace ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
-                                                let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
+                (newGraphList', counterAdd) = if doNetAdd || doAddDelete then 
+                                               let graphPairList = fmap (N.insertAllNetEdges inGS inData (fromJust keepNum) 0 returnMutated ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                                   (graphListList, counterList) = unzip graphPairList
+                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                
+                                             else (newGraphList, 0)   
+
+                (newGraphList'', counterMove) = if doMove then 
+                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData (fromJust keepNum) 0 returnMutated ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                )
-                                            else (newGraphList, 0)   
+                                                
+                                             else (newGraphList', 0)   
 
-               (newGraphList'', counterMove) = if doMove then 
-                                                trace ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
-                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData (fromJust keepNum) 0 ([], infinity)) (fmap (: []) newGraphList) `using` PU.myParListChunkRDS
-                                                    (graphListList, counterList) = unzip graphPairList
-                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                )
-                                            else (newGraphList', 0)   
-
-           in
-           trace ("\tAfter network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
+            in
+            trace ("\tAfter network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 newGraphList'') ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
-           newGraphList'
+            newGraphList''
+            )
      
