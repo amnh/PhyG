@@ -852,10 +852,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
                                        else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))
 
         newSimpleGraph = GO.convertDecoratedToSimpleGraph newDecGraph
-                        {- if (graphType inGS) == Tree then GO.rerootTree rerootIndex inSimple
-                         else if (graphType inGS) == SoftWired then rectifyGraph isNetworkNode originalRootIndex parentIsNetworkNode parentIndex rerootIndex inSimple
-                         else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))
-                        -}
+                        
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
@@ -900,34 +897,6 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
             -- )
 
-
-{-
--- | rectifyGraph'' 'fixes' (flips) edges where a network edge has be chosen as a reroot edge
--- basically at root and network edge originally 'to' network edge
-rectifyGraph'' :: (Eq b) => Bool -> Int ->  Bool -> Int -> LG.Gr a b -> LG.Gr a b
-rectifyGraph'' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
-    if LG.isEmpty inGraph then LG.empty
-    else
-        -- sanity check of phylogenetic graph
-        if not isNetworkNode && not parentIsNetworkNode then GO.rerootTree rerootIndex inGraph
-
-        -- simply reroot if not network edge reroot
-        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode))
-
-        -- root point is network node
-        else if isNetworkNode then
-            let reRootGraph = GO.rerootTree rerootIndex inGraph
-                inRootEdges = LG.inn reRootGraph originalRootIndex
-                newRootEdges = fmap LG.flipLEdge inRootEdges
-            in
-            LG.insEdges newRootEdges $ LG.delLEdges inRootEdges reRootGraph
-
-        -- parent of root point is network--flip and retype nodes
-        -- this is incorrect so skipped
-        -- I think it has to do with the relabelling of nodes between Network and Tree
-        -- when reentering on next rooting
-        else inGraph
--}
 
 -- | rectifyGraphDecorated' wrapper around rectifyGraphDecorated for graph only
 rectifyGraphDecorated' :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> DecoratedGraph
@@ -1009,40 +978,6 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 else
                 -}
                 (newGraph, nodesToReoptimize)
-
-
-
-{-
--- | rectifyGraphDecorated' 'fixes' (flips) edges where a network edge has be chosen as a reroot edge For Decorated Graph--thee should be able to be combined
-rectifyGraphDecorated'' :: Bool -> Int ->  Bool -> Int -> DecoratedGraph -> (DecoratedGraph, [LG.LNode VertexInfo])
-rectifyGraphDecorated'' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inGraph =
-    if LG.isEmpty inGraph then (LG.empty, [])
-    else
-        -- sanity check of phylogenetic graph
-        if not isNetworkNode && not parentIsNetworkNode then (GO.rerootTree rerootIndex inGraph, [])
-
-        -- simply reroot if not network edge reroot
-        else if isNetworkNode && parentIsNetworkNode then error ("Graph with parent and child nodes network vertices: " ++ show (originalRootIndex, parentIsNetworkNode))
-
-        -- root point is network node
-        else if isNetworkNode then
-            let reRootGraph = GO.rerootTree rerootIndex inGraph
-                inRootEdges = LG.inn reRootGraph originalRootIndex
-                newRootEdges = fmap LG.flipLEdge inRootEdges
-                newGraph = LG.insEdges newRootEdges $ LG.delLEdges inRootEdges reRootGraph
-
-                -- get touched nodes
-                touchedNodeIndexList = L.nub (fmap fst3 newRootEdges) ++ fmap snd3 newRootEdges
-                touchedNodeLabelIndex = fmap (fromJust . LG.lab newGraph) touchedNodeIndexList
-                touchedNodeList = filter ((not . LG.isLeaf newGraph) . fst) $ zip touchedNodeIndexList touchedNodeLabelIndex
-            in
-            -- trace ("Node Touched :" ++ show (fmap fst touchedNodeList))
-            (newGraph, touchedNodeList)
-
-        -- parent of root point is network--flip and retype nodes
-        -- this is incorrect so skipped
-        else (inGraph, [])
--}
 
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph

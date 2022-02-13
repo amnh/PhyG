@@ -376,20 +376,20 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
     -- lowest cost-- greedy
     -- trace ("RA " ++ (show intAccept)) (
     if candCost < curBestCost then 
-            trace ("SAB: " ++ (show curStep) ++ " True") 
+            -- trace ("SAB: " ++ (show curStep) ++ " True") 
             True
 
     -- not better and at lowest temp
     else if curStep >= (numSteps - 1) then
-            trace ("SAEnd: " ++ (show curStep) ++ " False") 
+            -- trace ("SAEnd: " ++ (show curStep) ++ " False") 
             False
     
     -- test for non-lowest temp conditions
     else if intRandVal < intAccept then 
-            trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+            -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
             True
     else 
-            trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+            -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
             False
     -- )
 
