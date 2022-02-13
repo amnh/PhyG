@@ -471,6 +471,12 @@
 		\subsubsection{Description}
 		Performs edit operations (addition, deletion, move) on network edges, hence only applies to softwired and hardwired graphs.
 		\subsubsection{Arguments}
+			\noindent \texttt{annealing[:n]} Specifies that $n$ (default 1) rounds of simulated annealing optimization \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} are performed.  The acceptance 
+			of candidate graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, where
+			$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ is the step number,  
+			and $k_{max}$ is the maximum  number of steps (set by the \texttt{steps:m}, default 10) option.
+			
+			\smallskip		
 			\noindent \texttt{keep:N} Limits the number of returned graphs to $N$.  
 		
 			\smallskip		
@@ -481,6 +487,9 @@
 			
 			\smallskip
 			\noindent \texttt{netmove} Moves existing network edges in input graphs one at a time to new positions until no better cost graph is found.
+			
+			\smallskip		
+			\noindent \texttt{steps:n} Specifies that $n$ (default 10) temperature steps are performed during simulated annealing (as specified by the \texttt{annealing}) option.
 			
 	\subsection{Report}
 		\subsubsection{Syntax}
@@ -644,6 +653,16 @@
 		Performs branch-swapping rearrangement on graphs.  These include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR''  \citep{Dayhoff1969}, and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
 		
 		\subsubsection{Arguments}
+		\smallskip		
+		\noindent \texttt{all} Specifies that refinement examines the entire rearrangement neighborhood of the current graph before retaining the best (lowest cost) solutions.
+		
+		\smallskip		
+		\noindent \texttt{annealing[:n]} Specifies that $n$ (default 1) rounds of simulated annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} optimization are performed.  The acceptance 
+		of candidate graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, where
+		$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ is the step number,  
+		and $k_{max}$ is the maximum number of steps (set by the \texttt{steps:m}, default 10) option.
+		
+		\smallskip		
 		\noindent \texttt{ia} Specifies that Implied Alignment \citep{Wheeler2003} assignment are used for branch swapping as opposed to full Direct Optimization for dynamic charters
 		when the graph type is \texttt{Tree}.
 		
@@ -653,18 +672,17 @@
 		\smallskip		
 		\noindent \texttt{nni} Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
 		
+		\smallskip		
 		\noindent \texttt{spr:[N]} Specifies that SPR refinement \citep{Dayhoff1969} is performed.  If the optional argument $N$ is specified, readdition of pruned graphs will
 		be within $2 * N$ edges of its original placement.
+		
+		\smallskip		
+		\noindent \texttt{steps:n} Specifies that $n$ (default 10) temperature steps are performed during simulated annealing (as specified by the \texttt{annealing}) option.
 		
 		\smallskip		
 		\noindent \texttt{steepest} Specifies that refinement follows a greedy path, abandoning the neighborhood of the current graph when a better (lower cost)
 		graph is found.
 		
-		\smallskip		
-		\noindent \texttt{all} Specifies that refinement examines the entire rearrangement neighborhood of the current graph before retaining the best (lowest cost) solutions.
-		
-		
-		\smallskip		
 		\noindent \texttt{tbr:[N]} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed.  If the optional argument $N$ is specified, readdition of pruned graphs will
 		be within $2 * N$ edges of its original placement.
 		

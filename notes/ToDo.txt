@@ -648,3 +648,10 @@ preOrderTreeTraversal
 279) Unions after split
 
 280) Check TBR doing reroots of pruned tree properly
+
+281) GA
+	1) mutate input to pop size (2x input min)
+	2) recombine w/wo SPTBR??
+	3) refine?
+	4) reproduce/select
+	5) repeat
