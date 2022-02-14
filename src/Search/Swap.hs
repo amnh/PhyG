@@ -92,20 +92,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
              
              -- simulated anealing options
-             maxTempList = filter ((=="maxtemp").fst) lcArgList
-             maxTemp'     
-              | length maxTempList > 1 =
-                errorWithoutStackTrace ("Multiple maximum annealing temperature value specifications in swap command--can have only one (e.g. maxTemp:100): " ++ show inArgs)
-              | null maxTempList = Just 11.0 
-              | otherwise = readMaybe (snd $ head maxTempList) :: Maybe Double
-
-             minTempList = filter ((=="mintemp").fst) lcArgList  
-             minTemp'   
-              | length minTempList > 1 =
-                errorWithoutStackTrace ("Multiple minimum annealing temperature value specifications in swap command--can have only one (e.g. minTemp:1.0): " ++ show inArgs)
-              | null minTempList = Just 1.0 
-              | otherwise = readMaybe (snd $ head minTempList) :: Maybe Double
-
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -129,8 +115,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
         if isNothing keepNum       then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
         
-        else if isNothing maxTemp' then errorWithoutStackTrace ("Anealing maximum temperature specification not a double (e.g. maxTemp:100.0): "  ++ show (snd $ head maxTempList))
-        else if isNothing minTemp' then errorWithoutStackTrace ("Annealing minimum temperature specification not a double (e.g. minTemp:1.0): "  ++ show (snd $ head minTempList))
         else if isNothing steps'   then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
         -- else if isNothing annealingRounds'   then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
             
@@ -172,15 +156,17 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                simAnnealParams = if not doAnnealing then Nothing
                                  else 
                                     let steps = max 3 (fromJust steps')
-                                        maxTemp = max 20.1 (fromJust maxTemp')
-                                        minTemp'' = max 0.1 (fromJust minTemp')
-                                        minTemp = if minTemp'' > maxTemp then maxTemp / 100.0
-                                                  else minTemp''
                                         annealingRounds = if annealingRounds' == Nothing then 1
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
+
+                                        saValues = SAParams { numberSteps = steps
+                                                            , currentStep = 0
+                                                            , randomIntegerList = randomIntList rSeed
+                                                            , rounds      = annealingRounds
+                                                            } 
                                     in
-                                    Just (maxTemp, minTemp, steps, 0, randomIntList rSeed, annealingRounds) 
+                                    Just saValues
 
                                  
                -- create simulated annealing random lists uniquely for each fmap
@@ -235,7 +221,7 @@ swapSPRTBR  :: String
             -> V.Vector (V.Vector CharInfo) 
             -> Bool
             -> Bool
-            -> (Maybe AnnealingParameter, PhylogeneticGraph) 
+            -> (Maybe SAParams, PhylogeneticGraph) 
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated (inSimAnnealParams, inGraph) = 
    -- trace ("In swapSPRTBR:") (
@@ -278,7 +264,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
          -- annealed should only yield a single graph
          -- trace ("\tAnnealing Swap") (
          let -- create list of params with unique list of random values for rounds of annealing
-             (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
+             annealingRounds = rounds $ fromJust inSimAnnealParams
              newSimAnnealParamList = U.generateUniqueRandList annealingRounds inSimAnnealParams
 
              -- this to ensure current step set to 0
@@ -432,7 +418,7 @@ swapSteepest   :: String
                -> V.Vector (V.Vector CharInfo) 
                -> Bool
                -> VertexCost
-               -> Maybe AnnealingParameter
+               -> Maybe SAParams
                -> ([PhylogeneticGraph], Int)
 swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor inSimAnnealVals =
    --trace ("steepest") (
@@ -489,7 +475,8 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
       -- Sim annealing
       else  
             --simulated Annealing check if at end of steps then return
-            let (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealVals
+            let numSteps = numberSteps $ fromJust inSimAnnealVals
+                curNumSteps = currentStep $ fromJust inSimAnnealVals
             in
             if (curNumSteps < numSteps)  then 
                 swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor newAnnealVals
@@ -593,9 +580,9 @@ rejoinGraphKeepBestSteepest :: GlobalSettings
                              -> Bool 
                              -> Bool 
                              -> V.Vector (V.Vector CharInfo) 
-                             -> Maybe AnnealingParameter
+                             -> Maybe SAParams
                              -> [((DecoratedGraph, VertexCost) , LG.Node , LG.Node , LG.Node , LG.Node)]
-                             -> ([(PhylogeneticGraph, VertexCost)], Maybe AnnealingParameter)
+                             -> ([(PhylogeneticGraph, VertexCost)], Maybe SAParams)
 rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV inSimAnnealVals splitInfoList = 
    if null splitInfoList then ([], inSimAnnealVals)
    else
@@ -648,9 +635,9 @@ addSubGraphSteepest :: GlobalSettings
                      -> Bool
                      -> [LG.LEdge EdgeInfo]
                      -> V.Vector (V.Vector CharInfo) 
-                     -> Maybe AnnealingParameter
+                     -> Maybe SAParams
                      -> [LG.LEdge EdgeInfo] 
-                     -> ([PhylogeneticGraph], Maybe AnnealingParameter)
+                     -> ([PhylogeneticGraph], Maybe SAParams)
 addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals targetEdgeList =  
    if null targetEdgeList then ([], inSimAnnealVals)
    -- this more for graph fusing checks
@@ -720,8 +707,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
       else  
         --simulated Annealing check if at end of steps then return
         -- original sim anneal  values since is SPR case and not updated yet
-        let (maxT, minT, numSteps, curNumSteps, randIntList, annealingRounds) = fromJust newAnnealVals
-            splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
+        let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
             swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
             reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                                         else 
@@ -747,9 +733,9 @@ getSubGraphDeltaTBR :: GlobalSettings
                     -> VertexCost
                     -> VertexCost
                     -> V.Vector (V.Vector CharInfo) 
-                    -> Maybe AnnealingParameter
+                    -> Maybe SAParams
                     -> [(LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))]
-                    -> ([PhylogeneticGraph], Maybe AnnealingParameter)
+                    -> ([PhylogeneticGraph], Maybe SAParams)
 getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV inSimAnnealVals subGraphEdgeVertDataTripleList = 
    -- trace ("SGD") (
    -- found nothing better
@@ -783,9 +769,10 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
       -- Simulated Annealing case
       else 
         let -- update annealing values for next round
-            (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealVals
-
-            -- jupdatye sim anneal values
+            numSteps = numberSteps $ fromJust inSimAnnealVals
+            curNumSteps = currentStep $ fromJust inSimAnnealVals
+            
+            -- update sim anneal values
             nextAnnealVals = incrementSimAnnealParams inSimAnnealVals -- Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList, annealingRounds)
 
             -- optimize graph

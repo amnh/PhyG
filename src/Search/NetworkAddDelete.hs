@@ -62,12 +62,12 @@ import qualified Utilities.Utilities as U
 -- Choose order in max branch length, root-end, leaf-end, and at random
 
 -- moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
-moveAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int) 
+moveAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int) 
 moveAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if inSimAnnealParams == Nothing then moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (Nothing, inPhyloGraphList)
    else 
       let -- create list of params with unique list of random values for rounds of annealing
-         (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
+         annealingRounds = rounds $ fromJust inSimAnnealParams
          annealParamGraphListPair = zip (U.generateUniqueRandList annealingRounds inSimAnnealParams) (replicate annealingRounds inPhyloGraphList)
 
          (annealRoundsList, counterList) = unzip (fmap (moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost)) annealParamGraphListPair `using` PU.myParListChunkRDS)
@@ -77,7 +77,7 @@ moveAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList, c
 -- | moveAllNetEdges' removes each edge and adds an edge to all possible plasses each round 
 -- until no better or additional graphs are found
 -- call with ([], infinity) [single input graph]
-moveAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
+moveAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else 
@@ -106,7 +106,8 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
 
       -- sim anneal choice
       else 
-            let (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealParams
+            let numSteps = numberSteps $ fromJust inSimAnnealParams
+                curNumSteps = currentStep $ fromJust inSimAnnealParams
                 uniqueGraphList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] newGraphList'
                 annealBestCost = min curBestGraphCost (snd6 $ head uniqueGraphList)
                 acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head uniqueGraphList)
@@ -132,13 +133,13 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
       
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
-insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
+insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 insertAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if inSimAnnealParams == Nothing then 
       insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList)
    else 
       let -- create list of params with unique list of random values for rounds of annealing
-         (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
+         annealingRounds = rounds $ fromJust inSimAnnealParams
          annealParamGraphListPair = zip (U.generateUniqueRandList annealingRounds inSimAnnealParams) (replicate annealingRounds inPhyloGraphList)
 
          (annealRoundsList, counterList) = unzip (fmap (insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost)) annealParamGraphListPair `using` PU.myParListChunkRDS)
@@ -148,7 +149,7 @@ insertAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList,
 -- | insertAllNetEdges' adds network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
-insertAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
+insertAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams,inPhyloGraphList) =
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
@@ -183,7 +184,8 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
       -- simulated annealing 
       else 
             -- sim anneal choice
-            let (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealParams
+            let numSteps = numberSteps $ fromJust inSimAnnealParams
+                curNumSteps = currentStep $ fromJust inSimAnnealParams
                 annealBestCost = min curBestGraphCost (snd6 $ head newGraphList)
                 acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head newGraphList)
             in
@@ -209,13 +211,13 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
 
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
-deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
+deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 deleteAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if inSimAnnealParams == Nothing then 
       deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList)
    else 
       let -- create list of params with unique list of random values for rounds of annealing
-         (_, _, _, _, _, annealingRounds) = fromJust inSimAnnealParams
+         annealingRounds = rounds $ fromJust inSimAnnealParams
          annealParamGraphListPair = zip (U.generateUniqueRandList annealingRounds inSimAnnealParams) (replicate annealingRounds inPhyloGraphList)
 
          (annealRoundsList, counterList) = unzip (fmap (deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost)) annealParamGraphListPair `using` PU.myParListChunkRDS)
@@ -225,7 +227,7 @@ deleteAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList,
 -- | deleteAllNetEdges deletes network edges one each each round until no better or additional 
 -- graphs are found
 -- call with ([], infinity) [single input graph]
-deleteAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe AnnealingParameter, [PhylogeneticGraph])-> ([PhylogeneticGraph], Int)
+deleteAllNetEdges' :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph])-> ([PhylogeneticGraph], Int)
 deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
@@ -258,7 +260,8 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
       -- simulated annealing
       else  
          -- sim anneal choice
-            let (_, _, numSteps, curNumSteps, _, _) = fromJust inSimAnnealParams
+            let numSteps = numberSteps $ fromJust inSimAnnealParams
+                curNumSteps = currentStep $ fromJust inSimAnnealParams
                 annealBestCost = min curBestGraphCost (snd6 $ head newGraphList')
                 acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head newGraphList')
             in

@@ -354,9 +354,12 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
 -- curStep == 0 random walk (always accept)
 -- curStep == (numSteps -1) greedy False is not better
-simAnnealAccept :: AnnealingParameter -> VertexCost -> VertexCost -> Bool
-simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCost candCost  =
-    let --tempFactor = (maxTemp - minTemp) * (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+simAnnealAccept :: SAParams -> VertexCost -> VertexCost -> Bool
+simAnnealAccept simAnealVals curBestCost candCost  =
+    let numSteps = numberSteps simAnealVals
+        curStep  = currentStep simAnealVals
+        randIntList = randomIntegerList simAnealVals
+
         stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
         tempFactor = curBestCost  * stepFactor 
 
@@ -394,22 +397,26 @@ simAnnealAccept (maxTemp, minTemp, numSteps, curStep, randIntList, _) curBestCos
     -- )
 
 -- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
-incrementSimAnnealParams :: Maybe AnnealingParameter -> Maybe AnnealingParameter
+incrementSimAnnealParams :: Maybe SAParams -> Maybe SAParams
 incrementSimAnnealParams inParams =
-    let (maxTemp, minTemp, numSteps, curStep, randIntList, rounds) = fromJust inParams
-    in
     if inParams == Nothing then error "Simulated anneling parameters = Nothing"
-    else Just (maxTemp, minTemp, numSteps, curStep + 1, tail randIntList, rounds) 
+    else 
+        let curStep = currentStep $ fromJust inParams
+            randList = tail $ randomIntegerList $ fromJust inParams
+        in
+        Just $ (fromJust inParams) { currentStep = curStep + 1
+                                   , randomIntegerList = randList
+                                   }
 
 -- | generateUniqueRandList take a int and simulated anealing parameter slist and creates 
 -- a list of SA paramter values with unique rnandomInt lists
 -- sets current step to 0
-generateUniqueRandList :: Int -> Maybe AnnealingParameter -> [Maybe AnnealingParameter]
+generateUniqueRandList :: Int -> Maybe SAParams -> [Maybe SAParams]
 generateUniqueRandList number inParams =
     if number == 0 then []
     else if inParams == Nothing then replicate number Nothing
     else 
-        let (_, _, _, _, randIntList, _) = fromJust inParams  
+        let randIntList = randomIntegerList $ fromJust inParams  
             randSeedList = take number randIntList
             randIntListList = fmap GU.randomIntList randSeedList
             simAnnealParamList = replicate number inParams
@@ -418,4 +425,4 @@ generateUniqueRandList number inParams =
         -- trace (show $ fmap (take 1) randIntListList)
         newSimAnnealParamList
 
-        where updateSAParams (a,b,c,_,_,f) g = (a,b,c,0,g,f)
+        where updateSAParams a b = a {randomIntegerList = b}

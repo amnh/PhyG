@@ -155,20 +155,6 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              -- simulated anealing options
-             maxTempList = filter ((=="maxtemp").fst) lcArgList
-             maxTemp'     
-              | length maxTempList > 1 =
-                errorWithoutStackTrace ("Multiple maximum annealing temperature value specifications in netEdge command--can have only one (e.g. maxTemp:100): " ++ show inArgs)
-              | null maxTempList = Just 11.0 
-              | otherwise = readMaybe (snd $ head maxTempList) :: Maybe Double
-
-             minTempList = filter ((=="mintemp").fst) lcArgList  
-             minTemp'   
-              | length minTempList > 1 =
-                errorWithoutStackTrace ("Multiple minimum annealing temperature value specifications in netEdge command--can have only one (e.g. minTemp:1.0): " ++ show inArgs)
-              | null minTempList = Just 1.0 
-              | otherwise = readMaybe (snd $ head minTempList) :: Maybe Double
-
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -212,15 +198,17 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                simAnnealParams = if not doAnnealing then Nothing
                                  else 
                                     let steps = max 3 (fromJust steps')
-                                        maxTemp = max 20.1 (fromJust maxTemp')
-                                        minTemp'' = max 0.1 (fromJust minTemp')
-                                        minTemp = if minTemp'' > maxTemp then maxTemp / 100.0
-                                                  else minTemp''
                                         annealingRounds = if annealingRounds' == Nothing then 1
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
+
+                                        saValues = SAParams { numberSteps = steps
+                                                            , currentStep = 0
+                                                            , randomIntegerList = randomIntList rSeed
+                                                            , rounds      = annealingRounds
+                                                            } 
                                     in
-                                    Just (maxTemp, minTemp, steps, 0, randomIntList rSeed, annealingRounds) 
+                                    Just saValues
 
                                  
                -- create simulated annealing random lists uniquely for each fmap
@@ -228,7 +216,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                -- perform add/delete/move operations
                bannerText = if simAnnealParams /= Nothing then 
-                     ("Simulated Annealing (Network edge moves) " ++ (show $ six6 $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ thd6 $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                     ("Simulated Annealing (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
                             else if doNetDelete || doAddDelete then 
                               ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else if doNetAdd || doAddDelete then 
