@@ -123,7 +123,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData seed inGraphList = 
-   if null inGraphList then trace ("No graphs input to refine") []
+   if null inGraphList then error ("No graphs input to refine") 
    else netEdgeMaster inArgs inGS inData seed inGraphList
 
 -- | refinement arguments
@@ -137,7 +137,8 @@ netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "n
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
-   if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
+   if null inGraphList then error "No graphs input to netEdgeMaster"
+   else if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
    else 
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -155,6 +156,8 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              -- simulated anealing options
+             doAnnealing = any ((=="annealing").fst) lcArgList
+
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -169,9 +172,46 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | null annealingList = Just 1
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
-             doAnnealing = any ((=="annealing").fst) lcArgList
+             -- drift options
+             doDrift     = any ((=="drift").fst) lcArgList
+             
+             driftList = filter ((=="drift").fst) lcArgList
+             driftRounds
+              | length driftList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+              | null driftList = Just 1
+              | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
+
+             acceptEqualList = filter ((=="acceptEqual").fst) lcArgList
+             acceptEqualProb 
+              | length acceptEqualList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
+              | null acceptEqualList = Just 0.5
+              | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
+
+             acceptWorseList = filter ((=="acceptWorse").fst) lcArgList
+             acceptWorseFactor 
+              | length acceptWorseList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
+              | null acceptEqualList = Just 1.0
+              | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
+
+             maxChangesList = filter ((=="maxChanges").fst) lcArgList
+             maxChanges 
+              | length maxChangesList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
+              | null maxChangesList = Just 15
+              | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int    
+
          in
          if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
+
+         --else if isNothing annealingRounds' then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
+         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
+         else if isNothing driftRounds      then errorWithoutStackTrace ("Drift rounds specification not an integer (e.g. drift:10): "  ++ show (snd $ head stepsList))
+         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
+         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
+         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
          else 
            let -- getting values to be passed for graph diagnosis later
                numLeaves = V.length $ fst3 inData
@@ -202,10 +242,31 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
 
-                                        saValues = SAParams { numberSteps = steps
+                                        saMethod = if doDrift && doAnnealing then
+                                                    trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.") 
+                                                    Drift
+                                                 else if doDrift then Drift
+                                                 else SimAnneal
+
+                                        equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
+                                                    else if fromJust acceptEqualProb > 1.0 then 1.0
+                                                    else fromJust acceptEqualProb
+
+                                        worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
+                                                      else fromJust acceptWorseFactor
+
+                                        changes = if fromJust maxChanges < 0 then 15
+                                                     else fromJust maxChanges
+
+                                        saValues = SAParams { method = saMethod
+                                                            , numberSteps = steps
                                                             , currentStep = 0
                                                             , randomIntegerList = randomIntList rSeed
                                                             , rounds      = annealingRounds
+                                                            , driftAcceptEqual  = equalProb
+                                                            , drfftAcceptWorse  = worseFactor
+                                                            , driftMaxChanges   = changes
+                                                            , driftChanges      = 0
                                                             } 
                                     in
                                     Just saValues
@@ -251,8 +312,11 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                              else (newGraphList', 0)   
 
             in
-            trace ("\tAfter network edge add/delete/move: " ++ (show $ length newGraphList'') ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 newGraphList'') ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
+            let resultGraphList = if null newGraphList'' then inGraphList
+                                  else GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ inGraphList ++ newGraphList''
+            in
+            trace ("\tAfter network edge add/delete/move: " ++ (show $ length resultGraphList) ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 resultGraphList) ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
-            newGraphList''
+            resultGraphList
             )
      

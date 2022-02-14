@@ -470,20 +470,17 @@ type ProcessedData = (V.Vector NameText, V.Vector NameBV, V.Vector BlockData)
 --        3) Vector of character information for characters in the block
 type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo)
 
-{-
--- | Types for Simulated Annealing
-type TempMax = Double
-type TempMin = Double
-type NumberSteps = Int
-type CurrentStep = Int
-type RandIntList = [Int]
-type AnnealingRounds = Int
-type AnnealingParameter = (TempMax, TempMin, NumberSteps, CurrentStep, RandIntList, AnnealingRounds)
--}
+-- | type SAParams parameter structure for simulated alnnealing and Drifting
+data SimulatedAnnealingMethod = SimAnneal | Drift
+    deriving stock (Read, Show, Eq)
 
--- | type SAParams parameter structure for simulated alnnealing
-data  SAParams = SAParams   { numberSteps       :: Int
-                            , currentStep       :: Int
-                            , randomIntegerList :: [Int]
-                            , rounds            :: Int
-                            } deriving stock (Show, Eq)
+data SAParams = SAParams { method            :: SimulatedAnnealingMethod
+                         , numberSteps       :: Int
+                         , currentStep       :: Int
+                         , randomIntegerList :: [Int]
+                         , rounds            :: Int
+                         , driftAcceptEqual  :: Double
+                         , drfftAcceptWorse  :: Double
+                         , driftMaxChanges   :: Int
+                         , driftChanges      :: Int
+                         } deriving stock (Show, Eq)

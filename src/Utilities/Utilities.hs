@@ -419,7 +419,7 @@ generateUniqueRandList number inParams =
         let randIntList = randomIntegerList $ fromJust inParams  
             randSeedList = take number randIntList
             randIntListList = fmap GU.randomIntList randSeedList
-            simAnnealParamList = replicate number inParams
+            -- simAnnealParamList = replicate number inParams
             newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList 
         in
         -- trace (show $ fmap (take 1) randIntListList)

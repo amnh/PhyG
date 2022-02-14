@@ -657,3 +657,7 @@ preOrderTreeTraversal
 	5) repeat
 
 282) SA params to Maybe record record
+
+283) Try adding in reroot traversal for hardwired
+
+284) steepest edge add with randomization (perhaps same with move and delete)

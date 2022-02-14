@@ -102,6 +102,7 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
             -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
             let newCurSameBestList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
             in
+            -- trace (show $ length newCurSameBestList) 
             moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (newCurSameBestList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
 
       -- sim anneal choice
@@ -136,7 +137,7 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
 insertAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 insertAllNetEdges inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if inSimAnnealParams == Nothing then 
-      insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList)
+      insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, curBestGraphCost) (Nothing, inPhyloGraphList)
    else 
       let -- create list of params with unique list of random values for rounds of annealing
          annealingRounds = rounds $ fromJust inSimAnnealParams
@@ -166,7 +167,11 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
       else if inSimAnnealParams == Nothing then
 
          -- worse graphs found--go on 
-         if  newGraphCost > currentCost then insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head inPhyloGraphList) : curBestGraphList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
+         if  newGraphCost > currentCost then 
+            if length curBestGraphList < numToKeep then 
+               insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head inPhyloGraphList) : curBestGraphList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
+            else 
+               insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
 
          -- "steepest style descent" abandons existing list if better cost found
          else if newGraphCost < currentCost then 
@@ -177,9 +182,11 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
          -- not sure if should add new graphs to queue to do edge deletion again
          else 
             -- new grapjh list contains the input graph if equal and filterd unique already in insertAllNetEdges
-            let newCurSameBestList =  GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
-            in
-            insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (newCurSameBestList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
+            if length curBestGraphList < numToKeep then 
+               let newCurSameBestList =  take numToKeep $  GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (curBestGraphList ++ newGraphList)
+               in
+               insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (newCurSameBestList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
+            else insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, curBestGraphCost) (inSimAnnealParams, (tail inPhyloGraphList))
 
       -- simulated annealing 
       else 
@@ -317,11 +324,11 @@ insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
           candidateNetworkEdgeList = getPermissibleEdgePairs (thd6 inPhyloGraph)
 
           -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
-          newGraphList = filter (/= emptyPhylogeneticGraph) $ filter ((/= infinity) . snd6) (fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
+          newGraphList = filter (/= emptyPhylogeneticGraph) (fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
 
-          minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
-          minCost = if null minCostGraphList then infinity
-                    else snd6 $ head minCostGraphList
+          --minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
+          minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
+                    else minimum $ fmap snd6 newGraphList
       in
       trace ("\tExamining " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
       
@@ -330,7 +337,7 @@ insertEachNetEdge inGS inData numToKeep preDeleteCost inPhyloGraph =
       -- filter later 
       else
          -- (minCostGraphList, minCost)
-         (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : newGraphList, minCost)
+         (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ newGraphList, minCost)
       )
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
@@ -343,10 +350,12 @@ getPermissibleEdgePairs inGraph =
            edgePairs = cartProd edgeList edgeList
            contraintList = LG.getGraphCoevalConstraints inGraph
            edgeTestList = fmap (isEdgePairPermissible inGraph contraintList) edgePairs `using`  PU.myParListChunkRDS
-           pairList = filter ((== True) . snd) $ zip edgePairs edgeTestList
+           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
        in
-       -- trace ("CArtProd:" ++ (show $ cartProd (fmap LG.toEdge edgeList) (fmap LG.toEdge edgeList)))
-       fmap fst pairList
+       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
+       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+       pairList
+       where f (a, b) = (LG.toEdge a, LG.toEdge b)
 
 -- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
 -- pair of edges can be linked by a new edge and satify three consitions:
@@ -474,7 +483,7 @@ deleteEachNetEdge inGS inData numToKeep force inPhyloGraph =
       if null networkEdgeList then trace ("\tNo network edges to delete") ([inPhyloGraph], currentCost)
       else
          -- filter later
-         (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ inPhyloGraph : uniqueCostGraphList, currentCost)
+         (GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ uniqueCostGraphList, currentCost)
 
 
 
@@ -522,15 +531,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 
            
            -- full two-pass optimization
-           newPhyloGraph = if (graphType inGS == SoftWired) then 
-                                -- trace ("NewSimple\n:" ++ (LG.prettify newSimple)) 
-                                T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
-                           else if (graphType inGS == HardWired) then 
-                                -- trace ("Insert NewSimple\n:" ++ (LG.prettify newSimple)) 
-                                if (not . LG.cyclic) newSimple then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex newSimple
-                                else emptyPhylogeneticGraph
-                           else error "Unsupported graph type in insertNetEdge.  Must be soft or hard wired" 
-
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
             
            -- calculates heursitic graph delta
            (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo) 
@@ -545,8 +546,17 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
        --  ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
        --  ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
 
+       -- Check for cycles
+       if LG.cyclic newSimple then 
+         -- trace ("INE cyclic") 
+         emptyPhylogeneticGraph
+
+       else if GO.parentInChain newSimple then 
+         --trace ("INE PIN") 
+         emptyPhylogeneticGraph
+
        -- force evaluation for HardWired
-       if (graphType inGS) == HardWired then newPhyloGraph
+       else if (graphType inGS) == HardWired then newPhyloGraph
        
        -- preDelete cost changes criterion for edge move
        else if preDeleteCost == Nothing then 

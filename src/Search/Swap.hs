@@ -92,6 +92,8 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
              
              -- simulated anealing options
+             doAnnealing = any ((=="annealing").fst) lcArgList
+             
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -106,17 +108,49 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | null annealingList = Just 1
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
-             doAnnealing = any ((=="annealing").fst) lcArgList
+             -- drift options
+             doDrift     = any ((=="drift").fst) lcArgList
+             
+             driftList = filter ((=="drift").fst) lcArgList
+             driftRounds
+              | length driftList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+              | null driftList = Just 1
+              | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
+
+             acceptEqualList = filter ((=="acceptEqual").fst) lcArgList
+             acceptEqualProb 
+              | length acceptEqualList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
+              | null acceptEqualList = Just 0.5
+              | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
+
+             acceptWorseList = filter ((=="acceptWorse").fst) lcArgList
+             acceptWorseFactor 
+              | length acceptWorseList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
+              | null acceptEqualList = Just 1.0
+              | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
+
+             maxChangesList = filter ((=="maxChanges").fst) lcArgList
+             maxChanges 
+              | length maxChangesList > 1 =
+                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
+              | null maxChangesList = Just 15
+              | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
              
         in
-        let progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                             else ("Simulated Annealing (Swapping) " ++ (show $ fromJust annealingRounds') ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ max 3 $ fromJust steps') ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-        in trace (progressString) (
-        if isNothing keepNum       then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
+
+        -- check inputs
+        if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
-        
-        else if isNothing steps'   then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-        -- else if isNothing annealingRounds'   then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
+        --else if isNothing annealingRounds' then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
+        else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
+        else if isNothing driftRounds      then errorWithoutStackTrace ("Drift rounds specification not an integer (e.g. drift:10): "  ++ show (snd $ head stepsList))
+        else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
+        else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
+        else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
+
             
         else 
            let -- getting values to be passed for graph diagnosis later
@@ -160,10 +194,31 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
 
-                                        saValues = SAParams { numberSteps = steps
+                                        saMethod = if doDrift && doAnnealing then
+                                                    trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.") 
+                                                    Drift
+                                                 else if doDrift then Drift
+                                                 else SimAnneal
+
+                                        equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
+                                                    else if fromJust acceptEqualProb > 1.0 then 1.0
+                                                    else fromJust acceptEqualProb
+
+                                        worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
+                                                      else fromJust acceptWorseFactor
+
+                                        changes = if fromJust maxChanges < 0 then 15
+                                                     else fromJust maxChanges
+
+                                        saValues = SAParams { method = saMethod
+                                                            , numberSteps = steps
                                                             , currentStep = 0
                                                             , randomIntegerList = randomIntList rSeed
                                                             , rounds      = annealingRounds
+                                                            , driftAcceptEqual  = equalProb
+                                                            , drfftAcceptWorse  = worseFactor
+                                                            , driftMaxChanges   = changes
+                                                            , driftChanges      = 0
                                                             } 
                                     in
                                     Just saValues
@@ -171,9 +226,15 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                  
                -- create simulated annealing random lists uniquely for each fmap
                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
+               
+               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                             else ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
 
+           in 
 
-               (newGraphList, counterNNI)  = if doNNI then 
+           trace (progressString) (
+
+           let (newGraphList, counterNNI)  = if doNNI then 
                                                let graphPairList1 = fmap (swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -342,7 +403,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
           --                             else minimum $ fmap snd swapPairList
           candidateSwapGraphList = if (graphType inGS /= Tree) then 
                                         -- checks for cylces--rare but can occur
-                                        filter ((== False) . (LG.cyclic . fst)) $ filter ((<= curBestCost). snd) swapPairList
+                                        filter ((== False) . (GO.parentInChain . fst)) $ filter ((== False) . (LG.cyclic . fst)) $ filter ((<= curBestCost). snd) swapPairList
                                    else filter ((<= curBestCost). snd) swapPairList
 
           
@@ -472,11 +533,11 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
           -- didn't find equal or better graphs
           else (inGraphList, counter + 1)
 
-      -- Sim annealing
+      -- Simulated annealing
       else  
             --simulated Annealing check if at end of steps then return
-            let numSteps = numberSteps $ fromJust inSimAnnealVals
-                curNumSteps = currentStep $ fromJust inSimAnnealVals
+            let numSteps = numberSteps $ fromJust newAnnealVals
+                curNumSteps = currentStep $ fromJust newAnnealVals
             in
             if (curNumSteps < numSteps)  then 
                 swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor newAnnealVals
@@ -609,15 +670,17 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
       -- case where swap split returned empty because too few nodes in remaining graph to add to
       if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
 
-      -- simulated Annealing--recurse if not at max steps
-      else if inSimAnnealVals /= Nothing then 
-         --simulated Annealing check if at end of steps then return
-        ([(head candidateGraphList, snd6 $ head candidateGraphList)], newAnnealVals)
-        
-        
       -- normal steepest--only return if better
-      else if (snd6 $ head candidateGraphList) < curBestCost then ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
-      else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV Nothing (tail splitInfoList) 
+      else if inSimAnnealVals == Nothing then 
+        if (snd6 $ head candidateGraphList) < curBestCost then ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
+        else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV Nothing (tail splitInfoList) 
+
+      -- simulated Annealing--recurse if not at max steps
+      else  
+         ([(head candidateGraphList, snd6 $ head candidateGraphList)], newAnnealVals)
+        
+        
+        
       -- ))
 
 -- | addSubGraphSteepest "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
@@ -688,15 +751,18 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
                  swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
                  reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                                              else 
-                                                if (not . LG.cyclic) swapSimpleGraph then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                                if (not . LG.cyclic) swapSimpleGraph && (not . GO.parentInChain) swapSimpleGraph then  T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                                                 else emptyPhylogeneticGraph
              in
              if (snd6 reoptimizedCandidateGraph < curBestCost) then 
+                {-
                 if (graphType inGS /= Tree) then
                     -- check for cycles and anc/desc time violations in Networks
-                    if (not . LG.cyclic) swapSimpleGraph then (filter ((== False) . (GO.hasNetNodeAncestorViolation . thd6)) [reoptimizedCandidateGraph], Nothing)
+                    if (not . LG.cyclic) swapSimpleGraph && (not . GO.parentInChainthen swapSimpleGraph) then (filter ((== False) . (GO.hasNetNodeAncestorViolation . thd6)) [reoptimizedCandidateGraph], Nothing)
                     else ([], Nothing)
                 else ([reoptimizedCandidateGraph], Nothing)
+                -}
+                ([reoptimizedCandidateGraph], Nothing)
              else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV Nothing (tail targetEdgeList)
 
           -- not better heuristic cost
@@ -711,7 +777,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
             swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
             reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                                         else 
-                                            if (not . LG.cyclic) swapSimpleGraph then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
+                                            if (not . LG.cyclic) swapSimpleGraph  && (not . GO.parentInChain) swapSimpleGraph then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                                             else emptyPhylogeneticGraph
                 
         in

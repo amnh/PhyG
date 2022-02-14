@@ -65,6 +65,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , generateDisplayTreesRandom
                                , hasNetNodeAncestorViolation
                                , convertGeneralGraphToPhylogeneticGraph
+                               , parentInChain
                                ) where
 
 import qualified Data.List                 as L
@@ -121,6 +122,26 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
     if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
     else noSisterSisterGraph
 
+-- | parentsInChain checks for parents in chain ie network edges 
+-- that implies a network event between nodes where one is the ancestor of the other
+-- a time violation
+parentInChain :: SimpleGraph -> Bool 
+parentInChain inGraph =
+  if LG.isEmpty inGraph then error "Null graph in parentInChain"
+  else 
+    let   (_, _, _, netVertexList) = LG.splitVertexList inGraph
+          parentNetVertList = fmap (LG.labParents inGraph) $ fmap fst netVertexList
+
+          -- get list of nodes that are transitively equal in age
+          concurrentList = mergeConcurrentNodeLists parentNetVertList []
+          concurrentPairList = concatMap getListPairs concurrentList
+
+          -- get pairs that violate concurrency
+          violatingConcurrentPairs = concatMap (concurrentViolatePair inGraph) concurrentPairList
+    in
+    if null violatingConcurrentPairs then False
+    else True
+
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: SimpleGraph -> SimpleGraph
 removeParentsInChain inGraph = 
@@ -145,7 +166,7 @@ removeParentsInChain inGraph =
           
       in
       if null violatingConcurrentPairs then inGraph
-      else if null netNodeViolateList then error ("Should be neNOde that violate")
+      else if null netNodeViolateList then error ("Should be neNode that violate")
       else if null netEdgesThatViolate then error "Should be violating in edges"
       else 
         let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
