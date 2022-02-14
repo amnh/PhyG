@@ -402,11 +402,20 @@ incrementSimAnnealParams inParams =
     if inParams == Nothing then error "Simulated anneling parameters = Nothing"
     else 
         let curStep = currentStep $ fromJust inParams
+            curChanges = driftChanges $ fromJust inParams
             randList = tail $ randomIntegerList $ fromJust inParams
         in
-        Just $ (fromJust inParams) { currentStep = curStep + 1
-                                   , randomIntegerList = randList
-                                   }
+
+        -- simulated annelaing temperature step
+        if method (fromJust inParams) == SimAnneal then 
+            Just $ (fromJust inParams) { currentStep = curStep + 1
+                                       , randomIntegerList = randList
+                                       }
+        -- drifting change number
+        else 
+            Just $ (fromJust inParams) { driftChanges = curChanges + 1
+                                       , randomIntegerList = randList
+                                       }
 
 -- | generateUniqueRandList take a int and simulated anealing parameter slist and creates 
 -- a list of SA paramter values with unique rnandomInt lists
