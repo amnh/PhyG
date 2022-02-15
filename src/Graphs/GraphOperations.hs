@@ -125,7 +125,7 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
 -- | parentsInChain checks for parents in chain ie network edges 
 -- that implies a network event between nodes where one is the ancestor of the other
 -- a time violation
-parentInChain :: SimpleGraph -> Bool 
+parentInChain :: (Show a, Eq a, Eq b) => LG.Gr a b -> Bool 
 parentInChain inGraph =
   if LG.isEmpty inGraph then error "Null graph in parentInChain"
   else 
@@ -195,7 +195,7 @@ removeSisterSisterEdges inGraph =
 
 -- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
 -- have the same two parents
-getSisterSisterEdgeList :: SimpleGraph -> [LG.Edge]
+getSisterSisterEdgeList :: LG.Gr a b -> [LG.Edge]
 getSisterSisterEdgeList inGraph = 
   if LG.isEmpty inGraph then []
   else 
@@ -217,7 +217,7 @@ getSisterSisterEdgeList inGraph =
 
 -- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair
 -- as list otherwise null list
-concurrentViolatePair :: SimpleGraph -> (LG.LNode NameText, LG.LNode NameText) -> [(LG.LNode NameText, LG.LNode NameText)]
+concurrentViolatePair :: (Eq a, Show a, Eq b) => LG.Gr a b  -> (LG.LNode a, LG.LNode a) -> [(LG.LNode a, LG.LNode a)]
 concurrentViolatePair inGraph (node1, node2) = 
   if LG.isEmpty inGraph then error "Empty graph in concurrentViolatePair"
   else 
@@ -231,7 +231,7 @@ concurrentViolatePair inGraph (node1, node2) =
 
 -- | mergeConcurrentNodeLists takes a list os lists  and returns a list os lists of merged lists
 -- lists are merged if they share any elements
-mergeConcurrentNodeLists :: [[LG.LNode NameText]] -> [[LG.LNode NameText]] -> [[LG.LNode NameText]]
+mergeConcurrentNodeLists :: (Eq a) => [[LG.LNode a]] -> [[LG.LNode a]] -> [[LG.LNode a]]
 mergeConcurrentNodeLists inListList currentListList =
   if null inListList then 
     -- trace ("MCNL:" ++ (show $ fmap (fmap fst) currentListList))
@@ -254,10 +254,10 @@ mergeConcurrentNodeLists inListList currentListList =
 
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
 -- a form of time violation
-checkParentsChain :: SimpleGraph -> LG.LNode NameText -> [LG.LNode NameText] -> [LG.Edge]
+checkParentsChain :: (Show a, Eq a, Eq b) => LG.Gr a b -> LG.LNode a -> [LG.LNode a] -> [LG.Edge]
 checkParentsChain inGraph netNode parentNodeList =
   if LG.isEmpty inGraph then error "Empty graph in checkParentsChain"
-  else if length parentNodeList /= 2 then error ("Need to haev 2 parentys for net node: " ++ (show (fst netNode)) ++ " <- " ++ (show $ fmap fst parentNodeList)) 
+  else if length parentNodeList /= 2 then error ("Need to have 2 parents for net node: " ++ (show (fst netNode)) ++ " <- " ++ (show $ fmap fst parentNodeList)) 
   else 
     let firstParent = head parentNodeList
         secondParent = last parentNodeList
