@@ -107,18 +107,25 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
 
       -- sim anneal choice
       else 
-            let numSteps = numberSteps $ fromJust inSimAnnealParams
-                curNumSteps = currentStep $ fromJust inSimAnnealParams
-                uniqueGraphList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] newGraphList'
-                annealBestCost = min curBestGraphCost (snd6 $ head uniqueGraphList)
-                acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head uniqueGraphList)
+            let -- abstract stopping criterion to continue
+               numDone = if (method $ fromJust inSimAnnealParams) == SimAnneal then currentStep $ fromJust inSimAnnealParams
+                         else driftChanges $ fromJust inSimAnnealParams
+               numMax  = if (method $ fromJust inSimAnnealParams) == SimAnneal then numberSteps $ fromJust inSimAnnealParams
+                         else driftMaxChanges $ fromJust inSimAnnealParams
+
+               -- get acceptance based on heuristic costs
+               uniqueGraphList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] newGraphList'
+               annealBestCost = if (not . null) uniqueGraphList then min curBestGraphCost (snd6 $ head uniqueGraphList)
+                                 else curBestGraphCost
+               (acceptFirstGraph, newSAParams) = if (not . null) uniqueGraphList then U.simAnnealAccept inSimAnnealParams annealBestCost (snd6 $ head uniqueGraphList)
+                                                  else (False, U.incrementSimAnnealParams inSimAnnealParams)
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
-            if (curNumSteps < numSteps) then 
+            if (numDone < numMax) then 
                if acceptFirstGraph then
-                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head uniqueGraphList) :  curBestGraphList, annealBestCost) (U.incrementSimAnnealParams   inSimAnnealParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
+                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head uniqueGraphList) :  curBestGraphList, annealBestCost) (newSAParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
                else 
-                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (U.incrementSimAnnealParams inSimAnnealParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
+                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)
@@ -191,17 +198,19 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
       -- simulated annealing 
       else 
             -- sim anneal choice
-            let numSteps = numberSteps $ fromJust inSimAnnealParams
-                curNumSteps = currentStep $ fromJust inSimAnnealParams
+            let numDone = if (method $ fromJust inSimAnnealParams) == SimAnneal then currentStep $ fromJust inSimAnnealParams
+                         else driftChanges $ fromJust inSimAnnealParams
+                numMax  = if (method $ fromJust inSimAnnealParams) == SimAnneal then numberSteps $ fromJust inSimAnnealParams
+                         else driftMaxChanges $ fromJust inSimAnnealParams
                 annealBestCost = min curBestGraphCost (snd6 $ head newGraphList)
-                acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head newGraphList)
+                (acceptFirstGraph, newSAParams) = U.simAnnealAccept inSimAnnealParams annealBestCost (snd6 $ head newGraphList)
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
-            if (curNumSteps < numSteps) then 
+            if (numDone < numMax) then 
                if acceptFirstGraph then
-                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList) :  curBestGraphList, annealBestCost) (U.incrementSimAnnealParams inSimAnnealParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
+                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList) :  curBestGraphList, annealBestCost) (newSAParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
                else 
-                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (U.incrementSimAnnealParams inSimAnnealParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
+                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)
@@ -267,17 +276,19 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
       -- simulated annealing
       else  
          -- sim anneal choice
-            let numSteps = numberSteps $ fromJust inSimAnnealParams
-                curNumSteps = currentStep $ fromJust inSimAnnealParams
+            let numDone = if (method $ fromJust inSimAnnealParams) == SimAnneal then currentStep $ fromJust inSimAnnealParams
+                         else driftChanges $ fromJust inSimAnnealParams
+                numMax  = if (method $ fromJust inSimAnnealParams) == SimAnneal then numberSteps $ fromJust inSimAnnealParams
+                         else driftMaxChanges $ fromJust inSimAnnealParams
                 annealBestCost = min curBestGraphCost (snd6 $ head newGraphList')
-                acceptFirstGraph = U.simAnnealAccept (fromJust inSimAnnealParams) annealBestCost (snd6 $ head newGraphList')
+                (acceptFirstGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams annealBestCost (snd6 $ head newGraphList')
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
-            if (curNumSteps < numSteps) then 
+            if (numDone < numMax) then 
                if acceptFirstGraph then
-                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList') :  curBestGraphList, annealBestCost) (U.incrementSimAnnealParams inSimAnnealParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
+                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList') :  curBestGraphList, annealBestCost) (nextSAParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
                else 
-                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (U.incrementSimAnnealParams inSimAnnealParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
+                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (nextSAParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)

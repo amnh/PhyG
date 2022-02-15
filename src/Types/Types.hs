@@ -480,7 +480,7 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          , randomIntegerList :: [Int]
                          , rounds            :: Int
                          , driftAcceptEqual  :: Double
-                         , drfftAcceptWorse  :: Double
+                         , driftAcceptWorse  :: Double
                          , driftMaxChanges   :: Int
                          , driftChanges      :: Int
                          } deriving stock (Show, Eq)

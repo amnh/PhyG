@@ -646,6 +646,8 @@ preOrderTreeTraversal
 278) Check order of edges--make sure break/readd in reasonable order for SA
 
 279) Unions after split
+	unions of final stares of HTUs (OTU's too?)
+	For dynamic--use preorder IA fields--union on that
 
 280) Check TBR doing reroots of pruned tree properly
 

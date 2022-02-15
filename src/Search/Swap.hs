@@ -61,7 +61,7 @@ import qualified GraphOptimization.Medians as M
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated"]
+swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
 
 
 -- | swapMaster processes and spawns the swap functions
@@ -112,27 +112,27 @@ swapMaster inArgs inGS inData rSeed inGraphList =
              doDrift     = any ((=="drift").fst) lcArgList
              
              driftList = filter ((=="drift").fst) lcArgList
-             driftRounds
+             driftRounds'
               | length driftList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
               | null driftList = Just 1
               | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
 
-             acceptEqualList = filter ((=="acceptEqual").fst) lcArgList
+             acceptEqualList = filter ((=="acceptequal").fst) lcArgList
              acceptEqualProb 
               | length acceptEqualList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
 
-             acceptWorseList = filter ((=="acceptWorse").fst) lcArgList
+             acceptWorseList = filter ((=="acceptworse").fst) lcArgList
              acceptWorseFactor 
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
               | null acceptEqualList = Just 1.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
 
-             maxChangesList = filter ((=="maxChanges").fst) lcArgList
+             maxChangesList = filter ((=="maxchanges").fst) lcArgList
              maxChanges 
               | length maxChangesList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
@@ -144,9 +144,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
         -- check inputs
         if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
-        --else if isNothing annealingRounds' then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-        else if isNothing driftRounds      then errorWithoutStackTrace ("Drift rounds specification not an integer (e.g. drift:10): "  ++ show (snd $ head stepsList))
         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
@@ -187,12 +185,16 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
-               simAnnealParams = if not doAnnealing then Nothing
+               simAnnealParams = if (not doAnnealing && not doDrift) then Nothing
                                  else 
                                     let steps = max 3 (fromJust steps')
                                         annealingRounds = if annealingRounds' == Nothing then 1
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
+
+                                        driftRounds = if driftRounds' == Nothing then 1
+                                                          else if fromJust driftRounds' < 1 then 1
+                                                          else fromJust driftRounds'
 
                                         saMethod = if doDrift && doAnnealing then
                                                     trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.") 
@@ -208,15 +210,15 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                       else fromJust acceptWorseFactor
 
                                         changes = if fromJust maxChanges < 0 then 15
-                                                     else fromJust maxChanges
+                                                  else fromJust maxChanges
 
                                         saValues = SAParams { method = saMethod
                                                             , numberSteps = steps
                                                             , currentStep = 0
                                                             , randomIntegerList = randomIntList rSeed
-                                                            , rounds      = annealingRounds
+                                                            , rounds      = max annealingRounds driftRounds
                                                             , driftAcceptEqual  = equalProb
-                                                            , drfftAcceptWorse  = worseFactor
+                                                            , driftAcceptWorse  = worseFactor
                                                             , driftMaxChanges   = changes
                                                             , driftChanges      = 0
                                                             } 
@@ -298,6 +300,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
       -- trace ("SSPRTBR:" ++ (show inGraphNetPenaltyFactor)) (
 
       if inSimAnnealParams == Nothing then
+       -- trace ("Non SA swap") (
       -- steepest takes immediate best--does not keep equall cost
       -- NOthing for SimAnneal Params
           if steepest then 
@@ -316,14 +319,15 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
              in 
              -- trace ("All SSPRTBR: " ++ (show (length swappedGraphs, counter)))
              (swappedGraphs, counter)
-             -- )
+             --)
              -- )
             
-      -- simulated annealing acceptance does a steepest with SA acceptance
+      -- simulated annealing/drifting acceptance does a steepest with SA acceptance
       -- then a swap steepest and all on annealed graph
+      -- same at this level method (SA, Drift) choice occurs at lower level
       else  
          -- annealed should only yield a single graph
-         -- trace ("\tAnnealing Swap") (
+         --trace ("\tAnnealing/Drifting Swap") (
          let -- create list of params with unique list of random values for rounds of annealing
              annealingRounds = rounds $ fromJust inSimAnnealParams
              newSimAnnealParamList = U.generateUniqueRandList annealingRounds inSimAnnealParams
@@ -341,12 +345,13 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
              uniqueGraphs = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (inGraph : swappedGraphs')
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
-         -- trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs'))
+         --trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs')) (
 
          -- this Bool for Genetic Algorithm mutation step
          if not returnMutated then (uniqueGraphs, sum anealedCounter)
          else (annealedGraphs, sum anealedCounter)
-         -- )
+         --)
+         --)
 
 
          
@@ -535,11 +540,15 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
 
       -- Simulated annealing
       else  
-            --simulated Annealing check if at end of steps then return
-            let numSteps = numberSteps $ fromJust newAnnealVals
-                curNumSteps = currentStep $ fromJust newAnnealVals
+            -- abstract stopping criterion to continue
+            let numDone = if (method $ fromJust inSimAnnealVals) == SimAnneal then currentStep $ fromJust newAnnealVals
+                          else driftChanges $ fromJust newAnnealVals
+                numMax  = if (method $ fromJust inSimAnnealVals) == SimAnneal then numberSteps $ fromJust newAnnealVals
+                          else driftMaxChanges $ fromJust newAnnealVals
             in
-            if (curNumSteps < numSteps)  then 
+
+            --simulated Annealing/Drift check if at end then return
+            if (numDone < numMax)  then 
                 swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor newAnnealVals
                 
             else 
@@ -675,7 +684,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
         if (snd6 $ head candidateGraphList) < curBestCost then ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
         else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV Nothing (tail splitInfoList) 
 
-      -- simulated Annealing--recurse if not at max steps
+      -- simulated Annealing/Drifting--recurse if not at max steps
       else  
          ([(head candidateGraphList, snd6 $ head candidateGraphList)], newAnnealVals)
         
@@ -769,7 +778,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
           else addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV Nothing (tail targetEdgeList)
 
 
-      -- simulated annealing case
+      -- simulated annealing/Drift case
       else  
         --simulated Annealing check if at end of steps then return
         -- original sim anneal  values since is SPR case and not updated yet
@@ -832,14 +841,17 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
          else
              getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA inGraph splitCost curBestCost charInfoVV Nothing (tail subGraphEdgeVertDataTripleList)
 
-      -- Simulated Annealing case
+      -- Simulated Annealing/Drifting case
       else 
         let -- update annealing values for next round
-            numSteps = numberSteps $ fromJust inSimAnnealVals
-            curNumSteps = currentStep $ fromJust inSimAnnealVals
-            
-            -- update sim anneal values
-            nextAnnealVals = incrementSimAnnealParams inSimAnnealVals -- Just (maxT, minT, numSteps, (curNumSteps + 1), tail randIntList, annealingRounds)
+            -- abstract stopping criterion to continue
+            numDone = if (method $ fromJust inSimAnnealVals) == SimAnneal then currentStep $ fromJust inSimAnnealVals
+                      else driftChanges $ fromJust inSimAnnealVals
+            numMax  = if (method $ fromJust inSimAnnealVals) == SimAnneal then numberSteps $ fromJust inSimAnnealVals
+                      else driftMaxChanges $ fromJust inSimAnnealVals
+
+            -- get acceptance based on heuristic costs
+            (acceptGraph, nextAnnealVals) = simAnnealAccept inSimAnnealVals curBestCost (subGraphEdgeUnionCost + splitCost)
 
             -- optimize graph
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
@@ -847,10 +859,8 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
             reoptimizedCandidateGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
                 
         in
-        if (curNumSteps < numSteps)  then 
+        if (numDone < numMax)  then 
             -- accept based on heurisrtic cost
-            let acceptGraph = simAnnealAccept (fromJust inSimAnnealVals) curBestCost (subGraphEdgeUnionCost + splitCost)
-            in
             if acceptGraph then  
                 ([reoptimizedCandidateGraph], nextAnnealVals)  
             else 
@@ -1266,7 +1276,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV netPenaltyFactor inSplit
 
 -- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
 applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
-applyGraphEdits inGraph editStuff@(_, edgesToAdd, edgesToDelete) = 
+applyGraphEdits inGraph (_, edgesToAdd, edgesToDelete) = 
    let editedGraph = LG.insEdges edgesToAdd $ LG.delEdges edgesToDelete inGraph
    in
    -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 

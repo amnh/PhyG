@@ -132,7 +132,7 @@ refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", 
 
 -- | netEdgeArgList argiments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove", "annealing", "maxtemp", "mintemp", "steps", "returnmutated"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -176,27 +176,27 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
              doDrift     = any ((=="drift").fst) lcArgList
              
              driftList = filter ((=="drift").fst) lcArgList
-             driftRounds
+             driftRounds'
               | length driftList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
               | null driftList = Just 1
               | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
 
-             acceptEqualList = filter ((=="acceptEqual").fst) lcArgList
+             acceptEqualList = filter ((=="acceptequal").fst) lcArgList
              acceptEqualProb 
               | length acceptEqualList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
 
-             acceptWorseList = filter ((=="acceptWorse").fst) lcArgList
+             acceptWorseList = filter ((=="acceptworse").fst) lcArgList
              acceptWorseFactor 
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
               | null acceptEqualList = Just 1.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
 
-             maxChangesList = filter ((=="maxChanges").fst) lcArgList
+             maxChangesList = filter ((=="maxchanges").fst) lcArgList
              maxChanges 
               | length maxChangesList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
@@ -204,11 +204,10 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int    
 
          in
-         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
 
-         --else if isNothing annealingRounds' then errorWithoutStackTrace ("Annealing rounds specification not an integer (e.g. annealing:10): "  ++ show (snd $ head annealingList))
+         -- check inputs
+         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
          else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-         else if isNothing driftRounds      then errorWithoutStackTrace ("Drift rounds specification not an integer (e.g. drift:10): "  ++ show (snd $ head stepsList))
          else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
          else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
          else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
@@ -235,12 +234,16 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
-               simAnnealParams = if not doAnnealing then Nothing
+               simAnnealParams = if (not doAnnealing && not doDrift) then Nothing
                                  else 
                                     let steps = max 3 (fromJust steps')
                                         annealingRounds = if annealingRounds' == Nothing then 1
                                                           else if fromJust annealingRounds' < 1 then 1
                                                           else fromJust annealingRounds'
+
+                                        driftRounds = if driftRounds' == Nothing then 1
+                                                          else if fromJust driftRounds' < 1 then 1
+                                                          else fromJust driftRounds'
 
                                         saMethod = if doDrift && doAnnealing then
                                                     trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.") 
@@ -262,9 +265,9 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                             , numberSteps = steps
                                                             , currentStep = 0
                                                             , randomIntegerList = randomIntList rSeed
-                                                            , rounds      = annealingRounds
+                                                            , rounds      = max annealingRounds driftRounds
                                                             , driftAcceptEqual  = equalProb
-                                                            , drfftAcceptWorse  = worseFactor
+                                                            , driftAcceptWorse  = worseFactor
                                                             , driftMaxChanges   = changes
                                                             , driftChanges      = 0
                                                             } 

@@ -354,52 +354,63 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
 -- curStep == 0 random walk (always accept)
 -- curStep == (numSteps -1) greedy False is not better
-simAnnealAccept :: SAParams -> VertexCost -> VertexCost -> Bool
-simAnnealAccept simAnealVals curBestCost candCost  =
-    let numSteps = numberSteps simAnealVals
-        curStep  = currentStep simAnealVals
-        randIntList = randomIntegerList simAnealVals
-
-        stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-        tempFactor = curBestCost  * stepFactor 
-
-        candCost' = if curBestCost == candCost then candCost + 1
-                    else candCost
-                -- flipped order - (e' -e)
-        -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-        probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
-
-        -- multiplier for resolution 1000, 100 prob be ok
-        randMultiplier = 1000
-        intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
-
-        -- use remainder for testing--passing infinite list and take head
-        (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
-    in
-    -- lowest cost-- greedy
-    -- trace ("RA " ++ (show intAccept)) (
-    if candCost < curBestCost then 
-            -- trace ("SAB: " ++ (show curStep) ++ " True") 
-            True
-
-    -- not better and at lowest temp
-    else if curStep >= (numSteps - 1) then
-            -- trace ("SAEnd: " ++ (show curStep) ++ " False") 
-            False
+simAnnealAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
+simAnnealAccept inParams curBestCost candCost  =
+    if inParams == Nothing then error "simAnnealAccept Simulated anneling parameters = Nothing"
     
-    -- test for non-lowest temp conditions
-    else if intRandVal < intAccept then 
-            -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
-            True
+    -- drifting probs
+    else if (method $ fromJust inParams) == Drift then
+        driftAccept inParams curBestCost candCost
+
+    -- simulated annealing probs
     else 
-            -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
-            False
-    -- )
+        let simAnealVals =  fromJust inParams
+            numSteps = numberSteps simAnealVals
+            curStep  = currentStep simAnealVals
+            randIntList = randomIntegerList simAnealVals
+
+            stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+            tempFactor = curBestCost  * stepFactor 
+
+            candCost' = if curBestCost == candCost then candCost + 1
+                        else candCost
+                    -- flipped order - (e' -e)
+            -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
+            probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+
+            -- multiplier for resolution 1000, 100 prob be ok
+            randMultiplier = 1000
+            intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
+
+            -- use remainder for testing--passing infinite list and take head
+            (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
+
+            nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = tail randIntList}
+        in
+        -- lowest cost-- greedy
+        -- trace ("RA " ++ (show intAccept)) (
+        if candCost < curBestCost then 
+                trace ("SAB: " ++ (show curStep) ++ " True") 
+                (True, nextSAParams)
+
+        -- not better and at lowest temp
+        else if curStep >= (numSteps - 1) then
+                trace ("SAEnd: " ++ (show curStep) ++ " False") 
+                (False, nextSAParams)
+        
+        -- test for non-lowest temp conditions
+        else if intRandVal < intAccept then 
+                trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+                (True, nextSAParams)
+        else 
+                trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+                (False, nextSAParams)
+        -- )
 
 -- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
 incrementSimAnnealParams :: Maybe SAParams -> Maybe SAParams
 incrementSimAnnealParams inParams =
-    if inParams == Nothing then error "Simulated anneling parameters = Nothing"
+    if inParams == Nothing then error "incrementSimAnnealParams Simulated anneling parameters = Nothing"
     else 
         let curStep = currentStep $ fromJust inParams
             curChanges = driftChanges $ fromJust inParams
@@ -435,3 +446,38 @@ generateUniqueRandList number inParams =
         newSimAnnealParamList
 
         where updateSAParams a b = a {randomIntegerList = b}
+
+-- | driftAccept takes SAParams, currrent best cost, and cadidate cost
+-- and returns a Boolean and an incremented set of params
+driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
+driftAccept simAnealVals curBestCost candCost  =
+    if simAnealVals == Nothing then error "Nothing value in driftAccept"
+    else 
+        let curNumChanges = driftChanges $ fromJust simAnealVals
+            randIntList = randomIntegerList $ fromJust simAnealVals
+
+            --- prob acceptance for better, same, and worse costs
+            probAcceptance = if candCost < curBestCost then 1.0
+                             else if candCost == curBestCost then driftAcceptEqual $ fromJust simAnealVals
+                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + candCost - curBestCost)
+
+            -- multiplier for resolution 1000, 100 prob be ok
+            randMultiplier = 1000
+            intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
+
+            -- use remainder for testing--passing infinite list and take head
+            (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
+        
+        in
+        -- only increment nnumberof changes for True values
+        if candCost < curBestCost then 
+            trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            (True, Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList})
+
+        else if intRandVal < intAccept then 
+            trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            (True, Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList})
+
+        else 
+            trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False")
+            (False, Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList})
