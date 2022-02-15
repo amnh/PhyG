@@ -193,7 +193,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
              acceptWorseFactor 
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptEqualList = Just 1.0
+              | null acceptWorseList = Just 1.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList
@@ -280,7 +280,10 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                -- perform add/delete/move operations
                bannerText = if simAnnealParams /= Nothing then 
-                     ("Simulated Annealing (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                              if (method $ fromJust simAnnealParams) == SimAnneal then
+                                 ("Simulated Annealing (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                              else 
+                                 ("Drifting (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
                             else if doNetDelete || doAddDelete then 
                               ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else if doNetAdd || doAddDelete then 

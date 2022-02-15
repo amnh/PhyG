@@ -122,10 +122,15 @@ moveAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList, 
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
             if (numDone < numMax) then 
+               -- this fixes tail fail 
+               let nextUniqueList = if (not . null) uniqueGraphList then tail uniqueGraphList
+                                    else []
+               in
+
                if acceptFirstGraph then
-                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head uniqueGraphList) :  curBestGraphList, annealBestCost) (newSAParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
+                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head uniqueGraphList) :  curBestGraphList, annealBestCost) (newSAParams, (nextUniqueList ++ (tail inPhyloGraphList)))
                else 
-                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, ((tail uniqueGraphList) ++ (tail inPhyloGraphList)))
+                  moveAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, (nextUniqueList ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)
@@ -207,10 +212,15 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
             if (numDone < numMax) then 
+               -- this fixes tail fail 
+               let nextNewGraphList = if (not . null) newGraphList then tail newGraphList
+                                    else []
+               in
+
                if acceptFirstGraph then
-                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList) :  curBestGraphList, annealBestCost) (newSAParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
+                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList) :  curBestGraphList, annealBestCost) (newSAParams, (nextNewGraphList ++ (tail inPhyloGraphList)))
                else 
-                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, ((tail newGraphList) ++ (tail inPhyloGraphList)))
+                  insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (newSAParams, (nextNewGraphList ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)
@@ -285,10 +295,14 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated (curBestGraphList
             in
             -- trace ("ACG" ++ (show acceptFirstGraph) ++ " " ++ (show $ snd6 $ head uniqueGraphList)) (
             if (numDone < numMax) then 
+               let nextNewGraphList = if (not . null) newGraphList' then tail newGraphList'
+                                    else []
+               in
+
                if acceptFirstGraph then
-                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList') :  curBestGraphList, annealBestCost) (nextSAParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
+                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated ((head newGraphList') :  curBestGraphList, annealBestCost) (nextSAParams, (nextNewGraphList ++ (tail inPhyloGraphList)))
                else 
-                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (nextSAParams, ((tail newGraphList') ++ (tail inPhyloGraphList)))
+                  deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated (curBestGraphList, annealBestCost) (nextSAParams, (nextNewGraphList ++ (tail inPhyloGraphList)))
 
             -- if want non-optimized list for GA or whatever
             else if returnMutated then (take numToKeep curBestGraphList, counter)

@@ -125,11 +125,12 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
 
+
              acceptWorseList = filter ((=="acceptworse").fst) lcArgList
              acceptWorseFactor 
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptEqualList = Just 1.0
+              | null acceptWorseList = Just 1.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList
@@ -205,6 +206,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                         equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
                                                     else if fromJust acceptEqualProb > 1.0 then 1.0
                                                     else fromJust acceptEqualProb
+                                                    
 
                                         worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
                                                       else fromJust acceptWorseFactor
@@ -230,7 +232,11 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
                
                progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                             else ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                             else 
+                                if (method $ fromJust simAnnealParams) == SimAnneal then
+                                    ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                                else 
+                                    ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
 
            in 
 
@@ -256,8 +262,10 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                              else (newGraphList', 0)
               in
               let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-                              else ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs") 
-                          
+                              else if (method $ fromJust simAnnealParams) == SimAnneal then
+                                ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs") 
+                              else 
+                                ("\tAfter Drifting: " ++ (show $ length newGraphList'') ++ " resulting graphs")
               in 
               trace (endString)
               newGraphList''     

@@ -390,20 +390,20 @@ simAnnealAccept inParams curBestCost candCost  =
         -- lowest cost-- greedy
         -- trace ("RA " ++ (show intAccept)) (
         if candCost < curBestCost then 
-                trace ("SAB: " ++ (show curStep) ++ " True") 
+                --trace ("SAB: " ++ (show curStep) ++ " True") 
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                trace ("SAEnd: " ++ (show curStep) ++ " False") 
+                -- trace ("SAEnd: " ++ (show curStep) ++ " False") 
                 (False, nextSAParams)
         
         -- test for non-lowest temp conditions
         else if intRandVal < intAccept then 
-                trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
                 (True, nextSAParams)
         else 
-                trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
                 (False, nextSAParams)
         -- )
 
@@ -467,17 +467,21 @@ driftAccept simAnealVals curBestCost candCost  =
 
             -- use remainder for testing--passing infinite list and take head
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
+
+            -- always incrementing becasue may not halt other wise
+            nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
         
         in
         -- only increment nnumberof changes for True values
         if candCost < curBestCost then 
-            trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
-            (True, Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList})
+            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            (True, nextSAParams)
 
         else if intRandVal < intAccept then 
-            trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
-            (True, Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList})
+            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            (True, nextSAParams)
 
         else 
-            trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False")
-            (False, Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList})
+            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False") (
+            (False, nextSAParams)
+            -- )
