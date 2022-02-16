@@ -468,20 +468,21 @@ driftAccept simAnealVals curBestCost candCost  =
             -- use remainder for testing--passing infinite list and take head
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
-            -- always incrementing becasue may not halt other wise
+            -- not always incrementing becasue may not result in changes
             nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
+            nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
         
         in
         -- only increment nnumberof changes for True values
         if candCost < curBestCost then 
-            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
             (True, nextSAParams)
 
         else if intRandVal < intAccept then 
-            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
             (True, nextSAParams)
 
         else 
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False") (
-            (False, nextSAParams)
+            trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False") 
+            (False, nextSAPAramsNoChange)
             -- )
