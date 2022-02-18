@@ -73,4 +73,51 @@ geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int
 geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations severity recombinations inGraphList =
     if null inGraphList then ([], 0)
     else 
-        (inGraphList, 0)
+        let seedList = randomIntList rSeed
+
+            -- get elite list of best solutions
+            initialEliteList = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] inGraphList
+
+            -- mutate input graphs
+            mutatedGraphList = zipWith (mutateGraph inGS) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
+
+            -- recom,bine elite with mutated and mutated with mutated
+            recombinedGraphList = mutatedGraphList
+
+            -- selection of graphs population
+            selectedGraphs = recombinedGraphList
+            newCost = minimum $ fmap snd6 selectedGraphs
+
+            -- final list with elits added back
+            newGraphs = take popSize $ GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] inGraphList
+        in
+        trace ("GA " ++ (show $ snd6 $ head initialEliteList) ++ " -> " ++ (show newCost)) (
+        if newCost < (snd6 $ head initialEliteList) then 
+            (newGraphs, 1)
+        else 
+            (take keepNum $ GO.selectPhylogeneticGraph [("unique", (show popSize))] 0 ["unique"] (initialEliteList ++ newGraphs), 1)
+        )
+
+-- | mutateGraph mutates a graph using drift functionality
+mutateGraph :: GlobalSettings -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+mutateGraph inGS rSeed inGraph =
+    if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
+    else 
+        let saValues = SAParams { method = Drift
+                                , numberSteps = 0
+                                , currentStep = 0
+                                , randomIntegerList = randomIntList rSeed
+                                , rounds      = 1
+                                , driftAcceptEqual  = 0.67
+                                , driftAcceptWorse  = 0.0
+                                -- this could be an important factor don't want too severe, but significant
+                                , driftMaxChanges   = 2
+                                , driftChanges      = 0 
+                                } 
+        in
+        -- only swap stuff for tree
+        if graphType inGS == Tree then inGraph
+
+
+        -- graphs choose what type of mutation at random
+        else inGraph
