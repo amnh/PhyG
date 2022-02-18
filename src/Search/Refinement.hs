@@ -39,30 +39,147 @@ module Search.Refinement  ( refineGraph
                           , netEdgeMaster
                           , fuseGraphs
                           , swapMaster
+                          , geneticAlgorithmMaster
                           ) where
 
 import Types.Types
 import qualified ParallelUtilities       as PU
 import Control.Parallel.Strategies
-import qualified Utilities.LocalGraph    as LG
 import Debug.Trace
-import qualified GraphOptimization.Traversals as T
-import qualified GraphOptimization.PreOrderFunctions as PRE
-import qualified GraphOptimization.PostOrderFunctions as POS
-import qualified Data.List as L
-import qualified Data.Text.Lazy              as TL
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
-import Data.Maybe
 import qualified Search.Swap as S
 import qualified Search.NetworkAddDelete as N
 import Utilities.Utilities               as U
-import qualified Data.Vector as V
 import Data.Maybe
 import           Data.Char
 import           Text.Read
 import qualified Search.Fuse as F
-import qualified Search.Swap as S
+import qualified Search.GeneticAlgorithm as GA
+
+-- | refinement arguments
+refineArgList :: [String]
+refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneticalgorithm", "ga"] ++ fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
+
+-- | driver for overall refinement
+refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+refineGraph inArgs inGS inData rSeed inGraphList = 
+   if null inGraphList then error ("No graphs input to refine") 
+   else 
+      let fstArgList = fmap (fmap toLower . fst) inArgs
+          sndArgList = fmap (fmap toLower . snd) inArgs
+          lcArgList = zip fstArgList sndArgList
+          checkCommandList = U.checkCommandArgs "refineGraph" fstArgList refineArgList
+     in
+     -- check for valid command options
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
+     else
+      let doNetAdd = any ((=="netadd").fst) lcArgList
+          doNetDel = any ((=="netdell").fst) lcArgList || (any ((=="netdelete").fst) lcArgList)
+          doNetAddDel = any ((=="netadddel").fst) lcArgList 
+          doNetMov = any ((=="netmove").fst) lcArgList 
+          doGenAlg = any ((=="ga").fst) lcArgList || any ((=="geneticalgorithm").fst) lcArgList
+      in
+
+      -- network edge edits
+      if doNetAdd || doNetDel || doNetAddDel || doNetMov then
+         netEdgeMaster inArgs inGS inData rSeed inGraphList
+
+      -- genetic algorithm
+      else if doGenAlg then
+         geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+
+      else error "No refinement operation specified"
+
+
+-- | geneticAlgorithm arguments
+geneticAlgorithmArgList :: [String]
+geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations"]
+
+-- | geneticAlgorithmMaster takes arguments and performs genetic algorithm on input graphs
+-- the process follows several steps
+-- 1) input graphs are mutated 
+--       this step is uncharacteristically first so that is can operate on 
+--       graphs that have been "fused" (recombined) already
+--       mutated graphs are added up to popsize
+--       if input graphs are already at the population size, an equal number of mutants are added (exceeding input popsize)
+-- 2) graph are recombined using fusing operations
+-- 3) population undergoes selection to population size (unique graphs)
+--       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
+--       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
+-- 4) operation repearts for number of generations
+geneticAlgorithmMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList = 
+   if null inGraphList then trace ("No graphs to undergo Genetic Algorithm") []
+   else 
+      trace ("Genetic Algorithm operating on population of " ++ (show $ length inGraphList) ++ " input graph(s) with cost range ("++ (show $ minimum $ fmap snd6 inGraphList) ++ "," ++ (show $ maximum $ fmap snd6 inGraphList) ++ ")") (
+
+      let fstArgList = fmap (fmap toLower . fst) inArgs
+          sndArgList = fmap (fmap toLower . snd) inArgs
+          lcArgList = zip fstArgList sndArgList
+          checkCommandList = U.checkCommandArgs "geneticalgorithm" fstArgList geneticAlgorithmArgList
+      in
+      -- check for valid command options
+      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
+      else 
+         let keepList = filter ((=="keep").fst) lcArgList
+             keepNum
+              | length keepList > 1 =
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
+              | null keepList = Just 10
+              | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+
+             popSizeList = filter ((=="popsize").fst) lcArgList
+             popSize
+              | length popSizeList > 1 =
+                errorWithoutStackTrace ("Multiple 'popsize' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+              | null popSizeList = Just 20
+              | otherwise = readMaybe (snd $ head popSizeList) :: Maybe Int
+
+             generationsList = filter ((=="generations").fst) lcArgList
+             generations
+              | length generationsList > 1 =
+                errorWithoutStackTrace ("Multiple 'generations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+              | null generationsList = Just 20
+              | otherwise = readMaybe (snd $ head generationsList) :: Maybe Int
+
+             severityList = filter ((=="severity").fst) lcArgList
+             severity
+              | length severityList > 1 =
+                errorWithoutStackTrace ("Multiple 'severity' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+              | null severityList = Just 1.0
+              | otherwise = readMaybe (snd $ head severityList) :: Maybe Double
+
+             recombinationsList = filter ((=="recombinations").fst) lcArgList
+             recombinations
+              | length recombinationsList > 1 =
+                errorWithoutStackTrace ("Multiple 'recombinations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+              | null recombinationsList = Just 100
+              | otherwise = readMaybe (snd $ head recombinationsList) :: Maybe Int
+
+             -- in case want to make it an option
+             doElitist' = any ((=="nni").fst) lcArgList
+
+             doElitist = True
+         in
+
+         --check arguments
+         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in Genetic Algorithm: "  ++ show (head keepList))
+         else if isNothing popSize then errorWithoutStackTrace ("PopSize specification not an integer in Genetic Algorithm: "  ++ show (head popSizeList))
+         else if isNothing generations then errorWithoutStackTrace ("Generations specification not an integer in Genetic Algorithm: "  ++ show (head generationsList))
+         else if isNothing severity then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head severityList))
+         else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head recombinationsList))
+         
+         -- process args
+         else
+            let (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) (fromJust severity) (fromJust recombinations) inGraphList
+            in                             
+            trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
+            newGraphList
+            )
+
+
+
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
@@ -71,8 +188,8 @@ fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", 
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap 
 fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-fuseGraphs inArgs inGS inData seed inGraphList =
-   if null inGraphList then []
+fuseGraphs inArgs inGS inData rSeed inGraphList =
+   if null inGraphList then trace ("No graphs to fuse") []
    else 
       trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
       let fstArgList = fmap (fmap toLower . fst) inArgs
@@ -103,18 +220,17 @@ fuseGraphs inArgs inGS inData seed inGraphList =
                 errorWithoutStackTrace ("Multiple 'pair' number specifications in fuse command--can have only one: " ++ show inArgs)
               | null pairList = Just (maxBound :: Int) 
               | otherwise = readMaybe (snd $ head pairList) :: Maybe Int
-              
-             
+
         in
 
         --check arguments
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
-        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
-        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in swap: "  ++ show (head keepList))
+        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
+        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in swap: "  ++ show (head pairList))
         
+        -- process args for fuse placement
         else 
-           let -- process args for fuse placement
-               doNNI' = any ((=="nni").fst) lcArgList
+           let doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
                doSteepest' = any ((=="steepest").fst) lcArgList
@@ -132,7 +248,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
                fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
                             else fusePairs
                             
-               seedList = randomIntList seed
+               seedList = randomIntList rSeed
            in
            -- perform graph fuse operations 
            let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
@@ -141,24 +257,14 @@ fuseGraphs inArgs inGS inData seed inGraphList =
            newGraphList
       )
 
--- | driver for overall refinement
-refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-refineGraph inArgs inGS inData seed inGraphList = 
-   if null inGraphList then error ("No graphs input to refine") 
-   else netEdgeMaster inArgs inGS inData seed inGraphList
-
--- | refinement arguments
-refineArgList :: [String]
-refineArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia" ,"netadd", "netdel", "netdelete", "nad","netmove"]
-
--- | netEdgeArgList argiments for network edge add/delete operations
+-- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "nad", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then error "No graphs input to netEdgeMaster"
+   if null inGraphList then trace ("No graphs to edit network edges") []
    else if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
    else 
       let fstArgList = fmap (fmap toLower . fst) inArgs
@@ -177,8 +283,6 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              -- simulated anealing options
-             doAnnealing = any ((=="annealing").fst) lcArgList
-
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -194,8 +298,6 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
              -- drift options
-             doDrift     = any ((=="drift").fst) lcArgList
-             
              driftList = filter ((=="drift").fst) lcArgList
              driftRounds'
               | length driftList > 1 =
@@ -233,18 +335,10 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
          else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
          else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
          else 
-           let -- getting values to be passed for graph diagnosis later
-               numLeaves = V.length $ fst3 inData
-               leafGraph = T.makeSimpleLeafGraph inData
-               leafDecGraph = T.makeLeafGraph inData
-               leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-               hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
-               charInfoVV = fmap thd3 $ thd3 inData -- six6 $ head inGraphList
-
-               -- process args for netEdgeMaster
+           let -- process args for netEdgeMaster
                doNetAdd = any ((=="netadd").fst) lcArgList
                doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
-               doAddDelete = any ((=="nad").fst) lcArgList
+               doAddDelete = any ((=="netadddel").fst) lcArgList
                doMove = any ((=="netmove").fst) lcArgList
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
@@ -257,6 +351,10 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
+               doAnnealing = any ((=="annealing").fst) lcArgList
+
+               doDrift     = any ((=="drift").fst) lcArgList
+             
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
                simAnnealParams = if (not doAnnealing && not doDrift) then Nothing
@@ -360,7 +458,7 @@ swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing",
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphList = 
-   if null inGraphList then []
+   if null inGraphList then trace ("No graphs to swap") []
    else 
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -376,6 +474,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+
              moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["spr", "tbr", "nni"]).fst) lcArgList
              maxMoveEdgeDist'  
               | length moveLimitList > 1 =
@@ -384,8 +483,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
              
              -- simulated anealing options
-             doAnnealing = any ((=="annealing").fst) lcArgList
-             
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
@@ -436,7 +533,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
         -- check inputs
         if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
-        else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
+        else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
@@ -444,15 +541,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
             
         else 
-           let -- getting values to be passed for graph diagnosis later
-               numLeaves = V.length $ fst3 inData
-               leafGraph = T.makeSimpleLeafGraph inData
-               leafDecGraph = T.makeLeafGraph inData
-               leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-               hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
-               charInfoVV = six6 $ head inGraphList
-
-               -- process args for swap
+           let -- process args for swap
                doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR' = any ((=="tbr").fst) lcArgList
@@ -476,6 +565,8 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
+               doAnnealing = any ((=="annealing").fst) lcArgList
+             
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
                simAnnealParams = if (not doAnnealing && not doDrift) then Nothing
@@ -535,19 +626,19 @@ swapMaster inArgs inGS inData rSeed inGraphList =
            trace (progressString) (
 
            let (newGraphList, counterNNI)  = if doNNI then 
-                                               let graphPairList1 = fmap (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList1 = fmap (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
-                                               let graphPairList2 = fmap (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList2 = fmap (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
-                                               let graphPairList3 =  fmap (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
+                                               let graphPairList3 =  fmap (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
                                                in 
                                                (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)

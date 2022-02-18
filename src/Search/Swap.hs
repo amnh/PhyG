@@ -71,21 +71,23 @@ swapSPRTBR  :: String
             -> Int 
             -> Bool
             -> Bool 
-            -> Int
-            -> SimpleGraph 
-            -> DecoratedGraph 
-            -> DecoratedGraph 
-            -> Bool
-            -> V.Vector (V.Vector CharInfo) 
             -> Bool
             -> Bool
             -> (Maybe SAParams, PhylogeneticGraph) 
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA returnMutated (inSimAnnealParams, inGraph) = 
+swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph) = 
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else 
-      let inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
+      let numLeaves = V.length $ fst3 inData
+          leafGraph = T.makeSimpleLeafGraph inData
+          leafDecGraph = T.makeLeafGraph inData
+          leafGraphSoftWired = T.makeLeafGraphSoftWired inData
+          hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
+          charInfoVV = six6 inGraph
+
+
+          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
                              else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))

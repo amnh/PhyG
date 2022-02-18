@@ -34,8 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
-module GeneticAlgorithm.Swap  ( geneticAlgorithm
-                              ) where
+module Search.GeneticAlgorithm ( geneticAlgorithm
+                               ) where
 
 import Types.Types
 import qualified ParallelUtilities       as PU
@@ -69,7 +69,7 @@ import qualified GraphOptimization.Medians as M
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithm :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Double -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
 geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations severity recombinations inGraphList =
     if null inGraphList then ([], 0)
     else 
