@@ -59,7 +59,6 @@ import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char              as C
 import qualified Search.Build           as B
-import qualified Search.Swap            as SW
 import qualified Reconciliation.ReconcileGraphs as R
 import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
@@ -131,7 +130,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             in
             executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList' (tail commandList)
         else if firstOption == Swap then
-            let newGraphList = SW.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
+            let newGraphList = REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
             in
             executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
