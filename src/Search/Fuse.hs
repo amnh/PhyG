@@ -68,7 +68,7 @@ import qualified Data.BitVector.LittleEndian as BV
 -- singleRound short circuits recursive continuation on newly found graphs
 fuseAllGraphs :: GlobalSettings 
               -> ProcessedData 
-              -> Int 
+              -> [Int] 
               -> Int 
               -> Int
               -> Int
@@ -80,9 +80,11 @@ fuseAllGraphs :: GlobalSettings
               -> Bool 
               -> Bool 
               -> Bool
+              -> Maybe Int 
+              -> Bool
               -> [PhylogeneticGraph] 
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound inGraphList = 
+fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs inGraphList = 
    if null inGraphList then ([], 0)
    else 
       let -- getting values to be passed for graph diagnosis later
@@ -107,21 +109,27 @@ fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTB
 
 
          -- get fuse pairs
-         graphPairList = getListPairs inGraphList
+         graphPairList' = getListPairs inGraphList
+         (graphPairList, randString) = if isNothing fusePairs then (graphPairList', "")
+                         else if randomPairs then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
+                         else (takeNth (fromJust fusePairs) graphPairList', "")
+                         
 
-         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV inGraphNetPenaltyFactor rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
+         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV inGraphNetPenaltyFactor (head $ tail rSeedList) keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
 
       in
-      trace ("\tFusing " ++ (show $ length graphPairList) ++ " graph pairs") (
+
+      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs") (
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then 
          let uniqueList = GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] (inGraphList ++ newGraphList)
          in
          if fuseBest < curBest then 
-               fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound uniqueList
+               trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
+               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueList
          else (uniqueList, counter + 1)
 
       else -- return best
@@ -138,15 +146,11 @@ fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist counter doNNI doSPR doTB
 
             -- found better   
             else if fuseBest < curBest then 
-               fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
+               trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
+               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs allBestList
             
-            -- equal cost
-            else 
-               -- found novel graph of equal cost
-               if length allBestList /= length inGraphList then fuseAllGraphs inGS inData rSeed keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound allBestList
-
-               -- nothing novel
-               else (allBestList, counter + 1)
+            -- equal cost just return--could keep finding equal
+            else (allBestList, counter + 1)
       )
 
 

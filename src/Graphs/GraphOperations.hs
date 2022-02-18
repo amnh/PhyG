@@ -66,6 +66,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , hasNetNodeAncestorViolation
                                , convertGeneralGraphToPhylogeneticGraph
                                , parentInChain
+                               , selectGraphStochastic
                                ) where
 
 import qualified Data.List                 as L
@@ -1207,3 +1208,42 @@ nodeAncViolation inGraph inNode =
     in
     (not . null) isAncInNode
 
+-- | selectGraphStochastic takes a list of graphs and retuns a list of graphs chosen at Random
+-- using an exponential distribution based on graph cost difference divided by an input factor
+-- if factor is 0 then stringth graphs cost
+-- mprob acceptance = -exp [(cost - minCost)/ factor]
+-- returns n graphs by random criterion without replacment
+selectGraphStochastic :: Int -> Int -> Double -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectGraphStochastic seed number factor inGraphList = 
+  if null inGraphList then inGraphList
+  else if number >= length inGraphList then inGraphList
+  else
+    let randList' = randomIntList seed
+        randList = fmap abs (tail randList')
+        newSeed = head randList'
+        minCost = minimum $ fmap snd6 inGraphList
+        deltaList = fmap ((-) minCost) $ fmap snd6 inGraphList
+        probAcceptList = fmap (getProb factor) deltaList 
+
+        -- multiplier for resolution 1000, 100 prob be ok
+        randMultiplier = 1000
+        randMultiplier' = fromIntegral randMultiplier
+        intAcceptList = fmap floor $ fmap (* randMultiplier')  probAcceptList
+        (_, intRandValList) = unzip $ zipWith divMod randList (replicate (length inGraphList) randMultiplier)
+        acceptList = zipWith (<) intRandValList intAcceptList
+
+        -- zip graphs with Bools
+        (returnGraphList, _) = unzip $ filter ((== True) .snd) $ zip inGraphList acceptList
+
+        -- takes some random remainder to fiill out length of list
+        numLucky = number - (length returnGraphList)
+        luckyList = if numLucky > 0 then takeRandom newSeed numLucky (fmap fst $ filter ((== False) .snd) $ zip inGraphList acceptList) 
+                    else []
+
+
+    in
+    trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList)) 
+    -- so no more than specified
+    take number $ returnGraphList ++ luckyList
+
+    where getProb a b = exp ((-1) * b / a)

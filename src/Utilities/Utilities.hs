@@ -486,3 +486,4 @@ driftAccept simAnealVals curBestCost candCost  =
             -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False") 
             (False, nextSAPAramsNoChange)
             -- )
+

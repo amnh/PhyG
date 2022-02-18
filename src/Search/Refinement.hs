@@ -64,7 +64,7 @@ import qualified Search.Fuse as F
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once"]
+fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs"]
 
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap 
@@ -79,7 +79,7 @@ fuseGraphs inArgs inGS inData seed inGraphList =
           checkCommandList = U.checkCommandArgs "fuse" fstArgList fuseArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " ++ show inArgs)
      else 
          let keepList = filter ((=="keep").fst) lcArgList
              keepNum
@@ -87,15 +87,29 @@ fuseGraphs inArgs inGS inData seed inGraphList =
                 errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+
              moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
              maxMoveEdgeDist  
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " ++ show inArgs)
               | null moveLimitList = Just ((maxBound :: Int) `div` 3) 
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
+
+             pairList = filter ((=="pairs").fst) lcArgList
+             fusePairs
+              | length pairList > 1 =
+                errorWithoutStackTrace ("Multiple 'pair' number specifications in fuse command--can have only one: " ++ show inArgs)
+              | null pairList = Just (maxBound :: Int) 
+              | otherwise = readMaybe (snd $ head pairList) :: Maybe Int
+              
+             
         in
+
+        --check arguments
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (snd $ head keepList))
+        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in swap: "  ++ show (head keepList))
+        
         else 
            let -- process args for fuse placement
                doNNI' = any ((=="nni").fst) lcArgList
@@ -112,9 +126,14 @@ fuseGraphs inArgs inGS inData seed inGraphList =
                returnBest = any ((=="best").fst) lcArgList
                returnUnique = any ((=="unique").fst) lcArgList
                doSingleRound = any ((=="once").fst) lcArgList
+               randomPairs = any ((=="atrandom").fst) lcArgList
+               fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
+                            else fusePairs
+                            
+               seedList = randomIntList seed
            in
            -- perform graph fuse operations 
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seed (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound inGraphList
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
            in                             
            trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
            newGraphList
