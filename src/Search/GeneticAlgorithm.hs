@@ -56,6 +56,7 @@ import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
 import qualified Search.Swap as S
+import qualified Search.NetworkAddDelete as N
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -132,6 +133,7 @@ mutateGraph inGS inData rSeed inGraph =
 
             --radnomize network edit parameters
             netEditType = getRandomElement (randList !! 2) ["netAdd", "netDelete", "netMove"]
+            doRandomOrder = True
 
         in
             
@@ -146,8 +148,16 @@ mutateGraph inGS inData rSeed inGraph =
             else 
                 -- move only for Hardwired
                 if (graphType inGS) == HardWired then 
-                    inGraph
+                    head $ fst $ N.moveAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph]) 
                     
+
                 -- SoftWired
-                else 
-                    inGraph
+                else
+                    if netEditType == "netMove" then
+                        head $ fst $ N.moveAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                    else if netEditType == "netadd" then
+                        head $ fst $ N.insertAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        
+                    -- net delete
+                    else 
+                        head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
