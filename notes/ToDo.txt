@@ -663,3 +663,24 @@ preOrderTreeTraversal
 283) Try adding in reroot traversal for hardwired
 
 284) steepest edge add with randomization (perhaps same with move and delete)
+
+285)  For resampling Boot/Jack
+	-- skip chracter is weight 0 or active inactive
+	pre/post passes and other heuristic medians
+
+286) Goodman-Bremer 
+	Trees SPR/TBR 
+		generate SPR/TBR neighborhood-- fully diagnose
+		chunck parallel for all edges ingraph 
+		maybe too much memory so have to be recursive with some chuncking
+
+	Networks
+		SPR TBR for bridges
+		net delete for network
+
+	Pass values to reconcile of other output
+
+287) Boot/jack reset weights or activity
+	skip 0 etc for smaples
+	use reconcile for cretion form list of graphs
+
