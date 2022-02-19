@@ -55,6 +55,7 @@ import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified Data.List as L
 import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
+import qualified Search.Swap as S
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -79,7 +80,7 @@ geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations severit
             initialEliteList = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] inGraphList
 
             -- mutate input graphs
-            mutatedGraphList = zipWith (mutateGraph inGS) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
+            mutatedGraphList = zipWith (mutateGraph inGS inData) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
 
             -- recom,bine elite with mutated and mutated with mutated
             recombinedGraphList = mutatedGraphList
@@ -99,11 +100,12 @@ geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations severit
         )
 
 -- | mutateGraph mutates a graph using drift functionality
-mutateGraph :: GlobalSettings -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-mutateGraph inGS rSeed inGraph =
+mutateGraph :: GlobalSettings -> ProcessedData -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+mutateGraph inGS inData rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else 
-        let saValues = SAParams { method = Drift
+        let randList = randomIntList rSeed
+            saValues = Just $ SAParams { method = Drift
                                 , numberSteps = 0
                                 , currentStep = 0
                                 , randomIntegerList = randomIntList rSeed
@@ -115,9 +117,37 @@ mutateGraph inGS rSeed inGraph =
                                 , driftChanges      = 0 
                                 } 
         in
-        -- only swap stuff for tree
-        if graphType inGS == Tree then inGraph
+        let --randomize edit type
+            editType = getRandomElement (randList !! 0) ["swap", "netEdge"]
 
+            -- randomize Swap parameters 
+            numToKeep = 1
+            maxMoveEdgeDist = 10
+            steepest = True
+            hardwiredSPR = False 
+            doIA = False
+            returnMutated = True
+            inSimAnnealParams = saValues
+            swapType = getRandomElement (randList !! 1) ["spr","tbr"]
+
+            --radnomize network edit parameters
+            netEditType = getRandomElement (randList !! 2) ["netAdd", "netDelete", "netMove"]
+
+        in
+            
+        -- only swap stuff for tree
+        if graphType inGS == Tree then 
+            head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random
-        else inGraph
+        else 
+            if editType == "swap" then
+                head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
+            else 
+                -- move only for Hardwired
+                if (graphType inGS) == HardWired then 
+                    inGraph
+                    
+                -- SoftWired
+                else 
+                    inGraph
