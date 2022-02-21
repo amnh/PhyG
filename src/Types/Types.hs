@@ -47,6 +47,7 @@ import qualified Data.Text.Short             as ST
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
+import qualified Data.Time.Clock             as TC
 import           Data.Word
 import           Foreign.C.Types             (CUInt)
 import qualified SymMatrix                   as S
@@ -137,6 +138,20 @@ data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot
 data AssignmentMethod = DirectOptimization | ImpliedAlignment
     deriving stock (Show, Eq)
 
+data SearchData 
+    = SearchData
+    { instruction :: Instruction
+    , arguments   :: [Argument]
+    , minGraphCostIn :: VertexCost
+    , maxGraphCostIn :: VertexCost
+    , numGraphsIn   :: Int
+    , minGraphCostOut :: VertexCost
+    , maxGraphCostOut :: VertexCost
+    , numGraphsOut   :: Int
+    , commentString :: String
+    , duration    :: TC.NominalDiffTime
+    } deriving stock (Show, Eq)
+
 
 data  GlobalSettings
     = GlobalSettings
@@ -149,6 +164,7 @@ data  GlobalSettings
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
     , rootCost            :: RootCost
     , seed                :: Int -- random seed
+    , searchData         :: [SearchData]
     } deriving stock (Show, Eq)
 
 

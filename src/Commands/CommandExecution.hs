@@ -49,6 +49,8 @@ import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
 import qualified Data.Vector.Unboxed    as UV
+import           Data.Time
+import           Data.Time.Clock.POSIX
 import           Debug.Trace
 import           GeneralUtilities
 import           GraphFormatUtilities
@@ -62,6 +64,7 @@ import qualified Search.Build           as B
 import qualified Reconciliation.ReconcileGraphs as R
 import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
+import qualified System.Clock as CL
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -70,7 +73,7 @@ setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "fina
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile"]
 
 
 -- | reconcileCommandList list of allowable commands
@@ -86,10 +89,18 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int])
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList commandList = do
+    startTime <- getSystemTimeNDT
     if null commandList then return (curGraphs, globalSettings, seedList)
     else do
         let (firstOption, firstArgs) = head commandList
-
+        startTime <- getSystemTimeNDT
+        {-
+        startTime' <- getSystemTimeNDT
+            !st <- CL.getTime CL.ProcessCPUTime
+        !st' <- CL.getTime CL.ProcessCPUTime
+            hPutStrLn stderr ("Swap time " ++ (show $ CL.nsec st') ++ " " ++  (show $ CL.nsec st))
+             
+        -}   
         -- skip "Read" and "Rename "commands already processed
         if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
@@ -98,17 +109,26 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         
         -- other commands
         else if firstOption == Build then
-            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
+            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList) 
+                stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands globalSettings rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Refine then
             let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
+                stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Fuse then
             let newGraphList = REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
+                !stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
@@ -120,20 +140,48 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
+                stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Set then
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
-                newGraphs = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
+                newGraphList = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
                             else trace ("Reoptimizing Graphs...") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+                stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands newGlobalSettings rawData newProcessedData newGraphs pairwiseDist seedList' (tail commandList)
+            executeCommands (newGlobalSettings {searchData = newSearchData})  rawData newProcessedData newGraphList pairwiseDist seedList' (tail commandList)
         else if firstOption == Swap then
             let newGraphList = REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
+                stopTime = getSystemTimeNDTUnsafe
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
             in
-            executeCommands globalSettings rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
+
+-- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
+makeSearchRecord :: Instruction -> [Argument] -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> NominalDiffTime -> NominalDiffTime -> String -> SearchData
+makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime comment =
+    SearchData { instruction = firstOption
+               , arguments = firstArgs
+               , minGraphCostIn = if null curGraphs then infinity 
+                                  else minimum $ fmap snd6 curGraphs
+               , maxGraphCostIn = if null curGraphs then infinity 
+                                  else maximum $ fmap snd6 curGraphs
+               , numGraphsIn = length curGraphs
+               , minGraphCostOut = if null newGraphList then infinity 
+                                   else minimum $ fmap snd6 newGraphList
+               , maxGraphCostOut = if null newGraphList then infinity 
+                                   else maximum $ fmap snd6 newGraphList
+               , numGraphsOut = length newGraphList
+               , commentString = comment
+               , duration = stopTime - startTime
+               }
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalSettings, ProcessedData, [Int])
@@ -273,16 +321,6 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                     trace ("Diagnosing " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
                     (dataString, outfileName, writeMode)
 
-            else if "graphs" `elem` commandList then
-                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
-                in
-                if null curGraphs then 
-                    trace ("No graphs to report")
-                    ("No graphs to report", outfileName, writeMode)
-                else 
-                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
-                    (graphString, outfileName, writeMode)
-
             else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
                 let inputDisplayVVList = fmap fth6 curGraphs
@@ -297,7 +335,17 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 else 
                     (blockStringList, outfileName, writeMode)
 
-            else if "pairdist" `elem` commandList then
+            else if "graphs" `elem` commandList then
+                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                in
+                if null curGraphs then 
+                    trace ("No graphs to report")
+                    ("No graphs to report", outfileName, writeMode)
+                else 
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    (graphString, outfileName, writeMode)
+
+           else if "pairdist" `elem` commandList then
                 let nameData = L.intercalate "," (V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in
@@ -312,8 +360,21 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
                 else 
                     (reconcileString, outfileName, writeMode)
 
+            else if "search" `elem` commandList then
+                let dataString = fmap showSearchFields $ reverse $ searchData globalSettings
+                    baseData = ("SearchData\n")
+                    charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "Duration", "Comment"]
+                in
+                (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
+
 
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+
+-- | showSearchFields cretes a String list for SearchData Fields
+showSearchFields :: SearchData -> [String]
+showSearchFields sD =
+    [show $ instruction sD, show $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
+    show $ duration sD, commentString sD]
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
 -- graph type, optimality criterion etc.

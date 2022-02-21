@@ -55,10 +55,6 @@ import qualified Utilities.Utilities          as U
 import qualified Input.Reorganize             as R
 -- import qualified Utilities.LocalGraph         as LG
 
--- | debugRandomFlag sets flag for debugging randomization
-debugRandomFlag :: Bool
-debugRandomFlag = False
-
 -- | main driver
 main :: IO ()
 main = do
@@ -76,11 +72,10 @@ main = do
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
+
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
-    let seedList = if not debugRandomFlag then randomIntList timeD
-                   else randomIntList 123456
-
-
+    let seedList = randomIntList timeD
+    
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
 
@@ -183,6 +178,8 @@ main = do
                                                , finalAssignment = ImpliedAlignment
                                                , graphFactor = Wheeler2015Network
                                                , rootCost = NoRootCost
+                                               , seed = timeD
+                                               , searchData = []
                                                }
     --hPutStrLn stderr (show defaultGlobalSettings)
 

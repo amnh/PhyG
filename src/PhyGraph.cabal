@@ -224,6 +224,7 @@ executable phyg
                -- currently doesn't compile but could be useful
                -- lots of good functions
                -- , Graphalyze
+               , clock
  
                 
   default-extensions : BangPatterns                

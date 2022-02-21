@@ -684,5 +684,7 @@ preOrderTreeTraversal
 	skip 0 etc for smaples
 	use reconcile for cretion form list of graphs
 
+289) cehck for better use of time calls instead of using unsafePerformIO
+	could to dold time and new time in calls or something
 
-288) use better get random element
+290) Alex--timing, GHC 9.0.1 profiling
