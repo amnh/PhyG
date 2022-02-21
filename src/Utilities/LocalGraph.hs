@@ -446,9 +446,19 @@ getOtherVertex (u,v,_) index = if u == index then v else u
 flipEdge :: Edge -> Edge
 flipEdge (u,v) = (v,u)
 
--- flipLEdge flips orientation of labelled edge
+-- | flipLEdge flips orientation of labelled edge
 flipLEdge :: LEdge b -> LEdge b
 flipLEdge (u,v,w) = (v,u,w)
+
+
+-- | isTree takes a graph and checks if there are anmy network nodes--if not returns True
+isTree :: Gr a b -> Bool
+isTree inGraph =
+    if G.isEmpty inGraph then error "Empty graph in isTree"
+    else 
+        let (_, _, _, netNodes) = splitVertexList inGraph
+        in
+        null netNodes
 
 
  -- | splitVertexList splits the vertices of a graph into ([root], [leaf], [tree], [network])

@@ -684,3 +684,5 @@ preOrderTreeTraversal
 	skip 0 etc for smaples
 	use reconcile for cretion form list of graphs
 
+
+288) use better get random element

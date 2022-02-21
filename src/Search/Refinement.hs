@@ -94,7 +94,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
-geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations"]
+geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga"]
 
 -- | geneticAlgorithmMaster takes arguments and performs genetic algorithm on input graphs
 -- the process follows several steps
@@ -172,7 +172,7 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
          
          -- process args
          else
-            let (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) (fromJust severity) (fromJust recombinations) inGraphList
+            let (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
             in                             
             trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
             newGraphList

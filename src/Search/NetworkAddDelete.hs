@@ -568,7 +568,7 @@ deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inS
                     else minimum $ fmap snd6 uniqueCostGraphList
       in
       -- no network edges to delete
-      if null networkEdgeList then trace ("\tNo network edges to delete") ([], currentCost)
+      if null networkEdgeList then trace ("\tNo network edges to delete") ([inPhyloGraph], currentCost)
       else
          -- single if steepest so no neeed to unique
          if doSteepest then (newGraphList, minCost)

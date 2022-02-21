@@ -57,6 +57,7 @@ import qualified Data.Text.Lazy              as TL
 import qualified GraphOptimization.Medians as M
 import qualified Search.Swap as S
 import qualified Search.NetworkAddDelete as N
+import qualified Search.Fuse as F
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -71,33 +72,64 @@ import qualified Search.NetworkAddDelete as N
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Double -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
-geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations severity recombinations inGraphList =
+geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Int -> Double -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations generationCounter severity recombinations inGraphList =
     if null inGraphList then ([], 0)
+    else if generationCounter == generations then  (inGraphList, generationCounter)
     else 
         let seedList = randomIntList rSeed
 
             -- get elite list of best solutions
-            initialEliteList = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] inGraphList
+            initialEliteList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] inGraphList
 
-            -- mutate input graphs
-            mutatedGraphList = zipWith (mutateGraph inGS inData) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
+            -- mutate input graphs, produces number input, limited to popsize 
+            mutatedGraphList' = zipWith (mutateGraph inGS inData) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
 
-            -- recom,bine elite with mutated and mutated with mutated
-            recombinedGraphList = mutatedGraphList
+            -- adjust to correct populationsize if input number < popSize
+            mutatedGraphList = if length mutatedGraphList' >= popSize then mutatedGraphList'
+                               else 
+                                    let numShort = popSize - (length mutatedGraphList')
+                                        additionalMutated = zipWith (mutateGraph inGS inData) (randomIntList $ seedList !! 2) $ takeRandom (seedList !! 3) numShort inGraphList
+                                    in
+                                    mutatedGraphList' ++ additionalMutated
+
+            -- get unique graphs, no point in recombining repetitions 
+            uniqueMutatedGraphList = GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] (mutatedGraphList ++ inGraphList)
+
+            -- recombine elite with mutated and mutated with mutated
+            recombineSwap = getRandomElement (seedList !! 4) ["nni", "spr", "tbr"]
+            (doNNI, doSPR, doTBR) = if recombineSwap == "nni" then (True, False, False)
+                                   else if recombineSwap == "spr" then (False, True, False)
+                                   else (False, False, True)
+            doSteepest = True
+            doAll = False
+            returnBest = False
+            returnUnique = True
+            singleRound = False
+            fusePairs = Just recombinations
+            randomPairs = True
+
+            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0  doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueMutatedGraphList
 
             -- selection of graphs population
-            selectedGraphs = recombinedGraphList
-            newCost = minimum $ fmap snd6 selectedGraphs
-
-            -- final list with elits added back
-            newGraphs = take popSize $ GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] inGraphList
+            -- unique sorted on cost so getting unique with lowest cost
+            selectedGraphs = take popSize $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] recombinedGraphList
+            newCost = snd6 $ head selectedGraphs
+            
         in
-        trace ("GA " ++ (show $ snd6 $ head initialEliteList) ++ " -> " ++ (show newCost)) (
+        trace ("\tGA " ++ (show $ snd6 $ head initialEliteList) ++ " -> " ++ (show newCost) ++ "\nInGraphs " ++ (show $ L.sort $ fmap snd6 inGraphList)
+            ++ "\nMutated " ++ (show $  L.sort $ fmap snd6 mutatedGraphList)
+            ++ "\nRecombined " ++ recombineSwap ++ " " ++ (show $  L.sort $ fmap snd6 recombinedGraphList)) (
+        
+        -- if new graphs better cost then take those
         if newCost < (snd6 $ head initialEliteList) then 
-            (newGraphs, 1)
+            geneticAlgorithm inGS inData (seedList !! 5) doElitist keepNum popSize generations (generationCounter + 1) severity recombinations selectedGraphs
+
+        -- if noew graphs not better then add in elites toi ensure monotonic decrease in cost
         else 
-            (take keepNum $ GO.selectPhylogeneticGraph [("unique", (show popSize))] 0 ["unique"] (initialEliteList ++ newGraphs), 1)
+            let newGraphList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (initialEliteList ++ selectedGraphs)
+            in
+            geneticAlgorithm inGS inData (seedList !! 5) doElitist keepNum popSize generations (generationCounter + 1) severity recombinations newGraphList
         )
 
 -- | mutateGraph mutates a graph using drift functionality
@@ -114,7 +146,7 @@ mutateGraph inGS inData rSeed inGraph =
                                 , driftAcceptEqual  = 0.67
                                 , driftAcceptWorse  = 0.0
                                 -- this could be an important factor don't want too severe, but significant
-                                , driftMaxChanges   = 2
+                                , driftMaxChanges   = getRandomElement (randList !! 1) [1,2,4] -- or something
                                 , driftChanges      = 0 
                                 } 
         in
@@ -129,16 +161,16 @@ mutateGraph inGS inData rSeed inGraph =
             doIA = False
             returnMutated = True
             inSimAnnealParams = saValues
-            swapType = getRandomElement (randList !! 1) ["spr","tbr"]
+            swapType = getRandomElement (randList !! 2) ["spr","tbr"]
 
             --radnomize network edit parameters
-            netEditType = getRandomElement (randList !! 2) ["netAdd", "netDelete", "netMove"]
+            netEditType = getRandomElement (randList !! 3) ["netAdd", "netDelete", "netMove"]
             doRandomOrder = True
 
         in
-            
+        
         -- only swap stuff for tree
-        if graphType inGS == Tree then 
+        if graphType inGS == Tree || LG.isTree (fst6 inGraph) then 
             head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random
@@ -148,16 +180,17 @@ mutateGraph inGS inData rSeed inGraph =
             else 
                 -- move only for Hardwired
                 if (graphType inGS) == HardWired then 
-                    head $ fst $ N.moveAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph]) 
+                    head $ fst $ N.moveAllNetEdges inGS inData (randList !! 4) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph]) 
                     
 
                 -- SoftWired
                 else
                     if netEditType == "netMove" then
-                        head $ fst $ N.moveAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        head $ fst $ N.moveAllNetEdges inGS inData (randList !! 4) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                    
                     else if netEditType == "netadd" then
-                        head $ fst $ N.insertAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        head $ fst $ N.insertAllNetEdges inGS inData (randList !! 4) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                         
                     -- net delete
                     else 
-                        head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 3) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 4) numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
