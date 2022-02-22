@@ -34,6 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
+{-# LANGUAGE BangPatterns #-}
+
 module Commands.CommandExecution
   ( executeCommands
   , executeRenameReblockCommands
@@ -65,6 +67,7 @@ import qualified Reconciliation.ReconcileGraphs as R
 import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
 import qualified System.Clock as CL
+import qualified Search.Search as S
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -138,6 +141,13 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
+        else if firstOption == Search then
+            let newGraphList = S.search firstArgs globalSettings processedData (head seedList) curGraphs
+                stopTime = getSystemTimeNDTUnsafe 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+                newSearchData = searchInfo : (searchData globalSettings)
+            in
+            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
                 stopTime = getSystemTimeNDTUnsafe 
@@ -161,6 +171,9 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
                 newSearchData = searchInfo : (searchData globalSettings)
             in
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Support then
+            trace ("Command 'support' not yet implemented")
             executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 

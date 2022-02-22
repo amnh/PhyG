@@ -170,7 +170,7 @@ mutateGraph inGS inData rSeed inGraph =
         in
         
         -- only swap stuff for tree
-        if graphType inGS == Tree || LG.isTree (fst6 inGraph) then 
+        if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then 
             head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random

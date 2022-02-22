@@ -1,6 +1,6 @@
 {- |
-Module      :  Refinement.hs
-Description :  Module controlling graph refinement functions
+Module      :  Search.hs
+Description :  Module controlling timed randomized search functions
 Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
