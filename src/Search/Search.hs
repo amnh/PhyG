@@ -58,5 +58,5 @@ searchArgList = ["days", "hours", "minutes", "seconds"]
 
 -- | search timed randomized search
 search :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-refineGraph inArgs inGS inData rSeed inGraphList = inGraphList
+search inArgs inGS inData rSeed inGraphList = inGraphList
    

@@ -89,7 +89,11 @@ moveAllNetEdges' inGS inData rSeed numToKeep counter returnMutated doSteepest do
           newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
                          else infinity
       in
-      if null netEdgeList then trace ("\tNo network edges to move") (inPhyloGraphList, counter)
+      -- if graph is a tree no edges to delete
+      if LG.isTree (fst6 firstPhyloGraph) then 
+         trace ("\tGraph in move network edges is tree--skipping")
+         moveAllNetEdges' inGS inData rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) (inSimAnnealParams, (tail inPhyloGraphList))
+      else if null netEdgeList then trace ("\tNo network edges to move") (inPhyloGraphList, counter)
 
       -- regular move keeping best
       else if inSimAnnealParams == Nothing then
@@ -236,9 +240,16 @@ insertAllNetEdges' inGS inData numToKeep counter returnMutated doSteepest doRand
                   else 
                      insertAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (curBestGraphList, annealBestCost) (tail randIntList) newSAParams (nextNewGraphList ++ (tail inPhyloGraphList))
 
-               -- returns non-optimized list for GA or whatever, since can't remove edges in net add
-               else (take numToKeep curBestGraphList, counter)
+               -- returns non-optimized list for GA or whatever
+               else if returnMutated then (take numToKeep curBestGraphList, counter)
 
+               -- run net delete regular to get back to optimized edges 
+               else 
+                  let (bestList', counter') =  deleteAllNetEdges' inGS inData numToKeep (counter + 1) False doSteepest doRandomOrder ([], annealBestCost) (tail randIntList) Nothing (take numToKeep curBestGraphList)
+                      bestList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] bestList'
+               in
+               --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
+               (take numToKeep bestList, counter')
                
       
 
@@ -344,7 +355,12 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated doSteepest doRand
                          else infinity
 
       in
-      if null newGraphList then (take numToKeep curBestGraphList, counter)
+      -- if graph is a tree no edges to delete
+      if LG.isTree (fst6 $ head inPhyloGraphList) then 
+         trace ("\tGraph in delete network edges is tree--skipping")
+         deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
+
+      else if null newGraphList then (take numToKeep curBestGraphList, counter)
 
          -- regular delte wihtout simulated annealing
          -- worse graphs found--go on 
@@ -396,9 +412,15 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated doSteepest doRand
                   deleteAllNetEdges' inGS inData numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (curBestGraphList, annealBestCost)  (tail randIntList) nextSAParams (nextNewGraphList ++ (tail inPhyloGraphList))
 
             -- if want non-optimized list for GA or whatever
-               -- can'r optimize back becaiuse can't add edges in delete edges
-            else (take numToKeep curBestGraphList, counter)
+            else if returnMutated then (take numToKeep curBestGraphList, counter)
 
+            -- optimize with net insert to add back edges to optimiality
+            else
+               let (bestList', counter') =  insertAllNetEdges' inGS inData numToKeep (counter + 1) False doSteepest doRandomOrder ([], annealBestCost) (tail randIntList) Nothing (take numToKeep curBestGraphList)
+                   bestList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] bestList'
+               in
+               --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
+               (take numToKeep bestList, counter')
             
 
       

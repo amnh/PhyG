@@ -66,7 +66,6 @@ import qualified Search.Build           as B
 import qualified Reconciliation.ReconcileGraphs as R
 import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
-import qualified System.Clock as CL
 import qualified Search.Search as S
 
 
@@ -173,8 +172,8 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             in
             executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Support then
-            trace ("Command 'support' not yet implemented")
-            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            errorWithoutStackTrace ("Command 'support' not yet implemented")
+            --executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
