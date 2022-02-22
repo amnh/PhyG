@@ -91,7 +91,6 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int])
 executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList commandList = do
-    startTime <- getSystemTimeNDT
     if null commandList then return (curGraphs, globalSettings, seedList)
     else do
         let (firstOption, firstArgs) = head commandList
@@ -141,7 +140,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Search then
-            let newGraphList = S.search firstArgs globalSettings processedData (head seedList) curGraphs
+            let newGraphList = S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
                 stopTime = getSystemTimeNDTUnsafe 
                 searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
                 newSearchData = searchInfo : (searchData globalSettings)
