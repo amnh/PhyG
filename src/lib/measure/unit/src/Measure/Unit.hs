@@ -16,7 +16,7 @@ module Measure.Unit
   , SymbolCount(..)
   , SymbolIndex(..)
     -- * Component Type-classes
-  , HasEditCosts(..)
+  , HasEditExtrema(..)
   , HasSymbolCount(..)
     -- * Symbol Count Threshold
   , iota

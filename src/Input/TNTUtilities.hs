@@ -73,8 +73,8 @@ import qualified Input.DataTransformation as DT
 import           Text.Read
 import qualified SymMatrix as SM
 import qualified GeneralUtilities as GU
-import           Measure.Compact
-import qualified Measure.SymbolChangeMatrix.Dense                  as TCM
+import           Measure.Transition.Representation
+import qualified Measure.SymbolChangeMatrix.Compact                  as TCM
 import qualified Input.FastAC  as FAC
 
 
@@ -254,7 +254,7 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , name = T.empty
                                 , alphabet = fromSymbols []
                                 , prealigned = True
-                                , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
+                                , slimTCM    = FAC.genDiscreteCompactOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 }

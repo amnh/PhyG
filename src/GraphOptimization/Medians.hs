@@ -60,8 +60,8 @@ import Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian                                 as BV
 import           Data.Foldable
-import qualified Measure.Compact                                   as MR
-import qualified Measure.States.Dense                                              as TCMD
+import qualified Measure.Transition.Representation                                   as MR
+import qualified Layout.Compact.States                                              as TCMD
 import qualified Data.Vector                                                 as V
 import qualified Data.Vector.Generic                                         as GV
 import           Data.Word
@@ -361,13 +361,13 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
 
     else if thisType `elem` [WideSeq, AminoSeq] then
         let coefficient = MR.maxEdit (wideTCM charInfo)
-            (cost, r) = widePairwiseDO coefficient (MR.getTCM2Dλ $ wideTCM charInfo) wide1 wide2
+            (cost, r) = widePairwiseDO coefficient (MR.stateTransitionPairwiseDispersion $ wideTCM charInfo) wide1 wide2
         in
         (mempty, r, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType == HugeSeq           then
         let coefficient = MR.maxEdit (hugeTCM charInfo)
-            (cost, r) = hugePairwiseDO coefficient (MR.getTCM2Dλ $ hugeTCM charInfo) huge1 huge2
+            (cost, r) = hugePairwiseDO coefficient (MR.stateTransitionPairwiseDispersion $ hugeTCM charInfo) huge1 huge2
         in
         (mempty, mempty, r, weight charInfo * fromIntegral cost)
 
@@ -385,8 +385,8 @@ getDOMedian
   :: Double
   -> S.Matrix Int
   -> TCMD.TCMρ
-  -> MR.CompactMeasure Word64
-  -> MR.CompactMeasure BV.BitVector
+  -> MR.TransitionMatrix Word64
+  -> MR.TransitionMatrix BV.BitVector
   -> CharType
   -> CharacterData
   -> CharacterData
@@ -419,7 +419,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
                 coefficient
-                (MR.getTCM2Dλ thisWideTCM)
+                (MR.stateTransitionPairwiseDispersion thisWideTCM)
                 (wideGapped leftChar) (wideGapped rightChar)
         in  blankCharacterData
               { widePrelim    = extractMedians r
@@ -435,7 +435,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
                 coefficient
-                (MR.getTCM2Dλ thisHugeTCM)
+                (MR.stateTransitionPairwiseDispersion thisHugeTCM)
                 (hugeGapped leftChar) (hugeGapped rightChar)
         in  blankCharacterData
               { hugePrelim = extractMedians r
@@ -470,8 +470,9 @@ getDynamicUnion filterGaps thisType leftChar rightChar
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let r   = GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+        let r  = GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
+            r' = if   filterGaps
+                 then GV.filter (/= (bit (fromEnum gapIndex))) r
                  else r
         in  blankCharacterData {slimFinal = r'}
 

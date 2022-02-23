@@ -14,7 +14,7 @@
 
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 --{-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -34,22 +34,23 @@ import           Bio.DynamicCharacter
 import           Control.Applicative
 import           Data.Alphabet
 import           Data.Alphabet.Codec
-import           Data.Alphabet.IUPAC    (iupacToDna)
-import qualified Data.Bimap             as BM
+import           Data.Alphabet.IUPAC               (iupacToDna)
+import qualified Data.Bimap                        as BM
 import           Data.Bits
 import           Data.Foldable
-import           Data.List              (intercalate)
-import           Data.List.NonEmpty     (NonEmpty(..))
-import qualified Data.List.NonEmpty     as NE
-import           Data.Set               (Set)
-import qualified Data.Set               as Set
-import qualified Data.Vector            as V
-import           Data.Vector.Generic    (Vector)
-import qualified Data.Vector.Generic    as GV
-import qualified Data.Vector.Storable   as SV
-import           Foreign.C.Types        (CUInt(..))
-import           Measure.Compact
-import           Test.Tasty.QuickCheck  hiding ((.&.))
+import           Data.List                         (intercalate)
+import           Data.List.NonEmpty                (NonEmpty(..))
+import qualified Data.List.NonEmpty                as NE
+import           Data.Set                          (Set)
+import qualified Data.Set                          as Set
+import qualified Data.Vector                       as V
+import           Data.Vector.Generic               (Vector)
+import qualified Data.Vector.Generic               as GV
+import qualified Data.Vector.Storable              as SV
+import           Foreign.C.Types                   (CUInt(..))
+import           Measure.Transition.Representation
+import           Measure.Unit.SymbolCount
+import           Test.Tasty.QuickCheck             hiding ((.&.))
 
 
 data DyadDNA = !DNA :×: !DNA
@@ -446,11 +447,11 @@ nucleotideTCM2Dλ
   => TCM2Dλ a
 nucleotideTCM2Dλ i j =
    let f = toEnum . fromEnum
-       tcm = getTCM2Dλ defaultMetric :: TCM2Dλ Nucleotide
+       tcm = stateTransitionPairwiseDispersion defaultMetric :: TCM2Dλ Nucleotide
    in  toEnum . fromEnum <$> tcm (f i) (f j)
 
-  
-defaultMetric :: CompactMeasure Nucleotide
-defaultMetric = 
-    let dim = toEnum $ length nucleotideAlphabet
+
+defaultMetric :: TransitionMatrix Nucleotide
+defaultMetric =
+    let dim = SymbolCount . toEnum $ length nucleotideAlphabet
     in  discreteMetric dim

@@ -59,8 +59,8 @@ import qualified Data.BitVector.LittleEndian as BV
 import           Data.Maybe
 import qualified Data.List as L
 import Debug.Trace
-import qualified Measure.States.Dense as TCMD
-import qualified Measure.Compact as MR
+import qualified Layout.Compact.States as TCMD
+import qualified Measure.Transition.Representation as MR
 import qualified Data.Vector.Generic                                         as GV
 import Data.Bits
 import qualified Data.Vector.Storable         as SV
@@ -1110,32 +1110,32 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
 -- information to create a final assingment with out an additional DO call to keep the 
 -- creation linear in sequence length.  Since gaps remain--they must be filtered when output or 
 -- used as true final sequence assignments using M.createUngappedMedianSequence
-getFinal3WaySlim :: TCMD.CompactMeasure -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim :: TCMD.TransitionMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let newFinal = SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
-getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.CompactMeasure a -> v a -> v a -> v a -> v a
+getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.TransitionMatrix a -> v a -> v a -> v a -> v a
 getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let newFinal = GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local3WayWideHuge :: (FiniteBits a) => MR.CompactMeasure a -> a -> a -> a -> a
+local3WayWideHuge :: (FiniteBits a) => MR.TransitionMatrix a -> a -> a -> a -> a
 local3WayWideHuge lWideTCM b c d =
    let  -- b' = if b == zeroBits then gap else b
         -- c' = if c == zeroBits then gap else c
         -- d' = if d == zeroBits then gap else d
-        (median, _) = MR.retreiveThreewayTCM lWideTCM b c d
+        (median, _) = MR.retrieveThreewayTCM lWideTCM b c d
    in
    -- trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median
 
 -- | local3WaySlim takes triple of CUInt and retuns median
-local3WaySlim :: TCMD.CompactMeasure -> CUInt -> CUInt -> CUInt -> CUInt
+local3WaySlim :: TCMD.TransitionMatrix -> CUInt -> CUInt -> CUInt -> CUInt
 local3WaySlim lSlimTCM b c d =
  -- trace ("L3WS: " ++ (show (b,c,d))) (
  let  -- b' = if b == zeroBits then gap else b
@@ -1150,14 +1150,14 @@ local3WaySlim lSlimTCM b c d =
  -- )
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WaySlim :: TCMD.CompactMeasure -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+get2WaySlim :: TCMD.TransitionMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 get2WaySlim lSlimTCM descendantLeftPrelim descendantRightPrelim =
    let median = SV.zipWith (local2WaySlim lSlimTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local2WaySlim takes pair of CUInt and retuns median
-local2WaySlim :: TCMD.CompactMeasure -> CUInt -> CUInt -> CUInt
+local2WaySlim :: TCMD.TransitionMatrix -> CUInt -> CUInt -> CUInt
 local2WaySlim lSlimTCM b c =
  let  -- b' = if b == zeroBits then gap else (b `shiftL` 1) -- 2 * b -- temp fix for 2-way oddness
       -- c' = if c == zeroBits then gap else c
@@ -1172,18 +1172,18 @@ local2WaySlim lSlimTCM b c =
  median
 
 -- | get2WayWideHuge like get2WaySlim but for wide and huge characters
-get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.CompactMeasure a -> v a -> v a -> v a
+get2WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.TransitionMatrix a -> v a -> v a -> v a
 get2WayWideHuge whTCM  descendantLeftPrelim descendantRightPrelim =
    let median = GV.zipWith (local2WayWideHuge whTCM) descendantLeftPrelim descendantRightPrelim
    in
    median
 
 -- | local3WayWideHuge takes tripples for wide and huge sequence types and returns median
-local2WayWideHuge :: (FiniteBits a) => MR.CompactMeasure a -> a -> a -> a
+local2WayWideHuge :: (FiniteBits a) => MR.TransitionMatrix a -> a -> a -> a
 local2WayWideHuge lWideTCM b c =
    let  -- b' = if b == zeroBits then gap else b
         -- c' = if c == zeroBits then gap else c
-        (median, _) = MR.getTCM2Dλ lWideTCM b c
+        (median, _) = MR.stateTransitionPairwiseDispersion lWideTCM b c
    in
    --trace ((show b) ++ " " ++ (show c) ++ " " ++ (show d) ++ " => " ++ (show median))
    median

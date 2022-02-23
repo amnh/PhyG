@@ -39,7 +39,7 @@ module Input.FastAC
   , getFastaCharInfo
   , getFastC
   , getFastcCharInfo
-  , genDiscreteDenseOfDimension
+  , genDiscreteCompactOfDimension
   ) where
 
 import           Control.DeepSeq
@@ -47,12 +47,14 @@ import           Data.Alphabet
 import           Data.Bits
 import           Data.Hashable
 import qualified Data.List                 as L
-import           Measure.Compact
-import qualified Measure.Compact as MR
-import           Measure.Diagnosis                  (DiagnosisOfSCM(..))
-import           Measure.Metricity                  (Metricity(..))
-import qualified Measure.Symbols.Dense           as SCM
-import qualified Measure.States.Dense            as TCMD
+import           Measure.Transition.Metricity                  (Metricity(..))
+import           Measure.Transition.Diagnosis                  (DiagnosisOfSDM(..))
+import           Measure.Transition.Representation
+import qualified Measure.Transition.Representation as MR
+import qualified Layout.Compact.States            as TCMD
+import qualified Layout.Compact.Symbols           as SDM
+import           Measure.Unit.SymbolChangeCost
+import           Measure.Unit.SymbolIndex
 import qualified Data.Text.Lazy            as T
 import qualified Data.Text.Short           as ST
 import qualified Data.Vector               as V
@@ -127,19 +129,19 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
             localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
                               else S.fromLists $ snd3 localTCM
-            tcmDense = TCMD.fromSCMλ 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
+            tcmCompact = TCMD.fromSDMλ 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
-            tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
-            localDenseCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmDense
+            tcmNaught = genDiscreteCompactOfDimension (length sequenceData)
+            localCompactCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmCompact
                                    else tcmNaught
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SDM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SDM.fromRows [[0::Word]]
 
             tcmWeightFactor = thd3 localTCM
             thisAlphabet =
@@ -157,7 +159,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                                 then fromRational wideWeightFactor
                                                 else 1
                                      , costMatrix = localCostMatrix
-                                     , slimTCM = localDenseCostMatrix
+                                     , slimTCM = localCompactCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
                                      , name = T.pack (filter (/= ' ') dataName <> ":0")
@@ -170,7 +172,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
 
 -- | getCost is helper function for generartion for a dense TCM
-getCost :: S.Matrix Int -> SymbolIndex -> SymbolIndex -> Distance
+getCost :: S.Matrix Int -> SymbolIndex -> SymbolIndex -> SymbolChangeCost
 getCost localCM i j =
     let x = S.getFullVects localCM
     in  toEnum $ (x V.! fromEnum i) V.! fromEnum j
@@ -183,13 +185,13 @@ getTCMMemo
      , NFData b
      )
   => (a, S.Matrix Int)
-  -> (Rational, MR.CompactMeasure b)
+  -> (Rational, MR.TransitionMatrix b)
 getTCMMemo (_inAlphabet, inMatrix) =
-    let DiagnosisOfSCM metricity coefficient scm = diagnoseSCMλ $ S.getFullVects inMatrix
+    let DiagnosisOfSDM metricity coefficient sdm = diagnoseSDMλ $ S.getFullVects inMatrix
         metric = case metricity of
-                   DiscreteMetric -> discreteMetric $ symbolCount scm
-                   L1Norm         -> linearNorm     $ symbolCount scm
-                   _              -> metricRepresentation scm
+                   DiscreteMetric -> discreteMetric $ symbolCount sdm
+                   L1Norm         -> linearNorm     $ symbolCount sdm
+                   _              -> metricRepresentation sdm
     in (coefficient, metric)
 
 
@@ -240,11 +242,11 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0
 
             tcmWeightFactor = thd3 localTCM
-            tcmDense = TCMD.fromSCMλ 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
+            tcmCompact = TCMD.fromSDMλ 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
 
             -- not sure of this
-            tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
-            localDenseCostMatrix = if length thisAlphabet < 9  then tcmDense
+            tcmNaught = genDiscreteCompactOfDimension (length thisAlphabet)
+            localCompactCostMatrix = if length thisAlphabet < 9  then tcmCompact
                                    else tcmNaught
             seqType =
                 case length thisAlphabet of
@@ -254,11 +256,11 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             (wideWeightFactor, localWideTCM)
               | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SDM.fromRows [[0::Word]]
 
             (hugeWeightFactor, localHugeTCM)
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> SCM.fromRows [[0::Word]]
+              | otherwise                          = metricRepresentation <$> SDM.fromRows [[0::Word]]
 
             defaultHugeSeqCharInfo = CharInfo {
                                        charType = seqType
@@ -270,7 +272,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                                 then fromRational wideWeightFactor
                                                 else 1
                                      , costMatrix = inMatrix
-                                     , slimTCM = localDenseCostMatrix
+                                     , slimTCM = localCompactCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
                                      , name = T.pack (filter (/= ' ') dataName ++ ":0")
@@ -284,7 +286,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , weight  = if (length $ thisAlphabet) > 8 then weightFactor * tcmWeightFactor
                                                 else tcmWeightFactor
                                      , costMatrix = inMatrix
-                                     , slimTCM = localDenseCostMatrix
+                                     , slimTCM = localCompactCostMatrix
                                      , wideTCM = localMemoTCM
                                      , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
                                      , alphabet = thisAlphabet
@@ -425,12 +427,12 @@ getRawDataPairsFastC modifier inTextList =
         else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
 
 -- | add to tnt
-genDiscreteDenseOfDimension
+genDiscreteCompactOfDimension
   :: Enum i
   => i
   -> TCMD.TCMρ
-genDiscreteDenseOfDimension d =
+genDiscreteCompactOfDimension d =
   let n = toEnum $ fromEnum d
       r = [0 .. n - 1]
       m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
-  in  TCMD.fromSCMλ n n . getCost $ V.fromList <$> V.fromList m
+  in  TCMD.fromSDMλ n n . getCost $ V.fromList <$> V.fromList m

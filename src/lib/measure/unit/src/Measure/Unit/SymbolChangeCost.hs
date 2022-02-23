@@ -17,42 +17,18 @@
 
 module Measure.Unit.SymbolChangeCost
   ( SymbolChangeCost(..)
---  , HasEditCosts(..)
   ) where
 
 import Control.DeepSeq
 import Data.Data
 import Data.Hashable
+import Foreign.Storable
 import GHC.Generics
 
 
 -- |
 -- The distance between two measurable elements.
 newtype SymbolChangeCost = SymbolChangeCost Word
-    deriving newtype (Bounded, Enum, Eq, Hashable, Integral, NFData, Num, Ord, Read, Real, Show, Typeable)
+    deriving newtype (Bounded, Enum, Eq, Hashable, Integral, NFData, Num, Ord, Read, Real, Show, Storable, Typeable)
     deriving stock   (Data, Generic)
 
-
-{-
--- |
--- Any structural representation which can produce a Symbol Change Matrix.
-class HasEditCosts a where
-
-    {-# MINIMAL maxDeletion, maxInsertion, minDeletion, minInsertion #-}
-
-    {-# INLINEABLE maxEdit #-}
-    maxEdit :: a -> SymbolChangeCost
-    maxEdit a = max (maxDeletion a) $ maxInsertion a
-
-    maxDeletion  :: a -> SymbolChangeCost
-
-    maxInsertion :: a -> SymbolChangeCost
-
-    {-# INLINEABLE minEdit #-}
-    minEdit :: a -> SymbolChangeCost
-    minEdit a = min (minDeletion a) $ minInsertion a
-
-    minDeletion  :: a -> SymbolChangeCost
-
-    minInsertion :: a -> SymbolChangeCost
--}

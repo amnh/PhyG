@@ -46,7 +46,7 @@ module Data.Alphabet
   -- * Queries
   , alphabetStateNames
   , alphabetSymbols
-  -- * Gap Symbol Queries  
+  -- * Gap Symbol Queries
   , gapIndex
   , gapSymbol
   -- * Truncation

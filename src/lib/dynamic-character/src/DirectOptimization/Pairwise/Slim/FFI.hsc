@@ -34,7 +34,6 @@ module DirectOptimization.Pairwise.Slim.FFI
 
 import Bio.DynamicCharacter
 import Data.Coerce
-import Measure.States.Dense
 import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import DirectOptimization.Pairwise.Internal
@@ -43,7 +42,8 @@ import Foreign.C.Types
 import GHC.ForeignPtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
-import Measure.Matrix
+import Measure.Transition.Matrix
+import Measure.Transition.States
 
 
 -- |
@@ -130,7 +130,7 @@ smallAlphabetPairwiseDO
      -- ^ First  dynamic character
   -> SlimDynamicCharacter
      -- ^ Second dynamic character
-  -> (Distance, SlimDynamicCharacter)
+  -> (AlignmentCost, SlimDynamicCharacter)
      -- ^ The /ungapped/ character derived from the the input characters' N-W-esque matrix traceback
 smallAlphabetPairwiseDO = algn2d DoNotComputeUnions ComputeMedians
 
@@ -171,10 +171,10 @@ algn2d
   -> TCMρ                             -- ^ Structure defining the transition costs between character states
   -> SlimDynamicCharacter             -- ^ First  dynamic character
   -> SlimDynamicCharacter             -- ^ Second dynamic character
-  -> (Distance, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians tcmρ = directOptimization f $ getTCM2Dλ tcmρ
+  -> (AlignmentCost, SlimDynamicCharacter) -- ^ The cost of the alignment
+algn2d computeUnion computeMedians tcmρ = directOptimization f $ stateTransitionPairwiseDispersion tcmρ
   where
-    f :: Vector CUInt -> Vector CUInt -> (Distance, SlimDynamicCharacter)
+    f :: Vector CUInt -> Vector CUInt -> (AlignmentCost, SlimDynamicCharacter)
     f lesser longer = {-# SCC f #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
         let longerLength = V.length longer

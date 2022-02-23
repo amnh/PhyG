@@ -8,26 +8,31 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- A matrix of transition costs between alphabet symbols.
--- Exposes row-major monomorphic maps, folds, and traversals.
 -----------------------------------------------------------------------------
 
 module Measure.Transition.Symbols
-  ( TCM()
-  , DiagnosisOfSCM(..)
-  , StructureOfSCM(..)
-    -- * Construction
-  , fromCols
-  , fromList
-  , fromRows
-  , generate
-    -- * Indexing
-  , (!)
-    -- * Queries
-  , size
-    -- * Specialization Utility
-  , diagnoseTcm
+  ( HasSymbolDistances(..)
   ) where
 
-import Measure.Transition.Symbols.Dense
-import Measure.Transition.Symbols.Internal
+import Data.Coerce
+import Layout.Compact.States.Indexing
+import Measure.Transition.Types
+import Measure.Unit.SymbolChangeCost
+import Measure.Unit.SymbolIndex
+
+
+-- |
+-- Any structural representation which can produce a function measuring the
+-- 'Measure.Distance.Distance' between two symbols, i.e. produce a "Symbol
+-- Change Matrix."
+class HasSymbolDistances a where
+
+    symbolDistances :: a -> SymbolDistanceλ
+
+
+instance HasSymbolDistances StateTransitionsCompact where
+
+    symbolDistances tcm i =
+        let f = coerce :: SymbolIndex -> Word
+            g = coerce :: Word -> SymbolChangeCost
+        in  g . costSymbol tcm (f i) . f

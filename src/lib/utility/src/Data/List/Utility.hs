@@ -34,7 +34,7 @@ module Data.List.Utility
   , maximaBy
   , minimaBy
   , foldZipWith
-  , foldZipWith3  
+  , foldZipWith3
   ) where
 
 import           Control.Lens            (Lens', lens)

@@ -5,11 +5,11 @@
 module Main (main) where
 
 import Bio.Character.Exportable
-import Control.Applicative      (liftA2)
-import Measure.SymbolChangeMatrix.Dense.Memoized
+import Control.Applicative                         (liftA2)
 import Foreign.C.Types
-import Safe                     (readMay)
-import System.Environment       (getArgs)
+import Measure.SymbolChangeMatrix.Compact.Memoized
+import Safe                                        (readMay)
+import System.Environment                          (getArgs)
 
 
 newtype MyStruct = T [CULong]

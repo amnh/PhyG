@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Measure.Transition.Matrix
+-- Module      :  Measure.Transition
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -10,16 +10,16 @@
 --
 -----------------------------------------------------------------------------
 
-module Measure.Transition.Matrix
+module Measure.Transition
   ( -- * Comparators
-    SCMλ
+    SDMλ
   , TCM2Dλ
   , TCM3Dλ
     -- * Comparator Type-classes
-  , HasDenseMatrix(..)
-  , HasSymbolChangeMatrix(..)
-  , HasTransitionCostMatrix(..)
+  , HasStateTransitions(..)
+  , HasStateTransitionsCompact(..)
+  , HasSymbolDistances(..)
   ) where
 
-import Measure.Transition.Matrix.Types
-import Measure.Transition.Matrix.Class
+import Measure.Transition.Class
+import Measure.Transition.Types

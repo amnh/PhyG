@@ -47,8 +47,8 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types             (CUInt)
-import qualified Measure.Compact             as MR
-import qualified Measure.States.Dense        as TCMD
+import qualified Measure.Transition.Representation             as MR
+import qualified Layout.Compact.States        as TCMD
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
 import GHC.Generics 
@@ -153,17 +153,17 @@ data  GlobalSettings
 
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
---  TCMD.CompactMeasure          => genDiscreteDenseOfDimension (length alphabet)
---  MR.CompactMeasure Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
---  MR.CompactMeasure BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  TCMD.TransitionMatrix          => genDiscreteCompactOfDimension (length alphabet)
+--  MR.TransitionMatrix Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  MR.TransitionMatrix BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
                          , activity   :: Bool
                          , weight     :: Double
                          , costMatrix :: S.Matrix Int
                          , slimTCM    :: TCMD.TCMρ
-                         , wideTCM    :: MR.CompactMeasure Word64
-                         , hugeTCM    :: MR.CompactMeasure BV.BitVector
+                         , wideTCM    :: MR.TransitionMatrix Word64
+                         , hugeTCM    :: MR.TransitionMatrix BV.BitVector
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
                          } deriving stock (Show, Eq)

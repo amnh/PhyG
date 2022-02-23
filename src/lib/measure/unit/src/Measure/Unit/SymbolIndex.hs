@@ -21,19 +21,20 @@ module Measure.Unit.SymbolIndex
   ) where
 
 import Control.DeepSeq
-import Foreign.C.Types (CUInt)
 import Data.Data
 import Data.Hashable
 import Data.Int
 import Data.Ix
 import Data.Word
+import Foreign.C.Types (CUInt)
+import Foreign.Storable
 import GHC.Generics
 
 
 -- |
 -- The index of a symbol in an alphabet.
 newtype SymbolIndex = SymbolIndex Word
-    deriving newtype (Enum, Eq, Hashable, Ix, NFData, Ord, Read, Show, Typeable)
+    deriving newtype (Enum, Eq, Hashable, Ix, NFData, Ord, Read, Show, Storable, Typeable)
     deriving stock   (Data, Generic)
 
 

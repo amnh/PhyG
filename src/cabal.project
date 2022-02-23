@@ -28,7 +28,7 @@ source-repository-package
   location: https://github.com/recursion-ninja/bv-little
   tag: 308a88efc90b8184c5593c7dba552373c3eac270
 
-with-compiler: ghc-9.0.1
+with-compiler: ghc-8.10.7
 
 
 ---------------------------------------------------------------------------------
@@ -70,6 +70,13 @@ package *
     library-profiling: True
     library-profiling-detail: all-functions
     optimization: 2
---    ghc-options: -fwrite-ide-info -hiedir=.hie 
-    
+
+package phygraph
+    benchmarks:        True
+    documentation:     True
+    tests:             True
+    library-profiling: False
+    optimization: 0
+    ghc-options: -fwrite-ide-info -hiedir=.hie
+
 packages: .

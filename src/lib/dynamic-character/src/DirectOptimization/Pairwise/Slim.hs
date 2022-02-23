@@ -5,7 +5,7 @@ module DirectOptimization.Pairwise.Slim
   ) where
 
 import Bio.DynamicCharacter
-import DirectOptimization.Pairwise.Internal (Distance)
+import DirectOptimization.Pairwise.Internal (AlignmentCost)
 import DirectOptimization.Pairwise.Slim.FFI
 
 
@@ -13,5 +13,5 @@ slimPairwiseDO
   :: TCMρ
   -> SlimDynamicCharacter
   -> SlimDynamicCharacter
-  -> (Distance, SlimDynamicCharacter)
+  -> (AlignmentCost, SlimDynamicCharacter)
 slimPairwiseDO = smallAlphabetPairwiseDO

@@ -51,8 +51,8 @@ import           DirectOptimization.Pairwise.Internal
 -- algorithm is to generate a traversal matrix, then perform a traceback.
 {-# SCC        swappingDO #-}
 {-# INLINEABLE swappingDO #-}
-{-# SPECIALISE swappingDO :: TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
-{-# SPECIALISE swappingDO :: TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (AlignmentCost, WideDynamicCharacter) #-}
+{-# SPECIALISE swappingDO :: TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (AlignmentCost, HugeDynamicCharacter) #-}
 swappingDO
   :: ( FiniteBits e
      , Ord (v e)
@@ -61,21 +61,21 @@ swappingDO
   => TCM2Dλ e
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Distance, OpenDynamicCharacter v e)
+  -> (AlignmentCost, OpenDynamicCharacter v e)
 swappingDO = directOptimizationFromDirectionMatrix buildDirectionMatrix
 
 
 {-# SCC        buildDirectionMatrix #-}
 {-# INLINEABLE buildDirectionMatrix #-}
-{-# SPECIALISE buildDirectionMatrix :: WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (Distance, Matrix Direction) #-}
-{-# SPECIALISE buildDirectionMatrix :: HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (Distance, Matrix Direction) #-}
+{-# SPECIALISE buildDirectionMatrix :: WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (AlignmentCost, Matrix Direction) #-}
+{-# SPECIALISE buildDirectionMatrix :: HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (AlignmentCost, Matrix Direction) #-}
 buildDirectionMatrix
   :: Vector v e
   => e        -- ^ Gap state
   -> TCM2Dλ e -- ^ Metric between states producing the medoid of states.
   -> v e      -- ^ Shorter dynamic character related to the "left column"
   -> v e      -- ^ Longer  dynamic character related to the "top row"
-  -> (Distance, Matrix Direction)
+  -> (AlignmentCost, Matrix Direction)
 buildDirectionMatrix gap tcmλ lesserLeft longerTop = fullMatrix
   where
     costλ = getCostλ tcmλ

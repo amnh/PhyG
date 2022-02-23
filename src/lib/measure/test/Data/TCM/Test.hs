@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------
 -- |
--- Module      :  Measure.SymbolChangeMatrix.Dense.Test
+-- Module      :  Measure.SymbolChangeMatrix.Compact.Test
 -- Copyright   :  (c) 2015-2021 Ward Wheeler
 -- License     :  BSD-style
 --
@@ -13,18 +13,18 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Measure.SymbolChangeMatrix.Dense.Test
+module Measure.SymbolChangeMatrix.Compact.Test
   ( testSuite
   ) where
 
-import Data.Bifunctor                   (bimap)
+import Data.Bifunctor                     (bimap)
 import Data.MonoTraversable
 import Data.Word
-import Measure.SymbolChangeMatrix.Dense
-import Test.HUnit.Custom                (assertException)
+import Measure.SymbolChangeMatrix.Compact
+import Test.HUnit.Custom                  (assertException)
 import Test.Tasty
-import Test.Tasty.HUnit                 as HU
-import Test.Tasty.QuickCheck            as QC hiding (generate)
+import Test.Tasty.HUnit                   as HU
+import Test.Tasty.QuickCheck              as QC hiding (generate)
 
 
 -- |
@@ -44,7 +44,7 @@ testPropertyCases = testGroup "Invariant Properties"
 
 
 testExampleCases :: TestTree
-testExampleCases = testGroup "Example Cases for Measure.SymbolChangeMatrix.Dense"
+testExampleCases = testGroup "Example Cases for Measure.SymbolChangeMatrix.Compact"
     [ documentationCases
     ]
 
@@ -52,12 +52,12 @@ testExampleCases = testGroup "Example Cases for Measure.SymbolChangeMatrix.Dense
 -- Generate cases for TcmStructure diagnosis
 
 
-structureType :: TCM -> StructureOfSCM
+structureType :: TCM -> StructureOfSDM
 structureType = tcmStructure . diagnoseTcm
 
 
 diagnoseTcmCases :: TestTree
-diagnoseTcmCases = testGroup "Example cases for DiagnosisOfSCM"
+diagnoseTcmCases = testGroup "Example cases for DiagnosisOfSDM"
     [ QC.testProperty
         "generate k \\(i,j) -> n * i + m * j is non-symmetric for n \\= m"
         nonSymmetricProp
@@ -101,7 +101,7 @@ diagnoseTcmCases = testGroup "Example cases for DiagnosisOfSCM"
                                   --   └ additive and nonadditive.
 
 
--- Generate cases for DiagnosisOfSCM factoring
+-- Generate cases for DiagnosisOfSDM factoring
 
 
 factoringDiagnosisCases :: TestTree
@@ -112,7 +112,7 @@ factoringDiagnosisCases = testGroup "Example cases for factoredTcm and factoredW
     factorProp :: TCM -> Property
     factorProp tcm =
       let
-        DiagnosisOfSCM{..} = diagnoseTcm tcm
+        DiagnosisOfSDM{..} = diagnoseTcm tcm
         weight = fromIntegral factoredWeight
       in
         omap (* (weight :: Word32)) factoredTcm

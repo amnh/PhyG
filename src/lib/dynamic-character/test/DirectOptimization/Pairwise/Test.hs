@@ -26,7 +26,8 @@ import           Data.Ord
 import qualified Data.Vector.Generic                        as GV
 import qualified Data.Vector.Storable                       as SV
 import           Data.Word
-import           Measure.Compact.
+import           Measure.Transition.Representation
+import           Measure.Unit.AlignmentCost
 import           Test.Aligners
 import           Test.QuickCheck.Instances.DynamicCharacter
 import           Test.Tasty
@@ -371,7 +372,7 @@ validitySuite = testGroup "Validity of Alignments" $
 
 isValidPairwiseAlignment
   :: String
-  -> (SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter))
+  -> (SlimDynamicCharacter -> SlimDynamicCharacter -> (AlignmentCost, SlimDynamicCharacter))
   -> TestTree
 isValidPairwiseAlignment testLabel alignmentλ = testGroup ("Validity of " <> testLabel)
     [
@@ -464,7 +465,7 @@ isValidPairwiseAlignment testLabel alignmentλ = testGroup ("Validity of " <> te
 
 
 commutivity
-  :: (SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter))
+  :: (SlimDynamicCharacter -> SlimDynamicCharacter -> (AlignmentCost, SlimDynamicCharacter))
   -> DyadDNA
   -> Property
 commutivity alignmentλ (DNA lhs :×: DNA rhs) =
@@ -491,19 +492,19 @@ consistencySuite = testGroup description $
     description = intercalate "\n        * " $ preamble : (fst <$> alignmentChoices)
 
 
-consistentResults :: (String, CompactMeasure Word32) -> TestTree
+consistentResults :: (String, TransitionMatrix Word32) -> TestTree
 consistentResults param@(testLabel, _) =
     testPropertyRigorously ("Consistenty over " <> testLabel) $ checkAlignmentResults param
 
 
-checkAlignmentResults :: (String, CompactMeasure Word32) -> DyadDNA -> Property
+checkAlignmentResults :: (String, TransitionMatrix Word32) -> DyadDNA -> Property
 checkAlignmentResults (testLabel, metric) (DNA lhs :×: DNA rhs) =
         allAreEqual alignmentResults
       where
         alignmentResults = getResults <$> alignmentChoices
         getResults = fmap (\f -> f metric lhs rhs)
 
-        allAreEqual :: Foldable f => f (String, (Distance, SlimDynamicCharacter)) -> Property
+        allAreEqual :: Foldable f => f (String, (AlignmentCost, SlimDynamicCharacter)) -> Property
         allAreEqual input =
             case values of
               []   -> z

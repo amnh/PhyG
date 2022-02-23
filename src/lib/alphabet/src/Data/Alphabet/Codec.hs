@@ -12,8 +12,8 @@
 -- Works for any 'Bits' instance.
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE GADTs            #-}
-{-# LANGUAGE Strict           #-} 
+{-# LANGUAGE GADTs  #-}
+{-# LANGUAGE Strict #-}
 
 module Data.Alphabet.Codec
   ( decodeState
@@ -23,14 +23,14 @@ module Data.Alphabet.Codec
 import           Data.Alphabet.Internal
 import           Data.Bits
 import           Data.Foldable
-import           Data.List.NonEmpty          (NonEmpty)
-import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
-import           Data.Text.Short             (ShortText)
-import qualified Data.Vector                 as V
+import           Data.List.NonEmpty     (NonEmpty)
+import           Data.Set               (Set)
+import qualified Data.Set               as Set
+import           Data.Text.Short        (ShortText)
+import qualified Data.Vector            as V
 import           Data.Word
 import           Foreign.C.Types
-import           GHC.Exts                    (IsList(fromList), Item)
+import           GHC.Exts               (IsList(fromList), Item)
 
 
 {-# INLINEABLE encodeState #-}

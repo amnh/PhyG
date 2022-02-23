@@ -20,7 +20,9 @@
 module DirectOptimization.Pairwise.Internal
   ( -- * Alignment types
     Direction(..)
-  , Distance
+  , AlignmentCost
+  , StateChangeCost
+  , SymbolChangeCost
   , TCM2Dλ
     -- * Alignment generic functions
   , directOptimization
@@ -45,25 +47,27 @@ import qualified Data.Vector.Generic                   as GV
 import qualified Data.Vector.Storable                  as SV
 import qualified Data.Vector.Unboxed                   as UV
 import           DirectOptimization.Pairwise.Direction
-import           Measure.Matrix
-import           Measure.Unit
+import           Measure.Transition.Matrix
+import           Measure.Unit.AlignmentCost
+import           Measure.Unit.StateChangeCost
+import           Measure.Unit.SymbolChangeCost
 
 
 {-# SCC directOptimization #-}
 {-# INLINEABLE directOptimization #-}
-{-# SPECIALISE directOptimization :: (SV.Vector SlimState -> SV.Vector SlimState -> (Distance, SlimDynamicCharacter)) -> TCM2Dλ SlimState -> SlimDynamicCharacter -> SlimDynamicCharacter -> (Distance, SlimDynamicCharacter) #-}
-{-# SPECIALISE directOptimization :: (UV.Vector WideState -> UV.Vector WideState -> (Distance, WideDynamicCharacter)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
-{-# SPECIALISE directOptimization :: ( V.Vector HugeState ->  V.Vector HugeState -> (Distance, HugeDynamicCharacter)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: (SV.Vector SlimState -> SV.Vector SlimState -> (AlignmentCost, SlimDynamicCharacter)) -> TCM2Dλ SlimState -> SlimDynamicCharacter -> SlimDynamicCharacter -> (AlignmentCost, SlimDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: (UV.Vector WideState -> UV.Vector WideState -> (AlignmentCost, WideDynamicCharacter)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (AlignmentCost, WideDynamicCharacter) #-}
+{-# SPECIALISE directOptimization :: ( V.Vector HugeState ->  V.Vector HugeState -> (AlignmentCost, HugeDynamicCharacter)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (AlignmentCost, HugeDynamicCharacter) #-}
 directOptimization
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      )
-  => (v e -> v e -> (Distance, OpenDynamicCharacter v e)) -- ^ Alignment function
+  => (v e -> v e -> (AlignmentCost, OpenDynamicCharacter v e)) -- ^ Alignment function
   -> TCM2Dλ e -- ^ Metric for computing state distance and median state
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Distance, OpenDynamicCharacter v e)
+  -> (AlignmentCost, OpenDynamicCharacter v e)
 directOptimization alignmentFunction overlapλ = handleMissing generateAlignmentResult
   where
     generateAlignmentResult lhs rhs =
@@ -89,19 +93,19 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
 
 {-# SCC directOptimizationFromDirectionMatrix #-}
 {-# INLINEABLE directOptimizationFromDirectionMatrix #-}
-{-# SPECIALISE directOptimizationFromDirectionMatrix :: (WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (Distance, UM.Matrix Direction)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (Distance, WideDynamicCharacter) #-}
-{-# SPECIALISE directOptimizationFromDirectionMatrix :: (HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (Distance, UM.Matrix Direction)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Distance, HugeDynamicCharacter) #-}
+{-# SPECIALISE directOptimizationFromDirectionMatrix :: (WideState -> TCM2Dλ WideState -> UV.Vector WideState -> UV.Vector WideState -> (AlignmentCost, UM.Matrix Direction)) -> TCM2Dλ WideState -> WideDynamicCharacter -> WideDynamicCharacter -> (AlignmentCost, WideDynamicCharacter) #-}
+{-# SPECIALISE directOptimizationFromDirectionMatrix :: (HugeState -> TCM2Dλ HugeState ->  V.Vector HugeState ->  V.Vector HugeState -> (AlignmentCost, UM.Matrix Direction)) -> TCM2Dλ HugeState -> HugeDynamicCharacter -> HugeDynamicCharacter -> (AlignmentCost, HugeDynamicCharacter) #-}
 directOptimizationFromDirectionMatrix
   :: ( FiniteBits e
      , Ord (v e)
      , Vector v e
      , Matrix m t Direction
      )
-  => (e -> TCM2Dλ e -> v e -> v e -> (Distance, m t Direction)) -- ^ Alignment matrix generator function
+  => (e -> TCM2Dλ e -> v e -> v e -> (AlignmentCost, m t Direction)) -- ^ Alignment matrix generator function
   -> TCM2Dλ e -- ^ Metric for computing state distance and median state
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Distance, OpenDynamicCharacter v e)
+  -> (AlignmentCost, OpenDynamicCharacter v e)
 directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
     handleMissing $ directOptimization alignmentFunction overlapλ
   where
@@ -114,7 +118,7 @@ directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
 {-# INLINEABLE getCostλ #-}
 getCostλ :: TCM2Dλ e -> e -> e -> Word
 getCostλ =
-    let normalize :: (Distance, e) -> Word
+    let normalize :: (StateChangeCost, e) -> Word
         normalize = fromIntegral . fst
     in  (.).(.) $ normalize
 
@@ -191,7 +195,7 @@ alignmentWithAllGaps
      )
   => TCM2Dλ e
   -> v e
-  -> (Distance, OpenDynamicCharacter v e)
+  -> (AlignmentCost, OpenDynamicCharacter v e)
 alignmentWithAllGaps overlapλ character =
     case character !? 0 of
       -- Neither character was Missing, but both are empty when gaps are removed
@@ -209,10 +213,10 @@ alignmentWithAllGaps overlapλ character =
 {-# SCC handleMissing #-}
 handleMissing
   :: Vector v e
-  => (OpenDynamicCharacter v e -> OpenDynamicCharacter v e -> (Distance, OpenDynamicCharacter v e))
+  => (OpenDynamicCharacter v e -> OpenDynamicCharacter v e -> (AlignmentCost, OpenDynamicCharacter v e))
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-  -> (Distance, OpenDynamicCharacter v e)
+  -> (AlignmentCost, OpenDynamicCharacter v e)
 handleMissing f lhs rhs =
   case (isMissing lhs, isMissing rhs) of
     (True , True ) -> (0, lhs)

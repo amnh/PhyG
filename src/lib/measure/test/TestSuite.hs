@@ -12,13 +12,13 @@
 
 module Main where
 
-import Measure.SymbolChangeMatrix.Dense.Test
+import Measure.SymbolChangeMatrix.Compact.Test
 import Test.Tasty
-import Test.Tasty.Ingredients.Rerun          (rerunningTests)
+import Test.Tasty.Ingredients.Rerun            (rerunningTests)
 
 
 -- |
--- The entry point for the 'Measure.SymbolChangeMatrix.Dense.TCM' test-suite.
+-- The entry point for the 'Measure.SymbolChangeMatrix.Compact.TCM' test-suite.
 main :: IO ()
 main =
     defaultMainWithIngredients

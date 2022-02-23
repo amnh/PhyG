@@ -13,7 +13,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Measure.Unit.SymbolCount
@@ -31,6 +31,7 @@ import Data.Hashable
 import Data.Int
 import Data.Word
 import Foreign.C.Types
+import Foreign.Storable
 import GHC.Generics
 import GHC.Natural
 import Measure.Unit.SymbolIndex
@@ -39,7 +40,7 @@ import Measure.Unit.SymbolIndex
 -- |
 -- The index of a symbol in an alphabet.
 newtype SymbolCount = SymbolCount Word
-    deriving newtype (Eq, Hashable, NFData, Ord, Read, Show, Typeable)
+    deriving newtype (Eq, Hashable, NFData, Ord, Read, Show, Storable, Typeable)
     deriving stock   (Data, Generic)
 
 
@@ -117,27 +118,27 @@ instance HasSymbolCount Int where
 
 instance HasSymbolCount Int8 where
 
-    symbolCount = clamp 
+    symbolCount = clamp
 
 
 instance HasSymbolCount Int16 where
 
-    symbolCount = clamp 
+    symbolCount = clamp
 
 
 instance HasSymbolCount Int32 where
 
-    symbolCount = clamp 
+    symbolCount = clamp
 
 
 instance HasSymbolCount Int64 where
 
-    symbolCount = clamp 
+    symbolCount = clamp
 
 
 instance HasSymbolCount Integer where
 
-    symbolCount = clamp 
+    symbolCount = clamp
 
 
 instance HasSymbolCount Natural where
@@ -157,22 +158,22 @@ instance HasSymbolCount Word where
 
 instance HasSymbolCount Word8 where
 
-    symbolCount = SymbolCount . fromIntegral 
+    symbolCount = SymbolCount . fromIntegral
 
 
 instance HasSymbolCount Word16 where
 
-    symbolCount = SymbolCount . fromIntegral 
+    symbolCount = SymbolCount . fromIntegral
 
 
 instance HasSymbolCount Word32 where
 
-    symbolCount = SymbolCount . fromIntegral 
+    symbolCount = SymbolCount . fromIntegral
 
 
 instance HasSymbolCount Word64 where
 
-    symbolCount = SymbolCount . fromIntegral 
+    symbolCount = SymbolCount . fromIntegral
 
 
 -- |

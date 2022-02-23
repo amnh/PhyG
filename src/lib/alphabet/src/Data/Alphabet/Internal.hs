@@ -43,39 +43,39 @@ module Data.Alphabet.Internal
   ) where
 
 import           Control.Arrow
-import           Control.DeepSeq                     (NFData)
+import           Control.DeepSeq            (NFData)
 import           Control.Monad.State.Strict
-import           Data.Bifunctor                      (bimap)
-import           Data.Binary                         (Binary)
+import           Data.Bifunctor             (bimap)
+import           Data.Binary                (Binary)
 import           Data.Bits
 import           Data.Data
 import           Data.Foldable
-import           Data.IntSet                         (IntSet)
-import qualified Data.IntSet                         as Int
+import           Data.IntSet                (IntSet)
+import qualified Data.IntSet                as Int
 import           Data.Key
-import           Data.List                           (elemIndex, intercalate, sort)
-import           Data.List.NonEmpty                  (NonEmpty(..), unzip)
-import qualified Data.List.NonEmpty                  as NE
-import qualified Data.Map                            as Map
-import           Data.Matrix.NotStupid               (Matrix, matrix)
+import           Data.List                  (elemIndex, intercalate, sort)
+import           Data.List.NonEmpty         (NonEmpty(..), unzip)
+import qualified Data.List.NonEmpty         as NE
+import qualified Data.Map                   as Map
+import           Data.Matrix.NotStupid      (Matrix, matrix)
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Ord
 import           Data.Semigroup.Foldable
-import           Data.Set                            (Set)
-import qualified Data.Set                            as Set
+import           Data.Set                   (Set)
+import qualified Data.Set                   as Set
 import           Data.String
-import           Data.Text.Short                     (ShortText)
-import qualified Data.Vector                         as V
-import           Data.Vector.NonEmpty                (Vector)
-import qualified Data.Vector.NonEmpty                as NEV
+import           Data.Text.Short            (ShortText)
+import qualified Data.Vector                as V
+import           Data.Vector.NonEmpty       (Vector)
+import qualified Data.Vector.NonEmpty       as NEV
 import           Data.Word
-import           GHC.Exts                            (IsList(fromList), Item)
-import           GHC.Generics                        (Generic)
-import           Numeric.Natural
+import           GHC.Exts                   (IsList(fromList), Item)
+import           GHC.Generics               (Generic)
 import           Measure.Unit.SymbolCount
 import           Measure.Unit.SymbolIndex
-import           Prelude                             hiding (lookup, unzip, zip)
+import           Numeric.Natural
+import           Prelude                    hiding (lookup, unzip, zip)
 import           Test.QuickCheck
 --import           Test.QuickCheck.Arbitrary.Instances ()
 
