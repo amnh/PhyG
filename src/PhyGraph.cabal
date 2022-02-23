@@ -258,6 +258,7 @@ executable phyg
                   Search.Search
                   Search.Swap
                   Search.WagnerBuild
+                  System.Timing
                   Types.DistanceTypes
                   Types.Types
                   Utilities.Distances

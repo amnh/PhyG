@@ -37,9 +37,11 @@ Portability :  portable (I hope)
 module Search.Search  (search
                       ) where
 
+import           Control.Concurrent
 import Types.Types
 import qualified ParallelUtilities       as PU
 import Control.Parallel.Strategies
+import Control.DeepSeq
 import Debug.Trace
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
@@ -52,15 +54,117 @@ import qualified Search.GeneticAlgorithm as GA
 import qualified Search.Build as B
 import qualified Search.Swap as S
 import qualified Search.Refinement as R
+import System.Timing
+import Data.Bifunctor (bimap)
+import Data.Traversable
+import Data.Foldable
+import Control.Monad
+import Data.Vector (fromListN)
+
+
+traverseInParallelWith :: (Foldable f, NFData c) => (a -> b -> IO c) -> f a -> f b -> IO [c]
+traverseInParallelWith f xs ys = sequenceA $ parMap strat (uncurry f) $ zip (toList xs) (toList ys)
+
+
+strat :: NFData a => Strategy (IO a)
+strat x = pure $ do 
+   r <- x
+   rnf r `seq` pure r
 
 
 -- | search arguments
 searchArgList :: [String]
 searchArgList = ["days", "hours", "minutes", "seconds"]
 
+
 -- | search timed randomized search
-search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO [PhylogeneticGraph]
 search inArgs inGS inData pairwiseDistances rSeed inGraphList = 
+   let (searchTime, keepNum) = getSearchParams inArgs
+       threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10 
+   in  do  threadCount <- (max 1) <$> getNumCapabilities
+           putStrLn $ unwords [ "threadCount:", show threadCount ]
+           let seedList  = take threadCount $ randomIntList rSeed
+           let graphList = replicate threadCount (inGraphList, [])
+           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold) seedList graphList
+           let (newGraphList, commentList) = unzip resultList
+           pure . take keepNum . GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (inGraphList ++ concat newGraphList)
+
+
+searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> Int -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds rSeed input@(inGraphList, infoStringList) = do
+   (elapsedSeconds, output) <- timeOp $ 
+       let result = force $ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed input
+       in  pure result
+   let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
+   putStrLn $ unlines ["Alloted: " <> show allotedSeconds, "Ellapsed: " <> show elapsedSeconds, "Remaining: " <> show remainingTime]
+   if   elapsedSeconds >= allotedSeconds
+   then pure output
+   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime rSeed $ bimap (inGraphList <>) (infoStringList <>) output 
+
+
+-- | perform search takes in put graphs and performs randomized build and search with time limit
+-- if run completres before 90% of time limit then will keep going
+performSearch :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
+performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, infoStringList) = 
+      -- for use later
+      let randIntList = randomIntList rSeed
+          buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
+          buildMethod = getRandomElement (randIntList !! 1) ["unitary"] -- , "block"]
+             
+          -- general build options
+          numToCharBuild = 5
+          numToDistBuild = 100
+          numToKeep = numToCharBuild
+
+
+          -- build block options
+          reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
+
+          distOptions = if buildType == "distance" then [("replicates", show numToDistBuild), ("best", show numToKeep), ("rdwag", "")]
+                        else [("replicates", show numToCharBuild)]
+
+          blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
+                         else []
+
+          buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
+
+          --swap options 
+          swapType =  getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
+          swapKeep = 10
+
+          swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+      in
+
+      -- no input graphs so must build and refine a bit to start
+      if null inGraphList then 
+         
+         -- do build
+         let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
+             uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
+             uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
+             searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
+         in  (uniqueSwapGraphs, [searchString])
+         -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 6) uniqueSwapGraphs
+
+
+      -- already have some input gaphs
+      else 
+         let operation = getRandomElement (randIntList !! 7) ["build"]
+         in  if operation == "build" then
+               let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 8)
+                   uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+                   searchString = "Build " ++ show buildArgs
+               in  (uniqueBuildGraphs, [searchString])
+             -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 9) uniqueBuildGraphs
+              
+         else (inGraphList, infoStringList)
+      
+
+-- | getSearchParams takes arguments and returns search params
+getSearchParams :: [Argument] -> (Int, Int)
+getSearchParams inArgs = 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
@@ -110,75 +214,11 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
       else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
       else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
       else if isNothing seconds then errorWithoutStackTrace ("seconds factor specification not an integer in search: "  ++ show (head secondsList))
-      
+
       else 
-         -- spawns as many 'search's as parallel threads
-         let numThreads = if PU.getNumThreads > 0 then  PU.getNumThreads
-                          else 1
-             randIntList = randomIntList rSeed
-             seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
+         let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
                         else seconds
              searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
-             startTime = getSystemTimeSecondsUnsafe
-             newGraphList = zipWith (performSearch inArgs inGS inData pairwiseDistances (fromJust keepNum) startTime searchTime) randIntList (replicate numThreads inGraphList) `using` PU.myParListChunkRDS
          in
-         GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ (inGraphList ++ concat newGraphList)
-
--- | perform search takes in put graphs and performs randomized build and search with time limit
--- if run completres before 90% of time limit then will keep going
-performSearch :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> Int -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime rSeed inGraphList = 
-   let currentTime = getSystemTimeSecondsUnsafe
-   in
-   --check time to see if should stop
-   if (currentTime - startTime) > floor (0.9 * (fromIntegral searchTime)) then inGraphList
-
-   -- time left go on
-   else 
-      trace ("Time left: " ++ (show (searchTime - (currentTime - startTime))) ++ " seconds") (
-      
-      -- for use later
-      let randIntList = randomIntList rSeed
-          buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
-          buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
+         (searchTime, fromJust keepNum)
              
-          -- general build options
-          numToCharBuild = 10
-          numToDistBuild = 100
-          numToKeep = numToCharBuild
-
-
-          -- build block options
-          reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
-
-          distOptions = if buildType == "distance" then [("replicates", show numToDistBuild), ("best", show numToKeep), ("rdwag", "")]
-                        else [("replicates", show numToCharBuild)]
-
-          blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
-                         else []
-
-          buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
-
-          --swap options 
-          swapType =  getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
-          swapKeep = 10
-
-          swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-      in
-
-      -- no input graphs so must build and refine a bit to start
-      if null inGraphList then 
-         
-         -- do build
-         let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
-             uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
-             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
-             uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
-         in
-         performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (randIntList !! 6) uniqueSwapGraphs
-
-
-      -- already have some input gaphs
-      else 
-         inGraphList
-      )

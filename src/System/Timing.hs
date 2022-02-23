@@ -6,9 +6,12 @@ module System.Timing
   , fromPicoseconds
   , fromMilliseconds
   , fromMicroseconds
+  , fromSeconds
   , toPicoseconds
   , toMicroseconds
   , toMilliseconds
+  , toSeconds
+  , timeDifference
   , timeOp
   ) where
 
@@ -22,6 +25,7 @@ import           System.CPUTime
 
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural
+    deriving (Eq, Ord)
 
 
 instance NFData CPUTime where
@@ -65,6 +69,10 @@ timeOp ioa = do
     pure (t, a)
 
 
+timeDifference :: CPUTime -> CPUTime -> CPUTime
+timeDifference (CPUTime a) (CPUTime b) = CPUTime $ max a b - min a b
+
+
 fromPicoseconds :: Natural -> CPUTime
 fromPicoseconds = CPUTime
 
@@ -77,6 +85,10 @@ fromMilliseconds :: Natural -> CPUTime
 fromMilliseconds = CPUTime . (*1000000000)
 
 
+fromSeconds :: Natural -> CPUTime
+fromSeconds = CPUTime . (*1000000000000)
+
+
 toPicoseconds :: CPUTime -> Natural
 toPicoseconds (CPUTime x) = x
 
@@ -87,3 +99,7 @@ toMicroseconds (CPUTime x) = x `div` 1000000
 
 toMilliseconds :: CPUTime -> Natural
 toMilliseconds (CPUTime x) = x `div` 1000000000
+
+
+toSeconds :: CPUTime -> Natural
+toSeconds (CPUTime x) = x `div` 1000000000000

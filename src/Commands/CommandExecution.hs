@@ -139,12 +139,11 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
-        else if firstOption == Search then
-            let newGraphList = S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
-                stopTime = getSystemTimeNDTUnsafe 
-                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
-                newSearchData = searchInfo : (searchData globalSettings)
-            in
+        else if firstOption == Search then do
+            newGraphList <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+            let stopTime = getSystemTimeNDTUnsafe 
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)
             executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
