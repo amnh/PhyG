@@ -74,33 +74,34 @@ strat x = pure $ do
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds"]
+searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
 
 
--- | search timed randomized search
-search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO [PhylogeneticGraph]
+-- | search timed randomized search returns graph list and comment list with info String for each serch instance
+search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList = 
-   let (searchTime, keepNum) = getSearchParams inArgs
+   let (searchTime, keepNum, instances) = getSearchParams inArgs
        threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10 
-   in  do  threadCount <- (max 1) <$> getNumCapabilities
-           putStrLn $ unwords [ "threadCount:", show threadCount ]
+   in  do  let threadCount = instances -- <- (max 1) <$> getNumCapabilities
+           -- putStrLn $ unwords [ "threadCount:", show threadCount ]
            let seedList  = take threadCount $ randomIntList rSeed
+           let seedListList = fmap randomIntList seedList
            let graphList = replicate threadCount (inGraphList, [])
-           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold) seedList graphList
+           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold) seedListList graphList
            let (newGraphList, commentList) = unzip resultList
-           pure . take keepNum . GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (inGraphList ++ concat newGraphList)
+           pure (take keepNum . GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (inGraphList ++ concat newGraphList), commentList)
 
 
-searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> Int -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
-searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds rSeed input@(inGraphList, infoStringList) = do
+searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOp $ 
-       let result = force $ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed input
+       let result = force $ performSearch inArgs inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines ["Alloted: " <> show allotedSeconds, "Ellapsed: " <> show elapsedSeconds, "Remaining: " <> show remainingTime]
    if   elapsedSeconds >= allotedSeconds
    then pure output
-   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime rSeed $ bimap (inGraphList <>) (infoStringList <>) output 
+   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
@@ -110,10 +111,10 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
       -- for use later
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
-          buildMethod = getRandomElement (randIntList !! 1) ["unitary"] -- , "block"]
+          buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
              
           -- general build options
-          numToCharBuild = 5
+          numToCharBuild = 10
           numToDistBuild = 100
           numToKeep = numToCharBuild
 
@@ -121,8 +122,12 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
           -- build block options
           reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
 
-          distOptions = if buildType == "distance" then [("replicates", show numToDistBuild), ("best", show numToKeep), ("rdwag", "")]
-                        else [("replicates", show numToCharBuild)]
+          distOptions = if buildType == "distance" then 
+                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show 1)]
+                           else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
+                        else 
+                           if buildMethod == "block" then [("replicates", show numToCharBuild)]
+                           else [("replicates", show 1)]
 
           blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
                          else []
@@ -151,19 +156,24 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
 
       -- already have some input gaphs
       else 
-         let operation = getRandomElement (randIntList !! 7) ["build"]
-         in  if operation == "build" then
-               let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 8)
-                   uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
-                   searchString = "Build " ++ show buildArgs
-               in  (uniqueBuildGraphs, [searchString])
-             -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 9) uniqueBuildGraphs
+         let operation = getRandomElement (randIntList !! 7) ["buildSwap"]
+         in  
+         if operation == "buildSwap" then
+            let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
+                uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+                swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
+                uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
+                searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
+         in  
+         (uniqueSwapGraphs, [searchString])
+
+         
               
          else (inGraphList, infoStringList)
       
 
 -- | getSearchParams takes arguments and returns search params
-getSearchParams :: [Argument] -> (Int, Int)
+getSearchParams :: [Argument] -> (Int, Int, Int)
 getSearchParams inArgs = 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
@@ -173,7 +183,14 @@ getSearchParams inArgs =
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)
    else
-      let keepList = filter ((=="keep").fst) lcArgList
+      let instancesList = filter ((=="instances").fst) lcArgList
+          instances
+            | length instancesList > 1 =
+              errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
+            | null instancesList = Just 1
+            | otherwise = readMaybe (snd $ head instancesList) :: Maybe Int
+
+          keepList = filter ((=="keep").fst) lcArgList
           keepNum
             | length keepList > 1 =
               errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
@@ -210,6 +227,7 @@ getSearchParams inArgs =
 
       in 
       if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
+      else if isNothing instances then errorWithoutStackTrace ("Instnaces specification not an integer in search: "  ++ show (head instancesList))
       else if isNothing days then errorWithoutStackTrace ("Days specification not an integer in search: "  ++ show (head daysList))
       else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
       else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
@@ -220,5 +238,5 @@ getSearchParams inArgs =
                         else seconds
              searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
          in
-         (searchTime, fromJust keepNum)
+         (searchTime, fromJust keepNum, fromJust instances)
              

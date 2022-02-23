@@ -140,7 +140,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         else if firstOption == Search then do
-            newGraphList <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+            (newGraphList, serchInfoList) <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
             let stopTime = getSystemTimeNDTUnsafe 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)
