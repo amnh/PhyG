@@ -125,7 +125,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
       trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs") (
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then 
-         let uniqueList = GO.selectPhylogeneticGraph [("unique", (show keepNum))] 0 ["unique"] (inGraphList ++ newGraphList)
+         let uniqueList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inGraphList ++ newGraphList)
          in
          if fuseBest < curBest then 
                trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))

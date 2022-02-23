@@ -117,10 +117,11 @@ geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations generat
             newCost = snd6 $ head selectedGraphs
             
         in
+        {-
         trace ("\tGA " ++ (show $ snd6 $ head initialEliteList) ++ " -> " ++ (show newCost) ++ "\nInGraphs " ++ (show $ L.sort $ fmap snd6 inGraphList)
             ++ "\nMutated " ++ (show $  L.sort $ fmap snd6 mutatedGraphList)
             ++ "\nRecombined " ++ recombineSwap ++ " " ++ (show $  L.sort $ fmap snd6 recombinedGraphList)) (
-        
+        -}
         -- if new graphs better cost then take those
         if newCost < (snd6 $ head initialEliteList) then 
             geneticAlgorithm inGS inData (seedList !! 5) doElitist keepNum popSize generations (generationCounter + 1) severity recombinations selectedGraphs
@@ -130,7 +131,7 @@ geneticAlgorithm inGS inData rSeed doElitist keepNum popSize generations generat
             let newGraphList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (initialEliteList ++ selectedGraphs)
             in
             geneticAlgorithm inGS inData (seedList !! 5) doElitist keepNum popSize generations (generationCounter + 1) severity recombinations newGraphList
-        )
+        -- )
 
 -- | mutateGraph mutates a graph using drift functionality
 mutateGraph :: GlobalSettings -> ProcessedData -> Int -> PhylogeneticGraph -> PhylogeneticGraph

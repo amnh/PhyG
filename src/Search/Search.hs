@@ -108,12 +108,12 @@ searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds se
 -- if run completres before 90% of time limit then will keep going
 performSearch :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
 performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, infoStringList) = 
-      -- for use later
+      -- set up basic parameters for search/refine methods
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
           buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
              
-          -- general build options
+          -- build options
           numToCharBuild = 10
           numToDistBuild = 100
           numToKeep = numToCharBuild
@@ -134,11 +134,38 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
 
           buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
 
-          --swap options 
+          -- swap options 
           swapType =  getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
           swapKeep = 10
-
           swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+
+
+          -- fuse options
+          fuseSwap = getRandomElement (randIntList !! 8) ["nni", "spr", "tbr"]
+          fusePairs = getRandomElement (randIntList !! 9) ["20", "40", "100"]
+          fuseKeep = 20
+          fuseArgs = [(fuseSwap, ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+
+          -- Genetic Algorithm Arguments
+          popSize = getRandomElement (randIntList !! 11) ["10", "20", "40"]
+          generations = getRandomElement (randIntList !! 12) ["1", "2" , "4"]
+          severity = getRandomElement (randIntList !! 13) ["0.0", "1.0", "2.0"]
+          recombinations = getRandomElement (randIntList !! 14) ["20", "40", "100"]
+
+          gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations)]
+
+          -- swap with drift options
+          maxChanges = getRandomElement (randIntList !! 15) ["5", "10", "15"]
+          acceptEqual = getRandomElement (randIntList !! 16) ["0.1", "0.5", "0.75"]
+          acceptWorse = getRandomElement (randIntList !! 17) ["0.0", "2.0", "10.0"]
+
+          swapDriftArgs = swapArgs ++ [("drift", ""),("maxChanges", maxChanges), ("acceptEqual", acceptEqual), ("acceptWorse", acceptWorse)]
+
+          -- swap with simulated annealing options
+          tempSteps = getRandomElement (randIntList !! 18) ["5", "10", "15"]
+          
+          swapAnnealArgs = swapArgs ++ [("annealing", ""),("steps", tempSteps)]
+
       in
 
       -- no input graphs so must build and refine a bit to start
@@ -154,20 +181,47 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
          -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 6) uniqueSwapGraphs
 
 
-      -- already have some input gaphs
+      -- already have some input graphs
+      -- choose a method and paramteres at random
       else 
-         let operation = getRandomElement (randIntList !! 7) ["buildSwap"]
+         let operation = getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"] -- add/del/move edges with and without drifting
          in  
          if operation == "buildSwap" then
             let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
                 uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
-                uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
+                uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
                 searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
-         in  
-         (uniqueSwapGraphs, [searchString])
+            in  
+            (uniqueSwapGraphs, [searchString])
 
-         
+         else if operation == "fuse" then
+            let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
+                uniqueFuseGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
+                searchString = "Fuse " ++ show fuseArgs
+            in
+            (uniqueFuseGraphs, [searchString])
+              
+         else if operation == "GeneticAlgorithm" then
+            let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
+                uniqueGAGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
+                searchString = "Genetic Algorithm " ++ show gaArgs
+            in
+            (uniqueGAGraphs, [searchString])
+
+         else if operation == "swapDrift" then
+            let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
+                uniqueSwapDriftGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
+                searchString = "SwapDrift " ++ show swapDriftArgs
+            in
+            (uniqueSwapDriftGraphs, [searchString])
+              
+         else if operation == "swapAnneal" then
+            let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
+                uniqueSwapAnnealGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
+                searchString = "SwapAnneal " ++ show swapAnnealArgs
+            in
+            (uniqueSwapAnnealGraphs, [searchString])
               
          else (inGraphList, infoStringList)
       
