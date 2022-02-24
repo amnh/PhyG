@@ -114,9 +114,9 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
           buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
              
           -- build options
-          numToCharBuild = 10
+          numToCharBuild = keepNum
           numToDistBuild = 100
-          numToKeep = numToCharBuild
+          numToKeep = keepNum
 
 
           -- build block options
@@ -135,16 +135,29 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
           buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
 
           -- swap options 
-          swapType =  getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
-          swapKeep = 10
+          swapType = getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
+          swapKeep = keepNum
           swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
 
 
           -- fuse options
           fuseSwap = getRandomElement (randIntList !! 8) ["nni", "spr", "tbr"]
           fusePairs = getRandomElement (randIntList !! 9) ["20", "40", "100"]
-          fuseKeep = 20
+          fuseKeep = 2 * keepNum
           fuseArgs = [(fuseSwap, ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+
+          -- net edit options
+          netGenArgs = [("keep", show keepNum), ("steepest", ""), ("atRandom", "")]
+
+          -- net move options
+          netMoveArgs = ("netMove", "") : netGenArgs
+
+          -- net add options
+          netAddArgs = ("netAdd", "") : netGenArgs
+
+          -- net delete options
+          netDelArgs = ("netDel", "") : netGenArgs
+
 
           -- Genetic Algorithm Arguments
           popSize = getRandomElement (randIntList !! 11) ["10", "20", "40"]
@@ -154,17 +167,23 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
 
           gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations)]
 
-          -- swap with drift options
+          -- drift options
           maxChanges = getRandomElement (randIntList !! 15) ["5", "10", "15"]
           acceptEqual = getRandomElement (randIntList !! 16) ["0.1", "0.5", "0.75"]
           acceptWorse = getRandomElement (randIntList !! 17) ["0.0", "2.0", "10.0"]
 
-          swapDriftArgs = swapArgs ++ [("drift", ""),("maxChanges", maxChanges), ("acceptEqual", acceptEqual), ("acceptWorse", acceptWorse)]
+          drfitArgs = [("drift", ""),("maxChanges", maxChanges), ("acceptEqual", acceptEqual), ("acceptWorse", acceptWorse)]
 
-          -- swap with simulated annealing options
+          -- simulated annealing options
           tempSteps = getRandomElement (randIntList !! 18) ["5", "10", "15"]
+
+          simulatedAnnealArgs = [("annealing", ""),("steps", tempSteps)]
           
-          swapAnnealArgs = swapArgs ++ [("annealing", ""),("steps", tempSteps)]
+          -- swap with drift arguments
+          swapDriftArgs = swapArgs ++ drfitArgs
+
+          -- swap with simulated anneling options
+          swapAnnealArgs = swapArgs ++ simulatedAnnealArgs
 
       in
 
@@ -184,46 +203,81 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
       -- already have some input graphs
       -- choose a method and paramteres at random
       else 
-         let operation = getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"] -- add/del/move edges with and without drifting
+         let operation = if (graphType inGS == Tree) then getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"] 
+                         else getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift", "netAdd", "netDelete", "netMove"] -- add/del/move edges with and without drifting
+                         
+             -- this so 1/2 time annealing
+             saDrift = getRandomElement (randIntList !! 19) ["noSA", "noSA", "drift", "anneal"]
          in  
          if operation == "buildSwap" then
             let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
                 uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
-                uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
                 searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
             in  
-            (uniqueSwapGraphs, [searchString])
+            (uniqueGraphs, [searchString])
 
          else if operation == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
-                uniqueFuseGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
                 searchString = "Fuse " ++ show fuseArgs
             in
-            (uniqueFuseGraphs, [searchString])
+            (uniqueGraphs, [searchString])
               
          else if operation == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
-                uniqueGAGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
                 searchString = "Genetic Algorithm " ++ show gaArgs
             in
-            (uniqueGAGraphs, [searchString])
+            (uniqueGraphs, [searchString])
 
          else if operation == "swapDrift" then
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
-                uniqueSwapDriftGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
                 searchString = "SwapDrift " ++ show swapDriftArgs
             in
-            (uniqueSwapDriftGraphs, [searchString])
+            (uniqueGraphs, [searchString])
               
          else if operation == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
-                uniqueSwapAnnealGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
                 searchString = "SwapAnneal " ++ show swapAnnealArgs
             in
-            (uniqueSwapAnnealGraphs, [searchString])
+            (uniqueGraphs, [searchString])
+
+         else if operation == "netMove" then
+            let netMoveArgs' = if saDrift == "noSA" then netMoveArgs
+                               else if saDrift == "drift" then netMoveArgs ++ drfitArgs
+                               else netMoveArgs ++ simulatedAnnealArgs
+                netMoveGraphs = R.netEdgeMaster netMoveArgs' inGS inData (randIntList !! 10) inGraphList
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netMoveGraphs ++ inGraphList)
+                searchString = "NetMove " ++ show netMoveArgs'
+            in
+            (uniqueGraphs, [searchString])
+
+         else if operation == "netAdd" then
+            let netAddArgs' = if saDrift == "noSA" then netAddArgs
+                              else if saDrift == "drift" then netAddArgs ++ drfitArgs
+                              else netAddArgs ++ simulatedAnnealArgs
+                netAddGraphs = R.netEdgeMaster netAddArgs' inGS inData (randIntList !! 10) inGraphList
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netAddGraphs ++ inGraphList)
+                searchString = "NetAdd " ++ show netAddArgs'
+            in
+            (uniqueGraphs, [searchString])
+
+         else if operation == "netDel" then
+            let netDelArgs' = if saDrift == "noSA" then netDelArgs
+                              else if saDrift == "drift" then netDelArgs ++ drfitArgs
+                              else netDelArgs ++ simulatedAnnealArgs
+                netDelGraphs = R.netEdgeMaster netDelArgs' inGS inData (randIntList !! 10) inGraphList
+                uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netDelGraphs ++ inGraphList)
+                searchString = "NetDel " ++ show netDelArgs'
+            in
+            (uniqueGraphs, [searchString])
+
               
-         else (inGraphList, infoStringList)
+         else error ("Unknown/unimplemented method in search: " ++ operation) 
       
 
 -- | getSearchParams takes arguments and returns search params
