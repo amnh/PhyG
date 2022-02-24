@@ -252,7 +252,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
            in
            -- perform graph fuse operations 
            let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
-                
+
            in                             
            trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
            newGraphList
@@ -422,7 +422,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             let (newGraphList, counterDelete) = if doNetDelete || doAddDelete then 
                                                 let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
-                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 
                                                else (inGraphList, 0)   
 
@@ -430,20 +430,20 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                 (newGraphList', counterAdd) = if doNetAdd || doAddDelete then 
                                                let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
-                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 
                                              else (newGraphList, 0)   
 
                 (newGraphList'', counterMove) = if doMove then 
                                                 let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
-                                                in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                 
                                              else (newGraphList', 0)   
 
             in
             let resultGraphList = if null newGraphList'' then inGraphList
-                                  else GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ inGraphList ++ newGraphList''
+                                  else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ inGraphList ++ newGraphList''
             in
             trace ("\tAfter network edge add/delete/move: " ++ (show $ length resultGraphList) ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 resultGraphList) ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, " 
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
@@ -629,20 +629,20 @@ swapMaster inArgs inGS inData rSeed inGraphList =
            let (newGraphList, counterNNI)  = if doNNI then 
                                                let graphPairList1 = fmap (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
-                                               in (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                               in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then 
                                                let graphPairList2 = fmap (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in 
-                                               (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                              (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then 
                                                let graphPairList3 =  fmap (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
                                                in 
-                                               (GO.selectPhylogeneticGraph [("unique", (show $ fromJust keepNum))] 0 ["unique"] $ concat graphListList, sum counterList)
+                                               (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
               let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")

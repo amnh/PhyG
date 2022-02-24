@@ -132,14 +132,14 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
              -- this to ensure current step set to 0
              (annealedGraphs', anealedCounter) = unzip $ (fmap (swapSteepest swapType hardwiredSPR inGS inData 1 maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList `using` PU.myParListChunkRDS)
 
-             annealedGraphs = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] $ concat annealedGraphs'
+             annealedGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] $ concat annealedGraphs'
 
              (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (min (snd6 inGraph) (snd6 $ head annealedGraphs)) [] annealedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
              -- swap "all" after steepest descent
              (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
 
-             uniqueGraphs = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (inGraph : swappedGraphs')
+             uniqueGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inGraph : swappedGraphs')
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          --trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs')) (
@@ -178,7 +178,7 @@ swapAll  :: String
 swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor =
    --trace ("ALL") (
    if null inGraphList then 
-      (take numToKeep $ GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] curSameBetterList, counter)
+      (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] curSameBetterList, counter)
    else 
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -218,7 +218,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
                                      
 
           -- selects best graph list based on full optimization
-          bestSwapGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] reoptimizedSwapGraphList
+          bestSwapGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] reoptimizedSwapGraphList
 
           bestSwapCost = if null breakEdgeList || null swapPairList || null candidateSwapGraphList || null reoptimizedSwapGraphList || null bestSwapGraphList then infinity
                          else snd6 $ head bestSwapGraphList
@@ -233,10 +233,10 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
          if (length curSameBetterList == numToKeep) then swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor
          else 
              --equality informed by zero-length edges
-             let newCurSameBestList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] (firstGraph : curSameBetterList)
+             let newCurSameBestList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (firstGraph : curSameBetterList)
                                       -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                       -- else curSameBetterList
-                 graphsToSwap = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] ((tail inGraphList) L.\\ newCurSameBestList) 
+                 graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] ((tail inGraphList) L.\\ newCurSameBestList) 
                                 
              in
              --trace ("Same cost: " ++ (show bestSwapCost) ++ " with " ++ (show $ length $ graphsToSwap) ++ " more to swap and " ++ (show $ length newCurSameBestList) 
@@ -251,7 +251,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- didn't find equal or better graphs
       else 
          --trace ("Worse cost")(
-         let newCurSameBestList = GO.selectPhylogeneticGraph [("unique", (show numToKeep))] 0 ["unique"] (firstGraph : curSameBetterList)
+         let newCurSameBestList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (firstGraph : curSameBetterList)
                                   -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
                                   -- else curSameBetterList
          in

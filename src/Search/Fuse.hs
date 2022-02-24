@@ -134,11 +134,11 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
 
       else -- return best
          -- only do one round of fusing 
-         if singleRound then (GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] (inGraphList ++ newGraphList), counter + 1)
+         if singleRound then (take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraphList ++ newGraphList), counter + 1)
 
          -- recursive rounds
          else 
-            let allBestList = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] (inGraphList ++ newGraphList)
+            let allBestList = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraphList ++ newGraphList)
             in
             
             -- found worse
@@ -253,7 +253,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
 
 
           -- get "best" fused graphs from leftRight and rightLeft
-          bestFusedGraphs = GO.selectPhylogeneticGraph [("best", (show keepNum))] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+          bestFusedGraphs = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
 
           -- | get fuse graphs via swap function
       in
@@ -321,7 +321,7 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
       if null recombinedSimpleGraphCostPairList then []
       else if bestFuseCost <= curBestCost then
          let rediagnodedGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) bestFuseSimpleGraphs `using` PU.myParListChunkRDS
-             bestRediagnosedGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] rediagnodedGraphList
+             bestRediagnosedGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rediagnodedGraphList
          in
          if (snd6 $ head bestRediagnosedGraphList) <= curBestCost then bestRediagnosedGraphList
          else []

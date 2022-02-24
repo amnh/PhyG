@@ -104,23 +104,29 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         else if firstOption == Run then error ("Run command should already have been processed: " ++ show (firstOption, firstArgs))
         
         -- other commands
-        else if firstOption == Build then
-            let newGraphList = B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList) 
+        else if firstOption == Build then do
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList) 
                 
-            in
-            executeCommands (globalSettings) rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
         
-        else if firstOption == Refine then
-            let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
-                
-            in
-            executeCommands (globalSettings )  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Refine then do 
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
+            
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)   
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         
-        else if firstOption == Fuse then
-            let newGraphList = REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
-                
-            in
-            executeCommands (globalSettings)  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        else if firstOption == Fuse then do
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
+            
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)   
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
@@ -133,35 +139,40 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
         
         else if firstOption == Search then do
-            (elapsedSeconds, output) <- timeOp $ 
-                S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+            (elapsedSeconds, output) <- timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
                 --in pure result
             -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs (fst output) (fromIntegral $ toMilliseconds elapsedSeconds) (concat $ fmap (L.intercalate "\n") $ snd output)
             let newSearchData = searchInfo : (searchData globalSettings)
-            hPutStrLn stderr ("Search took " ++ (show $ toSeconds elapsedSeconds)) 
             executeCommands (globalSettings {searchData = newSearchData})  rawData processedData  (fst output) pairwiseDist (tail seedList) (tail commandList)
         
-        else if firstOption == Select then
-            let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
+        else if firstOption == Select then do
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
                 
-            in
-            executeCommands (globalSettings )  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)   
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         
-        else if firstOption == Set then
+        else if firstOption == Set then 
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
                 newGraphList = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
-                            else trace ("Reoptimizing Graphs...") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+                               else trace ("Reoptimizing gaphs") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
                 
+                searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
+                newSearchData = searchInfo : (searchData newGlobalSettings)   
             in
-            executeCommands (newGlobalSettings )  rawData newProcessedData newGraphList pairwiseDist seedList' (tail commandList)
+            
+            executeCommands (newGlobalSettings {searchData = newSearchData}) rawData newProcessedData newGraphList pairwiseDist seedList' (tail commandList)
         
-        else if firstOption == Swap then
-            let newGraphList = REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
+        else if firstOption == Swap then do
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
                 
-            in
-            executeCommands (globalSettings ) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)   
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         
         else if firstOption == Support then
             errorWithoutStackTrace ("Command 'support' not yet implemented")

@@ -167,6 +167,8 @@ data  GlobalSettings
     , searchData         :: [SearchData]
     } deriving stock (Show, Eq)
 
+instance NFData GlobalSettings where rnf x = seq x ()
+
 
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
