@@ -74,11 +74,11 @@ common ghc-flags
     -g 
     -ddump-stg
     -ddump-cmm
-    -ddump-to-file   
-    -- -prof
-    -fprof-auto
-    -fprof-cafs
-    -optc -rdynamic          
+    -ddump-to-file
+--    -prof
+--    -fprof-auto
+--    -fprof-cafs
+--    -optc -rdynamic          
 
     -- Optimization flags
 --    -O0
@@ -193,6 +193,7 @@ executable phyg
 --    ld-options: -static -pthread
 
   build-depends:  alphabet
+                , async
                 , dynamic-character
                 , tcm
                 , base >=4.10
