@@ -60,6 +60,7 @@ import Data.Traversable
 import Data.Foldable
 import Control.Monad
 import Data.Vector (fromListN)
+import qualified Data.List as L
 
 
 traverseInParallelWith :: (Foldable f, NFData c) => (a -> b -> IO c) -> f a -> f b -> IO [c]
@@ -87,21 +88,21 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
            let seedList  = take threadCount $ randomIntList rSeed
            let seedListList = fmap randomIntList seedList
            let graphList = replicate threadCount (inGraphList, [])
-           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold) seedListList graphList
+           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold []) seedListList graphList
            let (newGraphList, commentList) = unzip resultList
            pure (take keepNum . GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (inGraphList ++ concat newGraphList), commentList)
 
 
-searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
-searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds seedList input@(inGraphList, infoStringList) = do
+searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds inCommentList seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOp $ 
        let result = force $ performSearch inArgs inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines ["Alloted: " <> show allotedSeconds, "Ellapsed: " <> show elapsedSeconds, "Remaining: " <> show remainingTime]
    if   elapsedSeconds >= allotedSeconds
-   then pure output
-   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
+   then pure (fst output, (inCommentList ++ (snd output)))
+   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
@@ -200,8 +201,8 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
              swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
              
              uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
-             searchString = if (graphType inGS == Tree) then "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
-                            else "Build " ++ show buildArgs ++ " Net Add " ++ show netAddArgs ++ " Swap " ++ show swapArgs
+             searchString = if (graphType inGS == Tree) then "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
+                            else "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Net Add " ++ (L.intercalate "," $ fmap showArg netAddArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg swapArgs)
          in  (uniqueSwapGraphs, [searchString])
          -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 6) uniqueSwapGraphs
 
@@ -220,35 +221,35 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
                 uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
-                searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
+                searchString = "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
             in  
             (uniqueGraphs, [searchString])
 
          else if operation == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
-                searchString = "Fuse " ++ show fuseArgs
+                searchString = "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs)
             in
             (uniqueGraphs, [searchString])
               
          else if operation == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
-                searchString = "Genetic Algorithm " ++ show gaArgs
+                searchString = "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs)
             in
             (uniqueGraphs, [searchString])
 
          else if operation == "swapDrift" then
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
-                searchString = "SwapDrift " ++ show swapDriftArgs
+                searchString = "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs)
             in
             (uniqueGraphs, [searchString])
               
          else if operation == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
-                searchString = "SwapAnneal " ++ show swapAnnealArgs
+                searchString = "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs)
             in
             (uniqueGraphs, [searchString])
 
@@ -258,7 +259,7 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
                                else netMoveArgs ++ simulatedAnnealArgs
                 netMoveGraphs = R.netEdgeMaster netMoveArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netMoveGraphs ++ inGraphList)
-                searchString = "NetMove " ++ show netMoveArgs'
+                searchString = "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs')
             in
             (uniqueGraphs, [searchString])
 
@@ -268,23 +269,23 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
                               else netAddArgs ++ simulatedAnnealArgs
                 netAddGraphs = R.netEdgeMaster netAddArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netAddGraphs ++ inGraphList)
-                searchString = "NetAdd " ++ show netAddArgs'
+                searchString = "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs')
             in
             (uniqueGraphs, [searchString])
 
-         else if operation == "netDel" then
+         else if operation == "netDelete" then
             let netDelArgs' = if saDrift == "noSA" then netDelArgs
                               else if saDrift == "drift" then netDelArgs ++ drfitArgs
                               else netDelArgs ++ simulatedAnnealArgs
                 netDelGraphs = R.netEdgeMaster netDelArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netDelGraphs ++ inGraphList)
-                searchString = "NetDel " ++ show netDelArgs'
+                searchString = "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs')
             in
             (uniqueGraphs, [searchString])
 
               
          else error ("Unknown/unimplemented method in search: " ++ operation) 
-      
+      where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | getSearchParams takes arguments and returns search params
 getSearchParams :: [Argument] -> (Int, Int, Int)

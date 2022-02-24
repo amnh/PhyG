@@ -149,7 +149,7 @@ data SearchData
     , maxGraphCostOut :: VertexCost
     , numGraphsOut   :: Int
     , commentString :: String
-    , duration    :: TC.NominalDiffTime
+    , duration    :: Int
     } deriving stock (Show, Eq)
 
 
