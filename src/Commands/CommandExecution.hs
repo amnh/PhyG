@@ -67,6 +67,7 @@ import qualified Reconciliation.ReconcileGraphs as R
 import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
 import qualified Search.Search as S
+import System.Timing
 
 
 -- | setArgLIst contains valid 'set' arguments
