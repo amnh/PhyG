@@ -171,11 +171,11 @@
 		within the command for distance builds.  Refinement for character-based Wagner builds occurs after the \texttt{build} process through \texttt{swap} and
 		 other refinement commands.  Given the large time burden, distance refinement is usually not time effective \citep{Wheeler2021}.
 		\subsubsection{Arguments}
-		\noindent \texttt{atRandom} When option \texttt{block} is specified, returns $N$ display trees specified by \texttt{displayTrees[:N]} where trees are produced by 
-		resolving network nodes uniformly at random.  This is in opposition to the \texttt{first} option, which takes the ``first'' $N$ display trees  resolved in arbitrary, but consistent, order.
+		\noindent \texttt{atRandom} When option \texttt{block} is specified, returns $n$ display trees specified by \texttt{displayTrees[:n]} where trees are produced by 
+		resolving network nodes uniformly at random.  This is in opposition to the \texttt{first} option, which takes the ``first'' $n$ display trees  resolved in arbitrary, but consistent, order.
 		
 		\smallskip
-		\noindent \texttt{block} Performs independent builds for each ``block'' of data.  Builds are performed according to the other options (e.g. \texttt{character, replicates:N})
+		\noindent \texttt{block} Performs independent builds for each ``block'' of data.  Builds are performed according to the other options (e.g. \texttt{character, replicates:n})
 		The resulting trees are reconciled using the \texttt{eun} or \texttt{cun} commands.   The reconciled graph is resolved into display trees via the \texttt{displayTrees}, \texttt{first},
 		and \texttt{atRandom} options.  This option is especially useful for softwired  network search.  If the number of display trees is not specified, up to  $2^{63}$ may be returned.
 		
@@ -188,7 +188,7 @@
 		and \texttt{atRandom} options.
 		
 		\smallskip
-		\noindent \texttt{displayTrees:[N]} When option \texttt{block} is specified, returns $N$ display trees specified by the optional argument  If the number of display trees is not specified, up to  $2^{63}$ may be returned.
+		\noindent \texttt{displayTrees:[n]} When option \texttt{block} is specified, returns $n$ display trees specified by the optional argument  If the number of display trees is not specified, up to  $2^{63}$ may be returned.
 	
 		\smallskip
 		\noindent \texttt{distance} Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis for distance tree construction.
@@ -259,7 +259,7 @@
 		\noindent \texttt{best} Returns best graphs found during fuse operations.		
 		
 		\smallskip		
-		\noindent \texttt{keep:N} Limits the number of returned graphs to $N$.  
+		\noindent \texttt{keep:n} Limits the number of returned graphs to $n$.  
 		
 		\smallskip		
 		\noindent \texttt{nni} Causes the exchanged subgraphs to be tried at their initial positions  as well as the two adjacent edges .
@@ -268,10 +268,10 @@
 		\noindent \texttt{once} Performs a single round of fuing on input graphs and returns the resulting graphs. Alternatively (and by default) fusing continues recursively until  no new graphs are found.
 		
 		\smallskip		
-		\noindent \texttt{spr[:N]} Causes the exchanged subgraphs to be tried at multiple positions (up to optional $N$ edges aware from their initial positions) .
+		\noindent \texttt{spr[:n]} Causes the exchanged subgraphs to be tried at multiple positions (up to optional $n$ edges aware from their initial positions) .
 		
 		\smallskip		
-		\noindent \texttt{tbr[:N]} Causes the exchanged subgraphs to be tried at multiple positions (up to optional $N$ edges aware from their initial positions) and with TBR-style 
+		\noindent \texttt{tbr[:n]} Causes the exchanged subgraphs to be tried at multiple positions (up to optional $n$ edges aware from their initial positions) and with TBR-style 
 		rerooting of the exchanged components.
 		
 		\smallskip		
@@ -471,13 +471,29 @@
 		\subsubsection{Description}
 		Performs edit operations (addition, deletion, move) on network edges, hence only applies to softwired and hardwired graphs.
 		\subsubsection{Arguments}
-			\noindent \texttt{annealing[:n]} Specifies that $n$ (default 1) rounds of simulated annealing optimization \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} are performed.  The acceptance 
+			\noindent \texttt{annealing[:n]} Specifies that $n$ (default 1) rounds of simulated annealing optimization \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} are performed in concert with \texttt{netAdd}, 
+			\texttt{netDel}, and \texttt{netMove}.  The acceptance 
 			of candidate graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, where
 			$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ is the step number,  
 			and $k_{max}$ is the maximum  number of steps (set by the \texttt{steps:m}, default 10) option.
 			
 			\smallskip		
-			\noindent \texttt{keep:N} Limits the number of returned graphs to $N$.  
+			\noindent \texttt{drift[:n]} Specifies that $n$ (default 1) rounds of the ``drifting'' form of simulated annealing \citep{goloboff1999} optimization are performed in concert with \texttt{netAdd}, 
+			\texttt{netDel}, and \texttt{netMove}.  The acceptance 
+			of candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where
+			$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph,   
+			and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:m}, default 1.0) option. Equal cost graphs are accepted 
+			with probability set by the \texttt{acceptEqual} option.  \texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify acceptance probabilities. The maximum number of graphs changes is set by \texttt{maxChanges}
+			
+			\smallskip		
+			\smallskip		
+			\noindent \texttt{generations:[n]} Specifies the number of generations (sequential iterations) for \texttt{geneticAlgorithm}. Default $n=10$.
+			
+			\smallskip		
+			\noindent \texttt{geneticAlgorithm|ga} Performs Genetic Algorithm \citep{Holland1975} refinement in concert with options \texttt{generations}, \texttt{popsize}, \texttt{severity}, and \texttt{recombinations}.  
+			
+			\smallskip		
+			\noindent \texttt{keep:n} Limits the number of returned graphs to $n$.  
 		
 			\smallskip		
 			\noindent \texttt{netadd} Adds network edges to existing input graphs at all possible positions until no better cost graph is found.
@@ -487,6 +503,15 @@
 			
 			\smallskip
 			\noindent \texttt{netmove} Moves existing network edges in input graphs one at a time to new positions until no better cost graph is found.
+			
+			\smallskip		
+			\noindent \texttt{popsize:[n]} Specifies the population size for \texttt{geneticAlgorithm}. Default $n=20$.
+			
+			\smallskip		
+			\noindent \texttt{recombinations:[n]} Specifies the number of recombination (fusing) events for \texttt{geneticAlgorithm}. Default $n=100$.
+			
+			\smallskip		
+			\noindent \texttt{severity:[n]} Specifies severity of selection against sub-optimal graph solutions events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. Default $n=1.0$.
 			
 			\smallskip		
 			\noindent \texttt{steps:n} Specifies that $n$ (default 10) temperature steps are performed during simulated annealing (as specified by the \texttt{annealing}) option.
@@ -539,7 +564,10 @@
 						}
 						\item{OutFormat:Dot$\mid$FENewick\\Default:Dot\\Specifies the output graph format as either Graphviz `dot' or FEN.
 						}
-					\end{itemize}				 
+					\end{itemize}	
+				
+				\smallskip
+				\noindent \texttt{search} Outputs search statistics in csv format.  
 				
 		\subsubsection{Defaults}
 				\texttt{report()} prints input data and output graph diagnosis  to stderr.  Default graph representation is \texttt{dot}.
@@ -566,6 +594,44 @@
 				\item{\texttt{run("readFiles.pg")}\\ Executes "readFiles.pg", which may contain multiple input files to be \texttt{read}}
 				\item{\texttt{run("searchCommands.pg")}\\ Executes "searchCommands.pg", which may contain commands defining a common search strategy (e.g. \texttt{build}).}
 			\end{itemize}
+	
+	\subsection{Search}
+		\subsubsection{Syntax}
+		\texttt{search(arg0:option, arg1:option, ...)}
+		\subsubsection{Description}
+		The command is used to reform a timed randomized series of graph optimization methods including building, 
+		recombination (fusing), swapping, 
+		simulated annealing and drifting, network edge addition/deletion/moving, and Genetic Algorithm.  Parameters and order
+		randomized.  The arguments specify the number of rounds of search (\texttt{instances}, default 1), and duration 
+		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; default 30 seconds).  Successive rounds of search
+		(specified by \texttt{iterations}) gather any solutions from previous sequential or parallel rounds as well as any input graphs.
+		Since search methods may vary in how long they take, individual iterations may take longer that the specified duration.
+		\subsubsection{Arguments}
+		\noindent \texttt{keep:n} Keeps up to $n$ graphs.
+		
+		\smallskip		
+		\noindent \texttt{days:n} Adds $n$ 24 hour days to search time.
+		
+		\smallskip		
+		\noindent \texttt{hours:n} Adds $n$ hours to search time.
+		
+		\smallskip		
+		\noindent \texttt{minutes:n} Adds $n$ minutes to search time.
+		
+		\smallskip		
+		\noindent \texttt{seconds:n} Adds $n$ seconds to search time.
+		
+		\smallskip		
+		\noindent \texttt{iterations:n} Specifies number of (potentially parallel) search iterations.
+		
+		\subsubsection{Defaults}
+		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graphs.
+		\subsubsection{Examples}
+		\begin{itemize}
+			\item{\texttt{search(hours:10, iterations:2)}\\ Performs 2 search iterations (in parallel if the program is executed in parallel) for 10 hours each.}
+			\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search iteration for 10 hours and 30 minutes.}
+		\end{itemize}
+	
 	
 	\subsection{Select}
 		\subsubsection{Syntax}
@@ -663,17 +729,27 @@
 		and $k_{max}$ is the maximum number of steps (set by the \texttt{steps:m}, default 10) option.
 		
 		\smallskip		
+		\noindent \texttt{drift[:n]} Specifies that $n$ (default 1) rounds of the ``drifting'' form of simulated annealing \citep{goloboff1999} optimization are performed.  The acceptance 
+		of candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where
+		$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph,   
+		and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:m}, default 1.0) option. Equal cost graphs are accepted 
+		with probability set by the \texttt{acceptEqual} option.  \texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify acceptance probabilities. The maximum number of graphs changes is set by \texttt{maxChanges}
+		
+		\smallskip		
 		\noindent \texttt{ia} Specifies that Implied Alignment \citep{Wheeler2003} assignment are used for branch swapping as opposed to full Direct Optimization for dynamic charters
 		when the graph type is \texttt{Tree}.
 		
 		\smallskip		
-		\noindent \texttt{keep:N} Specifies that up to $N$ equally costly graphs are retained.
+		\noindent \texttt{keep:n} Specifies that up to $n$ equally costly graphs are retained.
+		
+		\smallskip		
+		\noindent \texttt{maxChanges:n} Specifies that drifting graph changes are limitied to $n$ (default 15).
 		
 		\smallskip		
 		\noindent \texttt{nni} Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
 		
 		\smallskip		
-		\noindent \texttt{spr:[N]} Specifies that SPR refinement \citep{Dayhoff1969} is performed.  If the optional argument $N$ is specified, readdition of pruned graphs will
+		\noindent \texttt{spr:[n]} Specifies that SPR refinement \citep{Dayhoff1969} is performed.  If the optional argument $n$ is specified, readdition of pruned graphs will
 		be within $2 * N$ edges of its original placement.
 		
 		\smallskip		
@@ -683,7 +759,7 @@
 		\noindent \texttt{steepest} Specifies that refinement follows a greedy path, abandoning the neighborhood of the current graph when a better (lower cost)
 		graph is found.
 		
-		\noindent \texttt{tbr:[N]} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed.  If the optional argument $N$ is specified, readdition of pruned graphs will
+		\noindent \texttt{tbr:[n]} Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed.  If the optional argument $n$ is specified, readdition of pruned graphs will
 		be within $2 * N$ edges of its original placement.
 		
 		\subsubsection{Defaults}

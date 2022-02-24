@@ -140,7 +140,7 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
              generations
               | length generationsList > 1 =
                 errorWithoutStackTrace ("Multiple 'generations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
-              | null generationsList = Just 20
+              | null generationsList = Just 10
               | otherwise = readMaybe (snd $ head generationsList) :: Maybe Int
 
              severityList = filter ((=="severity").fst) lcArgList
