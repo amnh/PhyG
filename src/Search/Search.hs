@@ -190,12 +190,18 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
       -- no input graphs so must build and refine a bit to start
       if null inGraphList then 
          
-         -- do build
+         -- do build + Net add (if network) + swap to crete initial solutions
          let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
              uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+             
+             netAddGraphs = if (graphType inGS == Tree) then uniqueBuildGraphs
+                            else R.netEdgeMaster netAddArgs inGS inData (randIntList !! 10) uniqueBuildGraphs
+             
              swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
+             
              uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
-             searchString = "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
+             searchString = if (graphType inGS == Tree) then "Build " ++ show buildArgs ++ " Swap " ++ show swapArgs
+                            else "Build " ++ show buildArgs ++ " Net Add " ++ show netAddArgs ++ " Swap " ++ show swapArgs
          in  (uniqueSwapGraphs, [searchString])
          -- performSearch inArgs inGS inData pairwiseDistances keepNum startTime searchTime (searchString : infoStringList) (randIntList !! 6) uniqueSwapGraphs
 

@@ -68,6 +68,8 @@ import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
 import qualified Search.Search as S
 import System.Timing
+import Control.DeepSeq
+import           Control.Concurrent
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -87,7 +89,6 @@ reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile"
 selectArgList :: [String]
 selectArgList = ["best", "all", "unique", "atrandom"]
 
-
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
 executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int])
@@ -96,13 +97,8 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
     else do
         let (firstOption, firstArgs) = head commandList
         startTime <- getSystemTimeNDT
-        {-
-        startTime' <- getSystemTimeNDT
-            !st <- CL.getTime CL.ProcessCPUTime
-        !st' <- CL.getTime CL.ProcessCPUTime
-            hPutStrLn stderr ("Swap time " ++ (show $ CL.nsec st') ++ " " ++  (show $ CL.nsec st))
-             
-        -}   
+        
+        numThreads <- getNumCapabilities
         -- skip "Read" and "Rename "commands already processed
         if firstOption == Read then error ("Read command should already have been processed: " ++ show (firstOption, firstArgs))
         else if firstOption == Rename then error ("Rename command should already have been processed: " ++ show (firstOption, firstArgs))
@@ -117,6 +113,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (globalSettings {searchData = newSearchData}) rawData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Refine then
             let newGraphList = REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
                 stopTime = getSystemTimeNDTUnsafe 
@@ -124,6 +121,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Fuse then
             let newGraphList = REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
                 !stopTime = getSystemTimeNDTUnsafe 
@@ -131,6 +129,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs pairwiseDist
             hPutStrLn stderr ("Report writing to " ++ outFile)
@@ -140,12 +139,18 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             else if writeMode == "append" then appendFile outFile reportString
             else error ("Error 'read' command not properly formatted" ++ show reportStuff)
             executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList (tail commandList)
+        
         else if firstOption == Search then do
-            (newGraphList, serchInfoList) <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+            (elapsedSeconds, output) <- timeOp $ 
+                S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+                --in pure result
+            -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
             let stopTime = getSystemTimeNDTUnsafe 
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList startTime stopTime "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs (fst output) startTime stopTime "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)
-            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+            hPutStrLn stderr ("Search took " ++ (show $ (fromIntegral $ toSeconds elapsedSeconds) / (fromIntegral numThreads))) 
+            executeCommands (globalSettings {searchData = newSearchData})  rawData processedData  (fst output) pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Select then
             let newGraphList = GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
                 stopTime = getSystemTimeNDTUnsafe 
@@ -153,6 +158,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (globalSettings {searchData = newSearchData})  rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Set then
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
@@ -163,6 +169,7 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (newGlobalSettings {searchData = newSearchData})  rawData newProcessedData newGraphList pairwiseDist seedList' (tail commandList)
+        
         else if firstOption == Swap then
             let newGraphList = REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
                 stopTime = getSystemTimeNDTUnsafe
@@ -170,9 +177,11 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
                 newSearchData = searchInfo : (searchData globalSettings)
             in
             executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        
         else if firstOption == Support then
             errorWithoutStackTrace ("Command 'support' not yet implemented")
             --executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+        
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
