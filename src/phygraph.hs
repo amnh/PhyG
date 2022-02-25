@@ -187,7 +187,7 @@ main = do
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList') <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList initialSetCommands
+    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData [] [] seedList [] initialSetCommands
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (GO.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
     
 
@@ -196,7 +196,7 @@ main = do
     
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist seedList' commandsAfterInitialDiagnose
+    (finalGraphList, finalGlobalSettings, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
