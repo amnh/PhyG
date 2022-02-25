@@ -50,7 +50,7 @@ import           Text.Read
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneticalgorithm", "ga"] ++ fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb"] 
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]

@@ -70,6 +70,7 @@ import qualified Search.Search as S
 import System.Timing
 import Control.DeepSeq
 import           Control.Concurrent
+import qualified Support.Support as SUP
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -174,10 +175,14 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
             
             executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
         
-        else if firstOption == Support then
-            errorWithoutStackTrace ("Command 'support' not yet implemented")
-            --executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
-        
+        else if firstOption == Support then do
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList)  curGraphs
+                
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let newSearchData = searchInfo : (searchData globalSettings)   
+            
+            executeCommands (globalSettings {searchData = newSearchData}) rawData processedData newGraphList pairwiseDist (tail seedList) (tail commandList)
+
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
