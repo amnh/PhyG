@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.Search  (search
                       ) where
 
+{-
 import           Control.Concurrent
 import Types.Types
 import qualified ParallelUtilities       as PU
@@ -71,44 +72,70 @@ strat :: NFData a => Strategy (IO a)
 strat x = pure $ do 
    r <- x
    rnf r `seq` pure r
+-}
+
+import Types.Types
+import Control.DeepSeq
+import GeneralUtilities
+import qualified Graphs.GraphOperations  as GO
+import Utilities.Utilities               as U
+import Data.Maybe
+import           Data.Char
+import           Text.Read
+import qualified Search.Build as B
+import qualified Search.Refinement as R
+import System.Timing
+import Data.Bifunctor (bimap)
+import Data.Foldable
+import Control.Concurrent.Async
+import qualified Data.List as L
 
 
--- | search arguments
-searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
-
+-- | A strict, three-way version of 'uncurry'.
+uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
+uncurry3' f (a, b, c) = force <$> f a b c
 
 -- | search timed randomized search returns graph list and comment list with info String for each serch instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList = 
    let (searchTime, keepNum, instances) = getSearchParams inArgs
-       threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10 
-   in  do  let threadCount = instances -- <- (max 1) <$> getNumCapabilities
-           -- putStrLn $ unwords [ "threadCount:", show threadCount ]
-           let seedList  = take threadCount $ randomIntList rSeed
-           let seedListList = fmap randomIntList seedList
-           let graphList = replicate threadCount (inGraphList, [])
-           resultList <- traverseInParallelWith (searchForDuration inArgs inGS inData pairwiseDistances keepNum threshold []) seedListList graphList
-           let (newGraphList, commentList) = unzip resultList
-           pure (take keepNum . GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (inGraphList ++ concat newGraphList), commentList)
+       threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum threshold []
+       infoIndices = [1..]
+       seadStreams = randomIntList <$> randomIntList rSeed        
+   in  do  --  threadCount <- (max 1) <$> getNumCapabilities
+           let threadCount = instances -- <- (max 1) <$> getNumCapabilities
+           let startGraphs = replicate threadCount (inGraphList, mempty)
+           let threadInits = zip3 infoIndices seadStreams startGraphs
+           resultList <- mapConcurrently searchTimed threadInits
+           pure $
+               let (newGraphList, commentList) = unzip resultList
+                   completeGraphList = inGraphList <> fold newGraphList
+                   filteredGraphList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] completeGraphList
+                   selectedGraphList = take keepNum filteredGraphList
+               in  (selectedGraphList, commentList)
 
 
-searchForDuration :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
-searchForDuration inArgs inGS inData pairwiseDistances keepNum allotedSeconds inCommentList seedList input@(inGraphList, infoStringList) = do
+searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOp $ 
-       let result = force $ performSearch inArgs inGS inData pairwiseDistances keepNum (head seedList) input
+       let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
-   putStrLn $ unlines ["Alloted: " <> show allotedSeconds, "Ellapsed: " <> show elapsedSeconds, "Remaining: " <> show remainingTime]
+   putStrLn $ unlines [ "Thread   \t" <> show refIndex
+                      , "Alloted  \t" <> show allotedSeconds
+                      , "Ellapsed \t" <> show elapsedSeconds
+                      , "Remaining\t" <> show remainingTime
+                      ]
    if   elapsedSeconds >= allotedSeconds
-   then pure (fst output, (inCommentList ++ (snd output)))
-   else searchForDuration inArgs inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
+   then pure output
+   else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
 -- if run completres before 90% of time limit then will keep going
-performSearch :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
-performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, infoStringList) = 
+performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
+performSearch inGS inData pairwiseDistances keepNum rSeed (inGraphList, infoStringList) = 
       -- set up basic parameters for search/refine methods
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
@@ -162,7 +189,7 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
 
           -- Genetic Algorithm Arguments
           popSize = getRandomElement (randIntList !! 11) ["10", "20", "40"]
-          generations = getRandomElement (randIntList !! 12) ["1", "2" , "4"]
+          generations = getRandomElement (randIntList !! 12) ["1"] -- , "2" , "4"]
           severity = getRandomElement (randIntList !! 13) ["0.0", "1.0", "2.0"]
           recombinations = getRandomElement (randIntList !! 14) ["20", "40", "100"]
 
@@ -286,6 +313,11 @@ performSearch inArgs inGS inData pairwiseDistances keepNum rSeed (inGraphList, i
               
          else error ("Unknown/unimplemented method in search: " ++ operation) 
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
+
+-- | search arguments
+searchArgList :: [String]
+searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
+
 
 -- | getSearchParams takes arguments and returns search params
 getSearchParams :: [Argument] -> (Int, Int, Int)

@@ -385,7 +385,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
             else if "search" `elem` commandList then
                 let dataString = fmap showSearchFields $ reverse $ searchData globalSettings
                     baseData = ("SearchData\n")
-                    charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "Duration (msecs)", "Comment"]
+                    charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "Duration (secs)", "Comment"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
 
@@ -396,7 +396,7 @@ reportCommand globalSettings argList rawData processedData curGraphs pairwiseDis
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
     [show $ instruction sD, concat $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
-    show $ duration sD, commentString sD]
+    show $ (fromIntegral $ duration sD) / 1000, commentString sD]
     where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
