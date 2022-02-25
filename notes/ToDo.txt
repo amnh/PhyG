@@ -687,4 +687,9 @@ preOrderTreeTraversal
 289) cehck for better use of time calls instead of using unsafePerformIO
 	could to dold time and new time in calls or something
 
-290) Alex--timing, GHC 9.0.1 profiling
+291) Swap steepest--add equal costs and remove default "all" after
+
+292) Add unions
+
+293) Check ststic only parallel swap (and optimizatiopn--ie no reroots
+)
