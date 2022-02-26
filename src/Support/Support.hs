@@ -52,6 +52,8 @@ import qualified Data.List as L
 import qualified Search.Build as B
 import qualified Search.Refinement as R
 import qualified Utilities.Distances     as DD
+import qualified Reconciliation.ReconcileGraphs as REC
+import qualified Utilities.LocalGraph      as LG
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -141,13 +143,15 @@ supportGraph inArgs inGS inData rSeed inGraphList =
 getResampleGraph :: GlobalSettings -> ProcessedData -> Int -> String -> Int -> [(String, String)] -> [(String, String)] -> Double -> [PhylogeneticGraph] -> PhylogeneticGraph
 getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq inGraphList = 
    let resampledGraphList = fmap (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) `using` PU.myParListChunkRDS
-       reconciledGraph = head resampledGraphList
+       -- create appropriate support graph >50% ?
+       -- need to add args
+       (_, reconciledGraph) = REC.makeReconcileGraph [] [] (fmap fst6 resampledGraphList)
    in
    -- generate resampled graph
-   if null inGraphList then reconciledGraph
+   if null inGraphList then (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
 
    -- label in graph with edge frequencies of resampled graph
-   else reconciledGraph
+   else (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
 
 -- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
 -- returning the resampled graph
