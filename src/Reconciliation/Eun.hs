@@ -70,6 +70,8 @@ import           System.Environment
 import           System.IO
 import           Debug.Trace
 import qualified Utilities.LocalGraph        as LG
+import qualified Graphs.GraphOperations  as GO
+import qualified Utilities.LocalGraph as LG
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -760,6 +762,7 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
       newEdges = if keepEdgeLabel then fmap showLabel inLabEdges
                  else fmap (`G.toLEdge` "") inEdges
   in
+  -- trace ("CVEL " ++ (show (keepVertexLabel, keepEdgeLabel )))
   G.mkGraph (leafNodeList ++ newNonLeafNodes) newEdges
     where showLabel (e,u,l) = (e,u,show l)
 
@@ -812,7 +815,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         -- Add urRoot and edges to existing roots if there are unconnected components and connnectComponets is True
         labelledTresholdConsensusGraph = if not connectComponents then labelledTresholdConsensusGraph''
                                          else addUrRootAndEdges labelledTresholdConsensusGraph''
-        gvRelabelledConsensusGraph = changeVertexEdgeLabels vertexLabel edgeLabel labelledTresholdConsensusGraph
+        gvRelabelledConsensusGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel labelledTresholdConsensusGraph
         thresholdConsensusOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledConsensusGraph
         thresholdConsensusOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph labelledTresholdConsensusGraph] edgeLabel True
 
@@ -837,7 +840,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
                                     else addUrRootAndEdges thresholdLabelledEUNGraph''
 
         -- Create EUN Dot String
-        gvRelabelledEUNGraph = changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
+        gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
         thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
         thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel True
     
@@ -874,10 +877,10 @@ makeProcessedGraph leafTextList inGraph =
         graphLeafStringList = fmap nodeToString graphleafTextList
         reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
         textNodes = fmap nodeToText $ LG.labNodes reIndexedGraph
-        textEdges = fmap edgeToText $ LG.labEdges reIndexedGraph
+        doubleEdges = fmap edgeToDouble $ LG.labEdges reIndexedGraph
          
     in
-    LG.mkGraph textNodes textEdges
+    LG.mkGraph textNodes doubleEdges
     where nodeToString (a,b) = (a, T.unpack b)
           nodeToText   (a,b) = (a, T.pack b)
-          edgeToText   (a,b,_) = (a,b,0.0)
+          edgeToDouble   (a,b,c) = (a,b, read c :: Double)

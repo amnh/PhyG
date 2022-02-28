@@ -62,6 +62,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeDummyLabEdge
                                , contractIn1Out1EdgesRename
                                , renameSimpleGraphNodes
+                               , renameSimpleGraphNodesString
                                , generateDisplayTreesRandom
                                , hasNetNodeAncestorViolation
                                , convertGeneralGraphToPhylogeneticGraph
@@ -355,6 +356,22 @@ renameSimpleGraphNodes inGraph =
     -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
     where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then T.pack $ "HTU"  ++ show a
+                                      else b
+
+-- | renameSimpleGraphNodesString takes nodes and renames HTU nodes based on index
+renameSimpleGraphNodesString :: LG.Gr String String -> LG.Gr String String
+renameSimpleGraphNodesString inGraph =
+  if LG.isEmpty inGraph then LG.empty
+    else 
+      let inNodes = LG.labNodes inGraph
+          nodeLabels = fmap (makeSimpleLabel inGraph) inNodes
+          newNodes = zip (fmap fst inNodes) nodeLabels
+          newEdges = LG.labEdges inGraph
+    in
+    --newGraph
+    -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
+    LG.mkGraph newNodes newEdges
+    where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then "HTU"  ++ show a
                                     else b
 
 -- | getEdgeSplitList takes a graph and returns list of edges

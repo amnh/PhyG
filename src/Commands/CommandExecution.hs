@@ -388,13 +388,14 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
             else if "support" `elem` commandList then
                 let graphString = outputGraphStringSimple commandList (outgroupIndex globalSettings) (fmap fst6 supportGraphs) (fmap snd6 supportGraphs)
                 in
+                -- trace ("Rep Sup: " ++ (LG.prettify $ fst6 $ head supportGraphs)) (
                 if null supportGraphs then 
                     trace ("No support graphs to report")
                     ("No support graphs to report", outfileName, writeMode)
                 else 
                     trace ("Reporting " ++ (show $ length curGraphs) ++ " support graphs")
                     (graphString, outfileName, writeMode)
-
+                -- )
            
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
 
