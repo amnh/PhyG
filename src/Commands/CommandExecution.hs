@@ -71,6 +71,11 @@ import System.Timing
 import Control.DeepSeq
 import           Control.Concurrent
 import qualified Support.Support as SUP
+import           Data.Char
+
+
+import System.Process
+import System.Directory
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -79,7 +84,7 @@ setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "fina
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support"]
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support"]
 
 
 -- | buildArgList is the list of valid build arguments
@@ -127,13 +132,22 @@ executeCommands globalSettings rawData processedData curGraphs pairwiseDist seed
         
         else if firstOption == Report then do
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData processedData curGraphs supportGraphList pairwiseDist
+            let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
+
             hPutStrLn stderr ("Report writing to " ++ outFile)
-            if outFile == "stderr" then hPutStr stderr reportString
-            else if outFile == "stdout" then putStr reportString
-            else if writeMode == "overwrite" then writeFile outFile reportString
-            else if writeMode == "append" then appendFile outFile reportString
-            else error ("Error 'read' command not properly formatted" ++ show reportStuff)
-            executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+
+            if doDotPDF then do
+                let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
+                printGraphVizDot reportString' outFile
+                executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+
+            else do
+                if outFile == "stderr" then hPutStr stderr reportString
+                else if outFile == "stdout" then putStr reportString
+                else if writeMode == "overwrite" then writeFile outFile reportString
+                else if writeMode == "append" then appendFile outFile reportString
+                else error ("Error 'read' command not properly formatted" ++ show reportStuff)
+                executeCommands globalSettings rawData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
         
         else if firstOption == Search then do
             (elapsedSeconds, output) <- timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
@@ -393,11 +407,60 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No support graphs to report")
                     ("No support graphs to report", outfileName, writeMode)
                 else 
-                    trace ("Reporting " ++ (show $ length curGraphs) ++ " support graphs")
-                    (graphString, outfileName, writeMode)
+                trace ("Reporting " ++ (show $ length curGraphs) ++ " support graphs")
+                (graphString, outfileName, writeMode)
                 -- )
            
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+
+-- changeDotPreamble takes an input string to search for and a new one to add in its place
+-- searches through dot file (can have multipl graphs) replacing teh search string each time.
+changeDotPreamble :: String -> String -> String -> String
+changeDotPreamble findString newString inDotString = 
+    if null inDotString then []
+    else 
+        changePreamble' findString newString [] (lines inDotString)
+
+-- changeDotPreamble' internal process for changeDotPreamble
+changePreamble' :: String -> String -> [String] -> [String] -> String
+changePreamble' findString newString accumList inLineList =
+    if null inLineList then unlines $ reverse accumList
+    else 
+        -- trace ("CP':" ++ (head inLineList) ++ " " ++  findString ++ " " ++ newString) (
+        let firstLine = head inLineList
+        in
+        if firstLine == findString then changePreamble' findString newString (newString : accumList) (tail inLineList)
+        else changePreamble' findString newString (firstLine : accumList) (tail inLineList)
+        -- )
+
+--printGraph graphviz simple dot file of graph
+--execute with "dot -Tps test.dot -o test.ps"
+--need to add output to argument filename and call 
+--graphviz via System.Process.runprocess
+--also, reorder GenForest so smalles (num leaves) is either first or
+--last so can print small to large all the way so easier to read
+printGraphVizDot :: String -> String -> IO ()
+printGraphVizDot graphDotString dotFile =
+    if null graphDotString then error "No graph to report"
+    else do
+        myHandle <- openFile dotFile WriteMode
+        hPutStrLn  stderr ("Outputting graphviz to " ++ dotFile ++ ".pdf.")
+
+        --hPutStrLn myHandle "digraph G {"
+        --hPutStrLn myHandle "\trankdir = LR;"
+        --hPutStrLn myHandle "\tnode [ shape = rect];"
+        --hPutStr myHandle $ (unlines . tail . lines) graphDotString
+        hPutStr myHandle graphDotString
+        -- hPutStrLn myHandle "}"
+        hClose myHandle
+        pCode <- findExecutable "dot" --system "dot" --check for Graphviz
+        _     <- createProcess (proc "dot" ["-Tpdf", dotFile, "-O"])
+        hPutStrLn stderr
+            (if isJust pCode then --pCode /= Nothing then
+                "executed dot " ++ "-Tpdf " ++ dotFile ++ " -O " else
+                "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
+
+
 
 -- | showSearchFields cretes a String list for SearchData Fields
 showSearchFields :: SearchData -> [String]

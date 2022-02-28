@@ -225,6 +225,8 @@ executable phyg
                -- lots of good functions
                -- , Graphalyze
                , async
+               , process
+               , directory
  
                 
   default-extensions : BangPatterns                
