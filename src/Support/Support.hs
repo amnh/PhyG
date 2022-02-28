@@ -145,7 +145,10 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
    let resampledGraphList = fmap (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
        -- need to add args
-       (_, reconciledGraph) = trace ("RSG: " ++ (show $ fmap snd6 resampledGraphList)) REC.makeReconcileGraph [] [] (fmap fst6 resampledGraphList)
+       reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
+                       else [("method","eun"), ("compare","identity"), ("edgelabel","true"),  ("vertexlabel","true"), ("connect","true"), ("threshold","51"),("outformat", "dot")]
+         -- majority ruke consensus if no args
+       (_, reconciledGraph) = trace ("RSG: " ++ (show $ fmap snd6 resampledGraphList)) REC.makeReconcileGraph REC.reconcileCommandList reconcileArgs (fmap fst6 resampledGraphList)
    in
    -- generate resampled graph
    if null inGraphList then (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)

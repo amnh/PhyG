@@ -35,6 +35,7 @@ Portability :  portable (I hope)
 -}
 
 module Reconciliation.ReconcileGraphs  ( makeReconcileGraph 
+                                       , reconcileCommandList
                                        ) where
 
 import           Types.Types
@@ -45,6 +46,11 @@ import qualified Data.Text.Lazy  as T
 import GeneralUtilities
 import Debug.Trace 
 import qualified Data.List as L
+
+-- | reconcileCommandList list of allowable commands
+reconcileCommandList :: [String]
+reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
+
 
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
@@ -84,7 +90,7 @@ processReconcileArgs validCommandList inList' =
           threshold = 0
           connectComponents = True
           edgeLabel = True
-          vertexLabel = False
+          vertexLabel = True
           outputFormat = "dot"
       in
       (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)

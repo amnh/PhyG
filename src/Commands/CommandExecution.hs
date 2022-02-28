@@ -82,10 +82,6 @@ reportArgList :: [String]
 reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support"]
 
 
--- | reconcileCommandList list of allowable commands
-reconcileCommandList :: [String]
-reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
-
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
 selectArgList = ["best", "all", "unique", "atrandom"]
@@ -301,7 +297,7 @@ setCommand argList globalSettings processedData inSeedList =
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
-    let argListWithoutReconcileCommands = filter ((`notElem` reconcileCommandList) .fst) argList
+    let argListWithoutReconcileCommands = filter ((`notElem` R.reconcileCommandList) .fst) argList
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList
@@ -374,7 +370,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph reconcileCommandList argList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph R.reconcileCommandList argList (fmap fst6 curGraphs)
                 in
                 if null curGraphs then 
                     trace ("No graphs to reconcile")
