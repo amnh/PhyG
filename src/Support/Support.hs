@@ -145,7 +145,7 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
    let resampledGraphList = fmap (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
        -- need to add args
-       (_, reconciledGraph) = REC.makeReconcileGraph [] [] (fmap fst6 resampledGraphList)
+       (_, reconciledGraph) = trace ("RSG: " ++ (show $ fmap snd6 resampledGraphList)) REC.makeReconcileGraph [] [] (fmap fst6 resampledGraphList)
    in
    -- generate resampled graph
    if null inGraphList then (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
@@ -165,7 +165,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
        pairwiseDistances = DD.getPairwiseDistances newData
 
        -- build graphs
-       buildGraphs = B.buildGraph buildOptions inGS inData pairwiseDistances (randomIntegerList !! 1)
+       buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList !! 1)
        bestBuildGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] buildGraphs
 
        -- if not a tree then try to add net edges
@@ -175,7 +175,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
 
        --simple swap refinement
        swapGraphList = if null swapOptions then netGraphList
-                       else R.swapMaster swapOptions inGS inData (randomIntegerList !! 3) netGraphList
+                       else R.swapMaster swapOptions inGS newData (randomIntegerList !! 3) netGraphList
    in
    -- no data in there
    if (V.null . thd3) newData then emptyPhylogeneticGraph
@@ -229,7 +229,7 @@ resampleBlock resampleType sampleFreq rSeed (nameText, charDataVV, charInfoV) =
    where randAccept b a = let (_, randVal) = divMod (abs a) 1000
                               critVal = floor (1000 * b)
                            in
-                           trace ("RA : " ++ (show (b,a, randVal, critVal, randVal < critVal)))
+                           -- trace ("RA : " ++ (show (b,a, randVal, critVal, randVal < critVal)))
                            randVal < critVal
 
 -- | makeSampledCharCharInfoVect takes a vectot of Bool and a vector of cahrdata and a vector of charinfo 
@@ -240,13 +240,15 @@ resampleBlock resampleType sampleFreq rSeed (nameText, charDataVV, charInfoV) =
 -- does not check if equal in length
 makeSampledVect :: [Bool] -> [a] -> V.Vector a -> V.Vector a
 makeSampledVect boolList accumList inVect  =
-   if V.null inVect then trace ("MSV R: " ++ (show $ length accumList)) V.fromList accumList
+   if V.null inVect then 
+    -- trace ("MSV R: " ++ (show $ length accumList)) 
+    V.fromList accumList
    else
-      trace ("MSV: " ++ (show $ head boolList)) (
+      -- trace ("MSV: " ++ (show $ head boolList)) (
       if head boolList then makeSampledVect (tail boolList) ((V.head inVect) : accumList) (V.tail inVect) 
 
       else makeSampledVect (tail boolList) accumList (V.tail inVect) 
-      )
+      -- )
       
 -- | makeSampledVect takes a liust of Bool and avector and returns those values 
 -- with True as a vector (reversed--but shouldn't matter for resampling purposes) 
@@ -276,17 +278,19 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
          if firstCharType == Add then
             let newCharData = firstCharData {rangePrelim = (makeSampledVect fullBoolList [] a1, makeSampledVect fullBoolList [] a2, makeSampledVect fullBoolList [] a3)}
             in
-            trace ("Length Add: " ++ (show $ V.length $ snd3 $ rangePrelim firstCharData)) (
+            -- trace ("Length Add: " ++ (show $ V.length $ snd3 $ rangePrelim newCharData)) (
             if V.null (makeSampledVect fullBoolList [] a2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (V.tail inCharInfoVect) (V.tail inCharDataVect) 
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect) 
-            )
+            -- )
+
          else if firstCharType == NonAdd then
             let newCharData = firstCharData {stateBVPrelim = (makeSampledVect fullBoolList [] na1, makeSampledVect fullBoolList [] na2, makeSampledVect fullBoolList [] na3)}
             in
-            trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim firstCharData))  (
+            -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
             if V.null (makeSampledVect fullBoolList [] na2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList(V.tail inCharInfoVect)  (V.tail inCharDataVect) 
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
-            )
+            -- )
+
          else if firstCharType == Matrix then
             let  newCharData = firstCharData {matrixStatesPrelim = (makeSampledVect fullBoolList [] m1)}
             in
