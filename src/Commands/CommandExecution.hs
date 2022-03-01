@@ -73,7 +73,7 @@ import           Control.Concurrent
 import qualified Support.Support as SUP
 import           Data.Char
 
-
+import System.Info
 import System.Process
 import System.Directory
 
@@ -445,7 +445,8 @@ printGraphVizDot graphDotString dotFile =
     else do
         myHandle <- openFile dotFile WriteMode
         hPutStrLn  stderr ("Outputting graphviz to " ++ dotFile ++ ".pdf.")
-
+        let outputType = if os == "darwin" then "-Tps"
+                         else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
         --hPutStrLn myHandle "\trankdir = LR;"
         --hPutStrLn myHandle "\tnode [ shape = rect];"
@@ -454,10 +455,10 @@ printGraphVizDot graphDotString dotFile =
         -- hPutStrLn myHandle "}"
         hClose myHandle
         pCode <- findExecutable "dot" --system "dot" --check for Graphviz
-        _     <- createProcess (proc "dot" ["-Tpdf", dotFile, "-O"])
+        _     <- createProcess (proc "dot" [outputType, dotFile, "-O"])
         hPutStrLn stderr
             (if isJust pCode then --pCode /= Nothing then
-                "executed dot " ++ "-Tpdf " ++ dotFile ++ " -O " else
+                "executed dot " ++ outputType ++ dotFile ++ " -O " else
                 "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
 
 
