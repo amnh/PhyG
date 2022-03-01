@@ -444,7 +444,8 @@ printGraphVizDot graphDotString dotFile =
     if null graphDotString then error "No graph to report"
     else do
         myHandle <- openFile dotFile WriteMode
-        hPutStrLn  stderr ("Outputting graphviz to " ++ dotFile ++ ".pdf.")
+        if os /= "darwin" then hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".pdf.")
+        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".ps.")
         let outputType = if os == "darwin" then "-Tps"
                          else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
@@ -455,12 +456,17 @@ printGraphVizDot graphDotString dotFile =
         -- hPutStrLn myHandle "}"
         hClose myHandle
         pCode <- findExecutable "dot" --system "dot" --check for Graphviz
-        _     <- createProcess (proc "dot" [outputType, dotFile, "-O"])
+        {-
         hPutStrLn stderr
             (if isJust pCode then --pCode /= Nothing then
                 "executed dot " ++ outputType ++ dotFile ++ " -O " else
                 "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
-
+        -}
+        if isJust pCode then do
+            cpResult  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
+            hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ dotFile ++ " -O ") 
+        else 
+            hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
 
 
 -- | showSearchFields cretes a String list for SearchData Fields
