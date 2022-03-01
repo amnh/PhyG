@@ -374,7 +374,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No graphs to report")
                     ("No graphs to report", outfileName, writeMode)
                 else 
-                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graphs at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
                     (graphString, outfileName, writeMode)
 
            else if "pairdist" `elem` commandList then
@@ -407,7 +407,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No support graphs to report")
                     ("No support graphs to report", outfileName, writeMode)
                 else 
-                trace ("Reporting " ++ (show $ length curGraphs) ++ " support graphs")
+                trace ("Reporting " ++ (show $ length curGraphs) ++ " support graph(s)")
                 (graphString, outfileName, writeMode)
                 -- )
            
