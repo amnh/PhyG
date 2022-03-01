@@ -426,12 +426,12 @@ splitGraphOnEdge inGraph (e,v,l) =
 -- assumes that first node of edge (e,v,l) is 'naked' ie avaiable to make edges but is in graph
 -- created from splitGraphOnEdge
 joinGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> LG.Node -> LG.Node -> LG.Gr a b
-joinGraphOnEdge inGraph edgeToInvade@(x,y,l) nakedNode graphToJoinRoot =
+joinGraphOnEdge inGraph edgeToInvade@(x,y,l) parentofPrunedSubGraph graphToJoinRoot =
   if LG.isEmpty inGraph then error ("Empty graph in joinGraphOnEdge")
   else 
-      let edgeToCreate0 = (x, nakedNode, l)
-          edgeToCreate1 = (nakedNode, y, l)
-          edgeToCreate2 = (nakedNode, graphToJoinRoot, l)     
+      let edgeToCreate0 = (x, parentofPrunedSubGraph, l)
+          edgeToCreate1 = (parentofPrunedSubGraph, y, l)
+          edgeToCreate2 = (parentofPrunedSubGraph, graphToJoinRoot, l)     
       in
       -- make new graph
       LG.insEdges [edgeToCreate0, edgeToCreate1, edgeToCreate2] $ LG.delEdge (x,y) inGraph

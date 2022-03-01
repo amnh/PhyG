@@ -57,7 +57,7 @@ import qualified Utilities.LocalGraph      as LG
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly"] -- "bootstrap", 
+supportArgList = ["jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -121,6 +121,9 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 
                 gbSampleSize = if goodBremSample == Just (maxBound :: Int)  then Nothing
                                else goodBremSample
+
+                -- sample trees uniformly at random--or "nth"
+                gbRandomSample = any ((=="atrandom").fst) lcArgList
                 
                 replicates = if fromJust replicates' < 0 then 
                                  trace ("Negative replicates number--defaulting to 100")
@@ -135,7 +138,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
                 supportGraph = if method == "bootstrap" || method == "jackknife" then getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList
-                                   else getGoodBremGraphs inGS inData rSeed swapOptions gbSampleSize inGraphList
+                               else getGoodBremGraphs inGS inData rSeed swapOptions gbSampleSize gbRandomSample inGraphList
             in
             [supportGraph]
      
@@ -152,10 +155,8 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
    in
    -- trace ("GRG: \n" ++ reconciledGraphString) (
    -- generate resampled graph
-   if null inGraphList then (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
-
-   -- label in graph with edge frequencies of resampled graph
-   else (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
+   -- can't really relabel  easily wihtout bv and maybe not necessary anyway--node numebrs inconsistent
+  (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
    -- )
 
 -- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
@@ -185,12 +186,6 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
    -- no data in there
    if (V.null . thd3) newData then emptyPhylogeneticGraph
    else head swapGraphList
-
--- | getGoodBremGraphs performs Goodman-Bremer support
--- can do sample of trees at random if specified
-getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)] -> Maybe Int -> [PhylogeneticGraph] -> PhylogeneticGraph
-getGoodBremGraphs inGS inData rSeed swapOptions sampleSize inGraphList = 
-   emptyPhylogeneticGraph 
 
 -- | resampleData perfoms a single randomized data resampling 
 -- based on either with replacement (bootstrp) or without (jackknife)
@@ -304,4 +299,42 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 
 
          else error ("Incorrect character type in makeSampledPairVect: " ++ show firstCharType)
+
+-- | getGoodBremGraphs performs Goodman-Bremer support
+-- examines complete SPR or TBR swap neighborhood chekcing for presence/absence of edges in input Graph List
+-- can do sample of trees either "nth" or at random if specified
+-- sample based on SPR-- 4n^2 - 26n - 42 for TBR 8n^3 for now
+-- this will only examine bridge edges for networks, networkedge values willl be doen via net delete
+-- MAPs for each graph?
+getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)] -> Maybe Int -> Bool -> [PhylogeneticGraph] -> PhylogeneticGraph
+getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGraphList = 
+   if null inGraphList then emptyPhylogeneticGraph -- maybe should be error?
+   else 
+      -- create list of edges for each graph and a structure with egde node indices and bitvector values
+      -- requires index BV of each node
+      let egdeListList = fmap LG.edges (fmap fst6 inGraphList)
+
+          -- graph list of edges with cost of graph
+          edgeGraphCostListList =  zip egdeListList (fmap snd6 inGraphList)
+
+          -- graph node list
+          nodeListList = fmap LG.labNodes (fmap thd6 inGraphList)
+          nodeIndexBVPairListList = fmap (fmap makeindexBVPair) nodeListList
+
+          -- list of vectors for contant time access via index = fst (a, bv)
+          nodeIndexBVPairVectList = fmap V.fromList nodeIndexBVPairListList
+
+          -- make tuple for each edge in each graph
+          -- (uIndex,vINdex,uBV, vBV, graph cost)
+          tupleListList = zipWith makeGraphEdgeTuples nodeIndexBVPairVectList edgeGraphCostListList
+      in
+      emptyPhylogeneticGraph
+      where makeindexBVPair (a,b) = (a, bvLabel b)
+
+-- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
+--  (uIndex,vINdex,uBV, vBV, graph cost)
+-- this for edge comparisons for Goodman-Bremer and other optimality-type support
+makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> ([(Int, Int)], VertexCost) -> [(Int, Int, NameBV, NameBV, VertexCost)]
+makeGraphEdgeTuples nodeBVVect (edgeList, graphCost) =
+   []
 
