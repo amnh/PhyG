@@ -324,9 +324,23 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
           -- make tuple for each edge in each graph
           -- (uIndex,vINdex,uBV, vBV, graph cost)
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+
+          supportEdgeTupleList = getGBTuples tupleList inGraph
+
+          simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap tupleToSimpleEdge supportEdgeTupleList) 
       in
-      emptyPhylogeneticGraph
+      (simpleGBGraph, snd6 inGraph, thd6 inGraph, fth6 inGraph, fft6 inGraph, six6 inGraph) 
+      
       where makeindexBVPair (a,b) = (a, bvLabel b)
+            tupleToSimpleEdge (a,b, _, _, c) = (a,b,c)
+
+
+-- | getGBTuples takes a tuple list fomr graph containing initialized values and update those values based
+-- on each graph in the inGraph neigborhood
+getGBTuples :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+getGBTuples inTupleList inGraph =
+   inTupleList
+
 
 -- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
 -- (uIndex,vINdex,uBV, vBV, graph cost)
