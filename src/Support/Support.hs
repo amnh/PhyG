@@ -310,7 +310,7 @@ getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)
 getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGraph = 
    if LG.isEmpty (fst6 inGraph) then emptyPhylogeneticGraph -- maybe should be error?
    else 
-      -- create list of edges for each graph and a structure with egde node indices and bitvector values
+      -- create list of edges for input graph and a structure with egde node indices and bitvector values
       -- requires index BV of each node
       let egdeList = LG.edges (fst6 inGraph)
 
@@ -319,19 +319,57 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
           nodeIndexBVPairList = fmap makeindexBVPair nodeList
 
           -- list of vectors for contant time access via index = fst (a, bv)
-          nodeIndexBVPairVect = V.fromList nodeIndexBVPairList
+          nodeIndexBVPairVect= V.fromList nodeIndexBVPairList
 
           -- make tuple for each edge in each graph
           -- (uIndex,vINdex,uBV, vBV, graph cost)
-          tupleList = makeGraphEdgeTuples nodeIndexBVPairVect (egdeList, infinity)
+          tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
       in
       emptyPhylogeneticGraph
       where makeindexBVPair (a,b) = (a, bvLabel b)
 
 -- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
---  (uIndex,vINdex,uBV, vBV, graph cost)
+-- (uIndex,vINdex,uBV, vBV, graph cost)
 -- this for edge comparisons for Goodman-Bremer and other optimality-type support
-makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> ([(Int, Int)], VertexCost) -> [(Int, Int, NameBV, NameBV, VertexCost)]
-makeGraphEdgeTuples nodeBVVect (edgeList, graphCost) =
-   []
+makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> VertexCost -> [(Int, Int)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
+makeGraphEdgeTuples nodeBVVect graphCost edgeList =
+   fmap (make5Tuple nodeBVVect graphCost) edgeList
+   where make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
 
+-- | getLowerGBEdgeCost take a list of edge tuples of (uIndex,vINdex,uBV, vBV, graph cost) from the graph
+-- whose supports are being calculated and a new graph and updates the edge cost (GB value) if that edge
+-- is NOT present in the graph taking the minimum of the original GB value and the new graph cost
+getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
+getLowerGBEdgeCost edgeTupleList inGraph =
+   if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error ("Empty graph or null edge tuple list in getLowerGBEdgeCost")
+   else 
+      let -- get edge data with BV for edge comparisons for inGraph
+          egdeList = LG.edges (fst6 inGraph)
+          nodeList = LG.labNodes (thd6 inGraph)
+          nodeIndexBVPairVect = V.fromList $ fmap makeindexBVPair nodeList
+          inGraphTupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+      in
+      fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
+      where makeindexBVPair (a,b) = (a, bvLabel b)
+      
+-- | updateEdgeTuple checks is edge is NOT in input graph edge tuple list and if not takes minimum
+-- of edge cost GB value and in graph cost, else returns unchanged
+updateEdgeTuple :: VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+updateEdgeTuple inGraphCost inGraphTupleList (uIndex, vIndex, uBV, vBV, edgeGBValue) =
+   let edgeNotFoundCost = getNotFoundCost uBV vBV inGraphCost inGraphTupleList
+   in
+   if edgeNotFoundCost == Nothing then (uIndex, vIndex, uBV, vBV, edgeGBValue)
+   else (uIndex, vIndex, uBV, vBV, min edgeGBValue (fromJust edgeNotFoundCost))
+
+-- | getNotFoundCost take a pair of BitVectors (of vertices in graph) from an edge
+-- and a list of  (Int, Int, NameBV, NameBV, VertexCost) tuples and returns 
+-- Nothing is the BVs of the two match (= signifying edge in graph) or
+-- Just graph cost if not present for Goodman-Bremer calculations
+getNotFoundCost :: NameBV -> NameBV -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> Maybe VertexCost
+getNotFoundCost uBV vBV inTupleCost inTupleList = 
+   if null inTupleList then Just inTupleCost
+   else 
+      let (_, _, uInBV, bInBV, _) = head inTupleList
+      in
+      if uBV == uInBV && vBV == bInBV then Nothing
+      else getNotFoundCost uBV vBV inTupleCost (tail inTupleList)
