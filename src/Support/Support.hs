@@ -137,10 +137,10 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 buildOptions = [("distance",""), ("replicates", show 100), ("best", show 1), ("rdwag", ""), ("dWag", "")]
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
-                supportGraph = if method == "bootstrap" || method == "jackknife" then getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList
-                               else getGoodBremGraphs inGS inData rSeed swapOptions gbSampleSize gbRandomSample inGraphList
+                supportGraphList = if method == "bootstrap" || method == "jackknife" then [getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList]
+                               else fmap (getGoodBremGraphs inGS inData rSeed swapOptions gbSampleSize gbRandomSample) inGraphList
             in
-            [supportGraph]
+            supportGraphList
      
 -- | getResampledGraphs performs resampling and search for bootstrap and jackknife support
 getResampleGraph :: GlobalSettings -> ProcessedData -> Int -> String -> Int -> [(String, String)] -> [(String, String)] -> Double -> [PhylogeneticGraph] -> PhylogeneticGraph
@@ -306,27 +306,24 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 -- sample based on SPR-- 4n^2 - 26n - 42 for TBR 8n^3 for now
 -- this will only examine bridge edges for networks, networkedge values willl be doen via net delete
 -- MAPs for each graph?
-getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)] -> Maybe Int -> Bool -> [PhylogeneticGraph] -> PhylogeneticGraph
-getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGraphList = 
-   if null inGraphList then emptyPhylogeneticGraph -- maybe should be error?
+getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)] -> Maybe Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGraph = 
+   if LG.isEmpty (fst6 inGraph) then emptyPhylogeneticGraph -- maybe should be error?
    else 
       -- create list of edges for each graph and a structure with egde node indices and bitvector values
       -- requires index BV of each node
-      let egdeListList = fmap LG.edges (fmap fst6 inGraphList)
-
-          -- graph list of edges with cost of graph
-          edgeGraphCostListList =  zip egdeListList (fmap snd6 inGraphList)
+      let egdeList = LG.edges (fst6 inGraph)
 
           -- graph node list
-          nodeListList = fmap LG.labNodes (fmap thd6 inGraphList)
-          nodeIndexBVPairListList = fmap (fmap makeindexBVPair) nodeListList
+          nodeList = LG.labNodes (thd6 inGraph)
+          nodeIndexBVPairList = fmap makeindexBVPair nodeList
 
           -- list of vectors for contant time access via index = fst (a, bv)
-          nodeIndexBVPairVectList = fmap V.fromList nodeIndexBVPairListList
+          nodeIndexBVPairVect = V.fromList nodeIndexBVPairList
 
           -- make tuple for each edge in each graph
           -- (uIndex,vINdex,uBV, vBV, graph cost)
-          tupleListList = zipWith makeGraphEdgeTuples nodeIndexBVPairVectList edgeGraphCostListList
+          tupleList = makeGraphEdgeTuples nodeIndexBVPairVect (egdeList, infinity)
       in
       emptyPhylogeneticGraph
       where makeindexBVPair (a,b) = (a, bvLabel b)
