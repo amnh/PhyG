@@ -325,7 +325,8 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
           -- (uIndex,vINdex,uBV, vBV, graph cost)
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
 
-          supportEdgeTupleList = getGBTuples tupleList inGraph
+          -- traverse neighborhood (and net edge removal) keeping min cost without edges
+          supportEdgeTupleList = getGBTuples inGS inData rSeed swapOptions sampleSize sampleAtRandom tupleList inGraph
 
           simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap tupleToSimpleEdge supportEdgeTupleList) 
       in
@@ -337,8 +338,17 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
 
 -- | getGBTuples takes a tuple list fomr graph containing initialized values and update those values based
 -- on each graph in the inGraph neigborhood
-getGBTuples :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-getGBTuples inTupleList inGraph =
+-- first doess this via swap--for network does edge net edge in turn by removing using netDel
+getGBTuples :: GlobalSettings 
+            -> ProcessedData 
+            -> Int 
+            -> [(String, String)] 
+            -> Maybe Int 
+            -> Bool 
+            -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+            -> PhylogeneticGraph 
+            -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+getGBTuples inGS inData rSeed swapOptions sampleSize sampleAtRandom inTupleList inGraph =
    inTupleList
 
 
