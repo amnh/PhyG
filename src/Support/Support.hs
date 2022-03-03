@@ -389,8 +389,8 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
             randomIntegerList = randomIntList rSeed
             randomIntegerListList = fmap randomIntList randomIntegerList
             
-            -- generate tuple lists for each break edge parallelized at lower level
-            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph) randomIntegerListList breakEdgeList
+            -- generate tuple lists for each break edge parallelized at this level
+            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists tupleListList []
@@ -412,6 +412,14 @@ splitRejoinGB   :: GlobalSettings
                 -> (LG.LEdge EdgeInfo)
                 -> [(Int, Int, NameBV, NameBV, VertexCost)] 
 splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph randomIntegerList breakEdge =
+    -- split graph
+
+    -- get edges in base graph to be invaded (ie not in pruned graph)
+
+    -- rejoin, evaluate, get better tuple
+
+    -- merge tuples
+    
     inTupleList
 
 -- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
