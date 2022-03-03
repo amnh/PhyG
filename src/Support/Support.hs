@@ -462,35 +462,54 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
       -- check if there are tbr-type rearrangements to do (rerooting pruned graph)
       doSPR = (length prunedSubTreeNodes < 3) || swapType == "spr"
 
+      -- create TBR rerro split graphs if required
+      splitGraphList = if (length prunedSubTreeNodes < 3) || swapType == "spr" then [splitGraph]
+
+                       -- generate "tbr" rerootings in split graph
+                       else 
+                           getTBRSplitGraphs inGS splitGraph breakEdge
+
+      -- new random lists for rejoin 
+      randomIntegerListList = fmap randomIntList randomIntegerList
+
       -- parallel at break level above
-      rejoinTupleListList = zipWith (rejoinGB inGS inData doSPR intProbAccept sampleAtRandom inTupleList splitGraph breakEdge) randomIntegerList edgesToInvade
+      rejoinTupleListList = zipWith (rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge) randomIntegerListList edgesToInvade
 
       -- merge tuples
       newTupleList = mergeTupleLists rejoinTupleListList []
     in
     newTupleList
 
+-- | getTBRSplitGraphs takes a split gaph and the original split edge and 
+-- returns a list of rerooted subgrahs split graphs suitable for rejoining
+-- via SPR-type rejoin each to generate TBR neighborhood
+getTBRSplitGraphs :: GlobalSettings -> SimpleGraph -> LG.LEdge Double -> [SimpleGraph]
+getTBRSplitGraphs inGS splitGraph splitEdge = [splitGraph]
+
+
+
 -- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
 -- splitGraph is SimpleGraph
+-- the rejoin is SPR type relying on teh list lengt of split graph to present the TBR reroots
 rejoinGB :: GlobalSettings 
          -> ProcessedData 
-         -> Bool
          -> Int 
          -> Bool 
          -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-         -> SimpleGraph 
+         -> [SimpleGraph] 
          -> (LG.LEdge Double)
-         -> Int
+         -> [Int]
          -> LG.LEdge Double
          -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-rejoinGB inGS inData doSPR intProbAccept sampleAtRandom inTupleList splitGraph originalBreakEdge@(eBreak, vBreak, lBreak) rSeed edgeToInvade@(eInv, vInv, lInv) = 
-   -- is SPR or small pruned graph
-   if doSPR then
-      let doGraph = if sampleAtRandom then 
-                        let (_, intRandVal) = divMod (abs rSeed) 1000 
-                        in
-                        if intRandVal < intProbAccept then True
-                        else False
+rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, lBreak) randIntList edgeToInvade@(eInv, vInv, lInv) = 
+   if null splitGraphList then inTupleList
+   else
+      let splitGraph = head  splitGraphList
+          doGraph = if sampleAtRandom then 
+                      let (_, intRandVal) = divMod (abs (head randIntList)) 1000 
+                      in
+                      if intRandVal < intProbAccept then True
+                      else False
                     else True
       in
       if doGraph then  
@@ -504,17 +523,17 @@ rejoinGB inGS inData doSPR intProbAccept sampleAtRandom inTupleList splitGraph o
                                        else emptyPhylogeneticGraph
          in
          -- return original
-         if newPhylogeneticGraph == emptyPhylogeneticGraph then inTupleList
+         if newPhylogeneticGraph == emptyPhylogeneticGraph then rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
 
          -- update tuple list based on new graph
-         else getLowerGBEdgeCost inTupleList newPhylogeneticGraph
-            
-      -- return original
-      else inTupleList
+         else 
+            let updatedTupleList = getLowerGBEdgeCost inTupleList newPhylogeneticGraph
+            in 
+            rejoinGB inGS inData intProbAccept sampleAtRandom updatedTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
 
-   -- tbr
-   else 
-      inTupleList
+               
+      -- return original
+      else rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
 
 -- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
 mergeTupleLists :: [[(Int, Int, NameBV, NameBV, VertexCost)]] -> [(Int, Int, NameBV, NameBV, VertexCost)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
