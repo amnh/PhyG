@@ -49,6 +49,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , sortEdgeListByLength
                                , sortEdgeListByDistance
                                , splitGraphOnEdge
+                               , joinGraphOnEdge
                                , getEdgeSplitList
                                , selectPhylogeneticGraph
                                , getUniqueGraphs

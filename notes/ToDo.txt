@@ -684,7 +684,7 @@ preOrderTreeTraversal
 	skip 0 etc for smaples
 	use reconcile for cretion form list of graphs
 
-289) cehck for better use of time calls instead of using unsafePerformIO
+289) check for better use of time calls instead of using unsafePerformIO
 	could to dold time and new time in calls or something
 
 291) Swap steepest--add equal costs and remove default "all" after

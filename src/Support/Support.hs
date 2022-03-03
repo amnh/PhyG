@@ -54,6 +54,7 @@ import qualified Search.Refinement as R
 import qualified Utilities.Distances     as DD
 import qualified Reconciliation.ReconcileGraphs as REC
 import qualified Utilities.LocalGraph      as LG
+import qualified GraphOptimization.Traversals as T
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -312,6 +313,7 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
    else 
       -- create list of edges for input graph and a structure with egde node indices and bitvector values
       -- requires index BV of each node
+      {- 
       let egdeList = LG.edges (fst6 inGraph)
 
           -- graph node list
@@ -324,6 +326,8 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
           -- make tuple for each edge in each graph
           -- (uIndex,vINdex,uBV, vBV, graph cost)
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+      -}
+      let tupleList = getGraphTupleList inGraph infinity
 
           -- traverse neighborhood (and net edge removal) keeping min cost without edges
           supportEdgeTupleList = getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom tupleList inGraph
@@ -335,6 +339,26 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
       where makeindexBVPair (a,b) = (a, bvLabel b)
             tupleToSimpleEdge (a,b, _, _, c) = (a,b,c)
 
+-- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
+getGraphTupleList :: PhylogeneticGraph -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+getGraphTupleList inGraph inCost =
+   if LG.isEmpty (fst6 inGraph) then []
+   else 
+      let egdeList = LG.edges (fst6 inGraph)
+
+          -- graph node list
+          nodeList = LG.labNodes (thd6 inGraph)
+          nodeIndexBVPairList = fmap makeindexBVPair nodeList
+
+          -- list of vectors for contant time access via index = fst (a, bv)
+          nodeIndexBVPairVect= V.fromList nodeIndexBVPairList
+
+          -- make tuple for each edge in each graph
+          -- (uIndex,vINdex,uBV, vBV, graph cost)
+          tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+      in
+      tupleList
+      where makeindexBVPair (a,b) = (a, bvLabel b)
 
 -- | getGBTuples takes a tuple list fomr graph containing initialized values and update those values based
 -- on each graph in the inGraph neigborhood
@@ -378,19 +402,28 @@ performGBSwap   :: GlobalSettings
 performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
     if LG.isEmpty (fst6 inGraph) then []
     else
-        let (firstRootIndex, _) = head $ LG.getRoots (thd6 inGraph)
+        let -- work with simple graph
+            inSimple = fst6 inGraph
+            (firstRootIndex, _) = head $ LG.getRoots inSimple
 
             -- determine edges to break on--'bridge' edges only for network
             -- filter out edges from root since no use--would just rejoin
-            breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges (thd6 inGraph)
-                          else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList (thd6 inGraph)
+            breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges inSimple
+                          else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList inSimple
 
             -- get random integer lists for swap
             randomIntegerList = randomIntList rSeed
             randomIntegerListList = fmap randomIntList randomIntegerList
+
+            -- integerized critical value for prob accept
+            -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
+            (_, leafList, _, netVertList) = LG.splitVertexList (fst6 inGraph)
+            intProbAccept = if swapType == "spr" then floor $ (1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 2)
+                            else floor $ (1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 3)
+
             
             -- generate tuple lists for each break edge parallelized at this level
-            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
+            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists tupleListList []
@@ -400,27 +433,88 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
 -- | splitRejoinGB take parameters and splits input graph at specified edge and rejoins at all available edge 
 -- (reroots the pruned subgraph if TBR) and creates and gets cost of graph (lazy takes care of post order only)
 -- with optimized graph, tuple list is creted and compared to input graph tuple list.
+-- original edge was (parentPrunedGraphRoot, prunedGraphRootIndex)
+-- working with SimpleGraph
 splitRejoinGB   :: GlobalSettings 
                 -> ProcessedData 
                 -> Int 
                 -> String
-                -> Maybe Int 
+                -> Int 
                 -> Bool 
                 -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-                -> PhylogeneticGraph 
+                -> SimpleGraph 
+                -> [LG.LEdge Double]
                 -> [Int]
-                -> (LG.LEdge EdgeInfo)
+                -> LG.LEdge Double
                 -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph randomIntegerList breakEdge =
-    -- split graph
-
-    -- get edges in base graph to be invaded (ie not in pruned graph)
-
-    -- rejoin, evaluate, get better tuple
-
-    -- merge tuples
+splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleList inGraph originalBreakEdgeList randomIntegerList breakEdge =
     
-    inTupleList
+    let 
+      -- split graph on breakEdge
+      (splitGraph, graphRoot, prunedGraphRootIndex,  parentPrunedGraphRoot) = GO.splitGraphOnEdge inGraph breakEdge
+
+      -- get edges in base graph to be invaded (ie not in pruned graph)
+      prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
+      (prunedSubTreeNodes, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
+      edgesToInvade = originalBreakEdgeList L.\\ (breakEdge : prunedSubTreeEdges)
+
+      -- rejoin, evaluate, get better tuple
+      -- check if there are tbr-type rearrangements to do (rerooting pruned graph)
+      doSPR = (length prunedSubTreeNodes < 3) || swapType == "spr"
+
+      -- parallel at break level above
+      rejoinTupleListList = zipWith (rejoinGB inGS inData doSPR intProbAccept sampleAtRandom inTupleList splitGraph breakEdge) randomIntegerList edgesToInvade
+
+      -- merge tuples
+      newTupleList = mergeTupleLists rejoinTupleListList []
+    in
+    newTupleList
+
+-- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
+-- splitGraph is SimpleGraph
+rejoinGB :: GlobalSettings 
+         -> ProcessedData 
+         -> Bool
+         -> Int 
+         -> Bool 
+         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+         -> SimpleGraph 
+         -> (LG.LEdge Double)
+         -> Int
+         -> LG.LEdge Double
+         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+rejoinGB inGS inData doSPR intProbAccept sampleAtRandom inTupleList splitGraph originalBreakEdge@(eBreak, vBreak, lBreak) rSeed edgeToInvade@(eInv, vInv, lInv) = 
+   -- is SPR or small pruned graph
+   if doSPR then
+      let doGraph = if sampleAtRandom then 
+                        let (_, intRandVal) = divMod (abs rSeed) 1000 
+                        in
+                        if intRandVal < intProbAccept then True
+                        else False
+                    else True
+      in
+      if doGraph then  
+         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak vBreak
+             pruneEdges = False
+             warnPruneEdges = False
+             startVertex = Nothing
+             newPhylogeneticGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                    else 
+                                       if (not . LG.cyclic) newGraph && (not . GO.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                       else emptyPhylogeneticGraph
+         in
+         -- return original
+         if newPhylogeneticGraph == emptyPhylogeneticGraph then inTupleList
+
+         -- update tuple list based on new graph
+         else getLowerGBEdgeCost inTupleList newPhylogeneticGraph
+            
+      -- return original
+      else inTupleList
+
+   -- tbr
+   else 
+      inTupleList
 
 -- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
 mergeTupleLists :: [[(Int, Int, NameBV, NameBV, VertexCost)]] -> [(Int, Int, NameBV, NameBV, VertexCost)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
@@ -453,11 +547,14 @@ getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGr
 getLowerGBEdgeCost edgeTupleList inGraph =
    if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error ("Empty graph or null edge tuple list in getLowerGBEdgeCost")
    else 
-      let -- get edge data with BV for edge comparisons for inGraph
+      let inGraphTupleList = getGraphTupleList inGraph (snd6 inGraph)
+         {-
+         -- get edge data with BV for edge comparisons for inGraph
           egdeList = LG.edges (fst6 inGraph)
           nodeList = LG.labNodes (thd6 inGraph)
           nodeIndexBVPairVect = V.fromList $ fmap makeindexBVPair nodeList
           inGraphTupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+         -}
       in
       fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
       where makeindexBVPair (a,b) = (a, bvLabel b)
