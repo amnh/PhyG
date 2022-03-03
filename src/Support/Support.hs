@@ -138,7 +138,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
                 supportGraphList = if method == "bootstrap" || method == "jackknife" then [getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList]
-                               else fmap (getGoodBremGraphs inGS inData rSeed swapOptions gbSampleSize gbRandomSample) inGraphList
+                               else fmap (getGoodBremGraphs inGS inData rSeed (fromJust goodBremMethod) gbSampleSize gbRandomSample) inGraphList
             in
             supportGraphList
      
@@ -306,8 +306,8 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 -- sample based on SPR-- 4n^2 - 26n - 42 for TBR 8n^3 for now
 -- this will only examine bridge edges for networks, networkedge values willl be doen via net delete
 -- MAPs for each graph?
-getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> [(String, String)] -> Maybe Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGraph = 
+getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> String -> Maybe Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph = 
    if LG.isEmpty (fst6 inGraph) then emptyPhylogeneticGraph -- maybe should be error?
    else 
       -- create list of edges for input graph and a structure with egde node indices and bitvector values
@@ -326,7 +326,7 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
 
           -- traverse neighborhood (and net edge removal) keeping min cost without edges
-          supportEdgeTupleList = getGBTuples inGS inData rSeed swapOptions sampleSize sampleAtRandom tupleList inGraph
+          supportEdgeTupleList = getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom tupleList inGraph
 
           simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap tupleToSimpleEdge supportEdgeTupleList) 
       in
@@ -342,15 +342,93 @@ getGoodBremGraphs inGS inData rSeed swapOptions sampleSize sampleAtRandom inGrap
 getGBTuples :: GlobalSettings 
             -> ProcessedData 
             -> Int 
-            -> [(String, String)] 
+            -> String
             -> Maybe Int 
             -> Bool 
             -> [(Int, Int, NameBV, NameBV, VertexCost)] 
             -> PhylogeneticGraph 
             -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-getGBTuples inGS inData rSeed swapOptions sampleSize sampleAtRandom inTupleList inGraph =
-   inTupleList
+getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
+    -- traverse swap (SPR/TBR) neighborhood optimizing each graph fully
+    let swapTuples = performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph
 
+        -- network edge support if not Tree
+        netTuples = if graphType inGS == Tree then swapTuples -- swap only for Tree
+                    else if graphType inGS == SoftWired then
+                        -- SoftWired => move and delete edge
+                        swapTuples
+                    else 
+                        -- HardWired => move only
+                        swapTuples
+        in
+        netTuples
+
+-- | performGBSwap takes parameters and  graphs and traverses swap neighborhood
+-- examining each (or nth, or random) Graphs examining each ech in each graph for Goodman-Bremer 
+-- optimality support
+performGBSwap   :: GlobalSettings 
+                -> ProcessedData 
+                -> Int 
+                -> String
+                -> Maybe Int 
+                -> Bool 
+                -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+                -> PhylogeneticGraph 
+                -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
+    if LG.isEmpty (fst6 inGraph) then []
+    else
+        let (firstRootIndex, _) = head $ LG.getRoots (thd6 inGraph)
+
+            -- determine edges to break on--'bridge' edges only for network
+            -- filter out edges from root since no use--would just rejoin
+            breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges (thd6 inGraph)
+                          else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList (thd6 inGraph)
+
+            -- get random integer lists for swap
+            randomIntegerList = randomIntList rSeed
+            randomIntegerListList = fmap randomIntList randomIntegerList
+            
+            -- generate tuple lists for each break edge parallelized at lower level
+            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph) randomIntegerListList breakEdgeList
+
+            -- merge tuple lists--should all be in same order
+            newTupleList = mergeTupleLists tupleListList []
+        in
+        newTupleList
+
+-- | splitRejoinGB take parameters and splits input graph at specified edge and rejoins at all available edge 
+-- (reroots the pruned subgraph if TBR) and creates and gets cost of graph (lazy takes care of post order only)
+-- with optimized graph, tuple list is creted and compared to input graph tuple list.
+splitRejoinGB   :: GlobalSettings 
+                -> ProcessedData 
+                -> Int 
+                -> String
+                -> Maybe Int 
+                -> Bool 
+                -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+                -> PhylogeneticGraph 
+                -> [Int]
+                -> (LG.LEdge EdgeInfo)
+                -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+splitRejoinGB inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph randomIntegerList breakEdge =
+    inTupleList
+
+-- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
+mergeTupleLists :: [[(Int, Int, NameBV, NameBV, VertexCost)]] -> [(Int, Int, NameBV, NameBV, VertexCost)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
+mergeTupleLists inTupleListList accumList = 
+    if null inTupleListList then accumList
+    else 
+        if null accumList then mergeTupleLists (tail inTupleListList) (head inTupleListList)
+        else 
+            let firstTupleList = head inTupleListList
+                newTupleList = zipWith chooseBetterTuple firstTupleList accumList
+            in
+            mergeTupleLists (tail inTupleListList) newTupleList
+
+-- | chooseBetterTuple takes two (Int, Int, NameBV, NameBV, VertexCost) and returns better cost
+chooseBetterTuple :: (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+chooseBetterTuple aTuple@(_, _, _, _, aCost) bTuple@(_, _, _, _, bCost) = if aCost < bCost then aTuple else bTuple 
 
 -- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
 -- (uIndex,vINdex,uBV, vBV, graph cost)
@@ -397,3 +475,5 @@ getNotFoundCost uBV vBV inTupleCost inTupleList =
       in
       if uBV == uInBV && vBV == bInBV then Nothing
       else getNotFoundCost uBV vBV inTupleCost (tail inTupleList)
+
+
