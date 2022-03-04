@@ -701,4 +701,8 @@ preOrderTreeTraversal
 
 295)  use splitGraphOnEdge' in swap--save looking for edges later all over
 
-output better graph if found in GB
+296) output better graph if found in GB
+
+297) in swap etc--if "isTree" don't do all teh checking
+
+
