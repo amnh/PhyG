@@ -333,12 +333,12 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
           -- traverse neighborhood (and net edge removal) keeping min cost without edges
           supportEdgeTupleList = getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom tupleList inGraph
 
-          simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap tupleToSimpleEdge supportEdgeTupleList) 
+          simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap (tupleToSimpleEdge (snd6 inGraph)) supportEdgeTupleList) 
       in
       (simpleGBGraph, snd6 inGraph, thd6 inGraph, fth6 inGraph, fft6 inGraph, six6 inGraph) 
       
       where makeindexBVPair (a,b) = (a, bvLabel b)
-            tupleToSimpleEdge (a,b, _, _, c) = (a,b,c)
+            tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
 
 -- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
 getGraphTupleList :: PhylogeneticGraph -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] 
