@@ -127,7 +127,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 -- sample trees uniformly at random--or "nth"
                 gbRandomSample = if gbSampleSize /= Nothing then True -- any ((=="atrandom").fst) lcArgList
                                  else False
-                                 
+
                 replicates = if fromJust replicates' < 0 then 
                                  trace ("Negative replicates number--defaulting to 100")
                                  100
@@ -322,7 +322,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 -- MAPs for each graph?
 getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> String -> Maybe Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph = 
-   if LG.isEmpty (fst6 inGraph) then emptyPhylogeneticGraph -- maybe should be error?
+   if LG.isEmpty (fst6 inGraph) then error ("Null graph in getGoodBremGraphs") -- maybe should be error?
    else 
       -- create list of edges for input graph and a structure with egde node indices and bitvector values
       -- requires index BV of each node
@@ -347,6 +347,7 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
 
           simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap (tupleToSimpleEdge (snd6 inGraph)) supportEdgeTupleList) 
       in
+      -- trace ("GGBG: " ++ (show $ length tupleList) ++ " -> " ++ (show $ length supportEdgeTupleList))
       (simpleGBGraph, snd6 inGraph, thd6 inGraph, fth6 inGraph, fft6 inGraph, six6 inGraph) 
       
       where makeindexBVPair (a,b) = (a, bvLabel b)
@@ -355,7 +356,7 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
 -- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
 getGraphTupleList :: PhylogeneticGraph -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] 
 getGraphTupleList inGraph inCost =
-   if LG.isEmpty (fst6 inGraph) then []
+   if LG.isEmpty (fst6 inGraph) then error ("Null graph in getGraphTupleList")
    else 
       let egdeList = LG.edges (fst6 inGraph)
 
@@ -452,7 +453,7 @@ performGBSwap   :: GlobalSettings
                 -> PhylogeneticGraph 
                 -> [(Int, Int, NameBV, NameBV, VertexCost)] 
 performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
-    if LG.isEmpty (fst6 inGraph) then []
+    if LG.isEmpty (fst6 inGraph) then error ("Null graph in performGBSwap")
     else
         let -- work with simple graph
             inSimple = fst6 inGraph
@@ -478,8 +479,9 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
             tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
-            newTupleList = mergeTupleLists tupleListList []
+            newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
         in
+        -- trace ("PGBS:" ++ (show $ fmap length tupleListList) ++ " -> " ++ (show $ length newTupleList))
         newTupleList
 
 -- | splitRejoinGB take parameters and splits input graph at specified edge and rejoins at all available edge 
@@ -659,7 +661,7 @@ getNotFoundCost uBV vBV inTupleCost inTupleList =
 -- much of this is modified from Swap.hs but removing data and delta portions
 getTBRSplitGraphs :: GlobalSettings -> SimpleGraph -> LG.LEdge Double -> [SimpleGraph]
 getTBRSplitGraphs inGS splitGraph splitEdge = 
-   if LG.isEmpty splitGraph then []
+   if LG.isEmpty splitGraph then error ("Empty graph in getTBRSplitGraphs")
    else 
       -- get edges in pruned graph and reroot on those edges that are 1) not from original "root" of prune
       -- and 2) not network edges

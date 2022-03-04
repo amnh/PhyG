@@ -420,7 +420,7 @@ splitGraphOnEdge inGraph (e,v,l) =
       if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
       else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
       else 
-          trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
+          -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
           (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
 
 -- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges creted and destroyed as well

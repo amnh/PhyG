@@ -288,9 +288,9 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
        distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
+   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph)
    else
-      let simpleWag = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph
+      let simpleWag = GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) distWagTreeSimpleGraph
       in
       (simpleWag, 0.0, LG.empty, V.empty, V.empty, charInfoVV)
 
@@ -305,7 +305,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraph inGS inData False False Nothing . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+   if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraph inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
    else 
       let numTrees = length randomizedAdditionWagnerSimpleGraphList
           simpleRDWagList = fmap ((GO.dichotomizeRoot outgroupValue) . GO.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
@@ -321,7 +321,7 @@ neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refin
        njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
+   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph)
    else 
       let simpleNJ = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) njSimpleGraph
       in
@@ -338,7 +338,7 @@ wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
        wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)
+   if not simpleTreeOnly then T.multiTraverseFullyLabelGraph inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph)
    else 
       let simpleWPGMA = GO.dichotomizeRoot outgroupValue $ GO.switchRootTree (length leafNames) wpgmaSimpleGraph
       in
