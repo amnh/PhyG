@@ -466,8 +466,7 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
       splitGraphList = if (length prunedSubTreeNodes < 3) || swapType == "spr" then [splitGraph]
 
                        -- generate "tbr" rerootings in split graph
-                       else 
-                           getTBRSplitGraphs inGS splitGraph breakEdge
+                       else getTBRSplitGraphs inGS splitGraph breakEdge
 
       -- new random lists for rejoin 
       randomIntegerListList = fmap randomIntList randomIntegerList
@@ -483,8 +482,80 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
 -- | getTBRSplitGraphs takes a split gaph and the original split edge and 
 -- returns a list of rerooted subgrahs split graphs suitable for rejoining
 -- via SPR-type rejoin each to generate TBR neighborhood
+-- much of this is modified from Swap.hs but removing data and delta portions
 getTBRSplitGraphs :: GlobalSettings -> SimpleGraph -> LG.LEdge Double -> [SimpleGraph]
-getTBRSplitGraphs inGS splitGraph splitEdge = [splitGraph]
+getTBRSplitGraphs inGS splitGraph splitEdge = 
+   if LG.isEmpty splitGraph then []
+   else 
+      -- get edges in pruned graph and reroot on those edges that are 1) not from original "root" of prune
+      -- and 2) not network edges
+      let prunedGraphRootNode = (snd3 splitEdge, fromJust $ LG.lab splitGraph $ snd3 splitEdge)
+          edgesInPrunedSubGraph = snd $ LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
+
+          nonNetWorkEdgeList = if graphType inGS /= Tree then filter ((== False) . (LG.isNetworkLabEdge splitGraph)) edgesInPrunedSubGraph
+                               else edgesInPrunedSubGraph
+
+          -- original pruned root edges
+          prunedRootEdges = LG.out splitGraph $ fst prunedGraphRootNode
+
+          -- edges available for rerooting
+          edgeAfterList = nonNetWorkEdgeList L.\\ prunedRootEdges
+
+          -- get edges to add and delete for TBR rerooting 
+          tbrEdits = fmap (getTBREdits splitGraph prunedGraphRootNode edgesInPrunedSubGraph) (fmap LG.toEdge edgeAfterList)
+
+          -- TBR split graph list
+          tbrGraphList = fmap (LG.insertDeleteEdges splitGraph) tbrEdits
+         
+      in
+      splitGraph : tbrGraphList
+
+-- | getTBREdits takes and edge and returns the list of edits to pruned subgraph 
+-- as a pair of edges to add and those to delete
+-- since reroot edge is directed (e,v), edges away from v will have correct
+-- orientation. Edges between 'e' and the root will have to be flipped
+-- original root edges and reroort edge are deleted and new root and edge spanning orginal root created
+-- returns ([add], [delete])
+-- modified from function in swap to be more general and operate on SimpleGraphs as are used here
+getTBREdits :: (Eq a, Eq b) => LG.Gr a b -> LG.LNode a -> [LG.LEdge b] -> LG.Edge -> ([LG.LEdge b],[LG.Edge])
+getTBREdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
+   --trace ("Gettiung TBR Edits for " ++ (show rerootEdge)) (
+   let prunedGraphRootIndex = fst prunedGraphRootNode
+       originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
+       originalRootEdges = LG.out inGraph prunedGraphRootIndex
+       
+       -- get path from new root edge fst vertex to orginal root and flip those edges
+       closerToPrunedRootEdgeNode = (fst rerootEdge, fromJust $ LG.lab inGraph $ fst rerootEdge)
+       (nodesInPath, edgesinPath) = LG.postOrderPathToNode inGraph closerToPrunedRootEdgeNode prunedGraphRootNode 
+       
+       -- don't want original root edges to be flipped since deleted
+       edgesToFlip = edgesinPath L.\\ originalRootEdges
+       flippedEdges = fmap LG.flipLEdge edgesToFlip
+
+       -- dummyEdgeLabel so can be type "b"
+       dummyEdgeLabel =  thd3 $ head edgesInPrunedSubGraph
+
+       -- new edges on new root position and spanning old root
+       -- add in closer vertex to root to make sure direction of edge is correct
+       newEdgeOnOldRoot = if (snd3 $ head originalRootEdges) `elem` ((fst rerootEdge) : (fmap fst nodesInPath)) then (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, dummyEdgeLabel)
+                          else (snd3 $ last originalRootEdges, snd3 $ head originalRootEdges, dummyEdgeLabel)
+       newRootEdges = [(prunedGraphRootIndex, fst rerootEdge, dummyEdgeLabel),(prunedGraphRootIndex, snd rerootEdge, dummyEdgeLabel)]
+
+
+   in
+   -- original root edge so no change
+   if (fst rerootEdge) `elem` originalRootEdgeNodes &&  (snd rerootEdge) `elem` originalRootEdgeNodes then ([],[])
+
+   -- rerooted
+   else 
+      -- delete orignal root edges and rerootEdge
+      -- add new root edges 
+      -- and new edge on old root--but need orientation
+      -- flip edges from new root to old (delete and add list) 
+      --trace ("\n\nIn Graph:\n"++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\nTBR Edits: " ++ (show (rerootEdge, prunedGraphRootIndex, fmap LG.toEdge flippedEdges))
+      --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
+      (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges)))
+      -- )
 
 
 
@@ -549,7 +620,7 @@ mergeTupleLists inTupleListList accumList =
 
 -- | chooseBetterTuple takes two (Int, Int, NameBV, NameBV, VertexCost) and returns better cost
 chooseBetterTuple :: (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-chooseBetterTuple aTuple@(_, _, _, _, aCost) bTuple@(_, _, _, _, bCost) = if aCost < bCost then aTuple else bTuple 
+chooseBetterTuple aTuple@(aE, aV, aEBV, aVBV, aCost) bTuple@(_, _, _, _, bCost) = (aE, aV, aEBV, aVBV, min aCost bCost)
 
 -- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
 -- (uIndex,vINdex,uBV, vBV, graph cost)

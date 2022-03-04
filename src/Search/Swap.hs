@@ -739,11 +739,11 @@ addSubGraph inGS swapType hardWiredSPR doIA inGraph prunedGraphRootNode splitCos
       -- )
    
 
--- | getTBREdgeEdits takes and edge and returns the list of edita to pruned subgraph 
+-- | getTBREdgeEdits takes and edge and returns the list of edit to pruned subgraph 
 -- as a pair of edges to add and those to delete
 -- since reroot edge is directed (e,v), edges away from v will have correct
 -- orientation. Edges between 'e' and the root will have to be flipped
--- original root edges and rerort edge are deleted and new root and edge spanning orginal root created
+-- original root edges and reroort edge are deleted and new root and edge spanning orginal root created
 -- returns ([add], [delete])
 getTBREdgeEdits :: DecoratedGraph -> LG.LNode VertexInfo -> [LG.LEdge EdgeInfo] -> LG.Edge -> ([LG.LEdge Double],[LG.Edge])
 getTBREdgeEdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
@@ -1071,12 +1071,16 @@ reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV netPenaltyFactor inSplit
       else (fullSplitGraph, splitGraphCost)
       -- )
 
--- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
-applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
-applyGraphEdits inGraph (_, edgesToAdd, edgesToDelete) = 
+-- | applyGraphEdits' takes a  graphs and list of nodes and edges to add and delete and creates new graph
+applyGraphEdits' :: (Show a, Show b) => LG.Gr a b -> (VertexCost, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
+applyGraphEdits' inGraph (_, edgesToAdd, edgesToDelete) = 
    let editedGraph = LG.insEdges edgesToAdd $ LG.delEdges edgesToDelete inGraph
    in
    -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 
    editedGraph
    
 
+-- | applyGraphEdits takes a  graphs and list of nodes and edges to add and delete and creates new graph
+applyGraphEdits :: (Show a, Show b) => LG.Gr a b -> (VertexCost, [LG.LEdge b], [LG.Edge]) ->  LG.Gr a b
+applyGraphEdits inGraph (_, edgesToAdd, edgesToDelete) = LG.insertDeleteEdges inGraph (edgesToAdd, edgesToDelete)
+   

@@ -962,3 +962,13 @@ meetsAllCoevalConstraints constraintList edge1 edge2 =
        if edge1 `elem` beforeList && edge2 `elem` afterList then False
        else if edge2 `elem` beforeList && edge1 `elem` afterList then False
        else meetsAllCoevalConstraints (tail constraintList) edge1 edge2
+
+-- | insertDeleteEdges takes a  graphs and list of nodes and edges to add and delete and creates new graph
+insertDeleteEdges :: (Show a, Show b) => Gr a b -> ([LEdge b], [Edge]) ->  Gr a b
+insertDeleteEdges inGraph (edgesToAdd, edgesToDelete) = 
+   let editedGraph = insEdges edgesToAdd $ delEdges edgesToDelete inGraph
+   in
+   -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 
+   editedGraph
+   
+
