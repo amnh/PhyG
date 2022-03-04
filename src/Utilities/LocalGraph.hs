@@ -972,3 +972,8 @@ insertDeleteEdges inGraph (edgesToAdd, edgesToDelete) =
    editedGraph
    
 
+-- | notMatchEdgeIndices reutnr True if not in edge list but doesn't compare label only indices
+notMatchEdgeIndices :: [Edge] -> LEdge b -> Bool
+notMatchEdgeIndices unlabeledEdegList labelledEdge =
+    if toEdge labelledEdge `elem` unlabeledEdegList then False
+    else True

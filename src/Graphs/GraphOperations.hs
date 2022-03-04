@@ -50,6 +50,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , sortEdgeListByDistance
                                , splitGraphOnEdge
                                , joinGraphOnEdge
+                               , splitGraphOnEdge'
                                , getEdgeSplitList
                                , selectPhylogeneticGraph
                                , getUniqueGraphs
@@ -403,7 +404,7 @@ getEdgeSplitList inGraph =
 -- node returned.  The naked node is used for rejoining the two components during rearrangement
 -- (SplitGraph, root of component that has original root, root of component that was cut off, naked node left over)
 -- this function does not check whether edge is a 'bridge'
-splitGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
+splitGraphOnEdge :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
 splitGraphOnEdge inGraph (e,v,l) =
   if LG.isEmpty inGraph then error "Empty graph in splitGraphOnEdge"
   else if (length $ LG.getRoots inGraph) /= 1 then error ("Incorrect number roots in splitGraphOnEdge--must be 1: " ++ (show $ fmap fst $ LG.getRoots inGraph))
@@ -419,23 +420,45 @@ splitGraphOnEdge inGraph (e,v,l) =
       if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
       else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
       else 
+          trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
           (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
 
+-- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges creted and destroyed as well
+-- used in Goodman-Bermer and could make swap more efficient as well.
+splitGraphOnEdge' :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node, LG.LEdge b, [LG.Edge])
+splitGraphOnEdge' inGraph (e,v,l) =
+  if LG.isEmpty inGraph then error "Empty graph in splitGraphOnEdge"
+  else if (length $ LG.getRoots inGraph) /= 1 then error ("Incorrect number roots in splitGraphOnEdge--must be 1: " ++ (show $ fmap fst $ LG.getRoots inGraph))
+  else
+      let childrenENode = (LG.descendants inGraph e) L.\\ [v]
+          parentsENode = LG.parents inGraph e
+          newEdge = (head parentsENode, head childrenENode, l)
+          edgesToDelete = [(head parentsENode, e), (e, head childrenENode)] -- (e,v)
 
--- | joinGraphOnEdge takes a graph with and adds an edge reducing the component number
+          -- make new graph
+          splitGraph = LG.insEdge newEdge $ LG.delEdges edgesToDelete inGraph
+      in
+      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
+      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
+      else 
+          -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
+          (splitGraph, fst $ head $ LG.getRoots inGraph, v, e, newEdge, edgesToDelete)
+
+-- | joinGraphOnEdge takes a graph and adds an edge reducing the component number
 -- expected ot be two components to one in SPR/TBR
 -- assumes that first node of edge (e,v,l) is 'naked' ie avaiable to make edges but is in graph
 -- created from splitGraphOnEdge
-joinGraphOnEdge :: LG.Gr a b -> LG.LEdge b -> LG.Node -> LG.Node -> LG.Gr a b
+joinGraphOnEdge :: (Show a,Show b) => LG.Gr a b -> LG.LEdge b -> LG.Node -> LG.Node -> LG.Gr a b
 joinGraphOnEdge inGraph edgeToInvade@(x,y,l) parentofPrunedSubGraph graphToJoinRoot =
   if LG.isEmpty inGraph then error ("Empty graph in joinGraphOnEdge")
   else 
       let edgeToCreate0 = (x, parentofPrunedSubGraph, l)
           edgeToCreate1 = (parentofPrunedSubGraph, y, l)
-          edgeToCreate2 = (parentofPrunedSubGraph, graphToJoinRoot, l)     
+          -- edgeToCreate2 = (parentofPrunedSubGraph, graphToJoinRoot, l)     
       in
       -- make new graph
-      LG.insEdges [edgeToCreate0, edgeToCreate1, edgeToCreate2] $ LG.delEdge (x,y) inGraph
+      -- trace ("JGE:" ++ (show edgeToInvade) ++ " " ++ (show (parentofPrunedSubGraph, graphToJoinRoot))) --  ++ "\n" ++ (LG.prettify inGraph))
+      LG.insEdges [edgeToCreate0, edgeToCreate1] $ LG.delEdge (x,y) inGraph
  
 -- | sortEdgeListByLength sorts edge list by length (midRange), highest to lowest
 sortEdgeListByLength :: [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]

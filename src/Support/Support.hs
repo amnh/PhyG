@@ -96,8 +96,8 @@ supportGraph inArgs inGS inData rSeed inGraphList =
              goodBremMethod   
               | length goodBremList > 1 =
                 errorWithoutStackTrace ("Multiple Goodman-Bremer method specifications in support command--can have only one (e.g. gb:tbr): " ++ show inArgs)
-              | null goodBremList = Just "tbr" 
-              | otherwise = readMaybe (snd $ head goodBremList) :: Maybe String
+              | null (snd $ head goodBremList) = Just "tbr" 
+              | otherwise = Just $ snd $ head goodBremList
 
              goodBremSampleList   = filter ((`elem` ["gbsample"]).fst) lcArgList 
              goodBremSample   
@@ -109,7 +109,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
          in
          if isNothing jackFreq' then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " ++ show (snd $ head jackList))
          else if isNothing replicates' then errorWithoutStackTrace ("Resampling replicates specification not a string (e.g. replicates:100) in support: " ++ show (snd $ head replicateList))
-         else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " ++ show (snd $ head goodBremList))
+         --else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " ++ (show (snd $ head goodBremList)) ++ (show lcArgList))
          else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " ++ show (snd $ head goodBremSampleList))
          else 
             let method = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
@@ -125,8 +125,9 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                else goodBremSample
 
                 -- sample trees uniformly at random--or "nth"
-                gbRandomSample = any ((=="atrandom").fst) lcArgList
-                
+                gbRandomSample = if gbSampleSize /= Nothing then True -- any ((=="atrandom").fst) lcArgList
+                                 else False
+                                 
                 replicates = if fromJust replicates' < 0 then 
                                  trace ("Negative replicates number--defaulting to 100")
                                  100
@@ -139,9 +140,20 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 buildOptions = [("distance",""), ("replicates", show 100), ("best", show 1), ("rdwag", ""), ("dWag", "")]
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
-                supportGraphList = if method == "bootstrap" || method == "jackknife" then [getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList]
-                               else fmap (getGoodBremGraphs inGS inData rSeed (fromJust goodBremMethod) gbSampleSize gbRandomSample) inGraphList
+                supportGraphList = if method == "bootstrap" || method == "jackknife" then 
+                                       let extraString = if  method == "jackknife" then (" with delete fraction  " ++ (show $ 1 - jackFreq))
+                                                         else ""
+                                       in
+                                       trace ("Generating " ++ method ++ " resampling support with " ++ (show replicates) ++ " replicates" ++ extraString)
+                                       [getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList]
+                                   else 
+                                       let extraString = if  gbSampleSize /= Nothing then (" based on " ++ (show $ fromJust gbSampleSize) ++ " samples at random") 
+                                                         else ""
+                                       in
+                                       trace ("Generating Goodman-Bremer support" ++ extraString)
+                                       fmap (getGoodBremGraphs inGS inData rSeed (fromJust goodBremMethod) gbSampleSize gbRandomSample) inGraphList
             in
+
             supportGraphList
      
 -- | getResampledGraphs performs resampling and search for bootstrap and jackknife support
@@ -392,7 +404,6 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
         in
         netTuples
 
-
 -- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network) 
 -- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
 updateDeleteTuple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
@@ -492,12 +503,13 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
     
     let 
       -- split graph on breakEdge
-      (splitGraph, graphRoot, prunedGraphRootIndex,  parentPrunedGraphRoot) = GO.splitGraphOnEdge inGraph breakEdge
+      (splitGraph, graphRoot, prunedGraphRootIndex,  parentPrunedGraphRoot, _, edgeDeleteList) = GO.splitGraphOnEdge' inGraph breakEdge
 
       -- get edges in base graph to be invaded (ie not in pruned graph)
       prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
       (prunedSubTreeNodes, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
-      edgesToInvade = originalBreakEdgeList L.\\ (breakEdge : prunedSubTreeEdges)
+      edgesNotToInvade = ((LG.toEdge breakEdge) : edgeDeleteList) ++ (fmap LG.toEdge prunedSubTreeEdges)
+      edgesToInvade = filter (LG.notMatchEdgeIndices edgesNotToInvade) originalBreakEdgeList
 
       -- rejoin, evaluate, get better tuple
       -- check if there are tbr-type rearrangements to do (rerooting pruned graph)
@@ -519,6 +531,127 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
       newTupleList = mergeTupleLists rejoinTupleListList []
     in
     newTupleList
+    where addDouble (a,b) = (a,b,0.0)
+
+
+
+
+-- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
+-- splitGraph is SimpleGraph
+-- the rejoin is SPR type relying on teh list lengt of split graph to present the TBR reroots
+rejoinGB :: GlobalSettings 
+         -> ProcessedData 
+         -> Int 
+         -> Bool 
+         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+         -> [SimpleGraph] 
+         -> (LG.LEdge Double)
+         -> [Int]
+         -> LG.LEdge Double
+         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
+rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, lBreak) randIntList edgeToInvade = 
+   if null splitGraphList then inTupleList
+   else
+      let numTaxa = V.length $ fst3 inData
+          splitGraph = head  splitGraphList
+          doGraph = if sampleAtRandom then 
+                      let (_, intRandVal) = divMod (abs (head randIntList)) 1000 
+                      in
+                      if intRandVal < intProbAccept then True
+                      else False
+                    else True
+      in
+      if doGraph then  
+         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak vBreak
+             pruneEdges = False
+             warnPruneEdges = False
+             startVertex = Nothing
+             newPhylogeneticGraph = if (graphType inGS == Tree) then 
+                                       T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                    else 
+                                       if (not . LG.cyclic) newGraph && (not . GO.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                       else emptyPhylogeneticGraph
+         in
+         -- return original
+         if newPhylogeneticGraph == emptyPhylogeneticGraph then rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
+
+         -- update tuple list based on new graph
+         else 
+            let updatedTupleList = getLowerGBEdgeCost inTupleList newPhylogeneticGraph -- ((2 * numTaxa) -1)
+            in 
+            rejoinGB inGS inData intProbAccept sampleAtRandom updatedTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
+
+               
+      -- return original
+      else rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
+
+-- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
+mergeTupleLists :: [[(Int, Int, NameBV, NameBV, VertexCost)]] -> [(Int, Int, NameBV, NameBV, VertexCost)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
+mergeTupleLists inTupleListList accumList = 
+    if null inTupleListList then accumList
+    else 
+        if null accumList then mergeTupleLists (tail inTupleListList) (head inTupleListList)
+        else 
+            let firstTupleList = head inTupleListList
+                newTupleList = zipWith chooseBetterTuple firstTupleList accumList
+            in
+            mergeTupleLists (tail inTupleListList) newTupleList
+
+-- | chooseBetterTuple takes two (Int, Int, NameBV, NameBV, VertexCost) and returns better cost
+chooseBetterTuple :: (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+chooseBetterTuple aTuple@(aE, aV, aEBV, aVBV, aCost) bTuple@(_, _, _, _, bCost) = (aE, aV, aEBV, aVBV, min aCost bCost)
+
+-- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
+-- (uIndex,vINdex,uBV, vBV, graph cost)
+-- this for edge comparisons for Goodman-Bremer and other optimality-type support
+makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> VertexCost -> [(Int, Int)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
+makeGraphEdgeTuples nodeBVVect graphCost edgeList =
+   -- trace ("MET: " ++ (show $ V.length nodeBVVect))
+   fmap (make5Tuple nodeBVVect graphCost) edgeList
+   where make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
+
+-- | getLowerGBEdgeCost take a list of edge tuples of (uIndex,vINdex,uBV, vBV, graph cost) from the graph
+-- whose supports are being calculated and a new graph and updates the edge cost (GB value) if that edge
+-- is NOT present in the graph taking the minimum of the original GB value and the new graph cost
+getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
+getLowerGBEdgeCost edgeTupleList inGraph =
+   if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error ("Empty graph or null edge tuple list in getLowerGBEdgeCost")
+   else 
+      let numNodes = length $ LG.nodes (thd6 inGraph)
+          inGraphTupleList = getGraphTupleList inGraph (snd6 inGraph)
+         {-
+         -- get edge data with BV for edge comparisons for inGraph
+          egdeList = LG.edges (fst6 inGraph)
+          nodeList = LG.labNodes (thd6 inGraph)
+          nodeIndexBVPairVect = V.fromList $ fmap makeindexBVPair nodeList
+          inGraphTupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
+         -}
+      in
+      fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
+      where makeindexBVPair (a,b) = (a, bvLabel b)
+      
+-- | updateEdgeTuple checks is edge is NOT in input graph edge tuple list and if not takes minimum
+-- of edge cost GB value and in graph cost, else returns unchanged
+updateEdgeTuple :: VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+updateEdgeTuple inGraphCost inGraphTupleList (uIndex, vIndex, uBV, vBV, edgeGBValue) =
+   let edgeNotFoundCost = getNotFoundCost uBV vBV inGraphCost inGraphTupleList
+   in
+   if edgeNotFoundCost == Nothing then (uIndex, vIndex, uBV, vBV, edgeGBValue)
+   else (uIndex, vIndex, uBV, vBV, min edgeGBValue (fromJust edgeNotFoundCost))
+
+-- | getNotFoundCost take a pair of BitVectors (of vertices in graph) from an edge
+-- and a list of  (Int, Int, NameBV, NameBV, VertexCost) tuples and returns 
+-- Nothing is the BVs of the two match (= signifying edge in graph) or
+-- Just graph cost if not present for Goodman-Bremer calculations
+getNotFoundCost :: NameBV -> NameBV -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> Maybe VertexCost
+getNotFoundCost uBV vBV inTupleCost inTupleList = 
+   if null inTupleList then Just inTupleCost
+   else 
+      let (_, _, uInBV, vInBV, _) = head inTupleList
+      in
+      if uBV == uInBV && vBV == vInBV then Nothing
+      else getNotFoundCost uBV vBV inTupleCost (tail inTupleList)
+
 
 -- | getTBRSplitGraphs takes a split gaph and the original split edge and 
 -- returns a list of rerooted subgrahs split graphs suitable for rejoining
@@ -597,119 +730,3 @@ getTBREdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
       --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
       (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges)))
       -- )
-
-
-
--- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
--- splitGraph is SimpleGraph
--- the rejoin is SPR type relying on teh list lengt of split graph to present the TBR reroots
-rejoinGB :: GlobalSettings 
-         -> ProcessedData 
-         -> Int 
-         -> Bool 
-         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-         -> [SimpleGraph] 
-         -> (LG.LEdge Double)
-         -> [Int]
-         -> LG.LEdge Double
-         -> [(Int, Int, NameBV, NameBV, VertexCost)] 
-rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, lBreak) randIntList edgeToInvade@(eInv, vInv, lInv) = 
-   if null splitGraphList then inTupleList
-   else
-      let splitGraph = head  splitGraphList
-          doGraph = if sampleAtRandom then 
-                      let (_, intRandVal) = divMod (abs (head randIntList)) 1000 
-                      in
-                      if intRandVal < intProbAccept then True
-                      else False
-                    else True
-      in
-      if doGraph then  
-         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak vBreak
-             pruneEdges = False
-             warnPruneEdges = False
-             startVertex = Nothing
-             newPhylogeneticGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
-                                    else 
-                                       if (not . LG.cyclic) newGraph && (not . GO.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
-                                       else emptyPhylogeneticGraph
-         in
-         -- return original
-         if newPhylogeneticGraph == emptyPhylogeneticGraph then rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
-
-         -- update tuple list based on new graph
-         else 
-            let updatedTupleList = getLowerGBEdgeCost inTupleList newPhylogeneticGraph
-            in 
-            rejoinGB inGS inData intProbAccept sampleAtRandom updatedTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
-
-               
-      -- return original
-      else rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
-
--- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
-mergeTupleLists :: [[(Int, Int, NameBV, NameBV, VertexCost)]] -> [(Int, Int, NameBV, NameBV, VertexCost)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
-mergeTupleLists inTupleListList accumList = 
-    if null inTupleListList then accumList
-    else 
-        if null accumList then mergeTupleLists (tail inTupleListList) (head inTupleListList)
-        else 
-            let firstTupleList = head inTupleListList
-                newTupleList = zipWith chooseBetterTuple firstTupleList accumList
-            in
-            mergeTupleLists (tail inTupleListList) newTupleList
-
--- | chooseBetterTuple takes two (Int, Int, NameBV, NameBV, VertexCost) and returns better cost
-chooseBetterTuple :: (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-chooseBetterTuple aTuple@(aE, aV, aEBV, aVBV, aCost) bTuple@(_, _, _, _, bCost) = (aE, aV, aEBV, aVBV, min aCost bCost)
-
--- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
--- (uIndex,vINdex,uBV, vBV, graph cost)
--- this for edge comparisons for Goodman-Bremer and other optimality-type support
-makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> VertexCost -> [(Int, Int)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
-makeGraphEdgeTuples nodeBVVect graphCost edgeList =
-   fmap (make5Tuple nodeBVVect graphCost) edgeList
-   where make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
-
--- | getLowerGBEdgeCost take a list of edge tuples of (uIndex,vINdex,uBV, vBV, graph cost) from the graph
--- whose supports are being calculated and a new graph and updates the edge cost (GB value) if that edge
--- is NOT present in the graph taking the minimum of the original GB value and the new graph cost
-getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
-getLowerGBEdgeCost edgeTupleList inGraph =
-   if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error ("Empty graph or null edge tuple list in getLowerGBEdgeCost")
-   else 
-      let inGraphTupleList = getGraphTupleList inGraph (snd6 inGraph)
-         {-
-         -- get edge data with BV for edge comparisons for inGraph
-          egdeList = LG.edges (fst6 inGraph)
-          nodeList = LG.labNodes (thd6 inGraph)
-          nodeIndexBVPairVect = V.fromList $ fmap makeindexBVPair nodeList
-          inGraphTupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
-         -}
-      in
-      fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
-      where makeindexBVPair (a,b) = (a, bvLabel b)
-      
--- | updateEdgeTuple checks is edge is NOT in input graph edge tuple list and if not takes minimum
--- of edge cost GB value and in graph cost, else returns unchanged
-updateEdgeTuple :: VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-updateEdgeTuple inGraphCost inGraphTupleList (uIndex, vIndex, uBV, vBV, edgeGBValue) =
-   let edgeNotFoundCost = getNotFoundCost uBV vBV inGraphCost inGraphTupleList
-   in
-   if edgeNotFoundCost == Nothing then (uIndex, vIndex, uBV, vBV, edgeGBValue)
-   else (uIndex, vIndex, uBV, vBV, min edgeGBValue (fromJust edgeNotFoundCost))
-
--- | getNotFoundCost take a pair of BitVectors (of vertices in graph) from an edge
--- and a list of  (Int, Int, NameBV, NameBV, VertexCost) tuples and returns 
--- Nothing is the BVs of the two match (= signifying edge in graph) or
--- Just graph cost if not present for Goodman-Bremer calculations
-getNotFoundCost :: NameBV -> NameBV -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)] -> Maybe VertexCost
-getNotFoundCost uBV vBV inTupleCost inTupleList = 
-   if null inTupleList then Just inTupleCost
-   else 
-      let (_, _, uInBV, bInBV, _) = head inTupleList
-      in
-      if uBV == uInBV && vBV == bInBV then Nothing
-      else getNotFoundCost uBV vBV inTupleCost (tail inTupleList)
-
-

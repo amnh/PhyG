@@ -464,7 +464,7 @@ printGraphVizDot graphDotString dotFile =
         -}
         if isJust pCode then do
             cpResult  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
-            hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ dotFile ++ " -O ") 
+            hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ " " ++ dotFile ++ " -O ") 
         else 
             hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
 
