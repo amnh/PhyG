@@ -38,6 +38,8 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , insertAllNetEdges
                                 , moveAllNetEdges
                                 , deltaPenaltyAdjustment
+                                , deleteNetEdge
+                                , deleteOneNetAddAll
                                 ) where
 
 import Types.Types
@@ -84,7 +86,7 @@ moveAllNetEdges' inGS inData rSeed numToKeep counter returnMutated doSteepest do
       let firstPhyloGraph = head inPhyloGraphList
           currentCost = min curBestGraphCost (snd6 firstPhyloGraph)
           netEdgeList = LG.labNetEdges (thd6 firstPhyloGraph)
-          newGraphList' = concat ((zipWith3 (deleteOneNetAddAll inGS inData numToKeep doSteepest doRandomOrder currentCost firstPhyloGraph) (randomIntList rSeed) (U.generateUniqueRandList (length netEdgeList) inSimAnnealParams) netEdgeList) `using` PU.myParListChunkRDS)
+          newGraphList' = concat ((zipWith3 (deleteOneNetAddAll inGS inData numToKeep doSteepest doRandomOrder currentCost firstPhyloGraph) (randomIntList rSeed) (U.generateUniqueRandList (length netEdgeList) inSimAnnealParams) (fmap LG.toEdge netEdgeList)) `using` PU.myParListChunkRDS)
           newGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
           newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
                          else infinity
@@ -428,12 +430,12 @@ deleteAllNetEdges' inGS inData numToKeep counter returnMutated doSteepest doRand
 -- | deleteOneNetAddAll deletes the specified edge from a graph--creating a fully optimized new one--then readds
 -- and keeps best based on delta, reoptimizes those and compares to the oringal cost
 -- if better or ssame keeps as per usual
-deleteOneNetAddAll :: GlobalSettings -> ProcessedData -> Int -> Bool -> Bool -> VertexCost -> PhylogeneticGraph -> Int -> Maybe SAParams -> LG.LEdge EdgeInfo -> [PhylogeneticGraph]
+deleteOneNetAddAll :: GlobalSettings -> ProcessedData -> Int -> Bool -> Bool -> VertexCost -> PhylogeneticGraph -> Int -> Maybe SAParams -> LG.Edge -> [PhylogeneticGraph]
 deleteOneNetAddAll inGS inData numToKeep doSteepest doRandomOrder currentCost inPhyloGraph rSeed inSimAnnealParams edgeToDelete = 
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
    else
       -- True to force reoptimization of delete
-      let deletedEdgeGraph = deleteNetEdge inGS inData inPhyloGraph True (LG.toEdge edgeToDelete)
+      let deletedEdgeGraph = deleteNetEdge inGS inData inPhyloGraph True edgeToDelete
           (insertedGraphList, minNewCost) = insertEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder (Just $ snd6 inPhyloGraph) inSimAnnealParams deletedEdgeGraph
       in
       -- if minNewCost <= currentCost then GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] insertedGraphList
@@ -680,7 +682,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
          -- hit end of SA/Drift   
          else [inPhyloGraph]
 
--- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
+-- | deleteEdge deletes an edge (checking if network) and does NOT erdiagnose  graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- but only returns simple graph field 
 deleteNetEdgeSimple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph

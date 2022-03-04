@@ -694,6 +694,9 @@ preOrderTreeTraversal
 293) Check ststic only parallel swap (and optimizatiopn--ie no reroots)
 
 294)  For net build -> phylo graph
-	if naked HTUs (no children) just delte those nodes and contect etc
+	if naked HTUs (no children) just delete those nodes and contract 
+	edges etc
+
+
 
 

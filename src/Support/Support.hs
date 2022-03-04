@@ -51,6 +51,7 @@ import qualified Data.Vector as V
 import qualified Data.List as L
 import qualified Search.Build as B
 import qualified Search.Refinement as R
+import qualified Search.NetworkAddDelete as N
 import qualified Utilities.Distances     as DD
 import qualified Reconciliation.ReconcileGraphs as REC
 import qualified Utilities.LocalGraph      as LG
@@ -377,15 +378,55 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
     let swapTuples = performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph
 
         -- network edge support if not Tree
-        netTuples = if graphType inGS == Tree then swapTuples -- swap only for Tree
-                    else if graphType inGS == SoftWired then
-                        -- SoftWired => move and delete edge
-                        swapTuples
+        netTuples = if (graphType inGS == Tree) || (LG.isTree $ fst6 inGraph) then 
+                        -- swap only for Tree-do nothing
+                        swapTuples 
+
+                    -- SoftWired => delete edge -- could add net move if needed
+                     else if graphType inGS == SoftWired then
+                        fmap (updateDeleteTuple inGS inData inGraph) swapTuples `using` PU.myParListChunkRDS
+
+                    -- HardWired => move edge    
                     else 
-                        -- HardWired => move only
-                        swapTuples
+                        fmap (updateMoveTuple inGS inData inGraph) swapTuples `using` PU.myParListChunkRDS
         in
         netTuples
+
+
+-- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network) 
+-- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
+updateDeleteTuple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
+   let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
+   in
+   if not isNetworkEdge then inTuple
+   else 
+      -- True to force full evalutation
+      let deleteCost = snd6 $ N.deleteNetEdge inGS inData inGraph True (inE, inV)
+      in
+      (inE, inV, inEBV, inVBV, min inCost deleteCost)
+   
+
+-- | updateMoveTuple take a graph and and edge and moves a network edge (or returns tuple if not network) 
+-- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
+updateMoveTuple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
+updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
+   let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
+   in
+   if not isNetworkEdge then inTuple
+   else 
+      -- True to force full evalutation
+      let steepest = False
+          randomOrder = False
+          keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
+          currentCost = infinity
+          rSeed = 0
+          saParams = Nothing
+          moveCost = minimum $ fmap snd6 $ N.deleteOneNetAddAll inGS inData keepNum steepest randomOrder currentCost inGraph rSeed saParams (inE, inV)
+      in
+      (inE, inV, inEBV, inVBV, min inCost moveCost)
+   
+
 
 -- | performGBSwap takes parameters and  graphs and traverses swap neighborhood
 -- examining each (or nth, or random) Graphs examining each ech in each graph for Goodman-Bremer 
