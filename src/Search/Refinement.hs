@@ -515,7 +515,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
 
-
              acceptWorseList = filter ((=="acceptworse").fst) lcArgList
              acceptWorseFactor 
               | length acceptWorseList > 1 =
