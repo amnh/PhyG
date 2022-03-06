@@ -703,6 +703,12 @@ preOrderTreeTraversal
 
 296) output better graph if found in GB
 
-297) in swap etc--if "isTree" don't do all teh checking
+297) in swap etc--if "isTree" don't do all teh checking or cycleic etrc as well a bridge edges
 
-
+298) transform
+	to tree, to hradwrired, to softwired all doable now
+		to tree with some resoltoin options
+	to static Approx--for serches on new dats
+		will have two sets of data in command--original and"current" could bew transformed
+			may help with GPU later
+			
