@@ -568,7 +568,7 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
              pruneEdges = False
              warnPruneEdges = False
              startVertex = Nothing
-             newPhylogeneticGraph = if (graphType inGS == Tree) then 
+             newPhylogeneticGraph = if (graphType inGS == Tree) || (LG.isTree newGraph) then 
                                        T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
                                     else 
                                        if (not . LG.cyclic) newGraph && (not . GO.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
