@@ -34,17 +34,17 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE BangPatterns #-}
-
 module Commands.Transform
   ( transform
   ) where
 
 import Types.Types
+import qualified Search.Build as B
+import qualified GraphOptimization.Traversals as T
 
 -- | transformArgList is the list of valid transform arguments
 transformArgList :: [String]
-transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic"]
+transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees"]
 
 
 -- | transform changes aspects of data sande setttings during execution

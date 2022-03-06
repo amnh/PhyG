@@ -37,43 +37,6 @@ Portability :  portable (I hope)
 module Search.Search  (search
                       ) where
 
-{-
-import           Control.Concurrent
-import Types.Types
-import qualified ParallelUtilities       as PU
-import Control.Parallel.Strategies
-import Control.DeepSeq
-import Debug.Trace
-import GeneralUtilities
-import qualified Graphs.GraphOperations  as GO
-import Utilities.Utilities               as U
-import Data.Maybe
-import           Data.Char
-import           Text.Read
-import qualified Search.Fuse as F
-import qualified Search.GeneticAlgorithm as GA
-import qualified Search.Build as B
-import qualified Search.Swap as S
-import qualified Search.Refinement as R
-import System.Timing
-import Data.Bifunctor (bimap)
-import Data.Traversable
-import Data.Foldable
-import Control.Monad
-import Data.Vector (fromListN)
-import qualified Data.List as L
-
-
-traverseInParallelWith :: (Foldable f, NFData c) => (a -> b -> IO c) -> f a -> f b -> IO [c]
-traverseInParallelWith f xs ys = sequenceA $ parMap strat (uncurry f) $ zip (toList xs) (toList ys)
-
-
-strat :: NFData a => Strategy (IO a)
-strat x = pure $ do 
-   r <- x
-   rnf r `seq` pure r
--}
-
 import Types.Types
 import Control.DeepSeq
 import GeneralUtilities

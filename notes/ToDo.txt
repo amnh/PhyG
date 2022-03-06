@@ -711,4 +711,7 @@ preOrderTreeTraversal
 	to static Approx--for serches on new dats
 		will have two sets of data in command--original and"current" could bew transformed
 			may help with GPU later
+
+299) Output phastwinclad file (tnt) ia fasta files
+
 			
