@@ -40,8 +40,17 @@ module Commands.Transform
   ( transform
   ) where
 
+import Types.Types
+
+-- | transformArgList is the list of valid transform arguments
+transformArgList :: [String]
+transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic"]
+
+
 -- | transform changes aspects of data sande setttings during execution
 -- as opposed to Set with all happens at begginign of execution
-transform :: GlobalSettings -> ProcessedData -> (GlobalSettings, ProcessedData)
-transform inGS inData = 
-   (inGS, inData)
+transform :: GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, [PhylogeneticGraph])
+transform inGS origData inData rSeed inGraphList = 
+   (inGS, inData, inGraphList)
+
+  

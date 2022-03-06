@@ -263,6 +263,7 @@ executable phyg
                   Search.WagnerBuild
                   Support.Support
                   System.Timing
+                  Commands.Transform
                   Types.DistanceTypes
                   Types.Types
                   Utilities.Distances
