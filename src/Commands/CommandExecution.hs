@@ -195,7 +195,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData curGraphs pairwiseDist (tail seedList) (supportGraphList ++ newSupportGraphList) (tail commandList)
 
         else if firstOption == Transform then do
-            (elapsedSeconds, (newGS, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform globalSettings origProcessedData processedData (head seedList) curGraphs
+            (elapsedSeconds, (newGS, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
                 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   

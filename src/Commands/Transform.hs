@@ -49,8 +49,8 @@ transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dyn
 
 -- | transform changes aspects of data sande setttings during execution
 -- as opposed to Set with all happens at begginign of execution
-transform :: GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, [PhylogeneticGraph])
-transform inGS origData inData rSeed inGraphList = 
+transform :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, [PhylogeneticGraph])
+transform inArgs inGS origData inData rSeed inGraphList = 
    (inGS, inData, inGraphList)
 
   
