@@ -211,8 +211,7 @@ resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
    else
       let randomIntegerList = randomIntList rSeed
       in
-      if resampleType == "bootstrap" then 
-         --Bootstrap resampling
+         --Bootstrap  or Jackknife resampling
          let newBlockDataVect' = if resampleType == "bootstrap" then V.zipWith resampleBlockBootstrap (V.fromList randomIntegerList) blockDataVect 
                                  else V.zipWith (resampleBlockJackknife  sampleFreq) (V.fromList randomIntegerList) blockDataVect 
              -- filter any zero length blocks
@@ -238,13 +237,13 @@ makeSampledPairVectBootstrap :: [Int] -> [Int] -> [CharacterData] -> [CharInfo] 
 makeSampledPairVectBootstrap fullRandIntlList randIntList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect =
    if V.null inCharInfoVect then (V.fromList accumCharDataList, V.fromList accumCharInfoList)  
    else
-      let staticChars = V.filter ((`elem` exactCharacterTypes) charType inCharInfoVect) 
-          dynamicChars = V.filter ((`notElem` exactCharacterTypes) charType inCharInfoVect) 
+      let staticChars = V.filter ((`elem` exactCharacterTypes) . charType) inCharInfoVect
+          dynamicChars = V.filter ((`notElem` exactCharacterTypes) . charType) inCharInfoVect 
           numDynamicChars = V.length dynamicChars
           dynCharIndices = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
 
       in
-      (inCharInfoVect, inCharDataVect) 
+      (inCharDataVect, inCharInfoVect) 
       where randIndex a b  = snd $  divMod (abs b) a
                            
 
