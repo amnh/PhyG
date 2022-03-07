@@ -226,26 +226,79 @@ resampleBlockBootstrap rSeed (nameText, charDataVV, charInfoV) =
       let randomIntegerList = randomIntList rSeed
           randomIntegerList2 = randomIntList (head randomIntegerList)
       
-          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap randomIntegerList randomIntegerList2 [] [] charInfoV) charDataVV
+          -- maps over taxa in data bLock
+          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap randomIntegerList randomIntegerList2 charInfoV) charDataVV
       in
       (nameText, newCharDataVV, V.head newCharInfoV)
 
 -- | makeSampledPairVectBootstrap takes a list of Int and a vectors of charinfo and char data
 -- and returns new vectors of chardata and charinfo based on randomly sampled character indices
 -- this to create a bootstrap replicate of equal size 
-makeSampledPairVectBootstrap :: [Int] -> [Int] -> [CharacterData] -> [CharInfo] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
-makeSampledPairVectBootstrap fullRandIntlList randIntList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect =
-   if V.null inCharInfoVect then (V.fromList accumCharDataList, V.fromList accumCharInfoList)  
-   else
-      let staticChars = V.filter ((`elem` exactCharacterTypes) . charType) inCharInfoVect
-          dynamicChars = V.filter ((`notElem` exactCharacterTypes) . charType) inCharInfoVect 
-          numDynamicChars = V.length dynamicChars
-          dynCharIndices = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
+-- this for a single taxon hecen pass teh random ints so same for each one
+makeSampledPairVectBootstrap :: [Int] -> [Int] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharDataVect =
+      -- get character numbers and set resampling indices for dynamic characters--statric happen within those characters
+      let -- zip so can filter static and dynamic characters
+          dataInfoPairV = V.zip inCharDataVect inCharInfoVect
+
+          -- filter static
+          (staticCharsV, staticCharsInfoV)  = V.unzip $ V.filter ((`elem` exactCharacterTypes) . charType . snd ) dataInfoPairV
+          
+          -- filter dynamic
+          (dynamicCharsV, dynamicCharsInfoV) = V.unzip $ V.filter ((`notElem` exactCharacterTypes) . charType .snd ) dataInfoPairV 
+
+          numDynamicChars   = V.length dynamicCharsV
+          dynCharIndices   = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
 
       in
-      (inCharDataVect, inCharInfoVect) 
+      -- trace ("MSPVB: " ++ (show $ length dynCharIndices) ++ " " ++ (show dynCharIndices)) (
+      -- resample dynamic characters
+         -- straight resample
+      let resampleDynamicChars    = V.map (dynamicCharsV V.!) (V.fromList dynCharIndices)
+          resmapleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) (V.fromList dynCharIndices)
+
+          -- static chars do each one mapping random choices within the character type
+          -- but keeping each one--hence char info is staticCharsInfoV
+          resampleStaticChars    = V.zipWith (subSampleStatic fullRandIntlList) staticCharsV staticCharsInfoV
+          
+      in
+      -- cons the vectors for chrater data and character info
+      (resampleStaticChars V.++ resampleDynamicChars, staticCharsInfoV V.++ resmapleDynamicCharInfo) 
+      -- )
       where randIndex a b  = snd $  divMod (abs b) a
                            
+
+-- | subSampleStatic takes a random int list and a static charcter
+-- bootstrap resamples that character based on ransom it list and number of "subcharacters" in character
+subSampleStatic :: [Int] -> CharacterData -> CharInfo -> CharacterData
+subSampleStatic randIntList inCharData inCharInfo = 
+   let (a1, a2, a3) = rangePrelim inCharData
+       (na1, na2, na3) = stateBVPrelim inCharData
+       m1 = matrixStatesPrelim inCharData
+       inCharType = charType inCharInfo
+
+       charLength = if inCharType == Add then V.length a2 
+                    else if inCharType == NonAdd then  V.length na2
+                    else if inCharType == Matrix then  V.length m1
+                    else error ("Dynamic character in subSampleStatic: " ++ (show inCharType))
+
+       -- get character indices based on number "subcharacters" 
+       staticCharIndices = V.fromList $ fmap (randIndex charLength) (take charLength randIntList)
+
+   in
+   -- trace ("SSS:" ++ (show $ V.length staticCharIndices) ++ " " ++ (show staticCharIndices)) (
+   if inCharType == Add then
+         inCharData {rangePrelim = (V.map (a1 V.!) staticCharIndices, V.map (a2 V.!) staticCharIndices, V.map (a3 V.!) staticCharIndices)}
+      
+   else if inCharType == NonAdd then
+         inCharData {stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)}
+
+   else if inCharType == Matrix then
+         inCharData {matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
+
+   else error ("Incorrect character type in subSampleStatic: " ++ show inCharType)
+   -- )
+   where randIndex a b  = snd $  divMod (abs b) a                 
 
 -- | makeSampledCharCharInfoVect takes a vector of Int and a vector of charData and a vector of charinfo 
 -- if teh data type is not static--the character is returns if Bool is True not otherwise
