@@ -46,7 +46,7 @@ import qualified GraphOptimization.Traversals as T
 import qualified Data.Text.Lazy              as TL
 import Types.Types
 import qualified ParallelUtilities            as PU
-import Utilities.Utilities as U
+import qualifiedUtilities.Utilities as U
 import qualified Utilities.DistanceUtilities as DU
 import qualified SymMatrix               as M
 import           Data.Maybe
@@ -81,76 +81,82 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
        checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
-
-       buildBlock = filter ((=="block").fst) lcArgList
-       displayBlock = filter ((=="displaytrees").fst) lcArgList
-       numDisplayTrees
-            | length displayBlock > 1 =
-              errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " ++ show inArgs)
-            | null displayBlock = Just 10
-            | null (snd $ head displayBlock) = Just 10
-            | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
-       doEUN' = any ((=="eun").fst) lcArgList
-       doCUN' = any ((=="cun").fst) lcArgList
-       doEUN = if not doEUN' && not doCUN' then True
-               else doEUN'
-       doCUN = if doEUN' && doCUN' then 
-                  trace ("\tBuildBlock options EUN and CUN both specified--defaulting to EUN")
-                  False
-               else doCUN'
-       returnTrees' = any ((=="displaytrees").fst) lcArgList
-       returnGraph' = any ((=="graph").fst) lcArgList
-       returnRandomDisplayTrees' = any ((=="atrandom").fst) lcArgList
-       returnFirst' = any ((=="first").fst) lcArgList
-       buildDistance = any ((=="distance").fst) lcArgList
-   
-       -- temprary change (if needed) to buyild tree structures
-       inputGraphType = graphType inGS 
-       treeGS = inGS {graphType = Tree}
-
-       -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
-       (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
-                                     else 
-                                       if returnGraph' || returnTrees' then (returnGraph', returnTrees')
-                                       else (False, True)
-
-       -- default to return reandom and overrides if both specified
-       (returnRandomDisplayTrees, returnFirst) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
-                                                 else (True, False)
-
-       -- initial build of trees from combined data--or by blocks
-       firstGraphs = if null buildBlock then 
-                        let simpleTreeOnly = False
-                        in
-                        buildTree simpleTreeOnly inArgs treeGS inputGraphType inData pairwiseDistances seed
-                     else -- removing taxa with missing data for block
-                        trace ("Block building initial graph(s)") (
-                        let simpleTreeOnly = True
-                            processedDataList = U.getProcessDataByBlock True inData
-                            distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
-                                                 else replicate (length processedDataList) [] 
-                            
-                            blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
-                            -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
-
-                            -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
-                            returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
-                        in
-                        -- trace (concatMap LG.prettify returnGraphs)
-                        fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
-                        )
-       costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
-                    else "\t\tBlock build returned 0 graphs"
    in
-   -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
-   if inputGraphType == Tree || (not . null) buildBlock then 
-      -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) 
-      if null buildBlock then firstGraphs
-      else trace (costString) firstGraphs
+       -- check for valid command options
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
    else 
-      trace ("\tRediagnosing as " ++ (show (graphType inGS))) 
-      fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
-   -- )
+       let buildBlock = filter ((=="block").fst) lcArgList
+           displayBlock = filter ((=="displaytrees").fst) lcArgList
+           numDisplayTrees
+                | length displayBlock > 1 =
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " ++ show inArgs)
+                | null displayBlock = Just 10
+                | null (snd $ head displayBlock) = Just 10
+                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
+
+           doEUN' = any ((=="eun").fst) lcArgList
+           doCUN' = any ((=="cun").fst) lcArgList
+           doEUN = if not doEUN' && not doCUN' then True
+                   else doEUN'
+           doCUN = if doEUN' && doCUN' then 
+                      trace ("\tBuildBlock options EUN and CUN both specified--defaulting to EUN")
+                      False
+                   else doCUN'
+           returnTrees' = any ((=="displaytrees").fst) lcArgList
+           returnGraph' = any ((=="graph").fst) lcArgList
+           returnRandomDisplayTrees' = any ((=="atrandom").fst) lcArgList
+           returnFirst' = any ((=="first").fst) lcArgList
+           buildDistance = any ((=="distance").fst) lcArgList
+       
+           -- temprary change (if needed) to buyild tree structures
+           inputGraphType = graphType inGS 
+           treeGS = inGS {graphType = Tree}
+
+           -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
+           (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
+                                         else 
+                                           if returnGraph' || returnTrees' then (returnGraph', returnTrees')
+                                           else (False, True)
+
+           -- default to return reandom and overrides if both specified
+           (returnRandomDisplayTrees, returnFirst) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
+                                                     else (True, False)
+
+           -- initial build of trees from combined data--or by blocks
+           firstGraphs = if null buildBlock then 
+                            let simpleTreeOnly = False
+                            in
+                            buildTree simpleTreeOnly inArgs treeGS inputGraphType inData pairwiseDistances seed
+                         else -- removing taxa with missing data for block
+                            trace ("Block building initial graph(s)") (
+                            let simpleTreeOnly = True
+                                processedDataList = U.getProcessDataByBlock True inData
+                                distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
+                                                     else replicate (length processedDataList) [] 
+                                
+                                blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+                                -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
+
+                                -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set 
+                                returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN 
+                            in
+                            -- trace (concatMap LG.prettify returnGraphs)
+                            fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
+                            )
+           costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
+                        else "\t\tBlock build returned 0 graphs"
+       in
+       if isNothing numDisplayTrees then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  ++ show (snd $ head displayBlock))
+      
+       -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
+       else if inputGraphType == Tree || (not . null) buildBlock then 
+          -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) 
+          if null buildBlock then firstGraphs
+          else trace (costString) firstGraphs
+       else 
+          trace ("\tRediagnosing as " ++ (show (graphType inGS))) 
+          fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
+       -- )
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
