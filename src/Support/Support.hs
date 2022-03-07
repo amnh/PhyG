@@ -212,40 +212,43 @@ resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
       let randomIntegerList = randomIntList rSeed
       in
       if resampleType == "bootstrap" then 
-         error "Bootstrap not currently implemented"
-      else
-         --Jackknife resampling
-         let newBlockDataVect' = V.zipWith (resampleBlock resampleType sampleFreq) (V.fromList randomIntegerList) blockDataVect 
+         --Bootstrap resampling
+         let newBlockDataVect' = if resampleType == "bootstrap" then V.zipWith resampleBlockBootstrap (V.fromList randomIntegerList) blockDataVect 
+                                 else V.zipWith (resampleBlockJackknife  sampleFreq) (V.fromList randomIntegerList) blockDataVect 
              -- filter any zero length blocks
              newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
          in
          (nameVect, nameBVVect, newBlockDataVect)
 
--- | resampleBlock takes BlockData and a seed and creates a resampled BlockData
-resampleBlock :: String -> Double -> Int -> BlockData -> BlockData
-resampleBlock resampleType sampleFreq rSeed (nameText, charDataVV, charInfoV) =
-   if resampleType == "bootstrap" then error "Bootsdtrap not currently implemented"
-   else
+
+-- | resampleBlockBootstrap takes BlockData and a seed and creates a Bootstrap resampled BlockData
+resampleBlockBootstrap :: Int -> BlockData -> BlockData
+resampleBlockBootstrap rSeed (nameText, charDataVV, charInfoV) =
       let randomIntegerList = randomIntList rSeed
           randomIntegerList2 = randomIntList (head randomIntegerList)
-          acceptanceList = fmap (randAccept sampleFreq) randomIntegerList
-          acceptanceList2 = fmap (randAccept sampleFreq) randomIntegerList2
-          -- newCharInfoV = makeSampledVect acceptanceVect [] charInfoV
-          -- newCharDataV = fmap (makeSampledVect acceptanceVect []) charDataVV
-          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVect acceptanceList acceptanceList2 [] [] charInfoV) charDataVV
-          
-
+      
+          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap randomIntegerList randomIntegerList2 [] [] charInfoV) charDataVV
       in
-      trace ("RB length " ++ (show $ V.length charInfoV) ++ " -> " ++ (show $ V.length $ V.head newCharInfoV) )
       (nameText, newCharDataVV, V.head newCharInfoV)
 
-   where randAccept b a = let (_, randVal) = divMod (abs a) 1000
-                              critVal = floor (1000 * b)
-                           in
-                           -- trace ("RA : " ++ (show (b,a, randVal, critVal, randVal < critVal)))
-                           randVal < critVal
+-- | makeSampledPairVectBootstrap takes a list of Int and a vectors of charinfo and char data
+-- and returns new vectors of chardata and charinfo based on randomly sampled character indices
+-- this to create a bootstrap replicate of equal size 
+makeSampledPairVectBootstrap :: [Int] -> [Int] -> [CharacterData] -> [CharInfo] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+makeSampledPairVectBootstrap fullRandIntlList randIntList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect =
+   if V.null inCharInfoVect then (V.fromList accumCharDataList, V.fromList accumCharInfoList)  
+   else
+      let staticChars = V.filter ((`elem` exactCharacterTypes) charType inCharInfoVect) 
+          dynamicChars = V.filter ((`notElem` exactCharacterTypes) charType inCharInfoVect) 
+          numDynamicChars = V.length dynamicChars
+          dynCharIndices = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
 
--- | makeSampledCharCharInfoVect takes a vectot of Bool and a vector of cahrdata and a vector of charinfo 
+      in
+      (inCharInfoVect, inCharDataVect) 
+      where randIndex a b  = snd $  divMod (abs b) a
+                           
+
+-- | makeSampledCharCharInfoVect takes a vector of Int and a vector of charData and a vector of charinfo 
 -- if teh data type is not static--the character is returns if Bool is True not otherwise
 -- if the char is static (add, non add, matrix) then the bool array is applied
 -- across the vetor of those characters (since they re vectors of charcters themselves
@@ -267,7 +270,7 @@ makeSampledVect boolList accumList inVect  =
 -- with True as a vector (reversed--but shouldn't matter for resampling purposes) 
 -- does not check if equal in length
 makeSampledPairVect :: [Bool] -> [Bool] -> [CharacterData] -> [CharInfo] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
-makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect=
+makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect =
    if V.null inCharInfoVect then (V.fromList accumCharDataList, V.fromList accumCharInfoList)  
    else
       let firstCharInfo = V.head inCharInfoVect
@@ -312,6 +315,28 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 
 
          else error ("Incorrect character type in makeSampledPairVect: " ++ show firstCharType)
+
+-- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
+resampleBlockJackknife :: Double -> Int -> BlockData -> BlockData
+resampleBlockJackknife sampleFreq rSeed (nameText, charDataVV, charInfoV) =
+      let randomIntegerList = randomIntList rSeed
+          randomIntegerList2 = randomIntList (head randomIntegerList)
+          acceptanceList = fmap (randAccept sampleFreq) randomIntegerList
+          acceptanceList2 = fmap (randAccept sampleFreq) randomIntegerList2
+          -- newCharInfoV = makeSampledVect acceptanceVect [] charInfoV
+          -- newCharDataV = fmap (makeSampledVect acceptanceVect []) charDataVV
+          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVect acceptanceList acceptanceList2 [] [] charInfoV) charDataVV
+          
+
+      in
+      trace ("RB length " ++ (show $ V.length charInfoV) ++ " -> " ++ (show $ V.length $ V.head newCharInfoV) )
+      (nameText, newCharDataVV, V.head newCharInfoV)
+
+   where randAccept b a = let (_, randVal) = divMod (abs a) 1000
+                              critVal = floor (1000 * b)
+                           in
+                           -- trace ("RA : " ++ (show (b,a, randVal, critVal, randVal < critVal)))
+                           randVal < critVal
 
 -- | getGoodBremGraphs performs Goodman-Bremer support
 -- examines complete SPR or TBR swap neighborhood chekcing for presence/absence of edges in input Graph List
