@@ -59,7 +59,7 @@ import qualified GraphOptimization.Traversals as T
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -115,9 +115,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
             let method = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
                          else if (doBootStrap || (not . null) jackList) && (not . null) goodBremList then trace ("Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer") "goodBrem"
                          else if doBootStrap then 
-                           trace ("Bootstrap not currently implemented--defaulting to Jackknife") 
-                           -- "bootstrap"
-                           "jackknife"
+                           "bootstrap"
                          else if (not . null) jackList then "jackknife"
                          else "goodBrem"
                 
@@ -137,7 +135,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                               0.6321
                            else fromJust jackFreq'
 
-                buildOptions = [("distance",""), ("replicates", show 100), ("best", show 1), ("rdwag", ""), ("dWag", "")]
+                buildOptions = [("distance",""), ("replicates", show 100), ("best", show 1), ("rdwag", ""), ("dWag", "")] -- [("replicates", show 10), ("best", show 1)]
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
                 supportGraphList = if method == "bootstrap" || method == "jackknife" then 
@@ -213,7 +211,8 @@ resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
    else
       let randomIntegerList = randomIntList rSeed
       in
-      if resampleType == "bootstrap" then error "Bootstrap not currently implemented"
+      if resampleType == "bootstrap" then 
+         error "Bootstrap not currently implemented"
       else
          --Jackknife resampling
          let newBlockDataVect' = V.zipWith (resampleBlock resampleType sampleFreq) (V.fromList randomIntegerList) blockDataVect 
