@@ -49,6 +49,7 @@ import           Text.Read
 import           Data.Char
 import qualified Graphs.GraphOperations  as GO
 import GeneralUtilities
+import qualified Data.List              as L
 
 -- | transformArgList is the list of valid transform arguments
 transformArgList :: [String]
@@ -94,47 +95,76 @@ transform inArgs inGS origData inData rSeed inGraphList =
         else if (toTree || toSoftWired || toHardWired) && (toDynamic || toDynamic) then 
             errorWithoutStackTrace ("Multiple transform operations in transform (e.g. toTree, staticApprox)--can only have one at a time: " ++ (show inArgs))
         else
+            let pruneEdges = False
+                warnPruneEdges = False
+                startVertex = Nothing
+            in          
             -- transform nets to tree
             if toTree then
                -- already Tree return
                if (graphType inGS == Tree) then (inGS, inData, inGraphList)
                else 
-                  let newGS = inGS {graphType == Tree}
-                      pruneEdges = False
-                      warnPruneEdges = False
-                      startVertex = Nothing
-
+                  let newGS = inGS {graphType = Tree}
+                  
                       -- generate and return display trees-- displayTreNUm / graph
-                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) $ GO.generateDisplayTrees) (fmap fst6 inGraphList)
-                                         else GO.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees) (fmap fst6 inGraphList)
+                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . GO.generateDisplayTrees) (fmap fst6 inGraphList)
+                                         else fmap (GO.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
 
                       -- prob not required
                       displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
 
                       -- reoptimize as Trees
-                      newPhylogeneticGraphList  = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs `using` PU.myParListChunkRDS
                   in
                   (newGS, inData, newPhylogeneticGraphList)
             
+            -- transform to softwired
             else if toSoftWired then 
-               let newGS = inGS {graphType == SoftWired}
-                   pruneEdges = False
-                   warnPruneEdges = False
-                   startVertex = Nothing
-                   newPhylogeneticGraphList  = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
-               in
-               (newGS, inData, newPhylogeneticGraphList)
+               if (graphType inGS == SoftWired) then (inGS, inData, inGraphList)
+               else 
+                  let newGS = inGS {graphType = SoftWired}
+                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                  in
+                  (newGS, inData, newPhylogeneticGraphList)
 
+            -- transform to hardwired
             else if toHardWired then
-               let newGS = inGS {graphType == HardWired}
-                   pruneEdges = False
-                   warnPruneEdges = False
-                   startVertex = Nothing
-                   newPhylogeneticGraphList  = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+               if (graphType inGS == HardWired) then (inGS, inData, inGraphList)
+               else 
+                  let newGS = inGS {graphType = HardWired}
+                      
+                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                  in
+                  (newGS, inData, newPhylogeneticGraphList)
+
+            -- roll back to dynamic data from static approx      
+            else if toDynamic then 
+               if (origData /= inData) then
+                  let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                  in
+                  (inGS, origData, newPhylogeneticGraphList)
+
+               else (inGS, inData, inGraphList)
+
+            -- transform to static approx--using first Tree
+            else if toStaticApprox then
+               let newData = makeStaticApprox inGS inData (head $ L.sortOn snd6 inGraphList)
+                   newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+
                in
-               (newGS, inData, newPhylogeneticGraphList)
+               (inGS, newData, newPhylogeneticGraphList)
 
 
-            else error "Graph transform no implemenmted/recognized" ++ (show inArgs)
+            else error ("Transform type not implemented/recognized" ++ (show inArgs))
             
   
+-- | makeStaticApprox takes ProcessedData and returns static approx (implied alignment recoded) ProcessedData
+-- if Tree take SA fields and recode appropriatrely given cost regeme of character
+-- if Softwired--use display trees for SA
+-- if hardWired--convert to softwired and use display trees for SA
+-- sinec for heuristic searcging--uses additive weight for sequences and simple cost matrices, otjherwise
+-- matric characters
+makeStaticApprox :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> ProcessedData
+makeStaticApprox inGS inData inGraph = 
+   if True then error "Static Approx not yet implemented"
+   else inData

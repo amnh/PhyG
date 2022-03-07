@@ -46,7 +46,7 @@ import qualified GraphOptimization.Traversals as T
 import qualified Data.Text.Lazy              as TL
 import Types.Types
 import qualified ParallelUtilities            as PU
-import qualifiedUtilities.Utilities as U
+import qualified Utilities.Utilities as U
 import qualified Utilities.DistanceUtilities as DU
 import qualified SymMatrix               as M
 import           Data.Maybe
