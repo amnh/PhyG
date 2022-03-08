@@ -20,7 +20,7 @@ allow-newer:
 
 preferences:
     aeson          >= 2.0,
-    bytestring     >= 0.11,
+    bytestring     >= 0.11.3,
     text           >= 2.0
 
 source-repository-package
@@ -48,13 +48,13 @@ overwrite-policy: always
 ---------------------------------------------------------------------------------
 
 executable-static:        True
---keep-going:               True
 haddock-html:             True
 haddock-tests:            True
 haddock-benchmarks:       True
 haddock-internal:         True
 haddock-hyperlink-source: True
 jobs:                     $ncpus
+--keep-going:               True
 minimize-conflict-set:    True
 
 
