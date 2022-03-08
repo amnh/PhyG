@@ -850,7 +850,6 @@
 			\smallskip		
 			\noindent \texttt{toSoftwired} Converts exiting graphs to softwired network graphs.
 			
-			
 			\smallskip		
 			\noindent \texttt{toTree} Converts exiting graphs to trees.  For both Softwired and Hardwired graphs this proceeds via graph resolution of network nodes into ``display'' trees.  
 			Since there are up to $2^n$ display trees for a graph with $n$ network nodes, this number can be quite large.  The number of display trees produced for each graph
@@ -862,6 +861,11 @@
 			None.
 			
 		\subsubsection{Examples}
+			\begin{itemize}
+				\item{\texttt{transform(toSoftwired)}\\Converts each current graph to a softwired network graph.}
+				\item{\texttt{transform(staticApprox)}\\Changes data to all static characters via Implied Alignment for further analysis.}
+				
+			\end{itemize}
 	
 
 	\section{Example Script Files}
