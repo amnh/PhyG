@@ -668,7 +668,8 @@
 		\subsubsection{Syntax}
 				\texttt{set(arg0:option, arg1:option, ...)}
 		\subsubsection{Description}
-		The command specifies a number of global values and options include outgroup, graph type, final assignment, and optimality criterion.
+		The command specifies a number of global values and options include outgroup, graph type, final assignment, and optimality criterion. All \texttt{Set} commands
+		are executed at the start of a run.  The command \texttt{Transform} is used to modify global settings during a run.
 		\subsubsection{Arguments}
 			\smallskip
 			\noindent \texttt{compressResolutions:True|False} Determines whether soft-wired graph resolutions are ``compressed''
@@ -721,10 +722,16 @@
 		\texttt{swap(arg0, arg1:option, ...)}
 		
 		\subsubsection{Description}
-		Generates graphs supports via resampling \citep{Farrisetal1996} and Goodman-Bremer \citep{Goodmanetal1982, bremer1994}.  Currently, Jackknifing is the only resampling method that is implemented 
-		(as opposed to BootStrapping).
+		Generates graphs supports via resampling \citep{Farrisetal1996} and Goodman-Bremer \citep{Goodmanetal1982, bremer1994}.  Currently, Jackknifing and Bootstrapping 
+		are the resampling methods that are implemented.
 		
 		\subsubsection{Arguments}
+		\noindent \texttt{buildonly} Performs very rapid, but not extensive graph searches for each resampling replicate.
+		
+		\smallskip		
+		\noindent \texttt{bootstrap]} Specifies that Bootstrap resampling is performed.  When reported (via \texttt{report(support)}) edges are labeled with the bootstrap frequencies.
+		
+		\smallskip		
 		\noindent \texttt{goodmanbremer|gb[:spr|tbr]} Specifies that Goodman-Bremer support is calculated for 
 		input graphs.  The method traverses the SPR or TBR neighborhood as optionally specified (TBR as default) 
 		to determine an upper bound on the NP-hard values (this is the method used in POY v2; \citealp{POY2} \textit{et seq.}).  The number of alternate graphs to be examined 
@@ -739,9 +746,6 @@
 		\smallskip		
 		\noindent \texttt{replicates:n} Specifies that $n$ resampling replicates  (default 100) are performed 
 		in resampling support.
-		
-		\smallskip		
-		\noindent \texttt{buildonly} Performs very rapid, but not extensive graph searches for each resampling replicate.
 		
 		\subsubsection{Defaults}
 		\texttt{support(goodmanBremer:TBR)}
@@ -762,7 +766,6 @@
 		Performs branch-swapping rearrangement on graphs.  These include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR''  \citep{Dayhoff1969}, and ``TBR''  \citep{Farris1988, swofford1990a}  refinement.
 		
 		\subsubsection{Arguments}
-		\smallskip		
 		\noindent \texttt{all} Specifies that refinement examines the entire rearrangement neighborhood of the current graph before retaining the best (lowest cost) solutions.
 		
 		\smallskip		
@@ -810,20 +813,56 @@
 		
 		\subsubsection{Examples}
 			\begin{itemize}
-			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single best rearrangement found for each graph  employing steepest descent.}
-			\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph returning up to 10 best rearrangements found for each graph after examining all 
-			graphs in the rearrangement neighborhood.}
+				\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single best rearrangement found for each graph  employing steepest descent.}
+				\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph returning up to 10 best rearrangements found for each graph after examining all 
+				graphs in the rearrangement neighborhood.}
 			
-		\end{itemize}
+			\end{itemize}
 		
-%	
-%	\subsection{Transform}
-%		\subsubsection{Syntax}
-%		\subsubsection{Description}
-%		\subsubsection{Arguments}
-%		\subsubsection{Defaults}
-%		\subsubsection{Examples}
-%	
+	
+	\subsection{Transform}
+		\subsubsection{Syntax}
+			\texttt{transform(arg0, arg1,...)}
+			
+		\subsubsection{Description}
+			\texttt{Transform} modifies global setting during program execution (as opposed to the \texttt{set} command that operates at the inauguration of calculations).  The
+			command allows for changing graph (e.g. Tree to Softwired Network) and data types (between dynamic and static approximation) among other operations.
+			
+		\subsubsection{Arguments}
+			\noindent \texttt{atRandom} In concert with \texttt{displayTrees:n} specifies that displays trees are chosen uniformly at random for each input graph.
+			
+			\noindent \texttt{displayTrees:[n]} When this option is specified, returns $n$ display trees for each graph determined by the optional argument  If the number of display trees is not 
+			specified, 10 are returned.  Used in concert with \texttt{toTree}.
+			
+			\smallskip		
+			\noindent \texttt{dynamic} Reverts data type to the default ``dynamic'' for all dynamic homology \citep{Wheeler2001} character types (e.g. DNA sequences).  After this command, 
+			graph optimization proceeds in the default manner with sequence characters treated in their non-aligned (``dynamic'') condition.
+			
+			\smallskip		
+			\noindent \texttt{first}  In concert with \texttt{displayTrees:n} specifies that the first $n$ displays tree resolutions are chosen for each input graph..
+			
+			\smallskip		
+			\noindent \texttt{staticApprox} Converts non-aligned (``dynamic'') sequence characters to their Implied Alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
+			
+			\smallskip		
+			\noindent \texttt{toHardwired} Converts exiting graphs to hardwired network graphs.
+			
+			\smallskip		
+			\noindent \texttt{toSoftwired} Converts exiting graphs to softwired network graphs.
+			
+			
+			\smallskip		
+			\noindent \texttt{toTree} Converts exiting graphs to trees.  For both Softwired and Hardwired graphs this proceeds via graph resolution of network nodes into ``display'' trees.  
+			Since there are up to $2^n$ display trees for a graph with $n$ network nodes, this number can be quite large.  The number of display trees produced for each graph
+			is controlled via the options \texttt{displayTrees:n}, \texttt{atRandom}, and \texttt{first}. 
+			
+			\smallskip		
+			
+		\subsubsection{Defaults}
+			None.
+			
+		\subsubsection{Examples}
+	
 
 	\section{Example Script Files}
 	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), skips all the lines that begin with double dash (\texttt{--}),
