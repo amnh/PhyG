@@ -158,8 +158,8 @@
 		\bigskip
 		\texttt{command(argument, option:argument, option[:optional Argument]...)}
 		\subsection{Command order and processing}
-	
-	
+			The commands \texttt{Read}, \texttt{Rename}, \texttt{Reblock}, and \texttt{Set} are executed at the beginning of program execution no matter where they occur in a command
+			script.  All other commands are executed in the order in which they are specified.
 	
 	\subsection{Build}
 		\subsubsection{Syntax}
@@ -898,6 +898,8 @@
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
+	
+	An alternate is to specify `+RTS -N' ( after program options).  This spawns as many jobs as there are cores in the machine and can be more efficient.
 	
 	\section*{Acknowledgments}
 	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
