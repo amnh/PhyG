@@ -179,7 +179,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         (blockName, newCharDataVectVect, newCharInfoVect)
         -- )
     else
-        -- proceed charcater by character increasing accumulators and consuming character data vector and character infoVect
+        -- proceed character by character increasing accumulators and consuming character data vector and character infoVect
         -- maybe only accumulate for matrix and non additives? 
         let firstCharacter = V.head charInfoVect
             fCharType = charType firstCharacter
@@ -290,18 +290,6 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
     -}
     (V.fromList $ V.fromList <$> L.transpose newCharacterList''', V.concat newChararacterInfoList''')
 
-{-
--- | combineUnchangedCharacters takes the list of unchanged characters (ie not merged) and recreates a list of them
--- reversing to keep original order
-combineUnchangedCharacters :: [([CharacterData], CharInfo)] -> ([[CharacterData]], [CharInfo])
-combineUnchangedCharacters unchangedCharListList = 
-    if null unchangedCharListList then ([], [])
-    else
-        let (newCharList, newCharInfoList) = unzip unchangedCharListList
-        in 
-        -- trace ("Combined unchanged " ++ (show (length newCharList, fmap length newCharList)))
-        (L.transpose newCharList, newCharInfoList)
--}
 
 -- | combineMatrixCharacters cretes a series of lists of characters each of which has a different cost matrix
 -- each character "type" (based on matrix) can have 1 or more characters 

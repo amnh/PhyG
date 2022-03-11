@@ -715,3 +715,8 @@ preOrderTreeTraversal
 299) Output phastwinclad file (tnt) ia fasta files
 
 			
+300) Check add/continuous characters for correctness after merging characters
+	should be merged with same weight--if not then need to fix
+
+301) do recoding for prealigned nonAdd, nonadd with extra for gap, matrix
+

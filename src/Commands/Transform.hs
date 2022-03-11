@@ -50,6 +50,11 @@ import           Data.Char
 import qualified Graphs.GraphOperations  as GO
 import GeneralUtilities
 import qualified Data.List              as L
+import qualified Utilities.LocalGraph    as LG
+import qualified Data.Vector as V
+
+import qualified SymMatrix                   as S
+
 
 -- | transformArgList is the list of valid transform arguments
 transformArgList :: [String]
@@ -148,7 +153,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
             -- transform to static approx--using first Tree
             else if toStaticApprox then
-               let newData = makeStaticApprox inGS inData (head $ L.sortOn snd6 inGraphList)
+               let newData = makeStaticApprox inGS inData (head $ L.sortOn snd6 inGraphList) 
                    newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
 
                in
@@ -162,9 +167,97 @@ transform inArgs inGS origData inData rSeed inGraphList =
 -- if Tree take SA fields and recode appropriatrely given cost regeme of character
 -- if Softwired--use display trees for SA
 -- if hardWired--convert to softwired and use display trees for SA
--- sinec for heuristic searcging--uses additive weight for sequences and simple cost matrices, otjherwise
--- matric characters
+-- since for heuristic searcing--uses additive weight for sequences and simple cost matrices, otherwise
+-- matrix characters
 makeStaticApprox :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> ProcessedData
 makeStaticApprox inGS inData inGraph = 
-   if True then error "Static Approx not yet implemented"
-   else inData
+   if LG.isEmpty (fst6 inGraph) then error "Empty graph in makeStaticApprox"
+
+   -- tree type
+   else if graphType inGS == Tree then
+      let charInfoVV = six6 inGraph
+          decGraph = thd6 inGraph
+          (nameV, nameBVV, blockDataV) = inData
+
+          -- do each block in turn pulling and transforming data from inGraph
+          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+      in
+      (nameV, nameBVV, V.fromList newBlockDataV)
+
+   else error ("Static Approx not yet implemented for gaph type :" ++ (show $ graphType inGS))
+
+
+-- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 
+-- the character data of the block and transforms the leaf data by using implied alignment
+-- feilds for dynamic characters
+pullGraphBlockDataAndTransform :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> ProcessedData -> Int -> BlockData
+pullGraphBlockDataAndTransform inDecGraph charInfoVV (blockName, _, blockCharInfoV) blockIndex =
+   let (_, leafLabelList) = unzip $ LG.labNodes inDecGraph
+       leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
+       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData (thd3 $ blockCharInfoV V.! blockIndex)) leafBlockData
+   in
+   (blockName V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
+
+
+-- | transformData takes originalCharacter info and chracter data and transforms to static if dynamic noting chracter type
+transformData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo) 
+transformData inCharInfoV inCharDataV =
+   if V.null inCharInfoV then 
+      (V.empty, V.empty)
+   else 
+      let (inCharDataV, inCharInfoV) = V.unzip $ V.zipWith transformCharacter inCharDataV inCharInfoV 
+      in
+      (inCharDataV, inCharInfoV)
+
+-- transformCharacter takes a single characer info and character and returns IA if statis as is if not
+transformCharacter :: CharacterData -> CharInfo -> (CharacterData, CharInfo)
+transformCharacter inCharData inCharInfo =
+   let inCharType = charType inCharInfo
+       inCostMatrix = costMatrix inCharInfo
+
+       -- determine if matrix is all same costs => nonadditive
+       --                        all same except fort single indel costs => non add with gap binary chars
+       --                        not either => matrix char
+       inCostMatrixType = getRecodingType inCostMatrix
+
+   in
+   if inCharType `elem` exactCharacterTypes then (inCharData, inCharInfo)
+   else 
+      -- different types--vector wrangling
+      if inCharType `elem` [SlimSeq, NucSeq] then 
+         (inCharData, inCharInfo)
+      else if inCharType `elem` [WideSeq, AminoSeq] then
+         (inCharData, inCharInfo)
+      else if inCharType == HugeSeq then
+         (inCharData, inCharInfo)
+      else 
+         error ("Unrecognized character type in transformCharacter: " ++ (show inCharType)) 
+      
+
+-- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive, 
+-- non-additive with gap chars, or matrix
+-- assumes indel costs are in last row and column
+getRecodingType :: S.Matrix Int -> String
+getRecodingType inMatrix =
+   if S.null inMatrix then error "Null matrix in getRecodingType"
+   else
+      if (not . S.isSymmetric) inMatrix then "matrix"
+      else 
+         let rows = S.rows inMatrix 
+             matrixLL = S.toFullLists inMatrix
+             lastRow = L.last matrixLL
+             numUniqueCosts = length $ L.group $ (filter (/= 0) $ concat matrixLL) 
+
+         in
+         -- all same except for 0
+         if numUniqueCosts == 1 then "nonAdd"
+
+         -- all same except for gaps
+         else if numUniqueCosts == 2 then
+            if  (length $ L.group $ filter (/= 0) lastRow) == 1 then "nonAddGap"
+
+            -- some no gaps different
+            else "matrix"
+
+         -- to many types for nonadd coding
+         else "matrix"
