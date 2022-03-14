@@ -68,9 +68,10 @@ import qualified Utilities.Utilities        as U
 -- read command can have multiple file names
 expandReadCommands ::  [Command] -> Command -> IO [Command]
 expandReadCommands _newReadList inCommand@(commandType, argList) =
-    let fileNames = filter (/= "") $ fmap snd argList
+    let fileNames = fmap snd $ filter ((/="tcm") . fst) $ filter ((/= "") . snd) argList
         modifierList = fmap fst argList
     in
+    trace ("ERC: " ++ (show fileNames)) (
     if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ show inCommand)
     else do
         globbedFileNames <- mapM SPG.glob fileNames
@@ -81,13 +82,13 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
                 commandList = replicate (length newArgPairs) commandType
             in
             return $ zip commandList newArgPairs
-
+    )
 
 -- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 -- globbed file name list to create a list of arguments
 makeNewArgs :: (String, [String]) -> [(String, String)]
 makeNewArgs (modifier, fileNameList) =
-    if null fileNameList then error "Null filename list in makeNewArgs"
+    if null fileNameList then error ("Null filename list in makeNewArgs: " ++ (show $ (modifier, fileNameList))) 
     else let modList = replicate (length fileNameList) modifier
          in  zip modList fileNameList
 

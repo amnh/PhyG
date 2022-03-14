@@ -135,20 +135,23 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData  processedData curGraphs supportGraphList pairwiseDist
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
 
-            hPutStrLn stderr ("Report writing to " ++ outFile)
-
-            if doDotPDF then do
-                let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
-                printGraphVizDot reportString' outFile
+            if null reportString then do
                 executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+            else  do
+                hPutStrLn stderr ("Report writing to " ++ outFile)
 
-            else do
-                if outFile == "stderr" then hPutStr stderr reportString
-                else if outFile == "stdout" then putStr reportString
-                else if writeMode == "overwrite" then writeFile outFile reportString
-                else if writeMode == "append" then appendFile outFile reportString
-                else error ("Error 'read' command not properly formatted" ++ show reportStuff)
-                executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+                if doDotPDF then do
+                    let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
+                    printGraphVizDot reportString' outFile
+                    executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+
+                else do
+                    if outFile == "stderr" then hPutStr stderr reportString
+                    else if outFile == "stdout" then putStr reportString
+                    else if writeMode == "overwrite" then writeFile outFile reportString
+                    else if writeMode == "append" then appendFile outFile reportString
+                    else error ("Error 'read' command not properly formatted" ++ show reportStuff)
+                    executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
         
         else if firstOption == Search then do
             (elapsedSeconds, output) <- timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
@@ -414,7 +417,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 -- trace ("Rep Sup: " ++ (LG.prettify $ fst6 $ head supportGraphs)) (
                 if null supportGraphs then 
                     trace ("No support graphs to report")
-                    ("No support graphs to report", outfileName, writeMode)
+                    ([], outfileName, writeMode)
                 else 
                 trace ("Reporting " ++ (show $ length curGraphs) ++ " support graph(s)")
                 (graphString, outfileName, writeMode)
