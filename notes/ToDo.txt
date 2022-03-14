@@ -720,3 +720,6 @@ preOrderTreeTraversal
 
 301) do recoding for prealigned nonAdd, nonadd with extra for gap, matrix
 
+302)  Matrix aprox for slim/wide/huge static approx
+
+

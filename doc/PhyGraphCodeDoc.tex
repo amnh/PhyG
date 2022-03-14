@@ -92,6 +92,11 @@
 		should now line up and a 3-median can be calculated.
 		
 
+	\section{Adding New Character Types}
+		Current character types include Additive, Non-Additive, Matrix, Slim Sequences, Wide Sequences, and Huge Sequences.  
+		Functions that branch on character types need to be updates and are found in GraphOptimization.Medians.hs, GraphOptimization.PostOrderFunctions.hs, Commands.Transform.hs, Commands.ComandExecution.hs, Types.Types.hs, Utilities.Utilities.hs,
+		Utilities.ThreeWayfunctions.hs, and Support.Support.hs.  Functions with ``== NonAdd'' etc will need extra cases for any new character type.
+
 	\subsection{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\

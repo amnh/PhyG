@@ -103,7 +103,7 @@ data EdgeType = NetworkEdge | TreeEdge | PendantEdge
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
-data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | MatrixApproxSmall | MatrixApproxLarge
+data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | AlignedSlim | AlignedWide | AlignedHuge
     deriving stock (Read, Show, Eq)
 
 -- | types for character classes
@@ -111,7 +111,7 @@ nonExactCharacterTypes :: [CharType]
 nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
 
 exactCharacterTypes :: [CharType]
-exactCharacterTypes = [Binary, Add, NonAdd,Matrix , MatrixApproxSmall, MatrixApproxLarge]
+exactCharacterTypes = [Binary, Add, NonAdd, Matrix, AlignedSlim, AlignedWide, AlignedHuge]
 
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types
@@ -241,7 +241,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , matrixStatesFinal  :: V.Vector (V.Vector MatrixTriple)
                                      -- preliminary for m,ultiple seqeunce chars with same TCM
                                      , slimPrelim         :: SV.Vector CUInt
-                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     -- gapped medians of left, right, and preliminary used in preorder pass
                                      , slimGapped         :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimAlignment      :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimFinal          :: SV.Vector CUInt
@@ -257,12 +257,22 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , wideIAFinal        :: UV.Vector Word64
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
-                                     -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                     -- gapped medians of left, right, and preliminary used in preorder pass
                                      , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeAlignment      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      , hugeIAPrelim       :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeIAFinal        :: V.Vector BV.BitVector
+                                    
+                                     -- vectors for pre-aligned sequences also used in static approx
+                                     , alignedSlimPrelim  :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
+                                     , alignedSlimFinal   :: SV.Vector CUInt
+                                     , alignedWidePrelim  :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , alignedWideFinal   :: UV.Vector Word64
+                                     , alignedHugePrelim  :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , alignedHugeFinal   :: V.Vector BV.BitVector
+                                     
+
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
                                      -- weight * V.sum localCostVect
@@ -276,45 +286,52 @@ instance NFData CharacterData where rnf x = seq x ()
 
 -- | emptyCharcater useful for intialization and missing data
 emptyCharacter :: CharacterData
-emptyCharacter = CharacterData { stateBVPrelim = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
-                         , stateBVFinal       = mempty
-                         -- for Additive
-                         , rangePrelim        = (mempty, mempty, mempty)
-                         , rangeFinal         = mempty
-                         -- for multiple Sankoff/Matrix with sme tcm
-                         , matrixStatesPrelim = mempty
-                         , matrixStatesFinal  = mempty
-                         -- preliminary for m,ultiple seqeunce cahrs with same TCM
-                         , slimPrelim         = mempty
-                         -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , slimGapped         = (mempty, mempty, mempty)
-                         , slimAlignment      = (mempty, mempty, mempty)
-                         , slimFinal          = mempty
-                         , slimIAPrelim       = (mempty, mempty, mempty)
-                         , slimIAFinal        = mempty
-                         -- gapped median of left, right, and preliminary used in preorder pass
-                         , widePrelim         = mempty
-                         -- gapped median of left, right, and preliminary used in preorder pass
-                         , wideGapped         = (mempty, mempty, mempty)
-                         , wideAlignment      = (mempty, mempty, mempty)
-                         , wideFinal          = mempty
-                         , wideIAPrelim       = (mempty, mempty, mempty)
-                         , wideIAFinal        = mempty
-                         -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , hugePrelim         = mempty
-                         -- gapped mediasn of left, right, and preliminary used in preorder pass
-                         , hugeGapped         = (mempty, mempty, mempty)
-                         , hugeAlignment      = (mempty, mempty, mempty)
-                         , hugeFinal          = mempty
-                         , hugeIAPrelim       = (mempty, mempty, mempty)
-                         , hugeIAFinal        = mempty
-                         -- vector of individual character costs (Can be used in reweighting-ratchet)
-                         , localCostVect      = V.singleton 0
-                         -- weight * V.sum localCostVect
-                         , localCost          = 0
-                         -- unclear if need vector version
-                         , globalCost         = 0
-                         }
+emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
+                                 , stateBVFinal       = mempty
+                                 -- for Additive
+                                 , rangePrelim        = (mempty, mempty, mempty)
+                                 , rangeFinal         = mempty
+                                 -- for multiple Sankoff/Matrix with sme tcm
+                                 , matrixStatesPrelim = mempty
+                                 , matrixStatesFinal  = mempty
+                                 -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                                 , slimPrelim         = mempty
+                                 -- gapped medians of left, right, and preliminary used in preorder pass
+                                 , slimGapped         = (mempty, mempty, mempty)
+                                 , slimAlignment      = (mempty, mempty, mempty)
+                                 , slimFinal          = mempty
+                                 , slimIAPrelim       = (mempty, mempty, mempty)
+                                 , slimIAFinal        = mempty
+                                 -- gapped median of left, right, and preliminary used in preorder pass
+                                 , widePrelim         = mempty
+                                 -- gapped median of left, right, and preliminary used in preorder pass
+                                 , wideGapped         = (mempty, mempty, mempty)
+                                 , wideAlignment      = (mempty, mempty, mempty)
+                                 , wideFinal          = mempty
+                                 , wideIAPrelim       = (mempty, mempty, mempty)
+                                 , wideIAFinal        = mempty
+                                 -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                 , hugePrelim         = mempty
+                                 -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                 , hugeGapped         = (mempty, mempty, mempty)
+                                 , hugeAlignment      = (mempty, mempty, mempty)
+                                 , hugeFinal          = mempty
+                                 , hugeIAPrelim       = (mempty, mempty, mempty)
+                                 , hugeIAFinal        = mempty
+                                 -- vectors for pre-aligned sequences also used in static approx
+                                 , alignedSlimPrelim  =  (mempty, mempty, mempty)
+                                 , alignedSlimFinal   =  mempty
+                                 , alignedWidePrelim  =  (mempty, mempty, mempty)
+                                 , alignedWideFinal   =  mempty
+                                 , alignedHugePrelim  =  (mempty, mempty, mempty)
+                                 , alignedHugeFinal   =  mempty
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                 , localCostVect      = V.singleton 0
+                                 -- weight * V.sum localCostVect
+                                 , localCost          = 0
+                                 -- unclear if need vector version
+                                 , globalCost         = 0
+                                 }
 
 -- | 
 

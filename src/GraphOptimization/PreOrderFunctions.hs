@@ -518,7 +518,7 @@ updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
     --)
 
 -- | updateCharacter takes a postorder character and updates the preorder (final) fields with preorder data and character type
--- only updating preorder assignment--except for root, that is needed to draw final state for brnach lengths
+-- only updating preorder assignment--except for root, that is needed to draw final state for branch lengths
 updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
 updateCharacter postOrderCharacter preOrderCharacter localCharType
   | localCharType == Add =
@@ -706,7 +706,7 @@ getBlockCostPairsFinal finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
     (minCost, maxCost)
 
 -- | getCharacterDistFinal takes a pair of characters and character type, returning the minimum and maximum character distances
--- for sequence charcaters this is based on slim/wide/hugeAlignment field, hence all should be O(n) in num characters/sequence length
+-- for sequence characters this is based on slim/wide/hugeAlignment field, hence all should be O(n) in num characters/sequence length
 getCharacterDistFinal :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
 getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
