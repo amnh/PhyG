@@ -52,6 +52,7 @@ module GraphOptimization.Medians  ( median2
                                   , interUnion
                                   , addMatrix
                                   , getDOMedian
+                                  , getPreAligned2Median
                                   , getDOMedianCharInfo
                                   , pairwiseDO
                                   , makeDynamicCharacterFromSingleVector
@@ -148,7 +149,12 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+    else if thisType `elem` prealignedCharacterTypes then
+      let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` nonExactCharacterTypes then
       let newCharVect = if staticIA then makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
                         else getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
@@ -173,8 +179,8 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisActive  = activity inCharInfo
         dummyStaticCharacter = emptyCharacter
     in
-    if ((not thisActive || (thisType == Add)) || (thisType == NonAdd)) || (thisType == Matrix) then (dummyStaticCharacter, 0)
-    else (if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+    if (not thisActive) || (thisType `elem` exactCharacterTypes) then (dummyStaticCharacter, 0)
+    else (if thisType `elem` nonExactCharacterTypes then
             let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
             in
             (newCharVect, localCost  newCharVect)
@@ -214,7 +220,12 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+    else if thisType `elem` prealignedCharacterTypes then
+      let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar
+      in
+      (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` nonExactCharacterTypes then
       let newCharVect = makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
         in
         --trace (show $ alphabet inCharInfo)
@@ -514,12 +525,40 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               , globalCost = subtreeCost
               }
 
-{-
--- |
--- createUngappedMedianSequence enter `Symbol Count` (symbols from alphabet) and context
-createUngappedMedianSequence :: (FiniteBits a, GV.Vector v a) => Int -> (v a, v a, v a) -> v a
-createUngappedMedianSequence = const extractMedians
--}
+-- | getPrealignedUnion calls appropriate pairwise function to create sequence union of final states
+-- for prealigned states
+getPrealignedUnion :: CharType
+                   -> CharacterData
+                   -> CharacterData
+                   -> CharacterData
+getPrealignedUnion thisType leftChar rightChar =
+    let blankCharacterData = emptyCharacter
+    in
+    if thisType == AlignedSlim then 
+        let finalUnion = GV.zipWith (.|.) (alignedSlimFinal leftChar) (alignedSlimFinal rightChar) 
+            prelimState = (finalUnion, finalUnion, finalUnion)
+        in
+        blankCharacterData { alignedSlimPrelim  = prelimState
+                           , alignedSlimFinal = finalUnion
+                           }
+    else if thisType == AlignedWide then 
+        let finalUnion = GV.zipWith (.|.) (alignedWideFinal leftChar) (alignedWideFinal rightChar) 
+            prelimState = (finalUnion, finalUnion, finalUnion)
+        in
+        blankCharacterData { alignedWidePrelim  = prelimState
+                           , alignedWideFinal = finalUnion
+                           }
+    
+    else if thisType == AlignedHuge then  
+        let finalUnion = GV.zipWith (.|.) (alignedHugeFinal leftChar) (alignedHugeFinal rightChar) 
+            prelimState = (finalUnion, finalUnion, finalUnion)
+        in
+        blankCharacterData { alignedHugePrelim  = prelimState
+                           , alignedHugeFinal = finalUnion
+                           }
+    
+    else error ("Unrecognised character type '" ++ (show thisType) ++ "' in getPrealignedUnion")
+
 
 -- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
 -- if using IA--takes IAFInal for each node, creates union of IAFinals states
@@ -611,7 +650,10 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else if thisType == Matrix then
         unionMatrix thisMatrix firstVertChar secondVertChar
 
-    else if thisType `elem` [SlimSeq, NucSeq, AminoSeq, WideSeq, HugeSeq] then
+    else if thisType `elem` prealignedCharacterTypes then
+        getPrealignedUnion thisType firstVertChar secondVertChar 
+      
+    else if thisType `elem` nonExactCharacterTypes then
         getDynamicUnion doIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
@@ -653,11 +695,41 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
         in
         createEdgeUnionOverBlocks doIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
+-- | getPreAligned2Median takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
+-- uses IA-type functions for slim/wide/huge
+getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+getPreAligned2Median charInfo nodeChar leftChar rightChar =
+    let characterType = charType charInfo
+        thisMatrix  = costMatrix charInfo
+    in
+
+    if characterType == AlignedSlim then 
+        let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ alignedSlimPrelim leftChar) (extractMediansGapped $ alignedSlimPrelim rightChar)
+        in
+        nodeChar { alignedSlimPrelim = (extractMediansGapped $ alignedSlimPrelim leftChar, prelimChar,  extractMediansGapped $ alignedSlimPrelim rightChar)
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 }
+
+    else if characterType == AlignedWide then 
+        let (prelimChar, cost) = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ alignedWidePrelim leftChar) (extractMediansGapped $ alignedWidePrelim rightChar)
+        in
+        nodeChar { alignedWidePrelim = (extractMediansGapped $ alignedWidePrelim leftChar, prelimChar,  extractMediansGapped $ alignedWidePrelim rightChar)
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 }
+
+    else if characterType == AlignedHuge then 
+        let (prelimChar, cost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ alignedHugePrelim leftChar) (extractMediansGapped $ alignedHugePrelim rightChar)
+        in
+        nodeChar { alignedHugePrelim = (extractMediansGapped $ alignedHugePrelim leftChar, prelimChar,  extractMediansGapped $ alignedHugePrelim rightChar)
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 }
+
+    else error ("Unrecognized character type " ++ show characterType)
+
+
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
--- the cost assignment is terrible for all dynmaic charcters
---can'tr seem to get the pairs with cost tu return correctly--so a real hack on this
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo
@@ -666,7 +738,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      if characterType `elem` [SlimSeq, NucSeq] then
 --        let prelimChar = get2WaySlim     (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
 --            cost       = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
-        let (prelimChar, cost) = get2WaySlim     (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+        let (prelimChar, cost) = get2WaySlim    (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
 --                   = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
@@ -791,7 +863,7 @@ local3WaySlim lSlimTCM b c d =
  median
  -- )
 
- -- | generalSequenceDiff  takes two sequnce elemental bit types and retuns min and max integer
+ -- | generalSequenceDiff  takes two sequence elemental bit types and retuns min and max integer
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
 generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)

@@ -722,4 +722,8 @@ preOrderTreeTraversal
 
 302)  Matrix aprox for slim/wide/huge static approx
 
+303) Check traverse if mix static and dynamic--make sureall charcters ar optimized--the 0 cost thing 
+	for choosing best may be issue 
 
+
+304) Add inputs for prealigned slim/wide/huge sequences

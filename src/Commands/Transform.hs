@@ -151,12 +151,9 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
             -- roll back to dynamic data from static approx      
             else if toDynamic then 
-               if (origData /= inData) then
-                  let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
-                  in
-                  (inGS, origData, newPhylogeneticGraphList)
-
-               else (inGS, inData, inGraphList)
+               let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+               in
+               (inGS, origData, newPhylogeneticGraphList)
 
             -- transform to static approx--using first Tree
             else if toStaticApprox then
@@ -233,6 +230,9 @@ transformCharacter inCharData inCharInfo =
 
    in
    if inCharType `elem` exactCharacterTypes then (inCharData, inCharInfo)
+
+   else if inCharType `elem` prealignedCharacterTypes then (inCharData, inCharInfo)
+
    else 
       trace ("TC: " ++ inCostMatrixType) (
       -- different types--vector wrangling
@@ -247,7 +247,10 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            (inCharData, inCharInfo)
+            let alignedSlimPrelimChars = slimAlignment inCharData
+            in
+            (inCharData {alignedSlimPrelim = alignedSlimPrelimChars}, inCharInfo {charType =  AlignedSlim})
+
       else if inCharType `elem` [WideSeq, AminoSeq] then
          let newPrelimBV = convert2BV 64 $ wideAlignment inCharData
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
@@ -259,7 +262,10 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            (inCharData, inCharInfo)
+            let alignedWidePrelimChars = wideAlignment inCharData
+            in
+            (inCharData {alignedWidePrelim = alignedWidePrelimChars}, inCharInfo {charType =  AlignedWide})
+
       else if inCharType == HugeSeq then
          let newPrelimBV = hugeAlignment inCharData
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
@@ -271,7 +277,10 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            (inCharData, inCharInfo)
+            let alignedHugePrelimChars = hugeAlignment inCharData
+            in
+            (inCharData {alignedHugePrelim = alignedHugePrelimChars}, inCharInfo {charType =  AlignedHuge})
+
       else 
          error ("Unrecognized character type in transformCharacter: " ++ (show inCharType)) 
       )
@@ -311,33 +320,6 @@ convert2BV size (_, inM, _) =
        
    in
    (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
-
-{-
--- | convertCUInt2BV converts Stortable VBectors of CUInt to bitvector nonadditive characters
-convertCUInt2BV :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
-convertCUInt2BV (inL, inM, inR) = 
-   let inLList = GV.toList inL
-       inMList = GV.toList inM
-       inRList = GV.toList inR
-       inLBV = fmap (BV.fromNumber 32) inLList
-       inMBV = fmap (BV.fromNumber 32) inMList
-       inRBV = fmap (BV.fromNumber 32) inRList
-   in
-   (V.fromList inLBV, V.fromList inMBV, V.fromList inRBV)
-
-
--- | convertWord642BV converts Unboxed vectors of Word64 to bitvector nonadditive characters
-convertWord642BV :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
-convertWord642BV (inL, inM, inR) = 
-   let inLList = GV.toList inL
-       inMList = GV.toList inM
-       inRList = GV.toList inR
-       inLBV = fmap (BV.fromNumber 64) inLList
-       inMBV = fmap (BV.fromNumber 64) inMList
-       inRBV = fmap (BV.fromNumber 64) inRList
-   in
-   (V.fromList inLBV, V.fromList inMBV, V.fromList inRBV)
--}
 
 
 -- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive, 
