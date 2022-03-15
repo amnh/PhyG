@@ -727,3 +727,6 @@ preOrderTreeTraversal
 
 
 304) Add inputs for prealigned slim/wide/huge sequences
+
+305) Check min max edge cost WRT reordering with gap first versus last
+

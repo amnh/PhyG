@@ -90,6 +90,18 @@ threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode =
    else if localCharType == Matrix then 
       let threeFinal = V.zipWith3 (threeWayMatrix (costMatrix charInfo)) (matrixStatesFinal parent1) (matrixStatesFinal parent2) (matrixStatesPrelim curNode) 
       in curNode {matrixStatesFinal = threeFinal}
+
+   else if localCharType == AlignedSlim then
+      let threeFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parent1) (alignedSlimFinal parent2) (snd3 $ alignedSlimPrelim curNode) 
+      in curNode {alignedSlimFinal = threeFinal}
+
+   else if localCharType == AlignedWide then
+      let threeFinal = M.getFinal3WayWideHuge (wideTCM charInfo) (alignedWideFinal parent1) (alignedWideFinal parent2) (snd3 $ alignedWidePrelim curNode) 
+      in curNode {alignedWideFinal = threeFinal}
+
+   else if localCharType == AlignedHuge then
+      let threeFinal = M.getFinal3WayWideHuge  (hugeTCM charInfo) (alignedHugeFinal parent1) (alignedHugeFinal parent2) (snd3 $ alignedHugePrelim curNode) 
+      in curNode {alignedHugeFinal = threeFinal}
       
    else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
       let threeFinal = threeWaySlim charInfo parent1 parent2 curNode

@@ -523,25 +523,46 @@ updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
 updateCharacter postOrderCharacter preOrderCharacter localCharType
   | localCharType == Add =
     postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
+  
   | localCharType == NonAdd =
     postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
+  
   | localCharType == Matrix =
     postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
+  
+  | localCharType == AlignedSlim =
+    postOrderCharacter { alignedSlimPrelim = alignedSlimPrelim preOrderCharacter
+                       , alignedSlimFinal  = alignedSlimFinal preOrderCharacter
+                       }
+
+  | localCharType == AlignedWide =
+    postOrderCharacter { alignedWidePrelim = alignedWidePrelim preOrderCharacter
+                       , alignedWideFinal  = alignedWideFinal preOrderCharacter
+                       }
+
+  | localCharType == AlignedHuge =
+    postOrderCharacter { alignedHugePrelim = alignedHugePrelim preOrderCharacter
+                       , alignedHugeFinal  = alignedHugeFinal preOrderCharacter
+                       }
+
   | localCharType == SlimSeq || localCharType == NucSeq =
     postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
-                  , slimFinal = slimFinal preOrderCharacter
-                  , slimIAFinal = slimIAFinal preOrderCharacter
-              }
+                      , slimFinal = slimFinal preOrderCharacter
+                      , slimIAFinal = slimIAFinal preOrderCharacter
+                      }
+  
   | localCharType == WideSeq || localCharType == AminoSeq =
     postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
-                  , wideFinal = wideFinal preOrderCharacter
-                  , wideIAFinal = wideIAFinal preOrderCharacter
-                  }
+                      , wideFinal = wideFinal preOrderCharacter
+                      , wideIAFinal = wideIAFinal preOrderCharacter
+                      }
+  
   | localCharType == HugeSeq =
     postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
-                  , hugeFinal = hugeFinal preOrderCharacter
-                  , hugeIAFinal = hugeIAFinal preOrderCharacter
-                  }
+                      , hugeFinal = hugeFinal preOrderCharacter
+                      , hugeIAFinal = hugeIAFinal preOrderCharacter
+                      }
+  
   | otherwise = error ("Character type unimplemented : " ++ show localCharType)
 
 -- | updateEdgeInfoSoftWired gets edge weights via block trees as opposed to canonical graph
@@ -737,6 +758,14 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         in
         (minCost, maxCost)
 
+    else if thisCharType `elem` prealignedCharacterTypes then
+        let 
+            (minDiff, maxDiff) = unzip $ zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ alignedSlimFinal uCharacter) (GV.toList $ alignedSlimFinal vCharacter)
+            minCost = thisWeight * fromIntegral (sum minDiff)
+            maxCost = thisWeight * fromIntegral (sum maxDiff)
+        in
+        (minCost, maxCost)
+
 
     else if thisCharType == SlimSeq || thisCharType == NucSeq then
         let minMaxDiffList = if finalMethod == DirectOptimization then
@@ -888,9 +917,20 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       if localCharType == Add then
          childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then 
+        childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
-      else if localCharType == Matrix then childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
+      else if localCharType == Matrix then 
+        childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
+
+      else if localCharType == AlignedSlim then
+        childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
+
+      else if localCharType == AlignedWide then
+        childChar {alignedWideFinal = snd3 $ alignedWidePrelim childChar}
+
+      else if localCharType == AlignedHuge then
+        childChar {alignedHugeFinal = snd3 $ alignedHugePrelim childChar}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
@@ -932,6 +972,15 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if localCharType == Matrix then
          childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
+
+      else if localCharType == AlignedSlim then
+        childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
+
+      else if localCharType == AlignedWide then
+        childChar {alignedWideFinal = snd3 $ alignedWidePrelim childChar}
+
+      else if localCharType == AlignedHuge then
+        childChar {alignedHugeFinal = snd3 $ alignedHugePrelim childChar}      
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
@@ -999,6 +1048,21 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let finalAssignment' = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
          in
          childChar {matrixStatesFinal = finalAssignment'}
+
+      else if localCharType == AlignedSlim then
+        let alignedFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parentChar) (fst3 $ alignedSlimPrelim childChar) (thd3 $ alignedSlimPrelim childChar)
+        in
+        childChar {alignedSlimFinal = alignedFinal}
+
+      else if localCharType == AlignedWide then
+       let alignedFinal = M.getFinal3WayWideHuge (wideTCM charInfo) (alignedWideFinal parentChar) (fst3 $ alignedWidePrelim childChar) (thd3 $ alignedWidePrelim childChar)
+        in
+        childChar {alignedWideFinal = alignedFinal}
+
+      else if localCharType == AlignedHuge then
+        let alignedFinal = M.getFinal3WayWideHuge (hugeTCM charInfo) (alignedHugeFinal parentChar) (fst3 $ alignedHugePrelim childChar) (thd3 $ alignedHugePrelim childChar)
+        in
+        childChar {alignedHugeFinal = alignedFinal}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
@@ -1082,6 +1146,15 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let lFinalAssignment = matrixStatesFinal parentChar
          in
          childChar {matrixStatesFinal = lFinalAssignment}
+
+      else if localCharType == AlignedSlim then
+        childChar {alignedSlimFinal = alignedSlimFinal parentChar}
+
+      else if localCharType == AlignedWide then
+        childChar {alignedWideFinal = alignedWideFinal parentChar}
+
+      else if localCharType == AlignedHuge then
+        childChar {alignedHugeFinal = alignedHugeFinal parentChar}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
