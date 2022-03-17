@@ -18,6 +18,7 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{url}
+%\usepackage{hyperref}
 \usepackage[dvipsnames]{xcolor}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
 \usepackage[nottoc,numbib]{tocbibind}
@@ -55,45 +56,53 @@
 	\tableofcontents
 	\newpage
 	\section{Introduction}
-	This is the initial version of documentation for the program PhylogeneticGraph (\texttt{PhyG}).  This program is designed to produce phylogenetic graphs from input data and graphs via heuristic searching of general phylogenetic graph space.
-	
-	 \texttt{PhyG} is the successor of \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, containing much of its functionality but extended to broader classes of input data and phylogenetic graphs.
-	The phylogenetic graph inputs and outputs of \texttt{PhyG} include not only trees, but other forms including forests and both
-	soft and hard-wired networks.
+	This is the initial version of documentation for the program PhylogeneticGraph (\texttt{PhyG}).  
+	This program is designed to produce phylogenetic graphs from input data and graphs via heuristic
+	searching of general phylogenetic graph space.
 	
 	
+	\texttt{PhyG} is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015}, containing much of its functionality
+	 but extended to broader classes of input data and phylogenetic graphs.
+	The phylogenetic graph inputs and outputs of \texttt{PhyG} include not only trees, but other forms
+	 including forests and both soft and hard-wired networks.
 	
-	\section{Overview of program use}bib
+	%PhyGraph needs its own description rather than just being the successor of POY
 	
-	At present, \texttt{PhyG} is operated solely via command-line interface. 
+	\section{Overview of program use}
 	
-	Commands are entered via a scriptfile that contains commands, which may themselves contain references to other script files.
+	At present, \texttt{PhyG} is operated solely via command-line interface. %and invoked in a script.
+	Commands are entered via a script file that contains commands, which may themselves contain
+	references to other script files.
 	These commands specify input files, output files and formats, graph type and search parameters. 
 	
-	\bigskip
-	\texttt{phyg script.pg}
-	
+	\begin{verbatim}
+	phyg script.pg
+	\end{verbatim}
+	%what's this for?
 	
 	\section{QuickStart}
 		\subsection{Requirements}
 		\subsection{Obtaining and Installing \texttt{PhyG}}
-			All source code, precompiled binaries, test data, and documentation are available from \url{https://githib.com/wardwheeler/PhyGraph}.
+		\texttt{PhyG} source code, precompiled binaries, test data, and documentation in pdf format are available from the	\texttt{PhyG} \href{https://githib.com/wardwheeler/PhyGraph}{GitHub site}.
 
 	\section{Input Data Formats}
 		Any character names in input files are (for now) ignored and internal names are created
 		by appending the character number in its file to the filename as in "fileName:0".
+		%No idea what thing means
 		Qualitative data, and prealigned data include their index in their input files and unaligned 
 		data are treated as a single character.
+		
 		\subsection{fasta}
 			Single character sequence input \citep{PearsonandLipman1988}.
 		\subsection{fastc}
 			Multicharacter sequence input.  \citep{WheelerandWashburn2019}.
 		\subsection{\texttt{TNT}}
-		The TNT \citep{Goloboffetal2008} format is accepted here for specification of qualitative, measurement, and prealigned molecular 
-		sequence data.  \texttt{PhyG} does not parse all the diversity of options that can be specified in \texttt{TNT} input files.
+		The TNT \citep{Goloboffetal2008} format is accepted here for specification of qualitative,
+		 measurement, and prealigned molecular sequence data.  \texttt{PhyG} does not parse all the
+		  diversity of options that can be specified in \texttt{TNT} input files.
 		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
 		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
-		')' sets to non-additive, if wantadditive then need to reset to additive after\\
+		')' sets to non-additive, if want additive then need to reset to additive after\\
 		character state designations single characters\\
 		continuous and other multicharacter states--can be read, abinguitess or ranges (unlike tnt for continuous) are 
 		in squarebraskets with period as in [X.Y]\\
@@ -107,61 +116,71 @@
 		``additive'', otherwise the number will be treated as non-additive character states. \\
 		nonAdd polymorphisms  are [X.Y]--unless  additive '-' for range\\
 		can't have '.' in multichar state (or single for that matter)\\
-		Inherent ordering of DNA and AMino Acid codes is alphabetical (e.g. A,C,G,T.`-')
+		Inherent ordering of DNA and amino acid codes is alphabetical (e.g. A,C,G,T.`-')
 	
 	\section{Input Graph Formats}
-	Graphs may be input in the graphviz ``dot'' format \url{https://graphviz.org/}, Newick (as interpreted by Gary Olsen; \url{https://evolution.genetics.washington.edu/phylip/newick_doc.html}), Enhanced Newick \cite{Cardonaetal2008},
+	Graphs may be input in the graphviz format \href{https://graphviz.org/}{``dot''} format Newick (as interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}{here};), Enhanced Newick \cite{Cardonaetal2008},
 	and Forest Enhanced Newick (defined by \citealp{WheelerPhyloSuperGraphs}) formats.
-	
-	Quickly, Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for forests of components, each
-	of which is represented by an ENewick string.  The ENewick components are surrounded by `$<$' and '$>$'.
-	As in $<$(A, (B,C)); (D,(E,F));$>$.  Groups may be shared among ENewick components.
+	Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for 
+	forests of components, each of which is represented by an ENewick string.  The ENewick 
+	components are surrounded by `$<$' and '$>$'. As in $<$(A, (B,C)); (D,(E,F));$>$.  
+	Groups may be shared among ENewick components.
 	
 	
 	\section{Output Graph Formats}
 	Graph outputs can be in either Graphviz `dot' or FEN formats.  Dot files can be visualized in a variety of ways 
 	using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety of other formats. FEN outputs of 
 	single trees (ie forest with a single component) are rendered as enewick.  Newick files can be visualized in a 
-	large number of programs (e.g. FigTree; \url{http://tree.bio.ed.ac.uk/software/figtree/}, Dendroscope; 
-	\url{https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}). 	
+	large number of programs (e.g. \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree}; \href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}{Dendroscope}). 	
 	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, creating a new node as parent to that leaf
-	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf.  
-	\bigskip
-	\\Example dot command line: \\dot -Tpdf myDotFile.dot $>$ myDotFile.pdf\\
-	
-	Mulitple ``dot'' graphs can be output in a single file.  To create pdf and 
-	other formats the commandline would be (these files are named and numbered automatically):\\\\dot -Tpdf -O myDotFile.dot\\
-	
-	For some reason on OSX the `pdf' option does not seem to work.  You can use `-Tps2' and that will generate a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
-	
-	\section{Command options}
-	There are only a few program options that require specification.  There are defaults for all but input graphs.  
-	Parameters are given with options in a range `a to b' (a-b) with any value in the interval, or alternates `a or b' (a|b). File options require a valid filename.
-	For input graphs, wildcards are allowed (ie `*' and `?').  All commands are followed by a colon `:' before the option with no spaces.  Capitalization (for commands, but not filenames) is ignored.  Commands can be in any order (or entered from a file as stdin `$<$ filename).
-	
-	
+	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf.  Example dot command line: 
+	\begin{verbatim}
+	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
+	\end{verbatim}
+			
+	Multiple ``dot'' graphs can be output in a single file.  To create pdf and other formats the
+	commandline would be (these files are named and numbered automatically):
+	\begin{verbatim}
+	dot -Tpdf -O myDotFile.dot
+	\end{verbatim}
 
+	For some reason on OSX the `pdf' option does not seem to work.  You can use `-Tps2' and that will generate a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
+	%what's -Tps2?
+	
+	\section{Command Options}
+	There are only a few program options that require specification.  There are defaults for all but input
+	 graphs.  Parameters are given with options in a range `a to b' (a-b) with any value in the interval, or
+	  alternates `a or b' (a|b). File options require a valid filename.
+	  
+	For input graphs, wildcards are allowed (i.e. `*' and `?').  All commands are followed by a colon `:' before the option with no spaces.  Capitalization (for commands, but not filenames) is ignored.  Commands can be in any order (or entered from a file as stdin `$<$ filename).
 	
 	The program requires at least one input graph file and at least two input graphs (they could be in the same file).
 
 	
 	\section{Program Use}
-	The program is invoked from the command-line as in:\\
-	PhyGraph commandFile\\
+	The program is invoked from the command-line as in:
+		\begin{verbatim}
+		PhyGraph commandFile
+		\end{verbatim}
 	
 	\section{Commands}
-		\subsection{Command Structure}
+		\subsection{PhyG Command Structure}
 		Commands and arguments are case insensitive with the exception of filename specifications, which are also 
 		always in double quotes (\texttt{"fileName"}).  Commands are specified with mandatory parentheses \texttt{`()'} which may be empty or
-		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are not 
-		order dependent.
+		contain command arguments. Arguments may be preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are not order dependent.
 		
-		\bigskip
-		\texttt{command(argument, option:argument, option[:optional Argument]...)}
+		\begin{verbatim}
+		command(argument, option:argument, option[:optional Argument]...)
+		\end{verbatim}
 		\subsection{Command order and processing}
-			The commands \texttt{Read}, \texttt{Rename}, \texttt{Reblock}, and \texttt{Set} are executed at the beginning of program execution no matter where they occur in a command
-			script.  All other commands are executed in the order in which they are specified.
+			The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
+			 the beginning of program execution, irrespective of where they appear in the command script.  All other
+			  commands are executed in the order they are specified.
+
+	\section{Command reference}
+%	\input{allcommands.tex}
 	
+%	\subsection{Command Reference}
 	\subsection{Build}
 		\subsubsection{Syntax}
 		\texttt{build(arg0, arg1:option, ...)}

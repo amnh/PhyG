@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.10.21)  16 MAR 2022 09:26
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.10.21)  17 MAR 2022 17:40
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -466,24 +466,24 @@ File: l3backend-pdftex.def 2021-03-18 L3 backend support: PDF output (pdfTeX)
 ) (./PhyGraphUserManual.aux)
 \openout1 = `PhyGraphUserManual.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 40.
-LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
 
 (/usr/local/texlive/2021/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
@@ -518,7 +518,7 @@ e
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring ON on input line 40.
+Package hyperref Info: Link coloring ON on input line 41.
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
@@ -532,20 +532,20 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count308
 )
-LaTeX Info: Redefining \ref on input line 40.
-LaTeX Info: Redefining \pageref on input line 40.
-LaTeX Info: Redefining \nameref on input line 40.
+LaTeX Info: Redefining \ref on input line 41.
+LaTeX Info: Redefining \pageref on input line 41.
+LaTeX Info: Redefining \nameref on input line 41.
  (./PhyGraphUserManual.out) (./PhyGraphUserManual.out)
 \@outlinefile=\write3
 \openout3 = `PhyGraphUserManual.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 53.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 54.
 
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 53.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 54.
 
 
 (/usr/local/texlive/2021/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -557,472 +557,153 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 \tf@toc=\write4
 \openout4 = `PhyGraphUserManual.toc'.
 
- [2]
-
-Package natbib Warning: Citation `POY2' on page 3 undefined on input line 60.
-
-
-Package natbib Warning: Citation `POY3' on page 3 undefined on input line 60.
-
-
-Package natbib Warning: Citation `POY4' on page 3 undefined on input line 60.
-
-
-Package natbib Warning: Citation `Varonetal2010' on page 3 undefined on input l
-ine 60.
-
-
-Package natbib Warning: Citation `POY5' on page 3 undefined on input line 60.
-
-
-Package natbib Warning: Citation `Wheeleretal2015' on page 3 undefined on input
- line 60.
-
+ [2] [3]
 LaTeX Font Info:    Font shape `OT1/cmtt/bx/n' in size <12> not available
-(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 79.
-
-Package natbib Warning: Citation `PearsonandLipman1988' on page 3 undefined on 
-input line 88.
-
-
-Package natbib Warning: Citation `WheelerandWashburn2019' on page 3 undefined o
-n input line 90.
-
-
-Package natbib Warning: Citation `Goloboffetal2008' on page 3 undefined on inpu
-t line 92.
-
-[3]
-
-Package natbib Warning: Citation `Cardonaetal2008' on page 4 undefined on input
- line 113.
-
-
-Package natbib Warning: Citation `WheelerPhyloSuperGraphs' on page 4 undefined 
-on input line 114.
-
-
-Overfull \hbox (213.78152pt too wide) in paragraph at lines 122--131
-\OT1/cmtt/m/n/10.95 ac . uk / software / figtree/$[][]\OT1/cmr/m/n/10.95 , Den-
-dro-scope; [][]$\OT1/cmtt/m/n/10.95 https : / / uni-[]tuebingen . de / fakultae
-ten / mathematisch-[]naturwissenschaftliche-[]fakultaet /
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 122--131
+(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 85.
+ [4] [5] [6] [7] [8]
+Underfull \hbox (badness 10000) in paragraph at lines 325--326
 
  []
 
-[4]
-Underfull \hbox (badness 10000) in paragraph at lines 132--134
+[9]
 
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 132--134
-
- []
+Package natbib Warning: Citation `Wheeler2021a' on page 10 undefined on input l
+ine 347.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 149--151
-
- []
-
-[5]
-
-Package natbib Warning: Citation `Wheeler2021' on page 6 undefined on input lin
-e 173.
-
-
-Package natbib Warning: Citation `Farris1970' on page 6 undefined on input line
- 184.
-
-
-Package natbib Warning: Citation `Baroni2005' on page 6 undefined on input line
- 188.
-
-
-Package natbib Warning: Citation `Farris1972' on page 6 undefined on input line
- 198.
-
-
-Package natbib Warning: Citation `Moretetal2005' on page 6 undefined on input l
-ine 202.
-
-
-Package natbib Warning: Citation `MiyagiandWheeler2019' on page 6 undefined on 
-input line 206.
-
-
-Package natbib Warning: Citation `Wheeler2022' on page 6 undefined on input lin
-e 206.
-
-
-Package natbib Warning: Citation `Saitou1987' on page 6 undefined on input line
- 214.
-
-
-Package natbib Warning: Citation `SokalandMichener1958' on page 6 undefined on 
-input line 217.
-
-[6]
-
-Package natbib Warning: Citation `Wheeler2021' on page 7 undefined on input lin
-e 232.
-
-
-Package natbib Warning: Citation `Dayhoff1969' on page 7 undefined on input lin
-e 235.
-
-
-Package natbib Warning: Citation `Farris1988' on page 7 undefined on input line
- 238.
-
-
-Package natbib Warning: Citation `swofford1990a' on page 7 undefined on input l
-ine 238.
-
-
-Package natbib Warning: Citation `moilanen1999' on page 7 undefined on input li
-ne 257.
-
-
-Package natbib Warning: Citation `moilanen2001' on page 7 undefined on input li
-ne 257.
-
-
-Package natbib Warning: Citation `goloboff1999' on page 7 undefined on input li
-ne 257.
-
-
-Package natbib Warning: Citation `Holland1975' on page 7 undefined on input lin
-e 258.
-
-[7]
-
-Package natbib Warning: Citation `PearsonandLipman1988' on page 8 undefined on 
-input line 298.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 306--307
-
- []
-
-[8]
-
-Package natbib Warning: Citation `WheelerandWashburn2019' on page 9 undefined o
-n input line 310.
-
-
-Package natbib Warning: Citation `Cardonaetal2008' on page 9 undefined on input
- line 316.
-
-
-Package natbib Warning: Citation `PearsonandLipman1988' on page 9 undefined on 
-input line 322.
-
-
-Package natbib Warning: Citation `WheelerandWashburn2019' on page 9 undefined o
-n input line 325.
-
-
-Package natbib Warning: Citation `Wheeler2021a' on page 9 undefined on input li
-ne 328.
-
-
-Overfull \hbox (25.66911pt too wide) in paragraph at lines 334--335
+Overfull \hbox (25.66911pt too wide) in paragraph at lines 353--354
 \OT1/cmtt/m/n/10.95 newick: \OT1/cmr/m/n/10.95 File con-tains Newick for-mat gr
 aph as spec-i-fied by [][]$\OT1/cmtt/m/n/10.95 https : / / evolution . genetics
  . washington .
  []
 
 
-Package natbib Warning: Citation `PearsonandLipman1988' on page 9 undefined on 
-input line 337.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 361--366
-
- []
-
-[9]
-
-Package natbib Warning: Citation `Goloboffetal2008' on page 10 undefined on inp
-ut line 372.
-
-LaTeX Font Info:    Font shape `OT1/cmtt/bx/n' in size <10.95> not available
-(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 395.
-
-Underfull \hbox (badness 10000) in paragraph at lines 408--409
+Underfull \hbox (badness 10000) in paragraph at lines 380--385
 
  []
 
 [10]
-Underfull \hbox (badness 10000) in paragraph at lines 418--419
+LaTeX Font Info:    Font shape `OT1/cmtt/bx/n' in size <10.95> not available
+(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 414.
+
+Underfull \hbox (badness 10000) in paragraph at lines 427--428
 
  []
 
 [11]
+Underfull \hbox (badness 10000) in paragraph at lines 437--438
 
-Package natbib Warning: Citation `Metropolisetal1953' on page 12 undefined on i
-nput line 475.
-
-
-Package natbib Warning: Citation `Kirkpatricketal1983' on page 12 undefined on 
-input line 475.
-
-
-Package natbib Warning: Citation `Cerny1985' on page 12 undefined on input line
- 475.
-
-
-Package natbib Warning: Citation `goloboff1999' on page 12 undefined on input l
-ine 482.
+ []
 
 [12]
-Overfull \hbox (2.64464pt too wide) in paragraph at lines 491--492
+Overfull \hbox (4.09363pt too wide) in paragraph at lines 501--507
+\OT1/cmtt/m/n/10.95 drift[:n] \OT1/cmr/m/n/10.95 Spec-i-fies that $\OML/cmm/m/i
+t/10.95 n$ \OT1/cmr/m/n/10.95 (de-fault 1) rounds of the ``drift-ing'' form of 
+sim-u-lated an-neal-ing ([][]Goloboff[][],
+ []
+
+[13]
+Overfull \hbox (2.64464pt too wide) in paragraph at lines 510--511
 \OT1/cmtt/m/n/10.95 generations:[n] \OT1/cmr/m/n/10.95 Spec-i-fies the num-ber 
 of gen-er-a-tions (se-quen-tial it-er-a-tions) for \OT1/cmtt/m/n/10.95 geneticA
 lgorithm\OT1/cmr/m/n/10.95 .
  []
 
 
-Package natbib Warning: Citation `Holland1975' on page 13 undefined on input li
-ne 494.
-
-
-Overfull \hbox (25.08208pt too wide) in paragraph at lines 494--495
-\OT1/cmtt/m/n/10.95 geneticAlgorithm|ga \OT1/cmr/m/n/10.95 Per-forms Ge-netic A
-l-go-rithm (\OT1/cmr/bx/n/10.95 ?\OT1/cmr/m/n/10.95 ) re-fine-ment in con-cert 
-with op-tions \OT1/cmtt/m/n/10.95 generations\OT1/cmr/m/n/10.95 ,
- []
-
-
-Overfull \hbox (50.70325pt too wide) in paragraph at lines 515--516
+Overfull \hbox (50.70325pt too wide) in paragraph at lines 534--535
 \OT1/cmtt/m/n/10.95 severity:[n] \OT1/cmr/m/n/10.95 Spec-i-fies sever-ity of se
 -lec-tion against sub-optimal graph so-lu-tions events for \OT1/cmtt/m/n/10.95 
 geneticAlgorithm\OT1/cmr/m/n/10.95 .
  []
 
-[13]
+[14]
 
-Package natbib Warning: Citation `Wheeler2012' on page 14 undefined on input li
-ne 548.
-
-
-Package natbib Warning: Citation `Wheeler2021a' on page 14 undefined on input l
-ine 548.
+Package natbib Warning: Citation `Wheeler2021a' on page 15 undefined on input l
+ine 567.
 
 
-Package natbib Warning: Citation `MiyagiandWheeler2019' on page 14 undefined on
- input line 551.
-
-
-Package natbib Warning: Citation `Baroni2005' on page 14 undefined on input lin
-e 551.
-
-
-Package natbib Warning: Citation `MargushandMcMorris1981' on page 14 undefined 
-on input line 552.
-
-
-Package natbib Warning: Citation `Schuhandpolhemus1980' on page 14 undefined on
- input line 553.
-
-
-Package natbib Warning: Citation `Adams1972' on page 14 undefined on input line
- 553.
-
-
-Package natbib Warning: Citation `Nelson1979' on page 14 undefined on input lin
-e 555.
-
-
-Package natbib Warning: Citation `Bremer1990' on page 14 undefined on input lin
-e 556.
-
-
-Overfull \hbox (9.663pt too wide) in paragraph at lines 554--558
+Overfull \hbox (9.663pt too wide) in paragraph at lines 573--577
 \OT1/cmr/m/n/10.95 Species how group com-par-isons are to be made. Ei-ther by i
 den-ti-cal match [(A, (B,C))$\OMS/cmsy/m/n/10.95 6\OT1/cmr/m/n/10.95 =$(A,B,C)]
 ,
  []
 
-[14] [15] [16]
-
-Package natbib Warning: Citation `WheelerandVaron2022' on page 17 undefined on 
-input line 680.
-
-[17]
-
-Package natbib Warning: Citation `Wheeler2015' on page 18 undefined on input li
-ne 689.
-
-
-Overfull \hbox (16.14763pt too wide) in paragraph at lines 688--690
+[15] [16] [17] [18]
+Overfull \hbox (16.14763pt too wide) in paragraph at lines 707--709
 \OT1/cmtt/m/n/10.95 graphFactor:nopenalty|W15|PMDL \OT1/cmr/m/n/10.95 Sets the 
 net-work penalty for a soft-wired net-work (\OT1/cmtt/m/n/10.95 nopenalty|W15\O
 T1/cmr/m/n/10.95 )
  []
 
 
-Package natbib Warning: Citation `Wheeler2015' on page 18 undefined on input li
-ne 700.
-
-
-Package natbib Warning: Citation `Farrisetal1996' on page 18 undefined on input
- line 726.
-
-
-Package natbib Warning: Citation `Goodmanetal1982' on page 18 undefined on inpu
-t line 726.
-
-
-Package natbib Warning: Citation `bremer1994' on page 18 undefined on input lin
-e 726.
-
-
-Overfull \hbox (11.15169pt too wide) in paragraph at lines 733--734
+Overfull \hbox (11.15169pt too wide) in paragraph at lines 752--753
 \OT1/cmtt/m/n/10.95 bootstrap] \OT1/cmr/m/n/10.95 Spec-i-fies that Boot-strap r
 e-sam-pling is per-formed. When re-ported (via \OT1/cmtt/m/n/10.95 report(suppo
 rt)\OT1/cmr/m/n/10.95 )
  []
 
-
-Package natbib Warning: Citation `POY2' on page 18 undefined on input line 738.
-
-
-[18]
-
-Package natbib Warning: Citation `CaminandSokal1965' on page 19 undefined on in
-put line 767.
-
-
-Package natbib Warning: Citation `Robinson1971' on page 19 undefined on input l
-ine 767.
-
-
-Package natbib Warning: Citation `Dayhoff1969' on page 19 undefined on input li
-ne 767.
-
-
-Package natbib Warning: Citation `Farris1988' on page 19 undefined on input lin
-e 767.
-
-
-Package natbib Warning: Citation `swofford1990a' on page 19 undefined on input 
-line 767.
-
-
-Package natbib Warning: Citation `Metropolisetal1953' on page 19 undefined on i
-nput line 773.
-
-
-Package natbib Warning: Citation `Kirkpatricketal1983' on page 19 undefined on 
-input line 773.
-
-
-Package natbib Warning: Citation `Cerny1985' on page 19 undefined on input line
- 773.
-
-
-Overfull \hbox (35.81163pt too wide) in paragraph at lines 773--777
-\OT1/cmr/m/n/10.95 per-formed. The ac-cep-tance of can-di-date graphs is de-ter
--mined by the prob-a-bil-ity $\OML/cmm/m/it/10.95 e[]$\OT1/cmr/m/n/10.95 ,
+[19] [20]
+Overfull \hbox (4.09363pt too wide) in paragraph at lines 798--803
+\OT1/cmtt/m/n/10.95 drift[:n] \OT1/cmr/m/n/10.95 Spec-i-fies that $\OML/cmm/m/i
+t/10.95 n$ \OT1/cmr/m/n/10.95 (de-fault 1) rounds of the ``drift-ing'' form of 
+sim-u-lated an-neal-ing ([][]Goloboff[][],
  []
 
-
-Package natbib Warning: Citation `goloboff1999' on page 19 undefined on input l
-ine 779.
-
-[19]
-
-Package natbib Warning: Citation `Wheeler2003' on page 20 undefined on input li
-ne 786.
-
-
-Package natbib Warning: Citation `CaminandSokal1965' on page 20 undefined on in
-put line 796.
-
-
-Package natbib Warning: Citation `Robinson1971' on page 20 undefined on input l
-ine 796.
-
-
-Package natbib Warning: Citation `Dayhoff1969' on page 20 undefined on input li
-ne 799.
-
-
-Package natbib Warning: Citation `Farris1988' on page 20 undefined on input lin
-e 809.
-
-
-Package natbib Warning: Citation `swofford1990a' on page 20 undefined on input 
-line 809.
-
-[20]
-
-Package natbib Warning: Citation `Wheeler2001' on page 21 undefined on input li
-ne 839.
-
-
-Package natbib Warning: Citation `Wheeler2003' on page 21 undefined on input li
-ne 846.
-
-
-Package natbib Warning: Citation `WashburnandWheeler2020' on page 21 undefined 
-on input line 846.
-
-[21]
-Underfull \hbox (badness 10000) in paragraph at lines 899--902
+[21] [22]
+Underfull \hbox (badness 10000) in paragraph at lines 918--921
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 899--902
+Underfull \hbox (badness 10000) in paragraph at lines 918--921
 
  []
 
-[22] (./PhyGraphUserManual.bbl
-
-Package natbib Warning: Empty `thebibliography' environment on input line 3.
-
-)
+[23] (./PhyGraphUserManual.bbl [24] [25])
 
 Package natbib Warning: There were undefined citations.
 
-[23] (./PhyGraphUserManual.aux)
-Package rerunfilecheck Info: File `PhyGraphUserManual.out' has not changed.
-(rerunfilecheck)             Checksum: 589384F2A7536FFB5EDC8BE5411A511B;3633.
+[26] (./PhyGraphUserManual.aux)
+
+Package rerunfilecheck Warning: File `PhyGraphUserManual.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `PhyGraphUserManual.out':
+(rerunfilecheck)             Before: C6AE0CAAC17F930B5AB81007445F4EB6;3969
+(rerunfilecheck)             After:  6D02F7FEE1484E2DF8D1314DCB63D773;3820.
  ) 
 Here is how much of TeX's memory you used:
- 13351 strings out of 478994
- 199732 string characters out of 5858183
- 519251 words of memory out of 5000000
- 30507 multiletter control sequences out of 15000+600000
+ 13545 strings out of 478994
+ 203673 string characters out of 5858183
+ 521699 words of memory out of 5000000
+ 30650 multiletter control sequences out of 15000+600000
  412166 words of font info for 60 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 83i,6n,88p,440b,470s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc
-}</usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb>
-</usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb><
-/usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></
-usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></us
-r/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/
-local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/lo
-cal/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/loca
-l/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/local/
-texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/tex
-live/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texl
-ive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texliv
-e/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive
-/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/
-2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/local/texlive/2
-021/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb>
-Output written on PhyGraphUserManual.pdf (23 pages, 233274 bytes).
+ 83i,6n,88p,440b,527s stack positions out of 5000i,500n,10000p,200000b,80000s
+pdfTeX warning (dest): name{subsection.10.15} has been referenced but does no
+t exist, replaced by a fixed one
+
+{/usr/local/texlive/2021/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc}<
+/usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></
+usr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></u
+sr/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></us
+r/local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/
+local/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/lo
+cal/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/loca
+l/texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/
+texlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/local/te
+xlive/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texli
+ve/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texliv
+e/2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/
+2021/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2
+021/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/20
+21/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></usr/local/texlive/202
+1/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb>
+Output written on PhyGraphUserManual.pdf (26 pages, 255866 bytes).
 PDF statistics:
- 450 PDF objects out of 1000 (max. 8388607)
- 405 compressed objects within 5 object streams
- 127 named destinations out of 1000 (max. 500000)
- 265 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 675 PDF objects out of 1000 (max. 8388607)
+ 625 compressed objects within 7 object streams
+ 178 named destinations out of 1000 (max. 500000)
+ 281 words of extra memory for PDF output out of 10000 (max. 10000000)
 

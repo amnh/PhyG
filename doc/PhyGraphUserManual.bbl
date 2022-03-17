@@ -1,3 +1,257 @@
 \begin{thebibliography}{}
 
+\bibitem[\protect\astroncite{Adams}{1972}]{Adams1972}
+Adams, E.~N. 1972.
+\newblock Consensus techniques and the comparison of taxonomic trees.
+\newblock {\em Syst. Zool.} 21:390--397.
+
+\bibitem[\protect\astroncite{Baroni et~al.}{2005}]{Baroni2005}
+Baroni, M., Semple, C., and Steel, M. 2005.
+\newblock {A framework for representing reticulate evolution}.
+\newblock {\em Annals of Combinatorics} 8:391--408.
+
+\bibitem[\protect\astroncite{Bremer}{1990}]{Bremer1990}
+Bremer, K. 1990.
+\newblock Combinable component consensus.
+\newblock {\em Cladistics} 6:369--372.
+
+\bibitem[\protect\astroncite{Bremer}{1994}]{bremer1994}
+Bremer, K. 1994.
+\newblock Branch support and tree stability.
+\newblock {\em Cladistics} 10:295--304.
+
+\bibitem[\protect\astroncite{Camin and Sokal}{1965}]{CaminandSokal1965}
+Camin, J.~H. and Sokal, R.~R. 1965.
+\newblock A method for deducing branching sequences in phylogeny.
+\newblock {\em Evolution} 19:311--326.
+
+\bibitem[\protect\astroncite{Cardona et~al.}{2008}]{Cardonaetal2008}
+Cardona, G., Russell\'o, F., and Valiente, G. 2008.
+\newblock Extended newick: it is time for a standard representation of
+  phylogenetic networks.
+\newblock {\em BMC Bioinformatics} 9.
+\newblock doi: 10.1186/1471-2105-9-532.
+
+\bibitem[\protect\astroncite{Cerny}{1985}]{Cerny1985}
+Cerny, V. 1985.
+\newblock A thermodynamical approach to the traveling salesman problem: an
+  efficient simulation algorithm.
+\newblock {\em Journal of Optimization Theory and Applications} 45:41--51.
+
+\bibitem[\protect\astroncite{Dayhoff}{1969}]{Dayhoff1969}
+Dayhoff, M.~O. 1969.
+\newblock Computer analysis of protein evolution.
+\newblock {\em Scientific American} 221:86--95.
+
+\bibitem[\protect\astroncite{Farris}{1970}]{Farris1970}
+Farris, J.~S. 1970.
+\newblock A method for computing {Wagner} trees.
+\newblock {\em Systematic Zoology} 19:83--92.
+
+\bibitem[\protect\astroncite{Farris}{1972}]{Farris1972}
+Farris, J.~S. 1972.
+\newblock Estimating phylogenetic trees from distance matrices.
+\newblock {\em American Naturalist} 106:645--668.
+
+\bibitem[\protect\astroncite{Farris}{1988}]{Farris1988}
+Farris, J.~S. 1988.
+\newblock Hennig86, {P}rogram and {D}ocumentation.
+
+\bibitem[\protect\astroncite{Farris et~al.}{1996}]{Farrisetal1996}
+Farris, J.~S., Albert, V.~A., K\"allersj\"o, M., Lipscomb, and Kluge, A.~G.
+  1996.
+\newblock Parsimony jackknifing outperforms neighbor-joining.
+\newblock {\em Cladistics} 12:99--124.
+
+\bibitem[\protect\astroncite{Gladstein and Wheeler}{1997}]{POY2}
+Gladstein, D.~S. and Wheeler, W.~C. 1997.
+\newblock {POY} version 2.0. program and documentation available at
+  http://research.amnh.org/scicomp/projects/poy.php.
+\newblock American Museum of Natural History, New York.
+
+\bibitem[\protect\astroncite{Goloboff}{1999}]{goloboff1999}
+Goloboff, P. 1999.
+\newblock Analyzing large data sets in reasonable times: solutions for
+  composite optima.
+\newblock {\em Cladistics} 15:415--428.
+
+\bibitem[\protect\astroncite{Goloboff et~al.}{2008}]{Goloboffetal2008}
+Goloboff, P., Farris, J.~S., and Nixon, K. 2008.
+\newblock {TNT}, a free program for phylogenetic analysis.
+\newblock {\em Cladistics} 24:774--786.
+
+\bibitem[\protect\astroncite{Goodman et~al.}{1982}]{Goodmanetal1982}
+Goodman, M., Olson, C.~B., Beeber, J.~E., and Czelusniak, J. 1982.
+\newblock New perspectives in the molecular biological analysis of mammalian
+  phylogeny.
+\newblock {\em Acta Zoologica Fennica} 169:19--35.
+
+\bibitem[\protect\astroncite{Holland}{1975}]{Holland1975}
+J.~H. Holland (ed.) 1975.
+\newblock Adaptation in Natural and Artificial Systems.
+\newblock University of Michigan Press, Ann Arbor Michigan.
+
+\bibitem[\protect\astroncite{Kirkpatrick et~al.}{1983}]{Kirkpatricketal1983}
+Kirkpatrick, S., Gelatt, C.~D., and Vecchi, M.~P. 1983.
+\newblock Optimization by simulated annealing.
+\newblock {\em Science} 220:671--680.
+
+\bibitem[\protect\astroncite{Margush and
+  Mc{M}orris}{1981}]{MargushandMcMorris1981}
+Margush, T. and Mc{M}orris, F.~R. 1981.
+\newblock Consensus n-trees.
+\newblock {\em Bull. Math. Biol.} 43:239--244.
+
+\bibitem[\protect\astroncite{Metropolis et~al.}{1953}]{Metropolisetal1953}
+Metropolis, N.~A., Rosenbluth, A., Rosenbluth, M., Teller, A., and Teller, E.
+  1953.
+\newblock Equation of state calculations by fast computing machine.
+\newblock {\em J. Chem. Phys} 21:1087--1092.
+
+\bibitem[\protect\astroncite{Miyagi and Wheeler}{2019}]{MiyagiandWheeler2019}
+Miyagi, M. and Wheeler, W.~C. 2019.
+\newblock Reconciling trees using phylogenetic edge union networks.
+\newblock {\em Cladistics} 35:688--694.
+
+\bibitem[\protect\astroncite{Moilanen}{1999}]{moilanen1999}
+Moilanen, A. 1999.
+\newblock Searching for most parsimonious trees with simulated evolutionary
+  optimization.
+\newblock {\em Cladistics} 15:39--50.
+
+\bibitem[\protect\astroncite{Moilanen}{2001}]{moilanen2001}
+Moilanen, A. 2001.
+\newblock Simulated evolutionary optimization and local search: Introduction
+  and application to tree search.
+\newblock {\em Cladistics} 17:S12--S25.
+
+\bibitem[\protect\astroncite{Moret et~al.}{2005}]{Moretetal2005}
+Moret, B. M.~E., Tang, J., and Warnow, T. 2005.
+\newblock Reconstructing phylogenties from gene-order and gene-content data.
+\newblock  pp. 321--352.
+
+\bibitem[\protect\astroncite{Nelson}{1979}]{Nelson1979}
+Nelson, G. 1979.
+\newblock Cladistic analysis and synthesis: Principles and definitions, with a
+  historical note on {A}danson's {F}amilles des plantes (1763-1764).
+\newblock {\em Syst. Zool.} 28:1--21.
+
+\bibitem[\protect\astroncite{Pearson and Lipman}{1988}]{PearsonandLipman1988}
+Pearson, W.~R. and Lipman, D.~J. 1988.
+\newblock Improved tools for biological sequence comparison.
+\newblock {\em PNAS} 85:2444--2448.
+
+\bibitem[\protect\astroncite{Robinson}{1971}]{Robinson1971}
+Robinson, D.~F. 1971.
+\newblock Comparison of labelled trees with valency three.
+\newblock {\em J. Combiatorial Theory} 11:105--119.
+
+\bibitem[\protect\astroncite{Saitou and Nei}{1987}]{Saitou1987}
+Saitou, N. and Nei, M. 1987.
+\newblock The neighbor-joining method: A new method for reconstructing
+  phylogenetic trees.
+\newblock {\em Mol. Biol. Evol.} 4:406--425.
+
+\bibitem[\protect\astroncite{Schuh and Polhemus}{1980}]{Schuhandpolhemus1980}
+Schuh, R.~T. and Polhemus, J.~T. 1980.
+\newblock Analysis of taxonomic congruence among morphological, ecological, and
+  biogeographic data sets for the {L}eptopodomorpha ({H}emiptera).
+\newblock {\em Syst. Zool.} 29:1--26.
+
+\bibitem[\protect\astroncite{Sokal and Michener}{1958}]{SokalandMichener1958}
+Sokal, R.~R. and Michener, C.~D. 1958.
+\newblock A statistical method for evaluating systematic relationships.
+\newblock {\em University of Kansas Science Bulletin} 38:1409--1438.
+
+\bibitem[\protect\astroncite{Swofford}{1990}]{swofford1990a}
+Swofford, D.~L. 1990.
+\newblock P{AUP}: {P}hylogenetic {A}nalysis {U}sing {P}arsimony.
+\newblock Note--Although the citation is 1990, I personally used version 2.4 as
+  early as 1985.
+
+\bibitem[\protect\astroncite{Var\'on et~al.}{2008}]{POY4}
+Var\'on, A., Vinh, L.~S., Bomash, I., and Wheeler, W.~C. 2008.
+\newblock Poy 4.0.
+\newblock American Museum of Natural History.
+  http://research.amnh.org/scicomp/projects/poy.php.
+
+\bibitem[\protect\astroncite{Var\'on et~al.}{2010}]{Varonetal2010}
+Var\'on, A., Vinh, L.~S., and Wheeler, W.~C. 2010.
+\newblock {POY} version 4: {P}hylogenetic analysis using dynamic homologies.
+\newblock {\em Cladistics} 26:72--85.
+
+\bibitem[\protect\astroncite{Washburn and
+  Wheeler}{2020}]{WashburnandWheeler2020}
+Washburn, A.~J. and Wheeler, W.~C. 2020.
+\newblock Efficient implied alignment.
+\newblock  21:296.
+
+\bibitem[\protect\astroncite{Wheeler}{2001}]{Wheeler2001}
+Wheeler, W.~C. 2001.
+\newblock Homology and the optimization of {{DNA}} sequence data.
+\newblock {\em Cladistics} 17:S3--S11.
+
+\bibitem[\protect\astroncite{Wheeler}{2003}]{Wheeler2003}
+Wheeler, W.~C. 2003.
+\newblock Implied alignment.
+\newblock {\em Cladistics} 19:261--268.
+
+\bibitem[\protect\astroncite{Wheeler}{2012}]{Wheeler2012}
+Wheeler, W.~C. 2012.
+\newblock Systematics: A course of lectures.
+\newblock Wiley-Blackwell.
+
+\bibitem[\protect\astroncite{Wheeler}{2015}]{Wheeler2015}
+Wheeler, W.~C. 2015.
+\newblock Phylogenetic network analysis as a parsimony optimization problem.
+\newblock {\em BMC Bioinformatics} 16:296.
+
+\bibitem[\protect\astroncite{Wheeler}{2021a}]{Wheeler2021}
+Wheeler, W.~C. 2021a.
+\newblock Distance wagner tree refinement as a heuristic approach to
+  character-based initial tree construction.
+\newblock {\em Cladistics} n/a:1--9.
+
+\bibitem[\protect\astroncite{Wheeler}{2021b}]{WheelerPhyloSuperGraphs}
+Wheeler, W.~C. 2021b.
+\newblock Phylogenetic {S}upergraphs.
+\newblock Cladistics, in press.
+
+\bibitem[\protect\astroncite{Wheeler}{2022}]{Wheeler2022}
+Wheeler, W.~C. 2022.
+\newblock Phylogenetic supergraphs.
+\newblock {\em Cladistics} 38:147--158.
+
+\bibitem[\protect\astroncite{Wheeler et~al.}{2005}]{POY3}
+Wheeler, W.~C., Gladstein, D.~S., and {De Laet}, J. 1996-2005.
+\newblock {POY} version 3.0. program and documentation available at
+  http://research.amnh.org/scicomp/projects/poy.php (current version 3.0.11).
+  documentation by {D. Janies} and {W. C. Wheeler}. commandline documentation
+  by {J. De Laet} and {W. C. Wheeler}.
+\newblock American Museum of Natural History, New York.
+
+\bibitem[\protect\astroncite{Wheeler et~al.}{2013}]{POY5}
+Wheeler, W.~C., Lucaroni, N., Hong, L., Crowley, L.~M., and Var\'on, A. 2013.
+\newblock {POY} version 5.0.
+\newblock American Museum of Natural History.
+  http://research.amnh.org/scicomp/projects/poy.php.
+
+\bibitem[\protect\astroncite{Wheeler et~al.}{2015}]{Wheeleretal2015}
+Wheeler, W.~C., Lucaroni, N., Hong, L., Crowley, L.~M., and Var\'on, A. 2015.
+\newblock {POY} version 5: {P}hylogenetic analysis using dynamic homologies
+  under multiple optimality criteria.
+\newblock {\em Cladistics} 31.
+\newblock 189-196.
+
+\bibitem[\protect\astroncite{Wheeler and Var\'on}{2022}]{WheelerandVaron2022}
+Wheeler, W.~C. and Var\'on, A. 2022.
+\newblock Phylogenetic minimum descriptive length: An optimality criterion for
+  phylogenetic analysis.
+
+\bibitem[\protect\astroncite{Wheeler and
+  Washburn}{2019}]{WheelerandWashburn2019}
+Wheeler, W.~C. and Washburn, A.~J. 2019.
+\newblock {FASTC}: a file format for multi-character sequence data.
+\newblock {\em Cladistics} 35:573--575.
+
 \end{thebibliography}

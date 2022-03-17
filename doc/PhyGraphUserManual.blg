@@ -2,98 +2,62 @@ This is BibTeX, Version 0.99d (TeX Live 2021)
 Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: PhyGraphUserManual.aux
 The style file: cbe.bst
-I couldn't open database file //Users/louise/DropboxAMNH/big-refs-3.bib
----line 176 of file PhyGraphUserManual.aux
- : \bibdata{//Users/louise/DropboxAMNH/big-refs-3.bib
- :                                                   }
-I'm skipping whatever remains of this command
-I found no database files---while reading file PhyGraphUserManual.aux
-Warning--I didn't find a database entry for "POY2"
-Warning--I didn't find a database entry for "POY3"
-Warning--I didn't find a database entry for "POY4"
-Warning--I didn't find a database entry for "Varonetal2010"
-Warning--I didn't find a database entry for "POY5"
-Warning--I didn't find a database entry for "Wheeleretal2015"
-Warning--I didn't find a database entry for "PearsonandLipman1988"
-Warning--I didn't find a database entry for "WheelerandWashburn2019"
-Warning--I didn't find a database entry for "Goloboffetal2008"
-Warning--I didn't find a database entry for "Cardonaetal2008"
-Warning--I didn't find a database entry for "WheelerPhyloSuperGraphs"
-Warning--I didn't find a database entry for "Wheeler2021"
-Warning--I didn't find a database entry for "Farris1970"
-Warning--I didn't find a database entry for "Baroni2005"
-Warning--I didn't find a database entry for "Farris1972"
-Warning--I didn't find a database entry for "Moretetal2005"
-Warning--I didn't find a database entry for "MiyagiandWheeler2019"
-Warning--I didn't find a database entry for "Wheeler2022"
-Warning--I didn't find a database entry for "Saitou1987"
-Warning--I didn't find a database entry for "SokalandMichener1958"
-Warning--I didn't find a database entry for "Dayhoff1969"
-Warning--I didn't find a database entry for "Farris1988"
-Warning--I didn't find a database entry for "swofford1990a"
-Warning--I didn't find a database entry for "moilanen1999"
-Warning--I didn't find a database entry for "moilanen2001"
-Warning--I didn't find a database entry for "goloboff1999"
-Warning--I didn't find a database entry for "Holland1975"
+Database file #1: //Users/louise/DropboxAMNH/big-refs-3.bib
+I was expecting a `,' or a `}'---line 20 of file //Users/louise/DropboxAMNH/big-refs-3.bib
+ :  
+ :  annote ={in prep.}
+(Error may have been on previous line)
+I'm skipping whatever remains of this entry
+I was expecting a `,' or a `}'---line 31 of file //Users/louise/DropboxAMNH/big-refs-3.bib
+ :  
+ :  doi = {https://doi.org/10.1111/cla.12478},
+(Error may have been on previous line)
+I'm skipping whatever remains of this entry
+I was expecting a `,' or a `}'---line 45 of file //Users/louise/DropboxAMNH/big-refs-3.bib
+ :  
+ :  doi = {https://doi.org/10.1111/cla.12485},
+(Error may have been on previous line)
+I'm skipping whatever remains of this entry
 Warning--I didn't find a database entry for "Wheeler2021a"
-Warning--I didn't find a database entry for "Metropolisetal1953"
-Warning--I didn't find a database entry for "Kirkpatricketal1983"
-Warning--I didn't find a database entry for "Cerny1985"
-Warning--I didn't find a database entry for "Wheeler2012"
-Warning--I didn't find a database entry for "MargushandMcMorris1981"
-Warning--I didn't find a database entry for "Schuhandpolhemus1980"
-Warning--I didn't find a database entry for "Adams1972"
-Warning--I didn't find a database entry for "Nelson1979"
-Warning--I didn't find a database entry for "Bremer1990"
-Warning--I didn't find a database entry for "WheelerandVaron2022"
-Warning--I didn't find a database entry for "Wheeler2015"
-Warning--I didn't find a database entry for "Farrisetal1996"
-Warning--I didn't find a database entry for "Goodmanetal1982"
-Warning--I didn't find a database entry for "bremer1994"
-Warning--I didn't find a database entry for "CaminandSokal1965"
-Warning--I didn't find a database entry for "Robinson1971"
-Warning--I didn't find a database entry for "Wheeler2003"
-Warning--I didn't find a database entry for "Wheeler2001"
-Warning--I didn't find a database entry for "WashburnandWheeler2020"
-You've used 0 entries,
+You've used 46 entries,
             2015 wiz_defined-function locations,
-            572 strings with 4977 characters,
-and the built_in function-call counts, 17 in all, are:
-= -- 0
-> -- 0
-< -- 0
-+ -- 0
-- -- 0
-* -- 0
-:= -- 7
-add.period$ -- 0
-call.type$ -- 0
-change.case$ -- 0
-chr.to.int$ -- 0
-cite$ -- 0
-duplicate$ -- 0
-empty$ -- 1
-format.name$ -- 0
-if$ -- 1
-int.to.chr$ -- 1
+            788 strings with 10369 characters,
+and the built_in function-call counts, 16449 in all, are:
+= -- 1664
+> -- 582
+< -- 34
++ -- 197
+- -- 186
+* -- 1426
+:= -- 2905
+add.period$ -- 138
+call.type$ -- 46
+change.case$ -- 321
+chr.to.int$ -- 45
+cite$ -- 46
+duplicate$ -- 587
+empty$ -- 1109
+format.name$ -- 254
+if$ -- 3111
+int.to.chr$ -- 2
 int.to.str$ -- 0
-missing$ -- 0
-newline$ -- 3
-num.names$ -- 0
-pop$ -- 0
+missing$ -- 41
+newline$ -- 233
+num.names$ -- 139
+pop$ -- 215
 preamble$ -- 1
-purify$ -- 0
+purify$ -- 323
 quote$ -- 0
-skip$ -- 1
+skip$ -- 455
 stack$ -- 0
-substring$ -- 0
-swap$ -- 0
-text.length$ -- 0
+substring$ -- 1317
+swap$ -- 89
+text.length$ -- 1
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 0
+type$ -- 272
 warning$ -- 0
-while$ -- 0
+while$ -- 155
 width$ -- 0
-write$ -- 2
-(There were 2 error messages)
+write$ -- 555
+(There were 3 error messages)
