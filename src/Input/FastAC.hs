@@ -129,7 +129,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
-            localDenseCostMatrix = if seqType == NucSeq || seqType == SlimSeq then tcmDense
+            localDenseCostMatrix = if seqType `elem` [NucSeq, SlimSeq] then tcmDense
                                    else tcmNaught
 
             (wideWeightFactor, localWideTCM)
@@ -146,23 +146,30 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                 a | null a -> seqAlphabet
                 a          -> fromSymbols a
 
+            alignedSeqType = if not isPrealigned then seqType
+                             else 
+                                if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
+                                else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
+                                else if seqType == HugeSeq then AlignedHuge
+                                else error "Unrecognozed data type in getFastaCharInfo"
+
             defaultHugeSeqCharInfo = CharInfo {
-                                       charType = seqType
-                                     , activity = True
-                                     , weight = tcmWeightFactor *
-                                                if seqType == HugeSeq
-                                                then fromRational hugeWeightFactor
-                                                else if seqType `elem` [WideSeq, AminoSeq]
-                                                then fromRational wideWeightFactor
-                                                else 1
-                                     , costMatrix = localCostMatrix
-                                     , slimTCM = localDenseCostMatrix
-                                     , wideTCM = localWideTCM
-                                     , hugeTCM = localHugeTCM
-                                     , name = T.pack (filter (/= ' ') dataName <> ":0")
-                                     , alphabet = thisAlphabet
-                                     , prealigned = isPrealigned
-                                     }
+                                               charType = alignedSeqType 
+                                             , activity = True
+                                             , weight = tcmWeightFactor *
+                                                        if seqType == HugeSeq
+                                                        then fromRational hugeWeightFactor
+                                                        else if seqType `elem` [WideSeq, AminoSeq]
+                                                        then fromRational wideWeightFactor
+                                                        else 1
+                                             , costMatrix = localCostMatrix
+                                             , slimTCM = localDenseCostMatrix
+                                             , wideTCM = localWideTCM
+                                             , hugeTCM = localHugeTCM
+                                             , name = T.pack (filter (/= ' ') dataName <> ":0")
+                                             , alphabet = thisAlphabet
+                                             , prealigned = isPrealigned
+                                             }
         in
         if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
@@ -259,8 +266,15 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | seqType == HugeSeq           = getTCMMemo (thisAlphabet, inMatrix)
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
+            alignedSeqType = if not isPrealigned then seqType
+                             else 
+                                if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
+                                else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
+                                else if seqType == HugeSeq then AlignedHuge
+                                else error "Unrecognozed data type in getFastaCharInfo"
+
             defaultHugeSeqCharInfo = CharInfo {
-                                       charType = seqType
+                                       charType = alignedSeqType
                                      , activity = True
                                      , weight = tcmWeightFactor *
                                                 if   seqType == HugeSeq
@@ -275,21 +289,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , name = T.pack (filter (/= ' ') dataName ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
-                                     }{-
-            defaultHugeSeqCharInfo = CharInfo
-                                     { charType = if (length $ thisAlphabet) < 9 then SlimSeq
-                                                  else HugeSeq
-                                     , activity = True
-                                     , weight  = if (length $ thisAlphabet) > 8 then weightFactor * tcmWeightFactor
-                                                else tcmWeightFactor
-                                     , costMatrix = inMatrix
-                                     , slimTCM = localDenseCostMatrix
-                                     , wideTCM = localMemoTCM
-                                     , name = T.pack ((filter (/= ' ') dataName) ++ ":0")
-                                     , alphabet = thisAlphabet
-                                     , prealigned = isPrealigned
                                      }
-                                     -}
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo

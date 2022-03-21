@@ -38,6 +38,8 @@ Portability :  portable (I hope)
 module Input.Reorganize
   ( groupDataByType
   , reBlockData
+  , removeConstantCharacters
+  , optimizeData
   ) where
 
 import qualified Data.List                   as L
@@ -52,6 +54,15 @@ import qualified SymMatrix                   as S
 import           Debug.Trace
 import qualified Data.Bifunctor              as BF
 
+--place holder for now
+-- | optimizeData convert
+        -- Additive characters with alphabets < 64 to multiple binary nonadditive
+        -- all binary characters to nonadditive
+        -- matrix 2 states to non-additive with weight
+        -- prealigned to non-additive or matrix
+        -- bitPack non-additive
+optimizeData :: ProcessedData -> ProcessedData
+optimizeData inData = inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
@@ -400,3 +411,7 @@ addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacte
         else firstList : addMatrixCharacter (tail inMatrixCharacterList) currentCostMatrix currentMatrixCharacter replicateNumber
 
 
+-- | removeConstantCharacters takes processed data and removes constabht characters
+-- from exactCharacterTypes
+removeConstantCharacters :: ProcessedData -> ProcessedData
+removeConstantCharacters inData = inData

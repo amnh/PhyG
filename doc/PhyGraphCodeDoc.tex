@@ -144,6 +144,19 @@
 			 \begin{itemize}
 			 	\item{filterConst}
 			 \end{itemize}
+		 	  \item{Input.FastAC.hs}
+		 	 \begin{itemize}
+		 	 	\item{Functions for sequence data processing on input}
+		 	 \end{itemize}
+		 	 \item{Input.DataTransformation.hs}
+		 	 \begin{itemize}
+		 	 	\item{These are for input--so not used by static approx}
+		 	 	\item{getMissingValue}
+		 	 	\item{getGeneralSequenceChar}
+		 	 	\item{getQualitativeCharacters--potentially depending on character features}
+		 	 	\item{createLeafCharacter}
+		 	 \end{itemize}
+		 	 
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}
 	\subsection{Execution in Parallel}

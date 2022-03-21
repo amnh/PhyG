@@ -77,6 +77,8 @@ import           Debug.Trace
 import           GeneralUtilities
 -- import           Debug.Trace
 
+--Todo-- add stuff for proper input of prealign seeunces--need charactert types set before this
+
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
 -- a number to character name
@@ -490,17 +492,24 @@ getGeneralBVCode bvCodeVect inState =
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
+            isAligned = prealigned inCharInfo
             stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
             (slimVec, wideVec, hugeVec) =
               if not $ null stateList
               then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
               else (mempty, mempty, mempty)
-            newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
-                                             , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
-                                             , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
-                                             , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
-                                             , hugePrelim         = if cType == HugeSeq then hugeVec else mempty
-                                             , hugeFinal          = if cType == HugeSeq then hugeVec else mempty
+            newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] && not isAligned then slimVec else mempty
+                                             , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] && not isAligned  then slimVec else mempty
+                                             , widePrelim         = if cType `elem` [WideSeq, AminoSeq] && not isAligned  then wideVec else mempty
+                                             , wideFinal          = if cType `elem` [WideSeq, AminoSeq] && not isAligned  then wideVec else mempty
+                                             , hugePrelim         = if cType == HugeSeq  && not isAligned then hugeVec else mempty
+                                             , hugeFinal          = if cType == HugeSeq  && not isAligned then hugeVec else mempty
+                                             , alignedSlimPrelim  = if cType `elem` [SlimSeq, NucSeq  ] && isAligned then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
+                                             , alignedSlimFinal   = if cType `elem` [SlimSeq, NucSeq  ] && isAligned then slimVec else mempty
+                                             , alignedWidePrelim  = if cType `elem` [WideSeq, AminoSeq] && isAligned then (wideVec, wideVec, wideVec) else (mempty, mempty, mempty)
+                                             , alignedWideFinal   = if cType `elem` [WideSeq, AminoSeq] && isAligned then wideVec else mempty
+                                             , alignedHugePrelim  = if cType `elem` [HugeSeq] && isAligned then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
+                                             , alignedHugeFinal   = if cType `elem` [HugeSeq] && isAligned then hugeVec else mempty
                                              }
         in  [newSequenceChar]
 
@@ -527,7 +536,7 @@ getStateBitVector localAlphabet = encodeState localAlphabet constructor . (:[])
   where
     constructor  = flip BV.fromNumber 0
 
--- getMinMaxStates takes  list of strings and determines tjh eminimum and maximum integer values
+-- getMinMaxStates takes  list of strings and determines the minimum and maximum integer values
 getMinMaxStates :: [String] -> (Int, Int) -> (Int, Int)
 getMinMaxStates inStateStringList (curMin, curMax) =
     if null inStateStringList then (curMin, curMax)
@@ -683,6 +692,9 @@ createLeafCharacter inCharInfoList rawDataList
                          NucSeq   -> getNucleotideSequenceChar rawDataList
                          AminoSeq ->  getAminoAcidSequenceChar rawDataList
                          -- ambiguities different, and alphabet varies with character (potentially)
+                         AlignedSlim -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         AlignedWide -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         AlignedHuge -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          SlimSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          WideSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          HugeSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList

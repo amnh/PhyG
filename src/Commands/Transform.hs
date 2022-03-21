@@ -61,6 +61,7 @@ import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector.Generic         as GV
 import           Data.Word
 import           Data.Bits
+import qualified Input.Reorganize            as R
 
 
 -- | transformArgList is the list of valid transform arguments
@@ -187,9 +188,11 @@ makeStaticApprox inGS inData inGraph =
 
           -- do each block in turn pulling and transforming data from inGraph
           newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+
+          newProcessedData = R.removeConstantCharacters (nameV, nameBVV, V.fromList newBlockDataV)
       in
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
-      (nameV, nameBVV, V.fromList newBlockDataV)
+      newProcessedData
 
    else error ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS))
 
