@@ -92,7 +92,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             toSoftWired = any ((=="tosoftwired").fst) lcArgList
             toHardWired = any ((=="tohardwired").fst) lcArgList
             toStaticApprox = any ((=="staticapprox").fst) lcArgList
-            toDynamic = any ((=="todynamic").fst) lcArgList
+            toDynamic = any ((=="dynamic").fst) lcArgList
             atRandom = any ((=="atrandom").fst) lcArgList
             chooseFirst = any ((=="first").fst) lcArgList
 
@@ -153,6 +153,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if toDynamic then 
                let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
                in
+               trace ("Transforming data to dynamic: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, origData, newPhylogeneticGraphList)
 
             -- transform to static approx--using first Tree
@@ -161,6 +162,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
 
                in
+               trace ("Transforming data to staticApproxx: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, newData, newPhylogeneticGraphList)
 
 
@@ -186,7 +188,7 @@ makeStaticApprox inGS inData inGraph =
           -- do each block in turn pulling and transforming data from inGraph
           newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
       in
-      trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
+      -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       (nameV, nameBVV, V.fromList newBlockDataV)
 
    else error ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS))
@@ -234,7 +236,7 @@ transformCharacter inCharData inCharInfo =
    else if inCharType `elem` prealignedCharacterTypes then (inCharData, inCharInfo)
 
    else 
-      trace ("TC: " ++ inCostMatrixType) (
+      -- trace ("TC: " ++ inCostMatrixType) (
       -- different types--vector wrangling
       if inCharType `elem` [SlimSeq, NucSeq] then 
          let newPrelimBV = convert2BV 32 $ slimAlignment inCharData
@@ -283,7 +285,7 @@ transformCharacter inCharData inCharInfo =
 
       else 
          error ("Unrecognized character type in transformCharacter: " ++ (show inCharType)) 
-      )
+      -- )
 
 -- | addGaps2BV adds gap characters 0 = nonGap, 1 = Gap to Vector 
 -- of states to non-additive charcaters for static approx.  gapCost - 1 characters are added 
@@ -337,10 +339,12 @@ getRecodingType inMatrix =
              numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL) 
 
          in
-         trace  ("GRT: " ++ (show numUniqueCosts)) (
+         -- trace  ("GRT: " ++ (show numUniqueCosts)) (
          -- all same except for 0
          if numUniqueCosts == 1 then ("nonAdd", 0)
 
+         else ("matrix",  head lastRow)
+         {-
          -- all same except for gaps
          else if numUniqueCosts == 2 then
             trace ("NAG: " ++ (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
@@ -351,4 +355,6 @@ getRecodingType inMatrix =
             )
          -- to many types for nonadd coding
          else ("matrix",  head lastRow)
-         )
+         
+         -}
+         -- )
