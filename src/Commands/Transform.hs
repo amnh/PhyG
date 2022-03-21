@@ -336,8 +336,7 @@ getRecodingType inMatrix =
    else
       if (not . S.isSymmetric) inMatrix then ("matrix",  0)
       else 
-         let rows = S.rows inMatrix 
-             matrixLL = S.toFullLists inMatrix
+         let matrixLL = S.toFullLists inMatrix
              lastRow = L.last matrixLL
              numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL) 
 

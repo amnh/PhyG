@@ -502,3 +502,5 @@ preOrderTreeTraversal
 	swap steepest for multiple graphs
 	unions
 
+307) Check input prealigned
+	slim/wide/huge

@@ -48,11 +48,18 @@ import qualified Data.Text.Lazy              as T
 import           Types.Types
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector                 as V
+import qualified Data.Vector.Storable        as SV
+import qualified Data.Vector.Unboxed         as UV
+import qualified Data.Vector.Generic         as GV
 import qualified Utilities.Utilities         as U
 import           GeneralUtilities
 import qualified SymMatrix                   as S
 import           Debug.Trace
 import qualified Data.Bifunctor              as BF
+import qualified ParallelUtilities            as PU
+import Control.Parallel.Strategies
+import           Data.Word
+import           Foreign.C.Types             (CUInt)
 
 --place holder for now
 -- | optimizeData convert
@@ -411,7 +418,162 @@ addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacte
         else firstList : addMatrixCharacter (tail inMatrixCharacterList) currentCostMatrix currentMatrixCharacter replicateNumber
 
 
--- | removeConstantCharacters takes processed data and removes constabht characters
+-- | removeConstantCharacters takes processed data and removes constant characters
 -- from exactCharacterTypes
 removeConstantCharacters :: ProcessedData -> ProcessedData
-removeConstantCharacters inData = inData
+removeConstantCharacters (nameVect, bvNameVect, blockDataVect) = 
+    let newBlockData = V.fromList (fmap removeConstantBlock (V.toList blockDataVect) `using` PU.myParListChunkRDS)
+    in
+    (nameVect, bvNameVect, newBlockData)
+
+-- | removeConstantBlock takes block data and removes constant characters
+removeConstantBlock :: BlockData -> BlockData
+removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
+    let numChars = V.length $ V.head taxVectByCharVect
+
+        -- create vector of single characters with vector of taxon data of sngle character each
+        -- like a standard matrix with a single character
+        singleCharVect = fmap (getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
+
+        -- actually remove constants form chaarcter list 
+        singleCharVect' = V.zipWith removeConstantChars singleCharVect charInfoV
+
+        -- recreate the taxa vext by character vect block data expects
+        -- should filter out length zero characters
+        (newTaxVectByCharVect, newCharInfoV) = glueBackTaxChar singleCharVect' charInfoV
+    in
+    (blockName, newTaxVectByCharVect, newCharInfoV)
+
+-- | removeConstantChars takes a single 'character' and if proper type removes if all values are the same
+-- could be done if character has max lenght of 0 as well.
+removeConstantChars :: V.Vector CharacterData -> CharInfo -> V.Vector CharacterData
+removeConstantChars singleChar charInfo =
+    let inCharType = charType charInfo
+    in
+
+    -- dynamic characters don't do this
+    if inCharType `elem` nonExactCharacterTypes then singleChar
+    else 
+        let variableVect = getVariableChars inCharType singleChar
+        in
+        variableVect
+
+-- | getVariableChars checks identity of states in a vector positin in all taxa
+-- and returns True if vaiable, False if constant
+getVariableChars :: CharType -> V.Vector CharacterData -> V.Vector CharacterData
+getVariableChars inCharType singleChar =
+    let nonAddV = fmap snd3 $ fmap stateBVPrelim singleChar
+        addV    = fmap snd3 $ fmap rangePrelim singleChar
+        matrixV = fmap matrixStatesPrelim singleChar
+        alSlimV = fmap snd3 $ fmap alignedSlimPrelim singleChar
+        alWideV = fmap snd3 $ fmap alignedWidePrelim singleChar
+        alHugeV = fmap snd3 $ fmap alignedHugePrelim singleChar
+
+        -- get identity vect
+        boolVar = if inCharType == NonAdd then getVarVect nonAddV []
+                else if inCharType == Add then getVarVect addV []
+                else if inCharType == Matrix then getVarVect matrixV []
+                else if inCharType == AlignedSlim then getVarVect alSlimV []
+                else if inCharType == AlignedWide then getVarVect alWideV []
+                else if inCharType == AlignedHuge then getVarVect alHugeV []
+                else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
+
+        -- get Variable characters by type 
+        nonAddVariable = fmap (filterConstantsV (V.fromList boolVar)) nonAddV 
+        addVariable = fmap (filterConstantsV (V.fromList boolVar)) addV 
+        matrixVariable = fmap (filterConstantsV (V.fromList boolVar)) matrixV
+        alSlimVariable = fmap (filterConstantsSV (V.fromList boolVar)) alSlimV
+        alWideVariable = fmap (filterConstantsUV (V.fromList boolVar)) alWideV
+        alHugeVariable = fmap (filterConstantsV (V.fromList boolVar)) alHugeV
+
+        -- assign to propoer character fields
+        outCharVect = V.zipWith (assignNewField inCharType) singleChar (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)      
+
+    in
+    trace ("GVC:" ++ (show $ length boolVar))
+    outCharVect
+
+-- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
+-- to the correct field
+assignNewField :: CharType 
+               -> CharacterData 
+               -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
+               -> CharacterData
+assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
+    if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
+    else if inCharType == Add then charData {rangePrelim = (addData, addData, addData)}
+    else if inCharType == Matrix then charData {matrixStatesPrelim = matrixData}
+    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
+    else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
+    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
+    else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
+
+-- | these need to be abstracted but had problems with the bool list -> Generic vector, and SV pair
+
+-- | filerConstantsV takes the charcter data and filters out teh constants
+-- uses filter to keep O(n)
+--filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
+filterConstantsV :: V.Vector Bool -> V.Vector a -> V.Vector a
+filterConstantsV inVarBoolV charVect =
+    let pairVect = V.zip charVect inVarBoolV
+        variableCharV = V.map fst $ V.filter ((== True) . snd) pairVect
+    in
+    variableCharV
+
+
+-- | filerConstantsSV takes the charcter data and filters out teh constants
+-- uses filter to keep O(n)
+--filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
+filterConstantsSV ::  (SV.Storable a) => V.Vector Bool -> SV.Vector a -> SV.Vector a
+filterConstantsSV inVarBoolV charVect =
+    let varVect = filterConstantsV inVarBoolV (V.fromList $ SV.toList charVect)
+    in
+    SV.fromList $ V.toList varVect
+
+-- | filerConstantsUV takes the charcter data and filters out teh constants
+-- uses filter to keep O(n)
+--filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
+filterConstantsUV ::  (UV.Unbox a) => V.Vector Bool -> UV.Vector a -> UV.Vector a
+filterConstantsUV inVarBoolV charVect =
+    let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
+    in
+    UV.fromList $ V.toList varVect
+
+-- | getVarVect takes a generic vector and returns Fale if values are same
+-- True if not (short circuits)
+-- based on simple identity not max cost zero
+getVarVect :: (Eq a, GV.Vector v a) => V.Vector (v a) -> [Bool] -> [Bool]
+getVarVect stateVV curBoolList = 
+    if GV.null (V.head stateVV) then 
+            L.reverse curBoolList
+
+    else 
+        let firstChar = fmap GV.head stateVV
+            isVariable = checkIsVariable (GV.head firstChar) (GV.tail firstChar) 
+        in
+        getVarVect (fmap GV.tail stateVV) (isVariable : curBoolList) 
+
+-- | checkIsVariable takes a generic vector and sees if all elements are equal
+checkIsVariable ::  (Eq a, GV.Vector v a) => a -> v a -> Bool
+checkIsVariable firstElement inVect =
+    if GV.null inVect then False
+    else 
+        if firstElement /= GV.head inVect then True
+        else checkIsVariable firstElement (GV.tail inVect)
+
+-- | getSingleCharacter takes a taxa x characters block and an index and rei=utrns the character vector for that index
+getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
+
+-- | getSingleTaxon takes a taxa x characters block and an index and rei=utrns the character vector for that index
+getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
+
+-- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
+-- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
+glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+glueBackTaxChar singleCharVect charInfoV =
+    let numTaxa = V.length $ V.head singleCharVect
+        multiCharVect =  fmap (getSingleTaxon singleCharVect) (V.fromList [0.. numTaxa - 1])
+    in
+    (multiCharVect, charInfoV)
