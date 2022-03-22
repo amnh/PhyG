@@ -104,10 +104,10 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
              let (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
                  -- swap "all" after steepest descent
-                 (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
+                 -- (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
              in
              -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
-             (swappedGraphs', counter')
+             (swappedGraphs, counter)
 
           -- All does all swaps before taking best
           else  
@@ -261,7 +261,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
-   -- infomrs evaluation--less parallelism
+-- infomrs evaluation--less parallelism
 swapSteepest   :: String 
                -> Bool
                -> GlobalSettings 
@@ -332,6 +332,19 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
              trace ("\t->" ++ (show bestSwapCost))
              swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor Nothing
 
+          else if (bestSwapCost == curBestCost) then
+            -- buffer full
+            if (length curSameBetterList == numToKeep) then 
+                  swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor inSimAnnealVals
+            -- room for another Graph if unnique
+            else
+               let newCurSameBestList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (firstGraph : curSameBetterList)
+                                      -- if firstGraph `notElem` curSameBetterList then (firstGraph : curSameBetterList)
+                                      -- else curSameBetterList
+                   graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] ((tail inGraphList) L.\\ newCurSameBestList)                
+               in
+               swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor inSimAnnealVals
+
           -- didn't find equal or better graphs
           else (inGraphList, counter + 1)
 
@@ -347,7 +360,7 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
             --simulated Annealing/Drift check if at end then return
             if (numDone < numMax)  then 
                 swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) bestSwapCost (fmap fst reoptimizedSwapGraphList) (fmap fst reoptimizedSwapGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA netPenaltyFactor newAnnealVals
-                
+             
             else 
                 (fmap fst reoptimizedSwapGraphList, counter + 1)
 
@@ -470,15 +483,24 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
           
           (candidateGraphList, newAnnealVals) = addSubGraphSteepest inGS inData swapType hardwiredSPR doIA splitGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals edgesToInvade
 
+          numLeaves = fromIntegral $ V.length $ fst3 inData
       in
-      -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ " " ++ (show curBestCost) ++ " v " ++ (show minCandidateCost)) (
+      -- experimental union-type split exclusion
+         -- skip rearrangements if split delta too small VAron and Wheeler (2013)
+      if (curBestCost / numLeaves) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealVals)
       
       -- case where swap split returned empty because too few nodes in remaining graph to add to
-      if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
+      else if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
 
-      -- normal steepest--only return if better
+      -- normal steepest--only return if better if equal does not return, but will return multiple
       else if inSimAnnealVals == Nothing then 
-        if (snd6 $ head candidateGraphList) < curBestCost then ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
+        let candidateGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] candidateGraphList
+        in
+        if (snd6 $ head candidateGraphList') < curBestCost then 
+            -- ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
+            (zip candidateGraphList' (fmap snd6 candidateGraphList'), Nothing)
+            -- ([(head candidateGraphList, snd6 $ head candidateGraphList)], Nothing)
+
         else rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToKeep maxMoveEdgeDist steepest doIA charInfoVV Nothing (tail splitInfoList) 
 
       -- simulated Annealing/Drifting--recurse if not at max steps
@@ -899,13 +921,13 @@ getSubGraphDelta evEdgeData doIA inGraph charInfoVV (edgeToJoin, subGraphVertDat
 -- terminology bse graph is the component with the original root, pruned that which has been removed form the original
 -- graph to be readded to edge set
 -- The function
-      -- 1) optimizes two components seprately fomr their "root"
+      -- 1) optimizes two components seprately from their "root"
       -- 2) takes nodes and edges for each and cretes new graph
       -- 3) returns graph and summed cost of two components
       -- 4) adds in root and netPenalty factor estimates since net penalty can only be calculated on full graph
             -- part of this is turning off net penalty cost when optimizing base and pruned graph components 
 -- if doIA is TRUE then call function that onl;y optimizes the IA assignments on the "original graph" after split.
--- this keeps teh IA chracters in sunc across the two graphs
+-- this keeps teh IA chracters in sync across the two graphs
 reoptimizeSplitGraphFromVertex :: GlobalSettings 
                           -> ProcessedData 
                           -> Bool 

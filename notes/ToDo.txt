@@ -504,3 +504,5 @@ preOrderTreeTraversal
 
 307) Check input prealigned
 	slim/wide/huge
+
+308) Test union-like rejoin criterion in swap steepes/rejoin steepest
