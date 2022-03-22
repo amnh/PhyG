@@ -62,6 +62,83 @@ import qualified Data.Text.Lazy  as T
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import qualified SymMatrix                   as S
+import GeneralUtilities
+import qualified Data.List.Split as SL 
+
+
+-- | getImpliedAlignmentStrings returns as a single String the implied alignments of all sequence characters
+-- softwired use display trees, hardWired transform to softwired then proceed with display trees
+getImpliedAlignmentStrings :: GlobalSettings -> PhylogeneticGraph -> Int -> String
+getImpliedAlignmentStrings inGS inGraph graphNumber =
+    if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
+    else
+        let headerString = "Implied Alignments for Graph" ++ (show graphNumber) ++ "\n"
+        in
+        if graphType inGS == Tree then 
+            let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
+                leafNameList = fmap (vertName . snd) leafList
+                leafDataList = V.fromList $ fmap (vertData . snd) leafList
+                charInfoVV = six6 inGraph
+                characterStringList = makeFullIAStrings charInfoVV leafNameList leafDataList
+            in
+            headerString ++ (concat characterStringList)
+
+        else error ("IA  not yet implemented for graphtype " ++ show (graphType inGS))
+
+-- | makeFullIAStrings goes block by block, creating fasta strings for each
+makeFullIAStrings ::  V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
+makeFullIAStrings charInfoVV leafNameList leafDataList = 
+    let numBlocks = V.length charInfoVV
+    in
+    concat $ fmap (makeBlockIAStrings leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
+
+-- | makeBlockIAStrings extracts data for a block (via index) and calls funciton to make iaStrings for each character
+makeBlockIAStrings :: [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
+makeBlockIAStrings leafNameList leafDataList charInfoVV blockIndex =
+    let thisBlockCharInfo = charInfoVV V.! blockIndex
+        numChars = V.length thisBlockCharInfo
+        thisBlockCharData = fmap (V.! blockIndex) leafDataList
+        blockCharacterStringList = V.zipWith (makeBlockCharacterString leafNameList thisBlockCharData) thisBlockCharInfo (V.fromList [0 .. (numChars - 1)])
+    in
+    filter (/= []) $ V.toList blockCharacterStringList
+
+-- | makeBlockCharacterString creates implied alignmennt string for sequnec charactes and null if not
+makeBlockCharacterString :: [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
+makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
+    -- check if sequence type character
+    let thisCharType = charType thisCharInfo
+        thisCharName = name thisCharInfo
+    in
+    if thisCharType `notElem` sequenceCharacterTypes then []
+    else 
+        let thisCharData = fmap (V.! charIndex) leafDataVV
+            nameDataPairList = zip leafNameList (V.toList thisCharData)
+            fastaString = pairList2Fasta thisCharInfo nameDataPairList
+        in 
+        "Sequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString
+
+-- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
+-- and character data and returns fasta formated string
+pairList2Fasta :: CharInfo -> [(NameText, CharacterData)] -> String
+pairList2Fasta inCharInfo nameDataPairList = 
+    if null nameDataPairList then []
+    else 
+        let (firstName, blockDatum) = head nameDataPairList
+            inCharType = charType inCharInfo
+            localAlphabet = fmap ST.toString $ alphabet inCharInfo
+            sequenceString = case inCharType of
+                               x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharState localAlphabet) $ slimPrelim blockDatum
+                               x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharState localAlphabet) $ widePrelim blockDatum
+                               x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharState localAlphabet) $ hugePrelim blockDatum
+                               x | x `elem` [AlignedSlim]       -> SV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
+                               x | x `elem` [AlignedWide]       -> UV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
+                               x | x `elem` [AlignedHuge]       ->    foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
+                               _                                -> error ("Un-implemented data type " ++ show inCharType)
+
+            sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
+
+        in
+        concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks
 
 -- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
 getblockInsertDataCost :: BlockData -> Double

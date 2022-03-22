@@ -85,7 +85,7 @@ setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "fina
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support"]
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"]
 
 
 -- | buildArgList is the list of valid build arguments
@@ -389,7 +389,16 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
                     (graphString, outfileName, writeMode)
 
-           else if "pairdist" `elem` commandList then
+            else if "ia" `elem` commandList || "impliedalignment" `elem` commandList then
+                if null curGraphs then 
+                    trace ("No graphs to create implied alignments")
+                    ("No impliedAlgnments to report", outfileName, writeMode)
+                else
+                    let iaContentList = zipWith (U.getImpliedAlignmentStrings globalSettings) curGraphs [0.. (length curGraphs - 1)]
+                    in
+                    (concat iaContentList, outfileName, writeMode)
+
+            else if "pairdist" `elem` commandList then
                 let nameData = L.intercalate "," (V.toList $ fmap T.unpack $ fst3 processedData) ++ "\n"
                     dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
                 in
@@ -422,6 +431,8 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 trace ("Reporting " ++ (show $ length curGraphs) ++ " support graph(s)")
                 (graphString, outfileName, writeMode)
                 -- )
+
+            else if "tnt" `elem` commandList then error "tnt output not yet implemented"
            
             else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
 
@@ -689,11 +700,15 @@ makeCharLine (blockDatum, charInfo) =
         (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq]
+                                      else if localType `elem` sequenceCharacterTypes
                                       then case localType of
                                              x | x `elem` [SlimSeq, NucSeq  ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
                                              x | x `elem` [WideSeq, AminoSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
                                              x | x `elem` [HugeSeq]           -> (   foldMap (U.bitVectToCharState localAlphabet) $ hugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ hugeFinal blockDatum)
+                                             x | x `elem` [AlignedSlim]       -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
+                                             x | x `elem` [AlignedWide]       -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
+                                             x | x `elem` [AlignedHuge]       -> (   foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
+                                             
                                              _                                -> error ("Un-implemented data type " ++ show localType)
                                       else error ("Un-implemented data type " ++ show localType)
         in

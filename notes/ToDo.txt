@@ -488,7 +488,7 @@ preOrderTreeTraversal
 
 301) do recoding for prealigned nonAdd, nonadd with extra for gap, matrix
 
-303) Check traverse if mix static and dynamic--make sureall charcters ar optimized--the 0 cost thing 
+303) Check traverse if mix static and dynamic--make sure all charcters ar optimized--the 0 cost thing 
 	for choosing best may be issue 
 
 304) Add inputs for prealigned slim/wide/huge sequences
