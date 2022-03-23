@@ -473,7 +473,7 @@ type SimpleGraph = LG.Gr NameText Double
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --               one graph per character  
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [BlockDisplayForest], V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph

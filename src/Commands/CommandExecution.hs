@@ -73,7 +73,9 @@ import Control.DeepSeq
 import           Control.Concurrent
 import qualified Support.Support as SUP
 import           Data.Char
-
+import qualified Data.List.Split as SL 
+import Graphs.GraphOperations as GO
+import GraphOptimization.Traversals as TRAV
 import System.Info
 import System.Process
 import System.Directory
@@ -232,7 +234,7 @@ setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalS
 setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
-        checkCommandList = U.checkCommandArgs "set" commandList setArgList
+        checkCommandList = checkCommandArgs "set" commandList setArgList
         leafNameVect = fst3 processedData
 
     in
@@ -330,7 +332,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ (show outFileNameList) ++ " " ++ (show argList))
     else
-        let checkCommandList = U.checkCommandArgs "report" commandList reportArgList
+        let checkCommandList = checkCommandArgs "report" commandList reportArgList
             outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
@@ -394,7 +396,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No graphs to create implied alignments")
                     ("No impliedAlgnments to report", outfileName, writeMode)
                 else
-                    let iaContentList = zipWith (U.getImpliedAlignmentStrings globalSettings) curGraphs [0.. (length curGraphs - 1)]
+                    let iaContentList = zipWith (getImpliedAlignmentStrings globalSettings processedData) curGraphs [0.. (length curGraphs - 1)]
                     in
                     (concat iaContentList, outfileName, writeMode)
 
@@ -721,3 +723,107 @@ getEdgeInfo inEdge =
     [" ", show $ fst3 inEdge, show $ snd3 inEdge, show $ edgeType (thd3 inEdge), show $ minLength (thd3 inEdge), show $ maxLength (thd3 inEdge), show $ midRangeLength (thd3 inEdge)]
 
 
+-- | Implied Alignment report functions
+
+-- | getImpliedAlignmentStrings returns as a single String the implied alignments of all sequence characters
+-- softwired use display trees, hardWired transform to softwired then proceed with display trees
+getImpliedAlignmentStrings :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
+getImpliedAlignmentStrings inGS inData inGraph graphNumber =
+    if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
+    else
+        let headerString = "Implied Alignments for Graph" ++ (show graphNumber) ++ "\n"
+        in
+        if graphType inGS == Tree then headerString ++ (getTreeIAString inGraph)
+
+        -- for softwired networks--use display trees
+        else if graphType inGS == SoftWired then 
+            -- get display trees for each data block-- takes first of potentially multiple
+            let blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+
+                -- create seprate processed data for each block
+                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+
+                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
+                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+
+                -- extract IA strings as if mutiple graphs
+                diplayIAStringList = fmap getTreeIAString $ V.toList decoratedBlockTreeList
+
+            in
+            concat diplayIAStringList
+
+        -- There is no IA for Hardwired at least as of yet 
+        else 
+            trace ("IA  not yet implemented for graphtype " ++ show (graphType inGS))
+            "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transformgraph to softwired and generate an implied alignment that way"
+
+-- | getTreeIAString takes a Tree Decorated Graph and returns Implied ALignmentString
+getTreeIAString :: PhylogeneticGraph -> String
+getTreeIAString inGraph =
+    let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
+        leafNameList = fmap (vertName . snd) leafList
+        leafDataList = V.fromList $ fmap (vertData . snd) leafList
+        charInfoVV = six6 inGraph
+        characterStringList = makeFullIAStrings charInfoVV leafNameList leafDataList
+    in
+    concat characterStringList
+
+-- | makeBlockData cretes new single block processed data
+makeBlockData :: V.Vector NameText-> V.Vector NameBV -> BlockData -> ProcessedData
+makeBlockData a b c = (a, b, V.singleton c)
+
+-- | makeFullIAStrings goes block by block, creating fasta strings for each
+makeFullIAStrings ::  V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
+makeFullIAStrings charInfoVV leafNameList leafDataList = 
+    let numBlocks = V.length charInfoVV
+    in
+    concat $ fmap (makeBlockIAStrings leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
+
+-- | makeBlockIAStrings extracts data for a block (via index) and calls funciton to make iaStrings for each character
+makeBlockIAStrings :: [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
+makeBlockIAStrings leafNameList leafDataList charInfoVV blockIndex =
+    let thisBlockCharInfo = charInfoVV V.! blockIndex
+        numChars = V.length thisBlockCharInfo
+        thisBlockCharData = fmap (V.! blockIndex) leafDataList
+        blockCharacterStringList = V.zipWith (makeBlockCharacterString leafNameList thisBlockCharData) thisBlockCharInfo (V.fromList [0 .. (numChars - 1)])
+    in
+    filter (/= []) $ V.toList blockCharacterStringList
+
+-- | makeBlockCharacterString creates implied alignmennt string for sequnec charactes and null if not
+makeBlockCharacterString :: [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
+makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
+    -- check if sequence type character
+    let thisCharType = charType thisCharInfo
+        thisCharName = name thisCharInfo
+    in
+    if thisCharType `notElem` sequenceCharacterTypes then []
+    else 
+        let thisCharData = fmap (V.! charIndex) leafDataVV
+            nameDataPairList = zip leafNameList (V.toList thisCharData)
+            fastaString = pairList2Fasta thisCharInfo nameDataPairList
+        in 
+        -- trace ("MBCS: " ++ (show $ length leafNameList) ++ " " ++ (show $ V.length thisCharData) ++ "\n" ++ (show leafDataVV))
+        "\nSequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString ++ "\n"
+
+-- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
+-- and character data and returns fasta formated string
+pairList2Fasta :: CharInfo -> [(NameText, CharacterData)] -> String
+pairList2Fasta inCharInfo nameDataPairList = 
+    if null nameDataPairList then []
+    else 
+        let (firstName, blockDatum) = head nameDataPairList
+            inCharType = charType inCharInfo
+            localAlphabet = fmap ST.toString $ alphabet inCharInfo
+            sequenceString = case inCharType of
+                               x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
+                               x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
+                               x | x `elem` [AlignedSlim]       -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
+                               x | x `elem` [AlignedWide]       -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
+                               x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
+                               _                                -> error ("Un-implemented data type " ++ show inCharType)
+
+            sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
+
+        in
+        (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta inCharInfo (tail nameDataPairList))

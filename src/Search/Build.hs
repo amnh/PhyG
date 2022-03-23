@@ -80,7 +80,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
+       checkCommandList = checkCommandArgs "build" fstArgList buildArgList
    in
        -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
@@ -206,7 +206,7 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = U.checkCommandArgs "build" fstArgList buildArgList
+       checkCommandList = checkCommandArgs "build" fstArgList buildArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)

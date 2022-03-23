@@ -166,7 +166,7 @@ main = do
         -- matrix 2 states to non-additive with weight
         -- prealigned to non-additive or matrix
         -- bitPack non-additive
-    let optimizedData = groupedData --  place holder (consolidate all add, tcms, non-add etc chars in blocks)
+    let optimizedData = R.optimizeData groupedData 
 
 
     -- Set global vaues before search--should be integrated with executing commands

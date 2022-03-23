@@ -83,9 +83,8 @@ import qualified GraphFormatUtilities      as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph      as LG
 import qualified Data.Char              as C
-import qualified Utilities.Utilities    as U
 import           Data.Maybe
-import qualified Data.Vector.Generic                                         as GV
+import qualified Data.Vector.Generic         as GV
 import qualified Data.Vector.Storable         as SV
 import           Text.Read
 import qualified GraphOptimization.Medians as M
@@ -955,7 +954,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
         let fstArgList = fmap (fmap C.toLower . fst) inArgs
             sndArgList = fmap (fmap C.toLower . snd) inArgs
             lcArgList = zip fstArgList sndArgList
-            checkCommandList = U.checkCommandArgs "select" fstArgList selectArgList
+            checkCommandList = checkCommandArgs "select" fstArgList selectArgList
         in
            -- check for valid command options
            if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)

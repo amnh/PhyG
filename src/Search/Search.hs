@@ -288,7 +288,7 @@ getSearchParams inArgs =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = U.checkCommandArgs "search" fstArgList searchArgList
+       checkCommandList = checkCommandArgs "search" fstArgList searchArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)

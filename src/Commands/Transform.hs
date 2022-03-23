@@ -76,7 +76,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = U.checkCommandArgs "transform" fstArgList transformArgList
+       checkCommandList = checkCommandArgs "transform" fstArgList transformArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " ++ show inArgs)

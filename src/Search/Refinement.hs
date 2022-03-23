@@ -69,7 +69,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = U.checkCommandArgs "refineGraph" fstArgList refineArgList
+          checkCommandList = checkCommandArgs "refineGraph" fstArgList refineArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
@@ -117,7 +117,7 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = U.checkCommandArgs "geneticalgorithm" fstArgList geneticAlgorithmArgList
+          checkCommandList = checkCommandArgs "geneticalgorithm" fstArgList geneticAlgorithmArgList
       in
       -- check for valid command options
       if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
@@ -195,7 +195,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = U.checkCommandArgs "fuse" fstArgList fuseArgList
+          checkCommandList = checkCommandArgs "fuse" fstArgList fuseArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " ++ show inArgs)
@@ -271,7 +271,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = U.checkCommandArgs "netEdgeMaster" fstArgList netEdgeArgList
+          checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList netEdgeArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " ++ show inArgs)
@@ -464,7 +464,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = U.checkCommandArgs "swap" fstArgList swapArgList
+          checkCommandList = checkCommandArgs "swap" fstArgList swapArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
