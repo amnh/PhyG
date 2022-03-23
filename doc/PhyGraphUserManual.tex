@@ -104,9 +104,9 @@
 		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
 		')' sets to non-additive, if want additive then need to reset to additive after\\
 		character state designations single characters\\
-		continuous and other multicharacter states--can be read, abinguitess or ranges (unlike tnt for continuous) are 
-		in squarebraskets with period as in [X.Y]\\
-		- ans ? are always missing/inapplicable.  If DNA are not coded ACGT- => 01234 but left as lettes,
+		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike TNT for continuous) are 
+		in square brackets with period as in [X.Y]\\
+		- and ? are always missing/inapplicable.  If DNA are not coded ACGT- $\rightarrow$ 01234 but left as letter,
 		then to include gaps as a 5th state, just include another character, such the letter 'O' that is not an IUPAC ambiguity code for DNA (or amino acids for that matter) as an additional state.  This can be used for matrix/Sankoff matrices as well.
 		Amino acid sequences would be processed in the same way.  Including gaps as information requires
 		an extra state (such as letter 'O').\\ 
@@ -598,7 +598,7 @@
 				\noindent \texttt{search} Outputs search statistics in csv format. 
 				 
 				\smallskip
-				\noindent \texttt{tnt} Outputs data for each current graph as a file suitable for input to TNT \citep{Goloboffetal2008}.  Non-prealigned sequence characters are output as implied alignments.  If the current graph is a soft-wired network, the implied alignments are based on the display trees for each data block. TNT output is not available (at least currently) for hard-wired networks.  This graph type can be, however, converted to a soft-wired network and TNT output generated from that graph.
+				\noindent \texttt{tnt} Outputs data for each current graph as text suitable for input to TNT \citep{Goloboffetal2008}.  Non-prealigned sequence characters are output as implied alignments.  If the current graph is a soft-wired network, the implied alignments are based on the display trees for each data block. TNT output is not available (at least currently) for hard-wired networks.  This graph type can be, however, converted to a soft-wired network and TNT output generated from that graph. Character are not necessarily (and usually not) in the order originally input.
 				
 		\subsubsection{Defaults}
 				\texttt{report()} prints input data and output graph diagnosis  to stderr.  Default graph representation is \texttt{dot}.

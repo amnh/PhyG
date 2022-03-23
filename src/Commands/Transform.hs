@@ -36,6 +36,7 @@ Portability :  portable (I hope)
 
 module Commands.Transform
   ( transform
+  , getRecodingType
   ) where
 
 import Types.Types
