@@ -115,7 +115,8 @@ makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
             nameDataPairList = zip leafNameList (V.toList thisCharData)
             fastaString = pairList2Fasta thisCharInfo nameDataPairList
         in 
-        "Sequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString
+        -- trace ("MBCS: " ++ (show $ length leafNameList) ++ " " ++ (show $ V.length thisCharData) ++ "\n" ++ (show leafDataVV))
+        "\nSequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString ++ "\n"
 
 -- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
 -- and character data and returns fasta formated string
@@ -127,9 +128,9 @@ pairList2Fasta inCharInfo nameDataPairList =
             inCharType = charType inCharInfo
             localAlphabet = fmap ST.toString $ alphabet inCharInfo
             sequenceString = case inCharType of
-                               x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharState localAlphabet) $ slimPrelim blockDatum
-                               x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharState localAlphabet) $ widePrelim blockDatum
-                               x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharState localAlphabet) $ hugePrelim blockDatum
+                               x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
+                               x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
                                x | x `elem` [AlignedSlim]       -> SV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
                                x | x `elem` [AlignedWide]       -> UV.foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
                                x | x `elem` [AlignedHuge]       ->    foldMap (bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
@@ -138,7 +139,7 @@ pairList2Fasta inCharInfo nameDataPairList =
             sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
 
         in
-        concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks
+        (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta inCharInfo (tail nameDataPairList))
 
 -- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
 getblockInsertDataCost :: BlockData -> Double

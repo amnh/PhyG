@@ -487,10 +487,11 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
       in
       -- experimental union-type split exclusion
          -- skip rearrangements if split delta too small VAron and Wheeler (2013)
-      if (curBestCost / numLeaves) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealVals)
+      -- if (curBestCost / numLeaves) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealVals)
       
       -- case where swap split returned empty because too few nodes in remaining graph to add to
-      else if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
+      -- else 
+      if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
 
       -- normal steepest--only return if better if equal does not return, but will return multiple
       else if inSimAnnealVals == Nothing then 
