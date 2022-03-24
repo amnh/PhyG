@@ -814,10 +814,11 @@ mergeDataBlocks inGraphList curDataList curInfoList =
             leafList = snd4 $ LG.splitVertexList firstTree
 
             -- since each graph has a single block--take head to get vector of characters
-            leafCharacterList = V.toList $ fmap V.head $ V.fromList $ fmap (vertData . snd) leafList
+            leafCharacterList = V.toList $ fmap V.head $ fmap (vertData . snd) (V.fromList leafList)
 
             -- zip data for each taxon
-            newDataList = zipWith (:) leafCharacterList curDataList
+            newDataList = if null curDataList then fmap (:[]) $ leafCharacterList
+                          else zipWith (:) leafCharacterList curDataList
         in
         mergeDataBlocks (tail inGraphList) newDataList (firstCharInfo : curInfoList)
 
