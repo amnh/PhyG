@@ -748,16 +748,21 @@ getTNTString inGS inData inGraph graphNumber =
             numTaxa = V.length $ fst3 inData
             charInfoVV = six6 inGraph
 
-            -- get charcatert information in 3-tuples and list of lengths
-            (ccCodeList, costsList, weightList) = unzip3 $ getCharacterInfo charInfoVV
+            -- get character information in 3-tuples and list of lengths--to match lengths
+            ccCodeInfo = getCharacterInfo charInfoVV
 
         in
             
         if graphType inGS == Tree then 
             let leafDataList = V.fromList $ fmap (vertData . snd) leafList
-                charLengthList = V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
+
+                -- length information for cc code extents
+                charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
+
+                -- merge lengths and cc codes
+                ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
             in
-            headerString ++ "\n" ++ (show $ sum $ fmap sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n"
+            headerString ++ "\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n"
             
 
         else if graphType inGS == SoftWired then error ("No TNT for softwired graphs")    
@@ -766,7 +771,18 @@ getTNTString inGS inData inGraph graphNumber =
             trace ("TNT  not yet implemented for graphtype " ++ show (graphType inGS))
             "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transform graph to softwired and generate TNT text that way"
 
-        
+-- | mergeCharInfoCharLength merges cc code char info and char lengths for scope
+mergeCharInfoCharLength :: [(String, String, String)] -> [Int] -> Int -> String
+mergeCharInfoCharLength codeList lengthList charIndex =      
+    if null codeList then []
+    else 
+        let (ccCodeList, costsList, weightList) = head codeList
+            charLength = head lengthList
+            startScope = show charIndex
+            endScope = show (charIndex + charLength - 1)
+            scope = startScope ++ "." ++ endScope
+        in
+        scope
 
 
 -- | getCharacterInfo takes charInfo vect vect and reiurns triples of ccCode, costs, and weight values 
@@ -821,7 +837,7 @@ makeMatrixString inAlphabet inMatrix =
 
     in
     costString
-    where notDiag (a,b) = if a == b then False else True
+    where notDiag (a,b) = if a < b then True else False
 
 -- | makeCostString takes list of state pairs and list of costs and creates tnt cost string
 makeCostString :: [(String, String)] -> [Int] -> String
