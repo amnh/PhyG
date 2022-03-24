@@ -770,12 +770,56 @@ getTNTString inGS inData inGraph graphNumber =
                 ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString
             
 
-        else if graphType inGS == SoftWired then error ("No TNT for softwired graphs")    
+        -- for softwired networks--use display trees
+        else if graphType inGS == SoftWired then 
+
+            -- get display trees for each data block-- takes first of potentially multiple
+            let blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+
+                -- create seprate processed data for each block
+                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+
+                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
+                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+
+                -- create leaf data by merging display graph block data (each one a phylogentic graph)
+                (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
+
+                -- get character strings
+                taxonCharacterStringList = V.toList $ fmap (++ "\n") $ fmap (getTaxonCharString mergedCharInfoVV) leafDataList 
+                nameCharStringList = concat $ zipWith (++) leafNameList taxonCharacterStringList
+
+                -- length information for cc code extents
+                charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
+
+                -- merge lengths and cc codes
+                ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+            in
+            headerString ++ "\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
+                ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString     
 
         else 
             trace ("TNT  not yet implemented for graphtype " ++ show (graphType inGS))
             "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transform graph to softwired and generate TNT text that way"
 
+-- | mergeDataBlocks takes a list of Phylogenetic Graphs (Trees) and merges the data blocks (each graph should ahve only 1)
+-- and merges the charInfo Vectors returning data and charInfo
+mergeDataBlocks :: [PhylogeneticGraph] -> [[(V.Vector CharacterData)]] -> [V.Vector CharInfo] -> (V.Vector (V.Vector (V.Vector CharacterData)), V.Vector (V.Vector CharInfo))
+mergeDataBlocks inGraphList curDataList curInfoList = 
+    if null inGraphList then (V.fromList $ fmap V.fromList $ fmap reverse curDataList, V.fromList $ reverse curInfoList)
+    else 
+        let firstGraph = head inGraphList
+            firstTree = thd6 firstGraph
+            firstCharInfo = V.head $ six6 firstGraph
+            leafList = snd4 $ LG.splitVertexList firstTree
+
+            -- since each graph has a single block--take head to get vector of characters
+            leafCharacterList = V.toList $ fmap V.head $ V.fromList $ fmap (vertData . snd) leafList
+
+            -- zip data for each taxon
+            newDataList = zipWith (:) leafCharacterList curDataList
+        in
+        mergeDataBlocks (tail inGraphList) newDataList (firstCharInfo : curInfoList)
 
 -- | getTaxonCharString returns the total character string for a taxon
 getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String
