@@ -133,6 +133,24 @@ bitVectToCharState' localAlphabet bitValue
                 (\ i -> [localAlphabet !! i | bitValue `testBit` i])
                 [0 .. symbolCountH - 1]
 
+-- | matrixStateToStringtakes a matrix state and returns a string representation
+matrixStateToString :: V.Vector MatrixTriple -> String
+matrixStateToString inStateVect =
+    let minCost = V.minimum $ fmap fst3 inStateVect
+        minCostStates = V.toList $ V.filter ((== minCost) . fst3) inStateVect
+        statesStringList = fmap show minCostStates
+    in
+    if length statesStringList == 1 then head statesStringList
+    else 
+        "[" ++ (L.intercalate " " statesStringList) ++ "]"
+
+
+
+-- | additivStateToString take an additive range and prints single state if range equal or 
+-- [a-b] if not
+additivStateToString :: (Int, Int) -> String
+additivStateToString (a,b) = if a == b then show a
+                             else "[" ++ (show a) ++ "-" ++ (show b) ++ "]"
 
 -- | filledDataFields takes rawData and checks taxon to see what percent
 -- "characters" are found.
