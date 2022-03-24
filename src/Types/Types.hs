@@ -110,8 +110,9 @@ data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | N
 nonExactCharacterTypes :: [CharType]
 nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
 
+-- aliogned not in here because they are not reorganized, and would screw up reroot optimization
 exactCharacterTypes :: [CharType]
-exactCharacterTypes = [Binary, Add, NonAdd, Matrix, AlignedSlim, AlignedWide, AlignedHuge]
+exactCharacterTypes = [Binary, Add, NonAdd, Matrix] -- , AlignedSlim, AlignedWide, AlignedHuge]
 
 prealignedCharacterTypes :: [CharType]
 prealignedCharacterTypes = [AlignedSlim, AlignedWide, AlignedHuge]

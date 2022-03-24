@@ -92,7 +92,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
          leafGraph = T.makeSimpleLeafGraph inData
          leafDecGraph = T.makeLeafGraph inData
          leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-         hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
+         hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
          charInfoVV = six6 $ head inGraphList
 
          curBest = minimum $ fmap snd6 inGraphList

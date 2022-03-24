@@ -184,6 +184,11 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
             let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
             in
             (newCharVect, localCost  newCharVect)
+          else if thisType `elem` prealignedCharacterTypes then
+            let newCharVect = getPreAligned2Median inCharInfo dummyStaticCharacter firstVertChar secondVertChar
+            in
+            -- trace ("M2S:" ++ (show $ localCost  newCharVect) ++ (show (firstVertChar, secondVertChar)))
+            (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
 

@@ -83,7 +83,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
           leafGraph = T.makeSimpleLeafGraph inData
           leafDecGraph = T.makeLeafGraph inData
           leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-          hasNonExactChars = U.getNumberNonExactCharacters (thd3 inData) > 0
+          hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
           charInfoVV = six6 inGraph
 
 
@@ -945,7 +945,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA charInfoVV netPenaltyFactor inSp
    else
       -- perform full optimizations of nodes
       -- these required for full optimization
-      let nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
+      let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
           origGraph = inSplitGraph -- thd6 origPhyloGraph
           leafGraph = LG.extractLeafGraph origGraph
           calcBranchLengths = False
@@ -1032,7 +1032,7 @@ reoptimizeSplitGraphFromVertexIA :: GlobalSettings
 reoptimizeSplitGraphFromVertexIA inGS inData charInfoVV netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
    --if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
    --else 
-      let   nonExactCharacters = U.getNumberNonExactCharacters (thd3 inData)
+      let   nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
             origGraph = inSplitGraph -- thd6 origPhyloGraph
 
             -- create leaf graphs--but copy IA final to prelim

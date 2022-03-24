@@ -122,9 +122,9 @@ multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> B
 multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
-            (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph False startVertex inSimpleGraph
-            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (nonExactChars > 0) localStartVertex False postOrderGraph
+        let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
+            (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
         in
         -- trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
         checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
@@ -139,11 +139,11 @@ multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph
 multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-        let nonExactChars = U.getNumberNonExactCharacters (thd3 inData)
+        let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
             -- False for staticIA
-            (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph False startVertex inSimpleGraph
+            (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
         in
-        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (nonExactChars > 0) localStartVertex False postOrderGraph
+        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
 
 
 -- | generalizedGraphPostOrderTraversal performs the postorder pass
@@ -152,7 +152,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
 -- if full graph--yes, if a component yes or no.
 -- hence returnde das pair
 generalizedGraphPostOrderTraversal :: GlobalSettings -> Int -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> (PhylogeneticGraph, VertexCost, Int)
-generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA startVertex inSimpleGraph =
+generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph =
 
     -- select postOrder function based on graph type
     let postOrderFunction = if (graphType inGS) == Tree then postOrderTreeTraversal
@@ -205,9 +205,9 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
+    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     -- only static characters
-    if nonExactChars == 0 then
+    if sequenceChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              --it is its own penalty due to counting all changes in in2 out 1 nodes
                              else if (graphType inGS == HardWired) then 0.0
@@ -218,7 +218,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
             outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
         in
         (outgroupRooted', localRootCost, head startVertexList)
-    else if nonExactChars == 1 then
+    else if sequenceChars == 1 then
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
@@ -243,7 +243,7 @@ generalizedGraphPostOrderTraversal inGS nonExactChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    -- )
+    )
 
 
 

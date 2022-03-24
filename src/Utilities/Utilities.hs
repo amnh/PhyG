@@ -204,17 +204,17 @@ vectResolveMaybe inVect =
     else V.singleton $ fromJust $ V.head inVect
     )
 
--- | getNumberNonExactCharacters takes processed data and returns the number of non-exact characters
+-- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequen ce) characters
 -- ised to special case datasets with limited non-exact characters
-getNumberNonExactCharacters :: V.Vector BlockData -> Int
-getNumberNonExactCharacters blockDataVect =
+getNumberSequenceCharacters :: V.Vector BlockData -> Int
+getNumberSequenceCharacters blockDataVect =
     if V.null blockDataVect then 0
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            nonExactChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
+            sequenceChars = length $ V.filter (== True) $ V.map (`elem` sequenceCharacterTypes) characterTypes
         in
-        nonExactChars + getNumberNonExactCharacters (V.tail blockDataVect)
+        sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
 
 -- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
 -- ised to special case datasets with limited non-exact characters
@@ -224,37 +224,37 @@ getNumberExactCharacters blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            nonExactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
+            exactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
         in
-        nonExactChars + getNumberExactCharacters (V.tail blockDataVect)
+        exactChars + getNumberExactCharacters (V.tail blockDataVect)
 
--- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact and non-exact characters
--- using accumulators
+-- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact (Add, NonAdd, Matrix) and sequence characters
+-- (= nonExact) using accumulators
 splitBlockCharacters :: V.Vector (V.Vector CharacterData)
                      -> V.Vector CharInfo
                      -> Int
                      -> [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
                      -> (BlockData, BlockData)
-splitBlockCharacters inDataVV inCharInfoV localIndex exactCharPairList nonExactCharPairList =
+splitBlockCharacters inDataVV inCharInfoV localIndex exactCharPairList seqCharPairList =
     if localIndex == V.length inCharInfoV then
         let (exactDataList, exactCharInfoList) = unzip exactCharPairList
-            (nonExactDataList, nonExactCharInfoList) = unzip nonExactCharPairList
+            (sequenceDataList, sequenceCharInfoList) = unzip seqCharPairList
             newExactCharInfoVect = V.fromList $ reverse exactCharInfoList
-            newNonExactCharInfoVect = V.fromList $ reverse nonExactCharInfoList
+            newSeqCharCharInfoVect = V.fromList $ reverse sequenceCharInfoList
             newExactData = V.fromList $ fmap (V.fromList . reverse) (L.transpose exactDataList)
-            newNonExactData = V.fromList $ fmap (V.fromList . reverse) (L.transpose nonExactDataList)
+            newSeqCharData = V.fromList $ fmap (V.fromList . reverse) (L.transpose sequenceDataList)
         in
-        ((T.pack "ExactCharacters", newExactData, newExactCharInfoVect), (T.pack "Non-ExactCharacters", newNonExactData, newNonExactCharInfoVect))
+        ((T.pack "ExactCharacters", newExactData, newExactCharInfoVect), (T.pack "Non-ExactCharacters", newSeqCharData, newSeqCharCharInfoVect))
     else
         let localCharacterType = charType (inCharInfoV V.! localIndex)
             thisCharacterData = V.toList $ fmap (V.! localIndex) inDataVV
             newPair = (thisCharacterData, inCharInfoV V.! localIndex)
         in
         if localCharacterType `elem` exactCharacterTypes then
-            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) (newPair : exactCharPairList) nonExactCharPairList
-        else if localCharacterType `elem` nonExactCharacterTypes then
-            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) exactCharPairList (newPair : nonExactCharPairList)
+            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) (newPair : exactCharPairList) seqCharPairList
+        else if localCharacterType `elem` sequenceCharacterTypes then
+            splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) exactCharPairList (newPair : seqCharPairList)
         else error ("Unrecongized/implemented character type: " ++ show localCharacterType)
 
 

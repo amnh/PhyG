@@ -120,7 +120,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 makeIAAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
 makeIAAssignments finalMethod rootIndex = V.zipWith (makeCharacterIA finalMethod rootIndex)
 
--- | makeCharacterIA takes an individual character postorder tree and if non-exact perform post and preorder IA passes
+-- | makeCharacterIA takes an individual character postorder tree and if non-exact (non-prealigned) perform post and preorder IA passes
 -- and assignment to final field in slim/wide/huge
 makeCharacterIA :: AssignmentMethod -> Int -> DecoratedGraph -> CharInfo -> DecoratedGraph
 makeCharacterIA finalMethod rootIndex inGraph charInfo =

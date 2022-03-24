@@ -71,7 +71,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
     let fileNames = fmap snd $ filter ((/="tcm") . fst) $ filter ((/= "") . snd) argList
         modifierList = fmap fst argList
     in
-    trace ("ERC: " ++ (show fileNames)) (
+    -- trace ("ERC: " ++ (show fileNames)) (
     if commandType /= Read then error ("Incorrect command type in expandReadCommands: " ++ show inCommand)
     else do
         globbedFileNames <- mapM SPG.glob fileNames
@@ -82,7 +82,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
                 commandList = replicate (length newArgPairs) commandType
             in
             return $ zip commandList newArgPairs
-    )
+    --)
 
 -- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 -- globbed file name list to create a list of arguments
@@ -143,9 +143,10 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
               | otherwise = False
         let (firstOption, firstFile) = head argList
         -- Check for prealigned
-        if firstOption == "prealigned" then
-            executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-        else do
+        -- if firstOption == "prealigned" then
+        --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+        -- else do
+        do
             fileHandle <- openFile  firstFile ReadMode
             canBeReadFrom <- hIsReadable fileHandle
             if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
@@ -243,12 +244,28 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                   
+                    --prealigned fasta
+                    else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
+                        let fastaData = FAC.getFastA  firstOption fileContents firstFile
+                            fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
+                        in
+                        -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
+                        executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                    
+                    -- prealigned fastc
+                    else if firstOption `elem` ["prefastc", "precustom_alphabet"]  then
+                        let fastcData = FAC.getFastC firstOption fileContents firstFile
+                            fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile True tcmPair
+                        in
+                        executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                    -- tnt
                     -- tnt
                     else if firstOption == "tnt" then
                         let tntData = TNT.getTNTData fileContents firstFile
                         in
                         executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                    -- else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- FENEwick
                     else if firstOption `elem` ["newick" , "enewick", "fenewick"]  then
                         let thisGraphList = getFENewickGraph fileContents
@@ -298,7 +315,8 @@ makeNamePairs inFileName inLine =
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
 readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block"]
+    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
+    "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check

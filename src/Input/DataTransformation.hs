@@ -90,7 +90,7 @@ partitionSequences partChar inDataList =
         let firstRawData@(taxDataList, charInfoList) = head inDataList
         in
         -- for raw seqeunce data this will always be a single character
-        if (length charInfoList > 1) || (charType (head charInfoList) `notElem` [SlimSeq, WideSeq, NucSeq, AminoSeq]) then firstRawData : partitionSequences partChar (tail inDataList) else (
+        if (length charInfoList > 1) || (charType (head charInfoList) `notElem` sequenceCharacterTypes) then firstRawData : partitionSequences partChar (tail inDataList) else (
        let (leafNameList, leafDataList) = unzip taxDataList
            partitionCharList = fmap (U.splitSequence partChar) leafDataList
            partitionCharListByPartition = makePartitionList partitionCharList
@@ -367,7 +367,7 @@ missingMatrix inCharInfo =
 getMissingValue :: [CharInfo] -> [CharacterData]
 getMissingValue inChar
   | null inChar = []
-  | charType (head inChar) `elem` [SlimSeq, NucSeq, WideSeq, AminoSeq, HugeSeq] = []
+  | charType (head inChar) `elem`sequenceCharacterTypes = []
   | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar)
   | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar)
   | charType (head inChar) == Matrix = missingMatrix (head inChar) : getMissingValue (tail inChar)
@@ -498,20 +498,22 @@ getGeneralSequenceChar inCharInfo stateList =
               if not $ null stateList
               then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
               else (mempty, mempty, mempty)
-            newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] && not isAligned then slimVec else mempty
-                                             , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] && not isAligned  then slimVec else mempty
-                                             , widePrelim         = if cType `elem` [WideSeq, AminoSeq] && not isAligned  then wideVec else mempty
-                                             , wideFinal          = if cType `elem` [WideSeq, AminoSeq] && not isAligned  then wideVec else mempty
-                                             , hugePrelim         = if cType == HugeSeq  && not isAligned then hugeVec else mempty
-                                             , hugeFinal          = if cType == HugeSeq  && not isAligned then hugeVec else mempty
-                                             , alignedSlimPrelim  = if cType `elem` [SlimSeq, NucSeq  ] && isAligned then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
-                                             , alignedSlimFinal   = if cType `elem` [SlimSeq, NucSeq  ] && isAligned then slimVec else mempty
-                                             , alignedWidePrelim  = if cType `elem` [WideSeq, AminoSeq] && isAligned then (wideVec, wideVec, wideVec) else (mempty, mempty, mempty)
-                                             , alignedWideFinal   = if cType `elem` [WideSeq, AminoSeq] && isAligned then wideVec else mempty
-                                             , alignedHugePrelim  = if cType `elem` [HugeSeq] && isAligned then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
-                                             , alignedHugeFinal   = if cType `elem` [HugeSeq] && isAligned then hugeVec else mempty
+            newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                             , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                             , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                             , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                             , hugePrelim         = if cType == HugeSeq  then hugeVec else mempty
+                                             , hugeFinal          = if cType == HugeSeq  then hugeVec else mempty
+                                             , alignedSlimPrelim  = if cType `elem` [AlignedSlim] then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
+                                             , alignedSlimFinal   = if cType `elem` [AlignedSlim] then slimVec else mempty
+                                             , alignedWidePrelim  = if cType `elem` [AlignedWide] then (wideVec, wideVec, wideVec) else (mempty, mempty, mempty)
+                                             , alignedWideFinal   = if cType `elem` [AlignedWide] then wideVec else mempty
+                                             , alignedHugePrelim  = if cType `elem` [AlignedHuge] then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
+                                             , alignedHugeFinal   = if cType `elem` [AlignedHuge] then hugeVec else mempty
                                              }
-        in  [newSequenceChar]
+        in  
+        trace ("GGSC" ++ (show newSequenceChar )) 
+        [newSequenceChar]
 
 
 -- | getSingleStateBV takes a single state and retuerns its bitvector
@@ -678,7 +680,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
 
 
 
--- | createLeafCharacter takes rawData and Charinfo and returns CharcaterData type
+-- | createLeafCharacter takes rawData and Charinfo and returns CharacterData type
 -- need to add in missing data as well
 createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
 createLeafCharacter inCharInfoList rawDataList

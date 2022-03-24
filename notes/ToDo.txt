@@ -461,7 +461,7 @@ preOrderTreeTraversal
 
 292) Add unions
 
-293) Check ststic only parallel swap (and optimizatiopn--ie no reroots)
+293) Check static only parallel swap (and optimizatiopn--ie no reroots)
 
 294)  For net build -> phylo graph
 	if naked HTUs (no children) just delete those nodes and contract 
@@ -486,8 +486,6 @@ preOrderTreeTraversal
 300) Check add/continuous characters for correctness after merging characters
 	should be merged with same weight--if not then need to fix
 
-301) do recoding for prealigned nonAdd, nonadd with extra for gap, matrix
-
 303) Check traverse if mix static and dynamic--make sure all charcters ar optimized--the 0 cost thing 
 	for choosing best may be issue 
 
@@ -495,14 +493,13 @@ preOrderTreeTraversal
 
 305) Check min max edge cost WRT reordering with gap first versus last
 
-306) this week
-	remove constants
-	output IA fasta
-	output tnt file (phastwincladfile)
-	swap steepest for multiple graphs
-	unions
-
 307) Check input prealigned
 	slim/wide/huge
 
 308) Test union-like rejoin criterion in swap steepes/rejoin steepest
+
+309) TNT ouput single charcters always?  010101 or can be 0 1 0 1 0 etc?
+	V.fromList $ fmap show [0..9,a..z.A..Z] 
+	use indices for conversion for non-additive
+
+

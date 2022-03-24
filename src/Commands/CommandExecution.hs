@@ -705,7 +705,7 @@ makeCharLine (blockDatum, charInfo) =
         localAlphabet = fmap ST.toString $ alphabet charInfo
         isPrealigned = if prealigned charInfo == True then "Prealigned "
                        else ""
-        enhancedCharType = if localType `elem`  [SlimSeq, WideSeq, NucSeq, AminoSeq, HugeSeq] then (isPrealigned ++ (show localType))
+        enhancedCharType = if localType `elem` sequenceCharacterTypes then (isPrealigned ++ (show localType))
                         else if localType `elem`  [Add, NonAdd, Matrix] then (show localType)
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 

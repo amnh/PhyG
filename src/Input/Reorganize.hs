@@ -136,7 +136,7 @@ groupDataByType :: ProcessedData -> ProcessedData
 groupDataByType (nameVect, nameBVVect, blockDataVect) =
     let organizedBlockData =  V.map organizeBlockData' blockDataVect
     in
-    -- trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
+    --trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
     --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
     (nameVect, nameBVVect, organizedBlockData)
 
@@ -146,7 +146,7 @@ groupDataByType (nameVect, nameBVVect, blockDataVect) =
 organizeBlockData' :: BlockData -> BlockData
 organizeBlockData' localBlockData =
     let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
-        numNonExactChars = U.getNumberNonExactCharacters (V.singleton localBlockData)
+        numNonExactChars = U.getNumberSequenceCharacters (V.singleton localBlockData)
     in
     -- if no nonexact--nothing to combine
     if numExactChars == 0 then localBlockData
@@ -156,10 +156,10 @@ organizeBlockData' localBlockData =
 
     -- if both nonexact and exact--pull out non-exact and recombine exact
     else if (numExactChars > 0) && (numNonExactChars > 0) then
-        let (exactCharacters, nonExactCharacters) = U.splitBlockCharacters (snd3 localBlockData) (thd3 localBlockData) 0 [] []
+        let (exactCharacters, nonSequenceCharacters) = U.splitBlockCharacters (snd3 localBlockData) (thd3 localBlockData) 0 [] []
             newExactCharacters = organizeBlockData [] [] [] [] exactCharacters
-            newCharData = V.zipWith (V.++) (snd3 newExactCharacters) (snd3 nonExactCharacters)
-            newCharInfo = thd3 newExactCharacters V.++ thd3 nonExactCharacters
+            newCharData = V.zipWith (V.++) (snd3 newExactCharacters) (snd3 nonSequenceCharacters)
+            newCharInfo = thd3 newExactCharacters V.++ thd3 nonSequenceCharacters
         in
         (fst3 localBlockData, newCharData, newCharInfo)
     else error "This shouldn't happen in organizeBlockData'"
@@ -225,7 +225,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                -- trace ("Character Weight non-integer:" ++ show fCharWeight) 
                organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
 
-           -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since miossing character will be empoty and throw an error on V.head
+           -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since missing character will be empoty and throw an error on V.head
            else if fCharType `notElem` exactCharacterTypes
                then errorWithoutStackTrace "Blocks with more than one Non-Exact Character not yet implemented"
 
@@ -260,7 +260,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                -- )
 
            -- error in thype
-           else error ("Unrecognized/nont implemented charcter type: " ++ show fCharType))
+           else error ("Unrecognized/not implemented charcter type: " ++ show fCharType))
         -- )
 
 -- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
@@ -419,7 +419,7 @@ addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacte
 
 
 -- | removeConstantCharacters takes processed data and removes constant characters
--- from exactCharacterTypes
+-- from sequenceCharacterTypes
 removeConstantCharacters :: ProcessedData -> ProcessedData
 removeConstantCharacters (nameVect, bvNameVect, blockDataVect) = 
     let newBlockData = V.fromList (fmap removeConstantBlock (V.toList blockDataVect) `using` PU.myParListChunkRDS)

@@ -171,8 +171,10 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , prealigned = isPrealigned
                                              }
         in
+        -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
         if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
         else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
+        -- )
 
 
 -- | getCost is helper function for generartion for a dense TCM
@@ -334,10 +336,10 @@ getRawDataPairsFastA modifier inTextList =
             firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        --trace ("FA " ++ (show $ length firstDataNoGapsSTList)) (
+        trace ("FA " ++ (show firtDataSTList)) (
         if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
-        --)
+        )
 
 -- | getFastC processes fasta file
 -- assumes spaces between alphabet elements
