@@ -1463,4 +1463,8 @@ setPrelimToFinalCharacterData inChar =
                            , hugeAlignment      = hugeGapped inChar
                            , hugeFinal          = hugePrelim inChar
                            , hugeIAFinal        = snd3 $ hugeIAPrelim inChar
+
+                           , alignedSlimFinal  = snd3 $ alignedSlimPrelim inChar
+                           , alignedWideFinal  = snd3 $ alignedWidePrelim inChar
+                           , alignedHugeFinal  = snd3 $ alignedHugePrelim inChar
             }
