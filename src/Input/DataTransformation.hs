@@ -276,10 +276,10 @@ createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> Proce
 createNaiveData inDataList leafBitVectorNames curBlockData =
     if null inDataList
     then --trace ("Naive data with " ++ (show $ length curBlockData) ++ " blocks and " ++ (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) ++ " characters")
-         ( V.fromList $ fmap fst leafBitVectorNames
-         , V.fromList $ fmap snd leafBitVectorNames
-         , V.fromList $ reverse curBlockData
-         )
+        ( V.fromList $ fmap fst leafBitVectorNames
+        , V.fromList $ fmap snd leafBitVectorNames
+        , V.fromList $ reverse curBlockData
+        )
     else
         let (firstData, firstCharInfo) = head inDataList
         in
@@ -308,11 +308,53 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
                 thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
 
+                (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
+
             in
+            -- trace ("CND:" ++ (show prealignedDataEqualLength)) (
+            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
-            trace ("Recoding input block: " ++ T.unpack thisBlockName')
-            createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
+            else 
+                trace ("Recoding input block: " ++ T.unpack thisBlockName')
+                createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
+
+-- | checkPrealignedEqualLength checks prealigned type for equal length
+-- at this stage (called before reblocking) there should only be a single charcter per block
+-- but more general--if not great if > 1 character with naming
+checkPrealignedEqualLength :: [T.Text] -> (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo) -> (Bool, [(T.Text, Int)], [(T.Text, Int)])
+checkPrealignedEqualLength nameTextList (blockNameText, taxByCharacterDataVV, charInfoV) = 
+    let numCharsIndexList = [0 .. (V.length charInfoV) - 1]
+        sameLengthPairList = zipWith (verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV) (V.toList charInfoV) numCharsIndexList
+        badOnes = filter ((== False) . fst3) sameLengthPairList
+    in
+    if null badOnes then (True, [],[])
+    else 
+        (False, concat $ fmap snd3 badOnes, concat $ fmap thd3 badOnes)
+
+-- | verifyPrealignedCharacterLength takes an index for character and examines theat character--if prealigned checks for
+-- equal length if prealigned then "True"
+verifyPrealignedCharacterLength :: [T.Text] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> (Bool, [(T.Text, Int)],[(T.Text, Int)])
+verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charIndex =
+    let inCharType = charType charInfo
+        inCharV = fmap (V.! charIndex) taxByCharacterDataVV
+    in
+    if inCharType `notElem` prealignedCharacterTypes then (True, [],[])
+    else 
+        let prealigedDataLengthList = if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
+                                      else if inCharType == AlignedWide then V.toList $ fmap UV.length $ fmap (snd3 . alignedWidePrelim) inCharV
+                                      else if inCharType == AlignedHuge then V.toList $ fmap V.length $ fmap (snd3 . alignedHugePrelim) inCharV
+                                      else  error ("Character type " ++ show inCharType ++ " unrecongized/not implemented")
+            nameLengthPairList = zip nameTextList prealigedDataLengthList
+            minLength = minimum prealigedDataLengthList
+            haveMinLength = filter ((== minLength) .snd) nameLengthPairList
+            notMinMinLength = filter ((/= minLength) .snd) nameLengthPairList
+        in
+        -- all min length then all same length
+        -- trace ("VPCL:" ++ (show $ (haveMinLength, notMinMinLength))) (
+        if null notMinMinLength then (True, [], [])
+        else (False, haveMinLength, notMinMinLength)
+        -- )
 
 
 -- | recodeRawData takes the ShortText representation of character states/ranges etc
