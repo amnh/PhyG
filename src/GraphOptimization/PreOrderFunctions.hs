@@ -766,7 +766,6 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         in
         (minCost, maxCost)
 
-
     else if thisCharType == SlimSeq || thisCharType == NucSeq then
         let minMaxDiffList = if finalMethod == DirectOptimization then
                                 let uFinal = M.makeDynamicCharacterFromSingleVector (slimFinal uCharacter)

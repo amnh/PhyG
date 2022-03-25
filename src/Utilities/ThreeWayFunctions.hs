@@ -376,7 +376,7 @@ get3WayGeneric tcm in1 in2 in3 =
    in  (,) <$> gen <*> add $ vt
 
 
-{-Not using this now--but could-}
+{-Not using this now--but could.  Would need to add Aligned Types-}
 -- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via 
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up

@@ -128,7 +128,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
             -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
             (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab inGraph leftChild, fromJust $ LG.lab inGraph rightChild)
             newVertexData = createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
-            --newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
+            -- newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
         in
         {-
         --debug remove when not needed--checking to see if node should not be re optimized
@@ -864,6 +864,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
 
         -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
         newDecGraph' = reOptimizeNodes inGS charInfoVectVect newDecGraph nodesToOptimize -- (L.nub $ nodesToOptimize ++ touchedNodes)
+        -- newDecGraph' = reOptimizeNodes inGS charInfoVectVect newDecGraph nodesToOptimize (L.nub $ nodesToOptimize ++ touchedNodes)
 
         -- sum of root costs on Decorated graph
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
@@ -1026,7 +1027,7 @@ pullBlock inGraph blockIndex =
     LG.mkGraph (zip inNodeIndexList blockNodeLabelList) (LG.labEdges inGraph)
 
 -- | makeBlockNodeLabels takes a block index and an orginal nodel label
--- and cretes a new list of a singleton block from the input block index
+-- and creates a new list of a singleton block from the input block index
 makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
 makeBlockNodeLabels blockIndex inVertexInfo =
   let newVertexData = vertData inVertexInfo V.! blockIndex
@@ -1084,9 +1085,10 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
                   }
   else
   -}
-     inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
-                                   else V.singleton V.empty
-                  , vertexCost   = newVertexCost
-                  , subGraphCost = newSubGraphCost
-                  }
+  -- trace ("MCL:" ++ (show (newVertexCost, newSubGraphCost)))
+  inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
+                              else V.singleton V.empty
+               , vertexCost   = newVertexCost
+               , subGraphCost = newSubGraphCost
+               }
 

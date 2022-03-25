@@ -180,17 +180,20 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         dummyStaticCharacter = emptyCharacter
     in
     if (not thisActive) || (thisType `elem` exactCharacterTypes) then (dummyStaticCharacter, 0)
-    else (if thisType `elem` nonExactCharacterTypes then
-            let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-            in
-            (newCharVect, localCost  newCharVect)
-          else if thisType `elem` prealignedCharacterTypes then
-            let newCharVect = getPreAligned2Median inCharInfo dummyStaticCharacter firstVertChar secondVertChar
-            in
-            -- trace ("M2S:" ++ (show $ localCost  newCharVect) ++ (show (firstVertChar, secondVertChar)))
-            (newCharVect, localCost  newCharVect)
+    else if thisType `elem` prealignedCharacterTypes then
+         let newCharVect = getPreAligned2Median inCharInfo dummyStaticCharacter firstVertChar secondVertChar
+         in
+         -- trace ("M2S:" ++ (show $ localCost  newCharVect) ++ (show (firstVertChar, secondVertChar)))
+         -- trace ("M2SNEP: " ++ (show thisType))
+         (newCharVect, localCost  newCharVect)
 
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented"))
+    else if thisType `elem` nonExactCharacterTypes then
+         let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+         in
+         -- trace ("M2SNE: " ++ (show thisType))
+         (newCharVect, localCost  newCharVect)
+    
+    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
 
 
 -- | median2SingleStaticIA takes character data and returns median character and cost for Static and IA fields of dynamic

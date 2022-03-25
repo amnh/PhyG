@@ -75,7 +75,7 @@ getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
 getLeafInsertCost charInfoV charDataV = 
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
--- | getCharacterInsertCost takes a character and characterInfo and retujrns origination/insert cost for the character
+-- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
 getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
     let localCharType = charType charInfo
@@ -88,6 +88,9 @@ getCharacterInsertCost inChar charInfo =
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
     else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
     else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
+    else if localCharType == AlignedSlim then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ snd3 $ alignedSlimPrelim inChar)
+    else if localCharType == AlignedWide then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ snd3 $ alignedWidePrelim inChar)
+    else if localCharType == AlignedHuge then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ snd3 $ alignedHugePrelim inChar)
     else error ("Character type unimplemented : " ++ show localCharType)
 
 
@@ -492,3 +495,12 @@ driftAccept simAnealVals curBestCost candCost  =
             (False, nextSAPAramsNoChange)
             -- )
 
+
+-- | getTraversalCosts takes a Phylogenetic Graph and returns costs of traversal trees
+getTraversalCosts :: PhylogeneticGraph -> [VertexCost]
+getTraversalCosts inGraph =
+    let traversalTrees = V.toList $ fmap V.toList $ fft6 inGraph
+        traversalRoots = fmap head $ fmap LG.getRoots $ concat traversalTrees
+        traversalRootCosts = fmap (subGraphCost . snd) traversalRoots
+    in
+    traversalRootCosts

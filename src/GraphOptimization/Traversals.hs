@@ -206,7 +206,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
-    trace ("TRAV:" ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments))) (
+    trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments)) 
+        ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts finalizedPostOrderGraphList, getTraversalCosts graphWithBestAssignments))) (
     -- only static characters
     if sequenceChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -863,18 +864,19 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
 -- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
 -- unclear how hardwired will be affected
 setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
-setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
+setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, sCost, sDecGraph, _, sTraversal, _) =
     -- trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else
-        --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")" ) ( -- ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " " ++ (show $ fmap (fmap name) fCharInfo)) (
+        trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")"  ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " "  
+            ++ (show $ fmap (fmap name) fCharInfo)) (
         let (mergedBlockVect, costVector) = V.unzip $ V.zipWith makeBetterBlock fTraversal sTraversal
         in
          --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ") ->" ++ (show $ V.sum costVector) ++ " nt:" ++ (show $ length fTraversal)
          --   ++ "length blocks " ++ (show $ fmap length fTraversal))
         (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
-        -- )
+        )
 
 -- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each
 -- character.  This can be a single sequence or series of exact characters
@@ -897,12 +899,12 @@ chooseBetterCharacter firstGraph secondGraph
     let firstGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots firstGraph)
         secondGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots secondGraph)
     in
-    --trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
+    trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
     if firstGraphCost == 0 then (secondGraph, secondGraphCost)
     else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
     else if secondGraphCost < firstGraphCost then (secondGraph, secondGraphCost)
     else (firstGraph, firstGraphCost)
-    -- )
+    )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully
