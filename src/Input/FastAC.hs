@@ -320,9 +320,6 @@ getFastA modifier fileContents' fileName  =
             if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
             else pairData
 
-
-
-
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 getRawDataPairsFastA :: String -> [T.Text] -> [TermData]
 getRawDataPairsFastA modifier inTextList =
@@ -336,10 +333,10 @@ getRawDataPairsFastA modifier inTextList =
             firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        trace ("FA " ++ (show firtDataSTList)) (
+        -- trace ("FA " ++ (show firtDataSTList)) (
         if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
-        )
+        -- )
 
 -- | getFastC processes fasta file
 -- assumes spaces between alphabet elements

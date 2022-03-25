@@ -309,8 +309,10 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
 
             in
+            -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             trace ("Recoding input block: " ++ T.unpack thisBlockName')
             createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
+            -- )
 
 
 -- | recodeRawData takes the ShortText representation of character states/ranges etc
@@ -324,6 +326,7 @@ recodeRawData inTaxNames inData inCharInfo curCharData =
         let firstData = head inData
             firstDataRecoded = createLeafCharacter inCharInfo firstData
         in
+        -- trace ("RRD:" ++ (show firstData))
         --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
         recodeRawData (tail inTaxNames) (tail inData) inCharInfo (firstDataRecoded : curCharData)
@@ -512,7 +515,7 @@ getGeneralSequenceChar inCharInfo stateList =
                                              , alignedHugeFinal   = if cType `elem` [AlignedHuge] then hugeVec else mempty
                                              }
         in  
-        trace ("GGSC" ++ (show newSequenceChar )) 
+        -- trace ("GGSC" ++ (show stateList) ++ "\n" ++ (show newSequenceChar )) 
         [newSequenceChar]
 
 

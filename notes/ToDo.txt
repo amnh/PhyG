@@ -503,3 +503,4 @@ preOrderTreeTraversal
 	use indices for conversion for non-additive
 
 
+310) check prealigned same length

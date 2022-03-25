@@ -240,14 +240,14 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if firstOption `elem` ["fastc", "custom_alphabet"]  then
-                        let fastcData = FAC.getFastC firstOption fileContents firstFile
+                        let fastcData = FAC.getFastC "prealigned" fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                    
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
-                        let fastaData = FAC.getFastA  firstOption fileContents firstFile
+                        let fastaData = FAC.getFastA  "prealigned" fileContents firstFile
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
