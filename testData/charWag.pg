@@ -1,8 +1,12 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 read(prefasta:"chel-prealiged.fas")
---read(fasta:"chel.fas", tcm:"sg2t1.mat")
--- read(fasta:"chel.fas", tcm:"sg2t2.mat")
+read(prefasta:"chel-prealiged.fas", tcm:"sg2t2.mat")
+--read(prefasta:"chel-prealiged.fas", tcm:"sg2t2.mat")
+read(fasta:"chel.fas", tcm:"sg2t1.mat")
+--read(fasta:"chel.fas", tcm:"sg2t2.mat")
+read("chel.hen")
+read("chel-3.hen")
 
 set(finalassignment:ia)
 
