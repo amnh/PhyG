@@ -361,6 +361,14 @@
 			gap characters are filtered out of the sequences after input.
 			
 			\smallskip		
+			\noindent \texttt{prefasta:} Specifies that the sequences are prealigned in a fasta format, leaving gap characters
+			(``-'') in the sequences and alignment correspondences are not re-examined. This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
+			
+			\smallskip		
+			\noindent \texttt{prefastc:} Specifies that the sequences are prealigned in a fastc format, leaving gap characters
+			(``-'') in the sequences and alignment correspondences are not re-examined. This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
+			
+			\smallskip		
 			\noindent \texttt{rename:} File contains a series of lines, each of which contains at least two strings.  The second (and all following) strings (input taxon names),
 			will be replaced by the first string (taxon name) on the line. An example file renaming ``b'' and ``c''  to ``a'' and ``Ozzy'' and ``Harriet'' to ``OH''.
 				\begin{quote}
