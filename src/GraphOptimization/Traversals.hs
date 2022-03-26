@@ -197,7 +197,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
         -- are propagated to the Decorated graph field after the preorder pass.
         -- doesn't have to be sorted, but should minimize assignments
-        graphWithBestAssignments = L.foldl1' setBetterGraphAssignment finalizedPostOrderGraphList
+        graphWithBestAssignments = L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
         -- same root cost if same data and number of roots
         localRootCost = if (rootCost inGS) == NoRootCost then 0.0
@@ -207,7 +207,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments)) 
-        ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts finalizedPostOrderGraphList, getTraversalCosts graphWithBestAssignments))) (
+        ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
+    
     -- only static characters
     if sequenceChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -220,7 +221,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
         in
         (outgroupRooted', localRootCost, head startVertexList)
-    else if sequenceChars == 1 then
+
+    -- single seuquence (prealigned, dynamic) only (ie no static)
+    else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
@@ -232,7 +235,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         in
         -- trace ("GPOT-1: " ++ (show (snd6 finalizedPostOrderGraph)))
         (finalizedPostOrderGraph, localRootCost, head startVertexList)
-    -- multiple dynamic characters--cjecks for best root for each character
+
+    -- multiple dynamic characters--checks for best root for each character
+    -- important to have outgroup rooted graph first for fold so don't use sorted recursive list
     else
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              else if (graphType inGS == HardWired) then 0.0
