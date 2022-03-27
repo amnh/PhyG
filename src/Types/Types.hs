@@ -108,7 +108,7 @@ data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | N
 
 -- | types for character classes
 nonExactCharacterTypes :: [CharType]
-nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
+nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq] -- , AlignedSlim, AlignedWide, AlignedHuge]
 
 -- aliogned not in here because they are not reorganized, and would screw up reroot optimization
 exactCharacterTypes :: [CharType]

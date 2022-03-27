@@ -714,8 +714,10 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
     if characterType == AlignedSlim then 
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ alignedSlimPrelim leftChar) (extractMediansGapped $ alignedSlimPrelim rightChar)
         in
+        -- trace ("GPA2M: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedSlimPrelim = (extractMediansGapped $ alignedSlimPrelim leftChar, prelimChar,  extractMediansGapped $ alignedSlimPrelim rightChar)
                  , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedWide then 
@@ -723,6 +725,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
         in
         nodeChar { alignedWidePrelim = (extractMediansGapped $ alignedWidePrelim leftChar, prelimChar,  extractMediansGapped $ alignedWidePrelim rightChar)
                  , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedHuge then 
@@ -730,6 +733,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
         in
         nodeChar { alignedHugePrelim = (extractMediansGapped $ alignedHugePrelim leftChar, prelimChar,  extractMediansGapped $ alignedHugePrelim rightChar)
                  , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                  }
 
     else error ("Unrecognized character type " ++ show characterType)
@@ -753,6 +757,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                 , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
                 , localCost = (weight charInfo) * (fromIntegral cost)
+                , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                 }
      else if characterType `elem` [WideSeq, AminoSeq] then
         let (prelimChar, minCost)  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
@@ -760,6 +765,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
+                , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
      else if characterType == HugeSeq then
         let (prelimChar, minCost)  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
@@ -767,6 +773,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
+                , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
      else error ("Unrecognized character type " ++ show characterType)
 

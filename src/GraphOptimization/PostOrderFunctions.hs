@@ -198,7 +198,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                                                 , vertName = T.pack $ "HTU" ++ show curNodeIndex
                                                 , vertData = mempty --empty because of resolution data
                                                 , vertexResolutionData = resolutionBlockVL
-                                                , vertexCost = 0.0 --newCost
+                                                , vertexCost = 0.0 -- newCost
                                                 , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                                 }
 
@@ -1012,7 +1012,7 @@ divideDecoratedGraphByBlockAndCharacterTree inGraph =
         blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
-    -- trace ("Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph))
+    -- trace ("DDGBCT: Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) ++ "\n" ++ (show characterGraphList))
     V.fromList characterGraphList
 
 -- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
