@@ -433,7 +433,7 @@ getMissingValue inChar maxCharLength
 missingAligned :: CharInfo -> Int -> CharacterData
 missingAligned inChar charLength =
     let inCharType = charType inChar
-        alphSize = length $ alphabet inChar
+        alphSize = 1 + (length $ alphabet inChar)
         missingElementSlim = -- CUInt type
                              SV.replicate charLength $ setMissingBits (0 :: CUInt) 0 alphSize
         missingElementWide = -- Word64 type

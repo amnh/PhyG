@@ -233,7 +233,7 @@ transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharIn
 transformCharacter inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
        inCostMatrix = costMatrix inCharInfo
-       alphSize = length $ alphabet inCharInfo
+       alphSize = 1 + (length $ alphabet inCharInfo)
         
        -- determine if matrix is all same costs => nonadditive
        --                        all same except fort single indel costs => non add with gap binary chars
