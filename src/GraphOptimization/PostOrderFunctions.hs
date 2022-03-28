@@ -1088,7 +1088,9 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
   -- trace ("MCL:" ++ (show (newVertexCost, newSubGraphCost)))
   inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
                               else V.singleton V.empty
-               , vertexCost   = newVertexCost
-               , subGraphCost = newSubGraphCost
+               , vertexCost   = if not isMissing then newVertexCost
+                                else 0.0
+               , subGraphCost = if not isMissing then newSubGraphCost
+                                else 0.0
                }
 
