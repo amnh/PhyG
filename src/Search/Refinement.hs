@@ -119,6 +119,17 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
    else 
       trace ("Genetic Algorithm operating on population of " ++ (show $ length inGraphList) ++ " input graph(s) with cost range ("++ (show $ minimum $ fmap snd6 inGraphList) ++ "," ++ (show $ maximum $ fmap snd6 inGraphList) ++ ")") (
 
+      -- process args
+      let (doElitist, keepNum, popSize, generations, severity, recombinations) = getGeneticAlgParams inArgs
+          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
+      in                             
+      trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
+      newGraphList
+      )
+
+-- | getGeneticAlgParams returns paramlist from arglist
+getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int)
+getGeneticAlgParams inArgs = 
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
@@ -175,16 +186,8 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
          else if isNothing severity then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head severityList))
          else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head recombinationsList))
          
-         -- process args
          else
-            let (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
-            in                             
-            trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
-            newGraphList
-            )
-
-
-
+            (doElitist, keepNum, popSize, generations, severity, recombinations)
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
@@ -196,11 +199,45 @@ fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [Phylogene
 fuseGraphs inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace ("No graphs to fuse") []
    else 
-      trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
-      let fstArgList = fmap (fmap toLower . fst) inArgs
-          sndArgList = fmap (fmap toLower . snd) inArgs
-          lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "fuse" fstArgList fuseArgList
+     trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
+     
+     -- process args for fuse placement
+           let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
+               doNNI' = any ((=="nni").fst) lcArgList
+               doSPR' = any ((=="spr").fst) lcArgList
+               doTBR = any ((=="tbr").fst) lcArgList
+               doSteepest' = any ((=="steepest").fst) lcArgList
+               doAll = any ((=="all").fst) lcArgList
+               doSteepest = if (not doSteepest' && not doAll) then True
+                            else doSteepest'
+               doSPR = if doTBR then False
+                       else doSPR'
+               doNNI = if doSPR || doTBR then False
+                       else doNNI'
+               returnBest = any ((=="best").fst) lcArgList
+               returnUnique = any ((=="unique").fst) lcArgList
+               doSingleRound = any ((=="once").fst) lcArgList
+               randomPairs = any ((=="atrandom").fst) lcArgList
+               fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
+                            else fusePairs
+                            
+               seedList = randomIntList rSeed
+           in
+           -- perform graph fuse operations 
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
+
+           in                             
+           trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
+           newGraphList
+      )
+
+-- | getFuseGraphParams returns fuse parameters from arglist
+getFuseGraphParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
+getFuseGraphParams inArgs = 
+    let fstArgList = fmap (fmap toLower . fst) inArgs
+        sndArgList = fmap (fmap toLower . snd) inArgs
+        lcArgList = zip fstArgList sndArgList
+        checkCommandList = checkCommandArgs "fuse" fstArgList fuseArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " ++ show inArgs)
@@ -232,36 +269,9 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
         else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in swap: "  ++ show (head pairList))
-        
-        -- process args for fuse placement
-        else 
-           let doNNI' = any ((=="nni").fst) lcArgList
-               doSPR' = any ((=="spr").fst) lcArgList
-               doTBR = any ((=="tbr").fst) lcArgList
-               doSteepest' = any ((=="steepest").fst) lcArgList
-               doAll = any ((=="all").fst) lcArgList
-               doSteepest = if (not doSteepest' && not doAll) then True
-                            else doSteepest'
-               doSPR = if doTBR then False
-                       else doSPR'
-               doNNI = if doSPR || doTBR then False
-                       else doNNI'
-               returnBest = any ((=="best").fst) lcArgList
-               returnUnique = any ((=="unique").fst) lcArgList
-               doSingleRound = any ((=="once").fst) lcArgList
-               randomPairs = any ((=="atrandom").fst) lcArgList
-               fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
-                            else fusePairs
-                            
-               seedList = randomIntList rSeed
-           in
-           -- perform graph fuse operations 
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 doNNI doSPR doTBR doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
 
-           in                             
-           trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))
-           newGraphList
-      )
+        else 
+            (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
@@ -272,76 +282,10 @@ netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [Phylog
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace ("No graphs to edit network edges") []
    else if graphType inGS == Tree then trace ("\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired") inGraphList
-   else 
-      let fstArgList = fmap (fmap toLower . fst) inArgs
-          sndArgList = fmap (fmap toLower . snd) inArgs
-          lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList netEdgeArgList
-     in
-     -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " ++ show inArgs)
-     else 
-         let keepList = filter ((=="keep").fst) lcArgList
-             keepNum
-              | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " ++ show inArgs)
-              | null keepList = Just 10
-              | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
-             -- simulated anealing options
-             stepsList   = filter ((=="steps").fst) lcArgList 
-             steps'   
-              | length stepsList > 1 =
-                errorWithoutStackTrace ("Multiple annealing steps value specifications in netEdge command--can have only one (e.g. steps:10): " ++ show inArgs)
-              | null stepsList = Just 10
-              | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
-
-             annealingList = filter ((=="annealing").fst) lcArgList
-             annealingRounds'
-              | length annealingList > 1 =
-                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in netEdge command--can have only one: " ++ show inArgs)
-              | null annealingList = Just 1
-              | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
-
-             -- drift options
-             driftList = filter ((=="drift").fst) lcArgList
-             driftRounds'
-              | length driftList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
-              | null driftList = Just 1
-              | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
-
-             acceptEqualList = filter ((=="acceptequal").fst) lcArgList
-             acceptEqualProb 
-              | length acceptEqualList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptEqualList = Just 0.5
-              | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double 
-
-             acceptWorseList = filter ((=="acceptworse").fst) lcArgList
-             acceptWorseFactor 
-              | length acceptWorseList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptWorseList = Just 1.0
-              | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double 
-
-             maxChangesList = filter ((=="maxchanges").fst) lcArgList
-             maxChanges 
-              | length maxChangesList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
-              | null maxChangesList = Just 15
-              | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int    
-
-         in
-
-         -- check inputs
-         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
-         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
-         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
-         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
-         else 
-           let -- process args for netEdgeMaster
+   -- process args for netEdgeMaster      
+   else
+           let (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList) = getNetEdgeParams inArgs
                doNetAdd = any ((=="netadd").fst) lcArgList
                doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
                doAddDelete = any ((=="netadddel").fst) lcArgList
@@ -455,58 +399,40 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             resultGraphList
             )
    
-{- moved to another file due to loooong compile times with profiling   
--- | buildArgList is the list of valid build arguments
-swapArgList :: [String]
-swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
-
-
--- | swapMaster processes and spawns the swap functions
--- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
-swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-swapMaster inArgs inGS inData rSeed inGraphList = 
-   if null inGraphList then trace ("No graphs to swap") []
-   else 
-      let fstArgList = fmap (fmap toLower . fst) inArgs
-          sndArgList = fmap (fmap toLower . snd) inArgs
-          lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "swap" fstArgList swapArgList
+-- | getNetEdgeParams returns net edge cparameters from argument list
+getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, [(String, String)])
+getNetEdgeParams inArgs =
+     let fstArgList = fmap (fmap toLower . fst) inArgs
+         sndArgList = fmap (fmap toLower . snd) inArgs
+         lcArgList = zip fstArgList sndArgList
+         checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList netEdgeArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " ++ show inArgs)
      else 
          let keepList = filter ((=="keep").fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " ++ show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
-             moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["spr", "tbr", "nni"]).fst) lcArgList
-             maxMoveEdgeDist'  
-              | length moveLimitList > 1 =
-                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
-              | null moveLimitList = Just ((maxBound :: Int) `div` 3) 
-              | otherwise = readMaybe (head moveLimitList) :: Maybe Int
-             
              -- simulated anealing options
              stepsList   = filter ((=="steps").fst) lcArgList 
              steps'   
               | length stepsList > 1 =
-                errorWithoutStackTrace ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple annealing steps value specifications in netEdge command--can have only one (e.g. steps:10): " ++ show inArgs)
               | null stepsList = Just 10
               | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
 
              annealingList = filter ((=="annealing").fst) lcArgList
              annealingRounds'
               | length annealingList > 1 =
-                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in netEdge command--can have only one: " ++ show inArgs)
               | null annealingList = Just 1
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
              -- drift options
-             doDrift     = any ((=="drift").fst) lcArgList
-             
              driftList = filter ((=="drift").fst) lcArgList
              driftRounds'
               | length driftList > 1 =
@@ -533,130 +459,16 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               | length maxChangesList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
               | null maxChangesList = Just 15
-              | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
-             
-        in
+              | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int    
 
-        -- check inputs
-        if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
-        else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
-        else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-        else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
-        else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
-        else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
+         in
 
-            
-        else 
-           let -- process args for swap
-               doNNI' = any ((=="nni").fst) lcArgList
-               doSPR' = any ((=="spr").fst) lcArgList
-               doTBR' = any ((=="tbr").fst) lcArgList
-               doIA' = any ((=="ia").fst) lcArgList
-               doIA = if (graphType inGS /= Tree) then trace ("\tIgnoring 'IA' swap option for non-Tree") False
-                      else doIA'
-               doSteepest' = any ((=="steepest").fst) lcArgList
-               doAll = any ((=="all").fst) lcArgList
-               doSPR'' = if (not doNNI' && not doSPR' && not doTBR') then True
-                         else doSPR'
-               
-               doSteepest = if (not doSteepest' && not doAll) then True
-                            else doSteepest'
-               
-               -- Workaround for Hardwired SPR issue
-               (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
-                                                                      else
-                                                                        if doNNI' then (True, False, False, Just 1, True)
-                                                                        else if doSPR'' then (True, False, False, maxMoveEdgeDist', True)
-                                                                        else (doTBR', doSPR'', doNNI', maxMoveEdgeDist', False)
-
-               -- simulated annealing parameters
-               -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
-               doAnnealing = any ((=="annealing").fst) lcArgList
-             
-               returnMutated = any ((=="returnmutated").fst) lcArgList
-
-               simAnnealParams = if (not doAnnealing && not doDrift) then Nothing
-                                 else 
-                                    let steps = max 3 (fromJust steps')
-                                        annealingRounds = if annealingRounds' == Nothing then 1
-                                                          else if fromJust annealingRounds' < 1 then 1
-                                                          else fromJust annealingRounds'
-
-                                        driftRounds = if driftRounds' == Nothing then 1
-                                                          else if fromJust driftRounds' < 1 then 1
-                                                          else fromJust driftRounds'
-
-                                        saMethod = if doDrift && doAnnealing then
-                                                    trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.") 
-                                                    Drift
-                                                 else if doDrift then Drift
-                                                 else SimAnneal
-
-                                        equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
-                                                    else if fromJust acceptEqualProb > 1.0 then 1.0
-                                                    else fromJust acceptEqualProb
-                                                    
-
-                                        worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
-                                                      else fromJust acceptWorseFactor
-
-                                        changes = if fromJust maxChanges < 0 then 15
-                                                  else fromJust maxChanges
-
-                                        saValues = SAParams { method = saMethod
-                                                            , numberSteps = steps
-                                                            , currentStep = 0
-                                                            , randomIntegerList = randomIntList rSeed
-                                                            , rounds      = max annealingRounds driftRounds
-                                                            , driftAcceptEqual  = equalProb
-                                                            , driftAcceptWorse  = worseFactor
-                                                            , driftMaxChanges   = changes
-                                                            , driftChanges      = 0
-                                                            } 
-                                    in
-                                    Just saValues
-
-                                 
-               -- create simulated annealing random lists uniquely for each fmap
-               newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
-               
-               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                             else 
-                                if (method $ fromJust simAnnealParams) == SimAnneal then
-                                    ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                                else 
-                                    ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-
-           in 
-
-           trace (progressString) (
-
-           let (newGraphList, counterNNI)  = if doNNI then 
-                                               let graphPairList1 = fmap (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList1
-                                               in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (inGraphList, 0)
-               (newGraphList', counterSPR)  = if doSPR then 
-                                               let graphPairList2 = fmap (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList2
-                                               in 
-                                              (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (newGraphList, 0)
-
-               (newGraphList'', counterTBR) = if doTBR then 
-                                               let graphPairList3 =  fmap (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList3
-                                               in 
-                                               (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (newGraphList', 0)
-              in
-              let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
-                              else if (method $ fromJust simAnnealParams) == SimAnneal then
-                                ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs") 
-                              else 
-                                ("\tAfter Drifting: " ++ (show $ length newGraphList'') ++ " resulting graphs")
-              in 
-              trace (endString)
-              newGraphList''     
-            )
--}
+         -- check inputs
+         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
+         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
+         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
+         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
+         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
+         
+         else 
+            (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList)
