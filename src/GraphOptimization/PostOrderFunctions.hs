@@ -1082,7 +1082,7 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
       -- newSubGraphCost = globalCost newVertexData
   in
   -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) )
-  trace ("MCL: " ++ (show isMissing) ++ " CI: " ++ (show characterIndex) ++ " " ++ (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
+  -- trace ("MCL: " ++ (show isMissing) ++ " CI: " ++ (show characterIndex) ++ " " ++ (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
   inVertexInfo { vertData     = if not isMissing && not isMissingChar then V.singleton $ V.singleton newVertexData
                                 else V.singleton $ V.singleton emptyCharacter --V.empty
                , vertexCost   = newVertexCost

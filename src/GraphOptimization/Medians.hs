@@ -711,10 +711,7 @@ getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterD
 getPreAligned2Median charInfo nodeChar leftChar rightChar =
     let characterType = charType charInfo
         thisMatrix  = costMatrix charInfo
-        lengthLeft = U.getCharacterLength leftChar charInfo
-        lengthRight = U.getCharacterLength rightChar charInfo
     in
-    trace ("GPA2M:" ++ (show $ lengthLeft == lengthRight)) (
     if characterType == AlignedSlim then 
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ alignedSlimPrelim leftChar) (extractMediansGapped $ alignedSlimPrelim rightChar)
         in
@@ -741,7 +738,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  }
 
     else error ("Unrecognized character type " ++ show characterType)
-    )
+    
 
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment

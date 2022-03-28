@@ -526,3 +526,9 @@ getCharacterLength inCharData inCharInfo =
 -- | getCharacterLengths' flipped arg version of getCharacterLength
 getCharacterLength' :: CharInfo -> CharacterData -> Int
 getCharacterLength' inCharInfo inCharData = getCharacterLength inCharData inCharInfo
+
+-- | getMaxCharacterLengths get maximum charcter legnth from a list
+getMaxCharacterLength :: CharInfo -> [CharacterData] -> Int
+getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList 
+
+

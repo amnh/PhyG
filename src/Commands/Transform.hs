@@ -63,6 +63,7 @@ import qualified Data.Vector.Generic         as GV
 import           Data.Word
 import           Data.Bits
 import qualified Input.Reorganize            as R
+import qualified Input.DataTransformation    as TRANS
 
 
 -- | transformArgList is the list of valid transform arguments
@@ -208,33 +209,39 @@ pullGraphBlockDataAndTransform inDecGraph charInfoVV (_, _, blockCharInfoV) bloc
        leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
 
        -- new recoded data-- need to filter out constant chars after recoding
-       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData (thd3 $ blockCharInfoV V.! blockIndex)) leafBlockData
+       -- nedd character legnth for missing values
+       charLengthV = V.zipWith U.getMaxCharacterLength (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
+
+       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData 
    in
+   trace ("PGDT: " ++ show charLengthV)
    (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
--- | transformData takes originalCharacter info and chracter data and transforms to static if dynamic noting chracter type
-transformData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo) 
-transformData inCharInfoV inCharDataV =
+-- | transformData takes original Character info and character data and transforms to static if dynamic noting chracter type
+transformData :: V.Vector CharInfo -> V.Vector Int -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo) 
+transformData inCharInfoV inCharLengthV inCharDataV  =
    if V.null inCharInfoV then 
       (V.empty, V.empty)
    else 
-      let (outCharDataV, outCharInfoV) = V.unzip $ V.zipWith transformCharacter inCharDataV inCharInfoV 
+      let (outCharDataV, outCharInfoV) = V.unzip $ V.zipWith3 transformCharacter inCharDataV inCharInfoV inCharLengthV
       in
       (outCharDataV, outCharInfoV)
 
 -- transformCharacter takes a single characer info and character and returns IA if statis as is if not
-transformCharacter :: CharacterData -> CharInfo -> (CharacterData, CharInfo)
-transformCharacter inCharData inCharInfo =
+transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
+transformCharacter inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
        inCostMatrix = costMatrix inCharInfo
-
+       alphSize = length $ alphabet inCharInfo
+        
        -- determine if matrix is all same costs => nonadditive
        --                        all same except fort single indel costs => non add with gap binary chars
        --                        not either => matrix char
        (inCostMatrixType, gapCost) = getRecodingType inCostMatrix
 
    in
+   trace ("TC:" ++ (show charLength) ++ " " ++ (show (GV.length $ snd3 $ slimAlignment inCharData, GV.length $ snd3 $ wideAlignment inCharData, GV.length $ snd3 $ hugeAlignment inCharData))) (
    if inCharType `elem` exactCharacterTypes then (inCharData, inCharInfo)
 
    else if inCharType `elem` prealignedCharacterTypes then (inCharData, inCharInfo)
@@ -242,8 +249,14 @@ transformCharacter inCharData inCharInfo =
    else 
       -- trace ("TC: " ++ inCostMatrixType) (
       -- different types--vector wrangling
+      -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then 
-         let newPrelimBV = convert2BV 32 $ slimAlignment inCharData
+         let impliedAlignChar = if (GV.length $ snd3 $ slimAlignment inCharData) > 0 then slimAlignment inCharData
+                             else 
+                               let missingElement = SV.replicate charLength $ TRANS.setMissingBits (0 :: CUInt) 0 alphSize
+                               in (missingElement, missingElement, missingElement)
+
+             newPrelimBV = convert2BV 32 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
          if inCostMatrixType == "nonAdd" then
@@ -253,12 +266,15 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            let alignedSlimPrelimChars = slimAlignment inCharData
-            in
-            (inCharData {alignedSlimPrelim = alignedSlimPrelimChars}, inCharInfo {charType =  AlignedSlim})
+            (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
 
       else if inCharType `elem` [WideSeq, AminoSeq] then
-         let newPrelimBV = convert2BV 64 $ wideAlignment inCharData
+         let impliedAlignChar = if (GV.length $ snd3 $ wideAlignment inCharData) > 0 then wideAlignment inCharData
+                             else 
+                               let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
+                               in (missingElement, missingElement, missingElement)
+
+             newPrelimBV = convert2BV 64 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in    
          if inCostMatrixType == "nonAdd" then
@@ -268,12 +284,15 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            let alignedWidePrelimChars = wideAlignment inCharData
-            in
-            (inCharData {alignedWidePrelim = alignedWidePrelimChars}, inCharInfo {charType =  AlignedWide})
+            (inCharData {alignedWidePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedWide})
 
       else if inCharType == HugeSeq then
-         let newPrelimBV = hugeAlignment inCharData
+         let impliedAlignChar = if (GV.length $ snd3 $ hugeAlignment inCharData) > 0 then hugeAlignment inCharData
+                                else 
+                                 let missingElement = V.replicate charLength $ (BV.fromBits $ replicate alphSize True) 
+                                 in (missingElement, missingElement, missingElement)
+
+             newPrelimBV = impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
          if inCostMatrixType == "nonAdd" then
@@ -283,13 +302,11 @@ transformCharacter inCharData inCharInfo =
             (inCharData {stateBVPrelim = newPrelimBVGaps}, inCharInfo {charType = NonAdd})
 
          else -- matrix recoding
-            let alignedHugePrelimChars = hugeAlignment inCharData
-            in
-            (inCharData {alignedHugePrelim = alignedHugePrelimChars}, inCharInfo {charType =  AlignedHuge})
+            (inCharData {alignedHugePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedHuge})
 
       else 
          error ("Unrecognized character type in transformCharacter: " ++ (show inCharType)) 
-      -- )
+      )
 
 -- | addGaps2BV adds gap characters 0 = nonGap, 1 = Gap to Vector 
 -- of states to non-additive charcaters for static approx.  gapCost - 1 characters are added 

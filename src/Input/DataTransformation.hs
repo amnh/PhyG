@@ -44,6 +44,7 @@ module Input.DataTransformation
   , createBVNames
   , partitionSequences
   , missingAligned
+  , setMissingBits
   ) where
 
 import           Data.Alphabet
@@ -314,13 +315,13 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
 
             in
-            trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
+            -- trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             else 
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
-            )
+            -- )
 
 -- | checkPrealignedEqualLength checks prealigned type for equal length
 -- at this stage (called before reblocking) there should only be a single charcter per block
@@ -419,7 +420,7 @@ missingMatrix inCharInfo =
 getMissingValue :: [CharInfo] -> Int -> [CharacterData]
 getMissingValue inChar maxCharLength
   | null inChar = []
-  | charType (head inChar) `elem` nonExactCharacterTypes = []
+  | charType (head inChar) `elem` nonExactCharacterTypes = [emptyCharacter] -- []
   | charType (head inChar) `elem` prealignedCharacterTypes = [missingAligned (head inChar) maxCharLength]
   | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar) maxCharLength
   | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar) maxCharLength
@@ -433,7 +434,6 @@ missingAligned :: CharInfo -> Int -> CharacterData
 missingAligned inChar charLength =
     let inCharType = charType inChar
         alphSize = length $ alphabet inChar
-        bitSize = length $ alphabet inChar
         missingElementSlim = -- CUInt type
                              SV.replicate charLength $ setMissingBits (0 :: CUInt) 0 alphSize
         missingElementWide = -- Word64 type
@@ -441,7 +441,7 @@ missingAligned inChar charLength =
         missingElementHuge = -- bit vector type
                              V.replicate charLength $ (BV.fromBits $ replicate alphSize True)               
         in
-        trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
+        -- trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
         if inCharType ==  AlignedSlim then 
             emptyCharacter {alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
 
@@ -452,7 +452,7 @@ missingAligned inChar charLength =
             emptyCharacter {alignedHugePrelim = (missingElementHuge, missingElementHuge, missingElementHuge)}
         
         else error ("Datatype " ++ (show inCharType) ++ " not recognized")
-        )
+        -- )
 
 -- | setMissingBits sets the first bits by index to '1' rest left as is (0 on input)
 setMissingBits :: (FiniteBits a) => a -> Int -> Int -> a
