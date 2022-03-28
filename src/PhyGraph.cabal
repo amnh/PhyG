@@ -260,6 +260,7 @@ executable phyg
                   Search.Refinement
                   Search.Search
                   Search.Swap
+                  Search.SwapMaster 
                   Search.WagnerBuild
                   Support.Support
                   System.Timing

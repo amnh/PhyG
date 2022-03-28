@@ -48,7 +48,7 @@ import Control.Parallel.Strategies
 import Debug.Trace
 import GeneralUtilities
 import qualified Graphs.GraphOperations  as GO
-import qualified Search.Swap as S
+-- import qualified Search.Swap as S
 import qualified Search.NetworkAddDelete as N
 import Utilities.Utilities               as U
 import Data.Maybe
@@ -56,6 +56,11 @@ import           Data.Char
 import           Text.Read
 import qualified Search.Fuse as F
 import qualified Search.GeneticAlgorithm as GA
+import qualified Search.SwapMaster       as SM
+
+-- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times
+-- with --enalble-profinling
+swapMaster = SM.swapMaster
 
 -- | refinement arguments
 refineArgList :: [String]
@@ -449,7 +454,8 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
             resultGraphList
             )
-     
+   
+{- moved to another file due to loooong compile times with profiling   
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
 swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
@@ -653,3 +659,4 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               trace (endString)
               newGraphList''     
             )
+-}
