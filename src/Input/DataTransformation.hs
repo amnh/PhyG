@@ -43,6 +43,7 @@ module Input.DataTransformation
   , createNaiveData
   , createBVNames
   , partitionSequences
+  , missingAligned
   ) where
 
 import           Data.Alphabet
@@ -67,7 +68,7 @@ import qualified Data.Vector.Unboxed         as UV
 
 import qualified Data.Text.Short             as ST
 import qualified Data.Hashable as H
-import           Data.Bits                   (shiftL, (.|.))
+import           Data.Bits                   
 import           Data.Word
 import           Foreign.C.Types
 import           Numeric.Natural
@@ -290,7 +291,8 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             -- and initially assigned to a single, unique block
             let thisBlockName     = name $ head firstCharInfo
                 thisBlockCharInfo = V.fromList firstCharInfo
-                recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo []
+                maxCharacterLength = maximum $ fmap length $ (fmap snd firstData)
+                recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo maxCharacterLength []
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
                 previousBlockName = if not $ null curBlockData then fst3 $ head curBlockData
                                     else T.empty
@@ -306,18 +308,19 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                                         else T.pack (":" ++ show newIndex)
                                     in
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
+
                 thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
 
                 (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
 
             in
-            -- trace ("CND:" ++ (show prealignedDataEqualLength)) (
+            trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             else 
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
-            -- )
+            )
 
 -- | checkPrealignedEqualLength checks prealigned type for equal length
 -- at this stage (called before reblocking) there should only be a single charcter per block
@@ -341,10 +344,14 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
     in
     if inCharType `notElem` prealignedCharacterTypes then (True, [],[])
     else 
-        let prealigedDataLengthList = if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
+        let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' charInfo) inCharV 
+                                     {-
+                                    if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
                                       else if inCharType == AlignedWide then V.toList $ fmap UV.length $ fmap (snd3 . alignedWidePrelim) inCharV
                                       else if inCharType == AlignedHuge then V.toList $ fmap V.length $ fmap (snd3 . alignedHugePrelim) inCharV
                                       else  error ("Character type " ++ show inCharType ++ " unrecongized/not implemented")
+                                      -}
+
             nameLengthPairList = zip nameTextList prealigedDataLengthList
             minLength = minimum prealigedDataLengthList
             haveMinLength = filter ((== minLength) .snd) nameLengthPairList
@@ -361,17 +368,17 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
 -- and recodes the apporpriate fields in CharacterData (from Types)
 -- the list accumulator is to avoid Vectotr cons/snoc O(n)
 -- differentiates between seqeunce type and others with char info
-recodeRawData :: [NameText] -> [[ST.ShortText]] -> [CharInfo] -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
-recodeRawData inTaxNames inData inCharInfo curCharData =
+recodeRawData :: [NameText] -> [[ST.ShortText]] -> [CharInfo] -> Int -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
+recodeRawData inTaxNames inData inCharInfo maxCharLength curCharData =
     if null inTaxNames then V.fromList $ reverse $ fmap V.fromList curCharData
     else
         let firstData = head inData
-            firstDataRecoded = createLeafCharacter inCharInfo firstData
+            firstDataRecoded = createLeafCharacter inCharInfo firstData maxCharLength
         in
         -- trace ("RRD:" ++ (show firstData))
         --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
-        recodeRawData (tail inTaxNames) (tail inData) inCharInfo (firstDataRecoded : curCharData)
+        recodeRawData (tail inTaxNames) (tail inData) inCharInfo maxCharLength (firstDataRecoded : curCharData) 
 
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
@@ -408,15 +415,50 @@ missingMatrix inCharInfo =
                  , matrixStatesFinal= V.singleton (V.replicate numStates missingState)}
 
 
--- | getMissingValue takes the charcater type ans returns the appropriate missineg data value
-getMissingValue :: [CharInfo] -> [CharacterData]
-getMissingValue inChar
+-- | getMissingValue takes the character type and returns the appropriate missineg data value
+getMissingValue :: [CharInfo] -> Int -> [CharacterData]
+getMissingValue inChar maxCharLength
   | null inChar = []
-  | charType (head inChar) `elem`sequenceCharacterTypes = []
-  | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar)
-  | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar)
-  | charType (head inChar) == Matrix = missingMatrix (head inChar) : getMissingValue (tail inChar)
-  | otherwise= error ("Datatype " ++ show (charType $ head inChar) ++ " not recognized")
+  | charType (head inChar) `elem` nonExactCharacterTypes = []
+  | charType (head inChar) `elem` prealignedCharacterTypes = [missingAligned (head inChar) maxCharLength]
+  | charType (head inChar) == NonAdd = missingNonAdditive (head inChar) : getMissingValue (tail inChar) maxCharLength
+  | charType (head inChar) ==    Add = missingAdditive (head inChar) : getMissingValue (tail inChar) maxCharLength
+  | charType (head inChar) == Matrix = missingMatrix (head inChar) : getMissingValue (tail inChar) maxCharLength
+  | otherwise = error ("Datatype " ++ show (charType $ head inChar) ++ " not recognized")
+
+
+-- | missingAligned creates missing data (all bits on) for prealigned data
+-- important n ot to sett all bits--then run of in to seg fault land
+missingAligned :: CharInfo -> Int -> CharacterData
+missingAligned inChar charLength =
+    let inCharType = charType inChar
+        alphSize = length $ alphabet inChar
+        bitSize = length $ alphabet inChar
+        missingElementSlim = -- CUInt type
+                             SV.replicate charLength $ setMissingBits (0 :: CUInt) 0 alphSize
+        missingElementWide = -- Word64 type
+                             UV.replicate charLength $ setMissingBits (0 :: Word64) 0 alphSize
+        missingElementHuge = -- bit vector type
+                             V.replicate charLength $ (BV.fromBits $ replicate alphSize True)               
+        in
+        trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
+        if inCharType ==  AlignedSlim then 
+            emptyCharacter {alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
+
+        else if inCharType ==  AlignedWide then
+            emptyCharacter {alignedWidePrelim = (missingElementWide, missingElementWide, missingElementWide)}
+
+        else if inCharType ==  AlignedHuge then
+            emptyCharacter {alignedHugePrelim = (missingElementHuge, missingElementHuge, missingElementHuge)}
+        
+        else error ("Datatype " ++ (show inCharType) ++ " not recognized")
+        )
+
+-- | setMissingBits sets the first bits by index to '1' rest left as is (0 on input)
+setMissingBits :: (FiniteBits a) => a -> Int -> Int -> a
+setMissingBits inVal curIndex alphSize =
+    if curIndex == alphSize then inVal
+    else setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])
@@ -727,12 +769,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
 
 -- | createLeafCharacter takes rawData and Charinfo and returns CharacterData type
 -- need to add in missing data as well
-createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> [CharacterData]
-createLeafCharacter inCharInfoList rawDataList
+createLeafCharacter :: [CharInfo] -> [ST.ShortText] -> Int -> [CharacterData]
+createLeafCharacter inCharInfoList rawDataList maxCharLength
   | null inCharInfoList =
         error "Null data in charInfoList createLeafCharacter"
   | null rawDataList =  -- missing data
-   getMissingValue inCharInfoList
+   getMissingValue inCharInfoList maxCharLength
   | otherwise = let localCharType = charType $ head inCharInfoList
                 in if localCharType `elem` sequenceCharacterTypes then  
                 --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes

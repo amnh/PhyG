@@ -826,7 +826,7 @@ mergeDataBlocks inGraphList curDataList curInfoList =
 -- length and zipping for missing data
 getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String
 getTaxonCharString charInfoVV charDataVV =
-    let lengthBlock = maximum $ V.zipWith getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
     in
     concat $ V.zipWith (getBlockString lengthBlock) charInfoVV charDataVV
 
@@ -929,24 +929,7 @@ makeCostString namePairList costList =
 -- | getBlockLength returns a list of the lengths of all characters in a blocks
 getBlockLength :: V.Vector CharacterData -> V.Vector CharInfo -> [Int]
 getBlockLength inCharDataV inCharInfoV =
-    V.toList $ V.zipWith getCharacterLength inCharDataV inCharInfoV
-
--- | getCharacterLengths returns a the length of block characters
-getCharacterLength :: CharacterData -> CharInfo -> Int
-getCharacterLength inCharData inCharInfo = 
-    let inCharType = charType inCharInfo
-    in
-    case inCharType of
-      x | x `elem` [Add              ] -> V.length  $ snd3 $ stateBVPrelim inCharData
-      x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ rangePrelim inCharData
-      x | x `elem` [Matrix           ] -> V.length  $ matrixStatesPrelim inCharData
-      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
-      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
-      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
-      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
-      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
-      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData 
-      _                                -> error ("Un-implemented data type " ++ show inCharType)
+    V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
 
 -- | getCharacterString returns a string of character states
 -- need to add splace between (large alphabets etc)

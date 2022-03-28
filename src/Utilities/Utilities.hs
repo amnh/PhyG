@@ -504,3 +504,25 @@ getTraversalCosts inGraph =
         traversalRootCosts = fmap (subGraphCost . snd) traversalRoots
     in
     traversalRootCosts
+
+
+-- | getCharacterLengths returns a the length of block characters
+getCharacterLength :: CharacterData -> CharInfo -> Int
+getCharacterLength inCharData inCharInfo = 
+    let inCharType = charType inCharInfo
+    in
+    case inCharType of
+      x | x `elem` [Add              ] -> V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ rangePrelim inCharData
+      x | x `elem` [Matrix           ] -> V.length  $ matrixStatesPrelim inCharData
+      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
+      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
+      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
+      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
+      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData 
+      _                                -> error ("Un-implemented data type " ++ show inCharType)
+
+-- | getCharacterLengths' flipped arg version of getCharacterLength
+getCharacterLength' :: CharInfo -> CharacterData -> Int
+getCharacterLength' inCharInfo inCharData = getCharacterLength inCharData inCharInfo
