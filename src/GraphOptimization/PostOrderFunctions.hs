@@ -1070,27 +1070,22 @@ pullCharacter isMissing inBlockGraph characterIndex =
 
 -- | makeCharacterLabels pulls the index character label form the singleton block (via head)
 -- and creates a singleton character label, updating costs to that of the character
+-- NB the case of missing data ius answered heer by an "empty charcter"
+-- could be better to have V.empty
 makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
 makeCharacterLabels isMissing characterIndex inVertexInfo =
-  let newVertexData = V.head (vertData inVertexInfo) V.! characterIndex
-      newVertexCost = localCost newVertexData
-      newSubGraphCost = globalCost newVertexData
+  let isMissingChar = (V.length $ (vertData inVertexInfo) V.! characterIndex) == 0
+      newVertexData = V.head (vertData inVertexInfo) V.! characterIndex
+      (newVertexCost, newSubGraphCost) = if isMissing || isMissingChar then (0, 0)
+                                         else (localCost newVertexData, globalCost newVertexData)
+      -- newVertexCost = localCost newVertexData
+      -- newSubGraphCost = globalCost newVertexData
   in
   -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) )
-  {-
-  if V.null $ V.head $ vertData inVertexInfo then
-      inVertexInfo { vertData    = V.singleton $ V.singleton emptyCharacter
-                  , vertexCost   = 0
-                  , subGraphCost = 0
-                  }
-  else
-  -}
-  -- trace ("MCL:" ++ (show (newVertexCost, newSubGraphCost)))
-  inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
-                              else V.singleton V.empty
-               , vertexCost   = if not isMissing then newVertexCost
-                                else 0.0
-               , subGraphCost = if not isMissing then newSubGraphCost
-                                else 0.0
+  trace ("MCL: " ++ (show isMissing) ++ " CI: " ++ (show characterIndex) ++ " " ++ (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
+  inVertexInfo { vertData     = if not isMissing && not isMissingChar then V.singleton $ V.singleton newVertexData
+                                else V.singleton $ V.singleton emptyCharacter --V.empty
+               , vertexCost   = newVertexCost
+               , subGraphCost = newSubGraphCost
                }
 

@@ -802,7 +802,7 @@ getTNTString inGS inData inGraph graphNumber =
             trace ("TNT  not yet implemented for graphtype " ++ show (graphType inGS))
             "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transform graph to softwired and generate TNT text that way"
 
--- | mergeDataBlocks takes a list of Phylogenetic Graphs (Trees) and merges the data blocks (each graph should ahve only 1)
+-- | mergeDataBlocks takes a list of Phylogenetic Graphs (Trees) and merges the data blocks (each graph should have only 1)
 -- and merges the charInfo Vectors returning data and charInfo
 mergeDataBlocks :: [PhylogeneticGraph] -> [[(V.Vector CharacterData)]] -> [V.Vector CharInfo] -> (V.Vector (V.Vector (V.Vector CharacterData)), V.Vector (V.Vector CharInfo))
 mergeDataBlocks inGraphList curDataList curInfoList = 
@@ -823,14 +823,24 @@ mergeDataBlocks inGraphList curDataList curInfoList =
         mergeDataBlocks (tail inGraphList) newDataList (firstCharInfo : curInfoList)
 
 -- | getTaxonCharString returns the total character string for a taxon
+-- length and zipping for missing data
 getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String
 getTaxonCharString charInfoVV charDataVV =
-    concat $ V.zipWith getBlockString charInfoVV charDataVV
+    let lengthBlock = maximum $ V.zipWith getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    in
+    concat $ V.zipWith (getBlockString lengthBlock) charInfoVV charDataVV
 
--- | getBlockString returns the String for a charaxcter block
-getBlockString :: V.Vector CharInfo -> V.Vector CharacterData -> String
-getBlockString charInfoV charDataV =
-    concat $ V.zipWith getCharacterString charDataV charInfoV
+-- | getBlockString returns the String for a character block
+-- returns all '?' if missing
+getBlockString :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> String
+getBlockString lengthBlock charInfoV charDataV =
+    -- this to deal with missing characters
+    trace ("GBS: " ++ (show $ V.length charDataV)) (
+    if V.null charDataV then L.replicate lengthBlock '?' 
+    else concat $ V.zipWith getCharacterString  charDataV charInfoV
+    )
+
+-- | charLength returns teh length
 
 -- | mergeCharInfoCharLength merges cc code char info and char lengths for scope
 mergeCharInfoCharLength :: [(String, String, String)] -> [Int] -> Int -> String
@@ -946,18 +956,19 @@ getCharacterString inCharData inCharInfo =
     let inCharType = charType inCharInfo
         localAlphabet = fmap ST.toString $ alphabet inCharInfo
     in
-    case inCharType of
-      x | x `elem` [Add              ] ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim inCharData
-      x | x `elem` [NonAdd           ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
-      x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
-      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment inCharData
-      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment inCharData
-      x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment inCharData
-      x | x `elem` [AlignedSlim]       -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-      x | x `elem` [AlignedWide]       -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim inCharData
-      x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
-      _                                -> error ("Un-implemented data type " ++ show inCharType)
-
+    let charString = case inCharType of
+                      x | x `elem` [Add              ] ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` [NonAdd           ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
+                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment inCharData
+                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment inCharData
+                      x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment inCharData
+                      x | x `elem` [AlignedSlim]       -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x `elem` [AlignedWide]       -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
+                      _                                -> error ("Un-implemented data type " ++ show inCharType)
+    in
+    charString
         
 -- | Implied Alignment report functions
 
@@ -1025,7 +1036,7 @@ makeBlockIAStrings leafNameList leafDataList charInfoVV blockIndex =
     in
     filter (/= []) $ V.toList blockCharacterStringList
 
--- | makeBlockCharacterString creates implied alignmennt string for sequnec charactes and null if not
+-- | makeBlockCharacterString creates implied alignmennt string for sequnce charactes and null if not
 makeBlockCharacterString :: [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
 makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
     -- check if sequence type character
@@ -1034,12 +1045,32 @@ makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
     in
     if thisCharType `notElem` sequenceCharacterTypes then []
     else 
-        let thisCharData = fmap (V.! charIndex) leafDataVV
-            nameDataPairList = zip leafNameList (V.toList thisCharData)
+        let -- thisCharData = fmap (V.! charIndex) leafDataVV
+            thisCharData = getTaxDataOrMissing leafDataVV charIndex 0 []
+            nameDataPairList = zip leafNameList thisCharData 
             fastaString = pairList2Fasta thisCharInfo nameDataPairList
         in 
         -- trace ("MBCS: " ++ (show $ length leafNameList) ++ " " ++ (show $ V.length thisCharData) ++ "\n" ++ (show leafDataVV))
         "\nSequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString ++ "\n"
+
+{-
+-- | getCharacterDataOrMissing takes a vector of vector of charcter data and returns list
+-- of taxa for a given sequnce character.  If there are no data for that character for a taxon
+getCharacterDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> [[CharacterData]] -> [[CharacterData]]
+getCharacterDataOrMissing leafDataVV charIndex newCharList =
+    if charIndex == V.length leafDataVV then reverse newCharList
+    else 
+        let firstCharData = getTaxDataOrMissing leafDataVV charIndex 0 []
+        in
+        getCharacterDataOrMissing leafDataVV (charIndex + 1) (firstCharData : newCharList)
+-}
+
+-- | getTaxDataOrMissing gets teh index character if data not null, empty character if not
+getTaxDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> Int -> [CharacterData] -> [CharacterData]  
+getTaxDataOrMissing charDataV charIndex taxonIndex newTaxList =
+    if taxonIndex == V.length charDataV then reverse newTaxList
+    else if V.null (charDataV V.! taxonIndex) then getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (emptyCharacter : newTaxList)
+    else getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (((charDataV V.! taxonIndex) V.! charIndex) : newTaxList)
 
 -- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
 -- and character data and returns fasta formated string
@@ -1062,5 +1093,6 @@ pairList2Fasta inCharInfo nameDataPairList =
             sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
 
         in
-        (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta inCharInfo (tail nameDataPairList))
+        if blockDatum == emptyCharacter then (pairList2Fasta inCharInfo (tail nameDataPairList))
+        else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta inCharInfo (tail nameDataPairList))
 

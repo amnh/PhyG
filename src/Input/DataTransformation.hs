@@ -734,7 +734,8 @@ createLeafCharacter inCharInfoList rawDataList
   | null rawDataList =  -- missing data
    getMissingValue inCharInfoList
   | otherwise = let localCharType = charType $ head inCharInfoList
-                in if length inCharInfoList == 1 then
+                in if localCharType `elem` sequenceCharacterTypes then  
+                --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
                      case localCharType of
                          NucSeq   -> getNucleotideSequenceChar rawDataList
                          AminoSeq ->  getAminoAcidSequenceChar rawDataList

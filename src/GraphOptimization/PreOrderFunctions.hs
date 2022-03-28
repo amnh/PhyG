@@ -148,32 +148,13 @@ postOrderIA inGraph charInfo inNodeList =
         -- trace ("POIA Node: " ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show  $ fmap fst inNodeList)) (
         -- checking sanity of data
         if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
-        else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in postOrderIA"
+        else if V.null $ V.head $ vertData nodeLabel then 
+            -- missing data for taxon
+            error "Null vertData data in postOrderIA"
 
         -- leaf take assignment from alignment field
         else if nodeType' == LeafNode then -- nodeType nodeLabel  == LeafNode then
-            {-
-            let newCharacter
-                  | characterType `elem` [SlimSeq, NucSeq] =
-                     inCharacter { slimIAPrelim = slimAlignment inCharacter'
-                                 , slimIAFinal = extractMediansGapped $ slimAlignment inCharacter'
-                                 , slimFinal = extractMedians $ slimAlignment inCharacter'
-                                 }
-                  | characterType `elem` [WideSeq, AminoSeq] =
-                     inCharacter { wideIAPrelim = wideAlignment inCharacter'
-                                 , wideIAFinal = extractMediansGapped $ wideAlignment inCharacter'
-                                 , wideFinal = extractMedians $ wideAlignment inCharacter'
-                                 }
-                  | characterType == HugeSeq =
-                     inCharacter { hugeIAPrelim = hugeAlignment inCharacter'
-                                 , hugeIAFinal = extractMediansGapped $ hugeAlignment inCharacter'
-                                 , hugeFinal = extractMedians $ hugeAlignment inCharacter'
-                                 }
-                  | otherwise = error ("Unrecognized character type " ++ show characterType)
-                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
-            in
-            -}
+            
             -- trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
             postOrderIA inGraph charInfo (tail inNodeList)
             -- postOrderIA newGraph charInfo (tail inNodeList)
@@ -196,7 +177,7 @@ postOrderIA inGraph charInfo inNodeList =
                 -- sanity checks
                 if isNothing (LG.lab childTree (fst $ head childNodes)) then error ("No label for node: " ++ show (fst $ head childNodes))
                 else if V.null $ vertData childLabel then error "Null vertData in postOrderIA"
-                else if V.null $ V.head $ vertData childLabel then error "Null vertData data in postOrderIA"
+                else if V.null $ V.head $ vertData childLabel then error "Null head vertData data in postOrderIA"
                 else
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter), nodeType = nodeType'}
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree

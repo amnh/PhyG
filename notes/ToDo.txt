@@ -503,4 +503,9 @@ preOrderTreeTraversal
 	use indices for conversion for non-additive
 
 
-310) check prealigned same length
+311) move swapMaster back into refinement
+
+312) check prealigned with unequal tax
+	and IA output
+
+313) Checkl prealigned and static in TNT

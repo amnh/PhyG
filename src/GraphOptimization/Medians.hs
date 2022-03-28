@@ -747,11 +747,9 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo
          thisMatrix  = costMatrix charInfo
      in
+
      if characterType `elem` [SlimSeq, NucSeq] then
---        let prelimChar = get2WaySlim     (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
---            cost       = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
-        let (prelimChar, cost) = get2WaySlim    (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
---                   = get2WaySlimCost (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
+        let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
