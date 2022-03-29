@@ -767,7 +767,7 @@ getTNTString inGS inData inGraph graphNumber =
                 -- merge lengths and cc codes
                 ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
             in
-            trace ("GTNTS:" ++ (show charLengthList)) 
+            -- trace ("GTNTS:" ++ (show charLengthList)) 
             headerString ++ "\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
                 ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString
             
@@ -931,7 +931,7 @@ makeCostString namePairList costList =
 -- | getBlockLength returns a list of the lengths of all characters in a blocks
 getBlockLength :: V.Vector CharacterData -> V.Vector CharInfo -> [Int]
 getBlockLength inCharDataV inCharInfoV =
-    trace ("GBL:" ++ (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
+    -- trace ("GBL:" ++ (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
     V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
 
 -- | getCharacterString returns a string of character states
@@ -940,7 +940,8 @@ getBlockLength inCharDataV inCharInfoV =
 getCharacterString :: CharacterData -> CharInfo -> String
 getCharacterString inCharData inCharInfo = 
     let inCharType = charType inCharInfo
-        localAlphabet = fmap ST.toString $ alphabet inCharInfo
+        localAlphabet = if inCharType /= NonAdd then fmap ST.toString $ alphabet inCharInfo
+                        else fmap ST.toString discreteAlphabet
     in
     let charString = case inCharType of
                       x | x `elem` [NonAdd           ] ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
@@ -959,6 +960,14 @@ getCharacterString inCharData inCharInfo =
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  Bits b => Alphabet String -> b -> String
 bitVectToCharStringTNT localAlphabet bitValue = 
+    let stateString = U.bitVectToCharState localAlphabet bitValue
+    in
+    if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
+    else stateString
+
+-- | bitVectToCharNumTNT wraps '[]' around ambiguous states and removes commas between states
+bitVectToCharNumTNT ::  Bits b => Alphabet String -> b -> String
+bitVectToCharNumTNT localAlphabet bitValue = 
     let stateString = U.bitVectToCharState localAlphabet bitValue
     in
     if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"

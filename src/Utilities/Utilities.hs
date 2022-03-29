@@ -521,7 +521,7 @@ getCharacterLength inCharData inCharInfo =
       x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData 
       _                                -> error ("Un-implemented data type " ++ show inCharType)
-      )
+      -- )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
 getCharacterLength' :: CharInfo -> CharacterData -> Int
