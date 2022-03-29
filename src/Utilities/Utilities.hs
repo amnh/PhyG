@@ -107,8 +107,6 @@ splitSequence partitionST stList =
         else if not $ null restList then firstPart : splitSequence partitionST (tail restList)
         else [firstPart]
 
-
-
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: Bits b => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol mempty indices 
@@ -511,9 +509,10 @@ getCharacterLength :: CharacterData -> CharInfo -> Int
 getCharacterLength inCharData inCharInfo = 
     let inCharType = charType inCharInfo
     in
+    -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
-      x | x `elem` [Add              ] -> V.length  $ snd3 $ stateBVPrelim inCharData
-      x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ rangePrelim inCharData
+      x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x `elem` [Add              ] -> V.length  $ snd3 $ rangePrelim inCharData
       x | x `elem` [Matrix           ] -> V.length  $ matrixStatesPrelim inCharData
       x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
       x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
@@ -522,6 +521,7 @@ getCharacterLength inCharData inCharInfo =
       x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData 
       _                                -> error ("Un-implemented data type " ++ show inCharType)
+      )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
 getCharacterLength' :: CharInfo -> CharacterData -> Int

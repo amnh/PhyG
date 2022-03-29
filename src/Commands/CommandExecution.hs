@@ -82,6 +82,7 @@ import System.Directory
 import qualified Commands.Transform as TRANS
 import qualified SymMatrix                   as S
 import           Data.Alphabet
+import Data.Bits
 
 
 -- | setArgLIst contains valid 'set' arguments
@@ -766,6 +767,7 @@ getTNTString inGS inData inGraph graphNumber =
                 -- merge lengths and cc codes
                 ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
             in
+            trace ("GTNTS:" ++ (show charLengthList)) 
             headerString ++ "\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
                 ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString
             
@@ -929,6 +931,7 @@ makeCostString namePairList costList =
 -- | getBlockLength returns a list of the lengths of all characters in a blocks
 getBlockLength :: V.Vector CharacterData -> V.Vector CharInfo -> [Int]
 getBlockLength inCharDataV inCharInfoV =
+    trace ("GBL:" ++ (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
     V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
 
 -- | getCharacterString returns a string of character states
@@ -940,19 +943,27 @@ getCharacterString inCharData inCharInfo =
         localAlphabet = fmap ST.toString $ alphabet inCharInfo
     in
     let charString = case inCharType of
-                      x | x `elem` [Add              ] ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim inCharData
-                      x | x `elem` [NonAdd           ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x `elem` [NonAdd           ] ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` [Add              ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
                       x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
-                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment inCharData
-                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment inCharData
-                      x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment inCharData
-                      x | x `elem` [AlignedSlim]       -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-                      x | x `elem` [AlignedWide]       -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim inCharData
-                      x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
+                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ slimAlignment inCharData
+                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ wideAlignment inCharData
+                      x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ hugeAlignment inCharData
+                      x | x `elem` [AlignedSlim]       -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x `elem` [AlignedWide]       -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x `elem` [AlignedHuge]       ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
     in
     charString
         
+-- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
+bitVectToCharStringTNT ::  Bits b => Alphabet String -> b -> String
+bitVectToCharStringTNT localAlphabet bitValue = 
+    let stateString = U.bitVectToCharState localAlphabet bitValue
+    in
+    if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
+    else stateString
+
 -- | Implied Alignment report functions
 
 -- | getImpliedAlignmentString returns as a single String the implied alignments of all sequence characters

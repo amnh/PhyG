@@ -509,3 +509,6 @@ preOrderTreeTraversal
 	and IA output
 
 313) Checkl prealigned and static in TNT
+
+314) Make parallel mutlithreaded execution the default
+
