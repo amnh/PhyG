@@ -519,3 +519,19 @@ preOrderTreeTraversal
 	   shift through characters 
 	   mask top bits
 	   look up for 2-8 states
+
+	   to pull bits for nth charcater
+	   mask = all 0, all 1 in bits (i-i+states)
+	   	a uniquer mask for each character within Word
+	   AND mask with 64 bit Word
+	   	should clear all bit except the ones in that charcater
+	   can do AND/OR for two Word64
+	   if zero then ++ cost (or ++ weight)
+	   else take and
+
+	   unroll for all charctaers 
+
+	   for put back together just OR all characters,
+	   	they shoudl be all zero outside their are
+
+
