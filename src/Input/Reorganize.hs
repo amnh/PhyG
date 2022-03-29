@@ -60,6 +60,8 @@ import qualified ParallelUtilities            as PU
 import Control.Parallel.Strategies
 import           Data.Word
 import           Foreign.C.Types             (CUInt)
+import qualified GraphOptimization.Medians as M
+import Data.Bits
 
 --place holder for now
 -- | optimizeData convert
@@ -470,17 +472,17 @@ getVariableChars inCharType singleChar =
         alHugeV = fmap snd3 $ fmap alignedHugePrelim singleChar
 
         -- get identity vect
-        boolVar = if inCharType == NonAdd then getVarVect nonAddV []
-                else if inCharType == Add then getVarVect addV []
-                else if inCharType == Matrix then getVarVect matrixV []
-                else if inCharType == AlignedSlim then getVarVect alSlimV []
-                else if inCharType == AlignedWide then getVarVect alWideV []
-                else if inCharType == AlignedHuge then getVarVect alHugeV []
-                else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
+        boolVar =   if inCharType == NonAdd then getVarVectBits inCharType nonAddV []
+                    else if inCharType == Add then getVarVectAdd addV []
+                    else if inCharType == Matrix then getVarVectMatrix matrixV []
+                    else if inCharType == AlignedSlim then getVarVectBits inCharType alSlimV []
+                    else if inCharType == AlignedWide then getVarVectBits inCharType alWideV []
+                    else if inCharType == AlignedHuge then getVarVectBits inCharType alHugeV []
+                    else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
 
         -- get Variable characters by type 
         nonAddVariable = fmap (filterConstantsV (V.fromList boolVar)) nonAddV 
-        addVariable = fmap (filterConstantsV (V.fromList boolVar)) addV 
+        addVariable    = fmap (filterConstantsV (V.fromList boolVar)) addV 
         matrixVariable = fmap (filterConstantsV (V.fromList boolVar)) matrixV
         alSlimVariable = fmap (filterConstantsSV (V.fromList boolVar)) alSlimV
         alWideVariable = fmap (filterConstantsUV (V.fromList boolVar)) alWideV
@@ -490,23 +492,128 @@ getVariableChars inCharType singleChar =
         outCharVect = V.zipWith (assignNewField inCharType) singleChar (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)      
 
     in
-    trace ("GVC:" ++ (show $ length boolVar))
+    -- trace ("GVC:" ++ (show $ length boolVar) ++ " -> " ++ (show $ length $ filter (== False) boolVar))
     outCharVect
 
--- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
--- to the correct field
-assignNewField :: CharType 
-               -> CharacterData 
-               -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
-               -> CharacterData
-assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
-    if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
-    else if inCharType == Add then charData {rangePrelim = (addData, addData, addData)}
-    else if inCharType == Matrix then charData {matrixStatesPrelim = matrixData}
-    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
-    else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
-    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
-    else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
+-- | getVarVectAdd takes a vector of a vector additive ranges and returns False if range overlap
+-- True if not (short circuits)
+-- based on range overlap
+getVarVectAdd :: V.Vector (V.Vector (Int, Int)) -> [Bool] -> [Bool]
+getVarVectAdd stateVV curBoolList = 
+    if V.null (V.head stateVV) then L.reverse curBoolList
+
+    else 
+        let firstChar = fmap V.head stateVV
+            isVariable = checkIsVariableAdditive (V.head firstChar) (V.tail firstChar) 
+                        
+        in
+        getVarVectAdd (fmap V.tail stateVV) (isVariable : curBoolList) 
+
+
+-- | getVarVectMatrix takes a generic vector and returns False if values are same
+-- True if not (short circuits)
+-- based on simple identity not max cost zero
+getVarVectMatrix :: V.Vector (V.Vector (V.Vector MatrixTriple)) -> [Bool] -> [Bool]
+getVarVectMatrix stateVV curBoolList = 
+    if V.null (V.head stateVV) then L.reverse curBoolList
+
+    else 
+        let firstChar = fmap V.head stateVV
+            isVariable = checkIsVariableMatrix (getMatrixStateList $ V.head firstChar) (V.tail firstChar) 
+                        
+        in
+        getVarVectMatrix (fmap V.tail stateVV) (isVariable : curBoolList) 
+
+
+-- | getVarVectBits takes a generic vector and returns False if values are same
+-- True if not (short circuits)
+-- based on simple identity not max cost zero
+getVarVectBits :: (FiniteBits a, Eq a, GV.Vector v a) => CharType -> V.Vector (v a) -> [Bool] -> [Bool]
+getVarVectBits inCharType stateVV curBoolList = 
+    if GV.null (V.head stateVV) then L.reverse curBoolList
+    
+    else 
+        let firstChar = fmap GV.head stateVV
+            isVariable = if inCharType      == NonAdd       then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar) 
+                         else if inCharType == AlignedSlim  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar) 
+                         else if inCharType == AlignedWide  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar) 
+                         else if inCharType == AlignedHuge  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar) 
+                         else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
+                        
+        in
+        getVarVectBits inCharType (fmap GV.tail stateVV) (isVariable : curBoolList) 
+
+-- | checkIsVariableIdentity takes a generic vector and sees if all elements are identical
+checkIsVariableIdentity ::  (Eq a, GV.Vector v a) => a -> v a -> Bool
+checkIsVariableIdentity firstElement inVect =
+    if GV.null inVect then False
+    else 
+        if firstElement /= GV.head inVect then True
+        else checkIsVariableIdentity firstElement (GV.tail inVect)
+
+-- | checkIsVariableAdditive checks if additive charcter is variable
+-- by taking new ranges and range costs of first element with all others
+-- if summed cost > 0 then variable
+checkIsVariableAdditive :: (Int, Int) -> V.Vector (Int, Int) -> Bool
+checkIsVariableAdditive (ir1, ir2) rangeList =
+    if V.null rangeList then False
+    else 
+        let (nr1, nr2) = V.head rangeList
+            (newMin, newMax, newCost) = M.getNewRange ir1 ir2 nr1 nr2
+        in
+        if newCost > 0 then True
+        else checkIsVariableAdditive (newMin, newMax) (V.tail rangeList)
+
+-- | getMatrixStateList returns minimum matrix characters states as integers
+getMatrixStateList :: V.Vector MatrixTriple -> [Int]
+getMatrixStateList inState =
+    let statePairList = zip (fmap fst3 $ V.toList inState) [0..(V.length inState - 1)]
+        minCost = minimum $ fmap fst3 $ V.toList inState
+        stateList = fmap snd $ filter ((== minCost) .fst) statePairList
+    in
+    stateList
+
+-- | checkIsVariableMatrix checks if matrix charcter is variable
+-- by taking min cost states of first element and
+-- checks for overlap--if empty list intersect then variable
+checkIsVariableMatrix :: [Int] -> V.Vector (V.Vector MatrixTriple) -> Bool
+checkIsVariableMatrix inStateList restStatesV =
+    if V.null restStatesV then False
+    else 
+        let nextStateList = getMatrixStateList $ V.head restStatesV
+            
+            newStateList = L.intersect inStateList nextStateList
+        in
+        if null newStateList then True
+        else checkIsVariableMatrix newStateList (V.tail restStatesV)
+
+-- | checkIsVariableBit takes a generic vector and checks for 
+-- state overlap via bit AND (.&.)
+checkIsVariableBit ::  (FiniteBits a, GV.Vector v a) => a -> v a -> Bool
+checkIsVariableBit firstElement restVect =
+    if GV.null restVect then False
+    else 
+        let newState = firstElement .&. (GV.head restVect) 
+        in
+        if popCount newState == 0 then True
+        else checkIsVariableBit newState (GV.tail restVect)
+
+-- | getSingleCharacter takes a taxa x characters block and an index and rei=utrns the character vector for that index
+getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
+
+-- | getSingleTaxon takes a taxa x characters block and an index and rei=utrns the character vector for that index
+getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
+
+-- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
+-- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
+glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
+glueBackTaxChar singleCharVect charInfoV =
+    let numTaxa = V.length $ V.head singleCharVect
+        multiCharVect =  fmap (getSingleTaxon singleCharVect) (V.fromList [0.. numTaxa - 1])
+    in
+    (multiCharVect, charInfoV)
 
 -- | these need to be abstracted but had problems with the bool list -> Generic vector, and SV pair
 
@@ -539,41 +646,18 @@ filterConstantsUV inVarBoolV charVect =
     in
     UV.fromList $ V.toList varVect
 
--- | getVarVect takes a generic vector and returns Fale if values are same
--- True if not (short circuits)
--- based on simple identity not max cost zero
-getVarVect :: (Eq a, GV.Vector v a) => V.Vector (v a) -> [Bool] -> [Bool]
-getVarVect stateVV curBoolList = 
-    if GV.null (V.head stateVV) then 
-            L.reverse curBoolList
+-- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
+-- to the correct field
+assignNewField :: CharType 
+               -> CharacterData 
+               -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
+               -> CharacterData
+assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
+    if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
+    else if inCharType == Add then charData {rangePrelim = (addData, addData, addData)}
+    else if inCharType == Matrix then charData {matrixStatesPrelim = matrixData}
+    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
+    else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
+    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
+    else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
 
-    else 
-        let firstChar = fmap GV.head stateVV
-            isVariable = checkIsVariable (GV.head firstChar) (GV.tail firstChar) 
-        in
-        getVarVect (fmap GV.tail stateVV) (isVariable : curBoolList) 
-
--- | checkIsVariable takes a generic vector and sees if all elements are equal
-checkIsVariable ::  (Eq a, GV.Vector v a) => a -> v a -> Bool
-checkIsVariable firstElement inVect =
-    if GV.null inVect then False
-    else 
-        if firstElement /= GV.head inVect then True
-        else checkIsVariable firstElement (GV.tail inVect)
-
--- | getSingleCharacter takes a taxa x characters block and an index and rei=utrns the character vector for that index
-getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
-getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
-
--- | getSingleTaxon takes a taxa x characters block and an index and rei=utrns the character vector for that index
-getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
-getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
-
--- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
--- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
-glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
-glueBackTaxChar singleCharVect charInfoV =
-    let numTaxa = V.length $ V.head singleCharVect
-        multiCharVect =  fmap (getSingleTaxon singleCharVect) (V.fromList [0.. numTaxa - 1])
-    in
-    (multiCharVect, charInfoV)

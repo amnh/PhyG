@@ -50,6 +50,7 @@ module GraphOptimization.Medians  ( median2
                                   -- , createUngappedMedianSequence
                                   , intervalAdd
                                   , interUnion
+                                  , getNewRange
                                   , addMatrix
                                   , getDOMedian
                                   , getPreAligned2Median
