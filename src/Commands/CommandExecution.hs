@@ -835,10 +835,10 @@ getTaxonCharString charInfoVV charDataVV =
 getBlockString :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> String
 getBlockString lengthBlock charInfoV charDataV =
     -- this to deal with missing characters
-    trace ("GBS: " ++ (show $ V.length charDataV)) (
+    -- trace ("GBS: " ++ (show $ V.length charDataV)) (
     if V.null charDataV then L.replicate lengthBlock '?' 
     else concat $ V.zipWith getCharacterString  charDataV charInfoV
-    )
+    -- )
 
 -- | charLength returns teh length
 

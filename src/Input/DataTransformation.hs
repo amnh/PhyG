@@ -433,7 +433,7 @@ getMissingValue inChar maxCharLength
 missingAligned :: CharInfo -> Int -> CharacterData
 missingAligned inChar charLength =
     let inCharType = charType inChar
-        alphSize = 1 + (length $ alphabet inChar)
+        alphSize = length $ alphabet inChar
         missingElementSlim = -- CUInt type
                              SV.replicate charLength $ setMissingBits (0 :: CUInt) 0 alphSize
         missingElementWide = -- Word64 type
@@ -455,10 +455,14 @@ missingAligned inChar charLength =
         -- )
 
 -- | setMissingBits sets the first bits by index to '1' rest left as is (0 on input)
-setMissingBits :: (FiniteBits a) => a -> Int -> Int -> a
+setMissingBits :: (Show a, FiniteBits a) => a -> Int -> Int -> a
 setMissingBits inVal curIndex alphSize =
-    if curIndex == alphSize then inVal
-    else setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
+    if curIndex == alphSize then 
+        -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
+        inVal
+    else 
+        -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
+        setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])

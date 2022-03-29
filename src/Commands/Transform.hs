@@ -40,6 +40,7 @@ module Commands.Transform
   ) where
 
 import Types.Types
+import Data.Alphabet
 import qualified Search.Build as B
 import qualified GraphOptimization.Traversals as T
 import qualified Utilities.Utilities as U
@@ -165,7 +166,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
 
                in
-               trace ("Transforming data to staticApproxx: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
+               trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, newData, newPhylogeneticGraphList)
 
 
@@ -214,7 +215,7 @@ pullGraphBlockDataAndTransform inDecGraph charInfoVV (_, _, blockCharInfoV) bloc
 
        (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData 
    in
-   trace ("PGDT: " ++ show charLengthV)
+   -- trace ("PGDT: " ++ show charLengthV)
    (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
@@ -229,11 +230,14 @@ transformData inCharInfoV inCharLengthV inCharDataV  =
       (outCharDataV, outCharInfoV)
 
 -- transformCharacter takes a single characer info and character and returns IA if statis as is if not
+-- checks if all gaps with the GV.filter.  If all gaps--it meansa the sequence char was missing and
+-- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
+-- character--but leaving in case change back to [] 
 transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
 transformCharacter inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
        inCostMatrix = costMatrix inCharInfo
-       alphSize = 1 + (length $ alphabet inCharInfo)
+       alphSize = length $ alphabet inCharInfo
         
        -- determine if matrix is all same costs => nonadditive
        --                        all same except fort single indel costs => non add with gap binary chars
@@ -241,7 +245,8 @@ transformCharacter inCharData inCharInfo charLength =
        (inCostMatrixType, gapCost) = getRecodingType inCostMatrix
 
    in
-   trace ("TC:" ++ (show charLength) ++ " " ++ (show (GV.length $ snd3 $ slimAlignment inCharData, GV.length $ snd3 $ wideAlignment inCharData, GV.length $ snd3 $ hugeAlignment inCharData))) (
+   -- trace ("TC:" ++ (show alphSize) ++ " " ++ (show $ alphabet inCharInfo)) (
+   --trace ("TC:" ++ (show charLength) ++ " " ++ (show (GV.length $ snd3 $ slimAlignment inCharData, GV.length $ snd3 $ wideAlignment inCharData, GV.length $ snd3 $ hugeAlignment inCharData))) (
    if inCharType `elem` exactCharacterTypes then (inCharData, inCharInfo)
 
    else if inCharType `elem` prealignedCharacterTypes then (inCharData, inCharInfo)
@@ -251,14 +256,18 @@ transformCharacter inCharData inCharInfo charLength =
       -- different types--vector wrangling
       -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then 
-         let impliedAlignChar = if (GV.length $ snd3 $ slimAlignment inCharData) > 0 then slimAlignment inCharData
-                             else 
-                               let missingElement = SV.replicate charLength $ TRANS.setMissingBits (0 :: CUInt) 0 alphSize
-                               in (missingElement, missingElement, missingElement)
+         let gapChar = setBit (0 :: CUInt) gapIndex
+             impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
+                                else 
+                                  let missingElement = SV.replicate charLength $ TRANS.setMissingBits (0 :: CUInt) 0 alphSize
+                                  in 
+                                  (missingElement, missingElement, missingElement)
 
              newPrelimBV = convert2BV 32 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
+         -- trace ("TC-Slim:" ++ (show $ GV.length $ snd3 $ slimAlignment inCharData) ++ " " ++ (show $ snd3 $ impliedAlignChar)) (
+                                  
          if inCostMatrixType == "nonAdd" then
             (inCharData {stateBVPrelim = newPrelimBV}, inCharInfo {charType = NonAdd})
 
@@ -267,12 +276,14 @@ transformCharacter inCharData inCharInfo charLength =
 
          else -- matrix recoding
             (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
+         -- )
 
       else if inCharType `elem` [WideSeq, AminoSeq] then
-         let impliedAlignChar = if (GV.length $ snd3 $ wideAlignment inCharData) > 0 then wideAlignment inCharData
-                             else 
-                               let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
-                               in (missingElement, missingElement, missingElement)
+         let gapChar = setBit (0 :: Word64) gapIndex
+             impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
+                                else 
+                                  let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
+                                  in (missingElement, missingElement, missingElement)
 
              newPrelimBV = convert2BV 64 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
@@ -287,7 +298,8 @@ transformCharacter inCharData inCharInfo charLength =
             (inCharData {alignedWidePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedWide})
 
       else if inCharType == HugeSeq then
-         let impliedAlignChar = if (GV.length $ snd3 $ hugeAlignment inCharData) > 0 then hugeAlignment inCharData
+         let gapChar = setBit (BV.fromBits $ replicate alphSize False) gapIndex
+             impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) then hugeAlignment inCharData
                                 else 
                                  let missingElement = V.replicate charLength $ (BV.fromBits $ replicate alphSize True) 
                                  in (missingElement, missingElement, missingElement)
@@ -306,7 +318,7 @@ transformCharacter inCharData inCharInfo charLength =
 
       else 
          error ("Unrecognized character type in transformCharacter: " ++ (show inCharType)) 
-      )
+      -- )
 
 -- | addGaps2BV adds gap characters 0 = nonGap, 1 = Gap to Vector 
 -- of states to non-additive charcaters for static approx.  gapCost - 1 characters are added 
