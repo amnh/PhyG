@@ -512,3 +512,10 @@ preOrderTreeTraversal
 
 314) Make parallel mutlithreaded execution the default
 
+315) for nonadd
+	recode as 2,4,5,8,64 states
+	64 -- stright and/or, bit processs for preorder 
+	2-8
+	   shift through characters 
+	   mask top bits
+	   look up for 2-8 states
