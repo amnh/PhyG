@@ -103,22 +103,31 @@ data EdgeType = NetworkEdge | TreeEdge | PendantEdge
 type Command = (Instruction, [Argument])
 
 -- | CharType data type for input characters
-data CharType = Binary | Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | AlignedSlim | AlignedWide | AlignedHuge
+data CharType = Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | AminoSeq | AlignedSlim | AlignedWide | AlignedHuge |
+                Packed2 | Packed4 | Packed5 | Packed8 | Packed64
     deriving stock (Read, Show, Eq)
 
 -- | types for character classes
 nonExactCharacterTypes :: [CharType]
 nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq] -- , AlignedSlim, AlignedWide, AlignedHuge]
 
--- aliogned not in here because they are not reorganized, and would screw up reroot optimization
-exactCharacterTypes :: [CharType]
-exactCharacterTypes = [Binary, Add, NonAdd, Matrix] -- , AlignedSlim, AlignedWide, AlignedHuge]
+-- non additive bit packed types (64 not really 'packed' but treated as if were)
+-- these are not entered but are created by transforming existing non-additive characters
+packedNonAddTypes :: [CharType]
+packedNonAddTypes = [Packed2, Packed4, Packed5,  Packed8,  Packed64]
 
+-- aligned not in here because they are not reorganized, and would screw up reroot optimization
+exactCharacterTypes :: [CharType]
+exactCharacterTypes = [Add, NonAdd, Matrix] ++ packedNonAddTypes
+
+-- prealigned types
 prealignedCharacterTypes :: [CharType]
 prealignedCharacterTypes = [AlignedSlim, AlignedWide, AlignedHuge]
 
+-- sequence types
 sequenceCharacterTypes :: [CharType]
 sequenceCharacterTypes = nonExactCharacterTypes ++ prealignedCharacterTypes
+
 
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types

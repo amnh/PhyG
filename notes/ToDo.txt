@@ -535,3 +535,5 @@ preOrderTreeTraversal
 	   	they shoudl be all zero outside their are
 
 
+316) hlint, stylish-haskell, remove warnings
+

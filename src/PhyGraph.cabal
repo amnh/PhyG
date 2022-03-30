@@ -246,6 +246,7 @@ executable phyg
                   GraphOptimization.PostOrderFunctions
                   GraphOptimization.PreOrderFunctions
                   GraphOptimization.Traversals
+                  Input.BitPack
                   Input.DataTransformation
                   Input.FastAC
                   Input.ReadInputFiles

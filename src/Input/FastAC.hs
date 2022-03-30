@@ -119,7 +119,6 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             seqSymbols =
               let toSymbols = fmap ST.fromString
               in  case seqType of
-                    Binary   -> toSymbols ["0","1"]
                     NucSeq   -> toSymbols ["A","C","G","T","-"]
                     AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                     _        -> sequenceData

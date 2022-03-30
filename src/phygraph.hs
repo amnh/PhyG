@@ -53,7 +53,6 @@ import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
 import qualified Input.Reorganize             as R
--- import qualified Utilities.LocalGraph         as LG
 
 -- | main driver
 main :: IO ()

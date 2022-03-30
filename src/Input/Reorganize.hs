@@ -62,6 +62,7 @@ import           Data.Word
 import           Foreign.C.Types             (CUInt)
 import qualified GraphOptimization.Medians as M
 import Data.Bits
+import qualified Input.BitPack                as BP
 
 --place holder for now
 -- | optimizeData convert
@@ -71,7 +72,9 @@ import Data.Bits
         -- prealigned to non-additive or matrix
         -- bitPack non-additive
 optimizeData :: ProcessedData -> ProcessedData
-optimizeData inData = inData
+optimizeData inData = 
+    -- bit packing for non-additivecharcaters
+    BP.packData inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
