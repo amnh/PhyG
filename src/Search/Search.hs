@@ -178,7 +178,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
           swapAnnealArgs = swapArgs ++ simulatedAnnealArgs
 
           -- choose staticApproximation or not
-          transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False]
+          transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
           ((inGS, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then 
                                                                 (TRANS.transform [("staticapprox",[])] inGS inData' inData' 0 inGraphList', "StaticApprox ")
                                                               else ((inGS', inData', inGraphList'), "")
