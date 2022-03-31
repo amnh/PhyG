@@ -288,6 +288,9 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , alignedHugePrelim  :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , alignedHugeFinal   :: V.Vector BV.BitVector
                                      
+                                     -- coiuld be made Storable later is using C or GPU/Accelerate
+                                     , packedNonAddPrelim :: (V.Vector Word64, V.Vector Word64, V.Vector Word64)
+                                     , packedNonAddFinal  :: V.Vector Word64
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
@@ -335,12 +338,16 @@ emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)
                                  , hugeIAPrelim       = (mempty, mempty, mempty)
                                  , hugeIAFinal        = mempty
                                  -- vectors for pre-aligned sequences also used in static approx
-                                 , alignedSlimPrelim  =  (mempty, mempty, mempty)
-                                 , alignedSlimFinal   =  mempty
-                                 , alignedWidePrelim  =  (mempty, mempty, mempty)
-                                 , alignedWideFinal   =  mempty
-                                 , alignedHugePrelim  =  (mempty, mempty, mempty)
-                                 , alignedHugeFinal   =  mempty
+                                 , alignedSlimPrelim  = (mempty, mempty, mempty)
+                                 , alignedSlimFinal   = mempty
+                                 , alignedWidePrelim  = (mempty, mempty, mempty)
+                                 , alignedWideFinal   = mempty
+                                 , alignedHugePrelim  = (mempty, mempty, mempty)
+                                 , alignedHugeFinal   = mempty
+
+                                 , packedNonAddPrelim = (mempty, mempty, mempty)
+                                 , packedNonAddFinal  = mempty
+
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                  , localCostVect      = V.singleton 0
                                  -- weight * V.sum localCostVect

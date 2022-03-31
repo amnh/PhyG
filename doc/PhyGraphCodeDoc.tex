@@ -65,7 +65,25 @@
 	\section{Overview of Code base}
 	Source code structure.
 	
-	
+	\section{Character reorganization and optimizing}
+		Input data are passed through several fuincionts to:
+		\begin{itemize}
+			\item{Rename taxa}
+			\item{Exclude taxa}
+			\item{Add missing data for taxa not present in all input files}
+			\item{Check that input taxa and any input graphs contain teh same leaf set}
+			\item{Data a reblocked if specified}
+			\item{Static (Non-additive, additive, and matrix) characters are reorganized so that
+				each class is put in a single (extensive) character (one for each type) type for each block.}
+			\item{Non-additive characters are `bit-packed' into new characters with state numbers $=$2, $\leq$
+				4, $\leq$5, $\leq$8, $\leq$64, and $>$ 64. Invariant charcaters are filtered out.}
+			 
+		\end{itemize}
+		\subsection{Character weights}
+		Static characters (Non-additive, additive, and matrix) with integer weights are reorganized
+		by repeating th echaracter the number of times of its weight.  This is to avoid alot of 
+		unnecessary ($\times 1$) operations.  Non-integer weight characters are not reorganized or
+		bit packed.
 		
 	\section {Command Parsing}
 	
@@ -173,11 +191,11 @@
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}
 	\subsection{Execution in Parallel}
-	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
+	By default the program will execute multi-threaded based on the number processors available.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
 	
-	Parallel code options are set using a parmap-type strategy throughout the code.  The basic definitions of this functionality are found in ParallelUtilities.hs
+	Parallel code options are set using a parmap-type strategy throughout the code.  THis ujsually speciifed by myParListChunkRDS from the PArallelUtilities module in PhyloLibs The basic definitions of this functionality are found in ParallelUtilities.hs
 	
 	\section*{Acknowledgments}
 	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  

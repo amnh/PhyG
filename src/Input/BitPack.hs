@@ -41,6 +41,7 @@ module Input.BitPack
   ) where
 
 import qualified Data.List                   as L
+import qualified Data.List.Split             as SL
 import           Data.Maybe
 import           Types.Types
 import qualified Data.BitVector.LittleEndian as BV
@@ -107,6 +108,11 @@ f _ a = a.
 so (F overlapBit subcharater AND) OR (F ~overlapBit subcharactr OR)
 -} 
 
+{-
+Character weights are all = 1 in static charcaters.  This is ensured by organizeBlockData
+in Input.Reorganize.hs basically--charcters are nultiplied by weight (if integer--otherwise not recoded)
+So can check and only recode characters with weight of 1.
+-}
 
 -- | packData takes input data and creates a variety of bit-packed data types
 -- to increase efficiency and reduce footprint of non-additive characters
@@ -124,15 +130,15 @@ packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
 recodeNonAddCharacters :: BlockData -> BlockData
 recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
     let numChars = V.length charInfoV
+        
         -- create vector of single characters with vector of taxon data of sngle character each
-        -- like a standard matrix with a single character
         singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
 
+        -- bit pack the nonadd
         (recodedSingleVecList, newCharInfoLL) = unzip $ zipWith packNonAdd singleCharVectList (V.toList charInfoV)
         
-
+        -- recreate BlockData, tacxon dominant structure
         newTaxVectByCharVect = U.glueBackTaxChar (V.fromList $ concat recodedSingleVecList)
-
         
     in
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
@@ -140,10 +146,72 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
 -- | packNonAdd takes taxon by vector cahracter data and list of character information
 -- and returns bit packed and recoded non-additive characters and charInfo
 -- input int is character index in block
+-- the weight is skipping becasue of the weight replication in reorganize
+-- if chracters have non integer weight then they were not reorganized and left
+-- as single BV--here as well. Should be very few (if any) of them.
 packNonAdd :: V.Vector CharacterData -> CharInfo -> ([V.Vector CharacterData], [CharInfo])
 packNonAdd inCharDataV charInfo =
-    if charType charInfo /= NonAdd then ([inCharDataV],[charInfo])
+    if (charType charInfo /= NonAdd) || (weight charInfo > 1)  then ([inCharDataV],[charInfo])
     else 
         -- recode non-additive characters
+        let leafNonAddV =  fmap (snd3 . stateBVPrelim) inCharDataV
+            numNonAdd = V.length $ V.head leafNonAddV
+
+            -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
+            stateNumDataPairList = V.toList $ fmap (getStateNumber leafNonAddV) (V.fromList [0.. numNonAdd - 1])
+
+            -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
+            (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
+        in
+        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList))
         ([inCharDataV],[charInfo])
 
+-- | makeStateNCharacter takes a list of charcaters each of which is a list of taxon caracter values and
+-- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
+-- via chuncksOf--or if 64, not packing, if 128 stays bitvector
+makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> CharacterData
+makeStateNCharacter charInfo stateNumber charDataLL = 
+    emptyCharacter 
+
+-- | binStateNumber takes a list of pairs ofg char states number and data column as list of bitvectors and 
+-- into list for 2,4,5,8,64,>64
+binStateNumber :: [(Int, [BV.BitVector])] 
+               -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]]) 
+               -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
+binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
+    if null inPairList then 
+        --d ont' really need to reverse here but seems hygenic
+        (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
+    else 
+        let (stateNum, stateData) = head inPairList
+        in
+        -- skip--uninformative
+        if stateNum == 1 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, cur128)
+        else if stateNum <= 2 then binStateNumber (tail inPairList) (stateData : cur2, cur4, cur5, cur8, cur64, cur128)
+        else if stateNum <= 4 then binStateNumber (tail inPairList) (cur2, stateData : cur4, cur5, cur8, cur64, cur128)
+        else if stateNum <= 5 then binStateNumber (tail inPairList) (cur2, cur4, stateData : cur5, cur8, cur64, cur128)
+        else if stateNum <= 8 then binStateNumber (tail inPairList) (cur2, cur4, cur5, stateData : cur8, cur64, cur128)
+        else if stateNum <= 64 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, stateData : cur64, cur128)
+        else binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, stateData : cur128)
+
+-- | getStateNumber returns the number of uniqe (non missing) states for a 'column' 
+-- of nonadd bitvector values
+-- the charState values are in ranges for 2,4,5,8,64 and bigger numbers
+-- missingVal not takeen from alphabet size since that was not updated in reorganize.
+-- So take OR of all on bits--may be non-sequential--ie 0 2 7 so need to watch that.
+-- returns pair of stateNUmber class (2,4,5,8,64, >64 as 128) and list of states
+-- for efficient glueing back together later
+
+getStateNumber :: V.Vector (V.Vector BV.BitVector) -> Int -> (Int, [BV.BitVector])
+getStateNumber  characterDataVV characterIndex =
+    let thisCharV = V.map (V.! characterIndex) characterDataVV
+        missingVal = V.foldl1' (.|.) thisCharV
+        numStates = popCount $ V.foldl1' (.|.) $ V.filter (/= missingVal) thisCharV
+        thisCharL = V.toList thisCharV
+    in
+    if numStates <= 2 then (2, thisCharL)
+    else if numStates <= 4 then (4, thisCharL)
+    else if numStates <= 5 then (5, thisCharL)
+    else if numStates <= 8 then (8, thisCharL)
+    else if numStates <= 64 then (64, thisCharL)
+    else (128, thisCharL)
