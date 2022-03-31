@@ -537,3 +537,7 @@ preOrderTreeTraversal
 
 316) hlint, stylish-haskell, remove warnings
 
+317) Recode small staet (<10) additive as series of binaries
+
+318) write small adjunct program to filter out constant charaters fomr simple tnt files.
+
