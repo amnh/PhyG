@@ -169,6 +169,7 @@ packNonAdd inCharDataV charInfo =
 -- | makeStateNCharacter takes a list of charcaters each of which is a list of taxon caracter values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
 -- via chuncksOf--or if 64, not packing, if 128 stays bitvector
+-- check for non-sequential states (A,T) or (0,2) etc
 makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> CharacterData
 makeStateNCharacter charInfo stateNumber charDataLL = 
     emptyCharacter 
