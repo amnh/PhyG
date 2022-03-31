@@ -74,7 +74,7 @@ import qualified Input.BitPack                as BP
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
     -- bit packing for non-additivecharcaters
-    BP.packData inData
+    BP.packNonAdditiveData inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
@@ -438,16 +438,16 @@ removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
 
         -- create vector of single characters with vector of taxon data of sngle character each
         -- like a standard matrix with a single character
-        singleCharVect = fmap (getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
+        singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
 
         -- actually remove constants form chaarcter list 
         singleCharVect' = V.zipWith removeConstantChars singleCharVect charInfoV
 
         -- recreate the taxa vext by character vect block data expects
         -- should filter out length zero characters
-        (newTaxVectByCharVect, newCharInfoV) = glueBackTaxChar singleCharVect' charInfoV
+        newTaxVectByCharVect = U.glueBackTaxChar singleCharVect' 
     in
-    (blockName, newTaxVectByCharVect, newCharInfoV)
+    (blockName, newTaxVectByCharVect, charInfoV)
 
 -- | removeConstantChars takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.
@@ -600,23 +600,6 @@ checkIsVariableBit firstElement restVect =
         in
         if popCount newState == 0 then True
         else checkIsVariableBit newState (GV.tail restVect)
-
--- | getSingleCharacter takes a taxa x characters block and an index and rei=utrns the character vector for that index
-getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
-getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
-
--- | getSingleTaxon takes a taxa x characters block and an index and rei=utrns the character vector for that index
-getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
-getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
-
--- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
--- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
-glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
-glueBackTaxChar singleCharVect charInfoV =
-    let numTaxa = V.length $ V.head singleCharVect
-        multiCharVect =  fmap (getSingleTaxon singleCharVect) (V.fromList [0.. numTaxa - 1])
-    in
-    (multiCharVect, charInfoV)
 
 -- | these need to be abstracted but had problems with the bool list -> Generic vector, and SV pair
 

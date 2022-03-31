@@ -532,3 +532,21 @@ getMaxCharacterLength :: CharInfo -> [CharacterData] -> Int
 getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList 
 
 
+-- | getSingleTaxon takes a taxa x characters block and an index and returns the character vector for that index
+getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
+
+-- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
+-- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
+glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector (V.Vector CharacterData)
+glueBackTaxChar singleCharVect =
+    let numTaxa = V.length $ V.head singleCharVect
+        multiCharVect =  fmap (getSingleTaxon singleCharVect) (V.fromList [0.. numTaxa - 1])
+    in
+    multiCharVect
+
+-- | getSingleCharacter takes a taxa x characters block and an index and returns the character vector for that index
+-- resulting in a taxon by single charcater vector 
+getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
+getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
+

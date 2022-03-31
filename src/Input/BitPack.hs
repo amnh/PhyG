@@ -37,28 +37,20 @@ Portability :  portable (I hope)
 
 
 module Input.BitPack
-  ( packData
+  ( packNonAdditiveData
   ) where
 
 import qualified Data.List                   as L
 import           Data.Maybe
-import qualified Data.Text.Lazy              as T
 import           Types.Types
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector                 as V
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import qualified Data.Vector.Generic         as GV
 import qualified Utilities.Utilities         as U
 import           GeneralUtilities
-import qualified SymMatrix                   as S
 import           Debug.Trace
-import qualified Data.Bifunctor              as BF
-import qualified ParallelUtilities            as PU
-import Control.Parallel.Strategies
 import           Data.Word
-import           Foreign.C.Types             (CUInt)
-import qualified GraphOptimization.Medians as M
+import qualified ParallelUtilities as PU
+import Control.Parallel.Strategies
 import Data.Bits
 
 {-
@@ -79,7 +71,7 @@ to each packed type to create preliminary (post-order with cost) and final
 (pre-order) states.  Ideally the functions should contain no logic branches
 or recursion (= loops) so that operations are solely bit-based.
 
-Methods are similar too those of Ronquist 1998, Moelannen 1999, Goloboff 2002, 
+Methods are similar too those of Lamport 1975, Ronquist 1998, Moelannen 1999, Goloboff 2002, 
 and White and Holland 2011, but differ in detail due to
 the programming language (Haskell) and need to maintain data structures 
 useful for network analysis.
@@ -99,16 +91,59 @@ in brief, each state in each sub-character is bit shifted right to the 0th posit
 AND-ed with '1' (ie all 0 nbit except the 0th) these state values are OR-ed over the states.
 If there was overlap between the two inputs (ie no change) this will be 1, else 0.
 The complement of this value is taken and added to that for all the sub-characters yielding
-the unweighted cost of the pari of inputs.
+the unweighted cost of the pair of inputs. This value (call it overlapBit for now 1 for yes, 0 no)
+is used for median calculation
 
-The median states keep all the input AND bits On, OR this with the 
-OR of all state bits if all states bits are 0 (using zeroBits after ANDing with a mask with all 0 bits except the sub character where all are 1)
-to clear all non-sub character bits 
+The median states are calculated by keeping the AND and OR sub character states (all other masked to zero
+via an AND operation) and mulitplying the AND substates by the overlapBit and
+the OR states by the complement of the overlap bit and ORing the two results
+
+THis could no doubt be made more efficient, but at least this has no logic
+although worth testing the multiplicatoin versus a function (hence logic):
+f overlapBit a
+where f 0 a = 0 
+f _ a = a.
+
+so (F overlapBit subcharater AND) OR (F ~overlapBit subcharactr OR)
 -} 
 
 
 -- | packData takes input data and creates a variety of bit-packed data types
 -- to increase efficiency and reduce footprint of non-additive characters
 -- that are encoded as bitvectors
-packData :: ProcessedData -> ProcessedData
-packData inData = inData
+packNonAdditiveData :: ProcessedData -> ProcessedData
+packNonAdditiveData (nameVect, bvNameVect, blockDataVect) = 
+    let newBlockDataVect = fmap recodeNonAddCharacters blockDataVect
+    in
+    (nameVect, bvNameVect, newBlockDataVect)
+
+-- | recodeNonAddCharacters takes block data, goes through characters
+-- and recodes NonAdditive. 
+-- Concat and list for charInfoV because new charcaters can be created
+-- and newCharInfo then as well, could be multiple per input 'charcater'
+recodeNonAddCharacters :: BlockData -> BlockData
+recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
+    let numChars = V.length charInfoV
+        -- create vector of single characters with vector of taxon data of sngle character each
+        -- like a standard matrix with a single character
+        singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
+
+        (recodedSingleVecList, newCharInfoLL) = unzip $ zipWith packNonAdd singleCharVectList (V.toList charInfoV)
+        
+
+        newTaxVectByCharVect = U.glueBackTaxChar (V.fromList $ concat recodedSingleVecList)
+
+        
+    in
+    (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
+
+-- | packNonAdd takes taxon by vector cahracter data and list of character information
+-- and returns bit packed and recoded non-additive characters and charInfo
+-- input int is character index in block
+packNonAdd :: V.Vector CharacterData -> CharInfo -> ([V.Vector CharacterData], [CharInfo])
+packNonAdd inCharDataV charInfo =
+    if charType charInfo /= NonAdd then ([inCharDataV],[charInfo])
+    else 
+        -- recode non-additive characters
+        ([inCharDataV],[charInfo])
+
