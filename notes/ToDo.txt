@@ -539,3 +539,10 @@ preOrderTreeTraversal
 
 318) write small adjunct program to filter out constant charaters fomr simple tnt files.
 
+319) for image characters crop to same (smallesy) pixel size based on center of images
+
+320) Verify on do remove constant from SA new chars
+     Verify only do bitPacking on new charcters--prob OK--since only on BV characters,
+     	but will check high alphabet non-additives
+
+     	

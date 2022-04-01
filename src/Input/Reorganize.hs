@@ -39,6 +39,7 @@ module Input.Reorganize
   ( groupDataByType
   , reBlockData
   , removeConstantCharacters
+  , removeConstantChars
   , optimizeData
   ) where
 
