@@ -510,8 +510,6 @@ preOrderTreeTraversal
 
 313) Checkl prealigned and static in TNT
 
-314) Make parallel mutlithreaded execution the default
-
 315) for nonadd
 	recode as 2,4,5,8,64 states
 	64 -- stright and/or, bit processs for preorder 

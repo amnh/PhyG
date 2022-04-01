@@ -175,6 +175,8 @@ executable phyg
   ghc-options:  -Wall
                 -Wincomplete-patterns
                 -threaded 
+                -feager-blackholing
+                -with-rtsopts="-N"
                 -O2
                 -XBangPatterns
                 -rtsopts

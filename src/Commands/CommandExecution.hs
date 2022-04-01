@@ -782,39 +782,72 @@ getTNTString inGS inData inGraph graphNumber =
         else if graphType inGS == SoftWired then 
 
             -- get display trees for each data block-- takes first of potentially multiple
-            let blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
-
-                -- create seprate processed data for each block
-                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
-
-                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
-
-                -- create leaf data by merging display graph block data (each one a phylogentic graph)
-                (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
-
-                -- get character strings
-                taxonCharacterStringList = V.toList $ fmap (++ "\n") $ fmap (getTaxonCharString mergedCharInfoVV) leafDataList 
-                nameCharStringList = concat $ zipWith (++) leafNameList taxonCharacterStringList
-
-                -- length information for cc code extents
-                charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
-
-                -- Block/Character names for use in comment to show sources of new characters
-                charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
-                
-                nameLengthPairList = zip charNameList charLengthList
-                nameLengthString = concat $ pairListToStringList nameLengthPairList 0
-
-                -- merge lengths and cc codes
-                ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+            let middleStuffString = createDisplayTreeTNT inGS inData inGraph
             in
-            headerString ++ nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
-                ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString     
+            headerString ++ middleStuffString ++ finalString
+
+        -- for hard-wired networks--transfoirm to softwired and use display trees
+        else if graphType inGS == HardWired then 
+            let newGS = inGS {graphType = SoftWired}
+                
+                pruneEdges = False
+                warnPruneEdges = False
+                startVertex = Nothing
+
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
+
+                middleStuffString = createDisplayTreeTNT inGS inData newGraph
+
+            in
+            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation")
+            --headerString ++ nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
+            --    ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString       
+            headerString ++ middleStuffString ++ finalString
 
         else 
             trace ("TNT  not yet implemented for graphtype " ++ show (graphType inGS))
-            "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transform graph to softwired and generate TNT text that way"
+            ("There is no implied alignment for "++ (show (graphType inGS)))
+
+-- | createDisplayTreeTNT take a softwired graph and creates TNT data string
+createDisplayTreeTNT :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> String
+createDisplayTreeTNT inGS inData inGraph =
+    let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
+        leafNameList = fmap (++ "\t") $ fmap T.unpack $ fmap (vertName . snd) leafList
+        charInfoVV = six6 inGraph
+        numTaxa = V.length $ fst3 inData
+        ccCodeInfo = getCharacterInfo charInfoVV
+        blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+
+        -- create seprate processed data for each block
+        blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+
+        -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
+        decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+
+        -- create leaf data by merging display graph block data (each one a phylogentic graph)
+        (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
+
+        -- get character strings
+        taxonCharacterStringList = V.toList $ fmap (++ "\n") $ fmap (getTaxonCharString mergedCharInfoVV) leafDataList 
+        nameCharStringList = concat $ zipWith (++) leafNameList taxonCharacterStringList
+
+        -- length information for cc code extents
+        charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
+
+        -- Block/Character names for use in comment to show sources of new characters
+        charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
+                
+        nameLengthPairList = zip charNameList charLengthList
+        nameLengthString = concat $ pairListToStringList nameLengthPairList 0
+
+        -- merge lengths and cc codes
+        ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+    in
+    nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
+                ++ nameCharStringList ++ ";\n" ++ ccCodeString 
+
+
+
 
 -- | pairListToStringList takes  alist of (String, Int) and a starting index and returns scope of charcter for leading comment
 pairListToStringList :: [(String, Int)] -> Int -> [String]
@@ -1031,9 +1064,33 @@ getImpliedAlignmentString inGS inData inGraph graphNumber =
             concat diplayIAStringList
 
         -- There is no IA for Hardwired at least as of yet 
+        -- so convert to softwired and use display trees
+        else if graphType inGS == HardWired then 
+            let newGS = inGS {graphType = SoftWired}
+                
+                pruneEdges = False
+                warnPruneEdges = False
+                startVertex = Nothing
+
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
+
+                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+
+                -- create seprate processed data for each block
+                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+
+                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
+                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+
+                -- extract IA strings as if mutiple graphs
+                diplayIAStringList = fmap getTreeIAString $ V.toList decoratedBlockTreeList
+            in
+            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way")
+            concat diplayIAStringList
+
         else 
             trace ("IA  not yet implemented for graphtype " ++ show (graphType inGS))
-            "There is no implied alignment for hard-wired graphs--at least not yet.\n\tCould transform graph to softwired and generate an implied alignment that way"
+            ("There is no implied alignment for " ++  (show (graphType inGS)))
 
 -- | getTreeIAString takes a Tree Decorated Graph and returns Implied ALignmentString
 getTreeIAString :: PhylogeneticGraph -> String
