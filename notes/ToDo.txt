@@ -532,6 +532,17 @@ preOrderTreeTraversal
 	   for put back together just OR all characters,
 	   	they shoudl be all zero outside their are
 
+	   use foldl' [bit indices] to set bits in a legible manner
+
+
+	   Use white and holland for postorder 
+	   	with 64-bit modifications and cases for 2,5,8 added
+
+	   Use Golobofff for preorder again
+	   	with 64-bit modifications and cases for 2,5,8 added
+
+	   Maybe add 16 state bit pack?
+
 
 316) hlint, stylish-haskell, remove warnings
 
