@@ -289,7 +289,7 @@ makeSubCharacter stateNumber stateIndexList inBV chunkIndex =
 
         -- get index of states when only minimally bit encoded (0101, 0001 -> 11, 01)
         newBitStates = setOnBits (zeroBits :: Word64) bitStates 0 
-        subCharacter = shiftR newBitStates (chunkIndex * stateNumber)
+        subCharacter = shiftL newBitStates (chunkIndex * stateNumber)
     in
     trace ("MSC: " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
