@@ -40,6 +40,7 @@ module Data.Alphabet
   ( Alphabet()
   -- * Construction
   , fromSymbols
+  , fromSymbolsWOGap
   , fromSymbolsWithStateNames
   , fromSymbolsWithStateNamesAndTCM
   , fromSymbolsWithTCM
