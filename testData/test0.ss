@@ -1,11 +1,11 @@
 xread 
 'simple test data'
 1 5
-one 0
-two 0
-three 1
-four 1
-five 1
+a 0
+b 0
+c 3
+d 3
+e ?
 ;
 cc -.;
 proc/;

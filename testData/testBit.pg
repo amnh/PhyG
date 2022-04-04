@@ -1,0 +1,4 @@
+-- test bit packing 
+read("test0.ss")
+build(distance, dwag)
+report("test0-bit.tre", graph, newick, overwrite)
