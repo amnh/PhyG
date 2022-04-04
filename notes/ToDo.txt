@@ -546,7 +546,7 @@ preOrderTreeTraversal
 
 316) hlint, stylish-haskell, remove warnings
 
-317) Recode small staet (<10) additive as series of binaries
+317) Recode small state (<10) additive as series of binaries
 
 318) write small adjunct program to filter out constant charaters fomr simple tnt files.
 
@@ -555,5 +555,10 @@ preOrderTreeTraversal
 320) Verify on do remove constant from SA new chars
      Verify only do bitPacking on new charcters--prob OK--since only on BV characters,
      	but will check high alphabet non-additives
+
+     	make remove constant-> prealignedConstant only
+     		apply at all data and trasnform SA
+     		same with bit packing
+     		
 
      	

@@ -168,15 +168,15 @@ packNonAdd inCharDataV charInfo =
             (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
 
         in
-        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList))
-        (fmap V.fromList newStateCharListList, newCharInfoList)
+        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList) ++ "\n" ++ (show(newStateCharListList, newCharInfoList) ))
+        (fmap V.fromList newStateCharListList, concat newCharInfoList)
 
 -- | makeStateNCharacter takes a list of charcaters each of which is a list of taxon caracter values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
 -- via chuncksOf--or if 64, not packing, if 128 stays bitvector
 -- check for non-sequential states (A,T) or (0,2) etc
 -- return is list of taxa x single new character
-makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], CharInfo)
+makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 makeStateNCharacter charInfo stateNumber charDataLL = 
     let (recodeList, newCharInfo) = if stateNumber > 64 then recodeBV2BV charInfo charDataLL
                                     else if stateNumber == 64 then recodeBV2Word64Single charInfo charDataLL
@@ -186,63 +186,70 @@ makeStateNCharacter charInfo stateNumber charDataLL =
 
 -- | recodeBV2BV take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- BV non-additive characters of type NonAdd.
-recodeBV2BV :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], CharInfo)
+recodeBV2BV :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2BV charInfo taxBVLL =
-    let newStateList = fmap V.fromList taxBVLL
-        newCharName = T.append (name charInfo) $ T.pack "LargeState"
-        newCharDataList = fmap (makeNewData emptyCharacter) newStateList
-    in
-    (newCharDataList, charInfo {name = newCharName, charType = NonAdd})
-    where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
+    if null taxBVLL then ([],[])
+    else 
+        let newStateList = fmap V.fromList taxBVLL
+            newCharName = T.append (name charInfo) $ T.pack "LargeState"
+            newCharDataList = fmap (makeNewData emptyCharacter) newStateList
+        in
+        (newCharDataList, [charInfo {name = newCharName, charType = NonAdd}])
+        where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
 
 
 -- | recodeBV2Word64Single take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- of Word64 unpacked non-additive characters of type Packed64.
-recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], CharInfo)
+recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64Single charInfo taxBVLL =
-    let newCharName = T.append (name charInfo) $ T.pack "64State"
+    if null taxBVLL then ([],[])
+    else 
+        let newCharName = T.append (name charInfo) $ T.pack "64State"
         
-        -- convert BV to Word64
-        taxWord64BLL = fmap (fmap BV.toUnsignedNumber) taxBVLL
+            -- convert BV to Word64
+            taxWord64BLL = fmap (fmap BV.toUnsignedNumber) taxBVLL
 
-        -- convert to vector Word64
-        newStateList = fmap V.fromList taxWord64BLL
+            -- convert to vector Word64
+            newStateList = fmap V.fromList taxWord64BLL
 
-        -- make new character data
-        newCharDataList = fmap (makeNewData emptyCharacter) newStateList
-    in
-    (newCharDataList, charInfo {name = newCharName, charType = Packed64})
-    where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
+            -- make new character data
+            newCharDataList = fmap (makeNewData emptyCharacter) newStateList
+        in
+        (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
+        where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
 
 
 -- | recodeBV2Word64 take a list of BV.bitvector non-add characters and the states number of creates
 -- Word64 representaions where subcharcaters are created and shifted to proper positions and ORd
 -- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8. 
-recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], CharInfo)
+recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64 charInfo stateNumber taxBVLL =
-    let newCharType = if stateNumber == 2 then Packed2
-                      else if stateNumber == 4 then Packed4
-                      else if stateNumber == 5 then Packed5
-                      else if stateNumber == 8 then Packed8
-                      else error ("State number " ++ (show stateNumber) ++ " not to be packed in recodeBV2Word64")
+    if null taxBVLL then ([],[])
+    else
+        let newCharType = if stateNumber == 2 then Packed2
+                          else if stateNumber == 4 then Packed4
+                          else if stateNumber == 5 then Packed5
+                          else if stateNumber == 8 then Packed8
+                          else error ("State number " ++ (show stateNumber) ++ " not to be packed in recodeBV2Word64")
 
-        newCharName = T.append (name charInfo) $ T.pack ((show stateNumber) ++ "State")
-        
-        -- get number of characters that can be packed into Word64 for that state number
-        numCanPack = fst $ divMod 64 stateNumber
+            newCharName = T.append (name charInfo) $ T.pack ((show stateNumber) ++ "State")
+            
+            -- get number of characters that can be packed into Word64 for that state number
+            numCanPack = fst $ divMod 64 stateNumber
 
-        -- get state index list for all characters (could be non seqeuenctial 0|2; A|T etc)
-        stateIndexLL = getStateIndexList taxBVLL 
-        chunkStateIndexLLL = SL.chunksOf numCanPack stateIndexLL
+            -- get state index list for all characters (could be non seqeuenctial 0|2; A|T etc)
+            stateIndexLL = getStateIndexList taxBVLL 
+            chunkStateIndexLLL = SL.chunksOf numCanPack stateIndexLL
 
-        -- create chunks of charcaters to be put into single element of vector of Word64
-        chunkDataListL = fmap (SL.chunksOf numCanPack) taxBVLL
+            -- create chunks of charcaters to be put into single element of vector of Word64
+            chunkDataListL = fmap (SL.chunksOf numCanPack) taxBVLL
 
-        -- pack chunks into Word64
-        packedDataL = fmap (chunksToWord64 stateNumber chunkStateIndexLLL) chunkDataListL
+            -- pack chunks into Word64
+            packedDataL = fmap (chunksToWord64 stateNumber chunkStateIndexLLL) chunkDataListL
 
-    in
-    (packedDataL, charInfo {name = newCharName, charType = newCharType})
+        in
+        trace ("RBV2W64: " ++ (show taxBVLL))
+        (packedDataL, [charInfo {name = newCharName, charType = newCharType}])
 
 
 -- | chunksToWord64 take states number and chunk (list of BV.bitvector non-additive)
@@ -294,9 +301,10 @@ setOnBits baseVal onList bitIndex =
 -- bit indices of states in the bv this becasue starets can be non-seqeuntial (0|3)
 getStateIndexList :: [[BV.BitVector]] -> [[Int]]
 getStateIndexList taxBVLL = 
-    let numBVs = length $ head taxBVLL
+    let numBVs = length taxBVLL
         stateIndexLL = fmap (getStateIndices (fmap V.fromList taxBVLL)) [0.. numBVs - 1]
     in
+    trace ("GSIL: " ++ (show numBVs) ++ "\n" ++ (show taxBVLL))
     stateIndexLL
 
 -- | getStateIndices takes list of vectors of BVs and index and gets the states for that index bv
@@ -322,7 +330,8 @@ binStateNumber :: [(Int, [BV.BitVector])]
                -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
     if null inPairList then 
-        --d ont' really need to reverse here but seems hygenic
+        --dont' really need to reverse here but seems hygenic
+        trace ("BSN: " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
     else 
         let (stateNum, stateData) = head inPairList

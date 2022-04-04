@@ -85,6 +85,26 @@
 		unnecessary ($\times 1$) operations.  Non-integer weight characters are not reorganized or
 		bit packed.
 		
+		\subsection{BitPacking}
+		Non-additive characters, either from input or static approximation recoding, are initially 
+		encoded as little-endian bit-vectors.  These are flexible, with unbounded (more or less)state numbers.
+		They are also inefficient in space nad optimization compared with native types such as Word64. 
+		
+		An additional level of inefficiency comes from encoding characters with lower numbers of states in type (e.g. word64) with a single bit for each state.  As a result, non-additive characters are recoded according to their 
+		number os states into 5 new character types (in Types.hs): Packed2, Packed4, Packed5, Packed8, and Packed64. 
+		
+		Characters with $>$ 64 states remain (although a new character is created) as bit-vectors.  Characters with 
+		2, 3-4, 5, and 6-8 states are ``packed'' into 64 bit Word64 with 32, 16, 12, and 8 characters per word respectively. Characters with 9-64 states are encoded as a single Word64. These are concatenated into a Vector and stored in characterData as ``packedNonAddPrelim'' and ``packedNonAddFinal''.
+		
+		Non-additive charterers are first separated into groups of like-state number, then appropriate ercodign
+		and packing are applied.  One important point is that states may be non-sequential (ie 3 and 23), yet
+		still binary (after accounting for ``missing'' = all bits On).  THe are identifiued and recoded as seqeuntial states (bits 0,1,2..).
+		
+		Simultaneous 2-median and 3-median (post-order and pre-order) optimization is performed via the methods described in \cite{WhiteandHolland2011} and \cite{goloboff2002} modified for 64-bit words and alternate state numbers (basically mask and shit numbers).  These methods, documented and undocumented likely originate with D. E. Knuth ina general sense, and \cite{Farris1988} in phylogenetic software.
+		
+		The module Input.BitPack.hs contains the functions and constants (e.g. masks) to deal 
+		with bit-packed characters.
+		
 	\section {Command Parsing}
 	
 	\section{Post-Order Graph Traversal}

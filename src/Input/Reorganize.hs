@@ -75,7 +75,8 @@ import qualified Input.BitPack                as BP
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
     -- bit packing for non-additivecharcaters
-    BP.packNonAdditiveData inData
+    --BP.packNonAdditiveData 
+    inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input

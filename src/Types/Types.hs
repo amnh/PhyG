@@ -358,7 +358,7 @@ emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)
 
 -- | 
 
--- | type TermData type contians termnal name and list of characters
+-- | type TermData type contains termnal name and list of characters
 -- characters as ShortText to save space on input
 type TermData = (NameText, [ST.ShortText])
 type LeafData = (NameText, V.Vector CharacterData)

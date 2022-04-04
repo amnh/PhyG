@@ -176,7 +176,7 @@ executable phyg
                 -Wincomplete-patterns
                 -threaded 
                 -feager-blackholing
-                -with-rtsopts="-N"
+                -with-rtsopts=-N
                 -O2
                 -XBangPatterns
                 -rtsopts

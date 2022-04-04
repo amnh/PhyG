@@ -346,7 +346,7 @@ getCosts fileName charNumber commandWordList curCharInfo =
         updatedCharInfo
         --)
 
--- | processCostsLine takes the transformatino commands of TNT and creates a TCM matrix from that
+-- | processCostsLine takes the transformation commands of TNT and creates a TCM matrix from that
 -- does not check for alphabet size or order so sorts states to get matrix
 -- TNT states (alphabet elements) must be single characters
 processCostsLine :: String -> [T.Text] -> ([ST.ShortText],[[Int]])

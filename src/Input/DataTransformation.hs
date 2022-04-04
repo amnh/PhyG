@@ -310,7 +310,9 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                     in
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
 
-                thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo)
+                thisBlockCharInfo' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+
+                thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo')
 
                 (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
 
@@ -322,6 +324,34 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
+
+-- | getAddNonAddAlphabets takes recoded chartcater data and resets the alphabet 
+-- field in charInfo to reflect observed states.  This is used tpo properly sety missing and 
+-- bit packing values
+resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo
+resetAddNonAddAlphabets taxonByCharData charInfo charIndex = 
+    let inCharType = charType charInfo
+    in
+    if inCharType `notElem` [Add, NonAdd] then charInfo
+    else 
+        if inCharType == NonAdd then 
+            let numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
+                foundSymbols = fmap ST.fromString $ fmap show [0.. numBits - 1]
+                stateAlphabet = fromSymbolsWOGap foundSymbols
+            in
+            charInfo {alphabet = stateAlphabet}
+
+        else if inCharType == Add then 
+            let (minRange, maxRange) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
+
+                foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
+                stateAlphabet = fromSymbolsWOGap foundSymbols
+            in
+            charInfo {alphabet = stateAlphabet}
+            
+
+
+        else error ("UNrecognized character type in resetAddNonAddAlphabets: " ++ (show inCharType))
 
 -- | checkPrealignedEqualLength checks prealigned type for equal length
 -- at this stage (called before reblocking) there should only be a single charcter per block
@@ -416,7 +446,7 @@ missingMatrix inCharInfo =
                  , matrixStatesFinal= V.singleton (V.replicate numStates missingState)}
 
 
--- | getMissingValue takes the character type and returns the appropriate missineg data value
+-- | getMissingValue takes the character type and returns the appropriate missing data value
 getMissingValue :: [CharInfo] -> Int -> [CharacterData]
 getMissingValue inChar maxCharLength
   | null inChar = []
