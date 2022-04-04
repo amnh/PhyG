@@ -30,6 +30,7 @@ module Data.Alphabet.Internal
   , alphabetStateNames
   , alphabetSymbols
   , fromSymbols
+  , fromSymbolsWOGap
   , fromSymbolsWithStateNames
   , fromSymbolsWithStateNamesAndTCM
   , fromSymbolsWithTCM
@@ -395,6 +396,38 @@ getSubsetIndex a s zero
 --
 -- Constructs an 'Alphabet' from a 'Foldable' structure of symbols which are
 -- 'IsString' values.
+-- WITHOUT ADDING GAPS
+{-# INLINE[1]  fromSymbolsWOGap #-}
+{-# SPECIALISE fromSymbolsWOGap :: Foldable t => t String    -> Alphabet String    #-}
+{-# SPECIALISE fromSymbolsWOGap :: Foldable t => t ShortText -> Alphabet ShortText #-}
+{-# SPECIALISE fromSymbolsWOGap ::               [String]    -> Alphabet String    #-}
+{-# SPECIALISE fromSymbolsWOGap ::               [ShortText] -> Alphabet ShortText #-}
+{-# RULES
+"fromSymbols/Set" forall (s :: (IsString x, Ord x) => Set x). fromSymbols s =
+    let g = fromString "-"
+        x = g : toList (Set.delete g s)
+        v = NEV.fromNonEmpty $ NE.fromList x
+    in  Alphabet True v []
+#-}
+fromSymbolsWOGap :: (Ord a, IsString a, Foldable t) => t a -> Alphabet a
+fromSymbolsWOGap inputSymbols = Alphabet sorted symbols []
+  where
+    symbols = NEV.fromNonEmpty . fmap toSingle . alphabetPreprocessingWOGap . fmap fromSingle $ toList inputSymbols
+
+    sorted =
+        -- Coerce to a plain Vector, drop the last (gap) element
+        let v = init $ toList symbols
+        -- Zip each element with the next element,
+        -- and assert that all pairs are less-then-equal
+        in all (uncurry (<=)) . zip v $ tail v
+
+
+
+-- |
+-- \( \mathcal{O} \left( n * \log_2 n \right) \)
+--
+-- Constructs an 'Alphabet' from a 'Foldable' structure of symbols which are
+-- 'IsString' values.
 {-# INLINE[1]  fromSymbols #-}
 {-# SPECIALISE fromSymbols :: Foldable t => t String    -> Alphabet String    #-}
 {-# SPECIALISE fromSymbols :: Foldable t => t ShortText -> Alphabet ShortText #-}
@@ -564,6 +597,22 @@ truncateAtMaxSymbol symbols alphabet =
         case e of
           Nothing -> Just k
           Just  i -> Just $ max k i
+
+-- |
+-- \( \mathcal{O} \left( n * \log_2 n \right) \)
+alphabetPreprocessingWOGap :: (Ord a, InternalClass a, Foldable t) => t a -> NonEmpty a
+alphabetPreprocessingWOGap = NE.fromList . sort . removeSpecialSymbolsAndDuplicates . toList
+  where
+    removeSpecialSymbolsAndDuplicates = (`evalState` mempty) . filterM f
+      where
+        f x
+          | isGapSymboled     x = pure False
+          | isMissingSymboled x = pure False
+          | otherwise           = do
+              seenSet <- get
+              _       <- put $ x `Set.insert` seenSet
+              pure $ x `notElem` seenSet
+
 
 
 -- |
