@@ -311,8 +311,9 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
 
                 thisBlockCharInfo' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+                recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
 
-                thisBlockData     = (thisBlockName', recodedCharacters, thisBlockCharInfo')
+                thisBlockData     = (thisBlockName', recodedCharacters', thisBlockCharInfo')
 
                 (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
 
@@ -324,6 +325,29 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
+
+-- | recodeAddNonAddMissing takes Block data and recodes missing for additive and non-additive characters
+recodeNonAddMissingBlock :: V.Vector CharInfo -> V.Vector CharacterData -> V.Vector CharacterData 
+recodeNonAddMissingBlock blockCharInfo singleTaxonBlockData = 
+    V.zipWith recodeNonAddMissingCharacter blockCharInfo singleTaxonBlockData
+
+-- | recodeAddNonAddMissingCharacter recodes additive and non -additive missing data
+recodeNonAddMissingCharacter :: CharInfo -> CharacterData -> CharacterData
+recodeNonAddMissingCharacter charInfo inCharData = 
+    let inCharType = charType charInfo
+    in
+    if inCharType /= NonAdd then inCharData
+    else 
+        let nonAddState = (V.head . snd3 . stateBVPrelim) inCharData 
+            newState = if  BV.isZeroVector nonAddState then V.singleton (complement nonAddState)   
+                       else V.singleton nonAddState
+        in
+        if  BV.isZeroVector nonAddState then 
+            inCharData { stateBVPrelim = (newState, newState, newState)
+                       , stateBVFinal = newState}
+        else 
+            inCharData
+
 
 -- | getAddNonAddAlphabets takes recoded chartcater data and resets the alphabet 
 -- field in charInfo to reflect observed states.  This is used tpo properly sety missing and 
