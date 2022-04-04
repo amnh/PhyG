@@ -363,6 +363,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numBits - 1]
                 stateAlphabet = fromSymbolsWOGap foundSymbols
             in
+            trace ("RNA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then 
@@ -661,7 +662,7 @@ getGeneralSequenceChar inCharInfo stateList =
         [newSequenceChar]
 
 
--- | getSingleStateBV takes a single state and retuerns its bitvector
+-- | getSingleStateBV takes a single state and returns its bitvector
 -- based on alphabet size--does not check if ambiguous--assumes single state
 getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
 getSingleStateBV localAlphabet localState =

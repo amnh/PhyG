@@ -144,11 +144,11 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
     in
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
 
--- | packNonAdd takes taxon by vector cahracter data and list of character information
+-- | packNonAdd takes taxon by vector character data and list of character information
 -- and returns bit packed and recoded non-additive characters and charInfo
 -- input int is character index in block
--- the weight is skipping becasue of the weight replication in reorganize
--- if chracters have non integer weight then they were not reorganized and left
+-- the weight is skipping because of the weight replication in reorganize
+-- if characters have non integer weight then they were not reorganized and left
 -- as single BV--here as well. Should be very few (if any) of them.
 packNonAdd :: V.Vector CharacterData -> CharInfo -> ([V.Vector CharacterData], [CharInfo])
 packNonAdd inCharDataV charInfo =
@@ -159,7 +159,7 @@ packNonAdd inCharDataV charInfo =
             numNonAdd = V.length $ V.head leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = V.toList $ fmap (getStateNumber leafNonAddV) (V.fromList [0.. numNonAdd - 1])
+            stateNumDataPairList = V.toList $ fmap (getStateNumber leafNonAddV) (V.fromList [0.. numNonAdd - 1]) 
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
             (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
@@ -224,6 +224,7 @@ recodeBV2Word64Single charInfo taxBVLL =
 -- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8. 
 recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64 charInfo stateNumber taxBVLL =
+    trace ("Enter RBV2W64: " ++ (show stateNumber) ++ " " ++ (show (length taxBVLL, fmap length taxBVLL))) (
     if null taxBVLL then ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
@@ -242,14 +243,15 @@ recodeBV2Word64 charInfo stateNumber taxBVLL =
             chunkStateIndexLLL = SL.chunksOf numCanPack stateIndexLL
 
             -- create chunks of charcaters to be put into single element of vector of Word64
-            chunkDataListL = fmap (SL.chunksOf numCanPack) taxBVLL
+            chunkDataListL = SL.chunksOf numCanPack taxBVLL
 
-            -- pack chunks into Word64
+            -- pack chunks from each taxon into Word64
             packedDataL = fmap (chunksToWord64 stateNumber chunkStateIndexLLL) chunkDataListL
 
         in
-        trace ("RBV2W64: " ++ (show taxBVLL))
+        trace ("RBV2W64: " ++ (show packedDataL))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType}])
+        )
 
 
 -- | chunksToWord64 take states number and chunk (list of BV.bitvector non-additive)
@@ -262,30 +264,40 @@ chunksToWord64 stateNumber stateCharIndexLLL taxChunk =
     let word64Vect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) stateCharIndexLLL taxChunk 
         word64Prelim = (word64Vect, word64Vect, word64Vect)
     in
-    emptyCharacter {packedNonAddPrelim = word64Prelim, packedNonAddFinal =word64Vect }
+    trace ("C2W64: " ++ (show word64Vect))
+    emptyCharacter {packedNonAddPrelim = word64Prelim, packedNonAddFinal = word64Vect }
 
 -- | makeWord64FromChunk takes a list (= chunk) of bitvectors and cretes bit subcharacter (Word64)
 -- with adjacent bits for each BV in chunk.  It then bit shifts the appropriate number of bits for each member
 -- of the chunk and finally ORs all (64/stateNumber) Word64s to  make the final packed representation
 makeWord64FromChunk ::  Int -> [[Int]] ->  [BV.BitVector] -> Word64
 makeWord64FromChunk stateNumber chunkIndexLL bvChunkList =
-    let subCharacterList = zipWith3 (makeSubCharacter stateNumber) chunkIndexLL bvChunkList [0..(length bvChunkList - 1)]
-    in
-    L.foldl1' (.|.) subCharacterList
+    if null bvChunkList then (0 :: Word64)
+    else
+        let subCharacterList = zipWith3 (makeSubCharacter stateNumber) chunkIndexLL bvChunkList [0..(length bvChunkList - 1)]
+        in
+        trace ("MW64FC: " ++ (show subCharacterList) ++ " " ++ (show $ L.foldl1' (.|.) subCharacterList))
+        L.foldl1' (.|.) subCharacterList
 
 -- | makeSubCharacter makes subcharcter from single bitvector and shifts appropriate number of bits
 -- to make Word64 with sub character bits set and all other bits OFF 
 makeSubCharacter :: Int -> [Int] -> BV.BitVector -> Int -> Word64
 makeSubCharacter stateNumber stateIndexList inBV chunkIndex =
+    trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show chunkIndex) ++ (show inBV))) (
     let -- get bit of state indices
         bitStates = fmap (testBit inBV) stateIndexList
+
+        -- get index of states when only minimally bit encoded (0101, 0001 -> 11, 01)
         newBitStates = setOnBits (zeroBits :: Word64) bitStates 0 
         subCharacter = shiftR newBitStates (chunkIndex * stateNumber)
     in
+    trace ("MSC: " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
     if stateNumber /= length stateIndexList then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
     else 
         subCharacter
+    )
+    )
         
 -- | setOnBits recursively sets On bits in a list of Bool
 setOnBits :: Word64 -> [Bool] -> Int -> Word64
@@ -301,21 +313,21 @@ setOnBits baseVal onList bitIndex =
 -- bit indices of states in the bv this becasue starets can be non-seqeuntial (0|3)
 getStateIndexList :: [[BV.BitVector]] -> [[Int]]
 getStateIndexList taxBVLL = 
-    let numBVs = length taxBVLL
-        stateIndexLL = fmap (getStateIndices (fmap V.fromList taxBVLL)) [0.. numBVs - 1]
-    in
-    trace ("GSIL: " ++ (show numBVs) ++ "\n" ++ (show taxBVLL))
-    stateIndexLL
+    if null taxBVLL then []
+    else 
+        let firstCharBV = head taxBVLL
+            stateIndexL = getStateIndices firstCharBV
+        in
+        trace ("GSIL: " ++ (show firstCharBV) ++ " " ++ (show stateIndexL))
+        stateIndexL : getStateIndexList (tail taxBVLL)
 
 -- | getStateIndices takes list of vectors of BVs and index and gets the states for that index bv
-getStateIndices :: [V.Vector BV.BitVector] -> Int -> [Int]
-getStateIndices taxBVLL bvIndex =
-    let bvList = fmap (V.! bvIndex) taxBVLL
-
-        -- get all ON bits
+getStateIndices :: [BV.BitVector] -> [Int]
+getStateIndices bvList =
+    let -- get all ON bits
         onBV = L.foldl1' (.|.) bvList
 
-        -- test for On bits
+        -- test for ON bits
         onList = fmap (testBit onBV) [0.. (finiteBitSize onBV) - 1]
         onIndexPair = zip onList [0.. (finiteBitSize onBV) - 1]
         indexList = fmap snd $ filter ((== True) .fst) onIndexPair
@@ -337,8 +349,8 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
         let (stateNum, stateData) = head inPairList
         in
         -- skip--constant
-        if stateNum == 1 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, cur128)
-        else if stateNum <= 2 then binStateNumber (tail inPairList) (stateData : cur2, cur4, cur5, cur8, cur64, cur128)
+        if stateNum < 2 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, cur128)
+        else if stateNum == 2 then binStateNumber (tail inPairList) (stateData : cur2, cur4, cur5, cur8, cur64, cur128)
         else if stateNum <= 4 then binStateNumber (tail inPairList) (cur2, stateData : cur4, cur5, cur8, cur64, cur128)
         else if stateNum <= 5 then binStateNumber (tail inPairList) (cur2, cur4, stateData : cur5, cur8, cur64, cur128)
         else if stateNum <= 8 then binStateNumber (tail inPairList) (cur2, cur4, cur5, stateData : cur8, cur64, cur128)
@@ -357,8 +369,11 @@ getStateNumber :: V.Vector (V.Vector BV.BitVector) -> Int -> (Int, [BV.BitVector
 getStateNumber  characterDataVV characterIndex =
     let thisCharV = V.map (V.! characterIndex) characterDataVV
         missingVal = V.foldl1' (.|.) thisCharV
-        numStates = popCount $ V.foldl1' (.|.) $ V.filter (/= missingVal) thisCharV
-        thisCharL = V.toList thisCharV
+        nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) thisCharV
+        numStates = popCount nonMissingBV
+
+        -- this turns off non-missing bits
+        thisCharL = V.toList $ (fmap (.&. nonMissingBV) thisCharV)
     in
     if numStates <= 2 then (2, thisCharL)
     else if numStates <= 4 then (4, thisCharL)
