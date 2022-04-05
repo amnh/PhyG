@@ -309,7 +309,7 @@ setOnBits baseVal onList bitIndex =
         in
         setOnBits newVal (tail onList) (bitIndex + 1)
 
--- | getStateIndexList takes lits of list bit vectors and for each returns a list of 
+-- | getStateIndexList takes list of list bit vectors and for each returns a list of 
 -- bit indices of states in the bv this becasue starets can be non-seqeuntial (0|3)
 getStateIndexList :: [[BV.BitVector]] -> [[Int]]
 getStateIndexList taxBVLL = 
