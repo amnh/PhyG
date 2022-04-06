@@ -317,7 +317,7 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
     in
     trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
-    if stateNumber /= length stateIndexList then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
+    if length stateIndexList `notElem` [((fst $ divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
     else 
         subCharacter
     )
