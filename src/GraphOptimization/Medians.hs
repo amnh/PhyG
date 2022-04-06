@@ -85,6 +85,7 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph    as LG
 import qualified Utilities.Utilities    as U
+import qualified Input.BitPack          as BP
 
 import Data.Maybe
 
@@ -149,8 +150,13 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
     else if thisType == Matrix then
       let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
         in
-        --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
+
+    else if thisType `elem` packedNonAddTypes then 
+        --assumes all weight 1
+        let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
+        in
+        (newCharVect, localCost  newCharVect) 
 
     else if thisType `elem` prealignedCharacterTypes then
       let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar

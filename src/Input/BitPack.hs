@@ -38,6 +38,7 @@ Portability :  portable (I hope)
 
 module Input.BitPack
   ( packNonAdditiveData
+  , median2Packed
   ) where
 
 import qualified Data.List                   as L
@@ -77,42 +78,113 @@ Methods are similar too those of Lamport 1975, Ronquist 1998, Moelannen 1999, Go
 and White and Holland 2011, but differ in detail due to
 the programming language (Haskell) and need to maintain data structures 
 useful for network analysis.
--}
 
-{-
 The basic character data structure is a vector of Word64, the original vector of bit-vectors
 is split into a series of new characters depending on the number of states (in non-missing cells).
 
 A single Word64 can then hold 32 2-state. 16 4-state, 12 5-state (awkward but useful for DNA),
-4 8-state, 1 64-state, and a bit-vector for >64 states.
+4 8-state, 1 64-state, and a bit-vector for >64 states. 
 
-The AND/OR operations for post-order 2-medians occur by total word AND/OR
-then through bit shifting and masking examine each sub-character (bit range) in turn.
+Character weights are all = 1 in static charcaters.  This is ensured by organizeBlockData
+in Input.Reorganize.hs basically--characters are multiplied by weight (if integer--otherwise not recoded)
+So can check and only recode characters with weight of 1.
+-}
 
-in brief, each state in each sub-character is bit shifted right to the 0th position (big-endian)
-AND-ed with '1' (ie all 0 nbit except the 0th) these state values are OR-ed over the states.
-If there was overlap between the two inputs (ie no change) this will be 1, else 0.
-The complement of this value is taken and added to that for all the sub-characters yielding
-the unweighted cost of the pair of inputs. This value (call it overlapBit for now 1 for yes, 0 no)
-is used for median calculation
-
-The median states are calculated by keeping the AND and OR sub character states (all other masked to zero
-via an AND operation) and mulitplying the AND substates by the overlapBit and
-the OR states by the complement of the overlap bit and ORing the two results
-
-THis could no doubt be made more efficient, but at least this has no logic
-although worth testing the multiplicatoin versus a function (hence logic):
-f overlapBit a
-where f 0 a = 0 
-f _ a = a.
-
-so (F overlapBit subcharater AND) OR (F ~overlapBit subcharactr OR)
--} 
 
 {-
-Character weights are all = 1 in static charcaters.  This is ensured by organizeBlockData
-in Input.Reorganize.hs basically--charcters are nultiplied by weight (if integer--otherwise not recoded)
-So can check and only recode characters with weight of 1.
+Functions for median2 calculations of packed types 
+These are used in post-order graph traversals and pairwise
+distance functions among others.
+-}
+
+-- | median2Packed takes two characters of packedNonAddTypes
+-- and retuns new character data based on 2-median and cost
+median2Packed :: CharType -> CharacterData -> CharacterData -> CharacterData
+median2Packed inCharType leftChar rightChar =
+    --assumes all weight 1
+    let (newStateVect, newCost) = if inCharType == Packed2       then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  --else if inCharType == Packed5  then median2Packed andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  --else if inCharType == Packed8  then median2Packed andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else error ("Character type " ++ show inCharType ++ " unrecongized/not implemented")
+
+        newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
+                                      , localCost = fromIntegral newCost
+                                      , globalCost = (fromIntegral newCost) + globalCost leftChar + globalCost rightChar
+                                      }
+    in
+    newCharacter
+
+{-
+andOrN functions derived from White and Holland 2011
+-}
+
+-- | mask2A first Mask for 2 state 64 bit
+-- 32 x (01)
+-- 6148914691236517205
+mask2A :: Word64
+mask2A = 0x5555555555555555
+
+-- | mask2B second Mask for 2 state 64 bit
+-- 32 x (10)
+-- 12297829382473034410
+mask2B :: Word64
+mask2B = 0xAAAAAAAAAAAAAAAA
+
+-- | mask4A first mask for 4 state  64 bits
+-- 8608480567731124087 
+-- 16 X (0111)
+mask4A :: Word64
+mask4A = 0x7777777777777777
+
+-- | mask4B second mask for 4 states 64 bits
+-- 9838263505978427528 
+-- 16 X (1000)
+mask4B :: Word64
+mask4B = 0x8888888888888888
+
+-- | andOR2 and or function for Packed2 encoding
+andOR2 :: Word64 -> Word64 -> (Word64, Int)
+andOR2 x y = 
+    let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B)) 
+    in
+    (z, popCount u)
+
+-- | andOR4 and or function for Packed4 encoding
+andOR4 :: Word64 -> Word64 -> (Word64, Int)
+andOR4 x y = 
+    let u = shiftR ((((x .&. y .&. mask4A) + mask4A) .|. (x .&. y)) .&. mask4B) 3 
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask4A) `xor` mask4B)) 
+    in
+    (z, popCount u)
+
+
+
+-- | andOR64 and or function for Packed64 encoding
+andOR64 :: Word64 -> Word64 -> (Word64, Int)
+andOR64 x y =
+     if  (x .&. y) /= zeroBits then (x .&. y, 0)
+     else (x .|. y, popCount $ x .|. y)
+
+-- | median2Word64 driver function for median of two PackedN states
+median2Word64 :: (Word64 -> Word64 -> (Word64, Int)) -> V.Vector Word64 -> V.Vector Word64 -> (V.Vector Word64, Int)
+median2Word64 andOrFun leftVect rightVect =
+    let (stateVect, costVect) = V.unzip $ V.zipWith andOrFun leftVect rightVect
+    in
+    (stateVect, V.sum costVect)
+
+{-
+Functions for median3 calculations of packed types 
+These are used in pre-order graph traversals and final state assignment
+among others.
+-}
+
+
+{-
+Functions to encode ("pack") non-additive characters into new Word64 characters
+based on their number of states
 -}
 
 -- | packData takes input data and creates a variety of bit-packed data types
@@ -269,7 +341,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
             packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
         in
-        trace ("RBV2W64: " ++ (show packedDataL))
+        -- trace ("RBV2W64: " ++ (show packedDataL))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType}])
         )
 
@@ -349,17 +421,6 @@ getStateIndexList taxBVL =
         in
         trace ("GSIL: " ++ (show indexList))
         indexList 
-        
-
--- | getStateIndices takes list of vectors of BVs and index and gets the states for that index bv
-getStateIndices :: BV.BitVector -> [Int]
-getStateIndices inBV =
-    let -- test for ON bits
-        onList = fmap (testBit inBV) [0.. (finiteBitSize inBV) - 1]
-        onIndexPair = zip onList [0.. (finiteBitSize inBV) - 1]
-        indexList = fmap snd $ filter ((== True) .fst) onIndexPair
-    in
-    indexList
 
 
 -- | binStateNumber takes a list of pairs of char states number and data column as list of bitvectors and 
@@ -409,15 +470,3 @@ getStateNumber  characterDataVV characterIndex =
     else if numStates <= 64 then (64, thisCharL)
     else (128, thisCharL)
 
--- | chunksToWord64 take states number and chunk (list of BV.bitvector non-additive)
--- and a list of the indices of the character states  (could be non seqeuential 0|2; A|T etc)
--- and converts to a single Word64 by setting bits and shifting
--- yeilds a single taxon's new character
--- since chunks of both char indices and bitvecots--that's why list of list of list
-chunksToWord64 :: Int -> [[[Int]]] ->  [[BV.BitVector]] -> CharacterData
-chunksToWord64 stateNumber stateCharIndexLLL taxChunk =
-    let word64Vect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) stateCharIndexLLL taxChunk 
-        word64Prelim = (word64Vect, word64Vect, word64Vect)
-    in
-    trace ("C2W64: " ++ (show word64Vect))
-    emptyCharacter {packedNonAddPrelim = word64Prelim, packedNonAddFinal = word64Vect }
