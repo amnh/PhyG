@@ -279,13 +279,6 @@ interUnionBV leftBV rightBV =
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
 interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight leftChar rightChar =
-    {-
-    let intersectVect =  V.zipWith localAnd (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        unionVect = V.zipWith localOr (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        numUnions = V.length $ V.filter BV.isZeroVector intersectVect
-        newCost = thisWeight * fromIntegral numUnions
-        newStateVect = V.zipWith localAndOr intersectVect unionVect
-    -}
     let (newStateVect, costVect) = V.unzip $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
         newCost = thisWeight * (fromIntegral $ V.sum costVect)
         newCharacter = emptyCharacter { stateBVPrelim = (snd3 $ stateBVPrelim leftChar, newStateVect, snd3 $ stateBVPrelim rightChar)
