@@ -104,8 +104,8 @@ median2Packed inCharType leftChar rightChar =
     --assumes all weight 1
     let (newStateVect, newCost) = if inCharType == Packed2       then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  --else if inCharType == Packed5  then median2Packed andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  --else if inCharType == Packed8  then median2Packed andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed8  then median2Word64 andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else error ("Character type " ++ show inCharType ++ " unrecongized/not implemented")
 
@@ -144,6 +144,31 @@ mask4A = 0x7777777777777777
 mask4B :: Word64
 mask4B = 0x8888888888888888
 
+-- | mask5A first mask for 5 states 64 bits -- need to check what state of top 4  bits--should be OFF I think
+-- 12 x (01111)
+-- 557865244164603375
+mask5A :: Word64
+mask5A = 0x7BDEF7BDEF7BDEF
+
+-- | mask5B second mask for 5 states 64 bits -- need to check what state of top 4  bits-these are ON
+-- 12 x (10000)
+-- 595056260442243600 (top 4 OFF) v 17888878829544948240
+-- 0x842108421084210 (top 4 OFF) v  F842108421084210
+mask5B :: Word64
+mask5B = 0xF842108421084210
+
+-- | mask8A first mask for 8 states 64 bits
+-- 8 x (01111111) 
+-- 9187201950435737471
+mask8A :: Word64
+mask8A = 0x7F7F7F7F7F7F7F7F
+
+-- | mask8B second mask for 8 states 64 bits
+-- 8 x (10000000)
+-- 9259542123273814144
+mask8B :: Word64
+mask8B = 0x8080808080808080
+
 -- | andOR2 and or function for Packed2 encoding
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
 andOR2 x y = 
@@ -160,7 +185,21 @@ andOR4 x y =
     in
     (z, popCount u)
 
+-- | andOR5 and or function for Packed5 encoding
+andOR5:: Word64 -> Word64 -> (Word64, Int)
+andOR5 x y = 
+    let u = shiftR ((((x .&. y .&. mask4A) + mask5A) .|. (x .&. y)) .&. mask5B) 4 
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask5A) `xor` mask5B)) 
+    in
+    (z, popCount u)
 
+-- | andOR8 and or function for Packed8 encoding
+andOR8 :: Word64 -> Word64 -> (Word64, Int)
+andOR8 x y = 
+    let u = shiftR ((((x .&. y .&. mask8A) + mask8A) .|. (x .&. y)) .&. mask8B) 7 
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask8A) `xor` mask8B)) 
+    in
+    (z, popCount u)
 
 -- | andOR64 and or function for Packed64 encoding
 andOR64 :: Word64 -> Word64 -> (Word64, Int)
