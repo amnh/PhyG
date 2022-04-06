@@ -156,7 +156,7 @@ packNonAdd inCharDataV charInfo =
     else 
         -- recode non-additive characters
         let leafNonAddV =  fmap (snd3 . stateBVPrelim) inCharDataV
-            numNonAdd = V.length $ V.head leafNonAddV
+            numNonAdd = (V.length . V.head) leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
             stateNumDataPairList = V.toList $ fmap (getStateNumber leafNonAddV) (V.fromList [0.. numNonAdd - 1]) 
@@ -168,14 +168,14 @@ packNonAdd inCharDataV charInfo =
             (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
 
         in
-        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList) ++ "\n" ++ (show(newStateCharListList, newCharInfoList) ))
+        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
         (fmap V.fromList newStateCharListList, concat newCharInfoList)
 
--- | makeStateNCharacter takes a list of charcaters each of which is a list of taxon caracter values and
+-- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
 -- via chuncksOf--or if 64, not packing, if 128 stays bitvector
 -- check for non-sequential states (A,T) or (0,2) etc
--- return is list of taxa x single new character
+-- return is list of taxa x single new (packed) character
 makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 makeStateNCharacter charInfo stateNumber charDataLL = 
     let (recodeList, newCharInfo) = if stateNumber > 64 then recodeBV2BV charInfo charDataLL
@@ -186,12 +186,19 @@ makeStateNCharacter charInfo stateNumber charDataLL =
 
 -- | recodeBV2BV take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- BV non-additive characters of type NonAdd.
+-- this results in a single character and charInfo in list so can be concatenated
+-- and removed if empty
 recodeBV2BV :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
-recodeBV2BV charInfo taxBVLL =
-    if null taxBVLL then ([],[])
+recodeBV2BV charInfo charTaxBVLL =
+    if null charTaxBVLL then ([],[])
     else 
-        let newStateList = fmap V.fromList taxBVLL
+        let -- convert to taxon by characgter data list
+            newStateList = makeNewCharacterData charTaxBVLL
+
+            -- rename with thype
             newCharName = T.append (name charInfo) $ T.pack "LargeState"
+
+            -- create new characters for each taxon
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = NonAdd}])
@@ -200,17 +207,19 @@ recodeBV2BV charInfo taxBVLL =
 
 -- | recodeBV2Word64Single take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- of Word64 unpacked non-additive characters of type Packed64.
+-- this results in a single character and charInfo in list so can be concatenated
+-- and removed if empty
 recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
-recodeBV2Word64Single charInfo taxBVLL =
-    if null taxBVLL then ([],[])
+recodeBV2Word64Single charInfo charTaxBVLL =
+    if null charTaxBVLL then ([],[])
     else 
         let newCharName = T.append (name charInfo) $ T.pack "64State"
         
             -- convert BV to Word64
-            taxWord64BLL = fmap (fmap BV.toUnsignedNumber) taxBVLL
+            taxWord64BLL = fmap (fmap BV.toUnsignedNumber) charTaxBVLL
 
-            -- convert to vector Word64
-            newStateList = fmap V.fromList taxWord64BLL
+            -- convert to taxon by character data lisyt
+            newStateList = makeNewCharacterData taxWord64BLL
 
             -- make new character data
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
@@ -218,14 +227,26 @@ recodeBV2Word64Single charInfo taxBVLL =
         (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
         where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
 
+-- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
+-- of type a (bitvector or Word64) and returns a list of taxa each of which is a vector
+-- of type a charactyer data
+makeNewCharacterData :: [[a]] -> [V.Vector a]
+makeNewCharacterData charByTaxSingleCharData  =
+    let taxonByCharL = L.transpose charByTaxSingleCharData
+        taxonByCharV = fmap V.fromList taxonByCharL
+    in
+    taxonByCharV
+
 
 -- | recodeBV2Word64 take a list of BV.bitvector non-add characters and the states number of creates
 -- Word64 representaions where subcharcaters are created and shifted to proper positions and ORd
 -- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8. 
+-- this results in a single character and charInfo in list so can be concatenated
+-- and removed if empty
 recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
-recodeBV2Word64 charInfo stateNumber taxBVLL =
-    trace ("Enter RBV2W64: " ++ (show stateNumber) ++ " " ++ (show (length taxBVLL, fmap length taxBVLL))) (
-    if null taxBVLL then ([],[])
+recodeBV2Word64 charInfo stateNumber charTaxBVLL =
+    trace ("Enter RBV2W64: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
+    if null charTaxBVLL then ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
                           else if stateNumber == 4 then Packed4
@@ -238,15 +259,14 @@ recodeBV2Word64 charInfo stateNumber taxBVLL =
             -- get number of characters that can be packed into Word64 for that state number
             numCanPack = fst $ divMod 64 stateNumber
 
-            -- get state index list for all characters (could be non seqeuenctial 0|2; A|T etc)
-            stateIndexLL = getStateIndexList taxBVLL 
-            chunkStateIndexLLL = SL.chunksOf numCanPack stateIndexLL
+            -- convert to taxon by character data list
+            taxCharBVLL = L.transpose charTaxBVLL
 
-            -- create chunks of charcaters to be put into single element of vector of Word64
-            chunkDataListL = SL.chunksOf numCanPack taxBVLL
+            -- get state index list for all characters (could be non sequential 0|2; A|T etc)
+            stateIndexLL = fmap getStateIndexList charTaxBVLL 
 
-            -- pack chunks from each taxon into Word64
-            packedDataL = fmap (chunksToWord64 stateNumber chunkStateIndexLLL) chunkDataListL
+            -- convert data each taxon into packedWord64
+            packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
         in
         trace ("RBV2W64: " ++ (show packedDataL))
@@ -254,44 +274,48 @@ recodeBV2Word64 charInfo stateNumber taxBVLL =
         )
 
 
--- | chunksToWord64 take states number and chunk (list of BV.bitvector non-additive)
--- and a list of the indices of the character states  (could be non seqeuential 0|2; A|T etc)
--- and converts to a single Word64 by setting bits and shifting
--- yeilds a single taxon's new character
--- since chunks of both char indices and bitvecots--that's why list of list of list
-chunksToWord64 :: Int -> [[[Int]]] ->  [[BV.BitVector]] -> CharacterData
-chunksToWord64 stateNumber stateCharIndexLLL taxChunk =
-    let word64Vect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) stateCharIndexLLL taxChunk 
-        word64Prelim = (word64Vect, word64Vect, word64Vect)
-    in
-    trace ("C2W64: " ++ (show word64Vect))
-    emptyCharacter {packedNonAddPrelim = word64Prelim, packedNonAddFinal = word64Vect }
+-- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into 
+-- a Word64 and performs appropriate bit settting and shifting to create  Word64
+packIntoWord64 :: Int -> Int -> [[Int]] -> [BV.BitVector] -> CharacterData
+packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
+    -- get packable chunk of bv and correcsponding state indices
+    let packBVList = SL.chunksOf numToPack inBVList
+        packIndexLL = SL.chunksOf numToPack stateCharacterIndexL
+
+        -- pack each chunk 
+        packedWordVect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
+
+    in    
+    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
+                   , packedNonAddFinal = packedWordVect
+                   }
+
 
 -- | makeWord64FromChunk takes a list (= chunk) of bitvectors and cretes bit subcharacter (Word64)
 -- with adjacent bits for each BV in chunk.  It then bit shifts the appropriate number of bits for each member
 -- of the chunk and finally ORs all (64/stateNumber) Word64s to  make the final packed representation
 makeWord64FromChunk ::  Int -> [[Int]] ->  [BV.BitVector] -> Word64
-makeWord64FromChunk stateNumber chunkIndexLL bvChunkList =
-    if null bvChunkList then (0 :: Word64)
+makeWord64FromChunk stateNumber stateIndexLL bvList =
+    if null bvList then (0 :: Word64)
     else
-        let subCharacterList = zipWith3 (makeSubCharacter stateNumber) chunkIndexLL bvChunkList [0..(length bvChunkList - 1)]
+        let subCharacterList = zipWith3 (makeSubCharacter stateNumber) stateIndexLL bvList [0..(length bvList - 1)]
         in
         trace ("MW64FC: " ++ (show subCharacterList) ++ " " ++ (show $ L.foldl1' (.|.) subCharacterList))
         L.foldl1' (.|.) subCharacterList
 
--- | makeSubCharacter makes subcharcter from single bitvector and shifts appropriate number of bits
--- to make Word64 with sub character bits set and all other bits OFF 
+-- | makeSubCharacter makes sub-character (ie only those bits for states) from single bitvector and shifts appropriate number of bits
+-- to make Word64 with sub character bits set and all other bits OFF and in correct bit positions for that sub-character
 makeSubCharacter :: Int -> [Int] -> BV.BitVector -> Int -> Word64
-makeSubCharacter stateNumber stateIndexList inBV chunkIndex =
-    trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show chunkIndex) ++ (show inBV))) (
+makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
+    trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show subCharacterIndex) ++ (show inBV))) (
     let -- get bit of state indices
         bitStates = fmap (testBit inBV) stateIndexList
 
         -- get index of states when only minimally bit encoded (0101, 0001 -> 11, 01)
         newBitStates = setOnBits (zeroBits :: Word64) bitStates 0 
-        subCharacter = shiftL newBitStates (chunkIndex * stateNumber)
+        subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
-    trace ("MSC: " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
+    trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
     if stateNumber /= length stateIndexList then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
     else 
@@ -309,27 +333,30 @@ setOnBits baseVal onList bitIndex =
         in
         setOnBits newVal (tail onList) (bitIndex + 1)
 
--- | getStateIndexList takes list of list bit vectors and for each returns a list of 
--- bit indices of states in the bv this becasue starets can be non-seqeuntial (0|3)
-getStateIndexList :: [[BV.BitVector]] -> [[Int]]
-getStateIndexList taxBVLL = 
-    if null taxBVLL then []
+-- | getStateIndexList takes list of list bit vectors and for each taxon for a given bv character 
+-- and returns a list of 
+-- bit indices of states in the bv this because states can be non-seqeuntial (0|3)
+-- used to have a list of all states used (ON) in a character in all taxa
+getStateIndexList :: [BV.BitVector] -> [Int]
+getStateIndexList taxBVL = 
+    if null taxBVL then []
     else 
-        let firstCharBV = head taxBVLL
-            stateIndexL = getStateIndices firstCharBV
+        let inBV = L.foldl1' (.|.) taxBVL
+            onList = fmap (testBit inBV) [0.. (finiteBitSize inBV) - 1]
+            onIndexPair = zip onList [0.. (finiteBitSize inBV) - 1]
+            indexList = fmap snd $ filter ((== True) .fst) onIndexPair
+
         in
-        trace ("GSIL: " ++ (show firstCharBV) ++ " " ++ (show stateIndexL))
-        stateIndexL : getStateIndexList (tail taxBVLL)
+        trace ("GSIL: " ++ (show indexList))
+        indexList 
+        
 
 -- | getStateIndices takes list of vectors of BVs and index and gets the states for that index bv
-getStateIndices :: [BV.BitVector] -> [Int]
-getStateIndices bvList =
-    let -- get all ON bits
-        onBV = L.foldl1' (.|.) bvList
-
-        -- test for ON bits
-        onList = fmap (testBit onBV) [0.. (finiteBitSize onBV) - 1]
-        onIndexPair = zip onList [0.. (finiteBitSize onBV) - 1]
+getStateIndices :: BV.BitVector -> [Int]
+getStateIndices inBV =
+    let -- test for ON bits
+        onList = fmap (testBit inBV) [0.. (finiteBitSize inBV) - 1]
+        onIndexPair = zip onList [0.. (finiteBitSize inBV) - 1]
         indexList = fmap snd $ filter ((== True) .fst) onIndexPair
     in
     indexList
@@ -381,3 +408,16 @@ getStateNumber  characterDataVV characterIndex =
     else if numStates <= 8 then (8, thisCharL)
     else if numStates <= 64 then (64, thisCharL)
     else (128, thisCharL)
+
+-- | chunksToWord64 take states number and chunk (list of BV.bitvector non-additive)
+-- and a list of the indices of the character states  (could be non seqeuential 0|2; A|T etc)
+-- and converts to a single Word64 by setting bits and shifting
+-- yeilds a single taxon's new character
+-- since chunks of both char indices and bitvecots--that's why list of list of list
+chunksToWord64 :: Int -> [[[Int]]] ->  [[BV.BitVector]] -> CharacterData
+chunksToWord64 stateNumber stateCharIndexLLL taxChunk =
+    let word64Vect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) stateCharIndexLLL taxChunk 
+        word64Prelim = (word64Vect, word64Vect, word64Vect)
+    in
+    trace ("C2W64: " ++ (show word64Vect))
+    emptyCharacter {packedNonAddPrelim = word64Prelim, packedNonAddFinal = word64Vect }
