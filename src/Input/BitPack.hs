@@ -343,17 +343,64 @@ packedPreorder localCharType (leftPrelim, childPrelim, rightPrelim) parentFinal 
 
 {-
 Functions for hard-wired 3-way optimization
+ basically 
+            C & P1 & P2 -> if not 0
+            else (C & P1) | (C & P2) | (P1 & P2) -> if not 0
+            else C | P1 | P2 
+ bit operations based on Goloboff (2002) for trichotomous trees
 -}
  -- | threeWayPacked median 3 for hard-wired networks
  -- this is based on Goloboff (2002) for trichotomous trees
 threeWayPacked :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
-threeWayPacked localCharType parent1 parent2 curNode = curNode -- place holder
-{- 
-    basically 
-            C & P1 & P2 -> if not 0
-            else (C & P1) | (C & P2) | (P1 & P2) -> if not 0
-            else C | P1 | P2 
--}
+threeWayPacked inCharType parent1 parent2 curNode = 
+    let newStateVect = if inCharType == Packed2       then V.zipWith3 threeWay2 parent1 parent2 curNode 
+                       else if inCharType == Packed4  then V.zipWith3 threeWay4 parent1 parent2 curNode 
+                       --else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode 
+                       --else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode 
+                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode 
+                       else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    newStateVect 
+
+-- | threeWay2 3-way hardwired optimization for Packed2 Word64
+threeWay2 :: Word64 -> Word64 -> Word64 -> Word64
+threeWay2 p1 p2 cN = 
+    let x = p1 .&. p2 .&. cN
+        y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
+        z = p1 .|. p2 .|. cN
+        c1 = xor mask2B ((mask2B .&. x) .|. (shiftR (mask2A .&. x) 1))
+        d1 = xor mask2B ((mask2B .&. y) .|. (shiftR (mask2A .&. y) 1))
+        c2 = shiftL c1 1
+        d2 = shiftL d1 1
+        newState = x .|. (y .&. c2) .|. (z .&. d2)
+    in
+    newState
+
+-- | threeWay4 3-way hardwired optimization for Packed2 Word64
+threeWay4 :: Word64 -> Word64 -> Word64 -> Word64
+threeWay4 p1 p2 cN = 
+    let x = p1 .&. p2 .&. cN
+        y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
+        z = p1 .|. p2 .|. cN
+        c1 = xor mask4B ((mask4B .&. x) .|. (shiftR (mask4C .&. x) 1) .|. (shiftR (mask4D .&. x) 2) .|. (shiftR (mask4E .&. x) 3) )
+        d1 = xor mask4B ((mask4B .&. y) .|. (shiftR (mask4C .&. y) 1) .|. (shiftR (mask4D .&. y) 2) .|. (shiftR (mask4E .&. y) 3) )
+        c2 = (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
+        d2 = (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3)
+        newState = x .|. (y .&. c2) .|. (z .&. d2)
+    in
+    newState
+
+-- | threeWay64 3-way hardwired optimization for straight Word64
+threeWay64 :: Word64 -> Word64 -> Word64 -> Word64
+threeWay64 p1 p2 cN = 
+    let x = p1 .&. p2 .&. cN
+        y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
+        z = p1 .|. p2 .|. cN
+    in
+    if x /= (zeroBits:: Word64) then x
+    else if y /=  (zeroBits :: Word64) then y
+    else z
+
 
 {-
 Functions to encode ("pack") non-additive characters into new Word64 characters
