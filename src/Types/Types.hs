@@ -73,6 +73,11 @@ epsilon = 0.0001
 infinity :: Double
 infinity = (read "Infinity") :: Double
 
+
+-- |maxAddStatesToRecode maximum size of addditive charcater to recode into non-additive charcaters 10 seems about right
+maxAddStatesToRecode :: Int
+maxAddStatesToRecode = 10
+
 -- | Types for timed searches
 type Days = Int
 type Hours = Int
@@ -249,7 +254,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector
-                                     -- for Additive
+                                     -- for Additive 
                                      , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with slim tcm

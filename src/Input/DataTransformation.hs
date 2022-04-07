@@ -369,7 +369,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap foundSymbols
             in
-            trace ("RNA: " ++ (show stateAlphabet))
+            -- trace ("RNA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then 
@@ -378,7 +378,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
                 stateAlphabet = fromSymbolsWOGap foundSymbols
             in
-            trace ("RA: " ++ (show stateAlphabet))
+            -- trace ("RA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
             
 

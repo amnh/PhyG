@@ -152,8 +152,8 @@ mask5A = 0x7BDEF7BDEF7BDEF
 
 -- | mask5B second mask for 5 states 64 bits -- need to check what state of top 4  bits-these are ON
 -- 12 x (10000)
--- 595056260442243600 (top 4 OFF) v 17888878829544948240
--- 0x842108421084210 (top 4 OFF) v  F842108421084210
+-- 595056260442243600 (top 4 OFF) v 17888878829544948240 (top 4 ON)
+-- 0x842108421084210 (top 4 OFF) v  F842108421084210 (top 4 ON)
 mask5B :: Word64
 mask5B = 0xF842108421084210
 
@@ -186,6 +186,10 @@ andOR4 x y =
     (z, popCount u)
 
 -- | andOR5 and or function for Packed5 encoding
+-- potential issue with top 4 bits--not sure on mask5B whether top 4 should be on or OFF.
+-- can always maske top 4 with AND 0000111... (0xFFFFFFFFFFFFFFF or 1152921504606846975)
+-- to remove bits for counting 
+-- and calcualted state 
 andOR5:: Word64 -> Word64 -> (Word64, Int)
 andOR5 x y = 
     let u = shiftR ((((x .&. y .&. mask4A) + mask5A) .|. (x .&. y)) .&. mask5B) 4 
@@ -220,6 +224,16 @@ These are used in pre-order graph traversals and final state assignment
 among others.
 -}
 
+{-
+Functions for hard-wrired 3-way optimization
+-}
+
+{- 
+    basically 
+            C & P1 & P2 -> if not 0
+            else (C & P1) | (C & P2) | (P1 & P2) -> if not 0
+            else C | P1 | P2 
+-}
 
 {-
 Functions to encode ("pack") non-additive characters into new Word64 characters

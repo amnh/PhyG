@@ -64,6 +64,8 @@ import           Foreign.C.Types             (CUInt)
 import qualified GraphOptimization.Medians as M
 import Data.Bits
 import qualified Input.BitPack                as BP
+import qualified Data.Text.Short             as ST
+import           Data.Alphabet
 
 --place holder for now
 -- | optimizeData convert
@@ -75,7 +77,8 @@ import qualified Input.BitPack                as BP
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
     -- bit packing for non-additivecharcaters
-    BP.packNonAdditiveData inData
+    inData
+    -- BP.packNonAdditiveData inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
@@ -139,8 +142,12 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
     -- all matrix characters with same costmatrix recoded to single charcater
     -- removes innactive characters
 groupDataByType :: ProcessedData -> ProcessedData
-groupDataByType (nameVect, nameBVVect, blockDataVect) =
-    let organizedBlockData =  V.map organizeBlockData' blockDataVect
+groupDataByType inData =
+    let -- before reorganizing--convert additive with <= maxAddStatesToRecode in TYpes.hs states to non-additive ala Farris (1970)
+        (nameVect, nameBVVect, blockDataVect) = recodeAddToNonAddCharacters maxAddStatesToRecode inData
+
+        -- reorganize data into same type
+        organizedBlockData =  V.map organizeBlockData' blockDataVect
     in
     --trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
     --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
@@ -648,3 +655,65 @@ assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlim
     else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
     else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
 
+-- | recodeAddToNonAddCharacters takes an max states number and processsed data
+-- and recodes additive characters with max state < input max (0..input max - 1)
+-- as a series of binary non-additive characters
+recodeAddToNonAddCharacters :: Int -> ProcessedData -> ProcessedData
+recodeAddToNonAddCharacters maxStateToRecode (nameVect, nameBVVect, blockDataVect) =
+    let newBlockDataVect = fmap (convertAddToNonAddBlock maxStateToRecode) blockDataVect
+    in
+    (nameVect, nameBVVect, newBlockDataVect)
+
+-- | convertAddToNonAddBlock converts additive charcters to no-additive in a block
+convertAddToNonAddBlock :: Int -> BlockData -> BlockData
+convertAddToNonAddBlock maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
+    let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData maxStateToRecode charInfoV) taxByCharDataVV
+    in
+    -- trace ("CNAB: " ++ (show (V.length $ V.head newTaxByCharDataVV, V.length $ V.head newCharInfoVV)))
+    (blockName, newTaxByCharDataVV, V.head newCharInfoVV)
+
+-- | recodeTaxonData recodes Add as nonAdd for each taxon in turn 
+recodeTaxonData :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV = 
+    let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
+    in
+    -- trace ("RTD: " ++ (show (V.length $ V.concat newCharDataVV, V.length $ V.concat newCharInfoVV)))
+    (V.concat newCharDataVV, V.concat newCharInfoVV)
+
+-- |recodeAddToNonAddCharacter takes a single character for single taxon and recodes if non-additive with 
+-- fewer than maxStateToRecode states.
+-- assumes states in linear order
+recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
+recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
+    let inCharType = charType inCharInfo
+        numStates = length $ alphabet inCharInfo
+        origName = name inCharInfo
+    in
+    if (inCharType /= Add) || (numStates > 10) || (numStates < 2) then (V.singleton inCharData, V.singleton inCharInfo)
+    else 
+        -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
+        -- bits ON-- [0.. snd range]
+        let stateIndex = snd $ V.head $ snd3 $ rangePrelim inCharData
+            newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) ++ "RecodedToNonAdd") 
+                                     , charType = NonAdd
+                                     , alphabet = fromSymbolsWOGap $ fmap ST.fromString $ fmap show [0,1]
+                                     }
+            newCharList = fmap (makeNewNonAddChar stateIndex) [0..numStates - 2]
+
+        in
+        -- trace ("RTNA: " ++ (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
+        (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
+
+-- | makeNewNonAddCharacter takes a stateIndex and charcatear number 
+-- and makes a non-additive character with 0 or 1 coding
+-- based on stateIndex versus state number
+-- if stateIndex > charNumber then 1 else 0 (coded as bit 0 for 0, bit 1 for 1)
+makeNewNonAddChar :: Int -> Int -> CharacterData
+makeNewNonAddChar stateIndex charIndex =
+    let bvState = if stateIndex > charIndex then BV.fromBits [False, True]
+                  else BV.fromBits [True, False]
+    in
+    -- trace ("MNNA: " ++ (show (stateIndex, charIndex, bvState)))
+    emptyCharacter { stateBVPrelim = (V.singleton bvState, V.singleton bvState, V.singleton bvState)
+                   , stateBVFinal = V.singleton bvState
+                   }

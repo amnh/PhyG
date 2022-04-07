@@ -268,9 +268,9 @@ localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interB
 -- | interUnionBV takes two bitvectors and returns new state and cost (1 or 0)
 interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int)
 interUnionBV leftBV rightBV =
-    if (leftBV .&. rightBV) /= zeroBits then (leftBV .&. rightBV, 0) 
-    else (leftBV .|. rightBV, 1) 
-
+    if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 1) 
+    else (leftBV .&. rightBV, 0) 
+    
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
 -- in post-order pass to create preliminary states assignment
