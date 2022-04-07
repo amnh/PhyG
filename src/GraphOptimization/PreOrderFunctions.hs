@@ -65,6 +65,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
 import qualified Utilities.ThreeWayFunctions as TW
+import qualified Input.BitPack               as BP
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -900,6 +901,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if localCharType == NonAdd then 
         childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
+      else if localCharType `elem` packedNonAddTypes then 
+        childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
+
       else if localCharType == Matrix then 
         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
 
@@ -946,9 +950,14 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
    else if childType == LeafNode then
       -- since leaf no neeed to precess final alignment fields for sequence characters
-      if localCharType == Add then childChar {rangeFinal = snd3 $ rangePrelim childChar}
+      if localCharType == Add then 
+        childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
+      else if localCharType == NonAdd then 
+        childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
+
+      else if localCharType `elem` packedNonAddTypes then 
+        childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
          childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
@@ -1028,6 +1037,11 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let finalAssignment' = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
          in
          childChar {matrixStatesFinal = finalAssignment'}
+
+      else if localCharType `elem` packedNonAddTypes then 
+         let finalAssignment = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
+         in
+         childChar {packedNonAddFinal = finalAssignment}
 
       else if localCharType == AlignedSlim then
         let alignedFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parentChar) (fst3 $ alignedSlimPrelim childChar) (thd3 $ alignedSlimPrelim childChar)
@@ -1110,22 +1124,16 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
       if localCharType == Add then
-         -- add logic for pre-order
-         let lFinalAssignment = rangeFinal parentChar
-         in
-         childChar {rangeFinal = lFinalAssignment}
+         childChar {rangeFinal = rangeFinal parentChar}
 
       else if localCharType == NonAdd then
-         -- add logic for pre-order
-         let lFinalAssignment = stateBVFinal parentChar
-         in
-         childChar {stateBVFinal = lFinalAssignment}
+         childChar {stateBVFinal = stateBVFinal parentChar}
+
+      else if localCharType `elem` packedNonAddTypes then 
+         childChar {packedNonAddFinal = packedNonAddFinal parentChar}
 
       else if localCharType == Matrix then
-         -- add logic for pre-order
-         let lFinalAssignment = matrixStatesFinal parentChar
-         in
-         childChar {matrixStatesFinal = lFinalAssignment}
+         childChar {matrixStatesFinal = matrixStatesFinal parentChar}
 
       else if localCharType == AlignedSlim then
         childChar {alignedSlimFinal = alignedSlimFinal parentChar}
@@ -1182,7 +1190,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       --for Hardwired graphs
    else if isIn2Out1 then 
         if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal") 
-        else TW.threeMedianFinal  inGS finalMethod charInfo parentChar (fromJust parent2CharM) childChar
+        else TW.threeMedianFinal inGS finalMethod charInfo parentChar (fromJust parent2CharM) childChar
    
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )

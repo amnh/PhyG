@@ -383,7 +383,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
             
 
 
-        else error ("UNrecognized character type in resetAddNonAddAlphabets: " ++ (show inCharType))
+        else error ("Unrecognized character type in resetAddNonAddAlphabets: " ++ (show inCharType))
 
 -- | checkPrealignedEqualLength checks prealigned type for equal length
 -- at this stage (called before reblocking) there should only be a single charcter per block

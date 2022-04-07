@@ -112,10 +112,6 @@ data CharType = Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | A
                 Packed2 | Packed4 | Packed5 | Packed8 | Packed64
     deriving stock (Read, Show, Eq)
 
--- | types for character classes
-nonExactCharacterTypes :: [CharType]
-nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq] -- , AlignedSlim, AlignedWide, AlignedHuge]
-
 -- non additive bit packed types (64 not really 'packed' but treated as if were)
 -- these are not entered but are created by transforming existing non-additive characters
 packedNonAddTypes :: [CharType]
@@ -124,6 +120,10 @@ packedNonAddTypes = [Packed2, Packed4, Packed5,  Packed8,  Packed64]
 -- aligned not in here because they are not reorganized, and would screw up reroot optimization
 exactCharacterTypes :: [CharType]
 exactCharacterTypes = [Add, NonAdd, Matrix] ++ packedNonAddTypes
+
+-- | types for character classes
+nonExactCharacterTypes :: [CharType]
+nonExactCharacterTypes = [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq] -- , AlignedSlim, AlignedWide, AlignedHuge]
 
 -- prealigned types
 prealignedCharacterTypes :: [CharType]

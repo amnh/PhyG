@@ -39,6 +39,9 @@ Portability :  portable (I hope)
 module Input.BitPack
   ( packNonAdditiveData
   , median2Packed
+  , packedPreorder
+  , threeWayPacked
+  , unionPacked
   ) where
 
 import qualified Data.List                   as L
@@ -107,7 +110,7 @@ median2Packed inCharType leftChar rightChar =
                                   else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed8  then median2Word64 andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else error ("Character type " ++ show inCharType ++ " unrecongized/not implemented")
+                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
 
         newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
                                       , localCost = fromIntegral newCost
@@ -116,8 +119,18 @@ median2Packed inCharType leftChar rightChar =
     in
     newCharacter
 
+-- | unionPacked returns character that is the union (== OR) for bit packed characters
+-- of the final fields as preliminary and final 
+unionPacked :: CharacterData -> CharacterData -> CharacterData
+unionPacked charL charR =
+    let newVect = V.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
+    in
+    emptyCharacter { packedNonAddPrelim = (newVect, newVect, newVect)
+                   , packedNonAddFinal = newVect
+                   }
+
 {-
-andOrN functions derived from White and Holland 2011
+Masks for vaious operations and state numbers
 -}
 
 -- | mask2A first Mask for 2 state 64 bit
@@ -144,6 +157,32 @@ mask4A = 0x7777777777777777
 mask4B :: Word64
 mask4B = 0x8888888888888888
 
+-- | mask4C mak for 4 states an 64 bits
+-- 4919131752989213764
+-- 16 x (0100)
+mask4C :: Word64
+mask4C = 0x4444444444444444
+
+-- | mask4D mak for 4 states an 64 bits
+-- 2459565876494606882
+-- 16 x (0010)
+mask4D :: Word64
+mask4D = 0x2222222222222222
+
+-- | mask4E mak for 4 states an 64 bits
+-- 1229782938247303441
+-- 16 x (0001)
+mask4E :: Word64
+mask4E = 0X1111111111111111
+
+{-
+5 state masks top 4 bits OFF may require to mask out top 4 bits for states and cost
+top 4 OFF rest ON 0xFFFFFFFFFFFFFFF
+                  1152921504606846975
+top 4 ON rest OFF 0xF000000000000000
+                  17293822569102704640
+-}
+
 -- | mask5A first mask for 5 states 64 bits -- need to check what state of top 4  bits--should be OFF I think
 -- 12 x (01111)
 -- 557865244164603375
@@ -157,6 +196,30 @@ mask5A = 0x7BDEF7BDEF7BDEF
 mask5B :: Word64
 mask5B = 0xF842108421084210
 
+-- | mask5C mask 5 states 64 bits 
+-- 12 x (01000)
+-- 297528130221121800
+mask5C :: Word64
+mask5C = 0x421084210842108
+
+-- | mask5D mask 5 states 64 bits 
+-- 12 x (00100)
+-- 148764065110560900
+mask5D :: Word64
+mask5D = 0x210842108421084
+
+-- | mask5E mask 5 states 64 bits 
+-- 12 x (00010)
+-- 74382032555280450
+mask5E :: Word64
+mask5E = 0x108421084210842
+
+-- | mask5F mask 5 states 64 bits 
+-- 12 x (00001)
+-- 37191016277640225
+mask5F :: Word64
+mask5F = 0x84210842108421
+
 -- | mask8A first mask for 8 states 64 bits
 -- 8 x (01111111) 
 -- 9187201950435737471
@@ -168,6 +231,52 @@ mask8A = 0x7F7F7F7F7F7F7F7F
 -- 9259542123273814144
 mask8B :: Word64
 mask8B = 0x8080808080808080
+
+-- | mask8C mask for 8 states 64 bits
+-- 8 x (01000000)
+-- 4629771061636907072
+mask8C :: Word64
+mask8C = 0x4040404040404040
+
+-- | mask8D mask for 8 states 64 bits
+-- 8 x (00100000)
+-- 2314885530818453536
+mask8D :: Word64
+mask8D = 0x2020202020202020
+
+-- | mask8E mask for 8 states 64 bits
+-- 8 x (00010000)
+-- 1157442765409226768
+mask8E :: Word64
+mask8E = 0x1010101010101010
+
+-- | mask8F mask for 8 states 64 bits
+-- 8 x (00001000)
+-- 578721382704613384
+mask8F :: Word64
+mask8F = 0x808080808080808
+
+-- | mask8G mask for 8 states 64 bits
+-- 8 x (00000100)
+-- 289360691352306692
+mask8G :: Word64
+mask8G = 0x404040404040404
+
+-- | mask8H mask for 8 states 64 bits
+-- 8 x (00000010)
+-- 144680345676153346
+mask8H :: Word64
+mask8H = 0x202020202020202
+
+-- | mask8I mask for 8 states 64 bits
+-- 8 x (00000001)
+-- 72340172838076673
+mask8I :: Word64
+mask8I = 0x101010101010101
+
+{-
+andOrN functions derived from White and Holland 2011
+-}
 
 -- | andOR2 and or function for Packed2 encoding
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
@@ -224,10 +333,21 @@ These are used in pre-order graph traversals and final state assignment
 among others.
 -}
 
-{-
-Functions for hard-wrired 3-way optimization
--}
 
+-- | packePreorder takes character type, current node (and children preliminary assignments)
+-- and parent final assignment and creates final assignment for current node 
+packedPreorder :: CharType -> (V.Vector Word64, V.Vector Word64, V.Vector Word64) -> V.Vector Word64 -> V.Vector Word64
+packedPreorder localCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
+    --- placeholder
+    childPrelim
+
+{-
+Functions for hard-wired 3-way optimization
+-}
+ -- | threeWayPacked median 3 for hard-wired networks
+ -- this is based on Goloboff (2002) for trichotomous trees
+threeWayPacked :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
+threeWayPacked localCharType parent1 parent2 curNode = curNode -- place holder
 {- 
     basically 
             C & P1 & P2 -> if not 0

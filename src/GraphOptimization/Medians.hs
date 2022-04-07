@@ -147,16 +147,16 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType == Matrix then
-      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
-        in
-        (newCharVect, localCost  newCharVect)
-
     else if thisType `elem` packedNonAddTypes then 
         --assumes all weight 1
         let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect) 
+
+    else if thisType == Matrix then
+      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+        in
+        (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` prealignedCharacterTypes then
       let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar
@@ -169,7 +169,7 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
       in
       (newCharVect, localCost  newCharVect)
 
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+    else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 
 -- | median2SingleNonExact takes character data and returns median character and cost
@@ -202,7 +202,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
          -- trace ("M2SNE: " ++ (show thisType))
          (newCharVect, localCost  newCharVect)
     
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+    else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 
 -- | median2SingleStaticIA takes character data and returns median character and cost for Static and IA fields of dynamic
@@ -231,6 +231,12 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         in
         (newCharVect, localCost  newCharVect)
 
+    else if thisType `elem` packedNonAddTypes then 
+        --assumes all weight 1
+        let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
+        in
+        (newCharVect, localCost  newCharVect) 
+
     else if thisType == Matrix then
       let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
         in
@@ -248,7 +254,7 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+    else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 
 -- | localOr wrapper for BV.or for vector elements
@@ -668,6 +674,9 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else if thisType == NonAdd then
         localUnion firstVertChar secondVertChar
 
+    else if thisType `elem` packedNonAddTypes then 
+        BP.unionPacked firstVertChar secondVertChar
+
     else if thisType == Matrix then
         unionMatrix thisMatrix firstVertChar secondVertChar
 
@@ -677,7 +686,7 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else if thisType `elem` nonExactCharacterTypes then
         getDynamicUnion doIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
 
-    else error ("Character type " ++ show thisType ++ " unrecongized/not implemented")
+    else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
 makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData

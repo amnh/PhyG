@@ -66,6 +66,7 @@ import           Foreign.C.Types             (CUInt)
 import           Data.Word
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
+import qualified Input.BitPack               as BP
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -87,6 +88,10 @@ threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode =
       let threeFinal = V.zipWith3 threeWayNonAdditive (stateBVFinal parent1) (stateBVFinal parent2) (snd3 $ stateBVPrelim curNode) 
       in curNode {stateBVFinal = threeFinal}
       
+   else if localCharType `elem` packedNonAddTypes then 
+      let threeFinal = BP.threeWayPacked localCharType (packedNonAddFinal parent1) (packedNonAddFinal parent2) (snd3 $ packedNonAddPrelim curNode) 
+      in curNode {packedNonAddFinal = threeFinal}
+
    else if localCharType == Matrix then 
       let threeFinal = V.zipWith3 (threeWayMatrix (costMatrix charInfo)) (matrixStatesFinal parent1) (matrixStatesFinal parent2) (matrixStatesPrelim curNode) 
       in curNode {matrixStatesFinal = threeFinal}
