@@ -509,6 +509,9 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType
   | localCharType == NonAdd =
     postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
   
+  | localCharType `elem` packedNonAddTypes =
+    postOrderCharacter { packedNonAddFinal = packedNonAddFinal preOrderCharacter }
+  
   | localCharType == Matrix =
     postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
   
@@ -730,6 +733,13 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
             maxCost = thisWeight * fromIntegral maxDiff
         in
         (minCost, maxCost)
+    
+    else if thisCharType `elem` packedNonAddTypes then
+        let minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
+            maxDiff = V.sum $ V.zipWith (BP.maxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            maxCost = thisWeight * fromIntegral maxDiff
+        in
+        (minCost, maxCost)
 
     else if thisCharType == Matrix then
         let minMaxListList= V.zipWith (minMaxMatrixDiff thisMatrix)  (fmap fst3 <$> matrixStatesFinal uCharacter) (fmap fst3 <$> matrixStatesFinal vCharacter)
@@ -798,7 +808,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         in
         (minCost, maxCost)
 
-    else error ("Character type unimplemented : " ++ show thisCharType)
+    else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
 {-
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
@@ -1032,16 +1042,16 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          childChar {stateBVFinal = finalAssignment'}
 
+      else if localCharType `elem` packedNonAddTypes then 
+         let finalAssignment = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
+         in
+         childChar {packedNonAddFinal = finalAssignment}
+
       else if localCharType == Matrix then
          -- add logic for pre-order
          let finalAssignment' = matrixPreorder isLeft (matrixStatesPrelim childChar) (matrixStatesFinal parentChar)
          in
          childChar {matrixStatesFinal = finalAssignment'}
-
-      else if localCharType `elem` packedNonAddTypes then 
-         let finalAssignment = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
-         in
-         childChar {packedNonAddFinal = finalAssignment}
 
       else if localCharType == AlignedSlim then
         let alignedFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parentChar) (fst3 $ alignedSlimPrelim childChar) (thd3 $ alignedSlimPrelim childChar)
@@ -1456,4 +1466,6 @@ setPrelimToFinalCharacterData inChar =
                            , alignedSlimFinal  = snd3 $ alignedSlimPrelim inChar
                            , alignedWideFinal  = snd3 $ alignedWidePrelim inChar
                            , alignedHugeFinal  = snd3 $ alignedHugePrelim inChar
+
+                           , packedNonAddFinal = snd3 $ packedNonAddPrelim inChar
             }

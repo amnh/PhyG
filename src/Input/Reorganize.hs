@@ -76,7 +76,7 @@ import           Data.Alphabet
         -- bitPack non-additive
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
-    -- bit packing for non-additivecharcaters
+    -- bit packing for non-additivecharacters
     inData
     -- BP.packNonAdditiveData inData
 
@@ -139,7 +139,7 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
 -- with characters reorganized (within blocks) 
     -- all non-additive (with same weight) merged to a single vector character 
     -- all additive with same alphabet (ie numberical) recoded to single vector
-    -- all matrix characters with same costmatrix recoded to single charcater
+    -- all matrix characters with same costmatrix recoded to single character
     -- removes innactive characters
 groupDataByType :: ProcessedData -> ProcessedData
 groupDataByType inData =
@@ -187,7 +187,8 @@ organizeBlockData' localBlockData =
 -- matrices.  All non-Exact are in same pile.  
 -- characters with weight > 1 are recoded as multiples of same character, if weight non-integer geoes into the "unchanged" pile
 -- when bit packed later (if non-additive) will have only log 64 operations impact
--- the pairs for some data types are to keep track of things that vary--like matrices and non-exact charcater information
+-- the pairs for some data types are to keep track of things that vary--like matrices and non-exact character information
+-- there should be no bit-packed data created yet
 organizeBlockData :: [([CharacterData], CharInfo)]
                   -> [([CharacterData], CharInfo)]
                   -> [([[CharacterData]], CharInfo)]
@@ -272,7 +273,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                organizeBlockData nonAddCharList addCharList newMatrixCharacterList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
                -- )
 
-           -- error in thype
+           -- error in type--there should be no bit-packed data created yet.
            else error ("Unrecognized/not implemented charcter type: " ++ show fCharType))
         -- )
 
@@ -459,13 +460,14 @@ removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
 
 -- | removeConstantChars takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.
+-- packed types already filtered when created
 removeConstantChars :: V.Vector CharacterData -> CharInfo -> V.Vector CharacterData
 removeConstantChars singleChar charInfo =
     let inCharType = charType charInfo
     in
 
     -- dynamic characters don't do this
-    if inCharType `elem` nonExactCharacterTypes then singleChar
+    if inCharType `elem` (nonExactCharacterTypes ++ packedNonAddTypes) then singleChar
     else 
         let variableVect = getVariableChars inCharType singleChar
         in
@@ -473,6 +475,7 @@ removeConstantChars singleChar charInfo =
 
 -- | getVariableChars checks identity of states in a vector positin in all taxa
 -- and returns True if vaiable, False if constant
+-- bit packed and non-exact should not get in here
 getVariableChars :: CharType -> V.Vector CharacterData -> V.Vector CharacterData
 getVariableChars inCharType singleChar =
     let nonAddV = fmap snd3 $ fmap stateBVPrelim singleChar
@@ -642,6 +645,7 @@ filterConstantsUV inVarBoolV charVect =
 
 -- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
 -- to the correct field
+-- neither bit packed nor nno-exact should het here
 assignNewField :: CharType 
                -> CharacterData 
                -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)

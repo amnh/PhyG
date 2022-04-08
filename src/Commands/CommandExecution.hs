@@ -700,6 +700,7 @@ getBlockList (blockName, blockDataVect, charInfoVect) =
 -- will be less legible for optimized data--so should use a diagnosis
 -- based on "naive" data for human legible output
 -- need to add back-converting to observed states using alphabet in charInfo
+-- nothing here for packed since not "entered"
 makeCharLine :: (CharacterData, CharInfo) -> [String]
 makeCharLine (blockDatum, charInfo) =
     let localType = charType charInfo
@@ -944,6 +945,7 @@ getCharCodeInfo inCharInfo =
     let codeTriple = case inCharType of
                       x | x `elem` [Add              ] -> ("+", "", charWeightString)
                       x | x `elem` [NonAdd           ] -> ("-", "", charWeightString)
+                      x | x `elem` packedNonAddTypes   -> ("-", "", charWeightString)
                       x | x `elem` [Matrix           ] -> ("(", matrixString, charWeightString)
                       x | x `elem` sequenceCharacterTypes -> if costMatrixType == "nonAdd" then ("-", "", charWeightString) 
                                                              else ("(", matrixString, charWeightString)

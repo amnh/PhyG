@@ -274,6 +274,7 @@ subSampleStatic :: [Int] -> CharacterData -> CharInfo -> CharacterData
 subSampleStatic randIntList inCharData inCharInfo = 
    let (a1, a2, a3) = rangePrelim inCharData
        (na1, na2, na3) = stateBVPrelim inCharData
+       (pa1, pa2, pa3) = packedNonAddPrelim inCharData
        m1 = matrixStatesPrelim inCharData
        inCharType = charType inCharInfo
 
@@ -292,6 +293,9 @@ subSampleStatic randIntList inCharData inCharInfo =
       
    else if inCharType == NonAdd then
          inCharData {stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)}
+
+   else if inCharType `elem` packedNonAddTypes then
+         inCharData {packedNonAddPrelim = (V.map (pa1 V.!) staticCharIndices, V.map (pa2 V.!) staticCharIndices, V.map (pa3 V.!) staticCharIndices)}
 
    else if inCharType == Matrix then
          inCharData {matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
@@ -341,6 +345,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
       else
          let (a1, a2, a3) = rangePrelim firstCharData
              (na1, na2, na3) = stateBVPrelim firstCharData
+             (pa1, pa2, pa3) = packedNonAddPrelim firstCharData
              m1 = matrixStatesPrelim firstCharData
          in
          if firstCharType == Add then
@@ -356,6 +361,14 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
             in
             -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
             if V.null (makeSampledVect fullBoolList [] na2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList(V.tail inCharInfoVect)  (V.tail inCharDataVect) 
+            else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
+            -- )
+
+         else if firstCharType `elem` packedNonAddTypes then
+            let newCharData = firstCharData {packedNonAddPrelim = (makeSampledVect fullBoolList [] pa1, makeSampledVect fullBoolList [] pa2, makeSampledVect fullBoolList [] pa3)}
+            in
+            -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
+            if V.null (makeSampledVect fullBoolList [] pa2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList(V.tail inCharInfoVect)  (V.tail inCharDataVect) 
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
             -- )
 

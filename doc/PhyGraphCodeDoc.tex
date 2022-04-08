@@ -158,8 +158,9 @@
 			 \item{Commands.CommandExecution.hs}
 				\begin{itemize}
 				\item{makeCharLine}
-				\item{getCharacterLength}
 				\item{getCharCodeInfo}
+				\item{makeBlockCharacterString}
+				\item{pairList2Fasta}
 				\end{itemize}
 			 \item{Types.Types.hs}
 				 \begin{itemize}
@@ -173,10 +174,11 @@
 			 \item{Utilities.Utilities.hs}
 				\begin{itemize}
 					\item{getCharacterInsertCost}
-					\item{makeBlockCharacterString}
-					\item{pairList2Fasta}
 					\item{splitBlockCharacters}
-					\item{getNumberNonExactCharacters}
+					\item{getNumberExactCharacters}
+					\item{getNumberSequenceCharactersC9l7mb7s!
+					}
+					\item{getCharacterLength}
 				\end{itemize}
 			 \item{Utilities.ThreeWayfunctions.hs}
 				\begin{itemize}
@@ -189,8 +191,10 @@
 				\end{itemize}
 			 \item{Input.Reorganize.hs}
 			 \begin{itemize}
+			 	\item{removeConstantChars}
 			 	\item{filterConst}
 			 	\item{getVariableChars}
+			 	\item{getVarVecBits}
 			 	\item{assignNewField}
 			 	\item{organizeBlockData'}
 			 \end{itemize}
@@ -200,13 +204,17 @@
 		 	 \end{itemize}
 		 	 \item{Input.DataTransformation.hs}
 		 	 \begin{itemize}
-		 	 	\item{These are for input--so not used by static approx}
+		 	 	\item{These are for input--so not used by static approx or bit-packed}
 		 	 	\item{getMissingValue}
 		 	 	\item{getGeneralSequenceChar}
 		 	 	\item{getQualitativeCharacters--potentially depending on character features}
 		 	 	\item{createLeafCharacter}
 		 	 	\item{missingAligned}
 		 	 \end{itemize}
+	 	 	 \item{Input.BitPack}
+	 	 	 \begin{itemize}
+	 	 	 	\item{If new character can be pit packed would go in here}
+	 	 	 \end{itemize}
 		 	 
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}

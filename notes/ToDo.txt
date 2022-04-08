@@ -559,6 +559,12 @@ preOrderTreeTraversal
      	make remove constant-> prealignedConstant only
      		apply at all data and trasnform SA
      		same with bit packing
-     		
+
+321) Bit packed max distance--need to use masks to calculte did a shim job
+
+322) bit packed sub sample support--samples entiore packed character
+	that's an issue for small numbers of non-additive characters
+
+
 
      	

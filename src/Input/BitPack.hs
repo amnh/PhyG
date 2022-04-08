@@ -42,6 +42,7 @@ module Input.BitPack
   , packedPreorder
   , threeWayPacked
   , unionPacked
+  , maxCharDiff
   ) where
 
 import qualified Data.List                   as L
@@ -99,6 +100,24 @@ Functions for median2 calculations of packed types
 These are used in post-order graph traversals and pairwise
 distance functions among others.
 -}
+
+-- | maxCharDiff get the approximate maximum differnet in number of states
+-- could do exact with masking, but this likely good enough for general purposes 
+maxCharDiff :: CharType -> Word64 -> Word64 -> Int
+maxCharDiff inCharType a b =
+    let numDiffBits = popCount $ xor a b
+        numPacked = if inCharType == Packed2       then 2
+                    else if inCharType == Packed4  then 4
+                    else if inCharType == Packed5  then 5
+                    else if inCharType == Packed8  then 8
+                    else if inCharType == Packed64 then 64
+                    else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    if inCharType == Packed64 then if a == b then 0 else 1
+    else 
+        let (maxNum, _) = divMod numDiffBits numPacked
+        in
+        maxNum
 
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
