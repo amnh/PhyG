@@ -74,9 +74,10 @@ infinity :: Double
 infinity = (read "Infinity") :: Double
 
 
--- |maxAddStatesToRecode maximum size of addditive charcater to recode into non-additive charcaters 10 seems about right
+-- |maxAddStatesToRecode maximum size of addditive charcater to recode into 
+--non-additive charcaters 65 can fit in Word64
 maxAddStatesToRecode :: Int
-maxAddStatesToRecode = 10
+maxAddStatesToRecode = 65
 
 -- | Types for timed searches
 type Days = Int

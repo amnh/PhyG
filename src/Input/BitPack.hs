@@ -189,13 +189,12 @@ top 4 ON rest OFF 0xF000000000000000
 mask5A :: Word64
 mask5A = 0x7BDEF7BDEF7BDEF
 
--- | mask5B second mask for 5 states 64 bits -- need to check what state of top 4  bits-these are ON
+-- | mask5B second mask for 5 states 64 bits -- need to check what state of top 4  bits-these are OFF
 -- 12 x (10000)
 -- 595056260442243600 (top 4 OFF) v 17888878829544948240 (top 4 ON)
 -- 0x842108421084210 (top 4 OFF) v  F842108421084210 (top 4 ON)
 mask5B :: Word64
-mask5B = 0xF842108421084210
-
+mask5B = 0x842108421084210
 -- | mask5C mask 5 states 64 bits 
 -- 12 x (01000)
 -- 297528130221121800
@@ -355,8 +354,8 @@ threeWayPacked :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Wor
 threeWayPacked inCharType parent1 parent2 curNode = 
     let newStateVect = if inCharType == Packed2       then V.zipWith3 threeWay2 parent1 parent2 curNode 
                        else if inCharType == Packed4  then V.zipWith3 threeWay4 parent1 parent2 curNode 
-                       --else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode 
-                       --else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode 
+                       else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode 
+                       else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode 
                        else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode 
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
@@ -370,13 +369,13 @@ threeWay2 p1 p2 cN =
         z = p1 .|. p2 .|. cN
         c1 = xor mask2B ((mask2B .&. x) .|. (shiftR (mask2A .&. x) 1))
         d1 = xor mask2B ((mask2B .&. y) .|. (shiftR (mask2A .&. y) 1))
-        c2 = shiftL c1 1
-        d2 = shiftL d1 1
+        c2 = c1 .|. (shiftL c1 1)
+        d2 = d1 .|. (shiftL d1 1)
         newState = x .|. (y .&. c2) .|. (z .&. d2)
     in
     newState
 
--- | threeWay4 3-way hardwired optimization for Packed2 Word64
+-- | threeWay4 3-way hardwired optimization for Packed4 Word64
 threeWay4 :: Word64 -> Word64 -> Word64 -> Word64
 threeWay4 p1 p2 cN = 
     let x = p1 .&. p2 .&. cN
@@ -384,8 +383,36 @@ threeWay4 p1 p2 cN =
         z = p1 .|. p2 .|. cN
         c1 = xor mask4B ((mask4B .&. x) .|. (shiftR (mask4C .&. x) 1) .|. (shiftR (mask4D .&. x) 2) .|. (shiftR (mask4E .&. x) 3) )
         d1 = xor mask4B ((mask4B .&. y) .|. (shiftR (mask4C .&. y) 1) .|. (shiftR (mask4D .&. y) 2) .|. (shiftR (mask4E .&. y) 3) )
-        c2 = (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
-        d2 = (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3)
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
+        d2 = d1 .|. (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3)
+        newState = x .|. (y .&. c2) .|. (z .&. d2)
+    in
+    newState
+
+-- | threeWay5 3-way hardwired optimization for Packed5 Word64
+threeWay5 :: Word64 -> Word64 -> Word64 -> Word64
+threeWay5 p1 p2 cN = 
+    let x = p1 .&. p2 .&. cN
+        y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
+        z = p1 .|. p2 .|. cN
+        c1 = xor mask5B ((mask5B .&. x) .|. (shiftR (mask5C .&. x) 1) .|. (shiftR (mask5D .&. x) 2) .|. (shiftR (mask5E .&. x) 3) .|. (shiftR (mask5F .&. x) 4))
+        d1 = xor mask5B ((mask5B .&. y) .|. (shiftR (mask5C .&. y) 1) .|. (shiftR (mask5D .&. y) 2) .|. (shiftR (mask5E .&. y) 3) .|. (shiftR (mask5F .&. y) 4))
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4)
+        d2 = d1 .|. (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3) .|. (shiftL d1 4)
+        newState = x .|. (y .&. c2) .|. (z .&. d2)
+    in
+    newState
+
+-- | threeWay8 3-way hardwired optimization for Packed8 Word64
+threeWay8 :: Word64 -> Word64 -> Word64 -> Word64
+threeWay8 p1 p2 cN = 
+    let x = p1 .&. p2 .&. cN
+        y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
+        z = p1 .|. p2 .|. cN
+        c1 = xor mask8B ((mask8B .&. x) .|. (shiftR (mask8C .&. x) 1) .|. (shiftR (mask8D .&. x) 2) .|. (shiftR (mask8E .&. x) 3) .|. (shiftR (mask8F .&. x) 4) .|. (shiftR (mask8G .&. x) 5) .|. (shiftR (mask8H .&. x) 6) .|. (shiftR (mask8I .&. x) 7))
+        d1 = xor mask8B ((mask8B .&. y) .|. (shiftR (mask8C .&. y) 1) .|. (shiftR (mask8D .&. y) 2) .|. (shiftR (mask8E .&. y) 3) .|. (shiftR (mask8F .&. y) 4) .|. (shiftR (mask8G .&. y) 5) .|. (shiftR (mask8H .&. y) 6) .|. (shiftR (mask8I .&. y) 7))
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
+        d2 = d1 .|. (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3) .|. (shiftL d1 4) .|. (shiftL d1 5) .|. (shiftL d1 6) .|. (shiftL d1 7)
         newState = x .|. (y .&. c2) .|. (z .&. d2)
     in
     newState
