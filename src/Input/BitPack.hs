@@ -335,10 +335,112 @@ among others.
 
 -- | packePreorder takes character type, current node (and children preliminary assignments)
 -- and parent final assignment and creates final assignment for current node 
+-- a bit clumsy since uses Goloboff nmodifications and have to do some of the postOrder pass 
+-- in Goloboff but not done here
 packedPreorder :: CharType -> (V.Vector Word64, V.Vector Word64, V.Vector Word64) -> V.Vector Word64 -> V.Vector Word64
-packedPreorder localCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
-    --- placeholder
-    childPrelim
+packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
+    let newStateVect = if inCharType == Packed2       then V.zipWith4 postOrder2 leftPrelim childPrelim rightPrelim parentFinal 
+                       else if inCharType == Packed4  then V.zipWith4 postOrder4 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed5  then V.zipWith4 postOrder5 leftPrelim childPrelim rightPrelim parentFinal 
+                       else if inCharType == Packed8  then V.zipWith4 postOrder8 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed64 then V.zipWith4 postOrder64 leftPrelim childPrelim rightPrelim parentFinal
+                       else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    newStateVect 
+
+
+-- | postOrder2 performs bitpacked Fitch preorder based on Goloboff 2002
+-- less efficient than it could be due to nont using Goloboff for post-order
+-- assignment so have to claculate some post-order values that would 
+-- already exist otherwise.  Given pre-order should be much less frequent than
+-- pre-order shouldn't be that bad
+postOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+postOrder2 leftPrelim childPrelim rightPrelim parentFinal =
+    -- post-order stuff to get "temp" state used to calculate final
+    let x1 = leftPrelim .&. rightPrelim
+        y1 = leftPrelim .|. rightPrelim
+        c1 = xor mask2B ((mask2B .&. x1) .|. (shiftR (mask2A .&. x1) 1))
+        c2 = c1 .|. (shiftL c1 1)
+        t = c2 .|. y1
+
+    -- postorder values
+        x2 = parentFinal .&. (complement childPrelim)
+        c3 = (mask2B .&. x2) .|. (shiftR (mask2A .&. x2) 1)
+        c4 = c3 .|. (shiftL c3 1)
+
+        finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
+    in
+    finalState
+
+-- | postOrder4 from postOrder2 but for 4 states
+postOrder4 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+postOrder4 leftPrelim childPrelim rightPrelim parentFinal =
+    -- post-order stuff to get "temp" state used to calculate final
+    let x1 = leftPrelim .&. rightPrelim
+        y1 = leftPrelim .|. rightPrelim
+        c1 = xor mask4B ((mask4B .&. x1) .|. (shiftR (mask4C .&. x1) 1) .|. (shiftR (mask4D .&. x1) 2) .|. (shiftR (mask4E .&. x1) 3))
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
+        t = c2 .|. y1
+
+    -- postorder values
+        x2 = parentFinal .&. (complement childPrelim)
+        c3 = (mask4B .&. x2) .|. (shiftR (mask4C .&. x2) 1) .|. (shiftR (mask4D .&. x2) 2) .|. (shiftR (mask4E .&. x2) 3)
+        c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3)
+
+        finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
+    in
+    finalState
+
+-- | postOrder5 from postOrder2 but for 5 states
+postOrder5 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+postOrder5 leftPrelim childPrelim rightPrelim parentFinal =
+    -- post-order stuff to get "temp" state used to calculate final
+    let x1 = leftPrelim .&. rightPrelim
+        y1 = leftPrelim .|. rightPrelim
+        c1 = xor mask5B ((mask5B .&. x1) .|. (shiftR (mask5C .&. x1) 1) .|. (shiftR (mask5D .&. x1) 2) .|. (shiftR (mask5E .&. x1) 3) .|. (shiftR (mask5F .&. x1) 4))
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4)
+        t = c2 .|. y1
+
+    -- postorder values
+        x2 = parentFinal .&. (complement childPrelim)
+        c3 = (mask5B .&. x2) .|. (shiftR (mask5C .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5E .&. x2) 3) .|. (shiftR (mask5F .&. x2) 4)
+        c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4)
+
+        finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
+    in
+    finalState
+
+-- | postOrder8 from postOrder2 but for 8 states
+postOrder8 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+postOrder8 leftPrelim childPrelim rightPrelim parentFinal =
+    -- post-order stuff to get "temp" state used to calculate final
+    let x1 = leftPrelim .&. rightPrelim
+        y1 = leftPrelim .|. rightPrelim
+        c1 = xor mask8B ((mask8B .&. x1) .|. (shiftR (mask8C .&. x1) 1) .|. (shiftR (mask8D .&. x1) 2) .|. (shiftR (mask8E .&. x1) 3) .|. (shiftR (mask8F .&. x1) 4) .|. (shiftR (mask8G .&. x1) 5) .|. (shiftR (mask8H .&. x1) 6) .|. (shiftR (mask8I .&. x1) 7))
+        c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
+        t = c2 .|. y1
+
+    -- postorder values
+        x2 = parentFinal .&. (complement childPrelim)
+        c3 = (mask8B .&. x2) .|. (shiftR (mask8C .&. x2) 1) .|. (shiftR (mask8D .&. x2) 2) .|. (shiftR (mask8E .&. x2) 3) .|. (shiftR (mask8F .&. x2) 4) .|. (shiftR (mask8G .&. x2) 5) .|. (shiftR (mask8H .&. x2) 6) .|. (shiftR (mask8I .&. x2) 7)
+        c4 = c1 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4) .|. (shiftL c3 5) .|. (shiftL c3 6) .|. (shiftL c3 7)
+
+        finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
+    in
+    finalState
+
+
+-- | postOrder64 performs simple Fitch preorder ("up-pass") on Word64
+postOrder64 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+postOrder64 leftPrelim childPrelim rightPrelim parentFinal =
+    let a = parentFinal .&. (complement childPrelim)
+        b = leftPrelim .&. rightPrelim
+        c = parentFinal .|. childPrelim
+        d = childPrelim .|. (parentFinal .&. (leftPrelim .|. rightPrelim))
+    in
+    if a == (zeroBits:: Word64) then parentFinal
+    else if b == (zeroBits:: Word64) then c
+    else d
 
 {-
 Functions for hard-wired 3-way optimization
@@ -381,8 +483,8 @@ threeWay4 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
-        c1 = xor mask4B ((mask4B .&. x) .|. (shiftR (mask4C .&. x) 1) .|. (shiftR (mask4D .&. x) 2) .|. (shiftR (mask4E .&. x) 3) )
-        d1 = xor mask4B ((mask4B .&. y) .|. (shiftR (mask4C .&. y) 1) .|. (shiftR (mask4D .&. y) 2) .|. (shiftR (mask4E .&. y) 3) )
+        c1 = xor mask4B ((mask4B .&. x) .|. (shiftR (mask4C .&. x) 1) .|. (shiftR (mask4D .&. x) 2) .|. (shiftR (mask4E .&. x) 3))
+        d1 = xor mask4B ((mask4B .&. y) .|. (shiftR (mask4C .&. y) 1) .|. (shiftR (mask4D .&. y) 2) .|. (shiftR (mask4E .&. y) 3))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
         d2 = d1 .|. (shiftL d1 1) .|. (shiftL d1 2) .|. (shiftL d1 3)
         newState = x .|. (y .&. c2) .|. (z .&. d2)
