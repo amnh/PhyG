@@ -59,6 +59,9 @@ import qualified ParallelUtilities as PU
 import Control.Parallel.Strategies
 import qualified Data.Text.Lazy            as T
 import Data.Bits
+import Numeric (showHex, showIntAtBase)
+import Data.Char (intToDigit)
+
 
 {-
 This module contains structures and functions for bit-packing operations
@@ -101,6 +104,14 @@ These are used in post-order graph traversals and pairwise
 distance functions among others.
 -}
 
+-- | showBits cponverts Value to bits as Srting
+showBits :: Word64 -> String 
+showBits inVal = showIntAtBase 2 intToDigit inVal ""
+
+-- | showBitsV shoiw vector of bits
+showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
+
+
 -- | maxCharDiff get the approximate maximum differnet in number of states
 -- could do exact with masking, but this likely good enough for general purposes 
 maxCharDiff :: CharType -> Word64 -> Word64 -> Int
@@ -136,6 +147,7 @@ median2Packed inCharType leftChar rightChar =
                                       , globalCost = (fromIntegral newCost) + globalCost leftChar + globalCost rightChar
                                       }
     in
+    -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
     newCharacter
 
 -- | unionPacked returns character that is the union (== OR) for bit packed characters
@@ -157,13 +169,11 @@ Masks for vaious operations and state numbers
 -- 6148914691236517205
 mask2A :: Word64
 mask2A = 0x5555555555555555
-
 -- | mask2B second Mask for 2 state 64 bit
 -- 32 x (10)
 -- 12297829382473034410
 mask2B :: Word64
 mask2B = 0xAAAAAAAAAAAAAAAA
-
 -- | mask4A first mask for 4 state  64 bits
 -- 8608480567731124087 
 -- 16 X (0111)
@@ -302,6 +312,10 @@ andOR2 x y =
     let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B)) 
     in
+    trace ("AO2 x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
+      ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):" 
+      ++ (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) ++ "\nu: " ++ (showBits u)
+      ++"\npc: " ++ (show $ popCount u) ++ " x:" ++ (showBits x) ++ " y:" ++ (showBits y) ++ " => u:" ++ (showBits u) ++ " z:" ++ (showBits z)) -- ++ " mask2A:" ++ (showBits mask2A) ++ " mask2B:" ++ (showBits mask2B))
     (z, popCount u)
 
 -- | andOR4 and or function for Packed4 encoding

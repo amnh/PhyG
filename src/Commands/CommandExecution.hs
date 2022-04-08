@@ -708,11 +708,12 @@ makeCharLine (blockDatum, charInfo) =
         isPrealigned = if prealigned charInfo == True then "Prealigned "
                        else ""
         enhancedCharType = if localType `elem` sequenceCharacterTypes then (isPrealigned ++ (show localType))
-                        else if localType `elem`  [Add, NonAdd, Matrix] then (show localType)
+                        else if localType `elem` exactCharacterTypes then (show localType)
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
         (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
+                                      else if localType `elem` packedNonAddTypes then (concat $ V.map (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
                                       else if localType `elem` sequenceCharacterTypes
                                       then case localType of
@@ -1008,6 +1009,7 @@ getCharacterString inCharData inCharInfo =
     in
     let charString = case inCharType of
                       x | x `elem` [NonAdd           ] ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` packedNonAddTypes   ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
                       x | x `elem` [Add              ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
                       x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
                       x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ slimAlignment inCharData
