@@ -172,6 +172,7 @@ mask2A = 0x5555555555555555
 -- | mask2B second Mask for 2 state 64 bit
 -- 32 x (10)
 -- 12297829382473034410
+
 mask2B :: Word64
 mask2B = 0xAAAAAAAAAAAAAAAA
 -- | mask4A first mask for 4 state  64 bits
@@ -306,17 +307,33 @@ mask8I = 0x101010101010101
 andOrN functions derived from White and Holland 2011
 -}
 
+-- | andOR2 Packed2 modified from Goloboff 2002
+andOR2' :: Word64 -> Word64 -> (Word64, Int)
+andOR2' x y = 
+   let  x1 = x .&. y
+        c1 = xor mask2B (shiftR ((x1 .&. mask2B) .|. (x1 .&. mask2A)) 1)
+        c2 = c1 .|. (shiftL c1 1)
+        newState = x1 .|. c2
+        numChanges = popCount ((c1 .|. (shiftR c1 31)) .&. 0xFFFFFFFF)
+   in
+   (newState, numChanges)
+
 -- | andOR2 and or function for Packed2 encoding
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
 andOR2 x y = 
     let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
-        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B)) 
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B))
+
+        -- get number of characters by checking states (may not be full) 
+        numEmptyBits = countLeadingZeros x --- could by y just as well
+        (numNonCharacters, _) =  divMod numEmptyBits 2 
+        numChars =  32 - numNonCharacters
     in
-    trace ("AO2 x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
+    trace ("AO2 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
       ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):" 
       ++ (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) ++ "\nu: " ++ (showBits u)
       ++"\npc: " ++ (show $ popCount u) ++ " x:" ++ (showBits x) ++ " y:" ++ (showBits y) ++ " => u:" ++ (showBits u) ++ " z:" ++ (showBits z)) -- ++ " mask2A:" ++ (showBits mask2A) ++ " mask2B:" ++ (showBits mask2B))
-    (z, popCount u)
+    (z, numChars - (popCount u))
 
 -- | andOR4 and or function for Packed4 encoding
 andOR4 :: Word64 -> Word64 -> (Word64, Int)
@@ -390,11 +407,7 @@ packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
 postOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
 postOrder2 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
-    let x1 = leftPrelim .&. rightPrelim
-        y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask2B ((mask2B .&. x1) .|. (shiftR (mask2A .&. x1) 1))
-        c2 = c1 .|. (shiftL c1 1)
-        t = c2 .|. y1
+    let t = leftPrelim .&. rightPrelim
 
     -- postorder values
         x2 = parentFinal .&. (complement childPrelim)
