@@ -319,6 +319,11 @@ andOR2' x y =
    (newState, numChanges)
 
 -- | andOR2 and or function for Packed2 encoding
+-- for now--either becuase 2 bits are different, or misscoded but masking or whatever
+-- the "on" bit in u is reflective of number of intersections not unions.
+-- hence subtracting the number of unions from nubers of characters
+-- determined by leading OFF bits since packing will likely have ragged edges
+-- no not always the pack-able number
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
 andOR2 x y = 
     let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
@@ -326,7 +331,8 @@ andOR2 x y =
 
         -- get number of characters by checking states (may not be full) 
         numEmptyBits = countLeadingZeros x --- could by y just as well
-        (numNonCharacters, _) =  divMod numEmptyBits 2 
+        -- (numNonCharacters, _) =  divMod numEmptyBits 2 
+        numNonCharacters = shiftR numEmptyBits 1
         numChars =  32 - numNonCharacters
     in
     trace ("AO2 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
