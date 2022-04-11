@@ -44,6 +44,7 @@ module Input.Reorganize
   ) where
 
 import qualified Data.List                   as L
+import           Text.Read
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import           Types.Types
@@ -708,7 +709,10 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
         -- trace ("RTNA: " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList)) 
             -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
         (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
-        where makeInt a = read (ST.toString a) :: Int
+        where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int
+                          in
+                          if isNothing newA then error ("State " ++ (show a) ++ "not recoding to Int")
+                          else fromJust newA 
 
 -- | makeNewNonAddCharacter takes a stateIndex and charcatear number 
 -- and makes a non-additive character with 0 or 1 coding

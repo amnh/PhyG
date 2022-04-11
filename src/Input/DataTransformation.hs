@@ -790,6 +790,7 @@ getInitialMatrixVector alphabet' localState =
 -- and recodes returning list of encoded characters
 -- reverses order due to prepending
 -- matrix stateBVPrelim/Final for approx matrix costs
+-- adddded in code for ambiguities for non-additive--somehow got lost--alphabet [robbaly wrong now as well
 getQualitativeCharacters :: [CharInfo] -> [ST.ShortText] -> [CharacterData] -> [CharacterData]
 getQualitativeCharacters inCharInfoList inStateList curCharList =
     if null inCharInfoList then reverse curCharList
@@ -801,7 +802,15 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         in
         --single state
         if firstCharType == NonAdd then
-            let stateBV = getStateBitVector (alphabet firstCharInfo) firstState
+            let stateBV = if ST.length firstState == 1 then getStateBitVector (alphabet firstCharInfo) firstState
+                          else 
+                            let ambiguousStateST = ST.filter (`notElem` ['[', ']']) firstState
+                                ambiguousStateString = ST.toString ambiguousStateST
+                                stateSTList = fmap ST.singleton ambiguousStateString
+                                stateBVList = fmap (getStateBitVector (alphabet firstCharInfo)) stateSTList
+                            in 
+                            -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList)) 
+                            L.foldl1' (.|.) stateBVList
                 newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)

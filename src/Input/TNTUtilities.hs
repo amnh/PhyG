@@ -133,7 +133,7 @@ getTNTData inString fileName =
                             charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                             checkInfo = length charInfoData == numChar
                     in
-                    -- trace ("Shorted data:" ++ show sortedData) (
+                    -- trace ("Sorted data:" ++ show sortedData) (
                     --trace ("Alph2  " ++ (show $ fmap alphabet charInfoData)) (
                     if not checkInfo then error ("Character information number not equal to input character number: " ++ show numChar ++ " v " ++ show (length charInfoData))
                     else if not $ null incorrectLengthList then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has terminals with incorrect or varying numbers of characters (should be "
@@ -241,10 +241,10 @@ collectAmbiguities fileName inStringList =
         else if firstString == "[" then
             let ambiguityStringList = takeWhile (/="]") inStringList ++ ["]"]
             in
-            --trace (concat ambiguityStringList ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            -- trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
             concat ambiguityStringList : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
-        --)
+        -- )
 
 
 -- | defaultTNTCharInfo default values for TNT characters

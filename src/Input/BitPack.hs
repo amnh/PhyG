@@ -782,6 +782,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
 
 -- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into 
 -- a Word64 and performs appropriate bit settting and shifting to create  Word64
+-- paralle looked to bag out here
 packIntoWord64 :: Int -> Int -> [[Int]] -> [BV.BitVector] -> CharacterData
 packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
     -- get packable chunk of bv and correcsponding state indices
@@ -789,7 +790,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         packIndexLL = SL.chunksOf numToPack stateCharacterIndexL
 
         -- pack each chunk 
-        packedWordVect = V.fromList $ (zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList `using` PU.myParListChunkRDS)
+        packedWordVect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
     in    
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
