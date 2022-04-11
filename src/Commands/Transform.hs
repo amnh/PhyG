@@ -65,6 +65,7 @@ import           Data.Word
 import           Data.Bits
 import qualified Input.Reorganize            as R
 import qualified Input.DataTransformation    as TRANS
+import qualified Input.BitPack               as BP
 
 
 -- | transformArgList is the list of valid transform arguments
@@ -192,10 +193,14 @@ makeStaticApprox inGS inData inGraph =
           -- do each block in turn pulling and transforming data from inGraph
           newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
 
-          newProcessedData = R.removeConstantCharacters (nameV, nameBVV, V.fromList newBlockDataV)
+          -- remove constants from new prealigned
+          newProcessedData  = R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+
+          -- bit pack any new non-additive characters
+          newProcessedData' = BP.packNonAdditiveData newProcessedData
       in
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
-      newProcessedData
+      newProcessedData'
 
    else error ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS))
 

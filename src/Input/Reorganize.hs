@@ -38,8 +38,8 @@ Portability :  portable (I hope)
 module Input.Reorganize
   ( groupDataByType
   , reBlockData
-  , removeConstantCharacters
-  , removeConstantChars
+  , removeConstantCharactersPrealigned
+  , removeConstantCharsPrealigned
   , optimizeData
   ) where
 
@@ -433,17 +433,17 @@ addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacte
         else firstList : addMatrixCharacter (tail inMatrixCharacterList) currentCostMatrix currentMatrixCharacter replicateNumber
 
 
--- | removeConstantCharacters takes processed data and removes constant characters
--- from sequenceCharacterTypes
-removeConstantCharacters :: ProcessedData -> ProcessedData
-removeConstantCharacters (nameVect, bvNameVect, blockDataVect) = 
-    let newBlockData = V.fromList (fmap removeConstantBlock (V.toList blockDataVect) `using` PU.myParListChunkRDS)
+-- | removeConstantCharactersPrealigned takes processed data and removes constant characters
+-- from prealignedCharacterTypes
+removeConstantCharactersPrealigned :: ProcessedData -> ProcessedData
+removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) = 
+    let newBlockData = V.fromList (fmap removeConstantBlockPrealigned (V.toList blockDataVect) `using` PU.myParListChunkRDS)
     in
     (nameVect, bvNameVect, newBlockData)
 
--- | removeConstantBlock takes block data and removes constant characters
-removeConstantBlock :: BlockData -> BlockData
-removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
+-- | removeConstantBlockPrealigned takes block data and removes constant characters
+removeConstantBlockPrealigned :: BlockData -> BlockData
+removeConstantBlockPrealigned (blockName, taxVectByCharVect, charInfoV) =
     let numChars = V.length $ V.head taxVectByCharVect
 
         -- create vector of single characters with vector of taxon data of sngle character each
@@ -451,7 +451,7 @@ removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
         singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
 
         -- actually remove constants form chaarcter list 
-        singleCharVect' = V.zipWith removeConstantChars singleCharVect charInfoV
+        singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV
 
         -- recreate the taxa vext by character vect block data expects
         -- should filter out length zero characters
@@ -459,23 +459,23 @@ removeConstantBlock (blockName, taxVectByCharVect, charInfoV) =
     in
     (blockName, newTaxVectByCharVect, charInfoV)
 
--- | removeConstantChars takes a single 'character' and if proper type removes if all values are the same
+-- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.
 -- packed types already filtered when created
-removeConstantChars :: V.Vector CharacterData -> CharInfo -> V.Vector CharacterData
-removeConstantChars singleChar charInfo =
+removeConstantCharsPrealigned :: V.Vector CharacterData -> CharInfo -> V.Vector CharacterData
+removeConstantCharsPrealigned singleChar charInfo =
     let inCharType = charType charInfo
     in
 
     -- dynamic characters don't do this
-    if inCharType `elem` (nonExactCharacterTypes ++ packedNonAddTypes) then singleChar
+    if inCharType `notElem` prealignedCharacterTypes then singleChar
     else 
         let variableVect = getVariableChars inCharType singleChar
         in
         variableVect
 
 -- | getVariableChars checks identity of states in a vector positin in all taxa
--- and returns True if vaiable, False if constant
+-- and returns True if variable, False if constant
 -- bit packed and non-exact should not get in here
 getVariableChars :: CharType -> V.Vector CharacterData -> V.Vector CharacterData
 getVariableChars inCharType singleChar =
