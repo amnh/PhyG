@@ -423,31 +423,31 @@ among others.
 
 -- | packePreorder takes character type, current node (and children preliminary assignments)
 -- and parent final assignment and creates final assignment for current node 
--- a bit clumsy since uses Goloboff nmodifications and have to do some of the postOrder pass 
+-- a bit clumsy since uses Goloboff modifications and have to do some of the preOrder pass 
 -- in Goloboff but not done here
 packedPreorder :: CharType -> (V.Vector Word64, V.Vector Word64, V.Vector Word64) -> V.Vector Word64 -> V.Vector Word64
 packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
-    let newStateVect = if inCharType == Packed2       then V.zipWith4 postOrder2 leftPrelim childPrelim rightPrelim parentFinal 
-                       else if inCharType == Packed4  then V.zipWith4 postOrder4 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed5  then V.zipWith4 postOrder5 leftPrelim childPrelim rightPrelim parentFinal 
-                       else if inCharType == Packed8  then V.zipWith4 postOrder8 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed64 then V.zipWith4 postOrder64 leftPrelim childPrelim rightPrelim parentFinal
+    let newStateVect = if inCharType == Packed2       then V.zipWith4 preOrder2 leftPrelim childPrelim rightPrelim parentFinal 
+                       else if inCharType == Packed4  then V.zipWith4 preOrder4 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed5  then V.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal 
+                       else if inCharType == Packed8  then V.zipWith4 preOrder8 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed64 then V.zipWith4 preOrder64 leftPrelim childPrelim rightPrelim parentFinal
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     newStateVect 
 
 
--- | postOrder2 performs bitpacked Fitch preorder based on Goloboff 2002
+-- | preOrder2 performs bitpacked Fitch preorder based on Goloboff 2002
 -- less efficient than it could be due to nont using Goloboff for post-order
 -- assignment so have to claculate some post-order values that would 
 -- already exist otherwise.  Given pre-order should be much less frequent than
 -- pre-order shouldn't be that bad
-postOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
-postOrder2 leftPrelim childPrelim rightPrelim parentFinal =
+preOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let t = leftPrelim .&. rightPrelim
 
-    -- postorder values
+    -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
         c3 = (mask2B .&. x2) .|. (shiftR (mask2A .&. x2) 1)
         c4 = c3 .|. (shiftL c3 1)
@@ -456,9 +456,9 @@ postOrder2 leftPrelim childPrelim rightPrelim parentFinal =
     in
     finalState
 
--- | postOrder4 from postOrder2 but for 4 states
-postOrder4 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
-postOrder4 leftPrelim childPrelim rightPrelim parentFinal =
+-- | preOrder4 from preOrder2 but for 4 states
+preOrder4 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+preOrder4 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
@@ -466,7 +466,7 @@ postOrder4 leftPrelim childPrelim rightPrelim parentFinal =
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
         t = c2 .|. y1
 
-    -- postorder values
+    -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
         c3 = (mask4B .&. x2) .|. (shiftR (mask4C .&. x2) 1) .|. (shiftR (mask4D .&. x2) 2) .|. (shiftR (mask4E .&. x2) 3)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3)
@@ -475,9 +475,9 @@ postOrder4 leftPrelim childPrelim rightPrelim parentFinal =
     in
     finalState
 
--- | postOrder5 from postOrder2 but for 5 states
-postOrder5 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
-postOrder5 leftPrelim childPrelim rightPrelim parentFinal =
+-- | preOrder5 from preOrder2 but for 5 states
+preOrder5 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+preOrder5 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
@@ -485,7 +485,7 @@ postOrder5 leftPrelim childPrelim rightPrelim parentFinal =
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4)
         t = c2 .|. y1
 
-    -- postorder values
+    -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
         c3 = (mask5B .&. x2) .|. (shiftR (mask5C .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5E .&. x2) 3) .|. (shiftR (mask5F .&. x2) 4)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4)
@@ -494,9 +494,9 @@ postOrder5 leftPrelim childPrelim rightPrelim parentFinal =
     in
     finalState
 
--- | postOrder8 from postOrder2 but for 8 states
-postOrder8 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
-postOrder8 leftPrelim childPrelim rightPrelim parentFinal =
+-- | preOrder8 from preOrder2 but for 8 states
+preOrder8 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+preOrder8 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
@@ -504,7 +504,7 @@ postOrder8 leftPrelim childPrelim rightPrelim parentFinal =
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
         t = c2 .|. y1
 
-    -- postorder values
+    -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
         c3 = (mask8B .&. x2) .|. (shiftR (mask8C .&. x2) 1) .|. (shiftR (mask8D .&. x2) 2) .|. (shiftR (mask8E .&. x2) 3) .|. (shiftR (mask8F .&. x2) 4) .|. (shiftR (mask8G .&. x2) 5) .|. (shiftR (mask8H .&. x2) 6) .|. (shiftR (mask8I .&. x2) 7)
         c4 = c1 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4) .|. (shiftL c3 5) .|. (shiftL c3 6) .|. (shiftL c3 7)
@@ -514,9 +514,9 @@ postOrder8 leftPrelim childPrelim rightPrelim parentFinal =
     finalState
 
 
--- | postOrder64 performs simple Fitch preorder ("up-pass") on Word64
-postOrder64 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
-postOrder64 leftPrelim childPrelim rightPrelim parentFinal =
+-- | preOrder64 performs simple Fitch preorder ("up-pass") on Word64
+preOrder64 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
+preOrder64 leftPrelim childPrelim rightPrelim parentFinal =
     let a = parentFinal .&. (complement childPrelim)
         b = leftPrelim .&. rightPrelim
         c = parentFinal .|. childPrelim
@@ -647,7 +647,7 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
         newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
         
     in
-    trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
+    -- trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
 
 -- | packNonAdd takes taxon by vector character data and list of character information
@@ -674,7 +674,7 @@ packNonAdd inCharDataV charInfo =
             (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
 
         in
-        trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
+        -- trace ("PNA: " ++ (show numNonAdd))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
         (newStateCharListList, concat newCharInfoList)
 
 -- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
@@ -751,7 +751,7 @@ makeNewCharacterData charByTaxSingleCharData  =
 -- and removed if empty
 recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64 charInfo stateNumber charTaxBVLL =
-    trace ("Enter RBV2W64 In: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
+    -- trace ("Enter RBV2W64 In: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
     if null charTaxBVLL then ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
@@ -775,9 +775,9 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
             packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
         in
-        trace ("RBV2W64 Out: " ++ (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
+        -- trace ("RBV2W64 Out: " ++ (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType}])
-        )
+        -- )
 
 
 -- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into 
@@ -789,9 +789,10 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         packIndexLL = SL.chunksOf numToPack stateCharacterIndexL
 
         -- pack each chunk 
-        packedWordVect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
+        packedWordVect = V.fromList $ (zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList `using` PU.myParListChunkRDS)
 
     in    
+    -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
     emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
@@ -806,14 +807,14 @@ makeWord64FromChunk stateNumber stateIndexLL bvList =
     else
         let subCharacterList = zipWith3 (makeSubCharacter stateNumber) stateIndexLL bvList [0..(length bvList - 1)]
         in
-        trace ("MW64FC: " ++ (show subCharacterList) ++ " " ++ (show $ L.foldl1' (.|.) subCharacterList))
+        -- trace ("MW64FC: " ++ (show subCharacterList) ++ " " ++ (show $ L.foldl1' (.|.) subCharacterList))
         L.foldl1' (.|.) subCharacterList
 
 -- | makeSubCharacter makes sub-character (ie only those bits for states) from single bitvector and shifts appropriate number of bits
 -- to make Word64 with sub character bits set and all other bits OFF and in correct bit positions for that sub-character
 makeSubCharacter :: Int -> [Int] -> BV.BitVector -> Int -> Word64
 makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
-    trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show subCharacterIndex) ++ (show inBV))) (
+    -- trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show subCharacterIndex) ++ (show inBV))) (
     let -- get bit of state indices
         bitStates = fmap (testBit inBV) stateIndexList
 
@@ -821,13 +822,13 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         newBitStates = setOnBits (zeroBits :: Word64) bitStates 0 
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
-    trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
+    -- trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
     if length stateIndexList `notElem` [((fst $ divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
     else 
         subCharacter
-    )
-    )
+    -- )
+    -- )
         
 -- | setOnBits recursively sets On bits in a list of Bool
 setOnBits :: Word64 -> [Bool] -> Int -> Word64
@@ -853,7 +854,7 @@ getStateIndexList taxBVL =
             indexList = fmap snd $ filter ((== True) .fst) onIndexPair
 
         in
-        trace ("GSIL: " ++ (show indexList))
+        -- trace ("GSIL: " ++ (show indexList))
         indexList 
 
 
@@ -865,7 +866,7 @@ binStateNumber :: [(Int, [BV.BitVector])]
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
     if null inPairList then 
         --dont' really need to reverse here but seems hygenic
-        trace ("BSN: " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
+        trace ("Recoding NonAdditive Characters : " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
     else 
         let (stateNum, stateData) = head inPairList
@@ -889,18 +890,24 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
 
 getStateNumber :: [V.Vector BV.BitVector] -> Int -> (Int, [BV.BitVector])
 getStateNumber  characterDataVV characterIndex =
-    let thisCharV = fmap (V.! characterIndex) characterDataVV
-        missingVal = L.foldl1' (.|.) thisCharV
-        nonMissingBV = L.foldl1' (.|.) $ filter (/= missingVal) thisCharV
-        numStates = popCount nonMissingBV
+    -- trace ("GSN:" ++ (show characterIndex) ++ " " ++ (show $ fmap V.length characterDataVV) ++ "\n\t" ++ (show $ fmap (V.! characterIndex) characterDataVV)) (
+    if null characterDataVV then (0, [])
+    else
+        let thisCharV = fmap (V.! characterIndex) characterDataVV
+            missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (V.head $ head characterDataVV)) True
+            nonMissingBV = L.foldl1' (.|.) $ filter (/= missingVal) thisCharV
+            numStates = popCount nonMissingBV
 
-        -- this turns off non-missing bits
-        thisCharL = (fmap (.&. nonMissingBV) thisCharV)
-    in
-    if numStates <= 2 then (2, thisCharL)
-    else if numStates <= 4 then (4, thisCharL)
-    else if numStates <= 5 then (5, thisCharL)
-    else if numStates <= 8 then (8, thisCharL)
-    else if numStates <= 64 then (64, thisCharL)
-    else (128, thisCharL)
+            -- this turns off non-missing bits
+            thisCharL = (fmap (.&. nonMissingBV) thisCharV)
+        in
+        --trace ("Missing: " ++ (show missingVal)) (
+        if numStates == 1 then (1, [])
+        else if numStates == 2 then (2, thisCharL)
+        else if numStates <= 4 then (4, thisCharL)
+        else if numStates <= 5 then (5, thisCharL)
+        else if numStates <= 8 then (8, thisCharL)
+        else if numStates <= 64 then (64, thisCharL)
+        else (128, thisCharL)
 
+        -- ) -- )

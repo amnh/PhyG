@@ -1058,7 +1058,7 @@ makeCharacterGraph inBlockGraph =
       V.fromList characterGraphList
 
 -- | pullCharacter takes a DecoratedGraph with a single block and
--- creates a new DecoratedGraph with a single character form the input index
+-- creates a new DecoratedGraph with a single character from the input index
 pullCharacter :: Bool -> DecoratedGraph -> Int -> DecoratedGraph
 pullCharacter isMissing inBlockGraph characterIndex =
   if LG.isEmpty inBlockGraph then LG.empty
@@ -1070,22 +1070,28 @@ pullCharacter isMissing inBlockGraph characterIndex =
 
 -- | makeCharacterLabels pulls the index character label form the singleton block (via head)
 -- and creates a singleton character label, updating costs to that of the character
--- NB the case of missing data ius answered heer by an "empty charcter"
+-- NB the case of missing data is answered here by an "empty charcter"
 -- could be better to have V.empty
+-- isMIssingChar seems to be extraneous--not sure whey it was there.
 makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
 makeCharacterLabels isMissing characterIndex inVertexInfo =
-  let isMissingChar = (V.length $ (vertData inVertexInfo) V.! characterIndex) == 0
+  -- trace ("MCl in:" ++ (show inVertexInfo) ++ " " ++ (show characterIndex)) (
+  let -- isMissingChar = (V.length $ (vertData inVertexInfo) V.! characterIndex) == 0
       newVertexData = V.head (vertData inVertexInfo) V.! characterIndex
-      (newVertexCost, newSubGraphCost) = if isMissing || isMissingChar then (0, 0)
+      (newVertexCost, newSubGraphCost) = if isMissing then (0, 0)
+                                         --if isMissing || isMissingChar then (0, 0)
                                          else (localCost newVertexData, globalCost newVertexData)
       -- newVertexCost = localCost newVertexData
       -- newSubGraphCost = globalCost newVertexData
   in
-  -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) )
+  -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) ) (
   -- trace ("MCL: " ++ (show isMissing) ++ " CI: " ++ (show characterIndex) ++ " " ++ (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
-  inVertexInfo { vertData     = if not isMissing && not isMissingChar then V.singleton $ V.singleton newVertexData
+  inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
+                                -- if not isMissing && not isMissingChar then V.singleton $ V.singleton newVertexData
                                 else V.singleton $ V.singleton emptyCharacter --V.empty
                , vertexCost   = newVertexCost
                , subGraphCost = newSubGraphCost
                }
 
+
+    -- ) )

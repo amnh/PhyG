@@ -690,10 +690,10 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        numStates = length $ alphabet inCharInfo
+        numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
         origName = name inCharInfo
     in
-    if (inCharType /= Add) || (numStates > 10) || (numStates < 2) then (V.singleton inCharData, V.singleton inCharInfo)
+    if (inCharType /= Add) || (numStates > maxStateToRecode) || (numStates < 2) then (V.singleton inCharData, V.singleton inCharInfo)
     else 
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
         -- bits ON-- [0.. snd range]
@@ -705,8 +705,10 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
             newCharList = fmap (makeNewNonAddChar stateIndex) [0..numStates - 2]
 
         in
-        -- trace ("RTNA: " ++ (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
+        -- trace ("RTNA: " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList)) 
+            -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
         (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
+        where makeInt a = read (ST.toString a) :: Int
 
 -- | makeNewNonAddCharacter takes a stateIndex and charcatear number 
 -- and makes a non-additive character with 0 or 1 coding
