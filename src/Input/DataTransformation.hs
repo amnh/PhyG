@@ -369,7 +369,8 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap foundSymbols
             in
-            -- trace ("RNA: " ++ (show stateAlphabet))
+            --if (numStates > 4) then trace ("RNA: " ++ (show stateAlphabet)) charInfo {alphabet = stateAlphabet}
+            --else 
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then 
