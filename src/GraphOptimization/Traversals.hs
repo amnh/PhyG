@@ -964,7 +964,7 @@ makeSimpleLeafGraph (nameVect, _, _) =
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertex nameVect bvNameVect inData localIndex =
-    --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    -- trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData
         thisData = V.map (V.! localIndex) centralData
         newVertex = VertexInfo  { index = localIndex
@@ -981,7 +981,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
         in
         -- trace (show (length thisData) ++ (show $ fmap length thisData))
         (localIndex, newVertex)
-        --)
+        -- )
 
 -- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
 -- vi post-order traversal, yields cost as well

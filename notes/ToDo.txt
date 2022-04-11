@@ -566,5 +566,6 @@ preOrderTreeTraversal
 	that's an issue for small numbers of non-additive characters
 
 
-
+323) Rationalize V.fromList and V.toList in bitpacking
+	prob unncesesary back and forth
      	

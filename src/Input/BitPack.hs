@@ -169,10 +169,10 @@ Masks for vaious operations and state numbers
 -- 6148914691236517205
 mask2A :: Word64
 mask2A = 0x5555555555555555
+
 -- | mask2B second Mask for 2 state 64 bit
 -- 32 x (10)
 -- 12297829382473034410
-
 mask2B :: Word64
 mask2B = 0xAAAAAAAAAAAAAAAA
 -- | mask4A first mask for 4 state  64 bits
@@ -307,38 +307,47 @@ mask8I = 0x101010101010101
 andOrN functions derived from White and Holland 2011
 -}
 
+{-
 -- | andOR2 Packed2 modified from Goloboff 2002
-andOR2' :: Word64 -> Word64 -> (Word64, Int)
-andOR2' x y = 
+-- this is incomplete-- Goloboff uses look up table for on bits to length
+andOR2 :: Word64 -> Word64 -> (Word64, Int)
+andOR2 x y = 
    let  x1 = x .&. y
         c1 = xor mask2B (shiftR ((x1 .&. mask2B) .|. (x1 .&. mask2A)) 1)
         c2 = c1 .|. (shiftL c1 1)
         newState = x1 .|. c2
-        numChanges = popCount ((c1 .|. (shiftR c1 31)) .&. 0xFFFFFFFF)
+        numChanges = lookUpLegnth((c1 .|. (shiftR c1 31)) .&. 0xFFFFFFFF)
    in
    (newState, numChanges)
+   -}
 
--- | andOR2 and or function for Packed2 encoding
--- for now--either becuase 2 bits are different, or misscoded but masking or whatever
+
+-- For all biut packed charters--post order median 2
+-- for now--for somwe reason either mis-diagnosed or mis-coded (from White and Holland 2011)
 -- the "on" bit in u is reflective of number of intersections not unions.
--- hence subtracting the number of unions from nubers of characters
+-- hence subtracting the number of unions from numbers of characters
 -- determined by leading OFF bits since packing will likely have ragged edges
 -- no not always the pack-able number
+
+-- | andOR2 and or function for Packed2 encoding
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
 andOR2 x y = 
     let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B))
 
         -- get number of characters by checking states (may not be full) 
-        numEmptyBits = countLeadingZeros x --- could by y just as well
-        -- (numNonCharacters, _) =  divMod numEmptyBits 2 
+        numEmptyBits = countLeadingZeros x --- could be y just as well
+        
+        -- shift divide by 2 states 
         numNonCharacters = shiftR numEmptyBits 1
         numChars =  32 - numNonCharacters
     in
+    {-
     trace ("AO2 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
       ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):" 
       ++ (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) ++ "\nu: " ++ (showBits u)
       ++"\npc: " ++ (show $ popCount u) ++ " x:" ++ (showBits x) ++ " y:" ++ (showBits y) ++ " => u:" ++ (showBits u) ++ " z:" ++ (showBits z)) -- ++ " mask2A:" ++ (showBits mask2A) ++ " mask2B:" ++ (showBits mask2B))
+    -}
     (z, numChars - (popCount u))
 
 -- | andOR4 and or function for Packed4 encoding
@@ -346,8 +355,15 @@ andOR4 :: Word64 -> Word64 -> (Word64, Int)
 andOR4 x y = 
     let u = shiftR ((((x .&. y .&. mask4A) + mask4A) .|. (x .&. y)) .&. mask4B) 3 
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask4A) `xor` mask4B)) 
+
+        -- get number of characters by checking states (may not be full) 
+        numEmptyBits = countLeadingZeros x --- could be y just as well
+        
+        -- shift divide by 4 states 
+        numNonCharacters = shiftR numEmptyBits 2
+        numChars =  16 - numNonCharacters
     in
-    (z, popCount u)
+    (z, numChars - (popCount u))
 
 -- | andOR5 and or function for Packed5 encoding
 -- potential issue with top 4 bits--not sure on mask5B whether top 4 should be on or OFF.
@@ -356,24 +372,40 @@ andOR4 x y =
 -- and calcualted state 
 andOR5:: Word64 -> Word64 -> (Word64, Int)
 andOR5 x y = 
-    let u = shiftR ((((x .&. y .&. mask4A) + mask5A) .|. (x .&. y)) .&. mask5B) 4 
+    let u = shiftR ((((x .&. y .&. mask5A) + mask5A) .|. (x .&. y)) .&. mask5B) 4 
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask5A) `xor` mask5B)) 
+
+        -- get number of characters by checking states (may not be full) 
+        numEmptyBits = countLeadingZeros x --- could be y just as well
+
+        -- since top 4 bits always off (can't put anyhting in there) need to subtract those zeros
+        -- to get character number. Cant shift to get / 5 so integer divide 
+        (numNonCharacters, _) =  divMod (numEmptyBits - 4) 5
+        numChars =  12 - numNonCharacters
     in
-    (z, popCount u)
+    -- trace ("AO5 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ " u:" ++ (showBits u) ++ " z:" ++ (showBits z) ++ " leading 0:" ++ (show numEmptyBits) ++ " non-chars:" ++ (show numNonCharacters) ++ " popCount u:" ++ (show $ popCount u))
+    (z, numChars - (popCount u))
 
 -- | andOR8 and or function for Packed8 encoding
 andOR8 :: Word64 -> Word64 -> (Word64, Int)
 andOR8 x y = 
     let u = shiftR ((((x .&. y .&. mask8A) + mask8A) .|. (x .&. y)) .&. mask8B) 7 
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask8A) `xor` mask8B)) 
+
+        -- get number of characters by checking states (may not be full) 
+        numEmptyBits = countLeadingZeros x --- could be y just as well
+        
+        -- shift divide by 8 states 
+        numNonCharacters = shiftR numEmptyBits 3
+        numChars =  8 - numNonCharacters
     in
-    (z, popCount u)
+    (z, numChars - (popCount u))
 
 -- | andOR64 and or function for Packed64 encoding
 andOR64 :: Word64 -> Word64 -> (Word64, Int)
 andOR64 x y =
      if  (x .&. y) /= zeroBits then (x .&. y, 0)
-     else (x .|. y, popCount $ x .|. y)
+     else (x .|. y, 1)
 
 -- | median2Word64 driver function for median of two PackedN states
 median2Word64 :: (Word64 -> Word64 -> (Word64, Int)) -> V.Vector Word64 -> V.Vector Word64 -> (V.Vector Word64, Int)
@@ -612,9 +644,10 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
         (recodedSingleVecList, newCharInfoLL) = unzip $ zipWith packNonAdd singleCharVectList (V.toList charInfoV)
         
         -- recreate BlockData, tacxon dominant structure
-        newTaxVectByCharVect = U.glueBackTaxChar (V.fromList $ concat recodedSingleVecList)
+        newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
         
     in
+    trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
 
 -- | packNonAdd takes taxon by vector character data and list of character information
@@ -623,16 +656,16 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
 -- the weight is skipping because of the weight replication in reorganize
 -- if characters have non integer weight then they were not reorganized and left
 -- as single BV--here as well. Should be very few (if any) of them.
-packNonAdd :: V.Vector CharacterData -> CharInfo -> ([V.Vector CharacterData], [CharInfo])
+packNonAdd :: V.Vector CharacterData -> CharInfo -> ([[CharacterData]], [CharInfo])
 packNonAdd inCharDataV charInfo =
-    if (charType charInfo /= NonAdd) || (weight charInfo > 1)  then ([inCharDataV],[charInfo])
+    if (charType charInfo /= NonAdd) || (weight charInfo > 1)  then ([V.toList inCharDataV],[charInfo])
     else 
         -- recode non-additive characters
-        let leafNonAddV =  fmap (snd3 . stateBVPrelim) inCharDataV
-            numNonAdd = (V.length . V.head) leafNonAddV
+        let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
+            numNonAdd = (length . head) leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = V.toList $ fmap (getStateNumber leafNonAddV) (V.fromList [0.. numNonAdd - 1]) 
+            stateNumDataPairList = fmap (getStateNumber leafNonAddV) [0.. numNonAdd - 1] 
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
             (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
@@ -642,7 +675,7 @@ packNonAdd inCharDataV charInfo =
 
         in
         trace ("PNA: " ++ (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
-        (fmap V.fromList newStateCharListList, concat newCharInfoList)
+        (newStateCharListList, concat newCharInfoList)
 
 -- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
@@ -718,7 +751,7 @@ makeNewCharacterData charByTaxSingleCharData  =
 -- and removed if empty
 recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64 charInfo stateNumber charTaxBVLL =
-    trace ("Enter RBV2W64: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
+    trace ("Enter RBV2W64 In: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
     if null charTaxBVLL then ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
@@ -742,7 +775,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
             packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
         in
-        -- trace ("RBV2W64: " ++ (show packedDataL))
+        trace ("RBV2W64 Out: " ++ (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType}])
         )
 
@@ -854,15 +887,15 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
 -- returns pair of stateNUmber class (2,4,5,8,64, >64 as 128) and list of states
 -- for efficient glueing back together later
 
-getStateNumber :: V.Vector (V.Vector BV.BitVector) -> Int -> (Int, [BV.BitVector])
+getStateNumber :: [V.Vector BV.BitVector] -> Int -> (Int, [BV.BitVector])
 getStateNumber  characterDataVV characterIndex =
-    let thisCharV = V.map (V.! characterIndex) characterDataVV
-        missingVal = V.foldl1' (.|.) thisCharV
-        nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) thisCharV
+    let thisCharV = fmap (V.! characterIndex) characterDataVV
+        missingVal = L.foldl1' (.|.) thisCharV
+        nonMissingBV = L.foldl1' (.|.) $ filter (/= missingVal) thisCharV
         numStates = popCount nonMissingBV
 
         -- this turns off non-missing bits
-        thisCharL = V.toList $ (fmap (.&. nonMissingBV) thisCharV)
+        thisCharL = (fmap (.&. nonMissingBV) thisCharV)
     in
     if numStates <= 2 then (2, thisCharL)
     else if numStates <= 4 then (4, thisCharL)
