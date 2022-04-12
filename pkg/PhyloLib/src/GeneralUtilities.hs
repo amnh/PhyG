@@ -34,6 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
+{-# Language BangPatterns #-}
+
 module GeneralUtilities where
 
 import           Data.Array

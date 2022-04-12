@@ -57,10 +57,20 @@ minimize-conflict-set:    True
 ---------------------------------------------------------------------------------
 -- Dependency specifications
 --
+-- Always allow a newer version of libraries which are tightly coupled to the GHC
+-- compiler version. This allows the project to build with newer versions of the
+-- compiler without having to tediously tinker with dependencies, both direct and
+-- transitive.
+--
 -- Always allow a newer version of libraries which have had a major release due
 -- to a security or performance patch. Add a `preference` indicating the desire
 -- to use a version greater than or equal to the patch.
 ---------------------------------------------------------------------------------
+
+allow-newer:
+    aeson,
+    bytestring,
+    text,
 
 preferences:
     aeson          >= 2.0.0,

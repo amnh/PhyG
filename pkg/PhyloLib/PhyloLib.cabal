@@ -24,17 +24,51 @@ library
 
   build-depends:
     base                     >= 4.11      && < 5.0,
+    bv-little                >= 1.2,
     bytestring               >= 0.10.10   && < 0.13,
     deepseq                  >= 1.4       && < 2.0,
     directory                >= 1.3.6     && < 2.0,
+    fgl,
     filepath                 >= 1.4.2     && < 2.0,
     process                  >= 1.6       && < 2.0,
+    time,
     tasty                    >= 1.2       && < 2.0,
     tasty-golden             >= 2.3       && < 3.0,
     tasty-rerun              >= 1.1.14    && < 2.0,
+                containers >=0.6
+                , graphviz   >=2999.20
+                , fgl
+                , text
+                , parallel
+                , deepseq
+                , bv
+                -- , exceptions
+                , array
+                , split
+                , text-short
+                , random
+                , hashable
+                , time
+                , vector
+                , sort
+                -- , unboxing-vector
+                , MissingH >= 1.4.3
+                , bv-little
+                -- , bits
+                -- , hashmap
+                , bimap
+                , logfloat
+                , random-shuffle
+                
+               -- currently doesn't compile but could be useful
+               -- lots of good functions
+               -- , Graphalyze
+               , async
+               , process
+               , directory
 
   exposed-modules:
-    BinaryRenderingTree
+--    Bio.BinaryRenderingTree
     Cyclic
     GeneralUtilities
     GraphFormatUtilities
@@ -42,6 +76,3 @@ library
     SymMatrixSeq
     ParallelUtilities
     SymMatrix
-
-  other-modules:
-    Internal
