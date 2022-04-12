@@ -35,9 +35,10 @@ extra-source-files:
     ffi/memoized-tcm/costMatrixWrapper.h
     ffi/memoized-tcm/dynamicCharacterOperations.h
 
-source-repository head
+source-repository this
   type:     git
   location: git@github.com:wardwheeler/PhyGraph.git
+  branch:   rearchitecture
 
 -- Group of buildinfo specifications to correctly build and link to the C & C++:
 -- FFI code.
