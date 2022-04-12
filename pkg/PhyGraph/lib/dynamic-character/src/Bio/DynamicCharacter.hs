@@ -303,7 +303,7 @@ extractMedians :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> v e
 extractMedians (_,me,_)
     | GV.null me = me
     | otherwise  =
-        let gap  = buildGap $me ! 0
+        let gap  = buildGap $ me ! 0
         in  GV.filter (/=gap) me
 
 
