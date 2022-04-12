@@ -202,6 +202,9 @@ sympy-plots-for-*.tex/
 *.pytxcode
 pythontex-files-*/
 
+# MacOS
+.DS_Store
+
 # tcolorbox
 *.listing
 
@@ -283,3 +286,7 @@ TSWLatexianTemp*
 # Temporaty files
 *.*~
 *#*#
+
+# Testing artifacts
+log.err
+log.out
