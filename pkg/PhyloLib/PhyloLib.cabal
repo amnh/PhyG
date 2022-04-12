@@ -1,0 +1,47 @@
+Cabal-Version: 3.0
+Name:          PhyloLib
+Version:       1.0.0
+Stability:     Stable
+Build-Type:    Simple
+
+Author:        Ward Wheeler <wheeler@amnh.org>
+Copyright:     (c) 2015-2022 Ward Wheeler
+License:       BSD-3-Clause
+License-File:  LICENSE
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
+
+library
+
+  default-language:
+    Haskell2010
+
+  hs-source-dirs:
+    src
+
+  build-depends:
+    base                     >= 4.11      && < 5.0,
+    bytestring               >= 0.10.10   && < 0.13,
+    deepseq                  >= 1.4       && < 2.0,
+    directory                >= 1.3.6     && < 2.0,
+    filepath                 >= 1.4.2     && < 2.0,
+    process                  >= 1.6       && < 2.0,
+    tasty                    >= 1.2       && < 2.0,
+    tasty-golden             >= 2.3       && < 3.0,
+    tasty-rerun              >= 1.1.14    && < 2.0,
+
+  exposed-modules:
+    BinaryRenderingTree
+    Cyclic
+    GeneralUtilities
+    GraphFormatUtilities
+    LocalSequence
+    SymMatrixSeq
+    ParallelUtilities
+    SymMatrix
+
+  other-modules:
+    Internal

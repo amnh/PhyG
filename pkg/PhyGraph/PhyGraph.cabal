@@ -35,6 +35,10 @@ extra-source-files:
     ffi/memoized-tcm/costMatrixWrapper.h
     ffi/memoized-tcm/dynamicCharacterOperations.h
 
+source-repository head
+  type:     git
+  location: git@github.com:wardwheeler/PhyGraph.git
+
 -- Group of buildinfo specifications to correctly build and link to the C & C++:
 -- FFI code.
 common ffi-buildinfo
@@ -65,73 +69,6 @@ common ffi-buildinfo
   include-dirs:
     ffi/external-direct-optimization
 
-common ghc-flags
-
-  ghc-options:
---    -rtsopts          
-    -- Debugging flags
-    -debug
-    -g 
-    -ddump-stg
-    -ddump-cmm
-    -ddump-to-file   
-    -- -prof
-    -fprof-auto
-    -fprof-cafs
-    -optc -rdynamic          
-
-    -- Optimization flags
---    -O0
-    -O2
-    -threaded
-    -fexcess-precision
-    -fexpose-all-unfoldings
-    -flate-specialise
-    -foptimal-applicative-do
-    -fspecialize-aggressively
-    -fstatic-argument-transformation
-    -- Usability flags
-    -fdiagnostics-color=always
-    -fhide-source-paths
-    -j
-    -- Sanity check warnings
-    -Wall
-    -Wcompat
-    -Wdodgy-foreign-imports
-    -Wduplicate-exports
-    -Wempty-enumerations
-    -Widentities
-    -Wincomplete-patterns
-    -Wincomplete-record-updates
-    -Wincomplete-uni-patterns
-    -Wmissed-specialisations          
-    -Wmissing-deriving-strategies          
-    -Wmissing-fields
-    -Wmissing-home-modules
-    -Wmissing-monadfail-instances
-    -Wmissing-signatures
-    -Wmissing-export-lists
-    -Wnoncanonical-monad-instances
-    -Wnoncanonical-monoid-instances
-    -Woverflowed-literals
-    -Woverlapping-patterns
-    -Wredundant-constraints
-    -Wsemigroup
-    -Wtabs
-    -Wunrecognised-warning-flags
-    -Wunused-binds
-    -Wunused-do-bind
-    -Wunused-foralls
-    -Wunused-imports
-    -Wunused-matches
-    -Wwrong-do-bind
-    -Wpartial-fields
-
-
-  if impl(ghc >= 8.10)
-    ghc-options:
-      -Wderiving-defaults
-      -Wunused-packages
 
 -- Global deviations from Haskell98
 common language-specs
@@ -167,7 +104,6 @@ executable phyg
 
   import:
     ffi-buildinfo,
-    ghc-flags,
     language-specs
 
   main-is: phygraph.hs
@@ -196,6 +132,7 @@ executable phyg
 
   build-depends:  alphabet
                 , dynamic-character
+                , PhyloLib
                 , tcm
                 , base >=4.10
                 , containers >=0.6
@@ -291,6 +228,47 @@ executable phyg
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
+-- Integration test-suites for PCG/PhyG
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+test-suite integration-tests
+
+  import:
+    language-specs
+
+  default-language:
+    Haskell2010
+
+  main-is:
+    TestSuite.hs
+
+  type:
+    exitcode-stdio-1.0
+
+  hs-source-dirs:
+    test
+
+  build-depends:
+    alphabet,
+    dynamic-character,
+    tcm,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    tasty                    >= 1.4       && < 2.0,
+    tasty-quickcheck         >= 0.10      && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+
+  other-modules:
+    DirectOptimization.Pairwise.Test
+    Test.Aligners
+    Test.QuickCheck.Instances.DynamicCharacter
+
+    
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
 -- Collection of sub-libraries which both, compose the package's primary program
 -- (PCG/PhyG), and are also exposed for external consumption by other programs.
 --
@@ -300,7 +278,6 @@ executable phyg
 library alphabet
 
   import:
-    ghc-flags,
     language-specs
 
   default-language:
@@ -348,7 +325,6 @@ library dynamic-character
 
   import:
     ffi-buildinfo,
-    ghc-flags,
     language-specs
 
   default-language:
@@ -399,7 +375,6 @@ library tcm
 
   import:
     ffi-buildinfo,
-    ghc-flags,
     language-specs,
 
   default-language:
@@ -444,8 +419,7 @@ library tcm
 --
 --  import:
 --    ffi-buildinfo,
---    ghc-flags,
---    language-specs,
+----    language-specs,
 --
 --  default-language:
 --    Haskell2010
@@ -506,7 +480,6 @@ library tcm
 library utility
 
   import:
-    ghc-flags,
     language-specs
 
   default-language:
@@ -520,7 +493,7 @@ library utility
     binary                   >= 0.8       && < 1.0,
     bv-little                >= 1.0.1     && < 2.0,
     bv-little:instances      >= 1.0.1     && < 2.0,
-    bytestring               >= 0.10.10   && < 0.11,
+    bytestring               >= 0.10.10   && < 1.0,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     foldl                    >= 1.4       && < 2.0,
@@ -559,7 +532,6 @@ library utility
 test-suite test-dynamic-character
 
   import:
-    ghc-flags,
     language-specs
 
   default-language:
@@ -610,7 +582,6 @@ test-suite test-dynamic-character
 executable inspect-dynamic-character
 
   import:
-    ghc-flags,
     language-specs
 
   default-language:
