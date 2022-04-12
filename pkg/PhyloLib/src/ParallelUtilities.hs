@@ -34,32 +34,35 @@ Portability :  portable (I hope)
 
 -}
 
-module ParallelUtilities (parmap,
-                          seqParMap,
-                          getNumThreads,
-                          rnf,
-                          myStrategy,
-                          myStrategyRS,
-                          myStrategyRPAR,
-                          myParListChunk,
-                          myParListChunkRDS,
-                          myChunkParMapRDS
-                          ) where
+{-# Language ImportQualifiedPost #-}
 
-import           Control.Concurrent
-import           Control.DeepSeq
-import           Control.Parallel.Strategies
-import qualified Data.BitVector              as BV
-import           System.IO.Unsafe
+{-# Options_GHC -fno-warn-orphans #-}
 
---import           Debug.Trace
+module ParallelUtilities
+    ( parmap
+    , seqParMap
+    , getNumThreads
+    , rnf
+    , myStrategy
+    , myStrategyRS
+    , myStrategyRPAR
+    , myParListChunk
+    , myParListChunkRDS
+    , myChunkParMapRDS
+    ) where
+
+import Control.Concurrent
+import Control.DeepSeq
+import Control.Parallel.Strategies
+import Data.BitVector qualified as BV
+import System.IO.Unsafe
 
 
 -- Map a function over a traversable structure in parallel
 -- Preferred over parMap which is limited to lists
 -- Add chunking (with arguement) (via chunkList) "fmap blah blah `using` parListChunk chunkSize rseq/rpar"
 -- but would have to do one for lists (with Chunk) and one for vectors  (splitAt recusively)
-parmap :: Traversable t => Strategy b -> (a->b) -> t a -> t b
+parmap :: Traversable t => Strategy b -> (a -> b) -> t a -> t b
 parmap strat f = withStrategy (parTraversable strat).fmap f
 
 -- | seqParMap takes strategy,  if numThread == 1 retuns fmap otherwise parmap and
@@ -77,10 +80,10 @@ myParListChunkRDS = parListChunk getNumThreads myStrategy
 myStrategy :: (NFData b) => Strategy b
 myStrategy = rdeepseq
 
-myStrategyRS :: (NFData b) => Strategy b
+myStrategyRS :: Strategy b
 myStrategyRS = rseq
 
-myStrategyRPAR :: (NFData b) => Strategy b
+myStrategyRPAR :: Strategy b
 myStrategyRPAR = rpar
 
 -- | getNumThreads gets number of COncurrent  threads
@@ -91,10 +94,12 @@ getNumThreads = unsafePerformIO getNumCapabilities
 
 -- NFData instance for parmap/rdeepseq Bit Vectory types
 instance NFData BV.BV where
-  rnf bv = BV.size bv `seq` BV.nat bv `seq` ()
+  
+    rnf bv = BV.size bv `seq` BV.nat bv `seq` ()
+
 
 -- | myChunkParMapRDS chuncked parmap that defaults to fmap if not paralell
-myChunkParMapRDS :: (NFData b, NFData c) => (b -> c) -> [b] -> [c]
+myChunkParMapRDS :: NFData c => (b -> c) -> [b] -> [c]
 myChunkParMapRDS f inList = 
   if getNumThreads == 1 then fmap f inList
   else fmap f inList `using` myParListChunkRDS

@@ -35,27 +35,29 @@ Portability :  portable (I hope)
 -}
 
 {-# Language BangPatterns #-}
+{-# Language ImportQualifiedPost #-}
+{-# Language ScopedTypeVariables #-}
 
-module GeneralUtilities where
+module GeneralUtilities
+    ( module GeneralUtilities
+    ) where
 
-import           Data.Array
-import qualified Data.Text  as T
-import qualified Data.Text.Lazy  as TL
-import           System.Random
-import           Data.Array.IO
-import           Control.Monad
+import Data.Array
+import Data.Text qualified  as T
+import Data.Text.Lazy qualified as TL
+import System.Random
+import Data.Array.IO
+import Data.Foldable
+import Control.Monad
 import Control.DeepSeq
-import           Data.Hashable
-import           Data.Time
-import           Data.Time.Clock.POSIX
-import           System.IO.Unsafe
-import           Text.Read
-import           Data.Maybe
-import qualified Data.Vector as V
-import           Data.Bits            
-import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.List as L
-import           Debug.Trace
+import Data.Time
+import Data.Time.Clock.POSIX
+import System.IO.Unsafe
+import Text.Read
+import Data.Maybe
+import Data.Bits
+import Data.BitVector.LittleEndian qualified as BV
+import Data.List qualified as L
 
 
 -- | functions for triples, quadruples
@@ -149,8 +151,16 @@ checkCommandArgs commandString commandList permittedList =
     if foundCommand then checkCommandArgs commandString (tail commandList) permittedList
     else
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") permittedList firstCommand
-        in
-        errorWithoutStackTrace ("\nError: Unrecognized '"++ commandString ++"' option. By \'" ++ firstCommand ++ "\' did you mean \'" ++ errorMatch ++ "\'?\n"))
+        in  errorWithoutStackTrace $ fold
+              [ "\nError: Unrecognized '"
+              , commandString
+              , "' option. By '"
+              , firstCommand
+              , "' did you mean '"
+              , errorMatch
+              , "'?\n"
+              ] )
+
 
 -- | getBestMatch compares input to allowable commands and checks if in list and if not outputs
 -- closest match
@@ -272,9 +282,9 @@ getRandomElement rVal inList =
     if null inList then error "Null list in getRandomElement"
     else if length inList == 1 then head inList
     else 
-        let (_, index) = divMod (abs rVal) (length inList)
+        let (_, idx) = divMod (abs rVal) (length inList)
         in
-        inList !! index
+        inList !! idx
 
 -- | selectListCostPairs is general to list of (a, Double)
 -- but here used for graph sorting and selecting)takes a pair of graph representation (such as String or fgl graph), and
@@ -284,15 +294,20 @@ getRandomElement rVal inList =
 -- options are pairs of String and number for number or graphs to keeep, if number is set to (-1) then all are kept
 -- if the numToKeep to return graphs is lower than number of graphs, the "best" number are returned
 -- except for random.
-selectListCostPairs :: (Eq a, Hashable a) => (a -> a -> Bool) -> [(a, Double)] -> [String] -> Int -> Int -> [(a, Double)] 
+selectListCostPairs :: forall a . (a -> a -> Bool) -> [(a, Double)] -> [String] -> Int -> Int -> [(a, Double)] 
 selectListCostPairs compFun pairList optionList numToKeep seed = 
   if null optionList then error "No options specified for selectGraphCostPairs"
   else if null pairList then []
   else 
-    let firstPass = if ("unique" `elem` optionList) then L.nubBy compFunPair pairList
-                    else pairList
-        secondPass = if ("best" `elem` optionList) then reverse $ L.sortOn snd firstPass
-                     else firstPass
+    let firstPass =
+          let compFunPair :: forall b c. (a, b) -> (a, c) -> Bool
+              compFunPair x = compFun (fst x) . fst
+          in  if ("unique" `elem` optionList)
+              then L.nubBy compFunPair pairList
+              else pairList
+        secondPass
+          | ("best" `elem` optionList) = reverse $ L.sortOn snd firstPass
+          | otherwise = firstPass
     in
     if ("random" `notElem` optionList) then take numToKeep secondPass 
     else -- shuffling with hash of structure as seed (not the best but simple for here)
@@ -300,9 +315,8 @@ selectListCostPairs compFun pairList optionList numToKeep seed =
           pairListWRand = zip randList secondPass
           thirdPass = fmap snd $ L.sortOn fst pairListWRand
 
-      in
-      take numToKeep thirdPass
-  where compFunPair fGraph sGraph = compFun (fst fGraph) (fst sGraph)
+      in  take numToKeep thirdPass
+
 
 -- | getSystemTimeSeconds gets teh syste time and returns IO Int
 getSystemTimeSeconds :: IO Int
