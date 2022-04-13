@@ -438,9 +438,9 @@ packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
 
 
 -- | preOrder2 performs bitpacked Fitch preorder based on Goloboff 2002
--- less efficient than it could be due to nont using Goloboff for post-order
--- assignment so have to claculate some post-order values that would 
--- already exist otherwise.  Given pre-order should be much less frequent than
+-- less efficient than it could be due to not using Goloboff for post-order
+-- assignment so have to calculate some post-order values that would 
+-- already exist otherwise.  Given that pre-order should be much less frequent than
 -- pre-order shouldn't be that bad
 preOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
 preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
