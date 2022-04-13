@@ -1262,7 +1262,7 @@ makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int)) -> V.Vector (Int, Int) ->  V.Vector (Int, Int)
-additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
+additivePreorder (leftChild, nodePrelim, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
       V.zipWith4 makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
@@ -1270,7 +1270,7 @@ additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
 -- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
-nonAdditivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
+nonAdditivePreorder (leftChild, nodePrelim, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
       V.zipWith4 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
@@ -1372,15 +1372,15 @@ makeNonAdditiveCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> B
 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
-   if (nodePrelim .&. parentFinal) == parentFinal then
+   if BV.isZeroVector ((complement nodePrelim) .&. parentFinal) then
       --trace ("R1 " ++ show parentFinal)
       parentFinal
-   else if BV.isZeroVector (leftChild .&. rightChild) && (leftChild .|. rightChild) == nodePrelim then
+   else if (BV.isZeroVector (leftChild .&. rightChild)) then
       --trace ("R2 " ++ show (nodePrelim .|. parentFinal))
       nodePrelim .|. parentFinal
    else
       -- trace ("R3 " ++ show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)))
-      nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
+      nodePrelim .|. (parentFinal .&. (leftChild .|. rightChild))
    -- )
 
 -- | makeMatrixCharacterFinal vertex preliminary and parent final state
