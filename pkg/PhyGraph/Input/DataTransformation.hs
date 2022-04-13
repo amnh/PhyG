@@ -361,23 +361,23 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
         if inCharType == NonAdd then 
             let -- get actual states
                 inCharV = fmap (V.head . snd3 . stateBVPrelim) $ fmap V.head taxonByCharData
-                missingVal = V.foldl1' (.|.) inCharV
+                missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (V.head . snd3 . stateBVPrelim . V.head $ V.head taxonByCharData)) True
+                --missingVal = V.foldl1' (.|.) inCharV
                 nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) inCharV
                 numStates = popCount nonMissingBV
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
-                stateAlphabet = fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
-            --if (numStates > 4) then trace ("RNA: " ++ (show stateAlphabet)) charInfo {alphabet = stateAlphabet}
-            --else 
+            -- trace ("RNA: " ++ (show stateAlphabet)) 
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then 
             let (minRange, maxRange) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
 
                 foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
-                stateAlphabet = fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}

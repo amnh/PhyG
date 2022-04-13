@@ -570,3 +570,5 @@ preOrderTreeTraversal
 	prob unncesesary back and forth
      	
 324) Add check for read and write to same file name
+
+325) efficiently parallleize bitpacking 

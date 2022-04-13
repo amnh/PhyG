@@ -147,17 +147,17 @@ main = do
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in character number
-    let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
+    let !naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
     
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList <- CE.executeRenameReblockCommands reBlockPairs thingsToDo
-    let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
+    let !reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
 
     -- Group Data--all nonadditives to single character, additives with same alphabet, 
-    let groupedData = R.groupDataByType reBlockedNaiveData
+    let !groupedData = R.groupDataByType reBlockedNaiveData
 
     -- Optimize Data convert
         -- Additive characters with alphabets < 64 to multiple binary nonadditive
@@ -165,7 +165,7 @@ main = do
         -- matrix 2 states to non-additive with weight
         -- prealigned to non-additive or matrix
         -- bitPack non-additive
-    let optimizedData = R.optimizeData groupedData 
+    let !optimizedData = R.optimizeData groupedData 
 
 
     -- Set global vaues before search--should be integrated with executing commands
