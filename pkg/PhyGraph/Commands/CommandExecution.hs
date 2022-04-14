@@ -385,7 +385,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 else 
                     (blockStringList, outfileName, writeMode)
 
-            else if "graphs" `elem` commandList then
+            else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs then 
