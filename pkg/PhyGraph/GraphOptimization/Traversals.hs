@@ -161,8 +161,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- first traversal on outgroup roo
-        outgroupRooted = if startVertex == Nothing then postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph -- $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
-                        else postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
+        outgroupRooted = postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
 
         -- start at start vertex--for components or ur-root for full graph
         startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRooted
@@ -418,6 +417,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
             -- create new, fully  updated post-order graph
             finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
         in
+        trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
         finalPreOrderGraph
 
 
@@ -442,7 +442,9 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
                 currentRootEdges = LG.out inSimpleGraph rootIndex
             in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
-        else newSoftWired
+        else 
+            trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
+            newSoftWired
         -- )
 
 -- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
