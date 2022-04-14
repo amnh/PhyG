@@ -54,6 +54,7 @@ import Control.Concurrent.Async
 import qualified Data.List as L
 import qualified Commands.Transform as TRANS
 import qualified GraphOptimization.Traversals as T
+import qualified Commands.Verify            as VER
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
@@ -307,18 +308,13 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
          else error ("Unknown/unimplemented method in search: " ++ operation) 
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
--- | search arguments
-searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
-
-
 -- | getSearchParams takes arguments and returns search params
 getSearchParams :: [Argument] -> (Int, Int, Int)
 getSearchParams inArgs = 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "search" fstArgList searchArgList
+       checkCommandList = checkCommandArgs "search" fstArgList VER.searchArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)

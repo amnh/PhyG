@@ -94,7 +94,7 @@ main = do
     -- check commands and options for basic correctness
     let !commandsOK = V.verifyCommands thingsToDo
 
-    if commandsOK then hPutStrLn "Commands appear to be properly specified"
+    if commandsOK then hPutStrLn stderr "Commands appear to be properly specified--file availability and contents not checked.\n"
     else errorWithoutStackTrace "Commands not properly specified"
 
     dataGraphList <- mapM RIF.executeReadCommands $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo

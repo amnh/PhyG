@@ -56,10 +56,7 @@ import qualified Utilities.Distances     as DD
 import qualified Reconciliation.ReconcileGraphs as REC
 import qualified Utilities.LocalGraph      as LG
 import qualified GraphOptimization.Traversals as T
-
--- | refinement arguments
-supportArgList :: [String]
-supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
+import qualified Commands.Verify            as VER
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -69,7 +66,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "support" fstArgList supportArgList
+          checkCommandList = checkCommandArgs "support" fstArgList VER.supportArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " ++ show inArgs)

@@ -60,6 +60,7 @@ import Data.Bits
 import qualified Data.Map as MAP
 import qualified Data.Text.Lazy              as TL
 import qualified Data.BitVector.LittleEndian as BV
+import qualified Commands.Verify            as VER
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing

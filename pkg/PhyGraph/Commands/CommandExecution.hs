@@ -83,20 +83,10 @@ import qualified Commands.Transform as TRANS
 import qualified SymMatrix                   as S
 import           Data.Alphabet
 import Data.Bits
+import qualified Commands.Verify              as V
 
 
--- | setArgLIst contains valid 'set' arguments
-setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed"]
 
--- | reportArgList contains valid 'report' arguments
-reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"]
-
-
--- | buildArgList is the list of valid build arguments
-selectArgList :: [String]
-selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
@@ -168,7 +158,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             executeCommands (globalSettings {searchData = newSearchData})  rawData origProcessedData processedData  (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Select then do
-            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) V.selectArgList curGraphs
                 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
@@ -238,7 +228,7 @@ setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalS
 setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
-        checkCommandList = checkCommandArgs "set" commandList setArgList
+        checkCommandList = checkCommandArgs "set" commandList V.setArgList
         leafNameVect = fst3 processedData
 
     in
@@ -336,7 +326,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ (show outFileNameList) ++ " " ++ (show argList))
     else
-        let checkCommandList = checkCommandArgs "report" commandList reportArgList
+        let checkCommandList = checkCommandArgs "report" commandList V.reportArgList
             outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
@@ -1078,7 +1068,7 @@ getImpliedAlignmentString inGS inData inGraph graphNumber =
 
                 newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
 
-                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 newGraph
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)

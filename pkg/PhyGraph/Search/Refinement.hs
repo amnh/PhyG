@@ -35,7 +35,6 @@ Portability :  portable (I hope)
 -}
 
 module Search.Refinement  ( refineGraph
-                          , refineArgList
                           , netEdgeMaster
                           , fuseGraphs
                           , swapMaster
@@ -58,13 +57,12 @@ import qualified Search.Fuse as F
 import qualified Search.GeneticAlgorithm as GA
 import qualified Search.SwapMaster       as SM
 
+import qualified Commands.Verify         as VER
+
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times
 -- with --enalble-profinling
 swapMaster = SM.swapMaster
 
--- | refinement arguments
-refineArgList :: [String]
-refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneticalgorithm", "ga"] ++ fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -74,7 +72,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "refineGraph" fstArgList refineArgList
+          checkCommandList = checkCommandArgs "refineGraph" fstArgList VER.refineArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
@@ -95,11 +93,6 @@ refineGraph inArgs inGS inData rSeed inGraphList =
          geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
 
       else error "No refinement operation specified"
-
-
--- | geneticAlgorithm arguments
-geneticAlgorithmArgList :: [String]
-geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga"]
 
 -- | geneticAlgorithmMaster takes arguments and performs genetic algorithm on input graphs
 -- the process follows several steps
@@ -133,7 +126,7 @@ getGeneticAlgParams inArgs =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
           lcArgList = zip fstArgList sndArgList
-          checkCommandList = checkCommandArgs "geneticalgorithm" fstArgList geneticAlgorithmArgList
+          checkCommandList = checkCommandArgs "geneticalgorithm" fstArgList VER.geneticAlgorithmArgList
       in
       -- check for valid command options
       if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
@@ -189,10 +182,6 @@ getGeneticAlgParams inArgs =
          else
             (doElitist, keepNum, popSize, generations, severity, recombinations)
 
--- | fuseArgList arguments
-fuseArgList :: [String]
-fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs"]
-
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap 
 fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -237,7 +226,7 @@ getFuseGraphParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
-        checkCommandList = checkCommandArgs "fuse" fstArgList fuseArgList
+        checkCommandList = checkCommandArgs "fuse" fstArgList VER.fuseArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " ++ show inArgs)
@@ -272,10 +261,6 @@ getFuseGraphParams inArgs =
 
         else 
             (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
-
--- | netEdgeArgList arguments for network edge add/delete operations
-netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom"]
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -405,7 +390,7 @@ getNetEdgeParams inArgs =
      let fstArgList = fmap (fmap toLower . fst) inArgs
          sndArgList = fmap (fmap toLower . snd) inArgs
          lcArgList = zip fstArgList sndArgList
-         checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList netEdgeArgList
+         checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList VER.netEdgeArgList
      in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " ++ show inArgs)

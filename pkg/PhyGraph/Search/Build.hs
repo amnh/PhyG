@@ -66,11 +66,7 @@ import qualified ParallelUtilities       as PU
 import Control.Parallel.Strategies
 import qualified Reconciliation.ReconcileGraphs as R
 import qualified Reconciliation.Eun    as E
-
-
--- | buildArgList is the list of valid build arguments
-buildArgList :: [String]
-buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "first", "displaytrees", "graph"]
+import qualified Commands.Verify       as VER
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -80,7 +76,7 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "build" fstArgList buildArgList
+       checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
    in
        -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
@@ -207,7 +203,7 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "build" fstArgList buildArgList
+       checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)

@@ -62,6 +62,7 @@ import qualified System.Path.Glob           as SPG
 import           Types.Types
 import qualified Utilities.LocalGraph       as LG
 import qualified Utilities.Utilities        as U
+import qualified Commands.Verify            as V
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -312,11 +313,6 @@ makeNamePairs inFileName inLine =
             renamePairList
 
 
--- | Read arg list allowable modifiers in read
-readArgList :: [String]
-readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
-    "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -333,7 +329,7 @@ getReadArgs fullCommand argList =
             if (head secondPart == '"') || (last secondPart == '"') then (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
             else errorWithoutStackTrace ("\n\n'Read' command error (*) '" ++ secondPart ++"' : Need to specify filename in double quotes")
         -- Change to allowed modifiers
-        else if fmap toLower firstPart `notElem` readArgList then
+        else if fmap toLower firstPart `notElem` V.readArgList then
             errorWithoutStackTrace ("\n\n'Read' command error (**): " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
         else if null secondPart && (firstPart == "prealigned")  then
             (firstPart, []) : getReadArgs fullCommand (tail argList)

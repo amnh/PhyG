@@ -48,10 +48,7 @@ import Data.Maybe
 import           Data.Char
 import           Text.Read
 import qualified Graphs.GraphOperations  as GO
--- | buildArgList is the list of valid build arguments
-swapArgList :: [String]
-swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
-
+import qualified Commands.Verify            as VER
 
 -- | swapMaster processes and spawns the swap functions
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
@@ -184,7 +181,7 @@ getSwapParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
-        checkCommandList = checkCommandArgs "swap" fstArgList swapArgList
+        checkCommandList = checkCommandArgs "swap" fstArgList VER.swapArgList
     in
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)

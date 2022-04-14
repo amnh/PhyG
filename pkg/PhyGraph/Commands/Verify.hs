@@ -39,18 +39,187 @@ Portability :  portable (I hope)
 module Commands.Verify
     ( verifyCommands
     , allowedCommandList
+    , buildArgList
+    , fuseArgList
+    , geneticAlgorithmArgList
+    , netEdgeArgList
+    , readArgList
+    , refineArgList
+    , reportArgList
+    , searchArgList
+    , setArgList
+    , selectArgList
+    , supportArgList
+    , swapArgList
     ) where
 
 import           Debug.Trace
 import           Types.Types
+import           GeneralUtilities
+import qualified Data.List as L
+import qualified Data.Char as C
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
 allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "report", "run", "search", "select", "set", "support", "swap"]
 
+-- list of valid instructions
+validInstructionList :: [Instruction]
+validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Select, Set, Swap, Search, Support, Transform]
 
+-- | buildArgList is the list of valid build arguments
+buildArgList :: [String]
+buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "first", "displaytrees", "graph"]
+
+-- | fuseArgList arguments
+fuseArgList :: [String]
+fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs"]
+
+-- | geneticAlgorithm arguments
+geneticAlgorithmArgList :: [String]
+geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga"]
+
+-- | netEdgeArgList arguments for network edge add/delete operations
+netEdgeArgList :: [String]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom"]
+
+-- | Read arg list allowable modifiers in read
+readArgList :: [String]
+readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
+    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
+    "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
+
+-- | refinement arguments
+refineArgList :: [String]
+refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneticalgorithm", "ga"] ++ fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
+
+-- | reportArgList contains valid 'report' arguments
+reportArgList :: [String]
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"]
+
+-- | search arguments
+searchArgList :: [String]
+searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
+
+-- | buildArgList is the list of valid build arguments
+selectArgList :: [String]
+selectArgList = ["best", "all", "unique", "atrandom"]
+
+-- | setArgLIst contains valid 'set' arguments
+setArgList :: [String]
+setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed"]
+
+-- | refinement arguments
+supportArgList :: [String]
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
+
+-- | buildArgList is the list of valid build arguments
+swapArgList :: [String]
+swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
+
+
+-- | makeArgsLowerCase reformats a command
+makeArgsLowerCase :: Command -> Command
+makeArgsLowerCase inCommand =
+    let argList = snd inCommand
+        commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
+        optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
+    in
+    (fst inCommand, zip commandList optionList)
+     
 -- | verifyCommands takes a command list and tests whether the commands 
--- and argumwents are permissible before program execution--prevents late failure 
+-- and arguments are permissible before program execution--prevents late failure 
 -- after alot of processing time.
+-- bit does not check for files existance, write/read ability, or contents for format or 
+-- anyhhting else for that matter
+-- does check if files are both read from and written to
 verifyCommands :: [Command] -> Bool
-verifyCommands inCommandList = True
+verifyCommands inCommandList = 
+    let instructionList = fmap fst inCommandList
+
+        -- check valid instructions
+        -- this is done earlier but might get oved so putting here just in case
+        checkInstructionList = fmap (`elem` validInstructionList) instructionList
+        instructionInvalidList = fmap fst $ filter ((== False) . snd) $ zip instructionList checkInstructionList
+
+    in
+    if (not . null) instructionInvalidList then errorWithoutStackTrace ("Invalid commands were specified : " ++ (show instructionInvalidList))
+    else 
+        -- check each command for valid arguments
+        -- make lower-case arguments
+        let newCommandList = fmap makeArgsLowerCase inCommandList
+
+            -- Read
+            readPairList = fmap snd $ filter ((== Read) .fst) newCommandList
+            (readCommandList, readFileList) = unzip $ concat readPairList
+            checkRead = checkCommandArgs "read"  (filter (/= []) readCommandList) readArgList
+
+
+            -- Build
+            buildPairList = fmap snd $ filter ((== Build) .fst) newCommandList
+            (buildCommandList, _) = unzip $ concat buildPairList
+            checkBuild = checkCommandArgs "build"  (filter (/= []) buildCommandList) buildArgList
+        
+            -- Fuse
+            fusePairList = fmap snd $ filter ((== Fuse) .fst) newCommandList
+            (fuseCommandList, _) = unzip $ concat fusePairList
+            checkFuse = checkCommandArgs "fuse"  (filter (/= []) fuseCommandList) fuseArgList
+
+            -- Reblock -- part of read
+            
+            -- Refine
+            refinePairList = fmap snd $ filter ((== Refine) .fst) newCommandList
+            (refineCommandList, _) = unzip $ concat refinePairList
+            checkRefine = checkCommandArgs "refine"  (filter (/= []) refineCommandList) refineArgList
+
+            -- Rename -- part of read
+
+            -- Report
+            reportPairList = fmap snd $ filter ((== Report) .fst) newCommandList
+            (reportCommandList, reportFileList) = unzip $ concat reportPairList
+            checkReport = checkCommandArgs "report"  (filter (/= []) reportCommandList) reportArgList
+
+            -- Run  -- processed out before this into command list
+
+            -- Search
+            searchPairList = fmap snd $ filter ((== Search) .fst) newCommandList
+            (searchCommandList, _) = unzip $ concat searchPairList
+            checkSearch = checkCommandArgs "search"  (filter (/= []) searchCommandList) searchArgList
+
+
+            -- Select
+            selectPairList = fmap snd $ filter ((== Select) .fst) newCommandList
+            (selectCommandList, _) = unzip $ concat selectPairList
+            checkSelect = checkCommandArgs "select"  (filter (/= []) selectCommandList) selectArgList
+
+            -- Set
+            setPairList = fmap snd $ filter ((== Set) .fst) newCommandList
+            (setCommandList, _) = unzip $ concat setPairList
+            checkSet = checkCommandArgs "set"  (filter (/= []) setCommandList) setArgList
+
+            -- Support
+            supportPairList = fmap snd $ filter ((== Support) .fst) newCommandList
+            (supportCommandList, _) = unzip $ concat supportPairList
+            checkSupport = checkCommandArgs "support"  (filter (/= []) supportCommandList) supportArgList
+
+            -- Swap
+            swapPairList = fmap snd $ filter ((== Swap) .fst) newCommandList
+            (swapCommandList, _) = unzip $ concat swapPairList
+            checkSwap = checkCommandArgs "swap"  (filter (/= []) swapCommandList) swapArgList
+
+        in
+        if checkRead && checkBuild && checkFuse && checkReport && checkRefine && checkSearch && checkSelect && checkSet && checkSupport && checkSwap then
+            let filesToReadFrom = readFileList
+                filesToWriteTo  = reportFileList 
+                readAndWriteFileList = L.intersect filesToReadFrom filesToWriteTo
+            in
+            if (not .null) readAndWriteFileList then 
+                trace ("WARNING--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
+                True
+            else True
+
+        else 
+            -- Won't get to here--will error at earlier stages
+            False
+
+
