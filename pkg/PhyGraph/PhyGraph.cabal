@@ -171,6 +171,7 @@ executable phyg
   
   other-modules:  Commands.ProcessCommands
                   Commands.CommandExecution
+                  Commands.Verify
                   Debug.Debug
                   Graphs.GraphOperations
                   GraphOptimization.Medians

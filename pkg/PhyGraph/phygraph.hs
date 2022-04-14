@@ -53,6 +53,7 @@ import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
 import qualified Input.Reorganize             as R
+import qualified Commands.Verify              as V
 
 -- | main driver
 main :: IO ()
@@ -89,6 +90,8 @@ main = do
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
+
+    -- check commands and options for basic correctness
 
     dataGraphList <- mapM RIF.executeReadCommands $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList

@@ -120,7 +120,7 @@ executeReadCommands :: [Argument]
                     -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 executeReadCommands = executeReadCommands' [] [] [] [] [] [] False ([],[],1.0)
 
--- | executeReadCommands' reads iput files and returns raw data, input graphs, and terminal taxa to include
+-- | executeReadCommands' reads input files and returns raw data, input graphs, and terminal taxa to include
 -- assumes that "prealigned" and "tcm:File" are the first arguments if they are specified
 -- so that they can apply to all the files in the command without order depence
 executeReadCommands' :: [RawData]

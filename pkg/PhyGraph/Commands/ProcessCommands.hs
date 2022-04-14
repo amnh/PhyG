@@ -1,7 +1,7 @@
 {- |
 Module      :  ProcessCommands.hs
-Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Description :  Module tpo process command 
+Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
