@@ -1,6 +1,6 @@
 -- test bit packing
 set(graphType:softwired) 
-read("IE.MT.fasta")
+read("IE.MT.tnt")
 build(distance, dwag)
 swap(TBR, all)
 report("test0-bit.tre", newick, overwrite)

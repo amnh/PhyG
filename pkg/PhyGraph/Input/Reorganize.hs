@@ -78,8 +78,8 @@ import           Data.Alphabet
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
     -- bit packing for non-additivecharacters
-     inData
-    --BP.packNonAdditiveData inData
+    -- inData
+    BP.packNonAdditiveData inData
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input

@@ -183,6 +183,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                               else outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
 
         -- perform traceback on resolution caches is graphtype = softWired
+        -- important not to sort of static-omnly analysis
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
                                else if (graphType inGS) == SoftWired then fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
                                else if (graphType inGS) == HardWired then recursiveRerootList
@@ -204,7 +205,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
-    trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
+    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
     -- trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments)) 
     --    ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
     
@@ -217,10 +218,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
+            staticOnlyGraph = head recursiveRerootList'
+            staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
-        trace ("Only static")
-        (outgroupRooted', localRootCost, head startVertexList)
+        --trace ("Only static")
+        (staticOnlyGraph', localRootCost, head startVertexList)
 
     -- single seuquence (prealigned, dynamic) only (ie no static)
     else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
@@ -250,7 +252,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    )
+    --)
 
 
 
@@ -417,7 +419,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
             -- create new, fully  updated post-order graph
             finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
         in
-        trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
+        -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
         finalPreOrderGraph
 
 
@@ -443,7 +445,7 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
             in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
         else 
-            trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
+            -- trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
             newSoftWired
         -- )
 
