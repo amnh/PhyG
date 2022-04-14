@@ -57,6 +57,7 @@ import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
 import           Debug.Trace
+import qualified Commands.Verify              as V
 
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
@@ -139,10 +140,6 @@ removeComments inLineList =
        nonComment : removeComments (tail inLineList))
 
 
--- | allowedCommandList is the permitted command string list
-allowedCommandList :: [String]
-allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "report", "run", "search", "select", "set", "support", "swap"]
-
 
 -- | getInstruction returns the command type from an input String
 -- all operations on lower case
@@ -181,7 +178,7 @@ parseCommand inLine =
             -- NEED TO FIX
             -- make in to a more sophisticated split outside of parens
             argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
-            instruction = getInstruction instructionString allowedCommandList
+            instruction = getInstruction instructionString V.allowedCommandList
             processedArg = parseCommandArg firstString instruction argList
         in
         --trace (instructionString ++ " " ++  show argList)

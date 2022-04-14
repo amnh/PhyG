@@ -38,12 +38,19 @@ Portability :  portable (I hope)
 
 module Commands.Verify
     ( verifyCommands
+    , allowedCommandList
     ) where
 
 import           Debug.Trace
 import           Types.Types
 
+-- | allowedCommandList is the permitted command string list
+allowedCommandList :: [String]
+allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "report", "run", "search", "select", "set", "support", "swap"]
+
+
 -- | verifyCommands takes a command list and tests whether the commands 
 -- and argumwents are permissible before program execution--prevents late failure 
 -- after alot of processing time.
 verifyCommands :: [Command] -> Bool
+verifyCommands inCommandList = True

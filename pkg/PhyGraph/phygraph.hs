@@ -92,6 +92,10 @@ main = do
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
     -- check commands and options for basic correctness
+    let !commandsOK = V.verifyCommands thingsToDo
+
+    if commandsOK then hPutStrLn "Commands appear to be properly specified"
+    else errorWithoutStackTrace "Commands not properly specified"
 
     dataGraphList <- mapM RIF.executeReadCommands $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
