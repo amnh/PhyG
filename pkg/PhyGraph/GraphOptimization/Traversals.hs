@@ -183,7 +183,6 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                               else outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
 
         -- perform traceback on resolution caches is graphtype = softWired
-        -- important not to sort of static-omnly analysis
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
                                else if (graphType inGS) == SoftWired then fmap (updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
                                else if (graphType inGS) == HardWired then recursiveRerootList
@@ -218,7 +217,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            staticOnlyGraph = head recursiveRerootList'
+            staticOnlyGraph = if (graphType inGS) == SoftWired then updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+                              else outgroupRooted
+            -- staticOnlyGraph = head recursiveRerootList'
             staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         --trace ("Only static")
