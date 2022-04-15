@@ -36,7 +36,6 @@ Portability :  portable (I hope)
 
 module Commands.Transform
   ( transform
-  , getRecodingType
   ) where
 
 import Types.Types
@@ -249,7 +248,7 @@ transformCharacter inCharData inCharInfo charLength =
        -- determine if matrix is all same costs => nonadditive
        --                        all same except fort single indel costs => non add with gap binary chars
        --                        not either => matrix char
-       (inCostMatrixType, gapCost) = getRecodingType inCostMatrix
+       (inCostMatrixType, gapCost) = R.getRecodingType inCostMatrix
 
    in
    -- trace ("TC:" ++ (show alphSize) ++ " " ++ (show $ alphabet inCharInfo)) (
@@ -270,7 +269,7 @@ transformCharacter inCharData inCharInfo charLength =
                                   in 
                                   (missingElement, missingElement, missingElement)
 
-             newPrelimBV = convert2BV 32 impliedAlignChar
+             newPrelimBV = R.convert2BV 32 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
          -- trace ("TC-Slim:" ++ (show $ GV.length $ snd3 $ slimAlignment inCharData) ++ " " ++ (show $ snd3 $ impliedAlignChar)) (
@@ -292,7 +291,7 @@ transformCharacter inCharData inCharInfo charLength =
                                   let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
                                   in (missingElement, missingElement, missingElement)
 
-             newPrelimBV = convert2BV 64 impliedAlignChar
+             newPrelimBV = R.convert2BV 64 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in    
          if inCostMatrixType == "nonAdd" then
@@ -353,47 +352,3 @@ createGapChars origBVV gapCharacter newCharL noGapL hasGapL =
       if V.head origBVV == gapCharacter then createGapChars (V.tail origBVV) gapCharacter (hasGapL ++ newCharL) noGapL hasGapL
       else createGapChars (V.tail origBVV) gapCharacter (noGapL ++ newCharL) noGapL hasGapL
 
--- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
--- this for leaves so assume M only one needed really
-convert2BV :: (Integral a, GV.Vector v a) => Word -> (v a, v a, v a) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
-convert2BV size (_, inM, _) = 
-   let inMList = GV.toList inM
-       inMBV = fmap (BV.fromNumber size) inMList
-       
-   in
-   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
-
-
--- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive, 
--- non-additive with gap chars, or matrix
--- assumes indel costs are in last row and column
-getRecodingType :: S.Matrix Int -> (String, Int)
-getRecodingType inMatrix =
-   if S.null inMatrix then error "Null matrix in getRecodingType"
-   else
-      if (not . S.isSymmetric) inMatrix then ("matrix",  0)
-      else 
-         let matrixLL = S.toFullLists inMatrix
-             lastRow = L.last matrixLL
-             numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL) 
-
-         in
-         -- trace  ("GRT: " ++ (show numUniqueCosts)) (
-         -- all same except for 0
-         if numUniqueCosts == 1 then ("nonAdd", 0)
-
-         else ("matrix",  head lastRow)
-         {-
-         -- all same except for gaps
-         else if numUniqueCosts == 2 then
-            trace ("NAG: " ++ (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
-            if  (length $ L.group $ filter (/= 0) lastRow) == 1 then ("nonAddGap", head lastRow)
-
-            -- some no gaps different
-            else ("matrix",  head lastRow)
-            )
-         -- to many types for nonadd coding
-         else ("matrix",  head lastRow)
-         
-         -}
-         -- )

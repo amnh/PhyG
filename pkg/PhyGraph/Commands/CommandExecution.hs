@@ -85,6 +85,8 @@ import           Data.Alphabet
 import Data.Bits
 import qualified Commands.Verify              as V
 
+import qualified Input.Reorganize            as IR
+
 
 
 
@@ -929,7 +931,7 @@ getCharCodeInfo inCharInfo =
                            else show $ weight inCharInfo
         inAlph  = alphabet inCharInfo
         inMatrix = costMatrix inCharInfo
-        (costMatrixType, _) = TRANS.getRecodingType inMatrix
+        (costMatrixType, _) = IR.getRecodingType inMatrix
         matrixString = if costMatrixType == "nonAdd" then ""
                        else makeMatrixString inAlph inMatrix
     in

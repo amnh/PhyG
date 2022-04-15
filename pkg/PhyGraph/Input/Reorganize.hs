@@ -41,6 +41,8 @@ module Input.Reorganize
   , removeConstantCharactersPrealigned
   , removeConstantCharsPrealigned
   , optimizeData
+  , convert2BV
+  , getRecodingType
   ) where
 
 import qualified Data.List                   as L
@@ -98,6 +100,49 @@ optimizeData inData =
 convertPrealignedToNonAdditive :: ProcessedData -> ProcessedData
 convertPrealignedToNonAdditive inData = inData
 
+-- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
+-- this for leaves so assume M only one needed really
+convert2BV :: (Integral a, GV.Vector v a) => Word -> (v a, v a, v a) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
+convert2BV size (_, inM, _) = 
+   let inMList = GV.toList inM
+       inMBV = fmap (BV.fromNumber size) inMList
+       
+   in
+   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
+
+-- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive, 
+-- non-additive with gap chars, or matrix
+-- assumes indel costs are in last row and column
+getRecodingType :: S.Matrix Int -> (String, Int)
+getRecodingType inMatrix =
+   if S.null inMatrix then error "Null matrix in getRecodingType"
+   else
+      if (not . S.isSymmetric) inMatrix then ("matrix",  0)
+      else 
+         let matrixLL = S.toFullLists inMatrix
+             lastRow = L.last matrixLL
+             numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL) 
+
+         in
+         -- trace  ("GRT: " ++ (show numUniqueCosts)) (
+         -- all same except for 0
+         if numUniqueCosts == 1 then ("nonAdd", 0)
+
+         else ("matrix",  head lastRow)
+         {-
+         -- all same except for gaps
+         else if numUniqueCosts == 2 then
+            trace ("NAG: " ++ (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
+            if  (length $ L.group $ filter (/= 0) lastRow) == 1 then ("nonAddGap", head lastRow)
+
+            -- some no gaps different
+            else ("matrix",  head lastRow)
+            )
+         -- to many types for nonadd coding
+         else ("matrix",  head lastRow)
+         
+         -}
+         -- )
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
