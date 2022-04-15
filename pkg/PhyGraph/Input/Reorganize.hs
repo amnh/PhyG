@@ -98,7 +98,50 @@ optimizeData inData =
 -- | convertPrealignedToNonAdditive converts prealigned data to non-additive 
 -- if homogeneous TCM (all 1's non-diagnoal)
 convertPrealignedToNonAdditive :: ProcessedData -> ProcessedData
-convertPrealignedToNonAdditive inData = inData
+convertPrealignedToNonAdditive (nameVect, bvNameVect, blockDataVect) = (nameVect, bvNameVect, fmap convertPrealignedToNonAdditiveBlock blockDataVect)
+
+-- | convertPrealignedToNonAdditiveBlock takes a character block and convertes prealigned to non-add if tcms all 1's
+-- this is done taxon by taxon and character by character since can convert with only local infomation
+convertPrealignedToNonAdditiveBlock :: BlockData -> BlockData
+convertPrealignedToNonAdditiveBlock (nameBlock, charDataVV, charInfoV) = 
+    let codingTypeV = fmap fst $ fmap getRecodingType (fmap costMatrix charInfoV)
+        (newCharDataVV, newCharInfoVV) = V.unzip $ fmap (convertTaxonPrealignedToNonAdd charInfoV codingTypeV) charDataVV
+    in
+    (nameBlock, newCharDataVV, V.head newCharInfoVV)
+
+-- | convertTaxonPrealignedToNonAdd takes a vector of character info and vector of charcter data for a taxon
+-- and recodes prealigned as non-additve if tcm's all 1s
+convertTaxonPrealignedToNonAdd :: V.Vector CharInfo -> V.Vector String -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+convertTaxonPrealignedToNonAdd charInfoV codingTypeV charDataV =
+    V.unzip $ V.zipWith3 convertTaxonPrealignedToNonAddCharacter charInfoV codingTypeV charDataV
+
+-- | convertTaxonPrealignedToNonAddCharacter takes a taxon character and char info and cost matrix type 
+-- and transforms to non-additive if all tcms are 1's
+convertTaxonPrealignedToNonAddCharacter :: CharInfo -> String -> CharacterData -> (CharacterData, CharInfo)
+convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
+    if charType charInfo `notElem` prealignedCharacterTypes then (charData, charInfo)
+    else if matrixType /= "nonAdd" then (charData, charInfo)
+    else 
+        let newStateBV = if charType charInfo == AlignedSlim then 
+                            convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
+                         else if charType charInfo == AlignedWide then 
+                            convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
+                         else if charType charInfo == AlignedHuge then 
+                            alignedHugePrelim charData
+                         else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo)) 
+        in
+        (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd})
+
+
+
+-- | convert2BVTriple takes CUInt or Word64 and converts to Triple Vector of bitvectors
+convert2BVTriple :: (Integral a, GV.Vector v a) => Word -> v a -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
+convert2BVTriple size inM = 
+   let inMList = GV.toList inM
+       inMBV = fmap (BV.fromNumber size) inMList
+       
+   in
+   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
 
 -- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
 -- this for leaves so assume M only one needed really
