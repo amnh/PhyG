@@ -121,7 +121,29 @@
 	\end{enumerate} 
 	
 	\section{Data Structures}
-	Most important (at least global) structures and definitions are contained in Module Types.Types.
+	Most important (at least global) structures and definitions are contained in Module Types.Types.  Not all types are discussed here--just 
+	the most important, and most opaque.
+	
+	\begin{itemize}
+		\item {CharType is all tehvarieties of characters that can be optimized on graphs. Over time this variety will no doubt increase,
+		hence the instructions later on how to add new ones. Add, NonAdd and Matrix (step matrix or general characters) are fairly standard 
+		static character types.  The PackedN types are all Non-additive but have been bitpacked so have many functins specific to them.  In each case,
+		the data are packed into Word64 structures. The XSlim, XWide, and XHuge types refer to prealigned (AlignedX) or unaligned (XSeq) sequence
+		data with small ($<$ 9 alphabet elements including gaps `-`, Slim), medium (9--64 elements, Wide) and large ($>$ 64 elements, Huge) 
+		sequence character types.  The Slim types are structures as CUInt for use across an FFI to C-code.}
+	
+		\item{Graphs can be Tree, SoftWired, or HardWired \cite{Fischeretal2013}.  Vertices and edges have types that relate to the graph type.}
+		
+		\item{OptimalityCriterion, GraphFactor, and RootCost all refer to methods of attaching a real values cost value to a graph.}
+		
+		\item{GlobalSettings contains useful information that is required in many placed throughout the code.}
+		
+		\item{CharInfo contains information about charters and is used to determine many actions performed on and to character data.}
+		
+		\item{CharacterData holds the actual character data for all types as fields that are selectively recalled and modified 
+			thought the code. The basic type is a vector of some type that holds character information conveniently.}
+		
+	\end{itemize}
 	
 	
 	\section{Code Base}
@@ -280,7 +302,7 @@
 		 	 
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}
-	\subsection{Execution in Parallel}
+	\section{Execution in Parallel}
 	By default the program will execute multi-threaded based on the number processors available.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
