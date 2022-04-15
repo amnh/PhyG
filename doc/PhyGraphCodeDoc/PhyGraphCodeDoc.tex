@@ -113,9 +113,10 @@
 		
 		\item{Any input graphs are optimized}
 		
-		\item{Pairwise distances (if required--data structure in non-strict) are calculated.}
+		\item{Pairwise distances (if required--data structure is non-strict) are calculated.}
 		
-		\item{Remaining commands are processed in turn, via executeCommands in Module Commands.CommandExecution, until the command queue is empty
+		\item{Remaining commands are processed in turn, via executeCommands in Module 
+			Commands.CommandExecution, until the command queue is empty
 			and the program exits.}
 		
 	\end{enumerate} 
@@ -125,9 +126,9 @@
 	the most important, and most opaque.
 	
 	\begin{itemize}
-		\item {CharType is all tehvarieties of characters that can be optimized on graphs. Over time this variety will no doubt increase,
+		\item {CharType is all the varieties of characters that can be optimized on graphs. Over time this variety will no doubt increase,
 		hence the instructions later on how to add new ones. Add, NonAdd and Matrix (step matrix or general characters) are fairly standard 
-		static character types.  The PackedN types are all Non-additive but have been bitpacked so have many functins specific to them.  In each case,
+		static character types.  The PackedN types are all Non-additive but have been bitpacked so have many functions specific to them.  In each case,
 		the data are packed into Word64 structures. The XSlim, XWide, and XHuge types refer to prealigned (AlignedX) or unaligned (XSeq) sequence
 		data with small ($<$ 9 alphabet elements including gaps `-`, Slim), medium (9--64 elements, Wide) and large ($>$ 64 elements, Huge) 
 		sequence character types.  The Slim types are structures as CUInt for use across an FFI to C-code.}
@@ -149,7 +150,7 @@
 			as well as block data, display trees, character trees, and character information.  PhylogeneticGraph is teh fundamental graph structure
 			throughout the code base.}
 		
-		\item{BlockData and ProcessedData are teh main data structures outside of graphs.  ProcessedData includes leaf labels and a 
+		\item{BlockData and ProcessedData are the main data structures outside of graphs.  ProcessedData includes leaf labels and a 
 			vector of BlockData--one element for each network data block.  Block data contain the name of the block, taxon by character 
 			data for all characters in the block, and character information for each character in the block.  PhylogeneticGraphs have block and 
 			character data for single nodes whereas Processed/Block data are taxon by character data.  Transposing the vectors, perhaps
@@ -168,12 +169,12 @@
 			\item{Rename taxa}
 			\item{Exclude taxa}
 			\item{Add missing data for taxa not present in all input files}
-			\item{Check that input taxa and any input graphs contain teh same leaf set}
+			\item{Check that input taxa and any input graphs contain the same leaf set}
 			\item{Data a reblocked if specified}
 			\item{Static (Non-additive, additive, and matrix) characters are reorganized so that
 				each class is put in a single (extensive) character (one for each type) type for each block.}
 			\item{Non-additive characters are `bit-packed' into new characters with state numbers $=$2, $\leq$
-				4, $\leq$5, $\leq$8, $\leq$64, and $>$ 64. Invariant charcaters are filtered out.}
+				4, $\leq$5, $\leq$8, $\leq$64, and $>$ 64. Invariant characters are filtered out.}
 			 
 		\end{itemize}
 		\subsection{Character weights}
@@ -193,11 +194,11 @@
 		Characters with $>$ 64 states remain (although a new character is created) as bit-vectors.  Characters with 
 		2, 3-4, 5, and 6-8 states are ``packed'' into 64 bit Word64 with 32, 16, 12, and 8 characters per word respectively. Characters with 9-64 states are encoded as a single Word64. These are concatenated into a Vector and stored in characterData as ``packedNonAddPrelim'' and ``packedNonAddFinal''.
 		
-		Non-additive charterers are first separated into groups of like-state number, then appropriate ercodign
+		Non-additive charterers are first separated into groups of like-state number, then appropriate recoding
 		and packing are applied.  One important point is that states may be non-sequential (ie 3 and 23), yet
 		still binary (after accounting for ``missing'' = all bits On).  These are identified and recoded as sequential states (bits 0,1,2..).
 		
-		Simultaneous 2-median and 3-median (post-order and pre-order) optimization is performed via the methods described in \cite{WhiteandHolland2011} and \cite{goloboff2002} modified for 64-bit words and alternate state numbers (basically mask and shit numbers).  These methods, documented and undocumented likely originate with D. E. Knuth ina general sense, and \cite{Farris1988} in phylogenetic software.
+		Simultaneous 2-median and 3-median (post-order and pre-order) optimization is performed via the methods described in \cite{WhiteandHolland2011} and \cite{goloboff2002} modified for 64-bit words and alternate state numbers (basically mask and shit numbers).  These methods, documented and undocumented likely originate with D. E. Knuth in a general sense, and \cite{Farris1988} in phylogenetic software.
 		
 		The module Input.BitPack.hs contains the functions and constants (e.g. masks) to deal 
 		with bit-packed characters.
