@@ -310,7 +310,12 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                     in
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
 
-                thisBlockCharInfo' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+                thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+
+                -- create "orginal" character info for later use in outputs after character recoding and transformation etc.
+                thisBlockCharInfo' = fmap setOrigCharInfo thisBlockCharInfo''
+
+
                 recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
 
                 thisBlockData     = (thisBlockName', recodedCharacters', thisBlockCharInfo')
@@ -325,6 +330,14 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
+
+-- | setOrigCharInfo takes fields ffomr charInfo and sets the initial original charcter infomatin field
+-- as a singleton Vector
+setOrigCharInfo :: CharInfo -> CharInfo
+setOrigCharInfo inCharInfo =
+    let origData = (name inCharInfo, charType inCharInfo, alphabet inCharInfo)
+    in
+    inCharInfo {origInfo = V.singleton origData}
 
 -- | recodeAddNonAddMissing takes Block data and recodes missing for additive and non-additive characters
 recodeNonAddMissingBlock :: V.Vector CharInfo -> V.Vector CharacterData -> V.Vector CharacterData 

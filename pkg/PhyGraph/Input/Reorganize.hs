@@ -398,11 +398,19 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
     let
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
-        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters"}
+
+        -- keep track or original data in origInfo field
+        origNonAddData = V.fromList $ zip3 (fmap name $ fmap snd nonAddCharList) (fmap charType $ fmap snd nonAddCharList) (fmap alphabet $ fmap snd nonAddCharList)
+
+        nonAddCharInfo = V.singleton $ (snd $ head nonAddCharList) {name = T.pack "CombinedNonAdditiveCharacters", origInfo = origNonAddData}
 
         -- Additive Characters
         addCharacter = combineAdditveCharacters addCharList emptyCharacter []
-        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters"}
+        
+        -- keep track or original data in origInfo field
+        origAddData = V.fromList $ zip3 (fmap name $ fmap snd addCharList) (fmap charType $ fmap snd addCharList) (fmap alphabet $ fmap snd addCharList)
+        
+        addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters", origInfo = origAddData}
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
 
@@ -805,9 +813,11 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
         -- bits ON-- [0.. snd range]
         let stateIndex = snd $ V.head $ snd3 $ rangePrelim inCharData
+            inCharOrigData = origInfo inCharInfo
             newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) ++ "RecodedToNonAdd") 
                                      , charType = NonAdd
-                                     , alphabet = fromSymbolsWOGap $ fmap ST.fromString $ fmap show [0,1]
+                                     , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [0,1]
+                                     , origInfo = inCharOrigData
                                      }
             newCharList = fmap (makeNewNonAddChar stateIndex) [0..numStates - 2]
 
