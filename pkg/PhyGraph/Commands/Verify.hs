@@ -214,8 +214,7 @@ verifyCommands inCommandList =
                 readAndWriteFileList = L.intersect filesToReadFrom filesToWriteTo
             in
             if (not .null) readAndWriteFileList then 
-                trace ("WARNING--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
-                True
+                errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
             else True
 
         else 

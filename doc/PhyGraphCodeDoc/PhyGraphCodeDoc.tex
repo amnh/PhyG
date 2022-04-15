@@ -56,17 +56,80 @@
 	This document contains descriptions of algorithms, procedures, data structures and other aspects of the 
 	source code documentation for the program PhylogeneticGraph (\texttt{PhyG}).  
 	
-	 \texttt{PhyG} is a sucessor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, 
+	 \texttt{PhyG} is a successor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, 
 	 although a ``complete'' Haskell rewrite, optimized C (and even some assembler) was ported over from POY for pairwise alignment of small alphabet (<8)
 	 sequences.  These functions are access via the Haskell FFI.
 	
 	
 	
-	\section{Overview of Code base}
-	Source code structure.
+	\section{Program Flow}
+	The ``main'' file is phygraph.hs and it controls program flow from data entry to completion.
+	Program flow follows these operations:
+	\begin{enumerate}
+		\item{Commands are input from a script file (by convention suffix ``.pg'') and processed with two functions both contained in module Commands.ProcessCommands.  The first expands commands contained in second level scripts files (specified with the ``run'' command) into a complete
+		list of commands processed with getCommandList} 
+	
+		\item{Read commands are expanded (name globbing) and placed at the head of the command list (all other commands are executed in order
+			specified by the command script file).  This ensures that all character data and input graph files are in place and can be checked to 
+			ensure leaf complements are the same in data and any input graph.}
+		
+		\item{Commands are checked to ensure they are properly formatted and have appropriate user-specified options.  Specified files are not checked
+			for formatting or availability.  An error is thrown if a file is used for both reading and writing.  Could be changed to a warning.
+			This uses module Commands.Verify.}
+		
+		\item{Commands that involve data and graph input, inclusion and exclusion of terminal taxa, taxon renaming, and network 
+			block assignment are processed.}
+		
+		\item{Internal sequence partitions (via `\#' characters) are applied (Module Input.DataTransformation).}
+		
+		\item{Data block names are assigned (via module Commands.CommandExecution)}
+		
+		\item{Leaves in data and graphs are renamed if specified by the user (Modules Input.DataTransformation and PhyloLibs/GraphFormatUtilities), 
+			and relevant commands
+			removed from command queue.}
+		
+		\item{A check is performed to identify taxa with all-missing data.}
+		
+		\item{Input graphs are ``ladderized'' to make sure all nodes are (indegree, outdegree) = $\{(0,2), (1,0), (1,2), or (2,1)\}$}
+		
+		\item{Leaf bitVector labels are created based on a data sort (to maintain label invariance) and allow for consistency 
+			in graph construction (i.e. left/right \cite{WashburnandWheeler2020})}
+		
+		\item{Initial ``naive'', analyzable (i.e. in correct structures), data are created (Module Input.DataTransformation).}
+		
+		\item{Data blocks are reassigned based on naive data (Module Input.Reorganize), and relevant commands remove from command queue.}
+		
+		\item{Data are reorganized by type (Module Input.Reorganize).  This puts all additive, non-additive, and matrix (with same 
+			transformation cost/step matrix) characters in a data block into single character structures.  These structures contain vectors of 
+			characters of the same type.  
+			This improves both efficiency and clarity of code.} 
+		
+		\item{Data are optimized by 1) removing constant positions in prealigned sequence characters; 2) recoding additive characters with maximum state $<$ 65 
+			 as non-additive binary characters \cite{Farris1970}; and 3) ``bit packing'' non-additive characters into 64-bit words to improve both memory consumption
+			 and efficiency of operations \cite{Ronquist1998, moilanen1999, goloboff2002, WhiteandHolland2011}.}
+		
+		\item{Global ``set'' operations are performed and relevant commands
+			removed from command queue.}
+		
+		\item{Any input graphs are optimized}
+		
+		\item{Pairwise distances (if required--data structure in non-strict) are calculated.}
+		
+		\item{Remaining commands are processed in turn, via executeCommands in Module Commands.CommandExecution, until the command queue is empty
+			and the program exits.}
+		
+	\end{enumerate} 
+	
+	\section{Data Structures}
+	Most important (at least global) structures and definitions are contained in Module Types.Types.
+	
+	
+	\section{Code Base}
+	
+	\section {Command Parsing}
 	
 	\section{Character reorganization and optimizing}
-		Input data are passed through several fuincionts to:
+		Input data are passed through several functions to:
 		\begin{itemize}
 			\item{Rename taxa}
 			\item{Exclude taxa}
@@ -81,7 +144,7 @@
 		\end{itemize}
 		\subsection{Character weights}
 		Static characters (Non-additive, additive, and matrix) with integer weights are reorganized
-		by repeating th echaracter the number of times of its weight.  This is to avoid alot of 
+		by repeating the character the number of times of its weight.  This is to avoid alot of 
 		unnecessary ($\times 1$) operations.  Non-integer weight characters are not reorganized or
 		bit packed.
 		
@@ -98,15 +161,13 @@
 		
 		Non-additive charterers are first separated into groups of like-state number, then appropriate ercodign
 		and packing are applied.  One important point is that states may be non-sequential (ie 3 and 23), yet
-		still binary (after accounting for ``missing'' = all bits On).  THe are identifiued and recoded as seqeuntial states (bits 0,1,2..).
+		still binary (after accounting for ``missing'' = all bits On).  These are identified and recoded as sequential states (bits 0,1,2..).
 		
 		Simultaneous 2-median and 3-median (post-order and pre-order) optimization is performed via the methods described in \cite{WhiteandHolland2011} and \cite{goloboff2002} modified for 64-bit words and alternate state numbers (basically mask and shit numbers).  These methods, documented and undocumented likely originate with D. E. Knuth ina general sense, and \cite{Farris1988} in phylogenetic software.
 		
 		The module Input.BitPack.hs contains the functions and constants (e.g. masks) to deal 
 		with bit-packed characters.
 		
-	\section {Command Parsing}
-	
 	\section{Post-Order Graph Traversal}
 		\subsection{Trees}
 		A decorated Graph (tree) is created for each character for each block for the graph.  For exact characters, where no addition traversals are required, 
@@ -224,7 +285,7 @@
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
 	
-	Parallel code options are set using a parmap-type strategy throughout the code.  THis ujsually speciifed by myParListChunkRDS from the PArallelUtilities module in PhyloLibs The basic definitions of this functionality are found in ParallelUtilities.hs
+	Parallel code options are set using a parmap-type strategy throughout the code.  This is usually specified by myParListChunkRDS from the ParallelUtilities module in PhyloLibs The basic definitions of this functionality are found in ParallelUtilities.hs
 	
 	\section*{Acknowledgments}
 	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
