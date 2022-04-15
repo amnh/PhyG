@@ -132,7 +132,7 @@
 		data with small ($<$ 9 alphabet elements including gaps `-`, Slim), medium (9--64 elements, Wide) and large ($>$ 64 elements, Huge) 
 		sequence character types.  The Slim types are structures as CUInt for use across an FFI to C-code.}
 	
-		\item{Graphs can be Tree, SoftWired, or HardWired \cite{Fischeretal2013}.  Vertices and edges have types that relate to the graph type.}
+		\item{Graphs can be Tree, SoftWired, or HardWired \cite{KannanandWheeler2012,Fischeretal2013, KannanandWheeler2014}.  Vertices and edges have types that relate to the graph type.}
 		
 		\item{OptimalityCriterion, GraphFactor, and RootCost all refer to methods of attaching a real values cost value to a graph.}
 		
@@ -142,6 +142,18 @@
 		
 		\item{CharacterData holds the actual character data for all types as fields that are selectively recalled and modified 
 			thought the code. The basic type is a vector of some type that holds character information conveniently.}
+		
+		\item{SimpleGraph, DecoratedGraph, PhylogeneticGraph are graph data structures that are used throughout the code base.  
+			SimpleGraph has limited vertex and edge information including no character data. DecoratedGraph has similar structures to 
+			SimpleGraph but contains CharacterInfo at each vertex in VertexInfo. PhylogeneticGraph contains both the previous graph structures 
+			as well as block data, display trees, character trees, and character information.  PhylogeneticGraph is teh fundamental graph structure
+			throughout the code base.}
+		
+		\item{BlockData and ProcessedData are teh main data structures outside of graphs.  ProcessedData includes leaf labels and a 
+			vector of BlockData--one element for each network data block.  Block data contain the name of the block, taxon by character 
+			data for all characters in the block, and character information for each character in the block.  PhylogeneticGraphs have block and 
+			character data for single nodes whereas Processed/Block data are taxon by character data.  Transposing the vectors, perhaps
+			via lists, can move between taxon and character dominant  matrices.}
 		
 	\end{itemize}
 	
@@ -314,6 +326,6 @@
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}
-	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 \end{document}
