@@ -68,18 +68,36 @@ import qualified Input.BitPack                as BP
 import qualified Data.Text.Short             as ST
 import           Data.Alphabet
 
---place holder for now
 -- | optimizeData convert
         -- Additive characters with alphabets < 64 to multiple binary nonadditive
+            -- happens in reorganize byt type
         -- all binary characters to nonadditive
+            -- not done explicitly-- but ocurs via add->non add and bit packing
         -- matrix 2 states to non-additive with weight
+            -- not done
         -- prealigned to non-additive or matrix
+            -- here
         -- bitPack non-additive
+            -- packNonAdditive
 optimizeData :: ProcessedData -> ProcessedData
 optimizeData inData = 
+    -- convert prealigned to nonadditive if all 1 tcms
+    let inData' = convertPrealignedToNonAdditive inData
+    
+    -- remove constant characters from prealigned
+        inData'' = removeConstantCharactersPrealigned inData'
+
     -- bit packing for non-additivecharacters
-    -- inData
-    BP.packNonAdditiveData inData
+        inData''' = BP.packNonAdditiveData inData''
+
+    in
+    inData'''
+
+-- | convertPrealignedToNonAdditive converts prealigned data to non-additive 
+-- if homogeneous TCM (all 1's non-diagnoal)
+convertPrealignedToNonAdditive :: ProcessedData -> ProcessedData
+convertPrealignedToNonAdditive inData = inData
+
 
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input

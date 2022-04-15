@@ -193,6 +193,8 @@ makeStaticApprox inGS inData inGraph =
           -- do each block in turn pulling and transforming data from inGraph
           newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
 
+          -- convert prealigned to non-additive if all 1's tcm 
+
           -- remove constants from new prealigned
           newProcessedData  = R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
@@ -234,8 +236,8 @@ transformData inCharInfoV inCharLengthV inCharDataV  =
       in
       (outCharDataV, outCharInfoV)
 
--- transformCharacter takes a single characer info and character and returns IA if statis as is if not
--- checks if all gaps with the GV.filter.  If all gaps--it meansa the sequence char was missing and
+-- transformCharacter takes a single characer info and character and returns IA if dynamic as is if not
+-- checks if all gaps with the GV.filter.  If all gaps--it means the sequence char was missing and
 -- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
 -- character--but leaving in case change back to [] 
 transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
