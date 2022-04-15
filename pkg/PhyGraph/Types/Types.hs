@@ -207,6 +207,7 @@ data CharInfo = CharInfo { name       :: NameText
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
+                         , origInfo   :: V.Vector (NameText, CharType, Alphabet ST.ShortText)
                          } deriving stock (Show, Eq)
 
 instance NFData CharInfo where rnf x = seq x ()
