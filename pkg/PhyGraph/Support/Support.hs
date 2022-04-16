@@ -56,7 +56,6 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.Distances            as DD
 import qualified Utilities.LocalGraph           as LG
-import           Utilities.Utilities            as U
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -109,7 +108,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
          --else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " ++ (show (snd $ head goodBremList)) ++ (show lcArgList))
          else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " ++ show (snd $ head goodBremSampleList))
          else
-            let method = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
+            let thisMethod = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
                          else if (doBootStrap || (not . null) jackList) && (not . null) goodBremList then trace ("Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer") "goodBrem"
                          else if doBootStrap then
                            "bootstrap"
@@ -132,15 +131,15 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                               0.6321
                            else fromJust jackFreq'
 
-                buildOptions = [("distance",""), ("replicates", show 100), ("best", show 1), ("rdwag", ""), ("dWag", "")] -- [("replicates", show 10), ("best", show 1)]
+                buildOptions = [("distance",""), ("replicates", show (100 :: Int)), ("best", show (1 :: Int)), ("rdwag", ""), ("dWag", "")] -- [("replicates", show 10), ("best", show 1)]
                 swapOptions = if onlyBuild then []
-                              else [("tbr", ""), ("steepest", ""), ("keep", show 1)]
-                supportGraphList = if method == "bootstrap" || method == "jackknife" then
-                                       let extraString = if  method == "jackknife" then (" with delete fraction  " ++ (show $ 1 - jackFreq))
+                              else [("tbr", ""), ("steepest", ""), ("keep", show (1 :: Int))]
+                supportGraphList = if thisMethod == "bootstrap" || thisMethod == "jackknife" then
+                                       let extraString = if  thisMethod == "jackknife" then (" with delete fraction  " ++ (show $ 1 - jackFreq))
                                                          else ""
                                        in
-                                       trace ("Generating " ++ method ++ " resampling support with " ++ (show replicates) ++ " replicates" ++ extraString)
-                                       [getResampleGraph inGS inData rSeed method replicates buildOptions swapOptions jackFreq inGraphList]
+                                       trace ("Generating " ++ thisMethod ++ " resampling support with " ++ (show replicates) ++ " replicates" ++ extraString)
+                                       [getResampleGraph inGS inData rSeed thisMethod replicates buildOptions swapOptions jackFreq]
                                    else
                                        let extraString = if  gbSampleSize /= Nothing then (" based on " ++ (show $ fromJust gbSampleSize) ++ " samples at random")
                                                          else ""
@@ -152,15 +151,15 @@ supportGraph inArgs inGS inData rSeed inGraphList =
             supportGraphList
 
 -- | getResampledGraphs performs resampling and search for bootstrap and jackknife support
-getResampleGraph :: GlobalSettings -> ProcessedData -> Int -> String -> Int -> [(String, String)] -> [(String, String)] -> Double -> [PhylogeneticGraph] -> PhylogeneticGraph
-getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq inGraphList =
+getResampleGraph :: GlobalSettings -> ProcessedData -> Int -> String -> Int -> [(String, String)] -> [(String, String)] -> Double -> PhylogeneticGraph
+getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq =
    let resampledGraphList = fmap (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
        -- need to add args
        reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
                        else [("method","eun"), ("compare","identity"), ("edgelabel","true"),  ("vertexlabel","true"), ("connect","true"), ("threshold","51"),("outformat", "dot")]
          -- majority ruke consensus if no args
-       (reconciledGraphString, reconciledGraph) = REC.makeReconcileGraph REC.reconcileCommandList reconcileArgs (fmap fst6 resampledGraphList)
+       (_, reconciledGraph) = REC.makeReconcileGraph REC.reconcileCommandList reconcileArgs (fmap fst6 resampledGraphList)
    in
    -- trace ("GRG: \n" ++ reconciledGraphString) (
    -- generate resampled graph
@@ -172,25 +171,25 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
 -- returning the resampled graph
 makeResampledDataAndGraph :: GlobalSettings -> ProcessedData -> String -> [(String, String)] -> [(String, String)] -> Double -> Int -> PhylogeneticGraph
 makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq rSeed =
-   let randomIntegerList = randomIntList rSeed
+   let randomIntegerList1 = randomIntList rSeed
        -- create resampled data
-       newData = resampleData (randomIntegerList !! 0) resampleType jackFreq inData
+       newData = resampleData (randomIntegerList1 !! 0) resampleType jackFreq inData
 
        -- pairwise distances for distance analysis
        pairwiseDistances = DD.getPairwiseDistances newData
 
        -- build graphs
-       buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList !! 1)
+       buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
        bestBuildGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] buildGraphs
 
        -- if not a tree then try to add net edges
-       netAddArgs = [("netAdd", ""), ("keep", show 1), ("steepest", ""), ("atRandom", "")]
+       netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", "")]
        netGraphList = if (graphType inGS == Tree) then bestBuildGraphList
-                      else R.netEdgeMaster netAddArgs inGS newData (randomIntegerList !! 2) bestBuildGraphList
+                      else R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
 
        --simple swap refinement
        swapGraphList = if null swapOptions then netGraphList
-                       else R.swapMaster swapOptions inGS newData (randomIntegerList !! 3) netGraphList
+                       else R.swapMaster swapOptions inGS newData (randomIntegerList1 !! 3) netGraphList
    in
    -- no data in there
    if (V.null . thd3) newData then emptyPhylogeneticGraph
@@ -206,11 +205,11 @@ resampleData :: Int -> String -> Double -> ProcessedData -> ProcessedData
 resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect) =
    if V.null blockDataVect then error "Null input data in resampleData"
    else
-      let randomIntegerList = randomIntList rSeed
+      let lRandomIntegerList = randomIntList rSeed
       in
          --Bootstrap  or Jackknife resampling
-         let newBlockDataVect' = if resampleType == "bootstrap" then V.zipWith resampleBlockBootstrap (V.fromList randomIntegerList) blockDataVect
-                                 else V.zipWith (resampleBlockJackknife  sampleFreq) (V.fromList randomIntegerList) blockDataVect
+         let newBlockDataVect' = if resampleType == "bootstrap" then V.zipWith resampleBlockBootstrap (V.fromList lRandomIntegerList) blockDataVect
+                                 else V.zipWith (resampleBlockJackknife  sampleFreq) (V.fromList lRandomIntegerList) blockDataVect
              -- filter any zero length blocks
              newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
          in
@@ -220,11 +219,11 @@ resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
 -- | resampleBlockBootstrap takes BlockData and a seed and creates a Bootstrap resampled BlockData
 resampleBlockBootstrap :: Int -> BlockData -> BlockData
 resampleBlockBootstrap rSeed (nameText, charDataVV, charInfoV) =
-      let randomIntegerList = randomIntList rSeed
-          randomIntegerList2 = randomIntList (head randomIntegerList)
+      let lRandomIntegerList = randomIntList rSeed
+          randomIntegerList2 = randomIntList (head lRandomIntegerList)
 
           -- maps over taxa in data bLock
-          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap randomIntegerList randomIntegerList2 charInfoV) charDataVV
+          (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap lRandomIntegerList randomIntegerList2 charInfoV) charDataVV
       in
       (nameText, newCharDataVV, V.head newCharInfoV)
 
@@ -381,9 +380,9 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
 resampleBlockJackknife :: Double -> Int -> BlockData -> BlockData
 resampleBlockJackknife sampleFreq rSeed (nameText, charDataVV, charInfoV) =
-      let randomIntegerList = randomIntList rSeed
-          randomIntegerList2 = randomIntList (head randomIntegerList)
-          acceptanceList = fmap (randAccept sampleFreq) randomIntegerList
+      let randomIntegerList1 = randomIntList rSeed
+          randomIntegerList2 = randomIntList (head randomIntegerList1)
+          acceptanceList = fmap (randAccept sampleFreq) randomIntegerList1
           acceptanceList2 = fmap (randAccept sampleFreq) randomIntegerList2
           -- newCharInfoV = makeSampledVect acceptanceVect [] charInfoV
           -- newCharDataV = fmap (makeSampledVect acceptanceVect []) charDataVV
@@ -426,7 +425,7 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
           -- (uIndex,vINdex,uBV, vBV, graph cost)
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
       -}
-      let tupleList = getGraphTupleList inGraph infinity
+      let tupleList = getGraphTupleList inGraph 
 
           -- traverse neighborhood (and net edge removal) keeping min cost without edges
           supportEdgeTupleList = getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom tupleList inGraph
@@ -436,12 +435,11 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
       -- trace ("GGBG: " ++ (show $ length tupleList) ++ " -> " ++ (show $ length supportEdgeTupleList))
       (simpleGBGraph, snd6 inGraph, thd6 inGraph, fth6 inGraph, fft6 inGraph, six6 inGraph)
 
-      where makeindexBVPair (a,b) = (a, bvLabel b)
-            tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
+      where tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
 
 -- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
-getGraphTupleList :: PhylogeneticGraph -> VertexCost -> [(Int, Int, NameBV, NameBV, VertexCost)]
-getGraphTupleList inGraph inCost =
+getGraphTupleList :: PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
+getGraphTupleList inGraph =
    if LG.isEmpty (fst6 inGraph) then error ("Null graph in getGraphTupleList")
    else
       let egdeList = LG.edges (fst6 inGraph)
@@ -551,18 +549,18 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
                           else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList inSimple
 
             -- get random integer lists for swap
-            randomIntegerList = randomIntList rSeed
-            randomIntegerListList = fmap randomIntList randomIntegerList
+            lRandomIntegerList = randomIntList rSeed
+            randomIntegerListList = fmap randomIntList lRandomIntegerList
 
             -- integerized critical value for prob accept
             -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
             (_, leafList, _, netVertList) = LG.splitVertexList (fst6 inGraph)
-            intProbAccept = if swapType == "spr" then floor $ (1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 2)
-                            else floor $ (1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 3)
+            intProbAccept = if swapType == "spr" then floor ((1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 2) :: Double)
+                            else floor ((1000.0 * (fromIntegral $ fromJust sampleSize)) / ((2.0 * (fromIntegral $ (length leafList) - (length netVertList))) ** 3) :: Double)
 
 
             -- generate tuple lists for each break edge parallelized at this level
-            tupleListList = zipWith (splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
+            tupleListList = zipWith (splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) randomIntegerListList breakEdgeList `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
@@ -577,7 +575,6 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
 -- working with SimpleGraph
 splitRejoinGB   :: GlobalSettings
                 -> ProcessedData
-                -> Int
                 -> String
                 -> Int
                 -> Bool
@@ -587,11 +584,11 @@ splitRejoinGB   :: GlobalSettings
                 -> [Int]
                 -> LG.LEdge Double
                 -> [(Int, Int, NameBV, NameBV, VertexCost)]
-splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleList inGraph originalBreakEdgeList randomIntegerList breakEdge =
+splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGraph originalBreakEdgeList inRandomIntegerList breakEdge =
 
     let
       -- split graph on breakEdge
-      (splitGraph, graphRoot, prunedGraphRootIndex,  parentPrunedGraphRoot, _, edgeDeleteList) = GO.splitGraphOnEdge' inGraph breakEdge
+      (splitGraph, _, prunedGraphRootIndex,  _, _, edgeDeleteList) = GO.splitGraphOnEdge' inGraph breakEdge
 
       -- get edges in base graph to be invaded (ie not in pruned graph)
       prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
@@ -601,16 +598,14 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
 
       -- rejoin, evaluate, get better tuple
       -- check if there are tbr-type rearrangements to do (rerooting pruned graph)
-      doSPR = (length prunedSubTreeNodes < 3) || swapType == "spr"
-
-      -- create TBR rerro split graphs if required
+      -- create TBR rerooot split graphs if required
       splitGraphList = if (length prunedSubTreeNodes < 3) || swapType == "spr" then [splitGraph]
 
                        -- generate "tbr" rerootings in split graph
                        else getTBRSplitGraphs inGS splitGraph breakEdge
 
       -- new random lists for rejoin
-      randomIntegerListList = fmap randomIntList randomIntegerList
+      randomIntegerListList = fmap randomIntList inRandomIntegerList
 
       -- parallel at break level above
       rejoinTupleListList = zipWith (rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge) randomIntegerListList edgesToInvade
@@ -619,10 +614,6 @@ splitRejoinGB inGS inData rSeed swapType intProbAccept sampleAtRandom inTupleLis
       newTupleList = mergeTupleLists rejoinTupleListList []
     in
     newTupleList
-    where addDouble (a,b) = (a,b,0.0)
-
-
-
 
 -- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
 -- splitGraph is SimpleGraph
@@ -637,11 +628,10 @@ rejoinGB :: GlobalSettings
          -> [Int]
          -> LG.LEdge Double
          -> [(Int, Int, NameBV, NameBV, VertexCost)]
-rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, lBreak) randIntList edgeToInvade =
+rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, _) randIntList edgeToInvade =
    if null splitGraphList then inTupleList
    else
-      let numTaxa = V.length $ fst3 inData
-          splitGraph = head  splitGraphList
+      let splitGraph = head  splitGraphList
           doGraph = if sampleAtRandom then
                       let (_, intRandVal) = divMod (abs (head randIntList)) 1000
                       in
@@ -687,7 +677,7 @@ mergeTupleLists inTupleListList accumList =
 
 -- | chooseBetterTuple takes two (Int, Int, NameBV, NameBV, VertexCost) and returns better cost
 chooseBetterTuple :: (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-chooseBetterTuple aTuple@(aE, aV, aEBV, aVBV, aCost) bTuple@(_, _, _, _, bCost) = (aE, aV, aEBV, aVBV, min aCost bCost)
+chooseBetterTuple (aE, aV, aEBV, aVBV, aCost) (_, _, _, _, bCost) = (aE, aV, aEBV, aVBV, min aCost bCost)
 
 -- | makeGraphEdgeTuples take node and edge,cost tuples from a graph and returns a list of tuples of the form
 -- (uIndex,vINdex,uBV, vBV, graph cost)
@@ -705,18 +695,10 @@ getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGr
 getLowerGBEdgeCost edgeTupleList inGraph =
    if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error ("Empty graph or null edge tuple list in getLowerGBEdgeCost")
    else
-      let numNodes = length $ LG.nodes (thd6 inGraph)
-          inGraphTupleList = getGraphTupleList inGraph (snd6 inGraph)
-         {-
-         -- get edge data with BV for edge comparisons for inGraph
-          egdeList = LG.edges (fst6 inGraph)
-          nodeList = LG.labNodes (thd6 inGraph)
-          nodeIndexBVPairVect = V.fromList $ fmap makeindexBVPair nodeList
-          inGraphTupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
-         -}
+      let inGraphTupleList = getGraphTupleList inGraph 
       in
       fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
-      where makeindexBVPair (a,b) = (a, bvLabel b)
+      
 
 -- | updateEdgeTuple checks is edge is NOT in input graph edge tuple list and if not takes minimum
 -- of edge cost GB value and in graph cost, else returns unchanged

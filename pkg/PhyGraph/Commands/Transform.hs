@@ -40,7 +40,6 @@ module Commands.Transform
 
 import Types.Types
 import Data.Alphabet
-import qualified Search.Build as B
 import qualified GraphOptimization.Traversals as T
 import qualified Utilities.Utilities as U
 import qualified ParallelUtilities            as PU
@@ -57,7 +56,6 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import Debug.Trace
 import           Foreign.C.Types             (CUInt)
-import qualified SymMatrix                   as S
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector.Generic         as GV
 import           Data.Word
@@ -185,12 +183,11 @@ makeStaticApprox inGS inData inGraph =
 
    -- tree type
    else if graphType inGS == Tree then
-      let charInfoVV = six6 inGraph
-          decGraph = thd6 inGraph
+      let decGraph = thd6 inGraph
           (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
 
           -- convert prealigned to non-additive if all 1's tcm 
 
@@ -209,8 +206,8 @@ makeStaticApprox inGS inData inGraph =
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 
 -- the character data of the block and transforms the leaf data by using implied alignment
 -- feilds for dynamic characters
-pullGraphBlockDataAndTransform :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> ProcessedData -> Int -> BlockData
-pullGraphBlockDataAndTransform inDecGraph charInfoVV (_, _, blockCharInfoV) blockIndex =
+pullGraphBlockDataAndTransform :: DecoratedGraph -> ProcessedData -> Int -> BlockData
+pullGraphBlockDataAndTransform inDecGraph  (_, _, blockCharInfoV) blockIndex =
    let (_, leafVerts, _, _) = LG.splitVertexList inDecGraph
        (_, leafLabelList) = unzip leafVerts
        leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
@@ -333,9 +330,9 @@ transformCharacter inCharData inCharInfo charLength =
 addGaps2BV :: Int -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 addGaps2BV gapCost (_, inM, _) =
    -- trace ("AG2BV: " ++ (show inM)) (
-   let gapChar = BV.fromNumber (BV.dimension $ V.head inM) 1
-       noGap = L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) 1
-       hasGap =  L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) 2
+   let gapChar = BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
+       noGap = L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
+       hasGap =  L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (2 :: Int)
        gapCharV = createGapChars inM gapChar [] noGap hasGap
        outM = inM V.++ gapCharV
    in
