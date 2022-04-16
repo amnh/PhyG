@@ -45,12 +45,10 @@ module Utilities.ThreeWayFunctions  ( threeMedianFinal
                                     , addGapsToChildren
                                     ) where
 
-import           Bio.DynamicCharacter
 import           Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
-import           Data.Maybe
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Vector                 as V
@@ -58,8 +56,6 @@ import qualified Data.Vector.Generic         as GV
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
-import           Debug.Trace
-import qualified DirectOptimization.PreOrder as DOP
 import           Foreign.C.Types             (CUInt)
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
@@ -67,6 +63,7 @@ import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+--import           Debug.Trace
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -192,14 +189,14 @@ getMinStatePair costMatrix maxCost numStates p1CostV p2CostV curCostV =
        medianChildCostPairVect = fmap (getBestPairCostAndState costMatrix maxCost numStates curCostV) [0..(numStates - 1)]
 
        -- get 3 sum costs and best state value
-       threeWayStateCostList = zipWith3 a bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
+       threeWayStateCostList = zipWith3 f bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
        minThreeWayCost = minimum threeWayStateCostList
 
        finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
 
    in
    V.fromList finalStateCostL
-   where a a b c = a + b + c
+   where f a b c = a + b + c
 
 -- | assignBestMax checks 3-way median state cost and if minimum sets to that otherwise sets to max
 -- double 2nd field for 2-child type asumption
@@ -220,8 +217,8 @@ getBestPairCost costMatrix maxCost numStates parentStateCostV medianStateIndex =
 
 -- | getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
 getBestPairCostAndState :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> (StateCost, [ChildStateIndex])
-getBestPairCostAndState costMatrix maxCost numStates childStateCostV medianStateIndex =
-   let statecostV = V.zipWith (g costMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
+getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianStateIndex =
+   let statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
        minStateCost = V.minimum $ fmap fst statecostV
        bestPairs = V.filter ((== minStateCost) . fst) statecostV
        bestChildStates = V.toList $ fmap snd bestPairs
@@ -455,7 +452,7 @@ threeWayGeneric charInfo parent1 parent2 curNode =
        minCost = minimum [cost1, cost2, cost3]
        (medianBestSlim, medianBestWide, medianBestHuge) =  if cost1 == minCost then (median1Slim, median1Wide, median1Huge)
                                                            else if cost2 == minCost then (median2Slim, median2Wide, median2Huge)
-                                                           else (median3Slim, median3Wide, median1Huge)
+                                                           else (median3Slim, median3Wide, median3Huge)
 
 
    in
