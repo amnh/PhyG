@@ -38,21 +38,21 @@ module Search.WagnerBuild  ( wagnerTreeBuild
                            , rasWagnerBuild
                      ) where
 
-import Types.Types
-import qualified Data.Vector as V
-import GeneralUtilities
-import Debug.Trace
-import qualified GraphOptimization.Traversals as T
-import qualified Utilities.LocalGraph as LG
-import qualified Data.Text.Lazy              as TL
-import qualified Graphs.GraphOperations  as GO
+import           Control.Parallel.Strategies
+import qualified Data.List                           as L
+import           Data.Maybe
+import qualified Data.Text.Lazy                      as TL
+import qualified Data.Vector                         as V
+import           Debug.Trace
+import           GeneralUtilities
+import qualified GraphOptimization.Medians           as M
 import qualified GraphOptimization.PreOrderFunctions as PRE
-import Utilities.Utilities as U
-import qualified Data.List as L
-import Data.Maybe
-import qualified GraphOptimization.Medians as M
-import qualified ParallelUtilities as PU
-import Control.Parallel.Strategies
+import qualified GraphOptimization.Traversals        as T
+import qualified Graphs.GraphOperations              as GO
+import qualified ParallelUtilities                   as PU
+import           Types.Types
+import qualified Utilities.LocalGraph                as LG
+import           Utilities.Utilities                 as U
 
 
 -- import qualified ParallelUtilities as PU --need instance for VerexInfo
@@ -63,8 +63,8 @@ import Control.Parallel.Strategies
 rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> [PhylogeneticGraph]
 rasWagnerBuild inGS inData seed numReplicates =
    if numReplicates == 0 then []
-   else 
-      let numLeaves = V.length $ fst3 inData 
+   else
+      let numLeaves = V.length $ fst3 inData
           randomizedAdditionSequences = V.fromList <$> shuffleInt seed numReplicates [0..numLeaves - 1]
 
           -- "graph" of leaf nodes without any edges
@@ -75,15 +75,15 @@ rasWagnerBuild inGS inData seed numReplicates =
       in
       trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences `using` PU.myParListChunkRDS 
+      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences `using` PU.myParListChunkRDS
 
--- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition) 
+-- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
 -- afterwards
 -- basic procs is to add edges to unresolved tree
 -- currently naive wrt candidate tree costs
 wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> PhylogeneticGraph
-wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence = 
+wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence =
    let rootHTU = (numLeaves, TL.pack $ "HTU" ++ (show numLeaves))
        nextHTU = (numLeaves + 1, TL.pack $ "HTU" ++ (show $ numLeaves + 1))
 
@@ -96,14 +96,14 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 
        blockCharInfo = V.map thd3 $ thd3 inData
 
-       -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree 
+       -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
 
-       wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree 
+       wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
-   -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n" 
+   -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n"
    --   ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
    wagnerTree
 
@@ -111,7 +111,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner ::V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph 
+recursiveAddEdgesWagner ::V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
 recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
@@ -133,12 +133,12 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                        -- else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          -- False flag for static IA--can't do when adding in new leaves 
+          -- False flag for static IA--can't do when adding in new leaves
           calculateBranchLengths = False -- must be True for delata using existing edge
           newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                           if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
-                          else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple' 
-                          
+                          else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
+
       in
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )
@@ -146,14 +146,14 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 -- returns a tuple of the cost, node to add, edges to add, edge to delete
-addTaxonWagner ::  GlobalSettings 
-               -> Int 
-               -> Int 
-               -> PhylogeneticGraph 
-               -> Int 
-               -> DecoratedGraph 
-               -> LG.LEdge EdgeInfo 
-               -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) 
+addTaxonWagner ::  GlobalSettings
+               -> Int
+               -> Int
+               -> PhylogeneticGraph
+               -> Int
+               -> DecoratedGraph
+               -> LG.LEdge EdgeInfo
+               -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
 addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _, _, charInfoVV) leafToAdd leafDecGraph targetEdge =
    let edge0 = (numVerts, leafToAdd, 0.0)
        edge1 = (fst3 targetEdge, numVerts, 0.0)
@@ -166,7 +166,7 @@ addTaxonWagner inGS numLeaves numVerts inGraph@(inSimple, inCost, inDecGraph, _,
 
        -- heuristic delta
        delta = getDelta leafToAdd targetEdge inDecGraph charInfoVV
-      
+
    in
    (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
    -- (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
@@ -180,7 +180,7 @@ getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
        eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
        existingEdgeCost = minLength targetlabel
-       
+
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
        -- based on final assignments
@@ -190,7 +190,7 @@ getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
    in
    -- trace ("GD: " ++ (show edgeUnionVertData)) (
    if (LG.lab inDecGraph leafToAdd == Nothing) || (LG.lab inDecGraph eNode == Nothing) || (LG.lab inDecGraph vNode == Nothing) then error ("Missing label data for vertices")
-   else 
+   else
       let dLeafENode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData eNodeVertData charInfoVV
           dLeafVNode = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData vNodeVertData charInfoVV
 
@@ -205,7 +205,7 @@ getDelta leafToAdd (eNode, vNode, targetlabel) inDecGraph charInfoVV =
       -- trace ("Delta: " ++ (show (dLeafENode, dLeafVNode, existingEdgeCost)))
       -- dLeafENode + dLeafVNode - existingEdgeCost
       -- trace ("Delta: " ++ (show dLeafEdgeUnionCost) ++ " vs " ++ (show dLeafEVAddCost))
-      
+
       -- min dLeafEdgeUnionCost dLeafEVAddCost
       -- dLeafEVAddCost
       dLeafEdgeUnionCost

@@ -48,12 +48,12 @@ import qualified Data.Number.Transfinite     as NT
 import qualified Data.Vector                 as V
 import           Debug.Trace
 import           GeneralUtilities
-import           ParallelUtilities as PU
+import           ParallelUtilities           as PU
 import qualified SymMatrix                   as M
 import           Types.DistanceTypes
 import           Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
-import qualified Data.Vector as LS
+import qualified Data.Vector                 as LS
 
 -- | getStartingPair returns starying pair for Wagner build
 --  closts mnimal cost pair

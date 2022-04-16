@@ -34,18 +34,18 @@ Portability :  portable (I hope)
 
 -}
 
-module Reconciliation.ReconcileGraphs  ( makeReconcileGraph 
+module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
                                        , reconcileCommandList
                                        ) where
 
+import qualified Data.List            as L
+import qualified Data.Text.Lazy       as T
+import           Debug.Trace
+import           GeneralUtilities
+import qualified GraphFormatUtilities as GFU
+import qualified Reconciliation.Eun   as E
 import           Types.Types
-import qualified Reconciliation.Eun    as E
-import qualified Utilities.LocalGraph  as LG
-import qualified GraphFormatUtilities  as GFU
-import qualified Data.Text.Lazy  as T
-import GeneralUtilities
-import Debug.Trace 
-import qualified Data.List as L
+import qualified Utilities.LocalGraph as LG
 
 -- | reconcileCommandList list of allowable commands
 reconcileCommandList :: [String]
@@ -57,10 +57,10 @@ reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile"
 makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
    if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
-   else   
+   else
       let -- convert SimpleGraph to String String from Text Double
           stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True) $ fmap GFU.textGraph2StringGraph inGraphList
-          
+
           -- parse arguements
           commandList = fmap mergePair $ filter (('"' `notElem`).snd) commandPairList
           (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
@@ -84,7 +84,7 @@ processReconcileArgs :: [String] -> [String] -> (String, String, Int, Bool, Bool
 processReconcileArgs validCommandList inList' =
     let inList = inList' L.\\ ["overwrite", "append", "reconcile"]
     in
-    if null inList then 
+    if null inList then
       let -- default values
           method = "eun"
           compareMethod = "combinable"
@@ -245,4 +245,4 @@ getOutputFormat inTextList =
          else getOutputFormat (tail inTextList)
 
 
--- | 
+-- |

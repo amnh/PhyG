@@ -1,7 +1,7 @@
 {- |
 Module      :  ThreeWayFunctions.hs
 Description :  Module specifying three way optimization functions for use in pre-order
-               optimization of HardWired graphs and iterative pass-type optimization for Trees 
+               optimization of HardWired graphs and iterative pass-type optimization for Trees
 Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -51,84 +51,84 @@ import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import           Data.Maybe
+import qualified Data.MetricRepresentation   as MR
+import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
+import           Data.Word
 import           Debug.Trace
 import qualified DirectOptimization.PreOrder as DOP
+import           Foreign.C.Types             (CUInt)
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
+import qualified Input.BitPack               as BP
+import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
-import qualified SymMatrix                   as S
-import           Foreign.C.Types             (CUInt)
-import           Data.Word
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.TCM.Dense              as TCMD
-import qualified Input.BitPack               as BP
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
 -- taking best result.  Later true 3-way via ffi can be incorporated
--- first type of operation two parents and current node-- since prelim 
+-- first type of operation two parents and current node-- since prelim
 -- has (left child preliminary, node preliminary, right child preliminary)
 -- that information can be used if needed
 -- since assumes in 2 out 1 only the node preliminary field is used
 threeMedianFinal :: GlobalSettings -> AssignmentMethod -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
-threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode = 
+threeMedianFinal inGS finalMethod charInfo parent1 parent2 curNode =
    let localCharType = charType charInfo
 
    in
    if localCharType == Add then
-      let threeFinal = V.zipWith3 threeWayAdditive (rangeFinal parent1) (rangeFinal parent2) (snd3 $ rangePrelim curNode) 
+      let threeFinal = V.zipWith3 threeWayAdditive (rangeFinal parent1) (rangeFinal parent2) (snd3 $ rangePrelim curNode)
       in curNode {rangeFinal = threeFinal}
-         
-   else if localCharType == NonAdd then 
-      let threeFinal = V.zipWith3 threeWayNonAdditive (stateBVFinal parent1) (stateBVFinal parent2) (snd3 $ stateBVPrelim curNode) 
+
+   else if localCharType == NonAdd then
+      let threeFinal = V.zipWith3 threeWayNonAdditive (stateBVFinal parent1) (stateBVFinal parent2) (snd3 $ stateBVPrelim curNode)
       in curNode {stateBVFinal = threeFinal}
-      
-   else if localCharType `elem` packedNonAddTypes then 
-      let threeFinal = BP.threeWayPacked localCharType (packedNonAddFinal parent1) (packedNonAddFinal parent2) (snd3 $ packedNonAddPrelim curNode) 
+
+   else if localCharType `elem` packedNonAddTypes then
+      let threeFinal = BP.threeWayPacked localCharType (packedNonAddFinal parent1) (packedNonAddFinal parent2) (snd3 $ packedNonAddPrelim curNode)
       in curNode {packedNonAddFinal = threeFinal}
 
-   else if localCharType == Matrix then 
-      let threeFinal = V.zipWith3 (threeWayMatrix (costMatrix charInfo)) (matrixStatesFinal parent1) (matrixStatesFinal parent2) (matrixStatesPrelim curNode) 
+   else if localCharType == Matrix then
+      let threeFinal = V.zipWith3 (threeWayMatrix (costMatrix charInfo)) (matrixStatesFinal parent1) (matrixStatesFinal parent2) (matrixStatesPrelim curNode)
       in curNode {matrixStatesFinal = threeFinal}
 
    else if localCharType == AlignedSlim then
-      let threeFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parent1) (alignedSlimFinal parent2) (snd3 $ alignedSlimPrelim curNode) 
+      let threeFinal = M.getFinal3WaySlim (slimTCM charInfo) (alignedSlimFinal parent1) (alignedSlimFinal parent2) (snd3 $ alignedSlimPrelim curNode)
       in curNode {alignedSlimFinal = threeFinal}
 
    else if localCharType == AlignedWide then
-      let threeFinal = M.getFinal3WayWideHuge (wideTCM charInfo) (alignedWideFinal parent1) (alignedWideFinal parent2) (snd3 $ alignedWidePrelim curNode) 
+      let threeFinal = M.getFinal3WayWideHuge (wideTCM charInfo) (alignedWideFinal parent1) (alignedWideFinal parent2) (snd3 $ alignedWidePrelim curNode)
       in curNode {alignedWideFinal = threeFinal}
 
    else if localCharType == AlignedHuge then
-      let threeFinal = M.getFinal3WayWideHuge  (hugeTCM charInfo) (alignedHugeFinal parent1) (alignedHugeFinal parent2) (snd3 $ alignedHugePrelim curNode) 
+      let threeFinal = M.getFinal3WayWideHuge  (hugeTCM charInfo) (alignedHugeFinal parent1) (alignedHugeFinal parent2) (snd3 $ alignedHugePrelim curNode)
       in curNode {alignedHugeFinal = threeFinal}
-      
+
    else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
       let threeFinal = threeWaySlim charInfo parent1 parent2 curNode
-      in 
+      in
       curNode { slimFinal = threeFinal
               }
-         
+
    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
       let threeFinal = threeWayWide charInfo parent1 parent2 curNode
-      in 
+      in
       curNode { wideFinal = threeFinal
               }
-      
+
    else if localCharType == HugeSeq then
       let threeFinal = threeWayHuge charInfo parent1 parent2 curNode
-      in 
+      in
       curNode { hugeFinal = threeFinal
               }
-      
+
    else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
-   
+
 -- | threeWayNonAdditive takes the union/intersection operation over 3 non additive states
 threeWayNonAdditive :: BV.BitVector -> BV.BitVector -> BV.BitVector -> BV.BitVector
 threeWayNonAdditive inA inB inC =
@@ -140,7 +140,7 @@ threeWayNonAdditive inA inB inC =
    in
    if not (BV.isZeroVector intersection3) then intersection3
    else if not (BV.isZeroVector intersectionAB) then intersectionAB .|. inC
-   else if not (BV.isZeroVector intersectionAC) then intersectionAC .|. inB   
+   else if not (BV.isZeroVector intersectionAC) then intersectionAC .|. inB
    else if not (BV.isZeroVector intersectionBC) then intersectionBC .|. inA
    else union3
 
@@ -156,17 +156,17 @@ threeWayAdditive inA@(minA, maxA) inB@(minB, maxB) inC@(minC, maxC) =
    if maxOfMins > minOfMaxs then (maxOfMins, minOfMaxs)
    else (minOfMaxs, maxOfMins)
 
--- | threeWayMatrix creates median best state vector from a traceback, since parents could conflict 
--- on traceback does a minimization.  
--- The final states of parents will have non-maximum costs and these compared 
+-- | threeWayMatrix creates median best state vector from a traceback, since parents could conflict
+-- on traceback does a minimization.
+-- The final states of parents will have non-maximum costs and these compared
 -- to the the child states with pointers to their children are set for
 -- traceback from current node to child(ren) from preliminary assignment
 -- since type assumes two children--they are both set to same value so if either left or right
--- is set later the process will be correct 
+-- is set later the process will be correct
 threeWayMatrix :: S.Matrix Int -> V.Vector MatrixTriple -> V.Vector MatrixTriple -> V.Vector MatrixTriple -> V.Vector MatrixTriple
 threeWayMatrix costMatrix parent1 parent2 curNode =
    let numStates = S.rows costMatrix
-       
+
        -- get the costs of each state for each node, for prents non-maximal cost will be final states
        parent1StatesCost = fmap fst3 parent1
        parent2StatesCost = fmap fst3 parent2
@@ -184,7 +184,7 @@ threeWayMatrix costMatrix parent1 parent2 curNode =
 getMinStatePair :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> V.Vector StateCost -> V.Vector StateCost -> V.Vector (StateCost, [ChildStateIndex], [ChildStateIndex])
 getMinStatePair costMatrix maxCost numStates p1CostV p2CostV curCostV =
    let -- get costs to parents-- will assume parent costs are 0 or max
-       bestMedianP1Cost = fmap (getBestPairCost costMatrix maxCost numStates p1CostV) [0..(numStates - 1)] 
+       bestMedianP1Cost = fmap (getBestPairCost costMatrix maxCost numStates p1CostV) [0..(numStates - 1)]
        bestMedianP2Cost = fmap (getBestPairCost costMatrix maxCost numStates p1CostV) [0..(numStates - 1)]
 
 
@@ -197,7 +197,7 @@ getMinStatePair costMatrix maxCost numStates p1CostV p2CostV curCostV =
 
        finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
 
-   in 
+   in
    V.fromList finalStateCostL
    where a a b c = a + b + c
 
@@ -214,7 +214,7 @@ getBestPairCost costMatrix maxCost numStates parentStateCostV medianStateIndex =
    let stateCost = V.minimum $ V.zipWith (g costMatrix maxCost medianStateIndex)parentStateCostV (V.fromList [0..(numStates - 1)])
    in
    stateCost
-   
+
    where g cM mC mS pC pS = if pC == mC then mC
                                else cM S.! (mS, pS)
 
@@ -231,14 +231,14 @@ getBestPairCostAndState costMatrix maxCost numStates childStateCostV medianState
    where g cM mC mS pC pS = if pC == mC then (mC, pS)
                                else (cM S.! (mS, pS), pS)
 
--- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
--- 4) choosing lowest cost median 
+-- 4) choosing lowest cost median
 threeWaySlim ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> SV.Vector CUInt
 threeWaySlim charInfo parent1 parent2 curNode =
-   let -- pairwise median structures 
+   let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
@@ -249,13 +249,13 @@ threeWaySlim charInfo parent1 parent2 curNode =
        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
 
        (a1,b1,c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
-       (median1, cost1) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a1 b1 c1 
+       (median1, cost1) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a1 b1 c1
 
        (a2,b2,c2) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
-       (median2, cost2) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a2 b2 c2 
+       (median2, cost2) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a2 b2 c2
 
        (a3,b3,c3) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
-       (median3, cost3) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a3 b3 c3 
+       (median3, cost3) =  get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a3 b3 c3
 
        minCost = minimum [cost1, cost2, cost3]
 
@@ -266,14 +266,14 @@ threeWaySlim charInfo parent1 parent2 curNode =
 
 
 
--- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
--- 4) choosing lowest cost median 
+-- 4) choosing lowest cost median
 threeWayWide ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> UV.Vector Word64
-threeWayWide charInfo parent1 parent2 curNode = 
-   let -- pairwise median structures 
+threeWayWide charInfo parent1 parent2 curNode =
+   let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
@@ -284,13 +284,13 @@ threeWayWide charInfo parent1 parent2 curNode =
        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
 
        (a1,b1,c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
-       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a1 b1 c1 
+       (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a1 b1 c1
 
        (a2,b2,c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
-       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2 
+       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a2 b2 c2
 
        (a3,b3,c3)= addGapsToChildren (wideGapped p2cNp1) (wideGapped p2cN)
-       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3 
+       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a3 b3 c3
 
        minCost = minimum [cost1, cost2, cost3]
 
@@ -299,14 +299,14 @@ threeWayWide charInfo parent1 parent2 curNode =
    else if cost2 == minCost then median2
    else median3
 
--- | threeWayHuge take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- | threeWayHuge take charInfo, 2 parents, and curNOde and creates 3 median via
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
--- 4) choosing lowest cost median 
+-- 4) choosing lowest cost median
 threeWayHuge ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> V.Vector BV.BitVector
-threeWayHuge charInfo parent1 parent2 curNode = 
-   let -- pairwise median structures 
+threeWayHuge charInfo parent1 parent2 curNode =
+   let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
@@ -320,10 +320,10 @@ threeWayHuge charInfo parent1 parent2 curNode =
        (median1, cost1) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a1 b1 c1
 
        (a2,b2,c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
-       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2 
+       (median2, cost2) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a2 b2 c2
 
        (a3,b3,c3) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
-       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a3 b3 c3 
+       (median3, cost3) =  get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a3 b3 c3
 
        minCost = minimum [cost1, cost2, cost3]
 
@@ -382,15 +382,15 @@ get3WayGeneric tcm in1 in2 in3 =
 
 
 {-Not using this now--but could.  Would need to add Aligned Types-}
--- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via 
+-- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
--- 4) choosing lowest cost median 
+-- 4) choosing lowest cost median
 threeWayGeneric :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 threeWayGeneric charInfo parent1 parent2 curNode =
    let localCharType = charType charInfo
-      -- pairwise medina structures 
+      -- pairwise medina structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
@@ -400,34 +400,34 @@ threeWayGeneric charInfo parent1 parent2 curNode =
        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
 
-       (median1Slim, median1Wide, median1Huge, cost1) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+       (median1Slim, median1Wide, median1Huge, cost1) =  if localCharType `elem` [SlimSeq, NucSeq]  then
                                                             let (a,b,c) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
                                                                 (median, cost) = get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a b c
                                                             in
                                                             (median, mempty, mempty, cost)
-                                                         else if localCharType `elem` [AminoSeq, WideSeq] then 
+                                                         else if localCharType `elem` [AminoSeq, WideSeq] then
                                                             let (a,b,c) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
                                                             in
                                                             (mempty, median, mempty, cost)
-                                                         else if localCharType == HugeSeq then 
+                                                         else if localCharType == HugeSeq then
                                                             let (a,b,c) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
                                                             (mempty, mempty, median, cost)
                                                          else error ("Unrecognized character type: " ++ show localCharType)
 
-       (median2Slim, median2Wide, median2Huge, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then 
+       (median2Slim, median2Wide, median2Huge, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then
                                                             let (a,b,c) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
                                                                 (median, cost) = get3WayGeneric (TCMD.lookupThreeway (slimTCM charInfo)) a b c
                                                             in
                                                             (median, mempty, mempty, cost)
-                                                         else if localCharType `elem` [AminoSeq, WideSeq] then 
+                                                         else if localCharType `elem` [AminoSeq, WideSeq] then
                                                             let (a,b,c) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
                                                             in
                                                             (mempty, median, mempty, cost)
-                                                         else if localCharType == HugeSeq then 
+                                                         else if localCharType == HugeSeq then
                                                             let (a,b,c) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
@@ -444,26 +444,26 @@ threeWayGeneric charInfo parent1 parent2 curNode =
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (wideTCM charInfo)) a b c
                                                             in
                                                              (mempty, median, mempty, cost)
-                                                         else if localCharType == HugeSeq then 
+                                                         else if localCharType == HugeSeq then
                                                             let (a,b,c) = addGapsToChildren (hugeGapped p2cNp1) (hugeGapped p2cN)
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
                                                             (mempty, mempty, median, cost)
                                                          else error ("Unrecognized character type: " ++ show localCharType)
 
-       
+
        minCost = minimum [cost1, cost2, cost3]
        (medianBestSlim, medianBestWide, medianBestHuge) =  if cost1 == minCost then (median1Slim, median1Wide, median1Huge)
                                                            else if cost2 == minCost then (median2Slim, median2Wide, median2Huge)
                                                            else (median3Slim, median3Wide, median1Huge)
 
-   
+
    in
    -- set for correct data type
    if localCharType `elem` [SlimSeq, NucSeq]  then emptyCharacter {slimFinal = medianBestSlim}
-      
+
    else if localCharType `elem` [AminoSeq, WideSeq] then emptyCharacter {wideFinal = medianBestWide}
-       
+
    else if localCharType == HugeSeq then emptyCharacter {hugeFinal = medianBestHuge}
-       
-   else error ("Unrecognized character type: " ++ show localCharType) 
+
+   else error ("Unrecognized character type: " ++ show localCharType)

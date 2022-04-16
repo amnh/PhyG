@@ -45,11 +45,13 @@ module Input.FastAC
 import           Control.DeepSeq
 import           Data.Alphabet
 import           Data.Bits
+import qualified Data.Char                 as C
 import           Data.Hashable
 import qualified Data.List                 as L
 import           Data.MetricRepresentation
 import qualified Data.MetricRepresentation as MR
-import           Data.TCM                  (TCMDiagnosis(..), TCMStructure(..))
+import           Data.TCM                  (TCMDiagnosis (..),
+                                            TCMStructure (..))
 import qualified Data.TCM                  as TCM
 import qualified Data.TCM.Dense            as TCMD
 import qualified Data.Text.Lazy            as T
@@ -60,7 +62,6 @@ import           GeneralUtilities
 import qualified Input.DataTransformation  as DT
 import qualified SymMatrix                 as S
 import           Types.Types
-import qualified Data.Char as C
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -146,14 +147,14 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                 a          -> fromSymbols a
 
             alignedSeqType = if not isPrealigned then seqType
-                             else 
+                             else
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
                                 else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
             defaultHugeSeqCharInfo = CharInfo {
-                                               charType = alignedSeqType 
+                                               charType = alignedSeqType
                                              , activity = True
                                              , weight = tcmWeightFactor *
                                                         if seqType == HugeSeq
@@ -194,7 +195,7 @@ getTCMMemo
 getTCMMemo (_inAlphabet, inMatrix) =
     let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric 
+                   NonAdditive -> discreteMetric
                    Additive    -> linearNorm . toEnum $ TCM.size tcm
                    _           -> metricRepresentation tcm
     in (coefficient, metric)
@@ -268,7 +269,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             alignedSeqType = if not isPrealigned then seqType
-                             else 
+                             else
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
                                 else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
                                 else if seqType == HugeSeq then AlignedHuge

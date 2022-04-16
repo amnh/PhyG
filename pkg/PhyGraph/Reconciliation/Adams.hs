@@ -49,8 +49,8 @@ import qualified Data.Set                          as Set
 import qualified Data.Text.Lazy                    as T
 import qualified Data.Vector                       as V
 import qualified GraphFormatUtilities              as PhyP
+import qualified ParallelUtilities                 as PU
 import           System.IO.Unsafe
-import qualified ParallelUtilities as PU
 -- import           Debug.Trace
 
 data VertexType = Root | Internal | Leaf | Network | Tree

@@ -104,7 +104,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
         foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
     in
     if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren) ++ "\nGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
-    
+
     -- if node in multiple times due to network--put off optimizatin till last time
     else if curNodeIndex `elem` (fmap fst $ tail oldNodeList) then reOptimizeNodes inGS charInfoVectVect inGraph (tail oldNodeList)
 
@@ -112,7 +112,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
       -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
       reOptimizeNodes inGS charInfoVectVect inGraph (tail oldNodeList ++ [curNode])
 
-    
+
     -- somehow root before others -- remove if not needed after debug
     else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
         error ("Root first :" ++ (show $ fmap fst oldNodeList) ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
@@ -231,16 +231,16 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: Bool 
-                       -> LG.Node 
-                       -> Int 
-                       -> Int 
-                       -> NodeType 
-                       -> NodeType 
-                       -> NodeType 
-                       -> ResolutionBlockData 
-                       -> ResolutionBlockData 
-                       -> V.Vector CharInfo 
+createBlockResolutions :: Bool
+                       -> LG.Node
+                       -> Int
+                       -> Int
+                       -> NodeType
+                       -> NodeType
+                       -> NodeType
+                       -> ResolutionBlockData
+                       -> ResolutionBlockData
+                       -> V.Vector CharInfo
                        -> ResolutionBlockData
 createBlockResolutions
   compress
@@ -842,24 +842,24 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
         -- could just update with needges? from simple graph rerooting
         (newDecGraph, touchedNodes)  = if (graphType inGS) == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
                                        else if (graphType inGS) == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
-                                       else if (graphType inGS) == HardWired then 
-                                         if (not . LG.cyclic) inSimple then 
+                                       else if (graphType inGS) == HardWired then
+                                         if (not . LG.cyclic) inSimple then
                                             let (newDecGraph', touchedNodes') = rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
                                             in
                                             if (not . LG.cyclic) newDecGraph' then (newDecGraph', touchedNodes')
                                             else (LG.empty, [])
-                                         else (LG.empty, []) 
+                                         else (LG.empty, [])
                                        else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))
 
         newSimpleGraph = GO.convertDecoratedToSimpleGraph newDecGraph
-                        
+
 
         -- reoptimize nodes here
         -- nodes on spine from new root to old root that needs to be reoptimized
         -- THIS IS WRONG FOR SOFTWIRED--extra nodes for  rectifying graph
         (nodesToOptimize, _) = if (graphType inGS) == Tree then LG.pathToRoot inDecGraph (rerootIndex, fromJust $ LG.lab inDecGraph rerootIndex)
-                               else if (graphType inGS) == SoftWired then (touchedNodes, []) 
-                               else if (graphType inGS) == HardWired then (touchedNodes, []) 
+                               else if (graphType inGS) == SoftWired then (touchedNodes, [])
+                               else if (graphType inGS) == HardWired then (touchedNodes, [])
                                else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))
 
         -- this only reoptimizes non-exact characters since rerooting doesn't affect 'exact" character optimization'
@@ -961,7 +961,7 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
             else if hasNetLeaf then
                 --trace ("Graph with HTU network vertex--skipping reroot")
                 (LG.empty, [])
-            
+
             {-
             else if LG.cyclic newGraph then
                 trace ("Cycle")

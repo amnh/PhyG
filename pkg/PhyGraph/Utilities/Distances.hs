@@ -39,15 +39,15 @@ module Utilities.Distances (getPairwiseDistances
                 , getPairwiseBlocDistance
                 ) where
 
+import           Control.Parallel.Strategies
 import           Data.Foldable
-import qualified Data.Vector               as V
+import qualified Data.Vector                 as V
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Medians as M
-import qualified ParallelUtilities         as P
-import qualified SymMatrix                 as S
+import qualified GraphOptimization.Medians   as M
+import qualified ParallelUtilities           as P
+import qualified SymMatrix                   as S
 import           Types.Types
-import Control.Parallel.Strategies
 
 
 -- | getPairwiseDistances takes Processed data
@@ -85,7 +85,7 @@ getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlocDistance  numVerts inData =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
-        pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS 
+        pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList

@@ -45,28 +45,28 @@ module Input.BitPack
   , maxCharDiff
   ) where
 
+import           Control.Parallel.Strategies
+import           Data.Bits
+import qualified Data.BitVector.LittleEndian as BV
+import           Data.Char                   (intToDigit)
 import qualified Data.List                   as L
 import qualified Data.List.Split             as SL
 import           Data.Maybe
-import           Types.Types
-import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
-import qualified Utilities.Utilities         as U
-import           GeneralUtilities
-import           Debug.Trace
 import           Data.Word
-import qualified ParallelUtilities as PU
-import Control.Parallel.Strategies
-import qualified Data.Text.Lazy            as T
-import Data.Bits
-import Numeric (showHex, showIntAtBase)
-import Data.Char (intToDigit)
+import           Debug.Trace
+import           GeneralUtilities
+import           Numeric                     (showHex, showIntAtBase)
+import qualified ParallelUtilities           as PU
+import           Types.Types
+import qualified Utilities.Utilities         as U
 
 
 {-
 This module contains structures and functions for bit-packing operations
 the basic idea is to transform the Bit-vector representation of non-additive
-characters (whihc have effectively unlimited number of states) to more efficient 
+characters (whihc have effectively unlimited number of states) to more efficient
 operations based on Word64 encodings. Additionally, this should reduce
 memory footprint when large number of non-additive characters are
 input (such as genomic SNP data).
@@ -81,16 +81,16 @@ to each packed type to create preliminary (post-order with cost) and final
 (pre-order) states.  Ideally the functions should contain no logic branches
 or recursion (= loops) so that operations are solely bit-based.
 
-Methods are similar too those of Lamport 1975, Ronquist 1998, Moelannen 1999, Goloboff 2002, 
+Methods are similar too those of Lamport 1975, Ronquist 1998, Moelannen 1999, Goloboff 2002,
 and White and Holland 2011, but differ in detail due to
-the programming language (Haskell) and need to maintain data structures 
+the programming language (Haskell) and need to maintain data structures
 useful for network analysis.
 
 The basic character data structure is a vector of Word64, the original vector of bit-vectors
 is split into a series of new characters depending on the number of states (in non-missing cells).
 
 A single Word64 can then hold 32 2-state. 16 4-state, 12 5-state (awkward but useful for DNA),
-4 8-state, 1 64-state, and a bit-vector for >64 states. 
+4 8-state, 1 64-state, and a bit-vector for >64 states.
 
 Character weights are all = 1 in static charcaters.  This is ensured by organizeBlockData
 in Input.Reorganize.hs basically--characters are multiplied by weight (if integer--otherwise not recoded)
@@ -99,13 +99,13 @@ So can check and only recode characters with weight of 1.
 
 
 {-
-Functions for median2 calculations of packed types 
+Functions for median2 calculations of packed types
 These are used in post-order graph traversals and pairwise
 distance functions among others.
 -}
 
 -- | showBits cponverts Value to bits as Srting
-showBits :: Word64 -> String 
+showBits :: Word64 -> String
 showBits inVal = showIntAtBase 2 intToDigit inVal ""
 
 -- | showBitsV shoiw vector of bits
@@ -113,7 +113,7 @@ showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
 
 
 -- | maxCharDiff get the approximate maximum differnet in number of states
--- could do exact with masking, but this likely good enough for general purposes 
+-- could do exact with masking, but this likely good enough for general purposes
 maxCharDiff :: CharType -> Word64 -> Word64 -> Int
 maxCharDiff inCharType a b =
     let numDiffBits = popCount $ xor a b
@@ -125,7 +125,7 @@ maxCharDiff inCharType a b =
                     else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     if inCharType == Packed64 then if a == b then 0 else 1
-    else 
+    else
         let (maxNum, _) = divMod numDiffBits numPacked
         in
         maxNum
@@ -151,7 +151,7 @@ median2Packed inCharType leftChar rightChar =
     newCharacter
 
 -- | unionPacked returns character that is the union (== OR) for bit packed characters
--- of the final fields as preliminary and final 
+-- of the final fields as preliminary and final
 unionPacked :: CharacterData -> CharacterData -> CharacterData
 unionPacked charL charR =
     let newVect = V.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
@@ -176,13 +176,13 @@ mask2A = 0x5555555555555555
 mask2B :: Word64
 mask2B = 0xAAAAAAAAAAAAAAAA
 -- | mask4A first mask for 4 state  64 bits
--- 8608480567731124087 
+-- 8608480567731124087
 -- 16 X (0111)
 mask4A :: Word64
 mask4A = 0x7777777777777777
 
 -- | mask4B second mask for 4 states 64 bits
--- 9838263505978427528 
+-- 9838263505978427528
 -- 16 X (1000)
 mask4B :: Word64
 mask4B = 0x8888888888888888
@@ -225,32 +225,32 @@ mask5A = 0x7BDEF7BDEF7BDEF
 -- 0x842108421084210 (top 4 OFF) v  F842108421084210 (top 4 ON)
 mask5B :: Word64
 mask5B = 0x842108421084210
--- | mask5C mask 5 states 64 bits 
+-- | mask5C mask 5 states 64 bits
 -- 12 x (01000)
 -- 297528130221121800
 mask5C :: Word64
 mask5C = 0x421084210842108
 
--- | mask5D mask 5 states 64 bits 
+-- | mask5D mask 5 states 64 bits
 -- 12 x (00100)
 -- 148764065110560900
 mask5D :: Word64
 mask5D = 0x210842108421084
 
--- | mask5E mask 5 states 64 bits 
+-- | mask5E mask 5 states 64 bits
 -- 12 x (00010)
 -- 74382032555280450
 mask5E :: Word64
 mask5E = 0x108421084210842
 
--- | mask5F mask 5 states 64 bits 
+-- | mask5F mask 5 states 64 bits
 -- 12 x (00001)
 -- 37191016277640225
 mask5F :: Word64
 mask5F = 0x84210842108421
 
 -- | mask8A first mask for 8 states 64 bits
--- 8 x (01111111) 
+-- 8 x (01111111)
 -- 9187201950435737471
 mask8A :: Word64
 mask8A = 0x7F7F7F7F7F7F7F7F
@@ -311,7 +311,7 @@ andOrN functions derived from White and Holland 2011
 -- | andOR2 Packed2 modified from Goloboff 2002
 -- this is incomplete-- Goloboff uses look up table for on bits to length
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
-andOR2 x y = 
+andOR2 x y =
    let  x1 = x .&. y
         c1 = xor mask2B (shiftR ((x1 .&. mask2B) .|. (x1 .&. mask2A)) 1)
         c2 = c1 .|. (shiftL c1 1)
@@ -331,20 +331,20 @@ andOR2 x y =
 
 -- | andOR2 and or function for Packed2 encoding
 andOR2 :: Word64 -> Word64 -> (Word64, Int)
-andOR2 x y = 
-    let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1 
+andOR2 x y =
+    let u = shiftR ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B) 1
         z = (x .&. y) .|. ((x .|. y) .&. ((u + mask2A) `xor` mask2B))
 
-        -- get number of characters by checking states (may not be full) 
+        -- get number of characters by checking states (may not be full)
         numEmptyBits = countLeadingZeros x --- could be y just as well
-        
-        -- shift divide by 2 states 
+
+        -- shift divide by 2 states
         numNonCharacters = shiftR numEmptyBits 1
         numChars =  32 - numNonCharacters
     in
     {-
     trace ("AO2 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
-      ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):" 
+      ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):"
       ++ (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) ++ "\nu: " ++ (showBits u)
       ++"\npc: " ++ (show $ popCount u) ++ " x:" ++ (showBits x) ++ " y:" ++ (showBits y) ++ " => u:" ++ (showBits u) ++ " z:" ++ (showBits z)) -- ++ " mask2A:" ++ (showBits mask2A) ++ " mask2B:" ++ (showBits mask2B))
     -}
@@ -352,14 +352,14 @@ andOR2 x y =
 
 -- | andOR4 and or function for Packed4 encoding
 andOR4 :: Word64 -> Word64 -> (Word64, Int)
-andOR4 x y = 
-    let u = shiftR ((((x .&. y .&. mask4A) + mask4A) .|. (x .&. y)) .&. mask4B) 3 
-        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask4A) `xor` mask4B)) 
+andOR4 x y =
+    let u = shiftR ((((x .&. y .&. mask4A) + mask4A) .|. (x .&. y)) .&. mask4B) 3
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask4A) `xor` mask4B))
 
-        -- get number of characters by checking states (may not be full) 
+        -- get number of characters by checking states (may not be full)
         numEmptyBits = countLeadingZeros x --- could be y just as well
-        
-        -- shift divide by 4 states 
+
+        -- shift divide by 4 states
         numNonCharacters = shiftR numEmptyBits 2
         numChars =  16 - numNonCharacters
     in
@@ -368,18 +368,18 @@ andOR4 x y =
 -- | andOR5 and or function for Packed5 encoding
 -- potential issue with top 4 bits--not sure on mask5B whether top 4 should be on or OFF.
 -- can always maske top 4 with AND 0000111... (0xFFFFFFFFFFFFFFF or 1152921504606846975)
--- to remove bits for counting 
--- and calcualted state 
+-- to remove bits for counting
+-- and calcualted state
 andOR5:: Word64 -> Word64 -> (Word64, Int)
-andOR5 x y = 
-    let u = shiftR ((((x .&. y .&. mask5A) + mask5A) .|. (x .&. y)) .&. mask5B) 4 
-        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask5A) `xor` mask5B)) 
+andOR5 x y =
+    let u = shiftR ((((x .&. y .&. mask5A) + mask5A) .|. (x .&. y)) .&. mask5B) 4
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask5A) `xor` mask5B))
 
-        -- get number of characters by checking states (may not be full) 
+        -- get number of characters by checking states (may not be full)
         numEmptyBits = countLeadingZeros x --- could be y just as well
 
         -- since top 4 bits always off (can't put anyhting in there) need to subtract those zeros
-        -- to get character number. Cant shift to get / 5 so integer divide 
+        -- to get character number. Cant shift to get / 5 so integer divide
         (numNonCharacters, _) =  divMod (numEmptyBits - 4) 5
         numChars =  12 - numNonCharacters
     in
@@ -388,14 +388,14 @@ andOR5 x y =
 
 -- | andOR8 and or function for Packed8 encoding
 andOR8 :: Word64 -> Word64 -> (Word64, Int)
-andOR8 x y = 
-    let u = shiftR ((((x .&. y .&. mask8A) + mask8A) .|. (x .&. y)) .&. mask8B) 7 
-        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask8A) `xor` mask8B)) 
+andOR8 x y =
+    let u = shiftR ((((x .&. y .&. mask8A) + mask8A) .|. (x .&. y)) .&. mask8B) 7
+        z = (x .&. y) .|. ((x .|. y) .&. ((u + mask8A) `xor` mask8B))
 
-        -- get number of characters by checking states (may not be full) 
+        -- get number of characters by checking states (may not be full)
         numEmptyBits = countLeadingZeros x --- could be y just as well
-        
-        -- shift divide by 8 states 
+
+        -- shift divide by 8 states
         numNonCharacters = shiftR numEmptyBits 3
         numChars =  8 - numNonCharacters
     in
@@ -415,31 +415,31 @@ median2Word64 andOrFun leftVect rightVect =
     (stateVect, V.sum costVect)
 
 {-
-Functions for median3 calculations of packed types 
+Functions for median3 calculations of packed types
 These are used in pre-order graph traversals and final state assignment
 among others.
 -}
 
 
 -- | packePreorder takes character type, current node (and children preliminary assignments)
--- and parent final assignment and creates final assignment for current node 
--- a bit clumsy since uses Goloboff modifications and have to do some of the preOrder pass 
+-- and parent final assignment and creates final assignment for current node
+-- a bit clumsy since uses Goloboff modifications and have to do some of the preOrder pass
 -- in Goloboff but not done here
 packedPreorder :: CharType -> (V.Vector Word64, V.Vector Word64, V.Vector Word64) -> V.Vector Word64 -> V.Vector Word64
 packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
-    let newStateVect = if inCharType == Packed2       then V.zipWith4 preOrder2 leftPrelim childPrelim rightPrelim parentFinal 
+    let newStateVect = if inCharType == Packed2       then V.zipWith4 preOrder2 leftPrelim childPrelim rightPrelim parentFinal
                        else if inCharType == Packed4  then V.zipWith4 preOrder4 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed5  then V.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal 
+                       else if inCharType == Packed5  then V.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal
                        else if inCharType == Packed8  then V.zipWith4 preOrder8 leftPrelim childPrelim rightPrelim parentFinal
                        else if inCharType == Packed64 then V.zipWith4 preOrder64 leftPrelim childPrelim rightPrelim parentFinal
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
-    newStateVect 
+    newStateVect
 
 
 -- | preOrder2 performs bitpacked Fitch preorder based on Goloboff 2002
 -- less efficient than it could be due to not using Goloboff for post-order
--- assignment so have to calculate some post-order values that would 
+-- assignment so have to calculate some post-order values that would
 -- already exist otherwise.  Given that pre-order should be much less frequent than
 -- pre-order shouldn't be that bad
 preOrder2 :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
@@ -528,28 +528,28 @@ preOrder64 leftPrelim childPrelim rightPrelim parentFinal =
 
 {-
 Functions for hard-wired 3-way optimization
- basically 
+ basically
             C & P1 & P2 -> if not 0
             else (C & P1) | (C & P2) | (P1 & P2) -> if not 0
-            else C | P1 | P2 
+            else C | P1 | P2
  bit operations based on Goloboff (2002) for trichotomous trees
 -}
  -- | threeWayPacked median 3 for hard-wired networks
  -- this is based on Goloboff (2002) for trichotomous trees
 threeWayPacked :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
-threeWayPacked inCharType parent1 parent2 curNode = 
-    let newStateVect = if inCharType == Packed2       then V.zipWith3 threeWay2 parent1 parent2 curNode 
-                       else if inCharType == Packed4  then V.zipWith3 threeWay4 parent1 parent2 curNode 
-                       else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode 
-                       else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode 
-                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode 
+threeWayPacked inCharType parent1 parent2 curNode =
+    let newStateVect = if inCharType == Packed2       then V.zipWith3 threeWay2 parent1 parent2 curNode
+                       else if inCharType == Packed4  then V.zipWith3 threeWay4 parent1 parent2 curNode
+                       else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode
+                       else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode
+                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
-    newStateVect 
+    newStateVect
 
 -- | threeWay2 3-way hardwired optimization for Packed2 Word64
 threeWay2 :: Word64 -> Word64 -> Word64 -> Word64
-threeWay2 p1 p2 cN = 
+threeWay2 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
@@ -563,7 +563,7 @@ threeWay2 p1 p2 cN =
 
 -- | threeWay4 3-way hardwired optimization for Packed4 Word64
 threeWay4 :: Word64 -> Word64 -> Word64 -> Word64
-threeWay4 p1 p2 cN = 
+threeWay4 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
@@ -577,7 +577,7 @@ threeWay4 p1 p2 cN =
 
 -- | threeWay5 3-way hardwired optimization for Packed5 Word64
 threeWay5 :: Word64 -> Word64 -> Word64 -> Word64
-threeWay5 p1 p2 cN = 
+threeWay5 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
@@ -591,7 +591,7 @@ threeWay5 p1 p2 cN =
 
 -- | threeWay8 3-way hardwired optimization for Packed8 Word64
 threeWay8 :: Word64 -> Word64 -> Word64 -> Word64
-threeWay8 p1 p2 cN = 
+threeWay8 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
@@ -605,7 +605,7 @@ threeWay8 p1 p2 cN =
 
 -- | threeWay64 3-way hardwired optimization for straight Word64
 threeWay64 :: Word64 -> Word64 -> Word64 -> Word64
-threeWay64 p1 p2 cN = 
+threeWay64 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
@@ -624,28 +624,28 @@ based on their number of states
 -- to increase efficiency and reduce footprint of non-additive characters
 -- that are encoded as bitvectors
 packNonAdditiveData :: ProcessedData -> ProcessedData
-packNonAdditiveData (nameVect, bvNameVect, blockDataVect) = 
+packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
     let newBlockDataVect = fmap recodeNonAddCharacters blockDataVect
     in
     (nameVect, bvNameVect, newBlockDataVect)
 
 -- | recodeNonAddCharacters takes block data, goes through characters
--- and recodes NonAdditive. 
+-- and recodes NonAdditive.
 -- Concat and list for charInfoV because new charcaters can be created
 -- and newCharInfo then as well, could be multiple per input 'charcater'
 recodeNonAddCharacters :: BlockData -> BlockData
 recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
     let numChars = V.length charInfoV
-        
+
         -- create vector of single characters with vector of taxon data of sngle character each
         singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
 
         -- bit pack the nonadd
         (recodedSingleVecList, newCharInfoLL) = unzip $ zipWith packNonAdd singleCharVectList (V.toList charInfoV)
-        
+
         -- recreate BlockData, tacxon dominant structure
         newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
-        
+
     in
     -- trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
@@ -659,13 +659,13 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
 packNonAdd :: V.Vector CharacterData -> CharInfo -> ([[CharacterData]], [CharInfo])
 packNonAdd inCharDataV charInfo =
     if (charType charInfo /= NonAdd) || (weight charInfo > 1)  then ([V.toList inCharDataV],[charInfo])
-    else 
+    else
         -- recode non-additive characters
         let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
             numNonAdd = (length . head) leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = fmap (getStateNumber leafNonAddV) [0.. numNonAdd - 1] 
+            stateNumDataPairList = fmap (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
             (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
@@ -683,7 +683,7 @@ packNonAdd inCharDataV charInfo =
 -- check for non-sequential states (A,T) or (0,2) etc
 -- return is list of taxa x single new (packed) character
 makeStateNCharacter ::  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
-makeStateNCharacter charInfo stateNumber charDataLL = 
+makeStateNCharacter charInfo stateNumber charDataLL =
     let (recodeList, newCharInfo) = if stateNumber > 64 then recodeBV2BV charInfo charDataLL
                                     else if stateNumber == 64 then recodeBV2Word64Single charInfo charDataLL
                                     else recodeBV2Word64 charInfo stateNumber charDataLL
@@ -697,7 +697,7 @@ makeStateNCharacter charInfo stateNumber charDataLL =
 recodeBV2BV :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2BV charInfo charTaxBVLL =
     if null charTaxBVLL then ([],[])
-    else 
+    else
         let -- convert to taxon by characgter data list
             newStateList = makeNewCharacterData charTaxBVLL
 
@@ -718,9 +718,9 @@ recodeBV2BV charInfo charTaxBVLL =
 recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64Single charInfo charTaxBVLL =
     if null charTaxBVLL then ([],[])
-    else 
+    else
         let newCharName = T.append (name charInfo) $ T.pack "64State"
-        
+
             -- convert BV to Word64
             taxWord64BLL = fmap (fmap BV.toUnsignedNumber) charTaxBVLL
 
@@ -746,7 +746,7 @@ makeNewCharacterData charByTaxSingleCharData  =
 
 -- | recodeBV2Word64 take a list of BV.bitvector non-add characters and the states number of creates
 -- Word64 representaions where subcharcaters are created and shifted to proper positions and ORd
--- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8. 
+-- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
 recodeBV2Word64 :: CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
@@ -761,7 +761,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
                           else error ("State number " ++ (show stateNumber) ++ " not to be packed in recodeBV2Word64")
 
             newCharName = T.append (name charInfo) $ T.pack ((show stateNumber) ++ "State")
-            
+
             -- get number of characters that can be packed into Word64 for that state number
             numCanPack = fst $ divMod 64 stateNumber
 
@@ -769,7 +769,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
             taxCharBVLL = L.transpose charTaxBVLL
 
             -- get state index list for all characters (could be non sequential 0|2; A|T etc)
-            stateIndexLL = fmap getStateIndexList charTaxBVLL 
+            stateIndexLL = fmap getStateIndexList charTaxBVLL
 
             -- convert data each taxon into packedWord64
             packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
@@ -780,7 +780,7 @@ recodeBV2Word64 charInfo stateNumber charTaxBVLL =
         -- )
 
 
--- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into 
+-- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into
 -- a Word64 and performs appropriate bit settting and shifting to create  Word64
 -- paralle looked to bag out here
 packIntoWord64 :: Int -> Int -> [[Int]] -> [BV.BitVector] -> CharacterData
@@ -789,10 +789,10 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
     let packBVList = SL.chunksOf numToPack inBVList
         packIndexLL = SL.chunksOf numToPack stateCharacterIndexL
 
-        -- pack each chunk 
+        -- pack each chunk
         packedWordVect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
-    in    
+    in
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
     emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
@@ -820,17 +820,17 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         bitStates = fmap (testBit inBV) stateIndexList
 
         -- get index of states when only minimally bit encoded (0101, 0001 -> 11, 01)
-        newBitStates = setOnBits (zeroBits :: Word64) bitStates 0 
+        newBitStates = setOnBits (zeroBits :: Word64) bitStates 0
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
     -- trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
     -- cna remove this check when working
     if length stateIndexList `notElem` [((fst $ divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " ++ (show (stateNumber, length stateIndexList, stateIndexList)))
-    else 
+    else
         subCharacter
     -- )
     -- )
-        
+
 -- | setOnBits recursively sets On bits in a list of Bool
 setOnBits :: Word64 -> [Bool] -> Int -> Word64
 setOnBits baseVal onList bitIndex =
@@ -841,14 +841,14 @@ setOnBits baseVal onList bitIndex =
         in
         setOnBits newVal (tail onList) (bitIndex + 1)
 
--- | getStateIndexList takes list of list bit vectors and for each taxon for a given bv character 
--- and returns a list of 
+-- | getStateIndexList takes list of list bit vectors and for each taxon for a given bv character
+-- and returns a list of
 -- bit indices of states in the bv this because states can be non-seqeuntial (0|3)
 -- used to have a list of all states used (ON) in a character in all taxa
 getStateIndexList :: [BV.BitVector] -> [Int]
-getStateIndexList taxBVL = 
+getStateIndexList taxBVL =
     if null taxBVL then []
-    else 
+    else
         let inBV = L.foldl1' (.|.) taxBVL
             onList = fmap (testBit inBV) [0.. (finiteBitSize inBV) - 1]
             onIndexPair = zip onList [0.. (finiteBitSize inBV) - 1]
@@ -856,20 +856,20 @@ getStateIndexList taxBVL =
 
         in
         -- trace ("GSIL: " ++ (show indexList))
-        indexList 
+        indexList
 
 
--- | binStateNumber takes a list of pairs of char states number and data column as list of bitvectors and 
+-- | binStateNumber takes a list of pairs of char states number and data column as list of bitvectors and
 -- into list for 2,4,5,8,64,>64
-binStateNumber :: [(Int, [BV.BitVector])] 
-               -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]]) 
+binStateNumber :: [(Int, [BV.BitVector])]
+               -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
                -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
-    if null inPairList then 
+    if null inPairList then
         --dont' really need to reverse here but seems hygenic
         trace ("Recoding NonAdditive Characters : " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
-    else 
+    else
         let (stateNum, stateData) = head inPairList
         in
         -- skip--constant
@@ -881,7 +881,7 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
         else if stateNum <= 64 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, stateData : cur64, cur128)
         else binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, stateData : cur128)
 
--- | getStateNumber returns the number of uniqe (non missing) states for a 'column' 
+-- | getStateNumber returns the number of uniqe (non missing) states for a 'column'
 -- of nonadd bitvector values
 -- the charState values are in ranges for 2,4,5,8,64 and bigger numbers
 -- missingVal not takeen from alphabet size since that was not updated in reorganize.

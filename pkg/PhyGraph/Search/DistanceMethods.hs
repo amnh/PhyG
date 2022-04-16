@@ -40,17 +40,17 @@ I
 
 module Search.DistanceMethods (neighborJoining, wPGMA, doWagnerS, performWagnerRefinement) where
 
-import qualified Data.Number.Transfinite as NT
-import qualified Data.Vector             as V
+import qualified Data.Number.Transfinite     as NT
+import qualified Data.Vector                 as V
 import           Debug.Trace
-import           ParallelUtilities as PU
-import qualified SymMatrix               as M
+import           ParallelUtilities           as PU
+import qualified Search.DistanceWagner       as W
+import qualified SymMatrix                   as M
 import           Types.DistanceTypes
 import           Utilities.DistanceUtilities
-import qualified Search.DistanceWagner           as W
 --import qualified LocalSequence as LS
-import qualified Data.Vector as LS
-import Control.Parallel.Strategies
+import           Control.Parallel.Strategies
+import qualified Data.Vector                 as LS
 
 
 -- | wPGMA takes a list of leaves and a distance matrixx and returns

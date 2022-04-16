@@ -45,13 +45,14 @@ module Input.ReadInputFiles
  , expandReadCommands
 ) where
 
+import qualified Commands.Verify            as V
 import           Data.Char
+import qualified Data.Char                  as C
 import           Data.Foldable
 import qualified Data.Graph.Inductive.Basic as B
 import qualified Data.List                  as L
 import qualified Data.Text.Lazy             as T
 import qualified Data.Text.Short            as ST
-import qualified Data.Char as C
 import           Debug.Trace
 import qualified GeneralUtilities           as GU
 import qualified GraphFormatUtilities       as GFU
@@ -62,7 +63,6 @@ import qualified System.Path.Glob           as SPG
 import           Types.Types
 import qualified Utilities.LocalGraph       as LG
 import qualified Utilities.Utilities        as U
-import qualified Commands.Verify            as V
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -89,7 +89,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
 -- globbed file name list to create a list of arguments
 makeNewArgs :: (String, [String]) -> [(String, String)]
 makeNewArgs (modifier, fileNameList) =
-    if null fileNameList then error ("Null filename list in makeNewArgs: " ++ (show $ (modifier, fileNameList))) 
+    if null fileNameList then error ("Null filename list in makeNewArgs: " ++ (show $ (modifier, fileNameList)))
     else let modList = replicate (length fileNameList) modifier
          in  zip modList fileNameList
 
@@ -245,7 +245,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                   
+
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
                         let fastaData = FAC.getFastA  "prealigned" fileContents firstFile
@@ -253,7 +253,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    
+
                     -- prealigned fastc
                     else if firstOption `elem` ["prefastc", "precustom_alphabet"]  then
                         let fastcData = FAC.getFastC firstOption fileContents firstFile
@@ -298,7 +298,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
--- for renaming or reblocking  
+-- for renaming or reblocking
 makeNamePairs :: String -> String -> [(T.Text, T.Text)]
 makeNamePairs inFileName inLine =
     if null inLine then []

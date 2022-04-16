@@ -81,13 +81,13 @@ import           Debug.Trace
 import           DirectOptimization.Pairwise
 import           Foreign.C.Types             (CUInt)
 import           GeneralUtilities
+import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
-import qualified Utilities.LocalGraph    as LG
-import qualified Utilities.Utilities    as U
-import qualified Input.BitPack          as BP
+import qualified Utilities.LocalGraph        as LG
+import qualified Utilities.Utilities         as U
 
-import Data.Maybe
+import           Data.Maybe
 
 
 --import qualified Data.Alphabet as DALPH
@@ -147,11 +147,11 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` packedNonAddTypes then 
+    else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
         let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
         in
-        (newCharVect, localCost  newCharVect) 
+        (newCharVect, localCost  newCharVect)
 
     else if thisType == Matrix then
       let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
@@ -201,7 +201,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
          in
          -- trace ("M2SNE: " ++ (show thisType))
          (newCharVect, localCost  newCharVect)
-    
+
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 
@@ -231,11 +231,11 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         in
         (newCharVect, localCost  newCharVect)
 
-    else if thisType `elem` packedNonAddTypes then 
+    else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
         let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
         in
-        (newCharVect, localCost  newCharVect) 
+        (newCharVect, localCost  newCharVect)
 
     else if thisType == Matrix then
       let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
@@ -274,9 +274,9 @@ localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interB
 -- | interUnionBV takes two bitvectors and returns new state and cost (1 or 0)
 interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int)
 interUnionBV leftBV rightBV =
-    if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 1) 
-    else (leftBV .&. rightBV, 0) 
-    
+    if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 1)
+    else (leftBV .&. rightBV, 0)
+
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
 -- in post-order pass to create preliminary states assignment
@@ -561,29 +561,29 @@ getPrealignedUnion :: CharType
 getPrealignedUnion thisType leftChar rightChar =
     let blankCharacterData = emptyCharacter
     in
-    if thisType == AlignedSlim then 
-        let finalUnion = GV.zipWith (.|.) (alignedSlimFinal leftChar) (alignedSlimFinal rightChar) 
+    if thisType == AlignedSlim then
+        let finalUnion = GV.zipWith (.|.) (alignedSlimFinal leftChar) (alignedSlimFinal rightChar)
             prelimState = (finalUnion, finalUnion, finalUnion)
         in
         blankCharacterData { alignedSlimPrelim  = prelimState
                            , alignedSlimFinal = finalUnion
                            }
-    else if thisType == AlignedWide then 
-        let finalUnion = GV.zipWith (.|.) (alignedWideFinal leftChar) (alignedWideFinal rightChar) 
+    else if thisType == AlignedWide then
+        let finalUnion = GV.zipWith (.|.) (alignedWideFinal leftChar) (alignedWideFinal rightChar)
             prelimState = (finalUnion, finalUnion, finalUnion)
         in
         blankCharacterData { alignedWidePrelim  = prelimState
                            , alignedWideFinal = finalUnion
                            }
-    
-    else if thisType == AlignedHuge then  
-        let finalUnion = GV.zipWith (.|.) (alignedHugeFinal leftChar) (alignedHugeFinal rightChar) 
+
+    else if thisType == AlignedHuge then
+        let finalUnion = GV.zipWith (.|.) (alignedHugeFinal leftChar) (alignedHugeFinal rightChar)
             prelimState = (finalUnion, finalUnion, finalUnion)
         in
         blankCharacterData { alignedHugePrelim  = prelimState
                            , alignedHugeFinal = finalUnion
                            }
-    
+
     else error ("Unrecognised character type '" ++ (show thisType) ++ "' in getPrealignedUnion")
 
 
@@ -674,15 +674,15 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else if thisType == NonAdd then
         localUnion firstVertChar secondVertChar
 
-    else if thisType `elem` packedNonAddTypes then 
+    else if thisType `elem` packedNonAddTypes then
         BP.unionPacked firstVertChar secondVertChar
 
     else if thisType == Matrix then
         unionMatrix thisMatrix firstVertChar secondVertChar
 
     else if thisType `elem` prealignedCharacterTypes then
-        getPrealignedUnion thisType firstVertChar secondVertChar 
-      
+        getPrealignedUnion thisType firstVertChar secondVertChar
+
     else if thisType `elem` nonExactCharacterTypes then
         getDynamicUnion doIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
 
@@ -732,7 +732,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
     let characterType = charType charInfo
         thisMatrix  = costMatrix charInfo
     in
-    if characterType == AlignedSlim then 
+    if characterType == AlignedSlim then
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ alignedSlimPrelim leftChar) (extractMediansGapped $ alignedSlimPrelim rightChar)
         in
         -- trace ("GPA2M: " ++ (show $ GV.length prelimChar))
@@ -741,7 +741,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                  }
 
-    else if characterType == AlignedWide then 
+    else if characterType == AlignedWide then
         let (prelimChar, cost) = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ alignedWidePrelim leftChar) (extractMediansGapped $ alignedWidePrelim rightChar)
         in
         nodeChar { alignedWidePrelim = (extractMediansGapped $ alignedWidePrelim leftChar, prelimChar,  extractMediansGapped $ alignedWidePrelim rightChar)
@@ -749,7 +749,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                  }
 
-    else if characterType == AlignedHuge then 
+    else if characterType == AlignedHuge then
         let (prelimChar, cost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ alignedHugePrelim leftChar) (extractMediansGapped $ alignedHugePrelim rightChar)
         in
         nodeChar { alignedHugePrelim = (extractMediansGapped $ alignedHugePrelim leftChar, prelimChar,  extractMediansGapped $ alignedHugePrelim rightChar)
@@ -758,7 +758,7 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  }
 
     else error ("Unrecognized character type " ++ show characterType)
-    
+
 
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment

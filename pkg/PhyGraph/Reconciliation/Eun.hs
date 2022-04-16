@@ -35,16 +35,13 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Reconciliation.Eun ( reconcile
                           , makeProcessedGraph
-                          , addGraphLabels) 
+                          , addGraphLabels)
                           where
 
-import Types.Types
-import qualified Reconciliation.Adams              as A
 import           Control.Parallel.Strategies
 import qualified Data.Bits                         as B
 import qualified Data.BitVector                    as BV
@@ -64,14 +61,15 @@ import           Data.Monoid
 import qualified Data.Set                          as S
 import qualified Data.Text.Lazy                    as T
 import qualified Data.Vector                       as V
+import           Debug.Trace
 import qualified GraphFormatUtilities              as PhyP
+import qualified Graphs.GraphOperations            as GO
 import           ParallelUtilities                 as PU
+import qualified Reconciliation.Adams              as A
 import           System.Environment
 import           System.IO
-import           Debug.Trace
-import qualified Utilities.LocalGraph        as LG
-import qualified Graphs.GraphOperations  as GO
-import qualified Utilities.LocalGraph as LG
+import           Types.Types
+import qualified Utilities.LocalGraph              as LG
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -89,15 +87,15 @@ turnOffOutZeroBit :: BV.BV -> Int -> BV.BV
 turnOffOutZeroBit inBitVect nLeaves = BV.extract (nLeaves - 1) 0 inBitVect
 -}
 
--- | setOutDegreeOneBits assumes outdegree of vertex = 1, takes the number of leaves, bitvector 
+-- | setOutDegreeOneBits assumes outdegree of vertex = 1, takes the number of leaves, bitvector
 -- repersentation (rawBV) of vertex, a L.sorted list of outdegree=1 vertices and the vertex index
 -- and creates a bitvector to prepend of length the number of outdgree=1 vertices where
 -- the correpsonding vertex index position in ilist is 'On' and the remainder are 'Off'
--- this insures a unique lablelling for all outdegree=1 vertices 
+-- this insures a unique lablelling for all outdegree=1 vertices
 setOutDegreeOneBits :: BV.BV -> [Int] -> Int -> BV.BV
 setOutDegreeOneBits inBitVect out1VertexList vertexIndex =
   if null out1VertexList then error "Empty outdegree=1 vertex list in setOutDegreeOneBits"
-  else 
+  else
     let vertListIndex = L.elemIndex vertexIndex out1VertexList
         vertexPosition = fromJust vertListIndex
         boolList = (replicate vertexPosition False) ++ [True] ++ (replicate ((length out1VertexList) - vertexPosition - 1) False)
@@ -155,7 +153,7 @@ makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
     else
       let myChildren = G.suc inGraph myVertex
           myChildrenNodes = fmap (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
-          
+
           rawBV = BV.or $ fmap (snd . head) myChildrenNodes
           myBV = if (length myChildren /= 1) then rawBV
                  else setOutDegreeOneBits rawBV out1VertexList myVertex
@@ -626,7 +624,7 @@ getThresholdEdges :: (Show a, Ord a) => Int -> Int -> [a] -> ([a], [Double])
 getThresholdEdges thresholdInt numGraphsIn objectList
   | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace"Threshold must be in range [0,100]"
   | null objectList = error "Empty list of object lists in getThresholdEdges"
-  | otherwise = 
+  | otherwise =
   let threshold = (fromIntegral thresholdInt / 100.0) :: Double
       numGraphs = fromIntegral numGraphsIn
       objectGroupList = L.group $ L.sort objectList
@@ -636,7 +634,7 @@ getThresholdEdges thresholdInt numGraphsIn objectList
   in
   --trace ("There are " ++ (show numGraphsIn) ++ " to filter: " ++ (show uniqueList) ++ "\n" ++ (show $ fmap length objectGroupList) ++ " " ++ (show frequencyList))
   (fst <$> filter ((>= threshold). snd) fullPairList, snd <$> fullPairList)
-  
+
 
 -- | getPostOrderVerts takes a vertex and traverses postorder to root places all visirted nodes in a set of found
 -- vertices. Keeps placing new nodes in recursion list until a root is hit.  If a node is already in found set
@@ -740,7 +738,7 @@ addUrRootAndEdges inGraph =
 
   -- add UR root, edges to existing roots, and edges to unconnected leaves
   else
-    let unRootedVertices = origRootList ++ unconnectedLeafList  
+    let unRootedVertices = origRootList ++ unconnectedLeafList
         numOrigVerts = length origLabVerts
         newRoot = (numOrigVerts, "HTU" ++ show numOrigVerts)
         newEdgeList = zip3 (replicate (length unRootedVertices) numOrigVerts) unRootedVertices (replicate (length unRootedVertices) 0.0)
@@ -766,10 +764,10 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
   G.mkGraph (leafNodeList ++ newNonLeafNodes) newEdges
     where showLabel (e,u,l) = (e,u,show l)
 
--- | reconcile is the overall function to drive all methods 
+-- | reconcile is the overall function to drive all methods
 reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
 reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
-  
+
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
         processedGraphs = fmap reAnnotateGraphs inputGraphList  `using` PU.myParListChunkRDS
 
@@ -804,7 +802,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         thresholdEdges = L.nub $ concat thresholdEdgesList
         numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
         thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
-      
+
         -- thresholdConInfo =  "There are " ++ show (length thresholdNodes) ++ " nodes present in >= " ++ (show threshold ++ "%") ++ " of input graphs and " ++ show numPossibleEdges ++ " candidate edges"
         --                  ++ " yielding a final graph with " ++ show (length (G.labNodes thresholdConsensusGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdConsensusGraph)) ++ " edges"
 
@@ -830,7 +828,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         thresholdEUNGraph = verticesByPostorder thresholdEUNGraph' leafNodes S.empty
         -- thresholdEUNInfo =  "\nThreshold EUN deleted " ++ show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) ++ " of " ++ show (length unionEdges) ++ " total edges"
         --                    ++ " for a final graph with " ++ show (length (G.labNodes thresholdEUNGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdEUNGraph)) ++ " edges"
-        
+
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
         thresholdLabelledEUNGraph' = addGraphLabels thresholdEUNGraph totallLeafSet
         thresholdLabelledEUNGraph'' = addEdgeFrequenciesToGraph thresholdLabelledEUNGraph' (length leafNodes) edgeFreqs
@@ -843,19 +841,19 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
         thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
         thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel True
-    
+
     in
 
-    if method == "eun" then 
+    if method == "eun" then
       if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
       else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
       else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
-    
-    else if method == "adams" then 
+
+    else if method == "adams" then
       if outputFormat == "dot" then (adamsIIOutDotString,  adamsII')
       else if outputFormat == "fenewick" then (adamsIIOutFENString, adamsII')
       else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
-    
+
     else if (method == "majority") || (method == "cun") || (method == "strict") then
         if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
         else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
@@ -863,7 +861,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
 
     else errorWithoutStackTrace("Graph combination method " ++ method ++ " is not implemented")
 
-    
+
 -- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes
 -- the nodes and edges of the input graphs consistenly
 -- String as oposed to Text due tyo reuse of code in Eun.c
@@ -871,14 +869,14 @@ makeProcessedGraph :: [LG.LNode T.Text] -> SimpleGraph -> SimpleGraph
 makeProcessedGraph leafTextList inGraph =
   if null leafTextList then error "Null leaf list in makeFullLeafSetGraph"
   else if LG.isEmpty inGraph then error "Empty graph in makeFullLeafSetGraph"
-  else 
+  else
     let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
         leafStringList = fmap nodeToString leafTextList
         graphLeafStringList = fmap nodeToString graphleafTextList
         reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
         textNodes = fmap nodeToText $ LG.labNodes reIndexedGraph
         doubleEdges = fmap edgeToDouble $ LG.labEdges reIndexedGraph
-         
+
     in
     LG.mkGraph textNodes doubleEdges
     where nodeToString (a,b) = (a, T.unpack b)
