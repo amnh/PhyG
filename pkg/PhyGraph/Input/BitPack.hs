@@ -51,13 +51,12 @@ import qualified Data.BitVector.LittleEndian as BV
 import           Data.Char                   (intToDigit)
 import qualified Data.List                   as L
 import qualified Data.List.Split             as SL
-import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
 import           Data.Word
 import           Debug.Trace
 import           GeneralUtilities
-import           Numeric                     (showHex, showIntAtBase)
+import           Numeric                     (showIntAtBase)
 import qualified ParallelUtilities           as PU
 import           Types.Types
 import qualified Utilities.Utilities         as U
@@ -109,6 +108,7 @@ showBits :: Word64 -> String
 showBits inVal = showIntAtBase 2 intToDigit inVal ""
 
 -- | showBitsV shoiw vector of bits
+showBitsV :: V.Vector Word64 -> String
 showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
 
 

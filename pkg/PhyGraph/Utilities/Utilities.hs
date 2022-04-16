@@ -37,12 +37,9 @@ Portability :  portable (I hope)
 module Utilities.Utilities  where
 
 import           Data.Alphabet
-import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC
-import           Data.BitVector.LittleEndian (BitVector)
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
-import           Data.List.NonEmpty          (NonEmpty (..))
 import qualified Data.List.NonEmpty          as NE
 import           Data.Maybe
 import qualified Data.Vector                 as V
@@ -50,10 +47,7 @@ import qualified Data.Vector                 as V
 import qualified Data.Bimap                  as BM
 import           Data.Bits
 import           Data.Foldable
-import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
 import qualified Data.Text.Lazy              as T
-import           Data.Text.Short             (ShortText)
 import qualified Data.Text.Short             as ST
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
@@ -299,7 +293,7 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
 prettyPrintVertexInfo :: VertexInfo -> String
 prettyPrintVertexInfo inVertData =
     let zerothPart = "Vertex name " ++ T.unpack (vertName inVertData) ++ " Index " ++ show (index inVertData)
-        firstPart = "\n\tBitVector (as number) " ++ show (BV.toUnsignedNumber $ bvLabel inVertData)
+        firstPart = "\n\tBitVector (as number) " ++ (show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int))
         secondPart = "\n\tParents " ++ show (parents inVertData) ++ " Children " ++ show (children inVertData)
         thirdPart = "\n\tType " ++ show (nodeType inVertData) ++ " Local Cost " ++ show (vertexCost inVertData) ++ " SubGraph Cost " ++ show (subGraphCost inVertData)
         fourthPart = "\n\tData Blocks: " ++ show (V.length $ vertData inVertData) ++ " Characters (by block) " ++ show (V.length <$> vertData inVertData)

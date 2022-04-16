@@ -51,12 +51,9 @@ import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
 import qualified Data.Vector.Unboxed    as UV
-import           Data.Time
-import           Data.Time.Clock.POSIX
 import           Debug.Trace
 import           GeneralUtilities
 import           GraphFormatUtilities
-import qualified Graphs.GraphOperations as GO
 import           System.IO
 import           Types.Types
 import qualified Utilities.LocalGraph   as LG
@@ -69,8 +66,6 @@ import qualified Search.Refinement as REF
 import qualified Search.Search as S
 import qualified Commands.Transform as TRANS
 import System.Timing
-import Control.DeepSeq
-import           Control.Concurrent
 import qualified Support.Support as SUP
 import           Data.Char
 import qualified Data.List.Split as SL 
@@ -79,7 +74,6 @@ import GraphOptimization.Traversals as TRAV
 import System.Info
 import System.Process
 import System.Directory
-import qualified Commands.Transform as TRANS
 import qualified SymMatrix                   as S
 import           Data.Alphabet
 import Data.Bits
@@ -491,7 +485,7 @@ printGraphVizDot graphDotString dotFile =
                 "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
         -}
         if isJust pCode then do
-            cpResult  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
+            _  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
             hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ " " ++ dotFile ++ " -O ") 
         else 
             hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
@@ -501,7 +495,7 @@ printGraphVizDot graphDotString dotFile =
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
     [show $ instruction sD, concat $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
-    show $ (fromIntegral $ duration sD) / 1000, commentString sD]
+    show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD]
     where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
@@ -1017,14 +1011,6 @@ getCharacterString inCharData inCharInfo =
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  Bits b => Alphabet String -> b -> String
 bitVectToCharStringTNT localAlphabet bitValue = 
-    let stateString = U.bitVectToCharState localAlphabet bitValue
-    in
-    if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
-    else stateString
-
--- | bitVectToCharNumTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharNumTNT ::  Bits b => Alphabet String -> b -> String
-bitVectToCharNumTNT localAlphabet bitValue = 
     let stateString = U.bitVectToCharState localAlphabet bitValue
     in
     if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
