@@ -47,7 +47,6 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             ) where
 
 import           Bio.DynamicCharacter
-import           Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
@@ -55,7 +54,6 @@ import qualified Data.Map                    as MAP
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
-import           Debug.Trace
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
@@ -66,6 +64,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
+-- import           Debug.Trace
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -985,7 +984,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          -- trace ("TNFinal-Leaf:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
@@ -1000,10 +999,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
-         else childChar { wideFinal = finalAssignment'
+         else childChar { wideFinal = extractMedians $ wideGapped childChar -- finalAssignment'
                         , wideAlignment = if isTree then finalAlignment
                                           else mempty
                         , wideIAPrelim =  if isTree then finalAlignment
@@ -1014,10 +1013,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if localCharType == HugeSeq then
          let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
-         else childChar { hugeFinal = finalAssignment'
+         else childChar { hugeFinal = extractMedians $ hugeGapped childChar -- finalAssignment'
                         , hugeAlignment = if isTree then finalAlignment
                                           else mempty
                         , hugeIAPrelim =  if isTree then finalAlignment
@@ -1043,9 +1042,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          childChar {stateBVFinal = finalAssignment'}
 
       else if localCharType `elem` packedNonAddTypes then
-         let finalAssignment = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
+         let finalAssignment' = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
          in
-         childChar {packedNonAddFinal = finalAssignment}
+         childChar {packedNonAddFinal = finalAssignment'}
 
       else if localCharType == Matrix then
          -- add logic for pre-order
@@ -1157,12 +1156,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
-         let slimGapped' = M.makeDynamicCharacterFromSingleVector $ extractMediansGapped $ slimGapped childChar
-             finalGappedO = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalGappedO' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) slimGapped' -- (slimGapped childChar) -- slimAlignment parentChar
-             finalGappedO'' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped parentChar)
-
-         in
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
                         , slimAlignment = if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
@@ -1200,7 +1193,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       --for Hardwired graphs
    else if isIn2Out1 then
         if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal")
-        else TW.threeMedianFinal inGS finalMethod charInfo parentChar (fromJust parent2CharM) childChar
+        else TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
