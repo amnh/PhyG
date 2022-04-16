@@ -54,7 +54,6 @@ import qualified Search.Refinement            as R
 import           System.Timing
 import           Text.Read
 import           Types.Types
-import           Utilities.Utilities          as U
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
@@ -100,7 +99,7 @@ searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inComment
 -- | perform search takes in put graphs and performs randomized build and search with time limit
 -- if run completres before 90% of time limit then will keep going
 performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoStringList) =
+performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
@@ -108,19 +107,17 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
 
           -- build options
           numToCharBuild = keepNum
-          numToDistBuild = 100
-          numToKeep = keepNum
-
+          numToDistBuild = (100 :: Int)
 
           -- build block options
           reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
 
           distOptions = if buildType == "distance" then
-                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show 1)]
+                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show (1 :: Int))]
                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
                         else
                            if buildMethod == "block" then [("replicates", show numToCharBuild)]
-                           else [("replicates", show 1)]
+                           else [("replicates", show (1 :: Int))]
 
           blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
                          else []
@@ -197,7 +194,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
              netAddGraphs = if (graphType inGS == Tree) then uniqueBuildGraphs
                             else R.netEdgeMaster netAddArgs inGS inData (randIntList !! 10) uniqueBuildGraphs
 
-             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
+             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) netAddGraphs
 
              uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
              searchString = if (graphType inGS == Tree) then "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
