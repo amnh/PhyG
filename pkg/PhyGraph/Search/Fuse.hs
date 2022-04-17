@@ -37,11 +37,9 @@ Portability :  portable (I hope)
 module Search.Fuse  ( fuseAllGraphs
                     ) where
 
-import qualified Commands.Verify                      as VER
 import           Control.Parallel.Strategies
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian          as BV
-import           Data.Char
 import qualified Data.List                            as L
 import qualified Data.Map                             as MAP
 import           Data.Maybe
@@ -49,14 +47,10 @@ import qualified Data.Text.Lazy                       as TL
 import qualified Data.Vector                          as V
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Medians            as M
-import qualified GraphOptimization.PostOrderFunctions as POS
-import qualified GraphOptimization.PreOrderFunctions  as PRE
 import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
 import qualified ParallelUtilities                    as PU
 import qualified Search.Swap                          as S
-import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
@@ -115,7 +109,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
 
-         newGraphList = concat (fmap (fusePair inGS inData numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV inGraphNetPenaltyFactor (head $ tail rSeedList) keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll) graphPairList `using` PU.myParListChunkRDS)
+         newGraphList = concat (fmap (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist doNNI doSPR doTBR) graphPairList `using` PU.myParListChunkRDS)
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -161,23 +155,16 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
 fusePair :: GlobalSettings
          -> ProcessedData
          -> Int
-         -> SimpleGraph
-         -> DecoratedGraph
-         -> DecoratedGraph
-         -> Bool
          -> V.Vector (V.Vector CharInfo)
          -> VertexCost
          -> Int
          -> Int
-         -> Int
-         -> Bool
-         -> Bool
          -> Bool
          -> Bool
          -> Bool
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV netPenalty rSeed keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll (leftGraph, rightGraph) =
+fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doNNI doSPR doTBR (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
@@ -188,7 +175,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
                               else filter ((/= leftRootIndex) . fst3) $ GO.getEdgeSplitList leftDecoratedGraph
           leftSplitTupleList = fmap (GO.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList `using` PU.myParListChunkRDS
-          (leftSplitGraphList, leftGraphRootIndexList, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
+          (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
@@ -199,7 +186,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
                               else filter ((/= rightRootIndex) . fst3) $ GO.getEdgeSplitList rightDecoratedGraph
           rightSplitTupleList = fmap (GO.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList `using` PU.myParListChunkRDS
-          (rightSplitGraphList, rightGraphRootIndexList, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
+          (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
@@ -215,7 +202,7 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
 
           -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nmothing (if identical)
             -- oalso checks that prune and splits don't match between the grap[hs to be recombined]
-          recombinablePairList = L.zipWith4 (getCompatibleNonIdenticalSplits numLeaves) leftSplitTupleList' rightSplitTupleList' leftRightMatchList leftPrunedGraphBVList'
+          recombinablePairList = L.zipWith (getCompatibleNonIdenticalSplits numLeaves) leftRightMatchList leftPrunedGraphBVList'
           (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
 
 
@@ -246,10 +233,9 @@ fusePair inGS inData numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired h
           -- re-add pruned component to base component left-right and right-left
           -- need cure best cost
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
-          charInfoVV = six6 leftGraph
-
-          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightGraphRootIndexList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList'
-          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR doSteepest doAll charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftGraphRootIndexList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList'
+          
+          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightGraphRootIndexList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList'
+          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftGraphRootIndexList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList'
 
 
           -- get "best" fused graphs from leftRight and rightLeft
@@ -275,8 +261,6 @@ recombineComponents :: GlobalSettings
                     -> Bool
                     -> Bool
                     -> Bool
-                    -> Bool
-                    -> Bool
                     -> V.Vector (V.Vector CharInfo)
                     -> VertexCost
                     -> [(DecoratedGraph, VertexCost)]
@@ -285,7 +269,7 @@ recombineComponents :: GlobalSettings
                     -> [Int]
                     -> [Int]
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' doSteepest doAll charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
@@ -340,34 +324,35 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
 -- checks that the leaf sets of the pruned subgraphs are equal, greater than 1 leaf, fewer thanm nleaves - 2, and non-identical
 -- removed identity check fo now--so much time to do that (O(n)) may not be worth it
 getCompatibleNonIdenticalSplits :: Int
-                                -> (DecoratedGraph, LG.Node, LG.Node, LG.Node)
-                                -> (DecoratedGraph, LG.Node, LG.Node, LG.Node)
                                 -> Bool
                                 -> BV.BitVector
                                 -> Bool
-getCompatibleNonIdenticalSplits numLeaves leftSplitTuple rightSplitTuple leftRightMatch leftPrunedGraphBV =
+getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV =
 
    if not leftRightMatch then False
    else if popCount leftPrunedGraphBV < 3 then False
    else if popCount leftPrunedGraphBV > (numLeaves - 3) then False
-   else
+   else True
+   {-
       -- check for pruned components non-identical
-      let (leftNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((thd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (thd4 leftSplitTuple))]
-          leftPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
-          (rightNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((thd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (thd4 rightSplitTuple))]
-          rightPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
+
+      let -- (leftNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((thd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (thd4 leftSplitTuple))]
+          -- leftPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
+          -- (rightNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((thd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (thd4 rightSplitTuple))]
+          -- rightPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
 
 
-          (leftNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((snd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (snd4 leftSplitTuple))]
-          leftBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
-          (rightNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((snd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (snd4 rightSplitTuple))]
-          rightBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
+          -- (leftNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((snd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (snd4 leftSplitTuple))]
+          -- leftBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
+          -- (rightNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((snd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (snd4 rightSplitTuple))]
+          -- rightBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
 
       in
       --if leftPrunedBVNodeList == rightPrunedBVNodeList then False
       -- else if leftBaseBVNodeList == rightBaseBVNodeList then False
       --else True
       True
+      -}
 
 
 
@@ -376,8 +361,8 @@ getCompatibleNonIdenticalSplits numLeaves leftSplitTuple rightSplitTuple leftRig
 -- both components need to have HTU and edges reindexed to be in sync, oringal edge terminal node is also reindexed and returned for limit readd distance
 exchangePrunedGraphs :: Int -> ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node), LG.Node) -> (DecoratedGraph, Int , Int, Int, Int)
 exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode) =
-   let (firstSplitGraph, firstGraphRootIndex, firstPrunedGraphRootIndex, firstOriginalConnectionOfPruned) = firstGraphTuple
-       (secondSplitGraph, secondGraphRootIndex, secondPrunedGraphRootIndex, secondOriginalConnectionOfPruned) = secondGraphTuple
+   let (firstSplitGraph, firstGraphRootIndex, _, _) = firstGraphTuple
+       (secondSplitGraph, _, secondPrunedGraphRootIndex, _) = secondGraphTuple
 
        -- get nodes and edges of firstBase
        firstGraphRootLabel = fromJust $ LG.lab firstSplitGraph firstGraphRootIndex
@@ -402,7 +387,7 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode
        -- reindex base and pruned partitions (HTUs and edges) to get in sync and make combinable
        -- 0 is dummy since won't be in base split
        (baseGraphNodes, baseGraphEdges, numBaseHTUs, reindexedBreakEdgeNodeBase) = reindexSubGraph numLeaves 0 firstBaseGraphNodeList firstBaseGraphEdgeList breakEdgeNode
-       (prunedGraphNodes, prunedGraphEdges, _, reindexedBreakEdgeNodePruned) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList breakEdgeNode
+       (prunedGraphNodes, prunedGraphEdges, _, _) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList breakEdgeNode
 
        -- should always be in base graph--should be in first (base) component--if not use original node
        reindexedBreakEdgeNode = if (reindexedBreakEdgeNodeBase /= Nothing) then fromJust reindexedBreakEdgeNodeBase

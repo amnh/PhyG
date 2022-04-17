@@ -37,27 +37,13 @@ Portability :  portable (I hope)
 module Search.GeneticAlgorithm ( geneticAlgorithm
                                ) where
 
-import           Control.Parallel.Strategies
-import           Data.Char
-import qualified Data.List                            as L
-import           Data.Maybe
-import qualified Data.Text.Lazy                       as TL
-import qualified Data.Vector                          as V
-import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Medians            as M
-import qualified GraphOptimization.PostOrderFunctions as POS
-import qualified GraphOptimization.PreOrderFunctions  as PRE
-import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
-import qualified ParallelUtilities                    as PU
 import qualified Search.Fuse                          as F
 import qualified Search.NetworkAddDelete              as N
 import qualified Search.Swap                          as S
-import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
-import           Utilities.Utilities                  as U
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
