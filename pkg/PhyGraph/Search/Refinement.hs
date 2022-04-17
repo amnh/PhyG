@@ -56,7 +56,6 @@ import qualified Search.NetworkAddDelete     as N
 import qualified Search.SwapMaster           as SM
 import           Text.Read
 import           Utilities.Utilities         as U
-
 import qualified Commands.Verify             as VER
 
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times

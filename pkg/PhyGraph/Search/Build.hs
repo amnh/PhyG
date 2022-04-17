@@ -49,12 +49,10 @@ import qualified Data.List                      as L
 import           Data.Maybe
 import qualified Data.Text.Lazy                 as TL
 import qualified Data.Vector                    as V
-import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphOptimization.Traversals   as T
 import qualified Graphs.GraphOperations         as GO
 import qualified ParallelUtilities              as PU
-import qualified Reconciliation.Eun             as E
 import qualified Reconciliation.ReconcileGraphs as R
 import qualified Search.DistanceMethods         as DM
 import qualified Search.DistanceWagner          as DW
@@ -66,12 +64,13 @@ import qualified Utilities.Distances            as DD
 import qualified Utilities.DistanceUtilities    as DU
 import qualified Utilities.LocalGraph           as LG
 import qualified Utilities.Utilities            as U
+import           Debug.Trace
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
 -- transforms graph type to Tree for builds then back to initial graph type
 buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
-buildGraph inArgs inGS inData pairwiseDistances seed =
+buildGraph inArgs inGS inData pairwiseDistances rSeed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
@@ -93,10 +92,6 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
            doCUN' = any ((=="cun").fst) lcArgList
            doEUN = if not doEUN' && not doCUN' then True
                    else doEUN'
-           doCUN = if doEUN' && doCUN' then
-                      trace ("\tBuildBlock options EUN and CUN both specified--defaulting to EUN")
-                      False
-                   else doCUN'
            returnTrees' = any ((=="displaytrees").fst) lcArgList
            returnGraph' = any ((=="graph").fst) lcArgList
            returnRandomDisplayTrees' = any ((=="atrandom").fst) lcArgList
@@ -114,14 +109,14 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                                            else (False, True)
 
            -- default to return reandom and overrides if both specified
-           (returnRandomDisplayTrees, returnFirst) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
+           (returnRandomDisplayTrees, _) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
                                                      else (True, False)
 
            -- initial build of trees from combined data--or by blocks
            firstGraphs = if null buildBlock then
                             let simpleTreeOnly = False
                             in
-                            buildTree simpleTreeOnly inArgs treeGS inputGraphType inData pairwiseDistances seed
+                            buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
                          else -- removing taxa with missing data for block
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True
@@ -129,11 +124,11 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
                                 distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
                                                      else replicate (length processedDataList) []
 
-                                blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+                                blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
                                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
 
                                 -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
-                                returnGraphs = reconcileBlockTrees inGS inData seed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN
+                                returnGraphs = reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
                             fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
@@ -154,17 +149,11 @@ buildGraph inArgs inGS inData pairwiseDistances seed =
           fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
        -- )
 
--- should be moved to a single file for import
--- | reconcileCommandList list of allowable commands
-reconcileCommandList :: [String]
-reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
-
-
 -- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
 -- as per the arguments producing a set of displayTrees (ordered or resolved random), and/or the reconciled graph
 -- all outputs are re-optimzed and ready to go
-reconcileBlockTrees ::  GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> Bool -> [SimpleGraph]
-reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN doCUN  =
+reconcileBlockTrees ::  Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> [SimpleGraph]
+reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN =
     --trace ("Reconcile producing " ++ (show numDisplayTrees)) (
       let -- numLeaves = V.length $ fst3 inData
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
@@ -174,13 +163,13 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
                              else [("cun", []), ("vertexLabel:true", [])]
 
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
-          reconciledGraphInitial = snd $ R.makeReconcileGraph reconcileCommandList reconcileArgList simpleGraphList
+          reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileCommandList reconcileArgList simpleGraphList
 
           -- ladderize, time consistent-ized
           reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
-                           else GO.generateDisplayTreesRandom seed numDisplayTrees reconciledGraph
+                           else GO.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
           displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
       if returnGraph && not returnTrees then [reconciledGraph]
@@ -192,13 +181,13 @@ reconcileBlockTrees inGS inData seed blockTrees numDisplayTrees returnTrees retu
 
 
 -- | buildTree' wrapps build tree and changes order of arguments for mapping
-buildTree' :: Bool-> [Argument] -> GlobalSettings -> GraphType -> Int -> ([[VertexCost]], ProcessedData) -> [PhylogeneticGraph]
-buildTree' simpleTreeOnly inArgs inGS inputGraphType seed (pairwiseDistances, inData) =
-   buildTree simpleTreeOnly inArgs inGS inputGraphType inData pairwiseDistances seed
+buildTree' :: Bool-> [Argument] -> GlobalSettings -> Int -> ([[VertexCost]], ProcessedData) -> [PhylogeneticGraph]
+buildTree' simpleTreeOnly inArgs inGS rSeed (pairwiseDistances, inData) =
+   buildTree simpleTreeOnly inArgs inGS inData pairwiseDistances rSeed
 
 -- | buildTree takes build options and returns contructed graphList
-buildTree :: Bool -> [Argument] -> GlobalSettings -> GraphType -> ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
-buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) pairwiseDistances seed =
+buildTree :: Bool -> [Argument] -> GlobalSettings ->ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
+buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances rSeed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
@@ -249,7 +238,7 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
                | doOTU = "otu"
                | otherwise = "none"
              treeList    = [distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement | doDWag]
-             treeList'   = if doRDwag then treeList ++ randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem (fromJust numReplicates) seed (fromJust numToSave) refinement
+             treeList'   = if doRDwag then treeList ++ randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem (fromJust numReplicates) rSeed (fromJust numToSave) refinement
                            else treeList
              treeList''  = if doNJ then treeList' ++ [neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement]
                            else treeList'
@@ -269,15 +258,14 @@ buildTree simpleTreeOnly inArgs inGS inputGraphType inData@(nameTextVect, _, _) 
          -- character build
          -- final diagnosis in input graph type
          trace ("\tBuilding Character Wagner") (
-         let treeList = WB.rasWagnerBuild inGS inData seed (fromJust numReplicates)
-             charInfoVV = V.map thd3 $ thd3 inData
+         let treeList = WB.rasWagnerBuild inGS inData rSeed (fromJust numReplicates)
          in
          let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
                                else ""
          in
          trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " trees" ++ costRangeString) (
          if (not simpleTreeOnly) then treeList
-         else GO.selectPhylogeneticGraph [("best", (show 1))] 0 ["best"] treeList
+         else GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList
          )
          )
 
@@ -299,8 +287,8 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
 -- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
 -- random addition sequence Wagner trees fully decorated tree (as Graph)
 randomizedDistanceWagner :: Bool -> GlobalSettings -> ProcessedData ->  V.Vector String -> M.Matrix Double -> Int -> Int -> Int -> Int -> String -> [PhylogeneticGraph]
-randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates seed numToKeep refinement =
-   let randomizedAdditionSequences = V.fromList <$> shuffleInt seed numReplicates [0..(length leafNames - 1)]
+randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
+   let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..(length leafNames - 1)]
        randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
        randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'

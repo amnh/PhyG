@@ -35,7 +35,6 @@ Portability :  portable (I hope)
 -}
 
 module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
-                                       , reconcileCommandList
                                        ) where
 
 import qualified Data.List            as L
@@ -46,12 +45,7 @@ import qualified GraphFormatUtilities as GFU
 import qualified Reconciliation.Eun   as E
 import           Types.Types
 import qualified Utilities.LocalGraph as LG
-
--- | reconcileCommandList list of allowable commands
-reconcileCommandList :: [String]
-reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
-
-
+import qualified Commands.Verify             as VER
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
 makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)

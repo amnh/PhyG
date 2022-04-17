@@ -159,7 +159,7 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
        reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
                        else [("method","eun"), ("compare","identity"), ("edgelabel","true"),  ("vertexlabel","true"), ("connect","true"), ("threshold","51"),("outformat", "dot")]
          -- majority ruke consensus if no args
-       (_, reconciledGraph) = REC.makeReconcileGraph REC.reconcileCommandList reconcileArgs (fmap fst6 resampledGraphList)
+       (_, reconciledGraph) = REC.makeReconcileGraph VER.reconcileCommandList reconcileArgs (fmap fst6 resampledGraphList)
    in
    -- trace ("GRG: \n" ++ reconciledGraphString) (
    -- generate resampled graph

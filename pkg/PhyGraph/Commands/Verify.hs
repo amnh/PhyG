@@ -44,6 +44,7 @@ module Commands.Verify
     , geneticAlgorithmArgList
     , netEdgeArgList
     , readArgList
+    , reconcileCommandList
     , refineArgList
     , reportArgList
     , searchArgList
@@ -88,6 +89,11 @@ readArgList :: [String]
 readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
     "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
     "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
+
+-- should be moved to a single file for import
+-- | reconcileCommandList list of allowable commands
+reconcileCommandList :: [String]
+reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
 
 -- | refinement arguments
 refineArgList :: [String]

@@ -77,8 +77,7 @@ import System.Directory
 import qualified SymMatrix                   as S
 import           Data.Alphabet
 import Data.Bits
-import qualified Commands.Verify              as V
-
+import qualified Commands.Verify             as VER
 import qualified Input.Reorganize            as IR
 
 
@@ -154,7 +153,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             executeCommands (globalSettings {searchData = newSearchData})  rawData origProcessedData processedData  (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Select then do
-            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) V.selectArgList curGraphs
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) VER.selectArgList curGraphs
                 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
@@ -224,7 +223,7 @@ setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalS
 setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
-        checkCommandList = checkCommandArgs "set" commandList V.setArgList
+        checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
 
     in
@@ -315,14 +314,14 @@ setCommand argList globalSettings processedData inSeedList =
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
-    let argListWithoutReconcileCommands = filter ((`notElem` R.reconcileCommandList) .fst) argList
+    let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileCommandList) .fst) argList
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ (show outFileNameList) ++ " " ++ (show argList))
     else
-        let checkCommandList = checkCommandArgs "report" commandList V.reportArgList
+        let checkCommandList = checkCommandArgs "report" commandList VER.reportArgList
             outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
@@ -397,7 +396,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph R.reconcileCommandList argList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileCommandList argList (fmap fst6 curGraphs)
                 in
                 if null curGraphs then 
                     trace ("No graphs to reconcile")
