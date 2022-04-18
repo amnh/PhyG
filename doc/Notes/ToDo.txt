@@ -575,3 +575,4 @@ preOrderTreeTraversal
 
 326) redo reconcile arg processing and error check in Verify
 
+327) Check swap--make sure it does somehting with only exact charcaters.

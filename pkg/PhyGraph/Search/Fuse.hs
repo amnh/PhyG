@@ -53,7 +53,6 @@ import qualified ParallelUtilities                    as PU
 import qualified Search.Swap                          as S
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
-import           Utilities.Utilities                  as U
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
@@ -83,10 +82,10 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
    else
       let -- getting values to be passed for graph diagnosis later
          numLeaves = V.length $ fst3 inData
-         leafGraph = T.makeSimpleLeafGraph inData
-         leafDecGraph = T.makeLeafGraph inData
-         leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-         hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
+         -- leafGraph = T.makeSimpleLeafGraph inData
+         -- leafDecGraph = T.makeLeafGraph inData
+         -- leafGraphSoftWired = T.makeLeafGraphSoftWired inData
+         -- hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
          charInfoVV = six6 $ head inGraphList
 
          curBest = minimum $ fmap snd6 inGraphList
@@ -213,9 +212,9 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
 
           -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
           -- False for doIA
-          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
+          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
 
-          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False charInfoVV netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
+          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
 
           -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
           -- otherwise no point in recombination
@@ -226,16 +225,16 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           -}
           baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
-          (_, leftRightOptimizedSplitGraphCostList', leftRightGraphRootIndexList', leftRightPrunedRootIndexList', leftRightPrunedParentRootIndexList', leftRightOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList leftRightOptimizedSplitGraphCostList leftRightGraphRootIndexList leftRightPrunedRootIndexList leftRightPrunedParentRootIndexList leftRightOriginalConnectionOfPrunedList
+          (_, leftRightOptimizedSplitGraphCostList', _, leftRightPrunedRootIndexList', leftRightPrunedParentRootIndexList', leftRightOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList leftRightOptimizedSplitGraphCostList leftRightGraphRootIndexList leftRightPrunedRootIndexList leftRightPrunedParentRootIndexList leftRightOriginalConnectionOfPrunedList
 
-          (_, rightLeftOptimizedSplitGraphCostList', rightLeftGraphRootIndexList', rightLeftPrunedRootIndexList', rightLeftPrunedParentRootIndexList', rightLeftOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList rightLeftOptimizedSplitGraphCostList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList rightLeftPrunedParentRootIndexList rightLeftOriginalConnectionOfPrunedList
+          (_, rightLeftOptimizedSplitGraphCostList', _, rightLeftPrunedRootIndexList', rightLeftPrunedParentRootIndexList', rightLeftOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList rightLeftOptimizedSplitGraphCostList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList rightLeftPrunedParentRootIndexList rightLeftOriginalConnectionOfPrunedList
 
           -- re-add pruned component to base component left-right and right-left
           -- need cure best cost
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
           
-          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightGraphRootIndexList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList'
-          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftGraphRootIndexList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList'
+          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList'
+          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList'
 
 
           -- get "best" fused graphs from leftRight and rightLeft
@@ -267,9 +266,8 @@ recombineComponents :: GlobalSettings
                     -> [Int]
                     -> [Int]
                     -> [Int]
-                    -> [Int]
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
@@ -287,11 +285,11 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
 
           doIA = False --- since splits not created together, IA won't be consistent between components
 
-          graphDataList = L.zip5 splitGraphCostPairList baseRootIndexList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList
+          graphDataList = L.zip4 splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList
 
           -- do "all additions" --steepest really doens't have meaning here since will not pop out to recombine on new graph
           -- False for doSteepest
-          recombinedSimpleGraphCostPairList = concat (fmap (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost numToKeep maxMoveEdgeDist False doIA charInfoVV) graphDataList `using` PU.myParListChunkRDS)
+          recombinedSimpleGraphCostPairList = concat (fmap (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist doIA charInfoVV) graphDataList `using` PU.myParListChunkRDS)
 
           -- this based on heuristic deltas
           bestFuseCost = minimum $ fmap snd recombinedSimpleGraphCostPairList
@@ -353,9 +351,6 @@ getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV =
       --else True
       True
       -}
-
-
-
 
 -- | exchangePrunedGraphs creates a new "splitGraph" containing both first (base) and second (pruned) graph components
 -- both components need to have HTU and edges reindexed to be in sync, oringal edge terminal node is also reindexed and returned for limit readd distance

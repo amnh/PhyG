@@ -60,6 +60,12 @@ import qualified Commands.Verify             as VER
 
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times
 -- with --enalble-profinling
+swapMaster :: [Argument]
+            -> GlobalSettings
+            -> ProcessedData
+            -> Int
+            -> [PhylogeneticGraph]
+            -> [PhylogeneticGraph]
 swapMaster = SM.swapMaster
 
 
@@ -166,7 +172,7 @@ getGeneticAlgParams inArgs =
               | otherwise = readMaybe (snd $ head recombinationsList) :: Maybe Int
 
              -- in case want to make it an option
-             doElitist' = any ((=="nni").fst) lcArgList
+             -- doElitist' = any ((=="nni").fst) lcArgList
 
              doElitist = True
          in

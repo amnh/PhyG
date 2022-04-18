@@ -202,7 +202,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
+    (finalGraphList, _, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
