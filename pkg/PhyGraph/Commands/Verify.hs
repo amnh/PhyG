@@ -201,7 +201,7 @@ verifyCommands inCommandList =
             checkReconcile1 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst nonThresholdreconcileModPairList)) reconcileArgList
             checkReconcile2 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst thresholdreconcileModPairList)) reconcileArgList
             checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  (filter (/= []) (fmap snd nonThresholdreconcileModPairList)) reconcileOptionsList
-            checkReconcile4 = L.foldl1' (&&) $ fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList))
+            checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
             checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
             -- reconcileOptionsList
 
@@ -248,7 +248,6 @@ verifyCommands inCommandList =
             -- Won't get to here--will error at earlier stages
             False
         
-        where noQuotes a = if '"' `notElem` a then True else False
-              isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
+        where isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
 
         
