@@ -44,7 +44,7 @@ module Commands.Verify
     , geneticAlgorithmArgList
     , netEdgeArgList
     , readArgList
-    , reconcileCommandList
+    , reconcileArgList
     , refineArgList
     , reportArgList
     , searchArgList
@@ -58,6 +58,7 @@ import           Types.Types
 import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
+import           Text.Read
 
 -- import           Debug.Trace
 
@@ -93,8 +94,13 @@ readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet"
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
-reconcileCommandList :: [String]
-reconcileCommandList = ["method", "compare", "threshold", "outformat", "outfile", "connect", "edgelabel", "vertexlabel"]
+reconcileArgList :: [String]
+reconcileArgList = ["method", "compare", "threshold", "outformat", "connect", "edgelabel", "vertexlabel"] -- "outfile" 
+
+-- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
+reconcileOptionsList :: [String]
+reconcileOptionsList = ["eun", "cun", "strict", "majority", "adams", "dot" ,"dotpdf", "fen", "newick", "true", "false", "combinable", "identity"]
+
 
 -- | refinement arguments
 refineArgList :: [String]
@@ -102,7 +108,7 @@ refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneti
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"]
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"] ++ reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]
@@ -173,6 +179,8 @@ verifyCommands inCommandList =
             checkFuse = checkCommandArgs "fuse"  (filter (/= []) fuseCommandList) fuseArgList
 
             -- Reblock -- part of read
+
+            -- Reconcile -- part of report
             
             -- Refine
             refinePairList = fmap snd $ filter ((== Refine) .fst) newCommandList
@@ -185,6 +193,17 @@ verifyCommands inCommandList =
             reportPairList = fmap snd $ filter ((== Report) .fst) newCommandList
             (reportCommandList, reportFileList) = unzip $ concat reportPairList
             checkReport = checkCommandArgs "report"  (filter (/= []) reportCommandList) reportArgList
+
+            -- check reconcile options 
+            reconcilePairList = filter ((`elem` reconcileArgList). fst) $ concat reportPairList
+            nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
+            thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
+            checkReconcile1 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst nonThresholdreconcileModPairList)) reconcileArgList
+            checkReconcile2 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst thresholdreconcileModPairList)) reconcileArgList
+            checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  (filter (/= []) (fmap snd nonThresholdreconcileModPairList)) reconcileOptionsList
+            checkReconcile4 = L.foldl1' (&&) $ fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList))
+            checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
+            -- reconcileOptionsList
 
             -- Run  -- processed out before this into command list
 
@@ -215,7 +234,8 @@ verifyCommands inCommandList =
             checkSwap = checkCommandArgs "swap"  (filter (/= []) swapCommandList) swapArgList
 
         in
-        if checkRead && checkBuild && checkFuse && checkReport && checkRefine && checkSearch && checkSelect && checkSet && checkSupport && checkSwap then
+        if not checkReconcile4 then errorWithoutStackTrace ("Reconcile modifier 'threshold' requires and integer option (e.g. 51): " ++ (show (concat $ fmap snd thresholdreconcileModPairList)))
+        else if checkRead && checkBuild && checkFuse && checkReconcile && checkReport && checkRefine && checkSearch && checkSelect && checkSet && checkSupport && checkSwap then
             let filesToReadFrom = readFileList
                 filesToWriteTo  = reportFileList 
                 readAndWriteFileList = L.intersect filesToReadFrom filesToWriteTo
@@ -227,5 +247,8 @@ verifyCommands inCommandList =
         else 
             -- Won't get to here--will error at earlier stages
             False
+        
+        where noQuotes a = if '"' `notElem` a then True else False
+              isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
 
-
+        

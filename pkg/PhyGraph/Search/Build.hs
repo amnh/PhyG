@@ -163,7 +163,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                              else [("cun", []), ("vertexLabel:true", [])]
 
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
-          reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileCommandList reconcileArgList simpleGraphList
+          reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
           -- ladderize, time consistent-ized
           reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial

@@ -314,7 +314,7 @@ setCommand argList globalSettings processedData inSeedList =
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
-    let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileCommandList) .fst) argList
+    let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList
@@ -396,7 +396,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileCommandList argList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst6 curGraphs)
                 in
                 if null curGraphs then 
                     trace ("No graphs to reconcile")
