@@ -54,11 +54,12 @@ module Commands.Verify
     , swapArgList
     ) where
 
-import           Debug.Trace
 import           Types.Types
 import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
+
+-- import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]

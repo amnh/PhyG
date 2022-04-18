@@ -627,7 +627,7 @@ rejoinGB :: GlobalSettings
          -> [Int]
          -> LG.LEdge Double
          -> [(Int, Int, NameBV, NameBV, VertexCost)]
-rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, vBreak, _) randIntList edgeToInvade =
+rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge@(eBreak, _, _) randIntList edgeToInvade =
    if null splitGraphList then inTupleList
    else
       let splitGraph = head  splitGraphList
@@ -639,7 +639,7 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                     else True
       in
       if doGraph then
-         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak vBreak
+         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak
              pruneEdges = False
              warnPruneEdges = False
              startVertex = Nothing

@@ -43,7 +43,7 @@ TODO:
 module GraphOptimization.Medians  ( median2
                                   , median2Single
                                   , median2NonExact
-                                  , median2SingleNonExact
+                                  -- , median2SingleNonExact
                                   , median2StaticIA
                                   , makeIAPrelimCharacter
                                   , makeIAFinalCharacter
@@ -77,7 +77,6 @@ import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
 import qualified Data.Vector.Storable        as SV
 import           Data.Word
-import           Debug.Trace
 import           DirectOptimization.Pairwise
 import           Foreign.C.Types             (CUInt)
 import           GeneralUtilities
@@ -85,12 +84,9 @@ import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
-import qualified Utilities.Utilities         as U
-
 import           Data.Maybe
 
-
---import qualified Data.Alphabet as DALPH
+-- import           Debug.Trace
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
 -- and returns a dynamic character that canbe used with other functions
@@ -118,7 +114,6 @@ median2NonExact = V.zipWith3 median2SingleNonExact
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 median2StaticIA :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
 median2StaticIA = V.zipWith3 (median2Single True)
-
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
@@ -171,7 +166,6 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
-
 -- | median2SingleNonExact takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
@@ -205,6 +199,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 
+{-
 -- | median2SingleStaticIA takes character data and returns median character and cost for Static and IA fields of dynamic
 -- median2SingleStaticIA assumes that the character vectors in the various states are the same length
 -- that is--all leaves (hence other vertices later) have the same number of each type of character
@@ -215,9 +210,6 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
-        thisSlimTCM = slimTCM inCharInfo
-        thisWideTCM = wideTCM inCharInfo
-        thisHugeTCM = hugeTCM inCharInfo
         thisActive  = activity inCharInfo
     in
     if not thisActive then (firstVertChar, 0)
@@ -255,12 +247,13 @@ median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
-
+-}
 
 -- | localOr wrapper for BV.or for vector elements
 localOr :: BV.BitVector -> BV.BitVector -> BV.BitVector
 localOr lBV rBV = lBV .|. rBV
 
+{-
 -- | localAnd wrapper for BV.and for vector elements
 localAnd :: BV.BitVector -> BV.BitVector -> BV.BitVector
 localAnd lBV rBV = lBV .&. rBV
@@ -269,7 +262,7 @@ localAnd lBV rBV = lBV .&. rBV
 -- and return intersection is /= 0 otherwise union
 localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
 localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interBV
-
+-}
 
 -- | interUnionBV takes two bitvectors and returns new state and cost (1 or 0)
 interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int)
@@ -589,7 +582,7 @@ getPrealignedUnion thisType leftChar rightChar =
 
 -- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
 -- if using IA--takes IAFInal for each node, creates union of IAFinals states
--- if Do then calculated DO medians and takes union of left and right states
+-- if DO then calculated DO medians and takes union of left and right states
 -- gaps need to be fitered if DO used later (as in Wagner), or as in SPR/TBR rearragement
 -- sets final and IA states for Swap delta heuristics
 getDynamicUnion :: Bool
@@ -627,9 +620,17 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                                }
 
     newWideCharacterData =
-        let r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
-            r' = if doIA then GV.filter (/= (bit gapIndex)) r
+        let r  = if doIA then GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
+                 else
+                    let coefficient = MR.minInDelCost thisWideTCM
+                        (_, (lG, _, rG)) = widePairwiseDO coefficient (MR.retreivePairwiseTCM thisWideTCM) (makeDynamicCharacterFromSingleVector $ wideFinal leftChar) (makeDynamicCharacterFromSingleVector $ wideFinal rightChar)
+                    in
+                    GV.zipWith (.|.) lG rG
+         -- r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
+
+            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
+
         in  blankCharacterData { widePrelim = r'
                                , wideGapped = (r', r',r')
                                , wideFinal = r'
@@ -638,9 +639,18 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                                }
 
     newHugeCharacterData =
-        let r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
-            r' = if doIA then GV.filter (/= (bit gapIndex)) r
+        let r  = if doIA then GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
+                 else
+                    let coefficient = MR.minInDelCost thisHugeTCM
+                        (_, (lG, _, rG)) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM thisHugeTCM) (makeDynamicCharacterFromSingleVector $ hugeFinal leftChar) (makeDynamicCharacterFromSingleVector $ hugeFinal rightChar)
+                    in
+                    GV.zipWith (.|.) lG rG
+
+         -- r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
+
+            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
                  else r
+
         in  blankCharacterData { hugePrelim = r'
                                , hugeGapped = (r', r',r')
                                , hugeFinal = r'
@@ -730,7 +740,6 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
 getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 getPreAligned2Median charInfo nodeChar leftChar rightChar =
     let characterType = charType charInfo
-        thisMatrix  = costMatrix charInfo
     in
     if characterType == AlignedSlim then
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ alignedSlimPrelim leftChar) (extractMediansGapped $ alignedSlimPrelim rightChar)
@@ -766,7 +775,6 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      let characterType = charType charInfo
-         thisMatrix  = costMatrix charInfo
      in
 
      if characterType `elem` [SlimSeq, NucSeq] then

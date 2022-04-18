@@ -672,6 +672,7 @@ getVarVectBits inCharType stateVV curBoolList =
         in
         getVarVectBits inCharType (fmap GV.tail stateVV) (isVariable : curBoolList)
 
+{-
 -- | checkIsVariableIdentity takes a generic vector and sees if all elements are identical
 checkIsVariableIdentity ::  (Eq a, GV.Vector v a) => a -> v a -> Bool
 checkIsVariableIdentity firstElement inVect =
@@ -679,6 +680,7 @@ checkIsVariableIdentity firstElement inVect =
     else
         if firstElement /= GV.head inVect then True
         else checkIsVariableIdentity firstElement (GV.tail inVect)
+-}
 
 -- | checkIsVariableAdditive checks if additive charcter is variable
 -- by taking new ranges and range costs of first element with all others
@@ -816,7 +818,7 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
             inCharOrigData = origInfo inCharInfo
             newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) ++ "RecodedToNonAdd")
                                      , charType = NonAdd
-                                     , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [0,1]
+                                     , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [(0 :: Int), (1 :: Int)]
                                      , origInfo = inCharOrigData
                                      }
             newCharList = fmap (makeNewNonAddChar stateIndex) [0..numStates - 2]

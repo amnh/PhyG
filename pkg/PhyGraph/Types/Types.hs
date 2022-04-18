@@ -47,7 +47,6 @@ import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
-import qualified Data.Time.Clock             as TC
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV

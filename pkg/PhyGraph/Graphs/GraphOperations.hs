@@ -82,7 +82,6 @@ import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Storable        as SV
 import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphFormatUtilities        as GFU
@@ -255,6 +254,7 @@ mergeConcurrentNodeLists inListList currentListList =
     --   " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
     mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
 
+{-
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
 -- a form of time violation
 checkParentsChain :: (Show a, Eq a, Eq b) => LG.Gr a b -> LG.LNode a -> [LG.LNode a] -> [LG.Edge]
@@ -273,6 +273,7 @@ checkParentsChain inGraph netNode parentNodeList =
     else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
     else []
     -- )
+-}
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
@@ -447,8 +448,8 @@ splitGraphOnEdge' inGraph (e,v,l) =
 -- expected ot be two components to one in SPR/TBR
 -- assumes that first node of edge (e,v,l) is 'naked' ie avaiable to make edges but is in graph
 -- created from splitGraphOnEdge
-joinGraphOnEdge :: (Show a,Show b) => LG.Gr a b -> LG.LEdge b -> LG.Node -> LG.Node -> LG.Gr a b
-joinGraphOnEdge inGraph edgeToInvade@(x,y,l) parentofPrunedSubGraph graphToJoinRoot =
+joinGraphOnEdge :: (Show a,Show b) => LG.Gr a b -> LG.LEdge b -> LG.Node ->LG.Gr a b
+joinGraphOnEdge inGraph (x,y,l) parentofPrunedSubGraph =
   if LG.isEmpty inGraph then error ("Empty graph in joinGraphOnEdge")
   else
       let edgeToCreate0 = (x, parentofPrunedSubGraph, l)
@@ -716,10 +717,10 @@ getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesT
 -- | generateDisplayTreesRandom generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
 generateDisplayTreesRandom :: (Show a, Show b, Eq a, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b]
-generateDisplayTreesRandom seed numDisplayTrees inGraph =
+generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
   if LG.isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
   else
-    let atRandomList = take numDisplayTrees $ randomIntList seed
+    let atRandomList = take numDisplayTrees $ randomIntList rSeed
         randDisplayTreeList = fmap (randomlyResolveGraphToTree inGraph) atRandomList `using` PU.myParListChunkRDS
     in
     randDisplayTreeList
@@ -948,7 +949,7 @@ showDecGraphs inDecVV =
 -- and returns or filters that list based on options.
 -- uses selectListCostPairs in GeneralUtilities
 selectPhylogeneticGraph :: [Argument] -> Int -> [String] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
+selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
     if null curGraphs then []
     else
         let fstArgList = fmap (fmap C.toLower . fst) inArgs
@@ -976,7 +977,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                         minGraphCost = minimum $ fmap snd6 curGraphs
 
                         -- nonZeroEdgeLists for graphs
-                        nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
+                        -- nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges--in sorted by cost
                         uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
@@ -986,7 +987,7 @@ selectPhylogeneticGraph inArgs seed selectArgList curGraphs =
                       -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
                       take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
                     else if doRandom then
-                         let randList = head $ shuffleInt seed 1 [0..(length curGraphs - 1)]
+                         let randList = head $ shuffleInt rSeed 1 [0..(length curGraphs - 1)]
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
                          take (fromJust numberToKeep) shuffledGraphs
@@ -1023,6 +1024,7 @@ getUniqueGraphs' inGraphPairList currentUniquePairs =
             else getUniqueGraphs' (tail inGraphPairList) currentUniquePairs
 
 
+{-
 -- getNonZeroEdges takes a DecortatedGraph and returns the sorted list of non-zero length (< epsilon) edges
 getNonZeroEdges :: PhylogeneticGraph -> ([LG.LEdge EdgeInfo], PhylogeneticGraph)
 getNonZeroEdges inGraph =
@@ -1033,6 +1035,7 @@ getNonZeroEdges inGraph =
             (_, nonZeroEdgeList) = unzip $ filter ((>epsilon) . fst) $ zip  minCostEdgeList edgeList
         in
         (L.sortOn fst3 nonZeroEdgeList, inGraph)
+-}
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies
 -- the IA final fields to preliminary IA states--this for IA only optimization
@@ -1051,11 +1054,11 @@ copyIAFinalToPrelim inGraph =
 -- | makeIAPrelimFromFinal updates the label of a node for IA states
 -- setting preliminary to final
 makeIAPrelimFromFinal :: LG.LNode VertexInfo -> LG.LNode VertexInfo
-makeIAPrelimFromFinal (index, label) =
+makeIAPrelimFromFinal (inIndex, label) =
   let labData = vertData label
       newLabData = fmap (fmap f) labData
   in
-  (index, label {vertData = newLabData})
+  (inIndex, label {vertData = newLabData})
   where f c = if (GV.null $ slimIAFinal c) && (GV.null  $ wideIAFinal c) && (GV.null  $ hugeIAFinal c) then c
               else if (not $ GV.null $ slimIAFinal c) then c {slimIAPrelim = M.makeDynamicCharacterFromSingleVector $ slimIAFinal c}
               else if (not $ GV.null $ wideIAFinal c) then c {wideIAPrelim = M.makeDynamicCharacterFromSingleVector $ wideIAFinal c}
@@ -1078,11 +1081,11 @@ copyIAPrelimToFinal inGraph =
 -- | makeIAFinalFomPrelim updates the label of a node for IA states
 -- setting final to preliminary
 makeIAFinalFromPrelim:: LG.LNode VertexInfo -> LG.LNode VertexInfo
-makeIAFinalFromPrelim (index, label) =
+makeIAFinalFromPrelim (inIndex, label) =
   let labData = vertData label
       newLabData = fmap (fmap f) labData
   in
-  (index, label {vertData = newLabData})
+  (inIndex, label {vertData = newLabData})
   where f c = let newSlimIAFinal = extractMediansGapped $ slimIAPrelim c
                   newWideIAFinal = extractMediansGapped $ wideIAPrelim c
                   newHugeIAFinal = extractMediansGapped $ hugeIAPrelim c
@@ -1138,6 +1141,7 @@ topologicalEqual nonZeroEdges g1 g2 =
       if nodesG1 == nodesG2 && edgesG1 == edgesG2 then True
       else False
 
+{-
 -- | topologicalBVEqual takes two Decorated graphs and returns True if graphs have same nodes
 -- by bitvector (sorted)
 -- option to exclude nodes that are end of zero weight edges
@@ -1148,11 +1152,10 @@ topologicalBVEqual nonZeroEdges g1 g2 =
   else
       let bvNodesG1 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g1
           bvNodesG2 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g2
-          edgesG1 = LG.labEdges g1
-          edgesG2 = LG.labEdges g2
       in
       if bvNodesG1 == bvNodesG2 then True
       else False
+-}
 
 -- | getEdgeMinLengthToNode takes a labelled node and returns the min length of
 -- the edge leading to the node
@@ -1254,11 +1257,11 @@ nodeAncViolation inGraph inNode =
 -- mprob acceptance = -exp [(cost - minCost)/ factor]
 -- returns n graphs by random criterion without replacment
 selectGraphStochastic :: Int -> Int -> Double -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectGraphStochastic seed number factor inGraphList =
+selectGraphStochastic rSeed number factor inGraphList =
   if null inGraphList then inGraphList
   else if number >= length inGraphList then inGraphList
   else
-    let randList' = randomIntList seed
+    let randList' = randomIntList rSeed
         randList = fmap abs (tail randList')
         newSeed = head randList'
         minCost = minimum $ fmap snd6 inGraphList

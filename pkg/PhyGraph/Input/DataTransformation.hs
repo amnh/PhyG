@@ -403,7 +403,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 -- at this stage (called before reblocking) there should only be a single charcter per block
 -- but more general--if not great if > 1 character with naming
 checkPrealignedEqualLength :: [T.Text] -> (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo) -> (Bool, [(T.Text, Int)], [(T.Text, Int)])
-checkPrealignedEqualLength nameTextList (blockNameText, taxByCharacterDataVV, charInfoV) =
+checkPrealignedEqualLength nameTextList (_, taxByCharacterDataVV, charInfoV) =
     let numCharsIndexList = [0 .. (V.length charInfoV) - 1]
         sameLengthPairList = zipWith (verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV) (V.toList charInfoV) numCharsIndexList
         badOnes = filter ((== False) . fst3) sameLengthPairList
@@ -430,9 +430,9 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
                                       -}
 
             nameLengthPairList = zip nameTextList prealigedDataLengthList
-            minLength = minimum prealigedDataLengthList
-            haveMinLength = filter ((== minLength) .snd) nameLengthPairList
-            notMinMinLength = filter ((/= minLength) .snd) nameLengthPairList
+            lMinLength = minimum prealigedDataLengthList
+            haveMinLength = filter ((== lMinLength) .snd) nameLengthPairList
+            notMinMinLength = filter ((/= lMinLength) .snd) nameLengthPairList
         in
         -- all min length then all same length
         -- trace ("VPCL:" ++ (show $ (haveMinLength, notMinMinLength))) (
@@ -561,7 +561,7 @@ iupacToBVPairs
   -> V.Vector (s, BV.BitVector)
 iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.toAscList iupac
   where
-    constructor  = flip BV.fromNumber 0
+    constructor  = flip BV.fromNumber (0 :: Int)
     encoder      = encodeState inputAlphabet constructor
 
 -- | nucleotideBVPairs for recoding DNA sequences
@@ -571,6 +571,7 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
   where
     baseAlphabet = fromSymbols $ ST.fromString <$> ["A","C","G","T"]
 
+{-
 -- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
 getAminoAcidSequenceCodes :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, BV.BitVector)
 getAminoAcidSequenceCodes localAlphabet  =
@@ -585,7 +586,7 @@ getAminoAcidSequenceCodes localAlphabet  =
     in
     --trace (show $ fmap BV.showBin $ fmap snd $ totalStateList)
     totalStateList
-
+-}
 
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
@@ -659,7 +660,7 @@ getGeneralBVCode bvCodeVect inState =
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
-            isAligned = prealigned inCharInfo
+            -- isAligned = prealigned inCharInfo
             stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
             (slimVec, wideVec, hugeVec) =
               if not $ null stateList
@@ -683,6 +684,8 @@ getGeneralSequenceChar inCharInfo stateList =
         [newSequenceChar]
 
 
+{-Not used
+
 -- | getSingleStateBV takes a single state and returns its bitvector
 -- based on alphabet size--does not check if ambiguous--assumes single state
 getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
@@ -697,13 +700,15 @@ getSingleStateBV localAlphabet localState =
         if localState `elem` fmap ST.fromString ["?","-"] then BV.fromBits $ replicate (length localAlphabet) True
         else error ("getSingleStateBV: State " ++ ST.toString localState ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
+-}
+
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
 -- and returns then bitvectorfor that state in order of states in alphabet
 getStateBitVector :: Alphabet ST.ShortText -> ST.ShortText -> BV.BitVector
 getStateBitVector localAlphabet = encodeState localAlphabet constructor . (:[])
   where
-    constructor  = flip BV.fromNumber 0
+    constructor  = flip BV.fromNumber (0 :: Int)
 
 -- getMinMaxStates takes  list of strings and determines the minimum and maximum integer values
 getMinMaxStates :: [String] -> (Int, Int) -> (Int, Int)

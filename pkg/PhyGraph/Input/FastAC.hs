@@ -98,7 +98,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
     if null inData then error "Empty inData in getFastaCharInfo"
     else
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
-            aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
+            lAminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ foldMap snd inData
@@ -109,7 +109,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               | dataType == "custom_alphabet" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
               | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
                 ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-              | (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
+              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
                 ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
               | length sequenceData <=  8 = trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
               | length sequenceData <= 64 = trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
@@ -169,6 +169,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , name = T.pack (filter (/= ' ') dataName <> ":0")
                                              , alphabet = thisAlphabet
                                              , prealigned = isPrealigned
+                                             , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> ":0"), alignedSeqType, thisAlphabet)
                                              }
         in
         -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
@@ -291,6 +292,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , name = T.pack (filter (/= ' ') dataName ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
+                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ ":0"), alignedSeqType, thisAlphabet)
                                      }
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (

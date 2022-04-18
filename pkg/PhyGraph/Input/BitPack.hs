@@ -43,6 +43,8 @@ module Input.BitPack
   , threeWayPacked
   , unionPacked
   , maxCharDiff
+  , showBits
+  , showBitsV
   ) where
 
 import           Control.Parallel.Strategies

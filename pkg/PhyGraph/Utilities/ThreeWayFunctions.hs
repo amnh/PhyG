@@ -43,6 +43,7 @@ ToDo:
 
 module Utilities.ThreeWayFunctions  ( threeMedianFinal
                                     , addGapsToChildren
+                                    , threeWayGeneric
                                     ) where
 
 import           Data.Alphabet

@@ -45,31 +45,24 @@ module Reconciliation.Eun ( reconcile
 import           Control.Parallel.Strategies
 import qualified Data.Bits                         as B
 import qualified Data.BitVector                    as BV
-import           Data.Char
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.BFS    as BFS
 import           Data.GraphViz                     as GV
-import           Data.GraphViz.Attributes.Complete (Attribute (Label),
-                                                    Label (..))
-import           Data.GraphViz.Commands.IO
 import           Data.GraphViz.Printing
 import qualified Data.List                         as L
 import qualified Data.Map.Strict                   as Map
 import           Data.Maybe
-import           Data.Monoid
 import qualified Data.Set                          as S
 import qualified Data.Text.Lazy                    as T
 import qualified Data.Vector                       as V
-import           Debug.Trace
 import qualified GraphFormatUtilities              as PhyP
 import qualified Graphs.GraphOperations            as GO
 import           ParallelUtilities                 as PU
 import qualified Reconciliation.Adams              as A
-import           System.Environment
-import           System.IO
 import           Types.Types
 import qualified Utilities.LocalGraph              as LG
+--import           Debug.Trace
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -215,13 +208,13 @@ findLNode vertex lNodeList =
 -- | reorderLNodes takes a list of nodes and reorders and order based on node vertex number
 -- n^2 ugh
 reorderLNodes :: [G.LNode BV.BV]  -> Int -> [G.LNode BV.BV]
-reorderLNodes inNodeList index
+reorderLNodes inNodeList inIndex
   | null inNodeList = []
-  | index == length inNodeList = []
+  | inIndex == length inNodeList = []
   | otherwise =
-    let newNode =  findLNode index inNodeList
+    let newNode =  findLNode inIndex inNodeList
     in
-    newNode : reorderLNodes inNodeList (index + 1)
+    newNode : reorderLNodes inNodeList (inIndex + 1)
    -- )
 
 -- | relabelEdgs creates (BV.BV, BV.BV) labnels for an edges
@@ -268,15 +261,18 @@ getLeafNumber inGraph =
   let degOutList = G.outdeg inGraph <$> G.nodes inGraph
   in length $ filter (==0) degOutList
 
+{-
 -- | findStrLabel checks Attributes (list f Attribute) from Graphvz to extract the String label of node
 -- returns Maybe Text
 findStrLabel :: Attributes -> Maybe T.Text
 findStrLabel = getFirst . foldMap getStrLabel
 
+
 -- | getStrLabel takes an Attribute and reurns Text if StrLabel found, mempty otherwise
 getStrLabel :: Attribute -> First T.Text
 getStrLabel (Label (StrLabel txt)) = First . Just $ txt
 getStrLabel _                      = mempty
+
 
 -- | getLeafString takes a pairs (node vertex number, graphViz Attributes)
 -- and returns String name of leaf of Stringified nude number if unlabbeled
@@ -300,6 +296,7 @@ getLeafList inGraph =
         leafList' = zip nodeVerts newLabels
     in
     leafList'
+-}
 
 -- | getLeafListNewick returns leaf complement of graph from newick file
 -- difference from above is in the leaf label type
@@ -318,6 +315,7 @@ getLeafListNewick inGraph =
     in
     leafList'
 
+{-
 -- | checkNodesSequential takes a list of nodes and returns booolean
 -- True if nodes are input with sequential numerical indices
 -- False if not--screws up reindexing later which assumes they are successive
@@ -326,6 +324,7 @@ checkNodesSequential prevNode inNodeList
   | null inNodeList = True
   | (head inNodeList - prevNode) /= 1 = trace ("Index or indices missing between " ++ (show $ head inNodeList) ++ " and " ++ (show prevNode))  False
   | otherwise = checkNodesSequential (head inNodeList) (tail inNodeList)
+-}
 
 -- | reAnnotateGraphs takes parsed graph input and reformats for EUN
 reAnnotateGraphs :: P.Gr String String -> P.Gr BV.BV (BV.BV, BV.BV)
@@ -383,9 +382,9 @@ getNodeIndex :: BV.BV -> [G.LNode BV.BV] -> Int
 getNodeIndex inBV nodeList =
   if null nodeList then error ("Node  with BV " ++ show inBV ++ " not found in getNodeIndex")
   else
-    let (index, bv) = head nodeList
+    let (inIndex, bv) = head nodeList
     in
-    if bv == inBV then index
+    if bv == inBV then inIndex
     else getNodeIndex inBV (tail nodeList)
 
 -- | addAndReIndexEdges  takes list of indexed nodes and BV, a list of edges to examine and a list of edges to keep
@@ -435,9 +434,9 @@ getLeafLabelMatches ::[G.LNode String] -> G.LNode String -> (Int, Int)
 getLeafLabelMatches localLeafList totNode =
   if null localLeafList then (-1, fst totNode)
   else
-    let (index, leafString) = head localLeafList
+    let (inIndex, leafString) = head localLeafList
     in
-    if snd totNode == leafString then (index, fst totNode)
+    if snd totNode == leafString then (inIndex, fst totNode)
     else getLeafLabelMatches (tail localLeafList) totNode
 
 -- | reIndexEdge takes an (Int, Int) map, labelled edge, and returns a new labelled edge with new e,u vertices
@@ -621,12 +620,12 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
 -- modified from getThresholdNodes due to type change in edges
 -- used and number from numleaves so can use BV
 getThresholdEdges :: (Show a, Ord a) => Int -> Int -> [a] -> ([a], [Double])
-getThresholdEdges thresholdInt numGraphsIn objectList
+getThresholdEdges thresholdInt numGraphsInput objectList
   | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace"Threshold must be in range [0,100]"
   | null objectList = error "Empty list of object lists in getThresholdEdges"
   | otherwise =
   let threshold = (fromIntegral thresholdInt / 100.0) :: Double
-      numGraphs = fromIntegral numGraphsIn
+      numGraphs = fromIntegral numGraphsInput
       objectGroupList = L.group $ L.sort objectList
       uniqueList = fmap head objectGroupList
       frequencyList = fmap (((/ numGraphs) . fromIntegral) . length) objectGroupList `using` PU.myParListChunkRDS
@@ -683,6 +682,7 @@ verifyEdge vertIndexList inEdge@(e,u,_)
   | u `notElem` vertIndexList = []
   | otherwise = [inEdge]
 
+{-
 -- | sortInputArgs takes a list of arguments (Strings) nd retuns a pair of lists
 -- of strings that are newick or graphviz dotFile filenames for later parsing
 sortInputArgs :: [String] -> [String] -> ([T.Text],[T.Text],[String],[String],[String]) -> ([T.Text],[T.Text],[String],[String],[String])
@@ -702,7 +702,7 @@ sortInputArgs inContents inArgs (curFEN, curNewick, curDot, curNewFiles, curFENF
 
 -- | nodeText2String takes a node with text label and returns a node with String label
 nodeText2String :: G.LNode T.Text -> G.LNode String
-nodeText2String (index, label) = (index, T.unpack label)
+nodeText2String (inIndex, label) = (inIndex, T.unpack label)
 
 -- | fglTextA2TextString converts the graph types from Text A to Text String
 fglTextB2Text :: P.Gr b Double -> P.Gr b T.Text
@@ -717,6 +717,7 @@ fglTextB2Text inGraph =
         newEdges = zip3 eList uList newLabels
     in
     G.mkGraph labNodes newEdges
+-}
 
 -- | addUrRootAndEdges creates a single root and adds edges to existing roots
 -- and unconnected leaves
@@ -766,7 +767,7 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
 
 -- | reconcile is the overall function to drive all methods
 reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
-reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
+reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
 
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
         processedGraphs = fmap reAnnotateGraphs inputGraphList  `using` PU.myParListChunkRDS
@@ -779,7 +780,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         firstNodes = G.labNodes $ head processedGraphs
         numFirstNodes = length firstNodes
         unionNodes = L.sort $ leafNodes ++ addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
-        unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
+        -- unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
 
         totallLeafString = L.foldl' L.union [] (fmap (fmap snd)  (fmap getLeafListNewick inputGraphList))
         totallLeafSet = zip [0..(length totallLeafString - 1)] totallLeafString
@@ -800,7 +801,7 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
         thresholdNodes = leafNodes ++ thresholdNodes'
         thresholdEdgesList = fmap (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  `using` PU.myParListChunkRDS
         thresholdEdges = L.nub $ concat thresholdEdgesList
-        numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
+        -- numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
         thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
 
         -- thresholdConInfo =  "There are " ++ show (length thresholdNodes) ++ " nodes present in >= " ++ (show threshold ++ "%") ++ " of input graphs and " ++ show numPossibleEdges ++ " candidate edges"
@@ -844,22 +845,22 @@ reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, verte
 
     in
 
-    if method == "eun" then
+    if localMethod == "eun" then
       if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
       else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
       else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
 
-    else if method == "adams" then
+    else if localMethod == "adams" then
       if outputFormat == "dot" then (adamsIIOutDotString,  adamsII')
       else if outputFormat == "fenewick" then (adamsIIOutFENString, adamsII')
       else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
 
-    else if (method == "majority") || (method == "cun") || (method == "strict") then
+    else if (localMethod == "majority") || (localMethod == "cun") || (localMethod == "strict") then
         if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
         else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
         else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
 
-    else errorWithoutStackTrace("Graph combination method " ++ method ++ " is not implemented")
+    else errorWithoutStackTrace("Graph combination method " ++ localMethod ++ " is not implemented")
 
 
 -- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes

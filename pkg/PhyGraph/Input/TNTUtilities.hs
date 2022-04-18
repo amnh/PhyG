@@ -74,6 +74,7 @@ import qualified GeneralUtilities          as GU
 import qualified Input.DataTransformation  as DT
 import qualified Input.FastAC              as FAC
 import qualified SymMatrix                 as SM
+import qualified Data.Vector               as V
 import           Text.Read
 import           Types.Types
 
@@ -119,7 +120,8 @@ getTNTData inString fileName =
                         --dataBlock = filter ((>0).T.length) $ fmap (T.filter C.isPrint) $ take (fromJust semiColonLineNumber) restFile
                         charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
-                        (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        -- (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        (_, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
                     -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder, numDataLines, numTax)) (
                     if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error ")
@@ -259,6 +261,7 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
+                                , origInfo   = V.singleton (T.empty, NonAdd, fromSymbols [])
                                 }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
