@@ -480,7 +480,7 @@ getOutDegree2VertexSoftWired :: GlobalSettings
                              -> LG.LNode VertexInfo
                              -> DecoratedGraph
                              -> VertexInfo
-getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftChildIndex, leftChildLab) rightChild@(rightChildIndex, rightChildLab) inGraph =
+getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftChildIndex, _) rightChild@(rightChildIndex, _) inGraph =
 
     let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
         -- larger bitvector is Right, smaller or equal Left
@@ -844,9 +844,9 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
                                        else if (graphType inGS) == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
                                        else if (graphType inGS) == HardWired then
                                          if (not . LG.cyclic) inSimple then
-                                            let (newDecGraph', touchedNodes') = rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
+                                            let (newDecGraph'', touchedNodes') = rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
                                             in
-                                            if (not . LG.cyclic) newDecGraph' then (newDecGraph', touchedNodes')
+                                            if (not . LG.cyclic) newDecGraph'' then (newDecGraph'', touchedNodes')
                                             else (LG.empty, [])
                                          else (LG.empty, [])
                                        else error ("Error--Graph type unimplemented: " ++ (show (graphType inGS)))

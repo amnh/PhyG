@@ -62,21 +62,14 @@ import           GeneralUtilities
 import qualified GraphFormatUtilities                 as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
--- import qualified GraphOptimization.Medians as M
 import qualified GraphOptimization.PostOrderFunctions as PO
 import qualified GraphOptimization.PreOrderFunctions  as PRE
 import qualified Graphs.GraphOperations               as GO
--- import qualified SymMatrix as SM
--- import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import           Data.Maybe
 import qualified Data.Text.Lazy                       as T
--- import Debug.Debug as D
-import qualified Data.BitVector.LittleEndian          as BV
 import           Debug.Trace
 import           Utilities.Utilities                  as U
-
-
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -734,7 +727,7 @@ getBestBlockResolution inResBlockData =
     if V.null inResBlockData then (mempty, 0.0, 0.0, (Nothing, Nothing))
     else
         let -- makes sure all leaves in resolution
-            displayPopList = fmap (complement . displayBVLabel) inResBlockData
+            -- displayPopList = fmap (complement . displayBVLabel) inResBlockData
 
             -- this for non full graph root--uses highest number of bits on--make sure all taxa in
             -- should be fine for a subgraph that has a single edge a base--may not be correct
@@ -875,7 +868,7 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
 -- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
 -- unclear how hardwired will be affected
 setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
-setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, sCost, sDecGraph, _, sTraversal, _) =
+setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
     -- trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph

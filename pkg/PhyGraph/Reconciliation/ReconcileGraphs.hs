@@ -57,15 +57,15 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
 
           -- parse arguements
           commandList = fmap mergePair $ filter (('"' `notElem`).snd) commandPairList
-          (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
+          (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
 
           -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) = E.reconcile (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+          (reconcileString, reconcileGraph) = E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
       in
-      -- trace ("MRG :" ++ (show (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) ++ "\n" ++ reconcileString)
+      -- trace ("MRG :" ++ (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) ++ "\n" ++ reconcileString)
       (reconcileString, reconcileSimpleGraph)
       where mergePair (a,b) = if a /= [] && b /= [] then a ++ (':' : b)
                               else a ++ b
@@ -80,7 +80,7 @@ processReconcileArgs validCommandList inList' =
     in
     if null inList then
       let -- default values
-          method = "eun"
+          localMethod = "eun"
           compareMethod = "combinable"
           threshold = 0
           connectComponents = True
@@ -88,7 +88,7 @@ processReconcileArgs validCommandList inList' =
           vertexLabel = True
           outputFormat = "dot"
       in
-      (method, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
+      (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
 
     else
         -- trace ("Rec args: " ++ (show inList)) (
@@ -99,19 +99,19 @@ processReconcileArgs validCommandList inList' =
             (editCostList, matchList) = unzip $ fmap (getBestMatch (maxBound :: Int ,"no suggestion") validCommandList) stringCommands
             commandMatch = zip3 editCostList stringCommands matchList
             notMatchedList = filter ((>0).fst3) commandMatch
-            method = getMethod inTextListLC
+            localMethod = getMethod inTextListLC
             compareMethod = getCompareMethod inTextListLC
             connect = getConnect inTextListLC
             edgeLabel = getEdgeLabel inTextListLC
             vertexLabel = getVertexLabel inTextListLC
             threshold
-              | method == "cun" = 0
-              | method == "strict" = 100
+              | localMethod == "cun" = 0
+              | localMethod == "strict" = 100
               | otherwise = getThreshold inTextListLC
             outFormat = getOutputFormat inTextListLC
         in
         if null notMatchedList then
-            (method, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
+            (localMethod, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
         else errorWithoutStackTrace("\n\nError(s) in reconcile command specification (case insensitive):\n" ++ getCommandErrorString notMatchedList)
         -- )
 
