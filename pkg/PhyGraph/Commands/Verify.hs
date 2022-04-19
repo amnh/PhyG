@@ -200,7 +200,8 @@ verifyCommands inCommandList =
             thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
             checkReconcile1 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst nonThresholdreconcileModPairList)) reconcileArgList
             checkReconcile2 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst thresholdreconcileModPairList)) reconcileArgList
-            checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  (filter (/= []) (fmap snd nonThresholdreconcileModPairList)) reconcileOptionsList
+            checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  
+                (filter (/= []) (fmap snd nonThresholdreconcileModPairList)) reconcileOptionsList
             checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
             checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
             -- reconcileOptionsList

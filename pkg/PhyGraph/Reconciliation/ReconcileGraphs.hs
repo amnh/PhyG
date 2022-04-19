@@ -44,7 +44,6 @@ import qualified GraphFormatUtilities as GFU
 import qualified Reconciliation.Eun   as E
 import           Types.Types
 import qualified Utilities.LocalGraph as LG
-import qualified Commands.Verify             as VER
 -- import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
