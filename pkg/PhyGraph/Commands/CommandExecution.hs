@@ -433,7 +433,17 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     in
                     (concat tntContentList, outfileName, writeMode)
            
-            else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+            else 
+                trace ("\nWarning--unrecognized/missing report option in " ++ (show commandList) ++ " defaulting to 'graphs'") (
+                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                in
+                if null curGraphs then 
+                    trace ("No graphs to report")
+                    ("No graphs to report", outfileName, writeMode)
+                else 
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    (graphString, outfileName, writeMode)
+                )
 
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.
