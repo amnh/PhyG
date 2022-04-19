@@ -59,7 +59,7 @@ import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
 import           Text.Read
-import           Debug.Trace
+-- import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
@@ -154,38 +154,40 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
             -- make lower-case arguments
             let fstArgList = filter (/= []) $ fmap (fmap C.toLower . fst) inArgs
                 sndArgList = filter (/= []) $ fmap (fmap C.toLower . snd) inArgs
-                fileNameList = filter (/= []) $ fmap snd inArgs
+                fileNameList = fmap (filter (/= '"')) $ filter (/= []) $ fmap snd inArgs
 
                 -- Read
-                (checkOptions, filesToReadFrom, filesToWriteTo) = if commandInstruction == Read then 
-                                   (checkCommandArgs "read"  fstArgList readArgList, concat fileNameList, [])
+                (checkOptions, filesToReadFrom, filesToWriteTo) = 
 
                                    -- Build
-                                   else if commandInstruction == Build then 
-                                        (checkCommandArgs "build" fstArgList buildArgList, [], [])
+                                   if commandInstruction == Build then 
+                                        (checkCommandArgs "build" fstArgList buildArgList, [""], [""])
 
                                    -- Fuse 
                                    else if commandInstruction == Fuse then 
-                                        (checkCommandArgs "fuse" fstArgList fuseArgList, [], [])
+                                        (checkCommandArgs "fuse" fstArgList fuseArgList, [""], [""])
+
+                                   else if commandInstruction == Read then 
+                                    (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
                                    -- Reblock -- part of read
                                    -- Reconcile -- part of report
 
                                    -- Refine
                                    else if commandInstruction == Refine then 
-                                        (checkCommandArgs "refine" fstArgList refineArgList, [], [])
+                                        (checkCommandArgs "refine" fstArgList refineArgList,[""], [""])
 
                                    -- Rename -- part of read
 
                                    -- Report
                                    else if commandInstruction == Report then 
-                                        (checkCommandArgs "report" fstArgList reportArgList, [], concat fileNameList)
+                                        (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
 
                                    -- Run  -- processed out before this into command list
 
                                    -- Search
                                    else if commandInstruction == Search then 
-                                        if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList searchArgList, [], [])
+                                        if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList searchArgList, [""], [""])
                                         else 
                                             let reconcilePairList = zip fstArgList sndArgList
                                                 nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
@@ -197,37 +199,40 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                                 checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
                                                 checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
                                             in
-                                            if checkReconcile then (checkCommandArgs "report" fstArgList searchArgList, [], [])
+                                            if checkReconcile then (checkCommandArgs "report" fstArgList searchArgList,[""], [""])
                                             else (False, [], [])
                                    -- Select
                                    else if commandInstruction == Select then 
-                                        (checkCommandArgs "report" fstArgList selectArgList, [], [])
+                                        (checkCommandArgs "report" fstArgList selectArgList, [""], [""])
 
                                    -- Set
                                    else if commandInstruction == Set then 
-                                        (checkCommandArgs "report" fstArgList setArgList, [], [])
+                                        (checkCommandArgs "report" fstArgList setArgList, [""], [""])
 
                                    -- Support
                                    else if commandInstruction == Support then 
-                                        (checkCommandArgs "report" fstArgList supportArgList, [], [])
+                                        (checkCommandArgs "report" fstArgList supportArgList, [""], [""])
 
                                    -- Swap
                                    else if commandInstruction == Swap then 
-                                        (checkCommandArgs "report" fstArgList swapArgList, [], [])
+                                        (checkCommandArgs "report" fstArgList swapArgList, [""], [""])
 
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
             in
             if checkOptions then
-                let readAndWriteFileList = filter (/= "") $ L.intersect (filesToReadFrom : inFilesToRead) (filesToWriteTo : inFilesToWrite)
+                let allFilesToReadFrom = filter (/= "") $ filesToReadFrom ++ inFilesToRead
+                    allFilesToWriteTo = filter (/= "") $ filesToWriteTo ++ inFilesToWrite
+                    readAndWriteFileList = L.intersect allFilesToReadFrom allFilesToWriteTo
                 in
-                trace (show (filesToReadFrom : inFilesToRead, filesToWriteTo : inFilesToWrite)) (
+                -- trace (show (allFilesToReadFrom, allFilesToWriteTo)) (
                 if (not .null) readAndWriteFileList then 
                     errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
-                else verifyCommands (tail inCommandList) (filter (/= "") $ filesToReadFrom : inFilesToRead) (filter (/= "") $ filesToWriteTo : inFilesToWrite)
-                )
+                else verifyCommands (tail inCommandList) allFilesToReadFrom allFilesToWriteTo
+                -- )
 
             else 
                 -- Won't get to here--will error at earlier stages
                 False
             
         where isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
+
