@@ -1,7 +1,7 @@
 -- test bit packing
 --set(graphType:softwired) 
 read("IE.MT.tnt")
-read("IE.Y.tnt")
+--read("IE.Y.tnt")
 --read("IE.X.tnt")
 build(distance, rdwag, replicates:10)
 swap(TBR, all, ia)
