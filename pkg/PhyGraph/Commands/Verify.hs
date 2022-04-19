@@ -59,8 +59,7 @@ import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
 import           Text.Read
-
--- import           Debug.Trace
+import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
@@ -130,125 +129,111 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 swapArgList :: [String]
 swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
 
-
--- | makeArgsLowerCase reformats a command
-makeArgsLowerCase :: Command -> Command
-makeArgsLowerCase inCommand =
-    let argList = snd inCommand
-        commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
-        optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
-    in
-    (fst inCommand, zip commandList optionList)
-     
 -- | verifyCommands takes a command list and tests whether the commands 
 -- and arguments are permissible before program execution--prevents late failure 
 -- after alot of processing time.
 -- bit does not check for files existance, write/read ability, or contents for format or 
 -- anyhhting else for that matter
 -- does check if files are both read from and written to
-verifyCommands :: [Command] -> Bool
-verifyCommands inCommandList = 
-    let instructionList = fmap fst inCommandList
-
-        -- check valid instructions
-        -- this is done earlier but might get oved so putting here just in case
-        checkInstructionList = fmap (`elem` validInstructionList) instructionList
-        instructionInvalidList = fmap fst $ filter ((== False) . snd) $ zip instructionList checkInstructionList
-
-    in
-    if (not . null) instructionInvalidList then errorWithoutStackTrace ("Invalid commands were specified : " ++ (show instructionInvalidList))
+verifyCommands :: [Command] -> [String] -> [String] -> Bool
+verifyCommands inCommandList inFilesToRead inFilesToWrite = 
+    if null inCommandList then True
     else 
-        -- check each command for valid arguments
-        -- make lower-case arguments
-        let newCommandList = fmap makeArgsLowerCase inCommandList
+        let firstCommand = head inCommandList
+            commandInstruction = fst firstCommand
+            inArgs = snd firstCommand
 
-            -- Read
-            readPairList = fmap snd $ filter ((== Read) .fst) newCommandList
-            (readCommandList, readFileList) = unzip $ concat readPairList
-            checkRead = checkCommandArgs "read"  (filter (/= []) readCommandList) readArgList
-
-
-            -- Build
-            buildPairList = fmap snd $ filter ((== Build) .fst) newCommandList
-            (buildCommandList, _) = unzip $ concat buildPairList
-            checkBuild = checkCommandArgs "build"  (filter (/= []) buildCommandList) buildArgList
-        
-            -- Fuse
-            fusePairList = fmap snd $ filter ((== Fuse) .fst) newCommandList
-            (fuseCommandList, _) = unzip $ concat fusePairList
-            checkFuse = checkCommandArgs "fuse"  (filter (/= []) fuseCommandList) fuseArgList
-
-            -- Reblock -- part of read
-
-            -- Reconcile -- part of report
-            
-            -- Refine
-            refinePairList = fmap snd $ filter ((== Refine) .fst) newCommandList
-            (refineCommandList, _) = unzip $ concat refinePairList
-            checkRefine = checkCommandArgs "refine"  (filter (/= []) refineCommandList) refineArgList
-
-            -- Rename -- part of read
-
-            -- Report
-            reportPairList = fmap snd $ filter ((== Report) .fst) newCommandList
-            (reportCommandList, reportFileList) = unzip $ concat reportPairList
-            checkReport = checkCommandArgs "report"  (filter (/= []) reportCommandList) reportArgList
-
-            -- check reconcile options 
-            reconcilePairList = filter ((`elem` reconcileArgList). fst) $ concat reportPairList
-            nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
-            thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
-            checkReconcile1 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst nonThresholdreconcileModPairList)) reconcileArgList
-            checkReconcile2 = checkCommandArgs "reconcile"  (filter (/= []) (fmap fst thresholdreconcileModPairList)) reconcileArgList
-            checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  
-                (filter (/= []) (fmap snd nonThresholdreconcileModPairList)) reconcileOptionsList
-            checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
-            checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
-            -- reconcileOptionsList
-
-            -- Run  -- processed out before this into command list
-
-            -- Search
-            searchPairList = fmap snd $ filter ((== Search) .fst) newCommandList
-            (searchCommandList, _) = unzip $ concat searchPairList
-            checkSearch = checkCommandArgs "search"  (filter (/= []) searchCommandList) searchArgList
-
-
-            -- Select
-            selectPairList = fmap snd $ filter ((== Select) .fst) newCommandList
-            (selectCommandList, _) = unzip $ concat selectPairList
-            checkSelect = checkCommandArgs "select"  (filter (/= []) selectCommandList) selectArgList
-
-            -- Set
-            setPairList = fmap snd $ filter ((== Set) .fst) newCommandList
-            (setCommandList, _) = unzip $ concat setPairList
-            checkSet = checkCommandArgs "set"  (filter (/= []) setCommandList) setArgList
-
-            -- Support
-            supportPairList = fmap snd $ filter ((== Support) .fst) newCommandList
-            (supportCommandList, _) = unzip $ concat supportPairList
-            checkSupport = checkCommandArgs "support"  (filter (/= []) supportCommandList) supportArgList
-
-            -- Swap
-            swapPairList = fmap snd $ filter ((== Swap) .fst) newCommandList
-            (swapCommandList, _) = unzip $ concat swapPairList
-            checkSwap = checkCommandArgs "swap"  (filter (/= []) swapCommandList) swapArgList
-
+            -- check valid commandInstructions
+            -- this is done earlier but might get oved so putting here just in case
+            checkInstruction = commandInstruction `elem` validInstructionList
+     
         in
-        if not checkReconcile4 then errorWithoutStackTrace ("Reconcile modifier 'threshold' requires and integer option (e.g. 51): " ++ (show (concat $ fmap snd thresholdreconcileModPairList)))
-        else if checkRead && checkBuild && checkFuse && checkReconcile && checkReport && checkRefine && checkSearch && checkSelect && checkSet && checkSupport && checkSwap then
-            let filesToReadFrom = readFileList
-                filesToWriteTo  = reportFileList 
-                readAndWriteFileList = L.intersect filesToReadFrom filesToWriteTo
-            in
-            if (not .null) readAndWriteFileList then 
-                errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
-            else True
-
+        if not checkInstruction then errorWithoutStackTrace ("Invalid command was specified : " ++ (show commandInstruction))
         else 
-            -- Won't get to here--will error at earlier stages
-            False
-        
+            -- check each command for valid arguments
+            -- make lower-case arguments
+            let fstArgList = filter (/= []) $ fmap (fmap C.toLower . fst) inArgs
+                sndArgList = filter (/= []) $ fmap (fmap C.toLower . snd) inArgs
+                fileNameList = filter (/= []) $ fmap snd inArgs
+
+                -- Read
+                (checkOptions, filesToReadFrom, filesToWriteTo) = if commandInstruction == Read then 
+                                   (checkCommandArgs "read"  fstArgList readArgList, [], [])
+
+                                   -- Build
+                                   else if commandInstruction == Build then 
+                                        (checkCommandArgs "build" fstArgList buildArgList, [], [])
+
+                                   -- Fuse 
+                                   else if commandInstruction == Fuse then 
+                                        (checkCommandArgs "fuse" fstArgList fuseArgList, [], [])
+
+                                   -- Read
+                                    else if commandInstruction == Read then 
+                                        (checkCommandArgs "read" fstArgList readArgList, concat fileNameList, [])
+
+                                   -- Reblock -- part of read
+                                   -- Reconcile -- part of report
+
+                                   -- Refine
+                                   else if commandInstruction == Refine then 
+                                        (checkCommandArgs "refine" fstArgList refineArgList, [], [])
+
+                                   -- Rename -- part of read
+
+                                   -- Report
+                                   else if commandInstruction == Report then 
+                                        (checkCommandArgs "report" fstArgList reportArgList, [], concat fileNameList)
+
+                                   -- Run  -- processed out before this into command list
+
+                                   -- Search
+                                   else if commandInstruction == Search then 
+                                        if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList searchArgList, [], [])
+                                        else 
+                                            let reconcilePairList = zip fstArgList sndArgList
+                                                nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
+                                                thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
+                                                checkReconcile1 = checkCommandArgs "reconcile"  (fmap fst nonThresholdreconcileModPairList) reconcileArgList
+                                                checkReconcile2 = checkCommandArgs "reconcile"  (fmap fst thresholdreconcileModPairList) reconcileArgList
+                                                checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  
+                                                    (fmap snd nonThresholdreconcileModPairList) reconcileOptionsList
+                                                checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
+                                                checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
+                                            in
+                                            if checkReconcile then (checkCommandArgs "report" fstArgList searchArgList, [], [])
+                                            else (False, [], [])
+                                   -- Select
+                                   else if commandInstruction == Select then 
+                                        (checkCommandArgs "report" fstArgList selectArgList, [], [])
+
+                                   -- Set
+                                   else if commandInstruction == Set then 
+                                        (checkCommandArgs "report" fstArgList setArgList, [], [])
+
+                                   -- Support
+                                   else if commandInstruction == Support then 
+                                        (checkCommandArgs "report" fstArgList supportArgList, [], [])
+
+                                   -- Swap
+                                   else if commandInstruction == Swap then 
+                                        (checkCommandArgs "report" fstArgList swapArgList, [], [])
+
+                                   else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
+            in
+            if checkOptions then
+                let readAndWriteFileList = filter (/= "") $ L.intersect (filesToReadFrom : inFilesToRead) (filesToWriteTo : inFilesToWrite)
+                in
+                trace (show (filesToReadFrom, filesToWriteTo)) (
+                if (not .null) readAndWriteFileList then 
+                    errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
+                else verifyCommands (tail inCommandList) (filesToReadFrom : inFilesToRead) (filesToWriteTo : inFilesToWrite)
+                )
+
+            else 
+                -- Won't get to here--will error at earlier stages
+                False
+            
         where isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
 
         
