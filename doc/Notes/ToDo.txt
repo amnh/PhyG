@@ -569,12 +569,8 @@ preOrderTreeTraversal
 323) Rationalize V.fromList and V.toList in bitpacking
 	prob unncesesary back and forth
      	
-324) Add check for read and write to same file name
 
 325) efficiently parallleize bitpacking 
 
-326) redo reconcile arg processing and error check in Verify
 
-327) Check swap--make sure it does somehting with only exact charcaters.
-
-328) unique select is screwed up
+329) 
