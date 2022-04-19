@@ -441,7 +441,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No graphs to report")
                     ("No graphs to report", outfileName, writeMode)
                 else 
-                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs))
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
 
