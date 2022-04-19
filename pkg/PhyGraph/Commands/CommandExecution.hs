@@ -370,7 +370,8 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 else 
                     (blockStringList, outfileName, writeMode)
 
-            else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
+            else if "graphs" `elem` commandList then
+            --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs then 
@@ -400,7 +401,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 in
                 if null curGraphs then 
                     trace ("No graphs to reconcile")
-                    ("No graphs to reconcile", outfileName, writeMode)
+                    ([], outfileName, writeMode)
                 else 
                     (reconcileString, outfileName, writeMode)
 
@@ -416,7 +417,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 in
                 -- trace ("Rep Sup: " ++ (LG.prettify $ fst6 $ head supportGraphs)) (
                 if null supportGraphs then 
-                    trace ("No support graphs to report")
+                    trace ("\tNo support graphs to report")
                     ([], outfileName, writeMode)
                 else 
                 trace ("Reporting " ++ (show $ length curGraphs) ++ " support graph(s)")
