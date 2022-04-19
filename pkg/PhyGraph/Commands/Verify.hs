@@ -158,7 +158,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
 
                 -- Read
                 (checkOptions, filesToReadFrom, filesToWriteTo) = if commandInstruction == Read then 
-                                   (checkCommandArgs "read"  fstArgList readArgList, [], [])
+                                   (checkCommandArgs "read"  fstArgList readArgList, concat fileNameList, [])
 
                                    -- Build
                                    else if commandInstruction == Build then 
@@ -167,10 +167,6 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    -- Fuse 
                                    else if commandInstruction == Fuse then 
                                         (checkCommandArgs "fuse" fstArgList fuseArgList, [], [])
-
-                                   -- Read
-                                    else if commandInstruction == Read then 
-                                        (checkCommandArgs "read" fstArgList readArgList, concat fileNameList, [])
 
                                    -- Reblock -- part of read
                                    -- Reconcile -- part of report
@@ -224,10 +220,10 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
             if checkOptions then
                 let readAndWriteFileList = filter (/= "") $ L.intersect (filesToReadFrom : inFilesToRead) (filesToWriteTo : inFilesToWrite)
                 in
-                trace (show (filesToReadFrom, filesToWriteTo)) (
+                trace (show (filesToReadFrom : inFilesToRead, filesToWriteTo : inFilesToWrite)) (
                 if (not .null) readAndWriteFileList then 
                     errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
-                else verifyCommands (tail inCommandList) (filesToReadFrom : inFilesToRead) (filesToWriteTo : inFilesToWrite)
+                else verifyCommands (tail inCommandList) (filter (/= "") $ filesToReadFrom : inFilesToRead) (filter (/= "") $ filesToWriteTo : inFilesToWrite)
                 )
 
             else 
@@ -235,5 +231,3 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                 False
             
         where isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
-
-        
