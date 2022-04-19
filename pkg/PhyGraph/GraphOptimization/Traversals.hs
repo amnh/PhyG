@@ -215,7 +215,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             -- staticOnlyGraph = head recursiveRerootList'
             staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
-        --trace ("Only static")
+        -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
         (staticOnlyGraph', localRootCost, head startVertexList)
 
     -- single seuquence (prealigned, dynamic) only (ie no static)
