@@ -24,7 +24,7 @@
 		This is in opposition to the \texttt{first} option, which takes the ``first'' $n$ display trees resolved 
 		in arbitrary, but consistent, order.
 
-		\item [best:n] Applies only to rWag. Specifies the number of trees retained after rWag builds, 
+		\item [best:n] Applies only to rdWag. Specifies the number of trees retained after rdWag builds, 
 		selecting the best trees in terms of distance cost. The options can be used to reduce
 		the number of trees retained for refinement or returned for further analysis. 
 
@@ -66,10 +66,10 @@
 	
 		\item [otu] Specifies that OTU refinement \citep{Wheeler2021} is performed after distance builds.	
 		
-		\item [replicates:n] Applies to \texttt{rWag} and \texttt{character}. Specifies the number of 
+		\item [replicates:n] Applies to \texttt{rdWag} and \texttt{character}. Specifies the number of 
 		random addition sequences performed. 
 		
-		\item [rWag] Performs randoms addition sequence distance Wagner builds, yielding a multiple 
+		\item [rdWag] Performs randoms addition sequence distance Wagner builds, yielding a multiple 
 		trees determined by argument \texttt{replicates:m}. Time complexity of $O(m \times n^2)$.
 
 		\item [spr] Specifies that SPR refinement \citep{Dayhoff1969} is performed after distance builds.
@@ -92,11 +92,11 @@
 		Builds a single `best' addition sequence distance Wagner build, 
 		a Neighbor-Joining tree, and a WPGMA tree.}
 		
-		\item{\texttt{build(distance, rWag, replicates:1000, best:10)}\\
+		\item{\texttt{build(distance, rdWag, replicates:1000, best:10)}\\
 		Builds 1000 random addition sequence distance Wagner builds and returns 
 		10 of lowest distance cost.}
 	
-		\item{\texttt{build(distance, rWag, WPGMA, replicates:100, best:10, OTU)}\\
+		\item{\texttt{build(distance, rdWag, WPGMA, replicates:100, best:10, OTU)}\\
 		Builds 100 random addition sequence distance Wagner builds, a WPGMA tree, 
 		performs OTU swapping on the WPGMA and 10 of the lowest cost random addition 
 		sequence Wagner trees. 
