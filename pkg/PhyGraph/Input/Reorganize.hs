@@ -93,8 +93,8 @@ optimizeData inData =
         inData''' = BP.packNonAdditiveData inData''
 
     in
-    -- inData'''
-    inData
+    inData'''
+    -- inData
 
 -- | convertPrealignedToNonAdditive converts prealigned data to non-additive
 -- if homogeneous TCM (all 1's non-diagnoal)
