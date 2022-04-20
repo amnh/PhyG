@@ -18,7 +18,9 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{url}
+  
 \usepackage[dvipsnames]{xcolor}
+\usepackage{color, soul}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
 %\usepackage[nottoc,numbib]{tocbibind}
 \usepackage{tocloft}
@@ -54,12 +56,16 @@
 	%\firstpage{1}
 	
 	\title{PhylogeneticGraph\\User Manual\\Version 0.1}
-	\maketitle
-
-		 \begin{center}
-		\includegraphics[width=\textwidth]{AMNHLeft_100.70.23.13.jpg}
-	\end{center}
 	
+	\maketitle
+	
+	\newpage
+
+	 \begin{center}
+		\includegraphics[width=\textwidth]{AMNHLogo.jpg}
+	\end{center}
+
+	\vspace*{5.50cm}	
 	\begin{flushleft}
 		\textbf {Program and Documentation} \\ Ward C. Wheeler \\
 		\vspace*{0.50cm}
@@ -69,7 +75,7 @@
 	\end{flushleft}
 	
 
-	\vspace*{11.50cm}
+	\vspace*{5.50cm}
 	
 	\begin{flushleft}
 		\small
@@ -115,7 +121,7 @@
 	script files.
 				
 		\begin{verbatim}
-			phygscript.pg
+			phyg_script.pg
 		\end{verbatim}
 		%what's this for?
 	
@@ -281,14 +287,19 @@
 		\end{verbatim}
 		
 	\section{Execution in Parallel}
-	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
+	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' 
+	where `X' is the number of processors offered to the program. These are specified after the program as in (for 
+	4 parallel threads):\\
 	\\
 	PhyGraph +RTS -N4 -RTS other options...  \\
 	
-	An alternate is to specify `+RTS -N' ( after program options).  This spawns as many jobs as there are cores in the machine and can be more efficient.
+	An alternate is to specify `+RTS -N' ( after program options).  This spawns as many jobs as there are cores 
+	in the machine and can be more efficient.
 	
 	\section*{Acknowledgments}
-	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
+	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. 
+	Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum 
+	of Natural History for financial support.  
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}

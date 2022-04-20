@@ -1,5 +1,5 @@
 -- Format follow String:option | String : (String:option, string:option,..) recursively
--- file names and partds in double quotes "bleh"
+-- file names and parts in double quotes "bleh"
 -- (:Int are optional)
 
 --csv file for data input

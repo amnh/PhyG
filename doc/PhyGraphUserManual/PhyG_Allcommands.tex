@@ -166,8 +166,11 @@
 		\texttt{read(option:"filename", option:"filename", ...)}
 			
 	\begin{phygdescription}
-		{Causes various file-based information to input. \texttt{read} commands must contain an input file.
-		Options prepended to the filename with a colon (`:') modify the processing of the input file. If no options 
+		{Imports file-based information. \texttt{read} commands must contain an input file. Supported 
+		formats include Dot, Enewick, FASTA, FASTC, Fenewick, Hennig86, Newick, and \hl{XXX...}. 
+		Filenames must be included in quotes and, if multiple filenames are specified, separated by 
+		commas. Filenames must include the appropriate suffix (e.g. .fas, .ss\, .mat). Options prepended 
+		to the filename with a colon (`:') modify the processing of the input file. If no options 
 		are specified, the program will attempt to recognize the file type and parse appropriately. Wildcard 
 		characters (`*', `?') can be used to specify multiple files.}
 	\end{phygdescription}
@@ -332,16 +335,6 @@
 		
 	\end{example}
 		
-%%---------------------------------------------
-%%refine
-%%---------------------------------------------		
-%%%	\subsection{Refine}
-%%%		\subsubsection{Syntax}
-%%%		\subsubsection{Description}
-%%%		\subsubsection{Arguments}
-%%%		\subsubsection{Defaults}
-%%%		\subsubsection{Examples}
-%
 %---------------------------------------------
 %reblock
 %---------------------------------------------
@@ -403,16 +396,18 @@
 		\texttt{refine(option, option,...)}
 		
 	\begin{phygdescription}
-		{Performs edit operations (addition, deletion, move) on network edges, hence only applies to softwired and hardwired graphs.}
+		{Performs edit operations (addition, deletion, move) on network edges, hence only applies to 
+		soft-wired and hard-wired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
 		
 		\begin{description}
-		\item[annealing[:n]] Specifies that $n$ (default 1) rounds of simulated annealing optimization \citep{Metropolisetal1953, 
-		Kirkpatricketal1983, Cerny1985} are performed in concert with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. 
-		The acceptance of candidate graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
-		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ is the step number, 
+		\item[annealing[:n]] Specifies that $n$ (default 1) rounds of simulated annealing optimization 
+		\citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} are performed in concert with 
+		\texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate graphs is 
+		determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, where $c_c$ 
+		is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ is the step number, 
 		and $k_{max}$ is the maximum number of steps (set by the \texttt{steps:m}, default 10) option.
 			
 		\item[drift[:n]] Specifies that $n$ (default 1) rounds of the ``drifting'' form of simulated annealing \citep{goloboff1999} 
@@ -426,7 +421,7 @@
 		\item[generations:[n]] Specifies the number of generations (sequential iterations) for \texttt{geneticAlgorithm}. 
 		Default $n=10$.
 			
-		\item[geneticAlgorithm|ga] Performs Genetic Algorithm \citep{Holland1975} refinement in concert with options 
+		\item[geneticAlgorithm|ga] Performs Genetic Algorithm \citep{Holland1975} refinement in concert with options \\
 		\texttt{generations}, \texttt{popsize}, \texttt{severity}, and \texttt{recombinations}. 
 			
 		\item[keep:n] Limits the number of returned graphs to $n$. 
@@ -445,7 +440,7 @@
 		\item[recombinations:[n]] Specifies the number of recombination (fusing) events for 
 		\texttt{geneticAlgorithm}. Default $n=100$.
 			
-		\item[severity:[n]] Specifies severity of selection against sub-optimal graph solutions events 
+		\item[severity:[n]] Specifies the severity of selection against sub-optimal graph solutions events 
 		for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. Default $n=1.0$.
 			
 		\item[steps:n] Specifies that $n$ (default 10) temperature steps are performed during simulated 
@@ -670,10 +665,11 @@
 		\texttt{set(arg0:option, arg1:option, ...)}
 	
 	\begin{phygdescription}
-		{The command specifies a number of global values and options include outgroup, 
-		graph type, final assignment, and optimality criterion. All \texttt{Set} commands
-		are executed at the start of a run. The command \texttt{Transform} is used to modify 
-		global settings during a run.}
+		{Changes the settings of \phyg. This command performs an array of functions
+		from specifying the seed of the random number generator, to selecting a terminal for
+		rooting output trees, to specifying  graph type, final assignment, and 
+		optimality criterion. All \texttt{set} commands are executed at the start of a run. 
+		The command \texttt{transform} is used to modify global settings during a run.}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -682,21 +678,21 @@
 			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
 			trees are equal.
 			
-			\item[criterion:parsimony|pmdl] Sets the optimiality criterion for graph search to be 
+			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
 			method. Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
 			
 			\item[finalAssignment:DirectOptimization|DO|ImpliedAlignment|IA] Sets the method 
-			of determining the ``final'' sequence states. DirectOptimization (DO) uses the DO 
+			of determining the ``final'' sequence states. DirectOptimization (DO) uses soft-wire the DO 
 			method to assign the final states, which is more time consuming than \texttt{ImpliedAlignment}. 
 			DO has an additional factor of potentially $O(n^2)$ in sequence length compared 
 			to the constant factor for IA due to additional graph traversals.
 			
-			\item[graphFactor:nopenalty|W15|PMDL] Sets the network penalty for a softwired network 
-			(\texttt{nopenalty|W15}) or \texttt{PMDL} (for criterion = PMDL). W15 employs the
+			\item[graphFactor:nopenalty|W15|PMDL] Sets the network penalty for a soft-wired network\\ 
+			(\texttt{|W15}) or \texttt{PMDL} (for criterion = PMDL). W15 employs the
 			parsimony network penalty of \cite{Wheeler2015}.
 			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
-			hardwired network, or softwired network. Forest are allowed by the network options.
+			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
 			\item[outgroup:"Blah"] Makes the outgroup taxon ``Blah''. 
 			
@@ -704,6 +700,9 @@
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
 			The W15 root cost is based on the same rationale as the parsimony network penalty of
 			 \cite{Wheeler2015}.
+			 
+			 \item[seed:INTEGER] Sets the seed for the random number generator using the integer
+			 value. If unspecified, \phyg uses the system time as the seed.
 		\end{description}
 					
 	\subsubsection{Defaults} 
