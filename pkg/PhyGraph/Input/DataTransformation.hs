@@ -390,7 +390,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
             let (minRange, maxRange) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
 
                 foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
-                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbolsWOGap foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}

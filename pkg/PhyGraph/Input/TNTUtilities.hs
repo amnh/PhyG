@@ -150,8 +150,8 @@ getTNTData inString fileName =
                         in
                         -- trace (show (curNames, curData'))
                         (zip curNames curData',charInfoData')
-                    ) --) --)
-                    where printOrSpace a = C.isPrint a || C.isSpace a
+                    ) -- ) )
+                    where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 -- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
 -- lines later
