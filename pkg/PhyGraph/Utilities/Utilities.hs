@@ -36,33 +36,27 @@ Portability :  portable (I hope)
 
 module Utilities.Utilities  where
 
-import qualified Data.Vector as V
-import           Data.Maybe
-import qualified Data.List as L
-import           Data.BitVector.LittleEndian (BitVector)
+import           Data.Alphabet
+import           Data.Alphabet.IUPAC
 import qualified Data.BitVector.LittleEndian as BV
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE
-import Data.Alphabet
-import Data.Alphabet.Codec
-import Data.Alphabet.IUPAC
+import qualified Data.List                   as L
+import qualified Data.List.NonEmpty          as NE
+import           Data.Maybe
+import qualified Data.Vector                 as V
 -- import Data.Alphabet.Special
-import Data.Foldable
-import Data.Bits
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Bimap as BM
-import Types.Types
-import           Data.Text.Short (ShortText)
+import qualified Data.Bimap                  as BM
+import           Data.Bits
+import           Data.Foldable
+import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
-import qualified GeneralUtilities as GU
-import Debug.Trace
-import qualified Utilities.LocalGraph as LG
-import qualified Data.Text.Lazy  as T
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
+import           Debug.Trace
+import           GeneralUtilities
+import qualified GeneralUtilities            as GU
 import qualified SymMatrix                   as S
-import GeneralUtilities
+import           Types.Types
+import qualified Utilities.LocalGraph        as LG
 
 -- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
 getblockInsertDataCost :: BlockData -> Double
@@ -72,7 +66,7 @@ getblockInsertDataCost (_, characterDataVV, charInfoV) =
 -- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
 -- for all characters in a block
 getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
-getLeafInsertCost charInfoV charDataV = 
+getLeafInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
 -- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
@@ -83,8 +77,8 @@ getCharacterInsertCost inChar charInfo =
         inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
     in
     if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ stateBVPrelim inChar) 
-    else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ packedNonAddPrelim inChar) 
+    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ stateBVPrelim inChar)
+    else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ packedNonAddPrelim inChar)
     else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
     else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
@@ -95,7 +89,7 @@ getCharacterInsertCost inChar charInfo =
     else error ("Character type unimplemented : " ++ show localCharType)
 
 
--- | splitSequence takes a ShortText divider and splits a list of ShortText on 
+-- | splitSequence takes a ShortText divider and splits a list of ShortText on
 -- that ShortText divider consuming it akin to Text.splitOn
 splitSequence :: ST.ShortText -> [ST.ShortText] -> [[ST.ShortText]]
 splitSequence partitionST stList =
@@ -110,7 +104,7 @@ splitSequence partitionST stList =
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: Bits b => Alphabet String -> b -> String
-bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol mempty indices 
+bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol mempty indices
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
@@ -143,12 +137,12 @@ matrixStateToString inStateVect =
         statesStringList = fmap show minCostStates
     in
     if length statesStringList == 1 then head statesStringList
-    else 
+    else
         "[" ++ (L.intercalate " " statesStringList) ++ "]"
 
 
 
--- | additivStateToString take an additive range and prints single state if range equal or 
+-- | additivStateToString take an additive range and prints single state if range equal or
 -- [a-b] if not
 additivStateToString :: (Int, Int) -> String
 additivStateToString (a,b) = if a == b then show a
@@ -197,7 +191,7 @@ vectMaybeHead inVect =
     if V.null inVect then Nothing
     else Just (V.head inVect)
 
--- vectResolveMaybe takes a Vector of Maybe a 
+-- vectResolveMaybe takes a Vector of Maybe a
 -- and returns Just a or V.empty
 vectResolveMaybe :: V.Vector (Maybe a) -> V.Vector a
 vectResolveMaybe inVect =
@@ -270,7 +264,7 @@ safeVectorHead inVect =
 -- | get leftRightChilLabelBV takes a pair of vertex labels and returns left and right
 -- based on their bitvector representation.  This ensures left/right consistancey in
 -- pre and postoder passes, and with bitvectors of leaves determined by data hash,
--- ensures label invariance with repect to leaves 
+-- ensures label invariance with repect to leaves
 -- larger bitvector goes second (bigge)
 leftRightChildLabelBV :: (VertexInfo, VertexInfo) -> (VertexInfo, VertexInfo)
 leftRightChildLabelBV inPair@(firstNode, secondNode) =
@@ -283,7 +277,7 @@ leftRightChildLabelBV inPair@(firstNode, secondNode) =
 -- | get leftRightChildLabelBVNode takes a pair ofnodes and returns left and right
 -- based on their bitvector representation.  This ensures left/right consistancey in
 -- pre and postoder passes, and with bitvectors of leaves determined by data hash,
--- ensures label invariance with repect to leaves 
+-- ensures label invariance with repect to leaves
 -- larger bitvector goes second (bigge)
 leftRightChildLabelBVNode :: (LG.LNode VertexInfo, LG.LNode VertexInfo) -> (LG.LNode VertexInfo, LG.LNode VertexInfo)
 leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
@@ -294,12 +288,12 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
     else inPair
 
 
--- | prettyPrintVertexInfo returns a string with formated version of 
+-- | prettyPrintVertexInfo returns a string with formated version of
 -- vertex info
 prettyPrintVertexInfo :: VertexInfo -> String
 prettyPrintVertexInfo inVertData =
     let zerothPart = "Vertex name " ++ T.unpack (vertName inVertData) ++ " Index " ++ show (index inVertData)
-        firstPart = "\n\tBitVector (as number) " ++ show (BV.toUnsignedNumber $ bvLabel inVertData)
+        firstPart = "\n\tBitVector (as number) " ++ (show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int))
         secondPart = "\n\tParents " ++ show (parents inVertData) ++ " Children " ++ show (children inVertData)
         thirdPart = "\n\tType " ++ show (nodeType inVertData) ++ " Local Cost " ++ show (vertexCost inVertData) ++ " SubGraph Cost " ++ show (subGraphCost inVertData)
         fourthPart = "\n\tData Blocks: " ++ show (V.length $ vertData inVertData) ++ " Characters (by block) " ++ show (V.length <$> vertData inVertData)
@@ -312,31 +306,31 @@ prettyPrintVertexInfo inVertData =
 add3 :: (Num a) => a -> a -> a -> a
 add3 x y z = x + y + z
 
--- | getProcessDataByBlock takes ProcessData and returns a list of Processed data with one block 
+-- | getProcessDataByBlock takes ProcessData and returns a list of Processed data with one block
 -- per processed data element
 -- argument to filter terminals with missing taxa
 -- wraps around getProcessDataByBlock' with counter
-getProcessDataByBlock :: Bool -> ProcessedData -> [ProcessedData] 
+getProcessDataByBlock :: Bool -> ProcessedData -> [ProcessedData]
 getProcessDataByBlock filterMissing (nameVect, nameBVVect, blockDataVect) = reverse $ getProcessDataByBlock' filterMissing 0 (nameVect, nameBVVect, blockDataVect)
 
 
 -- | getProcessDataByBlock' called by getProcessDataByBlock with counter
 -- and later reversed
-getProcessDataByBlock' :: Bool -> Int -> ProcessedData -> [ProcessedData] 
-getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVect) = 
+getProcessDataByBlock' :: Bool -> Int -> ProcessedData -> [ProcessedData]
+getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVect) =
     if V.null blockDataVect then []
     else if counter == (V.length blockDataVect) then []
-    else 
+    else
         let thisBlockData = blockDataVect V.! counter
         in
         if not filterMissing then (nameVect, nameBVVect, V.singleton thisBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
-        else 
+        else
             let (blockName, charDataLeafVect, blockCharInfo) = thisBlockData
                 isMissingVect = V.map V.null charDataLeafVect
                 (nonMissingNameVect, nonMissingBVVect, nonMissingLeafData, _) = V.unzip4 $ V.filter ((== False) . GU.fth4) (V.zip4 nameVect nameBVVect charDataLeafVect isMissingVect)
                 nonMissingBlockData = (blockName, nonMissingLeafData, blockCharInfo)
             in
-            (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect) 
+            (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
 
 
 -- | copyToNothing takes VertexBlockData and copies to VertexBlockDataMaybe
@@ -351,33 +345,33 @@ copyToNothing vbd = fmap setNothing vbd
 copyToJust :: VertexBlockData -> VertexBlockDataMaybe
 copyToJust vbd = fmap (fmap Just) vbd
 
--- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost, 
+-- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost,
 -- candidate graph cost (e') and a uniform random integer and returns a Bool to accept or reject
 -- the candidate solution
--- the basic method is 
+-- the basic method is
 --  1) accepts if current is better
 --  2) Other wise prob accept = exp(-(e' -e)/T)
--- where T is a step from max to min 
+-- where T is a step from max to min
 -- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
 -- curStep == 0 random walk (always accept)
 -- curStep == (numSteps -1) greedy False is not better
 simAnnealAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 simAnnealAccept inParams curBestCost candCost  =
     if inParams == Nothing then error "simAnnealAccept Simulated anneling parameters = Nothing"
-    
+
     -- drifting probs
     else if (method $ fromJust inParams) == Drift then
         driftAccept inParams curBestCost candCost
 
     -- simulated annealing probs
-    else 
+    else
         let simAnealVals =  fromJust inParams
             numSteps = numberSteps simAnealVals
             curStep  = currentStep simAnealVals
             randIntList = randomIntegerList simAnealVals
 
             stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-            tempFactor = curBestCost  * stepFactor 
+            tempFactor = curBestCost  * stepFactor
 
             candCost' = if curBestCost == candCost then candCost + 1
                         else candCost
@@ -396,21 +390,21 @@ simAnnealAccept inParams curBestCost candCost  =
         in
         -- lowest cost-- greedy
         -- trace ("RA " ++ (show intAccept)) (
-        if candCost < curBestCost then 
-                --trace ("SAB: " ++ (show curStep) ++ " True") 
+        if candCost < curBestCost then
+                --trace ("SAB: " ++ (show curStep) ++ " True")
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " ++ (show curStep) ++ " False") 
+                -- trace ("SAEnd: " ++ (show curStep) ++ " False")
                 (False, nextSAParams)
-        
+
         -- test for non-lowest temp conditions
-        else if intRandVal < intAccept then 
-                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True") 
+        else if intRandVal < intAccept then
+                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True")
                 (True, nextSAParams)
-        else 
-                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False") 
+        else
+                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False")
                 (False, nextSAParams)
         -- )
 
@@ -418,36 +412,36 @@ simAnnealAccept inParams curBestCost candCost  =
 incrementSimAnnealParams :: Maybe SAParams -> Maybe SAParams
 incrementSimAnnealParams inParams =
     if inParams == Nothing then error "incrementSimAnnealParams Simulated anneling parameters = Nothing"
-    else 
+    else
         let curStep = currentStep $ fromJust inParams
             curChanges = driftChanges $ fromJust inParams
             randList = tail $ randomIntegerList $ fromJust inParams
         in
 
         -- simulated annelaing temperature step
-        if method (fromJust inParams) == SimAnneal then 
+        if method (fromJust inParams) == SimAnneal then
             Just $ (fromJust inParams) { currentStep = curStep + 1
                                        , randomIntegerList = randList
                                        }
         -- drifting change number
-        else 
+        else
             Just $ (fromJust inParams) { driftChanges = curChanges + 1
                                        , randomIntegerList = randList
                                        }
 
--- | generateUniqueRandList take a int and simulated anealing parameter slist and creates 
+-- | generateUniqueRandList take a int and simulated anealing parameter slist and creates
 -- a list of SA paramter values with unique rnandomInt lists
 -- sets current step to 0
 generateUniqueRandList :: Int -> Maybe SAParams -> [Maybe SAParams]
 generateUniqueRandList number inParams =
     if number == 0 then []
     else if inParams == Nothing then replicate number Nothing
-    else 
-        let randIntList = randomIntegerList $ fromJust inParams  
+    else
+        let randIntList = randomIntegerList $ fromJust inParams
             randSeedList = take number randIntList
             randIntListList = fmap GU.randomIntList randSeedList
             -- simAnnealParamList = replicate number inParams
-            newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList 
+            newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList
         in
         -- trace (show $ fmap (take 1) randIntListList)
         newSimAnnealParamList
@@ -459,7 +453,7 @@ generateUniqueRandList number inParams =
 driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 driftAccept simAnealVals curBestCost candCost  =
     if simAnealVals == Nothing then error "Nothing value in driftAccept"
-    else 
+    else
         let curNumChanges = driftChanges $ fromJust simAnealVals
             randIntList = randomIntegerList $ fromJust simAnealVals
 
@@ -478,19 +472,19 @@ driftAccept simAnealVals curBestCost candCost  =
             -- not always incrementing becasue may not result in changes
             nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
             nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
-        
+
         in
         -- only increment nnumberof changes for True values
-        if candCost < curBestCost then 
+        if candCost < curBestCost then
             -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
             (True, nextSAParams)
 
-        else if intRandVal < intAccept then 
+        else if intRandVal < intAccept then
             -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
             (True, nextSAParams)
 
-        else 
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False") 
+        else
+            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False")
             (False, nextSAPAramsNoChange)
             -- )
 
@@ -507,7 +501,7 @@ getTraversalCosts inGraph =
 
 -- | getCharacterLengths returns a the length of block characters
 getCharacterLength :: CharacterData -> CharInfo -> Int
-getCharacterLength inCharData inCharInfo = 
+getCharacterLength inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in
     -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
@@ -521,7 +515,7 @@ getCharacterLength inCharData inCharInfo =
       x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
       x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
       x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
-      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData 
+      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData
       _                                -> error ("Un-implemented data type " ++ show inCharType)
       -- )
 
@@ -531,14 +525,14 @@ getCharacterLength' inCharInfo inCharData = getCharacterLength inCharData inChar
 
 -- | getMaxCharacterLengths get maximum charcter legnth from a list
 getMaxCharacterLength :: CharInfo -> [CharacterData] -> Int
-getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList 
+getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList
 
 
 -- | getSingleTaxon takes a taxa x characters block and an index and returns the character vector for that index
 getSingleTaxon :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
 getSingleTaxon singleCharVect taxonIndex = fmap (V.! taxonIndex) singleCharVect
 
--- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each 
+-- | glueBackTaxChar takes single chartacter taxon vectors and glues them back inot multiple characters for each
 -- taxon as expected in Blockdata.  Like a transpose.  FIlters out zero length characters
 glueBackTaxChar :: V.Vector (V.Vector CharacterData) -> V.Vector (V.Vector CharacterData)
 glueBackTaxChar singleCharVect =
@@ -548,7 +542,7 @@ glueBackTaxChar singleCharVect =
     multiCharVect
 
 -- | getSingleCharacter takes a taxa x characters block and an index and returns the character vector for that index
--- resulting in a taxon by single charcater vector 
+-- resulting in a taxon by single charcater vector
 getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
 getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
 

@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 {-
 Functions to input TNT file reading for PhyG
-    This is far from complete wrt TNT functionality 
+    This is far from complete wrt TNT functionality
     Deals with scope and add/nonadd/sankloff
                ccode, ccosts
                Ambiguities in "dense" tnt rows (single character states, no spaces)
@@ -47,7 +47,7 @@ Functions to input TNT file reading for PhyG
 One Big thing--
     For multicharacter states--
         the parsing assumes there is more than one multicharacter character.
-        Can easily add a char from single-state (with spaces) 
+        Can easily add a char from single-state (with spaces)
         But the parsing relies on counting hte number of "words" in a line of data
             if 2--single character states
             if > 2 --multicharacter states.
@@ -58,24 +58,25 @@ One Big thing--
 module Input.TNTUtilities  (getTNTData
                       ) where
 
-import Data.Alphabet
-import Data.Foldable
-import           Types.Types
-import           Debug.Trace
+import           Data.Alphabet
 import           Data.Char
-import qualified Data.Char as C
-import qualified Data.List as L
+import qualified Data.Char                 as C
+import           Data.Foldable
+import qualified Data.List                 as L
 import           Data.Maybe
-import qualified Data.Set  as Set
-import qualified Data.Text.Lazy  as T
-import qualified Data.Text.Short as ST
-import qualified Input.DataTransformation as DT
-import           Text.Read
-import qualified SymMatrix as SM
-import qualified GeneralUtilities as GU
 import           Data.MetricRepresentation
+import qualified Data.Set                  as Set
 import qualified Data.TCM                  as TCM
-import qualified Input.FastAC  as FAC
+import qualified Data.Text.Lazy            as T
+import qualified Data.Text.Short           as ST
+import           Debug.Trace
+import qualified GeneralUtilities          as GU
+import qualified Input.DataTransformation  as DT
+import qualified Input.FastAC              as FAC
+import qualified SymMatrix                 as SM
+import qualified Data.Vector               as V
+import           Text.Read
+import           Types.Types
 
 
 
@@ -119,7 +120,8 @@ getTNTData inString fileName =
                         --dataBlock = filter ((>0).T.length) $ fmap (T.filter C.isPrint) $ take (fromJust semiColonLineNumber) restFile
                         charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
-                        (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        -- (interleaveNumber, interleaveRemainder) = numDataLines `quotRem` numTax
+                        (_, interleaveRemainder) = numDataLines `quotRem` numTax
                     in
                     -- trace (show dataBlock ++ "\n" ++ show (interleaveNumber, interleaveRemainder, numDataLines, numTax)) (
                     if interleaveRemainder /= 0 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--number of taxa mis-specified or interleaved format error ")
@@ -148,8 +150,8 @@ getTNTData inString fileName =
                         in
                         -- trace (show (curNames, curData'))
                         (zip curNames curData',charInfoData')
-                    ) --) --)
-                    where printOrSpace a = C.isPrint a || C.isSpace a
+                    ) -- ) )
+                    where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 -- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
 -- lines later
@@ -171,7 +173,7 @@ glueInterleave :: String -> [T.Text] -> Int -> Int -> [(T.Text, [String])] -> [T
 glueInterleave fileName lineList numTax numChars curData
   | null lineList =
     -- recheck num taxa
-    -- check chars after process due to ambiguities 
+    -- check chars after process due to ambiguities
     if length curData /= numTax then error ("Error in glueInterleave: final taxon number error: " ++ show numTax ++ " vs. " ++ show (length curData))
     else
         let nameList = fmap fst curData
@@ -227,7 +229,7 @@ collectMultiCharAmbiguities fileName inStringList =
         else firstString : collectMultiCharAmbiguities fileName (tail inStringList)
         --)
 
--- | collectAmbiguities take a list of Strings and collects TNT ambiguities [XY] 
+-- | collectAmbiguities take a list of Strings and collects TNT ambiguities [XY]
 -- into single Strings
 -- this only for single 'block' TNT characters where states are a single character
 collectAmbiguities :: String -> [String] -> [String]
@@ -259,6 +261,7 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
+                                , origInfo   = V.singleton (T.empty, NonAdd, fromSymbols [])
                                 }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
@@ -325,7 +328,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " character status processing error:  option not recognized/implemented " ++ (T.unpack charStatus))
-        --else 
+        --else
         updatedCharInfo
 
 
@@ -377,7 +380,7 @@ makeMatrix fileName localAlphabet transCosts
 
 -- | getTransformationCosts get state pairs and their costs
 -- retuns as (i,j,k) = i->j costs k
--- need to make this gerneral to letter states 
+-- need to make this gerneral to letter states
 getTransformationCosts :: String -> [ST.ShortText]-> [T.Text] -> [(Int, Int, Int)]
 getTransformationCosts fileName localAlphabet wordList
   | null wordList = []
@@ -407,7 +410,7 @@ getTransformationCosts fileName localAlphabet wordList
             in
             newTripleList ++ getTransformationCosts fileName localAlphabet (drop 2 wordList)
         else
-            -- states are characters (or multicharacters) 
+            -- states are characters (or multicharacters)
             let fromStateIndex = L.elemIndex (ST.fromText $ T.toStrict fromStateText) localAlphabet
                 toStateIndex   = L.elemIndex (ST.fromText $ T.toStrict toStateText) localAlphabet
                 newTripleList  = if isNothing symetricalOperator then [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost)]
@@ -419,7 +422,7 @@ getTransformationCosts fileName localAlphabet wordList
 
 
 -- | getAlphabetElements takes  Text and returns non '/' '>' elements
--- this is for a single "block" as in A1>G2 or C>T 
+-- this is for a single "block" as in A1>G2 or C>T
 getAlphabetElements :: T.Text -> [ST.ShortText]
 getAlphabetElements inText =
     if T.null inText then []
@@ -470,9 +473,9 @@ scopeToIndex fileName numChars scopeText =
 
 -- | getNewCharInfo updates the a specific list character element
 -- if that char is not in index list it is unaffected and added back to create the new list
--- in a single pass. 
+-- in a single pass.
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
--- othewise return the reverse since new values are prepended 
+-- othewise return the reverse since new values are prepended
 getNewCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
 getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
@@ -509,9 +512,9 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
 
 -- | newCharInfoMatrix updates alphabet and tcm matrix for characters in indexList
 -- if that character is not in index list it is unaffected and added back to create the new list
--- in a single pass. 
+-- in a single pass.
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
--- othewise retiurn the reverse since new values are prepended 
+-- othewise retiurn the reverse since new values are prepended
 newCharInfoMatrix :: [CharInfo] -> [ST.ShortText] -> [[Int]] -> [Int] -> Int -> [CharInfo] -> [CharInfo]
 newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
@@ -524,14 +527,14 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList) 
-        else 
+        if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList)
+        else
             let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
             -- trace ("TNT2" ++ (show $ alphabet updatedCharInfo))
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
--- | reconcileAlphabetAndCostMatrix trakes the original charcater alphabet created from the cost matrix and compares to the  
+-- | reconcileAlphabetAndCostMatrix trakes the original charcater alphabet created from the cost matrix and compares to the
 -- observed states.  If observed states are a subset of the inferred, the inferred are used to replace the original
 -- this could happen if a matrix is specified for arange of characters, some of which do not exhibit all the states
 -- otherwsie an error is thrown since states done't agree with m,artrix specification
@@ -556,7 +559,7 @@ reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphab
         ]
 
 isAlphabetSubsetOf :: Ord s => Alphabet s -> Alphabet s -> Bool
-isAlphabetSubsetOf specialAlphabet queryAlphabet = 
+isAlphabetSubsetOf specialAlphabet queryAlphabet =
     let querySet   = alphabetSymbols   queryAlphabet
         specialSet = alphabetSymbols specialAlphabet
     in  querySet `Set.isSubsetOf` specialSet
@@ -589,10 +592,10 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo
 -- | getAlphabetFromSTList take a list of ST.ShortText and returns list of unique alphabet elements,
 -- recodes decimat AB.XYZ to ABXYZ and reweights by that factor 1/1000 for .XYZ 1/10 for .X etc
 -- checks if char is additive for numerical alphabet
-getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> (Alphabet ST.ShortText, Double, [ST.ShortText]) 
-getAlphabetFromSTList fileName inStates inCharInfo = 
-  if null inStates then error "Empty column data in getAlphabetFromSTList" 
-  else 
+getAlphabetFromSTList :: String -> [ST.ShortText] -> CharInfo -> (Alphabet ST.ShortText, Double, [ST.ShortText])
+getAlphabetFromSTList fileName inStates inCharInfo =
+  if null inStates then error "Empty column data in getAlphabetFromSTList"
+  else
     let thisType = charType inCharInfo
         thisWeight = weight inCharInfo
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
@@ -625,15 +628,15 @@ getDecimals inChar =
                 sndChar = if '.' `elem` last rangeStringList then dropWhile (/= '.') (last rangeStringList)
                           else ['.']
             in
-            -- trace (fstChar ++ " " ++ sndChar) 
+            -- trace (fstChar ++ " " ++ sndChar)
             max (length fstChar) (length sndChar) - 1
             --)
 
 
 -- | getAlphWithAmbiguity take a list of ShortText with information and accumulatiors
--- For both nonadditive and additve looks for [] to denote ambiguity and splits states 
+-- For both nonadditive and additve looks for [] to denote ambiguity and splits states
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
---  else if no spaces 
+--  else if no spaces
 --    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep

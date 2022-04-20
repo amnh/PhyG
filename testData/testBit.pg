@@ -1,4 +1,8 @@
--- test bit packing 
-read("test0.ss")
-build(distance, dwag)
-report("test0-bit.tre", graph, newick, overwrite)
+-- test bit packing
+--set(graphType:softwired) 
+read("IE.MT.tnt")
+--read("IE.Y.tnt")
+--read("IE.X.tnt")
+build(distance, rdwag, replicates:10)
+swap(TBR, all, ia)
+report("IE-some.tre", graphs, newick, overwrite)

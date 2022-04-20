@@ -1,6 +1,6 @@
 {- |
 Module      :  Debug.hs
-Description :  Module with Debug version of functions 
+Description :  Module with Debug version of functions
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 

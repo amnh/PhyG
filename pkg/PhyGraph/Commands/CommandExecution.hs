@@ -51,12 +51,9 @@ import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as SV
 import qualified Data.Vector.Unboxed    as UV
-import           Data.Time
-import           Data.Time.Clock.POSIX
 import           Debug.Trace
 import           GeneralUtilities
 import           GraphFormatUtilities
-import qualified Graphs.GraphOperations as GO
 import           System.IO
 import           Types.Types
 import qualified Utilities.LocalGraph   as LG
@@ -69,8 +66,6 @@ import qualified Search.Refinement as REF
 import qualified Search.Search as S
 import qualified Commands.Transform as TRANS
 import System.Timing
-import Control.DeepSeq
-import           Control.Concurrent
 import qualified Support.Support as SUP
 import           Data.Char
 import qualified Data.List.Split as SL 
@@ -79,24 +74,14 @@ import GraphOptimization.Traversals as TRAV
 import System.Info
 import System.Process
 import System.Directory
-import qualified Commands.Transform as TRANS
 import qualified SymMatrix                   as S
 import           Data.Alphabet
 import Data.Bits
+import qualified Commands.Verify             as VER
+import qualified Input.Reorganize            as IR
 
 
--- | setArgLIst contains valid 'set' arguments
-setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed"]
 
--- | reportArgList contains valid 'report' arguments
-reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"]
-
-
--- | buildArgList is the list of valid build arguments
-selectArgList :: [String]
-selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
@@ -168,7 +153,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             executeCommands (globalSettings {searchData = newSearchData})  rawData origProcessedData processedData  (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Select then do
-            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) selectArgList curGraphs
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) VER.selectArgList curGraphs
                 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
@@ -238,7 +223,7 @@ setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalS
 setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
-        checkCommandList = checkCommandArgs "set" commandList setArgList
+        checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
 
     in
@@ -329,14 +314,14 @@ setCommand argList globalSettings processedData inSeedList =
 -- and write mode overwrite/append
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
-    let argListWithoutReconcileCommands = filter ((`notElem` R.reconcileCommandList) .fst) argList
+    let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList
     in
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " ++ (show outFileNameList) ++ " " ++ (show argList))
     else
-        let checkCommandList = checkCommandArgs "report" commandList reportArgList
+        let checkCommandList = checkCommandArgs "report" commandList VER.reportArgList
             outfileName = if null outFileNameList then "stderr"
                           else tail $ init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
@@ -386,6 +371,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     (blockStringList, outfileName, writeMode)
 
             else if "graphs" `elem` commandList then
+            --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs then 
@@ -411,11 +397,11 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph R.reconcileCommandList argList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst6 curGraphs)
                 in
                 if null curGraphs then 
                     trace ("No graphs to reconcile")
-                    ("No graphs to reconcile", outfileName, writeMode)
+                    ([], outfileName, writeMode)
                 else 
                     (reconcileString, outfileName, writeMode)
 
@@ -431,7 +417,7 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                 in
                 -- trace ("Rep Sup: " ++ (LG.prettify $ fst6 $ head supportGraphs)) (
                 if null supportGraphs then 
-                    trace ("No support graphs to report")
+                    trace ("\tNo support graphs to report")
                     ([], outfileName, writeMode)
                 else 
                 trace ("Reporting " ++ (show $ length curGraphs) ++ " support graph(s)")
@@ -447,7 +433,17 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     in
                     (concat tntContentList, outfileName, writeMode)
            
-            else trace ("Warning--unrecognized/missing report option in " ++ show commandList) ("No report specified", outfileName, writeMode)
+            else 
+                trace ("\nWarning--unrecognized/missing report option in " ++ (show commandList) ++ " defaulting to 'graphs'") (
+                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                in
+                if null curGraphs then 
+                    trace ("No graphs to report")
+                    ("No graphs to report", outfileName, writeMode)
+                else 
+                    trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs) ++"\n")
+                    (graphString, outfileName, writeMode)
+                )
 
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.
@@ -499,7 +495,7 @@ printGraphVizDot graphDotString dotFile =
                 "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
         -}
         if isJust pCode then do
-            cpResult  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
+            _  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
             hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ " " ++ dotFile ++ " -O ") 
         else 
             hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
@@ -509,7 +505,7 @@ printGraphVizDot graphDotString dotFile =
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
     [show $ instruction sD, concat $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
-    show $ (fromIntegral $ duration sD) / 1000, commentString sD]
+    show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD]
     where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
@@ -939,7 +935,7 @@ getCharCodeInfo inCharInfo =
                            else show $ weight inCharInfo
         inAlph  = alphabet inCharInfo
         inMatrix = costMatrix inCharInfo
-        (costMatrixType, _) = TRANS.getRecodingType inMatrix
+        (costMatrixType, _) = IR.getRecodingType inMatrix
         matrixString = if costMatrixType == "nonAdd" then ""
                        else makeMatrixString inAlph inMatrix
     in
@@ -1030,14 +1026,6 @@ bitVectToCharStringTNT localAlphabet bitValue =
     if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
     else stateString
 
--- | bitVectToCharNumTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharNumTNT ::  Bits b => Alphabet String -> b -> String
-bitVectToCharNumTNT localAlphabet bitValue = 
-    let stateString = U.bitVectToCharState localAlphabet bitValue
-    in
-    if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
-    else stateString
-
 -- | Implied Alignment report functions
 
 -- | getImpliedAlignmentString returns as a single String the implied alignments of all sequence characters
@@ -1078,7 +1066,7 @@ getImpliedAlignmentString inGS inData inGraph graphNumber =
 
                 newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
 
-                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 newGraph
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)

@@ -27,9 +27,9 @@ with-compiler: ghc-9.2.2
 -- and log files of the build/benchmarks/tests should go in `log`.
 ---------------------------------------------------------------------------------
 
-datadir:          ./data
-docdir:           ./doc
-htmldir:          ./doc/html
+-- datadir:          ./data
+-- docdir:           ./doc
+-- htmldir:          ./doc/html
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log

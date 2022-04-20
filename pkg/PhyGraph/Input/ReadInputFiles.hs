@@ -45,13 +45,14 @@ module Input.ReadInputFiles
  , expandReadCommands
 ) where
 
+import qualified Commands.Verify            as V
 import           Data.Char
+import qualified Data.Char                  as C
 import           Data.Foldable
 import qualified Data.Graph.Inductive.Basic as B
 import qualified Data.List                  as L
 import qualified Data.Text.Lazy             as T
 import qualified Data.Text.Short            as ST
-import qualified Data.Char as C
 import           Debug.Trace
 import qualified GeneralUtilities           as GU
 import qualified GraphFormatUtilities       as GFU
@@ -88,7 +89,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
 -- globbed file name list to create a list of arguments
 makeNewArgs :: (String, [String]) -> [(String, String)]
 makeNewArgs (modifier, fileNameList) =
-    if null fileNameList then error ("Null filename list in makeNewArgs: " ++ (show $ (modifier, fileNameList))) 
+    if null fileNameList then error ("Null filename list in makeNewArgs: " ++ (show $ (modifier, fileNameList)))
     else let modList = replicate (length fileNameList) modifier
          in  zip modList fileNameList
 
@@ -120,7 +121,7 @@ executeReadCommands :: [Argument]
                     -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 executeReadCommands = executeReadCommands' [] [] [] [] [] [] False ([],[],1.0)
 
--- | executeReadCommands' reads iput files and returns raw data, input graphs, and terminal taxa to include
+-- | executeReadCommands' reads input files and returns raw data, input graphs, and terminal taxa to include
 -- assumes that "prealigned" and "tcm:File" are the first arguments if they are specified
 -- so that they can apply to all the files in the command without order depence
 executeReadCommands' :: [RawData]
@@ -244,7 +245,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                   
+
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
                         let fastaData = FAC.getFastA  "prealigned" fileContents firstFile
@@ -252,7 +253,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    
+
                     -- prealigned fastc
                     else if firstOption `elem` ["prefastc", "precustom_alphabet"]  then
                         let fastcData = FAC.getFastC firstOption fileContents firstFile
@@ -297,7 +298,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
--- for renaming or reblocking  
+-- for renaming or reblocking
 makeNamePairs :: String -> String -> [(T.Text, T.Text)]
 makeNamePairs inFileName inLine =
     if null inLine then []
@@ -312,11 +313,6 @@ makeNamePairs inFileName inLine =
             renamePairList
 
 
--- | Read arg list allowable modifiers in read
-readArgList :: [String]
-readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
-    "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
 
 -- | getReadArgs processes arguments ofr the 'read' command
 -- should allow mulitple files and gracefully error check
@@ -333,7 +329,7 @@ getReadArgs fullCommand argList =
             if (head secondPart == '"') || (last secondPart == '"') then (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
             else errorWithoutStackTrace ("\n\n'Read' command error (*) '" ++ secondPart ++"' : Need to specify filename in double quotes")
         -- Change to allowed modifiers
-        else if fmap toLower firstPart `notElem` readArgList then
+        else if fmap toLower firstPart `notElem` V.readArgList then
             errorWithoutStackTrace ("\n\n'Read' command error (**): " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
         else if null secondPart && (firstPart == "prealigned")  then
             (firstPart, []) : getReadArgs fullCommand (tail argList)

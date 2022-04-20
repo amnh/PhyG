@@ -34,10 +34,13 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE DerivingStrategies, DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Types.Types where
 
+import           Control.DeepSeq
 import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.MetricRepresentation   as MR
@@ -47,13 +50,11 @@ import qualified Data.Text.Short             as ST
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
-import qualified Data.Time.Clock             as TC
 import           Data.Word
 import           Foreign.C.Types             (CUInt)
+import           GHC.Generics
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
-import GHC.Generics 
-import Control.DeepSeq
 
 -- | Debug Flag
 isDebug :: Bool
@@ -74,7 +75,7 @@ infinity :: Double
 infinity = (read "Infinity") :: Double
 
 
--- |maxAddStatesToRecode maximum size of addditive charcater to recode into 
+-- |maxAddStatesToRecode maximum size of addditive charcater to recode into
 --non-additive charcaters 65 can fit in Word64
 maxAddStatesToRecode :: Int
 maxAddStatesToRecode = 65
@@ -152,26 +153,26 @@ data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
 data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot
     deriving stock (Show, Eq)
 
--- | Method for makeing final seqeujnce charcatert states assignment 
+-- | Method for makeing final seqeujnce charcatert states assignment
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
--- or assign based on Implied alignment --requires additional post/pre order 
+-- or assign based on Implied alignment --requires additional post/pre order
 -- traversal but is linear in sequence length
 data AssignmentMethod = DirectOptimization | ImpliedAlignment
     deriving stock (Show, Eq)
 
-data SearchData 
+data SearchData
     = SearchData
-    { instruction :: Instruction
-    , arguments   :: [Argument]
-    , minGraphCostIn :: VertexCost
-    , maxGraphCostIn :: VertexCost
-    , numGraphsIn   :: Int
+    { instruction     :: Instruction
+    , arguments       :: [Argument]
+    , minGraphCostIn  :: VertexCost
+    , maxGraphCostIn  :: VertexCost
+    , numGraphsIn     :: Int
     , minGraphCostOut :: VertexCost
     , maxGraphCostOut :: VertexCost
-    , numGraphsOut   :: Int
-    , commentString :: String
-    , duration    :: Int
+    , numGraphsOut    :: Int
+    , commentString   :: String
+    , duration        :: Int
     } deriving stock (Show, Eq)
 
 
@@ -186,7 +187,7 @@ data  GlobalSettings
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
     , rootCost            :: RootCost
     , seed                :: Int -- random seed
-    , searchData         :: [SearchData]
+    , searchData          :: [SearchData]
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -207,6 +208,7 @@ data CharInfo = CharInfo { name       :: NameText
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
+                         , origInfo   :: V.Vector (NameText, CharType, Alphabet ST.ShortText)
                          } deriving stock (Show, Eq)
 
 instance NFData CharInfo where rnf x = seq x ()
@@ -244,7 +246,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- for approximate sakoff (DO-like) costs can use stateBVPrelim/stateBVFinal
 -- for matrix/Saknoff characters-- Vector of vector of States
     --BUT all with same cost matrix/tcm
--- triples (add, no-add, sequence) are to keep children of vertex states for pre-order pass 
+-- triples (add, no-add, sequence) are to keep children of vertex states for pre-order pass
 -- order is always (left parent median, median, right parent median)
 -- do not need for matrix since up pass is a traceback from parent
 -- sequence characters are a vector of bitvectors--so only a single seqeunce character
@@ -255,7 +257,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      -- for Non-additive ans Sankoff/Matrix approximate state
                                      , stateBVFinal       :: V.Vector BV.BitVector
-                                     -- for Additive 
+                                     -- for Additive
                                      , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
                                      -- for multiple Sankoff/Matrix with slim tcm
@@ -285,7 +287,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      , hugeIAPrelim       :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeIAFinal        :: V.Vector BV.BitVector
-                                    
+
                                      -- vectors for pre-aligned sequences also used in static approx
                                      , alignedSlimPrelim  :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , alignedSlimFinal   :: SV.Vector CUInt
@@ -293,7 +295,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , alignedWideFinal   :: UV.Vector Word64
                                      , alignedHugePrelim  :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , alignedHugeFinal   :: V.Vector BV.BitVector
-                                     
+
                                      -- coiuld be made Storable later is using C or GPU/Accelerate
                                      , packedNonAddPrelim :: (V.Vector Word64, V.Vector Word64, V.Vector Word64)
                                      , packedNonAddFinal  :: V.Vector Word64
@@ -309,60 +311,7 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
 instance NFData CharacterData where rnf x = seq x ()
 
 
--- | emptyCharcater useful for intialization and missing data
-emptyCharacter :: CharacterData
-emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
-                                 , stateBVFinal       = mempty
-                                 -- for Additive
-                                 , rangePrelim        = (mempty, mempty, mempty)
-                                 , rangeFinal         = mempty
-                                 -- for multiple Sankoff/Matrix with sme tcm
-                                 , matrixStatesPrelim = mempty
-                                 , matrixStatesFinal  = mempty
-                                 -- preliminary for m,ultiple seqeunce cahrs with same TCM
-                                 , slimPrelim         = mempty
-                                 -- gapped medians of left, right, and preliminary used in preorder pass
-                                 , slimGapped         = (mempty, mempty, mempty)
-                                 , slimAlignment      = (mempty, mempty, mempty)
-                                 , slimFinal          = mempty
-                                 , slimIAPrelim       = (mempty, mempty, mempty)
-                                 , slimIAFinal        = mempty
-                                 -- gapped median of left, right, and preliminary used in preorder pass
-                                 , widePrelim         = mempty
-                                 -- gapped median of left, right, and preliminary used in preorder pass
-                                 , wideGapped         = (mempty, mempty, mempty)
-                                 , wideAlignment      = (mempty, mempty, mempty)
-                                 , wideFinal          = mempty
-                                 , wideIAPrelim       = (mempty, mempty, mempty)
-                                 , wideIAFinal        = mempty
-                                 -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                 , hugePrelim         = mempty
-                                 -- gapped mediasn of left, right, and preliminary used in preorder pass
-                                 , hugeGapped         = (mempty, mempty, mempty)
-                                 , hugeAlignment      = (mempty, mempty, mempty)
-                                 , hugeFinal          = mempty
-                                 , hugeIAPrelim       = (mempty, mempty, mempty)
-                                 , hugeIAFinal        = mempty
-                                 -- vectors for pre-aligned sequences also used in static approx
-                                 , alignedSlimPrelim  = (mempty, mempty, mempty)
-                                 , alignedSlimFinal   = mempty
-                                 , alignedWidePrelim  = (mempty, mempty, mempty)
-                                 , alignedWideFinal   = mempty
-                                 , alignedHugePrelim  = (mempty, mempty, mempty)
-                                 , alignedHugeFinal   = mempty
-
-                                 , packedNonAddPrelim = (mempty, mempty, mempty)
-                                 , packedNonAddFinal  = mempty
-
-                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                 , localCostVect      = V.singleton 0
-                                 -- weight * V.sum localCostVect
-                                 , localCost          = 0
-                                 -- unclear if need vector version
-                                 , globalCost         = 0
-                                 }
-
--- | 
+-- |
 
 -- | type TermData type contains termnal name and list of characters
 -- characters as ShortText to save space on input
@@ -418,40 +367,14 @@ data VertexInfo = VertexInfo { index        :: Int  -- For accessing
 
 instance NFData VertexInfo where rnf x = seq x ()
 
--- | emptyVertex useful for graph rearrangements
-emptyVertexInfo :: VertexInfo
-emptyVertexInfo = VertexInfo { index        = (-1)  
-                             , bvLabel      = BV.fromBits [False]
-                             , parents      = mempty 
-                             , children     = mempty 
-                             , nodeType     = TreeNode -- root, leaf, network, tree
-                             , vertName     = T.pack "EmptyVertex"
-                             , vertData     = mempty
-                             , vertexResolutionData = mempty
-                             , vertexCost   = 0.0 
-                             , subGraphCost = 0.0
-                             } 
-
--- | usefule in some cases
-dummyNode :: LG.LNode VertexInfo
-dummyNode = (-1, emptyVertexInfo)
-
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
-data  EdgeInfo = EdgeInfo   { minLength :: VertexCost
-                            , maxLength :: VertexCost
+data  EdgeInfo = EdgeInfo   { minLength      :: VertexCost
+                            , maxLength      :: VertexCost
                             , midRangeLength :: VertexCost
-                            , edgeType  :: EdgeType
+                            , edgeType       :: EdgeType
                             } deriving stock (Show, Eq, Ord)
 
 instance NFData EdgeInfo where rnf x = seq x ()
-
--- | dummyEdge for convenience
-dummyEdge :: EdgeInfo
-dummyEdge = EdgeInfo    { minLength = 0
-                        , maxLength = 0
-                        , midRangeLength = 0
-                        , edgeType  = TreeEdge
-                        } 
 
 -- | DecortatedGraph is the canonical graph contining all final information
 -- from preorder traversal trees
@@ -494,13 +417,10 @@ type SimpleGraph = LG.Gr NameText Double
 --        5) Vector of traversal foci for each character (Vector of Blocks -> Vector of Characters, a single tree for each character)
 --               vector is over blocks, then characters (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
---               one graph per character  
+--               one graph per character
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
 
--- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
-emptyPhylogeneticGraph :: PhylogeneticGraph
-emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
 
 -- | RawData type processed from input to be passed to characterData
 -- to recode into usable form
@@ -548,3 +468,90 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          , driftMaxChanges   :: Int
                          , driftChanges      :: Int
                          } deriving stock (Show, Eq)
+
+
+
+-- | empty structures for convenient use
+
+-- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
+emptyPhylogeneticGraph :: PhylogeneticGraph
+emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
+
+-- | emptyCharcater useful for intialization and missing data
+emptyCharacter :: CharacterData
+emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
+                                 , stateBVFinal       = mempty
+                                 -- for Additive
+                                 , rangePrelim        = (mempty, mempty, mempty)
+                                 , rangeFinal         = mempty
+                                 -- for multiple Sankoff/Matrix with sme tcm
+                                 , matrixStatesPrelim = mempty
+                                 , matrixStatesFinal  = mempty
+                                 -- preliminary for m,ultiple seqeunce cahrs with same TCM
+                                 , slimPrelim         = mempty
+                                 -- gapped medians of left, right, and preliminary used in preorder pass
+                                 , slimGapped         = (mempty, mempty, mempty)
+                                 , slimAlignment      = (mempty, mempty, mempty)
+                                 , slimFinal          = mempty
+                                 , slimIAPrelim       = (mempty, mempty, mempty)
+                                 , slimIAFinal        = mempty
+                                 -- gapped median of left, right, and preliminary used in preorder pass
+                                 , widePrelim         = mempty
+                                 -- gapped median of left, right, and preliminary used in preorder pass
+                                 , wideGapped         = (mempty, mempty, mempty)
+                                 , wideAlignment      = (mempty, mempty, mempty)
+                                 , wideFinal          = mempty
+                                 , wideIAPrelim       = (mempty, mempty, mempty)
+                                 , wideIAFinal        = mempty
+                                 -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                 , hugePrelim         = mempty
+                                 -- gapped mediasn of left, right, and preliminary used in preorder pass
+                                 , hugeGapped         = (mempty, mempty, mempty)
+                                 , hugeAlignment      = (mempty, mempty, mempty)
+                                 , hugeFinal          = mempty
+                                 , hugeIAPrelim       = (mempty, mempty, mempty)
+                                 , hugeIAFinal        = mempty
+                                 -- vectors for pre-aligned sequences also used in static approx
+                                 , alignedSlimPrelim  = (mempty, mempty, mempty)
+                                 , alignedSlimFinal   = mempty
+                                 , alignedWidePrelim  = (mempty, mempty, mempty)
+                                 , alignedWideFinal   = mempty
+                                 , alignedHugePrelim  = (mempty, mempty, mempty)
+                                 , alignedHugeFinal   = mempty
+
+                                 , packedNonAddPrelim = (mempty, mempty, mempty)
+                                 , packedNonAddFinal  = mempty
+
+                                     -- vector of individual character costs (Can be used in reweighting-ratchet)
+                                 , localCostVect      = V.singleton 0
+                                 -- weight * V.sum localCostVect
+                                 , localCost          = 0
+                                 -- unclear if need vector version
+                                 , globalCost         = 0
+                                 }
+
+-- | emptyVertex useful for graph rearrangements
+emptyVertexInfo :: VertexInfo
+emptyVertexInfo = VertexInfo { index        = (-1)
+                             , bvLabel      = BV.fromBits [False]
+                             , parents      = mempty
+                             , children     = mempty
+                             , nodeType     = TreeNode -- root, leaf, network, tree
+                             , vertName     = T.pack "EmptyVertex"
+                             , vertData     = mempty
+                             , vertexResolutionData = mempty
+                             , vertexCost   = 0.0
+                             , subGraphCost = 0.0
+                             }
+
+-- | usefule in some cases
+dummyNode :: LG.LNode VertexInfo
+dummyNode = (-1, emptyVertexInfo)
+
+-- | dummyEdge for convenience
+dummyEdge :: EdgeInfo
+dummyEdge = EdgeInfo    { minLength = 0
+                        , maxLength = 0
+                        , midRangeLength = 0
+                        , edgeType  = TreeEdge
+                        }

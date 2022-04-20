@@ -45,11 +45,13 @@ module Input.FastAC
 import           Control.DeepSeq
 import           Data.Alphabet
 import           Data.Bits
+import qualified Data.Char                 as C
 import           Data.Hashable
 import qualified Data.List                 as L
 import           Data.MetricRepresentation
 import qualified Data.MetricRepresentation as MR
-import           Data.TCM                  (TCMDiagnosis(..), TCMStructure(..))
+import           Data.TCM                  (TCMDiagnosis (..),
+                                            TCMStructure (..))
 import qualified Data.TCM                  as TCM
 import qualified Data.TCM.Dense            as TCMD
 import qualified Data.Text.Lazy            as T
@@ -60,7 +62,6 @@ import           GeneralUtilities
 import qualified Input.DataTransformation  as DT
 import qualified SymMatrix                 as S
 import           Types.Types
-import qualified Data.Char as C
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -97,7 +98,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
     if null inData then error "Empty inData in getFastaCharInfo"
     else
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
-            aminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
+            lAminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
             --onlyInNucleotides = [ST.fromString "U"]
             --onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
             sequenceData = getAlphabet [] $ foldMap snd inData
@@ -108,7 +109,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               | dataType == "custom_alphabet" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
               | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
                 ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-              | (sequenceData `L.intersect` aminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
+              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
                 ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
               | length sequenceData <=  8 = trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
               | length sequenceData <= 64 = trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
@@ -146,14 +147,14 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                 a          -> fromSymbols a
 
             alignedSeqType = if not isPrealigned then seqType
-                             else 
+                             else
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
                                 else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
             defaultHugeSeqCharInfo = CharInfo {
-                                               charType = alignedSeqType 
+                                               charType = alignedSeqType
                                              , activity = True
                                              , weight = tcmWeightFactor *
                                                         if seqType == HugeSeq
@@ -168,6 +169,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , name = T.pack (filter (/= ' ') dataName <> ":0")
                                              , alphabet = thisAlphabet
                                              , prealigned = isPrealigned
+                                             , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> ":0"), alignedSeqType, thisAlphabet)
                                              }
         in
         -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
@@ -194,7 +196,7 @@ getTCMMemo
 getTCMMemo (_inAlphabet, inMatrix) =
     let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric 
+                   NonAdditive -> discreteMetric
                    Additive    -> linearNorm . toEnum $ TCM.size tcm
                    _           -> metricRepresentation tcm
     in (coefficient, metric)
@@ -268,7 +270,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word]]
 
             alignedSeqType = if not isPrealigned then seqType
-                             else 
+                             else
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
                                 else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
                                 else if seqType == HugeSeq then AlignedHuge
@@ -290,6 +292,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , name = T.pack (filter (/= ' ') dataName ++ ":0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
+                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ ":0"), alignedSeqType, thisAlphabet)
                                      }
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (

@@ -40,31 +40,31 @@ Portability :  portable (I hope)
 
 module Utilities.LocalGraph  where
 
-import qualified Data.Graph.Inductive.PatriciaTree as P
-import qualified Data.Graph.Inductive.Query.DFS as DFS
-import qualified Data.Graph.Inductive.Query.BFS as BFS
+import qualified Data.Graph.Inductive.Basic          as B
+import qualified Data.Graph.Inductive.PatriciaTree   as P
 import qualified Data.Graph.Inductive.Query.ArtPoint as AP
-import qualified Data.Graph.Inductive.Basic as B
-import qualified Data.Graph.Inductive.Query.BCC as BCC
-import qualified GraphFormatUtilities              as GFU
+import qualified Data.Graph.Inductive.Query.BCC      as BCC
+import qualified Data.Graph.Inductive.Query.BFS      as BFS
+import qualified Data.Graph.Inductive.Query.DFS      as DFS
+import qualified GraphFormatUtilities                as GFU
 --import qualified Data.Text as T
-import qualified Data.Text.Lazy as T
-import           Data.GraphViz                     as GV
+import           Data.GraphViz                       as GV
+import qualified Data.Text.Lazy                      as T
 --import           Data.GraphViz.Attributes.Complete (Attribute (Label),
                                                     --Label (..))
-import           Data.GraphViz.Commands.IO         as GVIO
-import qualified Data.Graph.Inductive.Graph        as G
+import qualified Data.Graph.Inductive.Graph          as G
+import           Data.GraphViz.Commands.IO           as GVIO
 
+import           Control.Parallel.Strategies
+import qualified Cyclic                              as C
+import qualified Data.List                           as L
+import qualified Data.Map                            as MAP
+import           Data.Maybe
+import qualified Data.Vector                         as V
+import           Debug.Trace
+import           GeneralUtilities
+import qualified ParallelUtilities                   as PU
 import           System.IO
-import GeneralUtilities
-import Data.Maybe
-import Debug.Trace
-import qualified Data.List as L
-import qualified Data.Vector                 as V
-import qualified Data.Map as MAP
-import qualified Cyclic                            as C
-import qualified ParallelUtilities       as PU
-import Control.Parallel.Strategies
 
 
 
@@ -90,7 +90,7 @@ getFENLocal = GFU.forestEnhancedNewickStringList2FGLList
 readDotLocal :: String -> IO (Utilities.LocalGraph.DotGraph Utilities.LocalGraph.Node)
 readDotLocal = GVIO.readDotFile
 
--- | dotToGraph local mapo dor 
+-- | dotToGraph local mapo dor
 dotToGraph ::  Utilities.LocalGraph.DotGraph Utilities.LocalGraph.Node -> Utilities.LocalGraph.Gr Attributes Attributes
 dotToGraph = GV.dotToGraph
 
@@ -144,7 +144,7 @@ toLEdge' inLabel inEdge = G.toLEdge inEdge inLabel
 
 -- | deg mapes to fgl deg
 deg :: Gr a b -> Node -> Int
-deg inGraph inNode = G.deg inGraph inNode 
+deg inGraph inNode = G.deg inGraph inNode
 
 -- | maps to indeg
 indeg :: Gr a b -> LNode a -> Int
@@ -154,7 +154,7 @@ indeg inGraph inLNode = G.indeg inGraph $ fst inLNode
 outdeg :: Gr a b -> LNode a -> Int
 outdeg inGraph inLNode = G.outdeg inGraph $ fst inLNode
 
--- | getInOut takes a node and a graph and returns 
+-- | getInOut takes a node and a graph and returns
 -- a triple (LNode a, indegree, outDegree)
 getInOutDeg :: Gr a b -> LNode a -> (LNode a, Int, Int)
 getInOutDeg inGraph inLNode =
@@ -180,9 +180,9 @@ out = G.out
 -- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
 -- as input node
 sisterLabNodes :: (Eq a) => Gr a b -> LNode a -> [LNode a]
-sisterLabNodes inGraph inNode = 
+sisterLabNodes inGraph inNode =
     if isEmpty inGraph then error "Empty graph in sisterLabNodes"
-    else 
+    else
         let parentNodeList = labParents inGraph (fst inNode)
             otherChildrenOfParentsList = (concatMap (labDescendants inGraph) parentNodeList) L.\\ [inNode]
         in
@@ -202,10 +202,10 @@ grandParents inGraph inNode =
 
 -- | sharedGrandParents sees if a node has common grandparents
 sharedGrandParents :: Gr a b -> Node -> Bool
-sharedGrandParents inGraph inNode = 
+sharedGrandParents inGraph inNode =
     if isEmpty inGraph then error "Empty gaph in sharedGrandParents"
     else if isRoot inGraph inNode then False
-    else 
+    else
         let parentList = parents inGraph inNode
             grandParentLists = fmap (parents inGraph) parentList
             intersection = L.foldl1' L.intersect grandParentLists
@@ -223,7 +223,7 @@ labParents inGraph inNode =
     in
     if hasNothing then error "Unlabeled nodes in labParents"
     else zip parentNodeList parentLabelList'
-        
+
 
 -- | descendants of unlabelled node
 descendants :: Gr a b -> Node -> [Node]
@@ -241,7 +241,7 @@ labDescendants inGraph inNode =
     if hasNothing then error "Unlabeled nodes in labDescendants"
     else labNodeList
 
--- | takes a graph and node and returns pair of inbound and noutbound labelled edges 
+-- | takes a graph and node and returns pair of inbound and noutbound labelled edges
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
 getInOutEdges inGraph inNode = (inn inGraph inNode, out inGraph inNode )
 
@@ -348,7 +348,7 @@ labelNode inGraph inNode =
 noComponents :: Gr a b -> Int
 noComponents = DFS.noComponents
 
--- | isLeaf checks if node is root 
+-- | isLeaf checks if node is root
 isLeaf  :: Gr a b -> Node -> Bool
 isLeaf  inGraph inNode = G.outdeg inGraph inNode == 0
 
@@ -356,36 +356,36 @@ isLeaf  inGraph inNode = G.outdeg inGraph inNode == 0
 isOutDeg1Node :: Gr a b -> Node -> Bool
 isOutDeg1Node inGraph inNode =  G.outdeg inGraph inNode == 1
 
--- | isNetworkNode checks if node is network node 
+-- | isNetworkNode checks if node is network node
 isNetworkNode  :: Gr a b -> Node -> Bool
 isNetworkNode  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
 
--- | isNetworkLeaf checks if node is network node and a leaf--usually an error condition in phylogenetic networks 
+-- | isNetworkLeaf checks if node is network node and a leaf--usually an error condition in phylogenetic networks
 isNetworkLeaf  :: Gr a b -> Node -> Bool
 isNetworkLeaf  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
 
 
--- | - | isNetworkEdge checks if edge is network edge 
+-- | - | isNetworkEdge checks if edge is network edge
 isNetworkEdge  :: Gr a b -> Edge -> Bool
 isNetworkEdge  inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
 
--- | - | isNetworkLabEdge checks if edge is network edge 
+-- | - | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
 isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
 
 -- | labNetEdges takes a graph and returns list of network labelled edges
 labNetEdges :: Gr a b -> [LEdge b]
-labNetEdges inGraph = 
+labNetEdges inGraph =
     if isEmpty inGraph then error "Empty graph in labNetEdges"
     else filter (isNetworkLabEdge inGraph) $ labEdges inGraph
 
 -- | netEdges takes a graph and returns list of network edges
 netEdges :: Gr a b -> [Edge]
-netEdges inGraph = 
+netEdges inGraph =
     if isEmpty inGraph then error "Empty graph in labNetEdges"
     else filter (isNetworkEdge inGraph) $ edges inGraph
 
--- | isTreeNode checks if node is network node 
+-- | isTreeNode checks if node is network node
 isTreeNode  :: Gr a b -> Node -> Bool
 isTreeNode  inGraph inNode = (G.indeg inGraph inNode == 1) && (G.outdeg inGraph inNode > 0)
 
@@ -406,7 +406,7 @@ getRoots inGraph =
 -- | getIsolatedNodes returns list of labelled nodes with indegree=outdegree=0
 -- should change to use G.deg == 0
 getIsolatedNodes :: Gr a b -> [LNode a]
-getIsolatedNodes inGraph = 
+getIsolatedNodes inGraph =
     if isEmpty inGraph then []
     else
         let nodeList =  labNodes inGraph
@@ -421,16 +421,16 @@ getIsolatedNodes inGraph =
         in
         isolateList
 
--- | isRoot checks if node is root 
+-- | isRoot checks if node is root
 isRoot :: Gr a b -> Node-> Bool
 isRoot inGraph inNode =
     G.gelem inNode inGraph && (G.indeg inGraph inNode == 0)
 
--- | pre returns list of nodes linking to a node 
+-- | pre returns list of nodes linking to a node
 pre :: Gr a b -> Node -> [Node]
 pre = G.pre
 
--- | suc returns list of nodes linking from a node 
+-- | suc returns list of nodes linking from a node
 suc :: Gr a b -> Node -> [Node]
 suc = G.suc
 
@@ -455,7 +455,7 @@ flipLEdge (u,v,w) = (v,u,w)
 isTree :: Gr a b -> Bool
 isTree inGraph =
     if G.isEmpty inGraph then error "Empty graph in isTree"
-    else 
+    else
         let (_, _, _, netNodes) = splitVertexList inGraph
         in
         null netNodes
@@ -499,13 +499,13 @@ prettify inGraph =
 prettyIndices :: (Show a, Show b) => Gr a b -> String
 prettyIndices inGraph =
     if G.isEmpty inGraph then "Empty Graph"
-    else 
+    else
         let nodeList = concat $ fmap (++ ",") $ fmap show $ nodes inGraph
             edgeList = concat $ fmap (++ "\n") $ fmap show $ edges inGraph
         in
         nodeList ++ "\n" ++ edgeList
 
--- | pathToRoot takes a graph and a vertex and returns a pair of lists 
+-- | pathToRoot takes a graph and a vertex and returns a pair of lists
 -- of vertices and edges to root(s) in order of encountering them to root
 -- if a tree--not necessarily if network--should work
 pathToRoot :: (Eq a, Eq b) => Gr a b -> LNode a -> ([LNode a], [LEdge b])
@@ -515,7 +515,7 @@ pathToRoot inGraph inNode =
 
 -- | pathToRoot' with accumulators
 -- filter operators basically for networks so not retrace paths
--- includes roots as nodes 
+-- includes roots as nodes
 pathToRoot' :: (Eq a, Eq b) => Gr a b -> [LNode a] -> [LNode a] -> [LEdge b] -> ([LNode a], [LEdge b])
 pathToRoot' inGraph inNodeList curNodeList curEdgeList =
     if null inNodeList then (reverse curNodeList, reverse curEdgeList)
@@ -532,7 +532,7 @@ pathToRoot' inGraph inNodeList curNodeList curEdgeList =
             in
             pathToRoot' inGraph (inLabNodes ++ tail inNodeList) (inLabNodes ++ curNodeList) (inLEdges ++ curEdgeList)
 
--- | postOrderPathToNode takes a graph and two vertices nd returns a pair of lists 
+-- | postOrderPathToNode takes a graph and two vertices nd returns a pair of lists
 -- of vertices and edges to beteween them in order of encountering them from first to second
 -- the path is post order to root so if second vertex is leaf-side of first node will hit root and fail
 postOrderPathToNode :: (Eq a, Eq b) => Gr a b -> LNode a -> LNode a -> ([LNode a], [LEdge b])
@@ -550,7 +550,7 @@ postOrderPathToNode' inGraph endNode inNodeList curNodeList curEdgeList =
         in
         -- root would already be inlist of nodes visited
         if (fst inNode) == (fst endNode) then postOrderPathToNode' inGraph endNode (tail inNodeList) curNodeList curEdgeList
-        else if isRoot inGraph (fst inNode) then error ("postOrderPathToNode hit root before end node.  Root index  " ++ (show $ fst inNode) 
+        else if isRoot inGraph (fst inNode) then error ("postOrderPathToNode hit root before end node.  Root index  " ++ (show $ fst inNode)
             ++  " edges " ++ (show $ fmap toEdge curEdgeList))
         else
             let inLEdges = filter (`notElem` curEdgeList) $ inn inGraph (fst inNode)
@@ -618,7 +618,7 @@ nodesAndEdgesAfter inGraph inNodeList = nodesAndEdgesAfter' inGraph ([],[]) inNo
 -- | indexMatchNode returns True if two labelled nodes have same index
 indexMatchNode :: LNode a -> LNode a -> Bool
 indexMatchNode (a, _) (b, _) = if a == b then True else False
-          
+
 
 -- | indexMatchEdge returns True if two labelled edges have same node indices
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
@@ -655,27 +655,27 @@ contractIn1Out1Edges inGraph =
 reindexNodes :: Int -> [LNode a] ->  [LNode a] -> [LNode a]
 reindexNodes inNodeIndex curList nodeList =
     if null nodeList then reverse curList
-    else 
+    else
         let firstNode@(index, label) = head nodeList
-        in 
+        in
         if index < inNodeIndex then reindexNodes inNodeIndex (firstNode : curList) (tail nodeList)
         else if index == inNodeIndex then reindexNodes inNodeIndex curList (tail nodeList)
         else reindexNodes inNodeIndex ((index - 1, label) : curList) (tail nodeList)
 
 
--- | reindexEdges takes the index of a node that has/is being delted and reindexes indices 
+-- | reindexEdges takes the index of a node that has/is being delted and reindexes indices
 -- that are not incident on the node and deleted if incedent on node index
 reindexEdges :: Int -> [LEdge b] -> [LEdge b] -> [LEdge b]
 reindexEdges inNodeIndex curList edgeList =
     if null edgeList then curList
-    else 
+    else
         let (a,b,c) = head edgeList
             a' = if a < inNodeIndex then a
                  else a - 1
             b' = if b < inNodeIndex then b
                  else b - 1
         in
-        -- incident on node to be deleted 
+        -- incident on node to be deleted
         if a == inNodeIndex || b == inNodeIndex then reindexEdges inNodeIndex curList (tail edgeList)
 
         -- reindexed edge added in
@@ -687,18 +687,18 @@ artPoint :: (Eq b) => Gr a b -> [Node]
 artPoint inGraph = AP.ap $ B.undir inGraph
 
 
--- | makeNodeEdgePair takes a graph and extracts list of nodes and edges 
+-- | makeNodeEdgePair takes a graph and extracts list of nodes and edges
 -- returning a pair
 makeNodeEdgePair :: Gr a b -> ([LNode a], [LEdge b])
-makeNodeEdgePair inGraph = 
+makeNodeEdgePair inGraph =
     if isEmpty inGraph then ([],[])
     else (labNodes inGraph, labEdges inGraph)
 
 
--- | makeNodeEdgePairVect takes a graph and extracts list of nodes and edges 
+-- | makeNodeEdgePairVect takes a graph and extracts list of nodes and edges
 -- returning a pair of a vector of nodes and Vector of edges
 makeNodeEdgePairVect :: Gr a b -> (V.Vector (LNode a), V.Vector (LEdge b))
-makeNodeEdgePairVect inGraph = 
+makeNodeEdgePairVect inGraph =
     if isEmpty inGraph then (V.empty, V.empty)
     else (V.fromList $ labNodes inGraph, V.fromList $ labEdges inGraph)
 
@@ -706,7 +706,7 @@ makeNodeEdgePairVect inGraph =
 extractLeafGraph :: Gr a b -> Gr a b
 extractLeafGraph inGraph =
     if isEmpty inGraph then G.empty
-    else 
+    else
         let (_, leafNodes, _, _) = splitVertexList inGraph
         in
         mkGraph leafNodes []
@@ -727,23 +727,23 @@ removeNonLeafOut0Nodes :: (Eq a) => [LNode a] -> Gr a b -> Gr a b
 removeNonLeafOut0Nodes leafList inGraph =
     if null leafList then error "Null leaf list in removeNonLeafOut0Nodes"
     else if isEmpty inGraph then empty
-    else 
+    else
         let nonLeafList = (labNodes inGraph) L.\\ leafList
             outdegreePairList = zip nonLeafList (fmap (outdeg inGraph) nonLeafList)
             (zeroOutNodeList, _) = unzip $ filter ((==0) .snd) outdegreePairList
         in
         if null zeroOutNodeList then inGraph
-        else 
+        else
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
             removeNonLeafOut0Nodes leafList newGraph
 
--- | reindexGraph takes a graph and reindexes nodes and edges such that nodes 
+-- | reindexGraph takes a graph and reindexes nodes and edges such that nodes
 -- are sequential and the firt field matches their node index
 reindexGraph :: Gr a b -> Gr a b
 reindexGraph inGraph =
     if isEmpty inGraph then empty
-    else 
+    else
         let nodeList = labNodes inGraph
             newIndexList = [0..(length nodeList - 1)]
             nodeIndexPair = zip (fmap fst nodeList) newIndexList
@@ -758,7 +758,7 @@ reindexGraph inGraph =
 
 -- | isBridge uses naive (component number) procedure to determine if edge is a bridge O(n)
 isBridge :: Gr a b -> Edge -> Bool
-isBridge inGraph inNode = 
+isBridge inGraph inNode =
   if isEmpty inGraph then error ("Empty graph in isBridge")
   else
      let numComponents =  noComponents inGraph
@@ -791,7 +791,7 @@ data LOWTree a = Brc (a,a,a) [LOWTree a]
 ------------------------------------------------------------------------------
 getBackEdges :: Node -> [[(Node,Int)]] -> [(Node,Int)]
 getBackEdges _ [] = []
-getBackEdges v ls   = map head (filter (elem (v,0)) (tail ls))
+getBackEdges v ls = map head (filter (elem (v,0)) (tail ls))
 
 ------------------------------------------------------------------------------
 -- Builds a DFS tree for a given graph. Each element (v,n,b) in the tree
@@ -886,7 +886,7 @@ ap' g = artpoints g v where ((_,v,_,_),_) = G.matchAny g
 
 -- | cyclic maps to cyclic function in module Cyclic.hs
 cyclic :: Gr a b -> Bool
-cyclic inGraph = 
+cyclic inGraph =
     -- trace ("Cyclic:" ++ (show $ C.cyclic inGraph))
     C.cyclic inGraph
 
@@ -912,13 +912,13 @@ transitiveReduceGraph fullGraph =
   newGraph
 
 -- | getCoevalConstraintEdges takes a graph and a network node and creates two lists: one of edges
--- "before" (ie towards root) and a second "after (ie away from root) 
+-- "before" (ie towards root) and a second "after (ie away from root)
 -- this defines a coeval constraint.  No network edge can be added that would be directed
 -- from the before group to the after
 getCoevalConstraintEdges :: (Eq a, Eq b, Show a) => Gr a b -> LNode a -> ([LEdge b],[LEdge b])
 getCoevalConstraintEdges inGraph inNode =
    if isEmpty inGraph then error "Empty input graph in getCoevalConstraintEdges"
-   else 
+   else
        let (_, edgeBeforeList) = nodesAndEdgesBefore inGraph [inNode]
            (_, edgeAfterList) = nodesAndEdgesAfter inGraph [inNode]
        in
@@ -929,7 +929,7 @@ getCoevalConstraintEdges inGraph inNode =
 getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [([LEdge b],[LEdge b])]
 getGraphCoevalConstraints inGraph =
    if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
-   else 
+   else
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
        if null networkNodeList then []
@@ -940,11 +940,11 @@ getGraphCoevalConstraints inGraph =
 getGraphCoevalConstraintsNodes :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [(LNode a, [LEdge b],[LEdge b])]
 getGraphCoevalConstraintsNodes inGraph =
    if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
-   else 
+   else
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
        if null networkNodeList then []
-       else 
+       else
             let (edgeBeforeList, edgeAfterList) = unzip (fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS)
             in zip3 networkNodeList edgeBeforeList edgeAfterList
 
@@ -954,9 +954,9 @@ getGraphCoevalConstraintsNodes inGraph =
 -- whether one edge is fomr before and one after--if so fails False
 -- else True if all pass
 meetsAllCoevalConstraints :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
-meetsAllCoevalConstraints constraintList edge1 edge2 = 
+meetsAllCoevalConstraints constraintList edge1 edge2 =
    if null constraintList then True
-   else 
+   else
        let (beforeList, afterList) = head constraintList
        in
        if edge1 `elem` beforeList && edge2 `elem` afterList then False
@@ -965,12 +965,12 @@ meetsAllCoevalConstraints constraintList edge1 edge2 =
 
 -- | insertDeleteEdges takes a  graphs and list of nodes and edges to add and delete and creates new graph
 insertDeleteEdges :: (Show a, Show b) => Gr a b -> ([LEdge b], [Edge]) ->  Gr a b
-insertDeleteEdges inGraph (edgesToAdd, edgesToDelete) = 
+insertDeleteEdges inGraph (edgesToAdd, edgesToDelete) =
    let editedGraph = insEdges edgesToAdd $ delEdges edgesToDelete inGraph
    in
-   -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph)) 
+   -- trace ("AGE: " ++ (show editStuff) ++ "\nIn graph:\n" ++ (LG.prettify inGraph) ++ "New Graph:\n" ++ (LG.prettify editedGraph))
    editedGraph
-   
+
 
 -- | notMatchEdgeIndices reutnr True if not in edge list but doesn't compare label only indices
 notMatchEdgeIndices :: [Edge] -> LEdge b -> Bool

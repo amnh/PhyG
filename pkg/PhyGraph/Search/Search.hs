@@ -37,23 +37,23 @@ Portability :  portable (I hope)
 module Search.Search  (search
                       ) where
 
-import Types.Types
-import Control.DeepSeq
-import GeneralUtilities
-import qualified Graphs.GraphOperations  as GO
-import Utilities.Utilities               as U
-import Data.Maybe
+import qualified Commands.Transform           as TRANS
+import qualified Commands.Verify              as VER
+import           Control.Concurrent.Async
+import           Control.DeepSeq
+import           Data.Bifunctor               (bimap)
 import           Data.Char
-import           Text.Read
-import qualified Search.Build as B
-import qualified Search.Refinement as R
-import System.Timing
-import Data.Bifunctor (bimap)
-import Data.Foldable
-import Control.Concurrent.Async
-import qualified Data.List as L
-import qualified Commands.Transform as TRANS
+import           Data.Foldable
+import qualified Data.List                    as L
+import           Data.Maybe
+import           GeneralUtilities
 import qualified GraphOptimization.Traversals as T
+import qualified Graphs.GraphOperations       as GO
+import qualified Search.Build                 as B
+import qualified Search.Refinement            as R
+import           System.Timing
+import           Text.Read
+import           Types.Types
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
@@ -61,12 +61,12 @@ uncurry3' f (a, b, c) = force <$> f a b c
 
 -- | search timed randomized search returns graph list and comment list with info String for each serch instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances rSeed inGraphList = 
+search inArgs inGS inData pairwiseDistances rSeed inGraphList =
    let (searchTime, keepNum, instances) = getSearchParams inArgs
        threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10
        searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum threshold []
        infoIndices = [1..]
-       seadStreams = randomIntList <$> randomIntList rSeed        
+       seadStreams = randomIntList <$> randomIntList rSeed
    in  do  --  threadCount <- (max 1) <$> getNumCapabilities
            let threadCount = instances -- <- (max 1) <$> getNumCapabilities
            let startGraphs = replicate threadCount (inGraphList, mempty)
@@ -82,7 +82,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
 
 searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
-   (elapsedSeconds, output) <- timeOp $ 
+   (elapsedSeconds, output) <- timeOp $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
@@ -93,40 +93,38 @@ searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inComment
                       ]
    if   elapsedSeconds >= allotedSeconds
    then pure output
-   else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output 
+   else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
 -- if run completres before 90% of time limit then will keep going
 performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoStringList) = 
+performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
           buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
-             
+
           -- build options
           numToCharBuild = keepNum
-          numToDistBuild = 100
-          numToKeep = keepNum
-
+          numToDistBuild = (100 :: Int)
 
           -- build block options
           reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
 
-          distOptions = if buildType == "distance" then 
-                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show 1)]
+          distOptions = if buildType == "distance" then
+                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show (1 :: Int))]
                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
-                        else 
+                        else
                            if buildMethod == "block" then [("replicates", show numToCharBuild)]
-                           else [("replicates", show 1)]
+                           else [("replicates", show (1 :: Int))]
 
           blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
                          else []
 
           buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
 
-          -- swap options 
+          -- swap options
           swapType = getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
           swapKeep = keepNum
           swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
@@ -170,7 +168,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
           tempSteps = getRandomElement (randIntList !! 18) ["5", "10", "15"]
 
           simulatedAnnealArgs = [("annealing", ""),("steps", tempSteps)]
-          
+
           -- swap with drift arguments
           swapDriftArgs = swapArgs ++ drfitArgs
 
@@ -179,7 +177,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
 
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
-          ((inGS, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then 
+          ((inGS, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
                                                                 (TRANS.transform [("staticapprox",[])] inGS inData' inData' 0 inGraphList', "StaticApprox ")
                                                               else ((inGS', inData', inGraphList'), "")
 
@@ -187,17 +185,17 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
       in
 
       -- no input graphs so must build and refine a bit to start
-      if null inGraphList then 
-         
+      if null inGraphList then
+
          -- do build + Net add (if network) + swap to crete initial solutions
          let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
              uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
-             
+
              netAddGraphs = if (graphType inGS == Tree) then uniqueBuildGraphs
                             else R.netEdgeMaster netAddArgs inGS inData (randIntList !! 10) uniqueBuildGraphs
-             
-             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
-             
+
+             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) netAddGraphs
+
              uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
              searchString = if (graphType inGS == Tree) then "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
                             else "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Net Add " ++ (L.intercalate "," $ fmap showArg netAddArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg swapArgs)
@@ -207,10 +205,10 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
 
       -- already have some input graphs
       -- choose a method and paramteres at random
-      else 
-         let operation = if (graphType inGS == Tree) then getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"] 
+      else
+         let operation = if (graphType inGS == Tree) then getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"]
                          else getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift", "netAdd", "netDelete", "netMove"] -- add/del/move edges with and without drifting
-                         
+
              -- this so 1/2 time annealing
              saDrift = getRandomElement (randIntList !! 19) ["noSA", "noSA", "drift", "anneal"]
 
@@ -219,32 +217,32 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
              pruneEdges = False
              warnPruneEdges = False
              startVertex = Nothing
-         in  
+         in
          if operation == "buildSwap" then
             let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
                 uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
-            in  
+            in
             (uniqueGraphs, [searchString])
 
          else if operation == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs)
             in
             (uniqueGraphs, [searchString])
-              
+
          else if operation == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs)
             in
             (uniqueGraphs, [searchString])
@@ -253,16 +251,16 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs)
             in
             (uniqueGraphs, [searchString])
-              
+
          else if operation == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs)
             in
             (uniqueGraphs, [searchString])
@@ -274,7 +272,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
                 netMoveGraphs = R.netEdgeMaster netMoveArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netMoveGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs')
             in
             (uniqueGraphs, [searchString])
@@ -286,7 +284,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
                 netAddGraphs = R.netEdgeMaster netAddArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netAddGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs')
             in
             (uniqueGraphs, [searchString])
@@ -298,27 +296,22 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', infoS
                 netDelGraphs = R.netEdgeMaster netDelArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netDelGraphs ++ inGraphList)
                 uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')  
+                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs')
             in
             (uniqueGraphs, [searchString])
 
-              
-         else error ("Unknown/unimplemented method in search: " ++ operation) 
+
+         else error ("Unknown/unimplemented method in search: " ++ operation)
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
-
--- | search arguments
-searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
-
 
 -- | getSearchParams takes arguments and returns search params
 getSearchParams :: [Argument] -> (Int, Int, Int)
-getSearchParams inArgs = 
+getSearchParams inArgs =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "search" fstArgList searchArgList
+       checkCommandList = checkCommandArgs "search" fstArgList VER.searchArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)
@@ -365,7 +358,7 @@ getSearchParams inArgs =
             | null secondsList = Just 30
             | otherwise = readMaybe (snd $ head secondsList) :: Maybe Int
 
-      in 
+      in
       if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
       else if isNothing instances then errorWithoutStackTrace ("Instnaces specification not an integer in search: "  ++ show (head instancesList))
       else if isNothing days then errorWithoutStackTrace ("Days specification not an integer in search: "  ++ show (head daysList))
@@ -373,10 +366,10 @@ getSearchParams inArgs =
       else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
       else if isNothing seconds then errorWithoutStackTrace ("seconds factor specification not an integer in search: "  ++ show (head secondsList))
 
-      else 
+      else
          let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
                         else seconds
              searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
          in
          (searchTime, fromJust keepNum, fromJust instances)
-             
+

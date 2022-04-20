@@ -38,21 +38,22 @@ module Main (main) where
 
 import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
+import qualified Commands.Verify              as V
 import qualified Data.List                    as L
+import qualified Data.Text.Lazy               as Text
+import qualified Data.Text.Short              as ST
 import           GeneralUtilities
 import qualified GraphFormatUtilities         as GFU
 import qualified GraphOptimization.Traversals as T
 import qualified Graphs.GraphOperations       as GO
 import qualified Input.DataTransformation     as DT
 import qualified Input.ReadInputFiles         as RIF
+import qualified Input.Reorganize             as R
 import           System.Environment
 import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
-import qualified Data.Text.Lazy               as Text
-import qualified Data.Text.Short              as ST
 import qualified Utilities.Utilities          as U
-import qualified Input.Reorganize             as R
 
 -- | main driver
 main :: IO ()
@@ -74,7 +75,7 @@ main = do
 
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
     let seedList = randomIntList timeD
-    
+
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
 
@@ -89,6 +90,13 @@ main = do
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
     let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
+
+    -- check commands and options for basic correctness
+    hPutStrLn stderr "\tChecking command file syntax"
+    let !commandsOK = V.verifyCommands thingsToDo [] []
+
+    if commandsOK then hPutStrLn stderr "Commands appear to be properly specified--file availability and contents not checked.\n"
+    else errorWithoutStackTrace "Commands not properly specified"
 
     dataGraphList <- mapM RIF.executeReadCommands $ fmap PC.movePrealignedTCM $ fmap snd $ filter ((== Read) . fst) thingsToDo
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
@@ -113,7 +121,7 @@ main = do
         -- could be sorted, but no real need
         -- get taxa to include in analysis
     if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++show terminalsToInclude)
-    else hPutStrLn stderr ("")   
+    else hPutStrLn stderr ("")
     if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++show terminalsToExclude)
     else hPutStrLn stderr ("")
 
@@ -126,10 +134,10 @@ main = do
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs
-    
+
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
-    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are taxa without any data: " 
+    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are taxa without any data: "
             ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
     else hPutStrLn stderr "All taxa contain data"
 
@@ -149,14 +157,14 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-    
+
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList <- CE.executeRenameReblockCommands reBlockPairs thingsToDo
     let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet, 
+    -- Group Data--all nonadditives to single character, additives with same alphabet,
     let groupedData = R.groupDataByType reBlockedNaiveData
 
     -- Optimize Data convert
@@ -165,7 +173,7 @@ main = do
         -- matrix 2 states to non-additive with weight
         -- prealigned to non-additive or matrix
         -- bitPack non-additive
-    let optimizedData = R.optimizeData groupedData 
+    let optimizedData = R.optimizeData groupedData
 
 
     -- Set global vaues before search--should be integrated with executing commands
@@ -188,14 +196,14 @@ main = do
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData optimizedData [] [] seedList [] initialSetCommands
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (GO.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
-    
+
 
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
-    
+
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, finalGlobalSettings, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
+    (finalGraphList, _, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

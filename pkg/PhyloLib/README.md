@@ -1,2 +1,1 @@
-# PhyloLibs
-Library of modules useful for phylogenetic computing
+../../doc/ReadMe/PhyloLib.md

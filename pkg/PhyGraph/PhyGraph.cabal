@@ -1,64 +1,38 @@
-cabal-version:  3.0
-build-type:     Simple
+Cabal-Version: 3.0
+Name:          PhyGraph
+Version:       0.1.0
+Stability:     Alpha
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.2
 
-name:           PhyGraph
-version:        0.1.0.0
---description:    Please see the README on GitHub at <https://github.com/githubuser/PhyGraph#readme>
---homepage:       https://github.com/githubuser/PhyGraph#readme
---bug-reports:    https://github.com/githubuser/PhyGraph/issues
---author:         Ward Wheeler
---maintainer:     wheeler@amnh.org
---copyright:      2021 Ward Wheeler
---license:        BSD3
---license-file:   LICENSE
+Author:        Ward Wheeler <wheeler@amnh.org>
+Copyright:     (c) 2015-2022 Ward Wheeler
+License:       BSD-3-Clause
+License-File:  LICENSE
 
--- for static linking add options -static -optl-static -optl-pthread
--- GKW cabal build --allow-newer --with-compiler=/usr/local/bin/ghc
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
 
-extra-source-files:
-    -- Specify the header files as required source files here.
-    -- Do not specify them in the c-sources or cxx-sources stanzas.
-    -- This is required for sdist and install commands to work correctly.
-    ffi/external-direct-optimization/alignCharacters.h
-    ffi/external-direct-optimization/alignmentMatrices.h
-    ffi/external-direct-optimization/c_alignment_interface.h
-    ffi/external-direct-optimization/c_code_alloc_setup.h
-    ffi/external-direct-optimization/costMatrix.h
-    ffi/external-direct-optimization/debug_constants.h
-    ffi/external-direct-optimization/dyn_character.h
-    ffi/external-direct-optimization/ukkCheckPoint.h
-    ffi/external-direct-optimization/ukkCommon.h
-    ffi/memoized-tcm/costMatrix_2d.hpp
-    ffi/memoized-tcm/costMatrix_3d.hpp
-    ffi/memoized-tcm/costMatrixWrapper_2d.h
-    ffi/memoized-tcm/costMatrixWrapper_3d.h
-    ffi/memoized-tcm/costMatrixWrapper.h
-    ffi/memoized-tcm/dynamicCharacterOperations.h
+Extra-Doc-Files:
+  CHANGELOG.md
+  README.md
 
-source-repository this
+Extra-Source-Files:
+  ffi/external-direct-optimization/*.h
+  
+Source-Repository-Package head
   type:     git
   location: git@github.com:wardwheeler/PhyGraph.git
-  branch:   rearchitecture
+  subdir:   pkg/PhyloLib
 
--- Group of buildinfo specifications to correctly build and link to the C & C++:
--- FFI code.
-common ffi-buildinfo
+
+-- Global deviations from Haskell98
+common ffi-build-info
 
   cc-options:
     -rdynamic --std=c11
- 
-  hs-source-dirs:
-    ffi
-
-  c-sources:
-    ffi/external-direct-optimization/alignCharacters.c
-    ffi/external-direct-optimization/alignmentMatrices.c
-    ffi/external-direct-optimization/c_alignment_interface.c
-    ffi/external-direct-optimization/c_code_alloc_setup.c
-    ffi/external-direct-optimization/costMatrix.c
-    ffi/external-direct-optimization/dyn_character.c
-    ffi/external-direct-optimization/ukkCheckPoint.c
-    ffi/external-direct-optimization/ukkCommon.c
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -69,6 +43,30 @@ common ffi-buildinfo
   -- header files!
   include-dirs:
     ffi/external-direct-optimization
+  
+  -- Specify the header files as required source files here.
+  -- Do not specify them in the c-sources or cxx-sources stanzas.
+  -- This is required for sdist and install commands to work correctly.
+  Includes:
+    alignCharacters.h
+    alignmentMatrices.h
+    c_alignment_interface.h
+    c_code_alloc_setup.h
+    costMatrix.h
+    debug_constants.h
+    dyn_character.h
+    ukkCheckPoint.h
+    ukkCommon.h
+
+  c-sources:
+    ffi/external-direct-optimization/alignCharacters.c
+    ffi/external-direct-optimization/alignmentMatrices.c
+    ffi/external-direct-optimization/c_alignment_interface.c
+    ffi/external-direct-optimization/c_code_alloc_setup.c
+    ffi/external-direct-optimization/costMatrix.c
+    ffi/external-direct-optimization/dyn_character.c
+    ffi/external-direct-optimization/ukkCheckPoint.c
+    ffi/external-direct-optimization/ukkCommon.c
 
 
 -- Global deviations from Haskell98
@@ -104,27 +102,21 @@ common language-specs
 executable phyg
 
   import:
-    ffi-buildinfo,
+    ffi-build-info,
     language-specs
 
-  main-is: phygraph.hs
+  main-is:
+    phygraph.hs
 
-  ghc-options:  -Wall
-                -Wincomplete-patterns
-                -threaded 
-                -feager-blackholing
-                -with-rtsopts=-N
-                -O2
-                -XBangPatterns
-                -rtsopts
-                -- for weeder
---                -fwrite-ide-info 
-                -- linux static binaries
---		            -optl-static -optl-pthread
-                -static
---                -fllvm
-
-
+  ghc-options:
+    -Wall
+    -Wincomplete-patterns
+    -threaded 
+    -feager-blackholing
+    -with-rtsopts=-N
+    -O2
+    -rtsopts
+    -static
 
 -- delete these for OSX for linux static binaries
 --  if !os(darwin)
@@ -179,6 +171,7 @@ executable phyg
   
   other-modules:  Commands.ProcessCommands
                   Commands.CommandExecution
+                  Commands.Verify
                   Debug.Debug
                   Graphs.GraphOperations
                   GraphOptimization.Medians
@@ -276,7 +269,7 @@ library alphabet
 library dynamic-character
 
   import:
-    ffi-buildinfo,
+    ffi-build-info,
     language-specs
 
   default-language:
@@ -326,8 +319,8 @@ library dynamic-character
 library tcm
 
   import:
-    ffi-buildinfo,
-    language-specs,
+    ffi-build-info,
+    language-specs
 
   default-language:
     Haskell2010
@@ -359,6 +352,19 @@ library tcm
   other-modules:
     Data.TCM.Dense.FFI
     Data.TCM.Internal
+
+  -- Includes: (Omitted)
+  --    costMatrix_2d.hpp
+  --    costMatrix_3d.hpp
+  --    costMatrixWrapper_2d.h
+  --    costMatrixWrapper_3d.h
+  --    costMatrixWrapper.h
+  --    dynamicCharacterOperations.h
+  
+  -- Include-Dirs: (Omitted)
+  --    ffi/memoized-tcm
+
+
 
 
 -- A binding to a C++ hashtable for thread-safe memoization.

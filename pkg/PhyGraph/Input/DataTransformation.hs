@@ -51,15 +51,15 @@ import           Data.Alphabet
 import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC
 import           Data.Bifunctor
-import           Data.Bimap (Bimap)
-import qualified Data.Bimap as BM
+import           Data.Bimap                  (Bimap)
+import qualified Data.Bimap                  as BM
 import           Data.Foldable
 import qualified Data.List                   as L
 import           Data.List.NonEmpty          (NonEmpty)
 import qualified Data.List.NonEmpty          as NE
 import           Data.Maybe
-import qualified Data.Text.Lazy              as T
 import           Data.String
+import qualified Data.Text.Lazy              as T
 import           Types.Types
 --import qualified Data.BitVector as BV
 import qualified Data.BitVector.LittleEndian as BV
@@ -67,16 +67,16 @@ import qualified Data.Vector                 as V
 import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 
+import           Data.Bits
+import qualified Data.Hashable               as H
 import qualified Data.Text.Short             as ST
-import qualified Data.Hashable as H
-import           Data.Bits                   
 import           Data.Word
+import           Debug.Trace
 import           Foreign.C.Types
+import           GeneralUtilities
 import           Numeric.Natural
 import           Text.Read
-import qualified Utilities.Utilities as U
-import           Debug.Trace
-import           GeneralUtilities
+import qualified Utilities.Utilities         as U
 -- import           Debug.Trace
 
 --Todo-- add stuff for proper input of prealign seeunces--need charactert types set before this
@@ -114,7 +114,7 @@ partitionSequences partChar inDataList =
            -- make new structures to create RawData list
            let leafNameListList = replicate firstPartNumber leafNameList
 
-               -- these filtered from terminal partitions 
+               -- these filtered from terminal partitions
                leafDataListList = fmap (fmap (filter (/= ST.fromString "#"))) partitionCharListByPartition
 
                -- create TermData
@@ -134,7 +134,7 @@ partitionSequences partChar inDataList =
            ))
 
 -- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
--- these can be created from paritioning sequences where there are no data in a 
+-- these can be created from paritioning sequences where there are no data in a
 -- partitition.  This allows for data reconciliation/renaming later.
 removeTaxaWithNoData :: [TermData] -> [TermData]
 removeTaxaWithNoData inTermData =
@@ -145,7 +145,7 @@ removeTaxaWithNoData inTermData =
         --trace ((show $ length inTermData) ++ " -> " ++ (show $ length newData))
         newData
 
--- | joinLists takes two lists of lists (of same length) and zips the 
+-- | joinLists takes two lists of lists (of same length) and zips the
 -- heads of each, then continues till all joined
 joinLists :: [[a]] -> [[b]] -> [[(a,b)]]
 joinLists listA listB
@@ -261,7 +261,7 @@ createBVNames inDataList =
     in
     if textNameList /= textNameList' then error "Taxa are not properly ordered in createBVNames"
     else
-        -- trace (show $ fmap BV.toBits bvList) 
+        -- trace (show $ fmap BV.toBits bvList)
         zip textNameList bvList
 
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
@@ -310,7 +310,12 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                                     in
                                     T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
 
-                thisBlockCharInfo' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+                thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
+
+                -- create "orginal" character info for later use in outputs after character recoding and transformation etc.
+                thisBlockCharInfo' = fmap setOrigCharInfo thisBlockCharInfo''
+
+
                 recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
 
                 thisBlockData     = (thisBlockName', recodedCharacters', thisBlockCharInfo')
@@ -321,67 +326,75 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             -- trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
-            else 
+            else
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
 
+-- | setOrigCharInfo takes fields from charInfo and sets the initial original charcter infomatin field
+-- as a singleton Vector
+setOrigCharInfo :: CharInfo -> CharInfo
+setOrigCharInfo inCharInfo =
+    let origData = (name inCharInfo, charType inCharInfo, alphabet inCharInfo)
+    in
+    inCharInfo {origInfo = V.singleton origData}
+
 -- | recodeAddNonAddMissing takes Block data and recodes missing for additive and non-additive characters
-recodeNonAddMissingBlock :: V.Vector CharInfo -> V.Vector CharacterData -> V.Vector CharacterData 
-recodeNonAddMissingBlock blockCharInfo singleTaxonBlockData = 
+recodeNonAddMissingBlock :: V.Vector CharInfo -> V.Vector CharacterData -> V.Vector CharacterData
+recodeNonAddMissingBlock blockCharInfo singleTaxonBlockData =
     V.zipWith recodeNonAddMissingCharacter blockCharInfo singleTaxonBlockData
 
 -- | recodeAddNonAddMissingCharacter recodes additive and non -additive missing data
 recodeNonAddMissingCharacter :: CharInfo -> CharacterData -> CharacterData
-recodeNonAddMissingCharacter charInfo inCharData = 
+recodeNonAddMissingCharacter charInfo inCharData =
     let inCharType = charType charInfo
     in
     if inCharType /= NonAdd then inCharData
-    else 
-        let nonAddState = (V.head . snd3 . stateBVPrelim) inCharData 
-            newState = if  BV.isZeroVector nonAddState then V.singleton (complement nonAddState)   
+    else
+        let nonAddState = (V.head . snd3 . stateBVPrelim) inCharData
+            newState = if  BV.isZeroVector nonAddState then V.singleton (complement nonAddState)
                        else V.singleton nonAddState
         in
-        if  BV.isZeroVector nonAddState then 
+        if  BV.isZeroVector nonAddState then
             inCharData { stateBVPrelim = (newState, newState, newState)
                        , stateBVFinal = newState}
-        else 
+        else
             inCharData
 
 
--- | getAddNonAddAlphabets takes recoded chartcater data and resets the alphabet 
--- field in charInfo to reflect observed states.  This is used tpo properly sety missing and 
+-- | getAddNonAddAlphabets takes recoded character data and resets the alphabet
+-- field in charInfo to reflect observed states.  This is used tpo properly sety missing and
 -- bit packing values
 resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo
-resetAddNonAddAlphabets taxonByCharData charInfo charIndex = 
+resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
     let inCharType = charType charInfo
     in
     if inCharType `notElem` [Add, NonAdd] then charInfo
-    else 
-        if inCharType == NonAdd then 
+    else
+        if inCharType == NonAdd then
             let -- get actual states
                 inCharV = fmap (V.head . snd3 . stateBVPrelim) $ fmap V.head taxonByCharData
-                missingVal = V.foldl1' (.|.) inCharV
+                missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (V.head . snd3 . stateBVPrelim . V.head $ V.head taxonByCharData)) True
+                --missingVal = V.foldl1' (.|.) inCharV
                 nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) inCharV
                 numStates = popCount nonMissingBV
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
-                stateAlphabet = fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
-            --if (numStates > 4) then trace ("RNA: " ++ (show stateAlphabet)) charInfo {alphabet = stateAlphabet}
-            --else 
+            -- trace ("RNA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
 
-        else if inCharType == Add then 
+        else if inCharType == Add then
             let (minRange, maxRange) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
 
                 foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
-                stateAlphabet = fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbolsWOGap foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
-            
+
 
 
         else error ("Unrecognized character type in resetAddNonAddAlphabets: " ++ (show inCharType))
@@ -390,13 +403,13 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 -- at this stage (called before reblocking) there should only be a single charcter per block
 -- but more general--if not great if > 1 character with naming
 checkPrealignedEqualLength :: [T.Text] -> (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo) -> (Bool, [(T.Text, Int)], [(T.Text, Int)])
-checkPrealignedEqualLength nameTextList (blockNameText, taxByCharacterDataVV, charInfoV) = 
+checkPrealignedEqualLength nameTextList (_, taxByCharacterDataVV, charInfoV) =
     let numCharsIndexList = [0 .. (V.length charInfoV) - 1]
         sameLengthPairList = zipWith (verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV) (V.toList charInfoV) numCharsIndexList
         badOnes = filter ((== False) . fst3) sameLengthPairList
     in
     if null badOnes then (True, [],[])
-    else 
+    else
         (False, concat $ fmap snd3 badOnes, concat $ fmap thd3 badOnes)
 
 -- | verifyPrealignedCharacterLength takes an index for character and examines theat character--if prealigned checks for
@@ -407,8 +420,8 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
         inCharV = fmap (V.! charIndex) taxByCharacterDataVV
     in
     if inCharType `notElem` prealignedCharacterTypes then (True, [],[])
-    else 
-        let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' charInfo) inCharV 
+    else
+        let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' charInfo) inCharV
                                      {-
                                     if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
                                       else if inCharType == AlignedWide then V.toList $ fmap UV.length $ fmap (snd3 . alignedWidePrelim) inCharV
@@ -417,9 +430,9 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
                                       -}
 
             nameLengthPairList = zip nameTextList prealigedDataLengthList
-            minLength = minimum prealigedDataLengthList
-            haveMinLength = filter ((== minLength) .snd) nameLengthPairList
-            notMinMinLength = filter ((/= minLength) .snd) nameLengthPairList
+            lMinLength = minimum prealigedDataLengthList
+            haveMinLength = filter ((== lMinLength) .snd) nameLengthPairList
+            notMinMinLength = filter ((/= lMinLength) .snd) nameLengthPairList
         in
         -- all min length then all same length
         -- trace ("VPCL:" ++ (show $ (haveMinLength, notMinMinLength))) (
@@ -442,14 +455,14 @@ recodeRawData inTaxNames inData inCharInfo maxCharLength curCharData =
         -- trace ("RRD:" ++ (show firstData))
         --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
-        recodeRawData (tail inTaxNames) (tail inData) inCharInfo maxCharLength (firstDataRecoded : curCharData) 
+        recodeRawData (tail inTaxNames) (tail inData) inCharInfo maxCharLength (firstDataRecoded : curCharData)
 
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
 missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
     let missingChar = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
-    in 
+    in
     emptyCharacter { stateBVPrelim = (missingChar, missingChar, missingChar)
                    , stateBVFinal  = missingChar
                    }
@@ -463,7 +476,7 @@ missingAdditive inCharInfo =
                         (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
                         (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
   in
-  emptyCharacter { rangePrelim = (missingRange, missingRange, missingRange) 
+  emptyCharacter { rangePrelim = (missingRange, missingRange, missingRange)
                  , rangeFinal = missingRange
                  }
 
@@ -475,7 +488,7 @@ missingMatrix inCharInfo =
   let numStates = length $ alphabet inCharInfo
       missingState = (0 :: StateCost , [] ,[])
   in
-  emptyCharacter { matrixStatesPrelim = V.singleton (V.replicate numStates missingState) 
+  emptyCharacter { matrixStatesPrelim = V.singleton (V.replicate numStates missingState)
                  , matrixStatesFinal= V.singleton (V.replicate numStates missingState)}
 
 
@@ -502,10 +515,10 @@ missingAligned inChar charLength =
         missingElementWide = -- Word64 type
                              UV.replicate charLength $ setMissingBits (0 :: Word64) 0 alphSize
         missingElementHuge = -- bit vector type
-                             V.replicate charLength $ (BV.fromBits $ replicate alphSize True)               
+                             V.replicate charLength $ (BV.fromBits $ replicate alphSize True)
         in
         -- trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
-        if inCharType ==  AlignedSlim then 
+        if inCharType ==  AlignedSlim then
             emptyCharacter {alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
 
         else if inCharType ==  AlignedWide then
@@ -513,17 +526,17 @@ missingAligned inChar charLength =
 
         else if inCharType ==  AlignedHuge then
             emptyCharacter {alignedHugePrelim = (missingElementHuge, missingElementHuge, missingElementHuge)}
-        
+
         else error ("Datatype " ++ (show inCharType) ++ " not recognized")
         -- )
 
 -- | setMissingBits sets the first bits by index to '1' rest left as is (0 on input)
 setMissingBits :: (Show a, FiniteBits a) => a -> Int -> Int -> a
 setMissingBits inVal curIndex alphSize =
-    if curIndex == alphSize then 
+    if curIndex == alphSize then
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
         inVal
-    else 
+    else
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
         setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
 
@@ -548,7 +561,7 @@ iupacToBVPairs
   -> V.Vector (s, BV.BitVector)
 iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.toAscList iupac
   where
-    constructor  = flip BV.fromNumber 0
+    constructor  = flip BV.fromNumber (0 :: Int)
     encoder      = encodeState inputAlphabet constructor
 
 -- | nucleotideBVPairs for recoding DNA sequences
@@ -558,6 +571,7 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
   where
     baseAlphabet = fromSymbols $ ST.fromString <$> ["A","C","G","T"]
 
+{-
 -- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
 getAminoAcidSequenceCodes :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, BV.BitVector)
 getAminoAcidSequenceCodes localAlphabet  =
@@ -572,7 +586,7 @@ getAminoAcidSequenceCodes localAlphabet  =
     in
     --trace (show $ fmap BV.showBin $ fmap snd $ totalStateList)
     totalStateList
-
+-}
 
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
@@ -646,7 +660,7 @@ getGeneralBVCode bvCodeVect inState =
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
-            isAligned = prealigned inCharInfo
+            -- isAligned = prealigned inCharInfo
             stateBVPairVect = getStateBitVectorList $ alphabet inCharInfo
             (slimVec, wideVec, hugeVec) =
               if not $ null stateList
@@ -665,10 +679,12 @@ getGeneralSequenceChar inCharInfo stateList =
                                              , alignedHugePrelim  = if cType `elem` [AlignedHuge] then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
                                              , alignedHugeFinal   = if cType `elem` [AlignedHuge] then hugeVec else mempty
                                              }
-        in  
-        -- trace ("GGSC" ++ (show stateList) ++ "\n" ++ (show newSequenceChar )) 
+        in
+        -- trace ("GGSC" ++ (show stateList) ++ "\n" ++ (show newSequenceChar ))
         [newSequenceChar]
 
+
+{-Not used
 
 -- | getSingleStateBV takes a single state and returns its bitvector
 -- based on alphabet size--does not check if ambiguous--assumes single state
@@ -684,13 +700,15 @@ getSingleStateBV localAlphabet localState =
         if localState `elem` fmap ST.fromString ["?","-"] then BV.fromBits $ replicate (length localAlphabet) True
         else error ("getSingleStateBV: State " ++ ST.toString localState ++ " Not found in alphabet " ++ show localAlphabet)
     else bvState
+-}
+
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
 -- and returns then bitvectorfor that state in order of states in alphabet
 getStateBitVector :: Alphabet ST.ShortText -> ST.ShortText -> BV.BitVector
 getStateBitVector localAlphabet = encodeState localAlphabet constructor . (:[])
   where
-    constructor  = flip BV.fromNumber 0
+    constructor  = flip BV.fromNumber (0 :: Int)
 
 -- getMinMaxStates takes  list of strings and determines the minimum and maximum integer values
 getMinMaxStates :: [String] -> (Int, Int) -> (Int, Int)
@@ -804,13 +822,13 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
         --single state
         if firstCharType == NonAdd then
             let stateBV = if ST.length firstState == 1 then getStateBitVector (alphabet firstCharInfo) firstState
-                          else 
+                          else
                             let ambiguousStateST = ST.filter (`notElem` ['[', ']']) firstState
                                 ambiguousStateString = ST.toString ambiguousStateST
                                 stateSTList = fmap ST.singleton ambiguousStateString
                                 stateBVList = fmap (getStateBitVector (alphabet firstCharInfo)) stateSTList
-                            in 
-                            -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList)) 
+                            in
+                            -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList))
                             L.foldl1' (.|.) stateBVList
                 newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
                 in
@@ -852,7 +870,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
   | null rawDataList =  -- missing data
    getMissingValue inCharInfoList maxCharLength
   | otherwise = let localCharType = charType $ head inCharInfoList
-                in if localCharType `elem` sequenceCharacterTypes then  
+                in if localCharType `elem` sequenceCharacterTypes then
                 --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
                      case localCharType of
                          NucSeq   -> getNucleotideSequenceChar rawDataList

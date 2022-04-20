@@ -62,21 +62,14 @@ import           GeneralUtilities
 import qualified GraphFormatUtilities                 as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
--- import qualified GraphOptimization.Medians as M
 import qualified GraphOptimization.PostOrderFunctions as PO
 import qualified GraphOptimization.PreOrderFunctions  as PRE
 import qualified Graphs.GraphOperations               as GO
--- import qualified SymMatrix as SM
--- import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import           Data.Maybe
 import qualified Data.Text.Lazy                       as T
--- import Debug.Debug as D
-import qualified Data.BitVector.LittleEndian          as BV
 import           Debug.Trace
 import           Utilities.Utilities                  as U
-
-
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -108,7 +101,7 @@ multiTraverseFullyLabelGraph' inGS pruneEdges warnPruneEdges startVertex inData 
 
 
 multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph 
+multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges
@@ -161,8 +154,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- first traversal on outgroup roo
-        outgroupRooted = if startVertex == Nothing then postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph -- $ GO.rerootTree' inSimpleGraph (outgroupIndex inGS)
-                        else postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
+        outgroupRooted = postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
 
         -- start at start vertex--for components or ur-root for full graph
         startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRooted
@@ -206,9 +198,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
-    -- trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments)) 
+    -- trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments))
     --    ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
-    
+
     -- only static characters
     if sequenceChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
@@ -218,9 +210,13 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            outgroupRooted' = updatePhylogeneticGraphCost outgroupRooted (penaltyFactor + (snd6 outgroupRooted))
+            staticOnlyGraph = if (graphType inGS) == SoftWired then updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+                              else outgroupRooted
+            -- staticOnlyGraph = head recursiveRerootList'
+            staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
-        (outgroupRooted', localRootCost, head startVertexList)
+        -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
+        (staticOnlyGraph', localRootCost, head startVertexList)
 
     -- single seuquence (prealigned, dynamic) only (ie no static)
     else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
@@ -250,7 +246,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    -- )
+    --)
 
 
 
@@ -417,6 +413,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
             -- create new, fully  updated post-order graph
             finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', PO.divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
         in
+        -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
         finalPreOrderGraph
 
 
@@ -441,7 +438,9 @@ postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA
                 currentRootEdges = LG.out inSimpleGraph rootIndex
             in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
-        else newSoftWired
+        else
+            -- trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
+            newSoftWired
         -- )
 
 -- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
@@ -463,7 +462,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
     else
         -- get postodre assignmens of children
         -- checks for single child of node
-        -- result is single graph afer left and right child traversals 
+        -- result is single graph afer left and right child traversals
         -- trace ("PDSW making node " ++ show curNode ++ " in\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph curDecGraph)) (
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
@@ -728,7 +727,7 @@ getBestBlockResolution inResBlockData =
     if V.null inResBlockData then (mempty, 0.0, 0.0, (Nothing, Nothing))
     else
         let -- makes sure all leaves in resolution
-            displayPopList = fmap (complement . displayBVLabel) inResBlockData
+            -- displayPopList = fmap (complement . displayBVLabel) inResBlockData
 
             -- this for non full graph root--uses highest number of bits on--make sure all taxa in
             -- should be fine for a subgraph that has a single edge a base--may not be correct
@@ -869,12 +868,12 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
 -- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
 -- unclear how hardwired will be affected
 setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
-setBetterGraphAssignment firstGraph@(fSimple, fCost, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, sCost, sDecGraph, _, sTraversal, _) =
+setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
     -- trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
     if LG.isEmpty fDecGraph then secondGraph
     else if LG.isEmpty sDecGraph then firstGraph
     else
-        -- trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")"  ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " "  
+        -- trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")"  ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " "
         --     ++ (show $ fmap (fmap name) fCharInfo)) (
         let (mergedBlockVect, costVector) = V.unzip $ V.zipWith makeBetterBlock fTraversal sTraversal
         in
@@ -1052,7 +1051,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
             let childVertexData = vertData leftChildLabel
                 newVertex = VertexInfo {  index = curNode
                                         -- same as child--could and perhaps should prepend 1 to make distinct
-                                        , bvLabel = bvLabel leftChildLabel 
+                                        , bvLabel = bvLabel leftChildLabel
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
                                         , nodeType = GO.getNodeType simpleGraph curNode

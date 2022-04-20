@@ -35,29 +35,44 @@ Portability :  portable (I hope)
 
 -}
 
+{-# Language ImportQualifiedPost #-}
 
-module SymMatrix ( empty, dim, fromLists, Matrix,
-                   SymMatrix.null, cols, rows,
-                   (!), toLists, toRows, fromRows,
-                   toFullLists, getFullRow,
-                   isSymmetric, updateMatrix,
-                   unsafeUpdateMatrix,
-                   addMatrixRow, addMatrices,
-                   deleteRowsAndColumns, showMatrixNicely
-                   , SymMatrix.map, SymMatrix.flatten
-                   , getFullRowVect
-                   , SymMatrix.zipWith
-                   , SymMatrix.zip
-                   , combine
-                   , safeIndex
-                   , makeDefaultMatrix
-                   , getFullVects
-                   ) where
+module SymMatrix
+    ( empty
+    , dim
+    , fromLists
+    , Matrix
+    , SymMatrix.null
+    , cols
+    , rows
+    , (!)
+    , toLists
+    , toRows
+    , fromRows
+    , toFullLists
+    , getFullRow
+    , isSymmetric
+    , updateMatrix
+    , unsafeUpdateMatrix
+    , addMatrixRow
+    , addMatrices
+    , deleteRowsAndColumns
+    , showMatrixNicely
+    , SymMatrix.map
+    , SymMatrix.flatten
+    , getFullRowVect
+    , SymMatrix.zipWith
+    , SymMatrix.zip
+    , combine
+    , safeIndex
+    , makeDefaultMatrix
+    , getFullVects
+    ) where
 
-import qualified Data.List           as L
-import qualified Data.Sort           as S
-import qualified Data.Vector         as V
-import qualified Data.Vector.Generic as G
+import Data.List           qualified as L
+import Data.Sort           qualified as S
+import Data.Vector         qualified as V
+import Data.Vector.Generic qualified as G
 
 -- | Matrix type as Vector of Vectors
 type Matrix a = V.Vector (V.Vector a)
@@ -99,7 +114,7 @@ fromRows inVectList = fromLists $ fmap V.toList inVectList
 
 -- | toRows converts a Matrix to a list of Vectors
 -- unequal in length
-toRows :: (Eq a, Show a) => Matrix a -> [V.Vector a]
+toRows :: Matrix a -> [V.Vector a]
 toRows = V.toList
 
 -- | fromLists takes list of list of a and returns lower diagnoal (with diagonal)
@@ -121,7 +136,7 @@ fromLists inListList =
             else makeLowerDiag initialSquare 0 rowsH
 
 -- | toLists takes a Matrix and returns a list of lists (not all same length)
-toLists :: (Eq a, Show a) => Matrix a -> [[a]]
+toLists :: Eq a => Matrix a -> [[a]]
 toLists inM =
     if SymMatrix.null inM then []
     else
@@ -129,7 +144,7 @@ toLists inM =
 
 -- | toFullLists takes a Matrix and returns a list of lists of full length
 -- square matrix
-toFullLists :: (Eq a, Show a) => Matrix a -> [[a]]
+toFullLists :: Eq a => Matrix a -> [[a]]
 toFullLists inM =
     if SymMatrix.null inM then []
     else
@@ -137,7 +152,7 @@ toFullLists inM =
 
 -- | getFullRow returns a specific full row (is if matrix were square)
 -- as a list
-getFullRow :: (Eq a, Show a) => Matrix a -> Int -> [a]
+getFullRow :: Eq a => Matrix a -> Int -> [a]
 getFullRow inM index =
     if SymMatrix.null inM then []
     else
@@ -148,7 +163,7 @@ getFullRow inM index =
         firstPart ++ restByColumn
 
 -- | getFullVects returns full size verctor of vector not lower triangular
-getFullVects :: (Eq a, Show a) => Matrix a -> Matrix a
+getFullVects :: Eq a => Matrix a -> Matrix a
 getFullVects inLV =
   if SymMatrix.null inLV then  SymMatrix.empty
   else
@@ -156,7 +171,7 @@ getFullVects inLV =
 
 -- | getFullRowVect reurns a specific full row (is if matrix were square)
 -- as a Vector
-getFullRowVect :: (Eq a, Show a) => Matrix a -> Int -> V.Vector a
+getFullRowVect :: Eq a => Matrix a -> Int -> V.Vector a
 getFullRowVect inM index =
     if SymMatrix.null inM then V.empty
     else
@@ -193,8 +208,7 @@ makeLowerDiag inM row numRows
   | otherwise =
     let origRow = inM V.! row
         newRow = V.take (row + 1) origRow
-    in
-    V.cons newRow  (makeLowerDiag inM (row + 1) numRows)
+    in  V.cons newRow (makeLowerDiag inM (row + 1) numRows)
 
 -- | makeDefaultMatrix creates an all 1 wth diagonal 0 matrix of size n x n
 makeDefaultMatrix :: Int -> Matrix Int 
@@ -228,7 +242,7 @@ checkSymmetry inVV pairList
 
 -- | addMatrixRow add a row to existing matrix to extend Matrix dimension
 -- used when adding HTU distances to existing distance matrix as Wagner tree is built
-addMatrixRow :: (Eq a) => Matrix a -> V.Vector a -> Matrix a
+addMatrixRow :: Matrix a -> V.Vector a -> Matrix a
 addMatrixRow inM newRow =
     if V.null newRow then inM
     else
@@ -251,7 +265,7 @@ reIndexTriple trip@(iIndex, jIndex, value) =
 -- | updateMatrix takes a list of triples and update matrix
 -- update all at once checking for bounds
 -- could naively do each triple in turn, but would be alot of copying
-updateMatrix :: (Eq a, Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
+updateMatrix :: (Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
 updateMatrix inM modList =
     if L.null modList then inM
     else
@@ -269,7 +283,7 @@ updateMatrix inM modList =
             addMatrices firstPart modifiedRemainder
 
 -- | unsafeUpdateMatrix unsafe version of updateMatrix
-unsafeUpdateMatrix :: (Eq a, Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
+unsafeUpdateMatrix :: (Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
 unsafeUpdateMatrix inM modList =
     if L.null modList then inM
     else
@@ -383,7 +397,7 @@ map f m =
   else V.map (V.map f) m
 
 -- | flatten concats rows of matrix to make a single Vector
-flatten :: (Eq a, Show a) => Matrix a -> V.Vector a
+flatten :: Eq a => Matrix a -> V.Vector a
 flatten m =
   if SymMatrix.null m then V.empty
   else
@@ -419,7 +433,7 @@ zipWith f m1 m2 =
 -- | combine takes an operator f (Enforcing Num as opposed to zipWith) and two matrices
 -- applying f to each element of the two matrices M1 f M2
 -- to create the output
-combine :: (Num a, Eq a) => (a -> a -> a) -> Matrix a -> Matrix a -> Matrix a
+combine :: Eq a => (a -> a -> a) -> Matrix a -> Matrix a -> Matrix a
 combine f m1 m2 = 
   if SymMatrix.null m1 then error "Null matrix 1 in combine"
   else if SymMatrix.null m2 then error "Null matrix 2 in combine"

@@ -36,12 +36,10 @@ Portability :  portable (I hope)
 
 module Commands.Transform
   ( transform
-  , getRecodingType
   ) where
 
 import Types.Types
 import Data.Alphabet
-import qualified Search.Build as B
 import qualified GraphOptimization.Traversals as T
 import qualified Utilities.Utilities as U
 import qualified ParallelUtilities            as PU
@@ -58,7 +56,6 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import Debug.Trace
 import           Foreign.C.Types             (CUInt)
-import qualified SymMatrix                   as S
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.Vector.Generic         as GV
 import           Data.Word
@@ -186,12 +183,13 @@ makeStaticApprox inGS inData inGraph =
 
    -- tree type
    else if graphType inGS == Tree then
-      let charInfoVV = six6 inGraph
-          decGraph = thd6 inGraph
+      let decGraph = thd6 inGraph
           (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph  charInfoVV inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+
+          -- convert prealigned to non-additive if all 1's tcm 
 
           -- remove constants from new prealigned
           newProcessedData  = R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
@@ -208,8 +206,8 @@ makeStaticApprox inGS inData inGraph =
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 
 -- the character data of the block and transforms the leaf data by using implied alignment
 -- feilds for dynamic characters
-pullGraphBlockDataAndTransform :: DecoratedGraph -> V.Vector (V.Vector CharInfo) -> ProcessedData -> Int -> BlockData
-pullGraphBlockDataAndTransform inDecGraph charInfoVV (_, _, blockCharInfoV) blockIndex =
+pullGraphBlockDataAndTransform :: DecoratedGraph -> ProcessedData -> Int -> BlockData
+pullGraphBlockDataAndTransform inDecGraph  (_, _, blockCharInfoV) blockIndex =
    let (_, leafVerts, _, _) = LG.splitVertexList inDecGraph
        (_, leafLabelList) = unzip leafVerts
        leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
@@ -234,8 +232,8 @@ transformData inCharInfoV inCharLengthV inCharDataV  =
       in
       (outCharDataV, outCharInfoV)
 
--- transformCharacter takes a single characer info and character and returns IA if statis as is if not
--- checks if all gaps with the GV.filter.  If all gaps--it meansa the sequence char was missing and
+-- transformCharacter takes a single characer info and character and returns IA if dynamic as is if not
+-- checks if all gaps with the GV.filter.  If all gaps--it means the sequence char was missing and
 -- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
 -- character--but leaving in case change back to [] 
 transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
@@ -247,7 +245,7 @@ transformCharacter inCharData inCharInfo charLength =
        -- determine if matrix is all same costs => nonadditive
        --                        all same except fort single indel costs => non add with gap binary chars
        --                        not either => matrix char
-       (inCostMatrixType, gapCost) = getRecodingType inCostMatrix
+       (inCostMatrixType, gapCost) = R.getRecodingType inCostMatrix
 
    in
    -- trace ("TC:" ++ (show alphSize) ++ " " ++ (show $ alphabet inCharInfo)) (
@@ -268,7 +266,7 @@ transformCharacter inCharData inCharInfo charLength =
                                   in 
                                   (missingElement, missingElement, missingElement)
 
-             newPrelimBV = convert2BV 32 impliedAlignChar
+             newPrelimBV = R.convert2BV 32 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
          -- trace ("TC-Slim:" ++ (show $ GV.length $ snd3 $ slimAlignment inCharData) ++ " " ++ (show $ snd3 $ impliedAlignChar)) (
@@ -290,7 +288,7 @@ transformCharacter inCharData inCharInfo charLength =
                                   let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
                                   in (missingElement, missingElement, missingElement)
 
-             newPrelimBV = convert2BV 64 impliedAlignChar
+             newPrelimBV = R.convert2BV 64 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in    
          if inCostMatrixType == "nonAdd" then
@@ -332,9 +330,9 @@ transformCharacter inCharData inCharInfo charLength =
 addGaps2BV :: Int -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 addGaps2BV gapCost (_, inM, _) =
    -- trace ("AG2BV: " ++ (show inM)) (
-   let gapChar = BV.fromNumber (BV.dimension $ V.head inM) 1
-       noGap = L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) 1
-       hasGap =  L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) 2
+   let gapChar = BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
+       noGap = L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
+       hasGap =  L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (2 :: Int)
        gapCharV = createGapChars inM gapChar [] noGap hasGap
        outM = inM V.++ gapCharV
    in
@@ -351,47 +349,3 @@ createGapChars origBVV gapCharacter newCharL noGapL hasGapL =
       if V.head origBVV == gapCharacter then createGapChars (V.tail origBVV) gapCharacter (hasGapL ++ newCharL) noGapL hasGapL
       else createGapChars (V.tail origBVV) gapCharacter (noGapL ++ newCharL) noGapL hasGapL
 
--- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
--- this for leaves so assume M only one needed really
-convert2BV :: (Integral a, GV.Vector v a) => Word -> (v a, v a, v a) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) 
-convert2BV size (_, inM, _) = 
-   let inMList = GV.toList inM
-       inMBV = fmap (BV.fromNumber size) inMList
-       
-   in
-   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
-
-
--- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive, 
--- non-additive with gap chars, or matrix
--- assumes indel costs are in last row and column
-getRecodingType :: S.Matrix Int -> (String, Int)
-getRecodingType inMatrix =
-   if S.null inMatrix then error "Null matrix in getRecodingType"
-   else
-      if (not . S.isSymmetric) inMatrix then ("matrix",  0)
-      else 
-         let matrixLL = S.toFullLists inMatrix
-             lastRow = L.last matrixLL
-             numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL) 
-
-         in
-         -- trace  ("GRT: " ++ (show numUniqueCosts)) (
-         -- all same except for 0
-         if numUniqueCosts == 1 then ("nonAdd", 0)
-
-         else ("matrix",  head lastRow)
-         {-
-         -- all same except for gaps
-         else if numUniqueCosts == 2 then
-            trace ("NAG: " ++ (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
-            if  (length $ L.group $ filter (/= 0) lastRow) == 1 then ("nonAddGap", head lastRow)
-
-            -- some no gaps different
-            else ("matrix",  head lastRow)
-            )
-         -- to many types for nonadd coding
-         else ("matrix",  head lastRow)
-         
-         -}
-         -- )

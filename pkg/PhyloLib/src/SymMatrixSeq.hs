@@ -35,29 +35,44 @@ Portability :  portable (I hope)
 
 -}
 
+{-# Language ImportQualifiedPost #-}
 
-module SymMatrixSeq ( empty, dim, fromLists, Matrix,
-                   SymMatrixSeq.null, cols, rows,
-                   (!), toLists, toRows, fromRows,
-                   toFullLists, getFullRow,
-                   isSymmetric, updateMatrix,
-                   unsafeUpdateMatrix,
-                   addMatrixRow, addMatrices,
-                   deleteRowsAndColumns, showMatrixNicely
-                   , SymMatrixSeq.map, SymMatrixSeq.flatten
-                   ,getFullRowVect
-                   , SymMatrixSeq.zipWith
-                   , SymMatrixSeq.zip
-                   , combine
-                   , safeIndex
-                   , makeDefaultMatrix
-                   , toVectorVector
-                   ) where
+module SymMatrixSeq
+    ( empty
+    , dim
+    , fromLists
+    , Matrix
+    , SymMatrixSeq.null
+    , cols
+    , rows
+    , (!)
+    , toLists
+    , toRows
+    , fromRows
+    , toFullLists
+    , getFullRow
+    , isSymmetric
+    , updateMatrix
+    , unsafeUpdateMatrix
+    , addMatrixRow
+    , addMatrices
+    , deleteRowsAndColumns
+    , showMatrixNicely
+    , SymMatrixSeq.map
+    , SymMatrixSeq.flatten
+    , getFullRowVect
+    , SymMatrixSeq.zipWith
+    , SymMatrixSeq.zip
+    , combine
+    , safeIndex
+    , makeDefaultMatrix
+    , toVectorVector
+    ) where
 
-import qualified Data.List           as L
-import qualified Data.Sort           as S
-import qualified LocalSequence       as LS
-import qualified Data.Vector         as V
+import Data.List     qualified as L
+import Data.Sort     qualified as S
+import LocalSequence qualified as LS
+import Data.Vector   qualified as V
 
 -- | Matrix type as Vector of Vectors
 type Matrix a = LS.Seq (LS.Seq a)
@@ -99,7 +114,7 @@ fromRows inVectList = fromLists $ fmap LS.toList inVectList
 
 -- | toRows converts a Matrix to a list of Vectors
 -- unequal in length
-toRows :: (Eq a, Show a) => Matrix a -> [LS.Seq a]
+toRows :: Matrix a -> [LS.Seq a]
 toRows = LS.toList
 
 -- | fromLists takes list of list of a and returns lower diagnoal (with diagonal)
@@ -121,7 +136,7 @@ fromLists inListList =
             else makeLowerDiag initialSquare 0 rowsH
 
 -- | toLists takes a Matrix and returns a list of lists (not all same length)
-toLists :: (Eq a, Show a) => Matrix a -> [[a]]
+toLists :: Eq a => Matrix a -> [[a]]
 toLists inM =
     if SymMatrixSeq.null inM then []
     else
@@ -129,7 +144,7 @@ toLists inM =
 
 -- | toFullLists takes a Matrix and returns a list of lists of full length
 -- square matrix
-toFullLists :: (Eq a, Show a) => Matrix a -> [[a]]
+toFullLists :: Eq a => Matrix a -> [[a]]
 toFullLists inM =
     if SymMatrixSeq.null inM then []
     else
@@ -137,7 +152,7 @@ toFullLists inM =
 
 -- | getFullRow returns a specific full row (is if matrix were square)
 -- as a list
-getFullRow :: (Eq a, Show a) => Matrix a -> Int -> [a]
+getFullRow :: Eq a => Matrix a -> Int -> [a]
 getFullRow inM index =
     if SymMatrixSeq.null inM then []
     else
@@ -149,7 +164,7 @@ getFullRow inM index =
 
 -- | getFullRowVect reurns a specific full row (is if matrix were square)
 -- as a Vector
-getFullRowVect :: (Eq a, Show a) => Matrix a -> Int -> LS.Seq a
+getFullRowVect :: Eq a => Matrix a -> Int -> LS.Seq a
 getFullRowVect inM index =
     if SymMatrixSeq.null inM then LS.empty
     else
@@ -244,7 +259,7 @@ reIndexTriple trip@(iIndex, jIndex, value) =
 -- | updateMatrix takes a list of triples and update matrix
 -- update all at once checking for bounds
 -- could naively do each triple in turn, but would be alot of copying
-updateMatrix :: (Eq a, Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
+updateMatrix :: (Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
 updateMatrix inM modList =
     if L.null modList then inM
     else
@@ -262,7 +277,7 @@ updateMatrix inM modList =
             addMatrices firstPart modifiedRemainder
 
 -- | unsafeUpdateMatrix unsafe version of updateMatrix
-unsafeUpdateMatrix :: (Eq a, Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
+unsafeUpdateMatrix :: (Show a, Ord a) => Matrix a -> [(Int, Int, a)] -> Matrix a
 unsafeUpdateMatrix inM modList =
     if L.null modList then inM
     else
@@ -376,7 +391,7 @@ map f m =
   else LS.map (LS.map f) m
 
 -- | flatten concats rows of matrix to make a single Vector
-flatten :: (Eq a, Show a) => Matrix a -> LS.Seq a
+flatten :: Eq a => Matrix a -> LS.Seq a
 flatten m =
   if SymMatrixSeq.null m then LS.empty
   else LS.concat m
@@ -409,7 +424,7 @@ zipWith f m1 m2 =
 -- | combine takes an operator f (Enforcing Num as opposed to zipWith) and two matrices
 -- applying f to each element of the two matrices M1 f M2
 -- to create the output
-combine :: (Num a, Eq a) => (a -> a -> a) -> Matrix a -> Matrix a -> Matrix a
+combine :: Eq a => (a -> a -> a) -> Matrix a -> Matrix a -> Matrix a
 combine f m1 m2 = 
   if SymMatrixSeq.null m1 then error "Null matrix 1 in combine"
   else if SymMatrixSeq.null m2 then error "Null matrix 2 in combine"

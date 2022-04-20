@@ -53,8 +53,8 @@ import qualified System.Random                     as Rand
 import qualified System.Random.Shuffle             as RandS
 import           Types.DistanceTypes
 --import qualified LocalSequence as LS
-import qualified Data.Vector as LS
-import qualified Data.List as L
+import qualified Data.List                         as L
+import qualified Data.Vector                       as LS
 
 
 

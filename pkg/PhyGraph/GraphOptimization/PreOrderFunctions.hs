@@ -47,7 +47,6 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             ) where
 
 import           Bio.DynamicCharacter
-import           Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
@@ -55,17 +54,17 @@ import qualified Data.Map                    as MAP
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
-import           Debug.Trace
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
+import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
-import qualified Utilities.Utilities         as U
 import qualified Utilities.ThreeWayFunctions as TW
-import qualified Input.BitPack               as BP
+import qualified Utilities.Utilities         as U
+-- import           Debug.Trace
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -90,7 +89,7 @@ import qualified Input.BitPack               as BP
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
-    -- trace ("IN pre") (
+    -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
     if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
@@ -114,7 +113,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
             -}
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-            -- )
+    -- )
 
 -- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional post and pre order pass to assign IA fileds and final fields in slim/wide/huge
@@ -149,13 +148,13 @@ postOrderIA inGraph charInfo inNodeList =
         -- trace ("POIA Node: " ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show  $ fmap fst inNodeList)) (
         -- checking sanity of data
         if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
-        else if V.null $ V.head $ vertData nodeLabel then 
+        else if V.null $ V.head $ vertData nodeLabel then
             -- missing data for taxon
             error "Null vertData data in postOrderIA"
 
         -- leaf take assignment from alignment field
         else if nodeType' == LeafNode then -- nodeType nodeLabel  == LeafNode then
-            
+
             -- trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
             postOrderIA inGraph charInfo (tail inNodeList)
             -- postOrderIA newGraph charInfo (tail inNodeList)
@@ -351,7 +350,7 @@ updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabe
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a list of updated nodes
 -- the input nodes are relabelled by preorder functions and added to the list of processed nodes and recursed to other nodes first, then
--- their children -- thi sis important for preorder of hardwired graphs since can have 2 parents a single child. 
+-- their children -- thi sis important for preorder of hardwired graphs since can have 2 parents a single child.
 -- nodes are retuned in reverse order at they are made--need to check if this will affect graph identity or indexing in fgl
 makeFinalAndChildren :: GlobalSettings
                      -> AssignmentMethod
@@ -382,7 +381,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
 
             secondParentData = if (length firstParents == 1) then U.copyToNothing firstParentVertData
                                else U.copyToJust $ vertData $ snd $ last firstParents
-            
+
             -- child data
             firstChildren = LG.labDescendants inGraph firstNode
 
@@ -398,7 +397,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
               | otherwise = [True, False]
             firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
-            
+
             -- check children if indegree == 2 then don't add to nodes to do if in there already
 
             childrenTriple  = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
@@ -412,12 +411,12 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
         makeFinalAndChildren inGS finalMethod staticIA inGraph ((tail nodesToUpdate) ++ childrenTriple') (newFirstNode : updatedNodes) inCharInfo
         --)
 
--- | indeg2NotInNodeList checcks a node agains a list by index (fst) if node is indegree 2 and 
--- already in the list of n odes "todo" filter out as will already be optimized in appropriate pre-order 
+-- | indeg2NotInNodeList checcks a node agains a list by index (fst) if node is indegree 2 and
+-- already in the list of n odes "todo" filter out as will already be optimized in appropriate pre-order
 indeg2NotInNodeList :: LG.Gr a b -> [(LG.LNode a, LG.LNode a, Bool)] -> (LG.LNode a, LG.LNode a, Bool) -> Bool
 indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _) =
  if LG.isEmpty inGraph then error "Empty graph in indeg2NotInNodeList"
- else 
+ else
     if LG.indeg inGraph childNode < 2 then True
     else if childIndex `elem` (fmap (fst . fst3) checkNodeList) then False
     else True
@@ -505,16 +504,16 @@ updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
 updateCharacter postOrderCharacter preOrderCharacter localCharType
   | localCharType == Add =
     postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
-  
+
   | localCharType == NonAdd =
     postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
-  
+
   | localCharType `elem` packedNonAddTypes =
     postOrderCharacter { packedNonAddFinal = packedNonAddFinal preOrderCharacter }
-  
+
   | localCharType == Matrix =
     postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
-  
+
   | localCharType == AlignedSlim =
     postOrderCharacter { alignedSlimPrelim = alignedSlimPrelim preOrderCharacter
                        , alignedSlimFinal  = alignedSlimFinal preOrderCharacter
@@ -535,19 +534,19 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType
                       , slimFinal = slimFinal preOrderCharacter
                       , slimIAFinal = slimIAFinal preOrderCharacter
                       }
-  
+
   | localCharType == WideSeq || localCharType == AminoSeq =
     postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
                       , wideFinal = wideFinal preOrderCharacter
                       , wideIAFinal = wideIAFinal preOrderCharacter
                       }
-  
+
   | localCharType == HugeSeq =
     postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
                       , hugeFinal = hugeFinal preOrderCharacter
                       , hugeIAFinal = hugeIAFinal preOrderCharacter
                       }
-  
+
   | otherwise = error ("Character type unimplemented : " ++ show localCharType)
 
 -- | updateEdgeInfoSoftWired gets edge weights via block trees as opposed to canonical graph
@@ -720,20 +719,24 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         thisCharType = charType charInfo
     in
     if thisCharType == Add then
-        let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
-            maxDiff = V.sum $ V.zipWith maxIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
-            maxCost = thisWeight * fromIntegral maxDiff
+        let --minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
+            (minDiffV, maxDiffV) = V.unzip $ V.zipWith maxMinIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
+
+            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
+            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
         in
         (minCost, maxCost)
 
 
     else if thisCharType == NonAdd then
-        let minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
+        let -- minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
+            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntesection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxDiff = length $ V.filter (==False) $ V.zipWith (==) (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxCost = thisWeight * fromIntegral maxDiff
+            minCost = thisWeight * fromIntegral minDiff
         in
         (minCost, maxCost)
-    
+
     else if thisCharType `elem` packedNonAddTypes then
         let minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
             maxDiff = V.sum $ V.zipWith (BP.maxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
@@ -751,7 +754,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else if thisCharType `elem` prealignedCharacterTypes then
-        let 
+        let
             (minDiff, maxDiff) = unzip $ zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ alignedSlimFinal uCharacter) (GV.toList $ alignedSlimFinal vCharacter)
             minCost = thisWeight * fromIntegral (sum minDiff)
             maxCost = thisWeight * fromIntegral (sum maxDiff)
@@ -809,6 +812,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
+    where hasBVIntesection a b = (not . BV.isZeroVector) (a .&. b) 
 {-
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
@@ -828,12 +832,12 @@ zero2GapBV gapChar inVal = if inVal == zeroBits then bit gapIndex
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
-maxIntervalDiff :: (Int, Int)-> (Int, Int) -> Int
-maxIntervalDiff (a,b) (x,y) =
+maxMinIntervalDiff :: (Int, Int)-> (Int, Int) -> (Int, Int)
+maxMinIntervalDiff (a,b) (x,y) =
     let upper = max b y - min b y
         lower = max a x - min a x
     in
-    max upper lower
+    (min upper lower, max  upper lower)
 
 -- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost
 -- between the two
@@ -871,17 +875,17 @@ createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockDa
 
 -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type
 -- to create pre-order assignments
-assignFinal :: GlobalSettings 
-            -> AssignmentMethod 
-            -> Bool 
-            -> NodeType 
-            -> Bool 
-            -> CharInfo 
-            -> Bool 
-            -> Bool 
-            -> V.Vector CharacterData 
-            -> V.Vector CharacterData 
-            -> V.Vector (Maybe CharacterData) 
+assignFinal :: GlobalSettings
+            -> AssignmentMethod
+            -> Bool
+            -> NodeType
+            -> Bool
+            -> CharInfo
+            -> Bool
+            -> Bool
+            -> V.Vector CharacterData
+            -> V.Vector CharacterData
+            -> V.Vector (Maybe CharacterData)
             -> V.Vector CharacterData
 assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 = V.zipWith3 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1)
 
@@ -893,7 +897,7 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- this does the same things for sequence types, but also
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
--- no IA for networks--at least for now.Bool -> 
+-- no IA for networks--at least for now.Bool ->
 setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> CharacterData -> CharacterData -> Maybe CharacterData -> CharacterData
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
@@ -908,13 +912,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       if localCharType == Add then
          childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then 
+      else if localCharType == NonAdd then
         childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
-      else if localCharType `elem` packedNonAddTypes then 
+      else if localCharType `elem` packedNonAddTypes then
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
-      else if localCharType == Matrix then 
+      else if localCharType == Matrix then
         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
@@ -942,7 +946,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let finalAssignment' = extractMedians $ wideGapped childChar
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
-         else childChar { wideFinal = finalAssignment' 
+         else childChar { wideFinal = finalAssignment'
                         , wideAlignment = if isTree then wideGapped childChar
                                           else mempty
                         }
@@ -960,13 +964,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
    else if childType == LeafNode then
       -- since leaf no neeed to precess final alignment fields for sequence characters
-      if localCharType == Add then 
+      if localCharType == Add then
         childChar {rangeFinal = snd3 $ rangePrelim childChar}
 
-      else if localCharType == NonAdd then 
+      else if localCharType == NonAdd then
         childChar {stateBVFinal = snd3 $ stateBVPrelim childChar}
 
-      else if localCharType `elem` packedNonAddTypes then 
+      else if localCharType `elem` packedNonAddTypes then
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
@@ -979,13 +983,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {alignedWideFinal = snd3 $ alignedWidePrelim childChar}
 
       else if localCharType == AlignedHuge then
-        childChar {alignedHugeFinal = snd3 $ alignedHugePrelim childChar}      
+        childChar {alignedHugeFinal = snd3 $ alignedHugePrelim childChar}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          -- trace ("TNFinal-Leaf:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
@@ -1000,10 +1004,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
-         else childChar { wideFinal = finalAssignment'
+         else childChar { wideFinal = extractMedians $ wideGapped childChar -- finalAssignment'
                         , wideAlignment = if isTree then finalAlignment
                                           else mempty
                         , wideIAPrelim =  if isTree then finalAlignment
@@ -1014,10 +1018,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if localCharType == HugeSeq then
          let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-             finalAssignment' = extractMedians finalAlignment
+             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
-         else childChar { hugeFinal = finalAssignment'
+         else childChar { hugeFinal = extractMedians $ hugeGapped childChar -- finalAssignment'
                         , hugeAlignment = if isTree then finalAlignment
                                           else mempty
                         , hugeIAPrelim =  if isTree then finalAlignment
@@ -1042,10 +1046,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          childChar {stateBVFinal = finalAssignment'}
 
-      else if localCharType `elem` packedNonAddTypes then 
-         let finalAssignment = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
+      else if localCharType `elem` packedNonAddTypes then
+         let finalAssignment' = BP.packedPreorder localCharType (packedNonAddPrelim childChar) (packedNonAddFinal parentChar)
          in
-         childChar {packedNonAddFinal = finalAssignment}
+         childChar {packedNonAddFinal = finalAssignment'}
 
       else if localCharType == Matrix then
          -- add logic for pre-order
@@ -1130,7 +1134,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
-   -- this doens't work--need to redo pass logic--perhaps by doing "grandparent" 
+   -- this doens't work--need to redo pass logic--perhaps by doing "grandparent"
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
       if localCharType == Add then
@@ -1139,7 +1143,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if localCharType == NonAdd then
          childChar {stateBVFinal = stateBVFinal parentChar}
 
-      else if localCharType `elem` packedNonAddTypes then 
+      else if localCharType `elem` packedNonAddTypes then
          childChar {packedNonAddFinal = packedNonAddFinal parentChar}
 
       else if localCharType == Matrix then
@@ -1157,12 +1161,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
-         let slimGapped' = M.makeDynamicCharacterFromSingleVector $ extractMediansGapped $ slimGapped childChar
-             finalGappedO = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             finalGappedO' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) slimGapped' -- (slimGapped childChar) -- slimAlignment parentChar
-             finalGappedO'' = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped parentChar)
-
-         in
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
                         , slimAlignment = if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
@@ -1198,10 +1196,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- )
 
       --for Hardwired graphs
-   else if isIn2Out1 then 
-        if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal") 
-        else TW.threeMedianFinal inGS finalMethod charInfo parentChar (fromJust parent2CharM) childChar
-   
+   else if isIn2Out1 then
+        if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal")
+        else TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
+
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
 
@@ -1262,7 +1260,7 @@ makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
 -- |  additivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 additivePreorder :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int)) -> V.Vector (Int, Int) ->  V.Vector (Int, Int)
-additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
+additivePreorder (leftChild, nodePrelim, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
       V.zipWith4 makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
@@ -1270,7 +1268,7 @@ additivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
 -- |  nonAdditivePreorder assignment takes preliminary triple of child (= current vertex) and
 -- final states of parent to create preorder final states of child
 nonAdditivePreorder :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> V.Vector BV.BitVector -> V.Vector BV.BitVector
-nonAdditivePreorder (nodePrelim, leftChild, rightChild) parentFinal =
+nonAdditivePreorder (leftChild, nodePrelim, rightChild) parentFinal =
    if null nodePrelim then mempty
    else
       V.zipWith4 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal
@@ -1372,15 +1370,15 @@ makeNonAdditiveCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> B
 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
-   if (nodePrelim .&. parentFinal) == parentFinal then
+   if BV.isZeroVector ((complement nodePrelim) .&. parentFinal) then
       --trace ("R1 " ++ show parentFinal)
       parentFinal
-   else if BV.isZeroVector (leftChild .&. rightChild) && (leftChild .|. rightChild) == nodePrelim then
+   else if (BV.isZeroVector (leftChild .&. rightChild)) then
       --trace ("R2 " ++ show (nodePrelim .|. parentFinal))
       nodePrelim .|. parentFinal
    else
       -- trace ("R3 " ++ show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)))
-      nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)
+      nodePrelim .|. (parentFinal .&. (leftChild .|. rightChild))
    -- )
 
 -- | makeMatrixCharacterFinal vertex preliminary and parent final state

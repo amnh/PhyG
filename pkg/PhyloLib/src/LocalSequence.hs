@@ -34,14 +34,16 @@ Portability :  portable (I hope)
 
 -}
 
-module LocalSequence where
+{-# Language ImportQualifiedPost #-} 
 
-import Debug.Trace
+module LocalSequence
+    ( module LocalSequence
+    ) where
+
 import Data.Sequence ((<|), (|>), (><))
-import qualified Data.Sequence as S
-import qualified Data.Foldable as Foldable
-import qualified Data.Vector as V
-import qualified Data.Foldable as F
+import Data.Sequence qualified as S
+import Data.Vector qualified as V
+import Data.Foldable qualified as F
 
 -- | sequjence type for exporting 
 type Seq = S.Seq
@@ -93,12 +95,11 @@ concat inSeqSeq = concatInternal inSeqSeq LocalSequence.empty
 
 -- | concatInternal internal concat function with accumulator
 concatInternal :: (Eq a) => Seq (Seq a) -> Seq a -> Seq a
-concatInternal inSeqSeq newSeq = 
-	if LocalSequence.null inSeqSeq then newSeq
-	else 
-		let firstSeq = LocalSequence.head inSeqSeq
-		in
-		concatInternal (LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
+concatInternal inSeqSeq newSeq
+    | LocalSequence.null inSeqSeq = newSeq
+    | otherwise =
+        let firstSeq = LocalSequence.head inSeqSeq
+        in  concatInternal (LocalSequence.tail inSeqSeq) (firstSeq >< newSeq)
 
 -- | zip maps to zip
 zip :: Seq a -> Seq b -> Seq (a,b)

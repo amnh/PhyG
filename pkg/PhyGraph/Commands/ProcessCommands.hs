@@ -1,7 +1,7 @@
 {- |
 Module      :  ProcessCommands.hs
-Description :  Progam to perform phylogenetic searchs on general graphs with diverse data types
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Description :  Module tpo process command 
+Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,9 @@ import           Data.Maybe
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
-import           Debug.Trace
+import qualified Commands.Verify              as V
 
+-- import           Debug.Trace
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
@@ -139,10 +140,6 @@ removeComments inLineList =
        nonComment : removeComments (tail inLineList))
 
 
--- | allowedCommandList is the permitted command string list
-allowedCommandList :: [String]
-allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "report", "run", "search", "select", "set", "support", "swap"]
-
 
 -- | getInstruction returns the command type from an input String
 -- all operations on lower case
@@ -181,11 +178,11 @@ parseCommand inLine =
             -- NEED TO FIX
             -- make in to a more sophisticated split outside of parens
             argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
-            instruction = getInstruction instructionString allowedCommandList
-            processedArg = parseCommandArg firstString instruction argList
+            localInstruction = getInstruction instructionString V.allowedCommandList
+            processedArg = parseCommandArg firstString localInstruction argList
         in
         --trace (instructionString ++ " " ++  show argList)
-        (instruction, processedArg) : parseCommand restString
+        (localInstruction, processedArg) : parseCommand restString
 
 
 -- | getSubCommand takes a string ans extracts the first occurrence of the
@@ -264,7 +261,6 @@ freeOfSimpleErrors commandString
   | null commandString = errorWithoutStackTrace ("\n\nError in command string--empty")
   | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments.")
   | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
-  | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
   | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
   | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
   | otherwise =
@@ -278,10 +274,10 @@ freeOfSimpleErrors commandString
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
 parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
-parseCommandArg fullCommand instruction argList
-    | instruction == Read = if not $ null argList then RIF.getReadArgs fullCommand argList
+parseCommandArg fullCommand localInstruction argList
+    | localInstruction == Read = if not $ null argList then RIF.getReadArgs fullCommand argList
                             else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes")
-    | otherwise = argList
+    | otherwise                = argList
 
 
 -- | movePrealignedTCM move prealigned and tcm commands to front of argument list
