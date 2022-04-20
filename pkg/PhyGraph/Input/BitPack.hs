@@ -126,7 +126,8 @@ maxCharDiff inCharType a b =
                     else if inCharType == Packed64 then 64
                     else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
-    if inCharType == Packed64 then if a == b then 0 else 1
+    if inCharType == Packed64 then 
+        if a == b then 0 else 1
     else
         let (maxNum, _) = divMod numDiffBits numPacked
         in

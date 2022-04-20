@@ -248,9 +248,6 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
     --)
 
-
-
-
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph
 updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
@@ -421,7 +418,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
 -- staticIA is ignored--but kept for functional polymorphism
 -- ur-root = ntaxa is an invariant
 postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph staticIA startVertex inSimpleGraph =
+postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph _ startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
          -- Assumes root is Number of Leaves
@@ -987,7 +984,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings ->  ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex inGraph  =
+postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex inGraph  =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves
