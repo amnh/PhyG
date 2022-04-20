@@ -313,7 +313,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
 
                 -- create "orginal" character info for later use in outputs after character recoding and transformation etc.
-                thisBlockCharInfo' = fmap setOrigCharInfo thisBlockCharInfo''
+                thisBlockCharInfo' = thisBlockCharInfo'' -- fmap setOrigCharInfo thisBlockCharInfo''
 
 
                 recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
