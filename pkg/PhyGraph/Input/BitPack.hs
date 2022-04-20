@@ -42,7 +42,7 @@ module Input.BitPack
   , packedPreorder
   , threeWayPacked
   , unionPacked
-  , maxCharDiff
+  , minMaxCharDiff
   , showBits
   , showBitsV
   ) where
@@ -114,10 +114,11 @@ showBitsV :: V.Vector Word64 -> String
 showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
 
 
--- | maxCharDiff get the approximate maximum differnet in number of states
+-- | mainMxCharDiff get the approximate maximum differnet in number of states
 -- could do exact with masking, but this likely good enough for general purposes
-maxCharDiff :: CharType -> Word64 -> Word64 -> Int
-maxCharDiff inCharType a b =
+--- need to do exact with amsking and/==
+minMaxCharDiff :: CharType -> Word64 -> Word64 -> (Int, Int)
+minMaxCharDiff inCharType a b =
     let numDiffBits = popCount $ xor a b
         numPacked = if inCharType == Packed2       then 2
                     else if inCharType == Packed4  then 4
@@ -127,11 +128,14 @@ maxCharDiff inCharType a b =
                     else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     if inCharType == Packed64 then 
-        if a == b then 0 else 1
+        let maxVal = if a == b then 0 else 1
+            minVal = if (a .&. b) == (0 :: Word64) then 1 else 0
+        in
+        (minVal, maxVal) 
     else
         let (maxNum, _) = divMod numDiffBits numPacked
         in
-        maxNum
+        (max 1  maxNum, maxNum)
 
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost

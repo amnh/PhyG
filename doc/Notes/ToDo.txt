@@ -573,4 +573,4 @@ preOrderTreeTraversal
 325) efficiently parallleize bitpacking 
 
 
-329) 
+329) Steepest not behaving as should--all getthings steepst does not

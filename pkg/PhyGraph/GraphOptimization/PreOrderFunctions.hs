@@ -738,9 +738,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else if thisCharType `elem` packedNonAddTypes then
-        let minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-            maxDiff = V.sum $ V.zipWith (BP.maxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
-            maxCost = thisWeight * fromIntegral maxDiff
+        let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
+            (minDiffV, maxDiffV) = V.unzip $ V.zipWith (BP.minMaxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
+            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
         in
         (minCost, maxCost)
 
