@@ -313,7 +313,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
 
                 -- create "orginal" character info for later use in outputs after character recoding and transformation etc.
-                thisBlockCharInfo' = thisBlockCharInfo'' -- fmap setOrigCharInfo thisBlockCharInfo''
+                thisBlockCharInfo' = fmap setOrigCharInfo thisBlockCharInfo''
 
 
                 recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
@@ -331,7 +331,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
 
--- | setOrigCharInfo takes fields ffomr charInfo and sets the initial original charcter infomatin field
+-- | setOrigCharInfo takes fields from charInfo and sets the initial original charcter infomatin field
 -- as a singleton Vector
 setOrigCharInfo :: CharInfo -> CharInfo
 setOrigCharInfo inCharInfo =
@@ -362,7 +362,7 @@ recodeNonAddMissingCharacter charInfo inCharData =
             inCharData
 
 
--- | getAddNonAddAlphabets takes recoded chartcater data and resets the alphabet
+-- | getAddNonAddAlphabets takes recoded character data and resets the alphabet
 -- field in charInfo to reflect observed states.  This is used tpo properly sety missing and
 -- bit packing values
 resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo

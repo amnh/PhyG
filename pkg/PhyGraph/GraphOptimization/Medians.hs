@@ -334,8 +334,6 @@ intervalAdd thisWeight leftChar rightChar =
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-    --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangePrelim leftChar) ++ "\t" ++ (show $ rangePrelim rightChar)
-    --   ++ (show newRangeCosts))
     newCharcater
 
 -- | getUnionRange takes min and max range of two additive charcaters and returns

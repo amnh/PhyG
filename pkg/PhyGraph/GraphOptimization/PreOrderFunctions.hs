@@ -719,9 +719,11 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         thisCharType = charType charInfo
     in
     if thisCharType == Add then
-        let minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
-            maxDiff = V.sum $ V.zipWith maxIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
-            maxCost = thisWeight * fromIntegral maxDiff
+        let --minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
+            (minDiffV, maxDiffV) = V.unzip $ V.zipWith maxMinIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
+
+            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
+            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
         in
         (minCost, maxCost)
 
@@ -827,12 +829,12 @@ zero2GapBV gapChar inVal = if inVal == zeroBits then bit gapIndex
 
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
-maxIntervalDiff :: (Int, Int)-> (Int, Int) -> Int
-maxIntervalDiff (a,b) (x,y) =
+maxMinIntervalDiff :: (Int, Int)-> (Int, Int) -> (Int, Int)
+maxMinIntervalDiff (a,b) (x,y) =
     let upper = max b y - min b y
         lower = max a x - min a x
     in
-    max upper lower
+    (min upper lower, max  upper lower)
 
 -- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost
 -- between the two
