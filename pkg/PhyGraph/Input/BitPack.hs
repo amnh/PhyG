@@ -43,14 +43,11 @@ module Input.BitPack
   , threeWayPacked
   , unionPacked
   , minMaxCharDiff
-  , showBits
-  , showBitsV
   ) where
 
 import           Control.Parallel.Strategies
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
-import           Data.Char                   (intToDigit)
 import qualified Data.List                   as L
 import qualified Data.List.Split             as SL
 import qualified Data.Text.Lazy              as T
@@ -58,7 +55,6 @@ import qualified Data.Vector                 as V
 import           Data.Word
 import           Debug.Trace
 import           GeneralUtilities
-import           Numeric                     (showIntAtBase)
 import qualified ParallelUtilities           as PU
 import           Types.Types
 import qualified Utilities.Utilities         as U
@@ -459,16 +455,9 @@ mask8sc7 = shiftL mask8sc0 (8 * 7)
 
 {-Show functions-}
 
--- | showBits cponverts Value to bits as Srting
-showBits :: Word64 -> String
-showBits inVal = showIntAtBase 2 intToDigit inVal ""
-
--- | showBitsV shoiw vector of bits
-showBitsV :: V.Vector Word64 -> String
-showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
 
 {-
-Packed charcter minimum and maximum length functionsd
+Packed character minimum and maximum length functionsd
 -}
 
 -- | mainMxCharDiff get the approximate minimum and maximum difference in number of states
@@ -1001,11 +990,12 @@ preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask2B .&. x2) .|. (shiftR (mask2A .&. x2) 1)
+        c3 = (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
         c4 = c3 .|. (shiftL c3 1)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
     in
+    trace ("PO2: " ++ " in " ++ (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) ++ "->" ++ (show $ showBits finalState))
     finalState
 
 -- | preOrder4 from preOrder2 but for 4 states
@@ -1014,13 +1004,13 @@ preOrder4 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask4B ((mask4B .&. x1) .|. (shiftR (mask4C .&. x1) 1) .|. (shiftR (mask4D .&. x1) 2) .|. (shiftR (mask4E .&. x1) 3))
+        c1 = xor mask4B ((mask4E .&. x1) .|. (shiftR (mask4D .&. x1) 1) .|. (shiftR (mask4C .&. x1) 2) .|. (shiftR (mask4B .&. x1) 3))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask4B .&. x2) .|. (shiftR (mask4C .&. x2) 1) .|. (shiftR (mask4D .&. x2) 2) .|. (shiftR (mask4E .&. x2) 3)
+        c3 = (mask4E .&. x2) .|. (shiftR (mask4D .&. x2) 1) .|. (shiftR (mask4C .&. x2) 2) .|. (shiftR (mask4B .&. x2) 3)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -1033,13 +1023,13 @@ preOrder5 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask5B ((mask5B .&. x1) .|. (shiftR (mask5C .&. x1) 1) .|. (shiftR (mask5D .&. x1) 2) .|. (shiftR (mask5E .&. x1) 3) .|. (shiftR (mask5F .&. x1) 4))
+        c1 = xor mask5F ((mask5F .&. x1) .|. (shiftR (mask5E .&. x1) 1) .|. (shiftR (mask5D .&. x1) 2) .|. (shiftR (mask5C .&. x1) 3) .|. (shiftR (mask5B .&. x1) 4))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask5B .&. x2) .|. (shiftR (mask5C .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5E .&. x2) 3) .|. (shiftR (mask5F .&. x2) 4)
+        c3 = (mask5F .&. x2) .|. (shiftR (mask5E .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5C .&. x2) 3) .|. (shiftR (mask5B .&. x2) 4)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -1052,13 +1042,13 @@ preOrder8 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask8B ((mask8B .&. x1) .|. (shiftR (mask8C .&. x1) 1) .|. (shiftR (mask8D .&. x1) 2) .|. (shiftR (mask8E .&. x1) 3) .|. (shiftR (mask8F .&. x1) 4) .|. (shiftR (mask8G .&. x1) 5) .|. (shiftR (mask8H .&. x1) 6) .|. (shiftR (mask8I .&. x1) 7))
+        c1 = xor mask8B ((mask8I .&. x1) .|. (shiftR (mask8H .&. x1) 1) .|. (shiftR (mask8G .&. x1) 2) .|. (shiftR (mask8F .&. x1) 3) .|. (shiftR (mask8E .&. x1) 4) .|. (shiftR (mask8D .&. x1) 5) .|. (shiftR (mask8C .&. x1) 6) .|. (shiftR (mask8B .&. x1) 7))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask8B .&. x2) .|. (shiftR (mask8C .&. x2) 1) .|. (shiftR (mask8D .&. x2) 2) .|. (shiftR (mask8E .&. x2) 3) .|. (shiftR (mask8F .&. x2) 4) .|. (shiftR (mask8G .&. x2) 5) .|. (shiftR (mask8H .&. x2) 6) .|. (shiftR (mask8I .&. x2) 7)
+        c3 = (mask8I .&. x2) .|. (shiftR (mask8H .&. x2) 1) .|. (shiftR (mask8G .&. x2) 2) .|. (shiftR (mask8F .&. x2) 3) .|. (shiftR (mask8E .&. x2) 4) .|. (shiftR (mask8D .&. x2) 5) .|. (shiftR (mask8C .&. x2) 6) .|. (shiftR (mask8B .&. x2) 7)
         c4 = c1 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4) .|. (shiftL c3 5) .|. (shiftL c3 6) .|. (shiftL c3 7)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))

@@ -381,7 +381,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
-                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RNA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
@@ -830,7 +830,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                             in
                             -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList))
                             L.foldl1' (.|.) stateBVList
-                newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
+                newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -839,7 +839,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange),mempty) }
+                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -868,7 +868,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
   | null inCharInfoList =
         error "Null data in charInfoList createLeafCharacter"
   | null rawDataList =  -- missing data
-   getMissingValue inCharInfoList maxCharLength
+        getMissingValue inCharInfoList maxCharLength
   | otherwise = let localCharType = charType $ head inCharInfoList
                 in if localCharType `elem` sequenceCharacterTypes then
                 --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes

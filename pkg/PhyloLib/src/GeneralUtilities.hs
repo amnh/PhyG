@@ -58,6 +58,10 @@ import Data.Maybe
 import Data.Bits
 import Data.BitVector.LittleEndian qualified as BV
 import Data.List qualified as L
+import Data.Vector qualified                 as V
+import           Data.Word
+import Data.Char
+import Numeric
 
 
 -- | functions for triples, quadruples
@@ -114,6 +118,16 @@ fft6 (_,_,_,_,e,_) = e
 
 six6 :: (a,b,c,d,e,f) -> f
 six6 (_,_,_,_,_,e) = e
+
+
+-- | showBits cponverts Value to bits as Srting
+showBits :: Word64 -> String
+showBits inVal = showIntAtBase 2 intToDigit inVal ""
+
+-- | showBitsV shoiw vector of bits
+showBitsV :: V.Vector Word64 -> String
+showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
+
 
 -- | doubleAsInt takes floor and ceil of Double and retuns Maybe Int
 -- nothing if not, Just Int if it is

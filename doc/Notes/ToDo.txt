@@ -573,4 +573,4 @@ preOrderTreeTraversal
 325) efficiently parallleize bitpacking 
 
 
-330)
+330) BV nonadd diagnose screwed up including ambiguoius characters
