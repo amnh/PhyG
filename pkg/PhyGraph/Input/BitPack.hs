@@ -990,12 +990,12 @@ preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = xor mask2A (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
+        c3 = (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
         c4 = c3 .|. (shiftL c3 1)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
     in
-    trace ("PO2: " ++ " in " ++ (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) ++ "->" ++ (show $ showBits finalState))
+    -- trace ("PO2: " ++ " in " ++ (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) ++ "->" ++ (show $ showBits finalState))
     finalState
 
 -- | preOrder4 from preOrder2 but for 4 states
