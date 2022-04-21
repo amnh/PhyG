@@ -730,8 +730,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType == NonAdd then
         let -- minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
-            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntesection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
-            maxDiff = length $ V.filter (==False) $ V.zipWith (==) (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntersection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            maxDiff = length $ V.filter (==False) $ V.zipWith equalAndSingleState (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxCost = thisWeight * fromIntegral maxDiff
             minCost = thisWeight * fromIntegral minDiff
         in
@@ -813,7 +813,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
-    where hasBVIntesection a b = (not . BV.isZeroVector) (a .&. b) 
+    where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b) 
+          equalAndSingleState a b = if (a == b) && (popCount a == 1) then True else False
 {-
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
