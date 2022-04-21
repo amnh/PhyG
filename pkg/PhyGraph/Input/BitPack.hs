@@ -481,132 +481,195 @@ minMaxPacked2 :: Word64 -> Word64 -> (Int, Int)
 minMaxPacked2 a b =
     let a0 = a .&. mask2sc0
         b0 = b .&. mask2sc0
-        max0 = if (a0 == b0) && (popCount a0 == 1) then 0 else 1
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
 
         a1 = a .&. mask2sc1
         b1 = b .&. mask2sc1
-        max1 = if (a1 == b1) && (popCount a1 == 1) then 0 else 1
-
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
 
         a2 = a .&. mask2sc2
         b2 = b .&. mask2sc2
-        max2 = if (a2 == b2) && (popCount a2 == 1) then 0 else 1
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
 
         a3 = a .&. mask2sc3
         b3 = b .&. mask2sc3
-        max3 = if (a3 == b3) && (popCount a3 == 1) then 0 else 1
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
 
         a4 = a .&. mask2sc4
         b4 = b .&. mask2sc4
-        max4 = if (a4 == b4) && (popCount a4 == 1) then 0 else 1
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
 
         a5 = a .&. mask2sc5
         b5 = b .&. mask2sc5
-        max5 = if (a5 == b5) && (popCount a5 == 1) then 0 else 1
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
 
         a6 = a .&. mask2sc6
         b6 = b .&. mask2sc6
-        max6 = if (a6 == b6) && (popCount a6 == 1) then 0 else 1
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
 
         a7 = a .&. mask2sc7
         b7 = b .&. mask2sc7
-        max7 = if (a7 == b7) && (popCount a7 == 1) then 0 else 1
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
 
         a8 = a .&. mask2sc8
         b8 = b .&. mask2sc8
-        max8 = if (a8 == b8) && (popCount a8 == 1) then 0 else 1
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
 
         a9 = a .&. mask2sc9
         b9 = b .&. mask2sc9
-        max9 = if (a9 == b9) && (popCount a9 == 1) then 0 else 1
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
 
         a10 = a .&. mask2sc10
         b10 = b .&. mask2sc10
-        max10 = if (a10 == b10) && (popCount a10 == 1) then 0 else 1
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
 
         a11 = a .&. mask2sc11
         b11 = b .&. mask2sc11
-        max11 = if (a11 == b11) && (popCount a11 == 1) then 0 else 1
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
 
         a12 = a .&. mask2sc12
         b12 = b .&. mask2sc12
-        max12 = if (a12 == b12) && (popCount a12 == 1) then 0 else 1
+        max12 = if a12 == (0 :: Word64) then 0
+               else if (a12 .&. b12) == (0 :: Word64) then 1
+               else if (a12 == b12)  then 0 else 1
 
         a13 = a .&. mask2sc13
         b13 = b .&. mask2sc13
-        max13 = if (a13 == b13) && (popCount a13 == 1) then 0 else 1
+        max13 = if a13 == (0 :: Word64) then 0
+               else if (a13 .&. b13) == (0 :: Word64) then 1
+               else if (a13 == b13) then 0 else 1
 
         a14 = a .&. mask2sc14
         b14 = b .&. mask2sc14
-        max14 = if (a14 == b14) && (popCount a14 == 1) then 0 else 1
+        max14 = if a14 == (0 :: Word64) then 0
+               else if (a14 .&. b14) == (0 :: Word64) then 1
+               else if (a14 == b14) then 0 else 1
 
         a15 = a .&. mask2sc15
         b15 = b .&. mask2sc15
-        max15 = if (a15 == b15) && (popCount a15 == 1) then 0 else 1
+        max15 = if a15 == (0 :: Word64) then 0
+               else if (a15 .&. b15) == (0 :: Word64) then 1
+               else if (a15 == b15) then 0 else 1
 
         a16 = a .&. mask2sc16
         b16 = b .&. mask2sc16
-        max16 = if (a16 == b16) && (popCount a16 == 1) then 0 else 1
+        max16 = if a16 == (0 :: Word64) then 0
+               else if (a16 .&. b16) == (0 :: Word64) then 1
+               else if (a16 == b16) then 0 else 1
 
         a17 = a .&. mask2sc17
         b17 = b .&. mask2sc17
-        max17 = if (a17 == b17) && (popCount a17 == 1) then 0 else 1
+        max17 = if a17 == (0 :: Word64) then 0
+               else if (a17 .&. b17) == (0 :: Word64) then 1
+               else if (a17 == b17) then 0 else 1
 
         a18 = a .&. mask2sc18
         b18 = b .&. mask2sc18
-        max18 = if (a1 == b18) && (popCount a18 == 1) then 0 else 1
+        max18 = if a18 == (0 :: Word64) then 0
+               else if (a18 .&. b18) == (0 :: Word64) then 1
+               else if (a1 == b18) then 0 else 1
 
         a19 = a .&. mask2sc19
         b19 = b .&. mask2sc19
-        max19 = if (a19 == b19) && (popCount a19 == 1) then 0 else 1
+        max19 = if a19 == (0 :: Word64) then 0
+               else if (a19 .&. b19) == (0 :: Word64) then 1
+               else if (a19 == b19) then 0 else 1
 
         a20 = a .&. mask2sc20
         b20 = b .&. mask2sc20
-        max20 = if (a20 == b20) && (popCount a20 == 1) then 0 else 1
+        max20 = if a20 == (0 :: Word64) then 0
+               else if (a20 .&. b20) == (0 :: Word64) then 1
+               else if (a20 == b20) then 0 else 1
 
         a21 = a .&. mask2sc21
         b21 = b .&. mask2sc21
-        max21 = if (a21 == b21) && (popCount a21 == 1) then 0 else 1
+        max21 = if a21 == (0 :: Word64) then 0
+               else if (a21 .&. b21) == (0 :: Word64) then 1
+               else if (a21 == b21) then 0 else 1
 
         a22 = a .&. mask2sc22
         b22 = b .&. mask2sc22
-        max22 = if (a22 == b22) && (popCount a22 == 1) then 0 else 1
+        max22 = if a22 == (0 :: Word64) then 0
+               else if (a22 .&. b22) == (0 :: Word64) then 1
+               else if (a22 == b22) then 0 else 1
         
         a23 = a .&. mask2sc23
         b23 = b .&. mask2sc23
-        max23 = if (a23 == b23) && (popCount a23 == 1) then 0 else 1
+        max23 = if a23 == (0 :: Word64) then 0
+               else if (a23 .&. b23) == (0 :: Word64) then 1
+               else if (a23 == b23) then 0 else 1
 
         a24 = a .&. mask2sc24
         b24 = b .&. mask2sc24
-        max24 = if (a24 == b24) && (popCount a24 == 1) then 0 else 1
+        max24 = if a24 == (0 :: Word64) then 0
+               else if (a24 .&. b24) == (0 :: Word64) then 1
+               else if (a24 == b24) then 0 else 1
 
         a25 = a .&. mask2sc25
         b25 = b .&. mask2sc25
-        max25 = if (a25 == b25) && (popCount a25 == 1) then 0 else 1
+        max25 = if a25 == (0 :: Word64) then 0
+               else if (a25 .&. b25) == (0 :: Word64) then 1
+               else if (a25 == b25)  then 0 else 1
 
         a26 = a .&. mask2sc26
         b26 = b .&. mask2sc26
-        max26 = if (a26 == b26) && (popCount a26 == 1) then 0 else 1
+        max26 = if a26 == (0 :: Word64) then 0
+               else if (a26 .&. b26) == (0 :: Word64) then 1
+               else if (a26 == b26) then 0 else 1
 
         a27 = a .&. mask2sc27
         b27 = b .&. mask2sc27
-        max27 = if (a27 == b27) && (popCount a27 == 1) then 0 else 1
+        max27 = if a27 == (0 :: Word64) then 0
+               else if (a27 .&. b27) == (0 :: Word64) then 1
+               else if (a27 == b27) then 0 else 1
 
         a28 = a .&. mask2sc28
         b28 = b .&. mask2sc28
-        max28 = if (a28 == b28) && (popCount a28 == 1) then 0 else 1
+        max28 = if a28 == (0 :: Word64) then 0
+               else if (a28 .&. b28) == (0 :: Word64) then 1
+               else if (a28 == b28)  then 0 else 1
 
         a29 = a .&. mask2sc29
         b29 = b .&. mask2sc29
-        max29 = if (a29 == b29) && (popCount a29 == 1) then 0 else 1
+        max29 = if a29 == (0 :: Word64) then 0
+               else if (a29 .&. b29) == (0 :: Word64) then 1
+               else if (a29 == b29) then 0 else 1
 
         a30 = a .&. mask2sc30
         b30 = b .&. mask2sc30
-        max30 = if (a30 == b30) && (popCount a30 == 1) then 0 else 1
+        max30 = if a30 == (0 :: Word64) then 0
+               else if (a30 .&. b30) == (0 :: Word64) then 1
+               else if (a30 == b30) then 0 else 1
 
         a31 = a .&. mask2sc31
         b31 = b .&. mask2sc31
-        max31 = if (a31 == b31) && (popCount a31 == 1) then 0 else 1
+        max31 = if a31 == (0 :: Word64) then 0
+               else if (a31 .&. b31) == (0 :: Word64) then 1
+               else if (a31 == b31) then 0 else 1
 
         -- sum up values
         (_, minVal) = andOR2 a b
@@ -615,77 +678,110 @@ minMaxPacked2 a b =
                 + max20 + max21 + max22 + max23 + max24 + max25 + max26 + max27 + max28 + max29 
                 + max30 + max31
     in
+    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
     (minVal, maxVal) 
 
 -- | minMaxPacked4 minium and maximum cost 16x4 bit nonadditive character
--- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
+-- could add popcount == 1 for equality A/C -> A/C is identical but could be A->C so max 1
 -- basically unrolled to make faster
+-- any diffference between states gets 1 for max
 minMaxPacked4 :: Word64 -> Word64 -> (Int, Int)
 minMaxPacked4 a b =
     let a0 = a .&. mask4sc0
         b0 = b .&. mask4sc0
-        max0 = if (a0 == b0) && (popCount a0 == 1) then 0 else 1
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
 
         a1 = a .&. mask4sc1
         b1 = b .&. mask4sc1
-        max1 = if (a1 == b1) && (popCount a1 == 1) then 0 else 1
-
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
 
         a2 = a .&. mask4sc2
         b2 = b .&. mask4sc2
-        max2 = if (a2 == b2) && (popCount a2 == 1) then 0 else 1
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
 
         a3 = a .&. mask4sc3
         b3 = b .&. mask4sc3
-        max3 = if (a3 == b3) && (popCount a3 == 1) then 0 else 1
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
 
         a4 = a .&. mask4sc4
         b4 = b .&. mask4sc4
-        max4 = if (a4 == b4) && (popCount a4 == 1) then 0 else 1
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
 
         a5 = a .&. mask4sc5
         b5 = b .&. mask4sc5
-        max5 = if (a5 == b5) && (popCount a5 == 1) then 0 else 1
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
 
         a6 = a .&. mask4sc6
         b6 = b .&. mask4sc6
-        max6 = if (a6 == b6) && (popCount a6 == 1) then 0 else 1
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
 
         a7 = a .&. mask4sc7
         b7 = b .&. mask4sc7
-        max7 = if (a7 == b7) && (popCount a7 == 1) then 0 else 1
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
 
         a8 = a .&. mask4sc8
         b8 = b .&. mask4sc8
-        max8 = if (a8 == b8) && (popCount a8 == 1) then 0 else 1
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
 
         a9 = a .&. mask4sc9
         b9 = b .&. mask4sc9
-        max9 = if (a9 == b9) && (popCount a9 == 1) then 0 else 1
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
 
         a10 = a .&. mask4sc10
         b10 = b .&. mask4sc10
-        max10 = if (a10 == b10) && (popCount a10 == 1) then 0 else 1
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
 
         a11 = a .&. mask4sc11
         b11 = b .&. mask4sc11
-        max11 = if (a11 == b11) && (popCount a11 == 1) then 0 else 1
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
 
         a12 = a .&. mask4sc12
         b12 = b .&. mask4sc12
-        max12 = if (a12 == b12) && (popCount a12 == 1) then 0 else 1
+        max12 = if a12 == (0 :: Word64) then 0
+               else if (a12 .&. b12) == (0 :: Word64) then 1
+               else if (a12 == b12)  then 0 else 1
 
         a13 = a .&. mask4sc13
         b13 = b .&. mask4sc13
-        max13 = if (a13 == b13) && (popCount a13 == 1) then 0 else 1
+        max13 = if a13 == (0 :: Word64) then 0
+               else if (a13 .&. b13) == (0 :: Word64) then 1
+               else if (a13 == b13) then 0 else 1
 
         a14 = a .&. mask4sc14
         b14 = b .&. mask4sc14
-        max14 = if (a14 == b14) && (popCount a14 == 1) then 0 else 1
+        max14 = if a14 == (0 :: Word64) then 0
+               else if (a14 .&. b14) == (0 :: Word64) then 1
+               else if (a14 == b14) then 0 else 1
 
         a15 = a .&. mask4sc15
         b15 = b .&. mask4sc15
-        max15 = if (a15 == b15) && (popCount a15 == 1) then 0 else 1
+        max15 = if a15 == (0 :: Word64) then 0
+               else if (a15 .&. b15) == (0 :: Word64) then 1
+               else if (a15 == b15) then 0 else 1
 
         -- sum up values
         (_, minVal) = andOR4 a b
@@ -699,54 +795,77 @@ minMaxPacked4 a b =
 -- basically unrolled to make faster
 minMaxPacked5 :: Word64 -> Word64 -> (Int, Int)
 minMaxPacked5 a b =
-    let a0 = a .&. mask5sc0
+    let a0 = a .&. mask8sc0
         b0 = b .&. mask5sc0
-        max0 = if (a0 == b0) && (popCount a0 == 1) then 0 else 1
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
 
         a1 = a .&. mask5sc1
         b1 = b .&. mask5sc1
-        max1 = if (a1 == b1) && (popCount a1 == 1) then 0 else 1
-
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
 
         a2 = a .&. mask5sc2
         b2 = b .&. mask5sc2
-        max2 = if (a2 == b2) && (popCount a2 == 1) then 0 else 1
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
 
         a3 = a .&. mask5sc3
         b3 = b .&. mask5sc3
-        max3 = if (a3 == b3) && (popCount a3 == 1) then 0 else 1
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
 
         a4 = a .&. mask5sc4
         b4 = b .&. mask5sc4
-        max4 = if (a4 == b4) && (popCount a4 == 1) then 0 else 1
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
 
         a5 = a .&. mask5sc5
         b5 = b .&. mask5sc5
-        max5 = if (a5 == b5) && (popCount a5 == 1) then 0 else 1
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
 
         a6 = a .&. mask5sc6
         b6 = b .&. mask5sc6
-        max6 = if (a6 == b6) && (popCount a6 == 1) then 0 else 1
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
 
         a7 = a .&. mask5sc7
         b7 = b .&. mask5sc7
-        max7 = if (a7 == b7) && (popCount a7 == 1) then 0 else 1
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
 
         a8 = a .&. mask5sc8
         b8 = b .&. mask5sc8
-        max8 = if (a8 == b8) && (popCount a8 == 1) then 0 else 1
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
 
         a9 = a .&. mask5sc9
         b9 = b .&. mask5sc9
-        max9 = if (a9 == b9) && (popCount a9 == 1) then 0 else 1
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
 
         a10 = a .&. mask5sc10
         b10 = b .&. mask5sc10
-        max10 = if (a10 == b10) && (popCount a10 == 1) then 0 else 1
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
 
         a11 = a .&. mask5sc11
         b11 = b .&. mask5sc11
-        max11 = if (a11 == b11) && (popCount a11 == 1) then 0 else 1
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
 
 
         -- sum up values
@@ -763,36 +882,51 @@ minMaxPacked8 :: Word64 -> Word64 -> (Int, Int)
 minMaxPacked8 a b =
     let a0 = a .&. mask8sc0
         b0 = b .&. mask8sc0
-        max0 = if (a0 == b0) && (popCount a0 == 1) then 0 else 1
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
 
         a1 = a .&. mask8sc1
         b1 = b .&. mask8sc1
-        max1 = if (a1 == b1) && (popCount a1 == 1) then 0 else 1
-
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
 
         a2 = a .&. mask8sc2
         b2 = b .&. mask8sc2
-        max2 = if (a2 == b2) && (popCount a2 == 1) then 0 else 1
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
 
         a3 = a .&. mask8sc3
         b3 = b .&. mask8sc3
-        max3 = if (a3 == b3) && (popCount a3 == 1) then 0 else 1
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
 
         a4 = a .&. mask8sc4
         b4 = b .&. mask8sc4
-        max4 = if (a4 == b4) && (popCount a4 == 1) then 0 else 1
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
 
         a5 = a .&. mask8sc5
         b5 = b .&. mask8sc5
-        max5 = if (a5 == b5) && (popCount a5 == 1) then 0 else 1
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
 
         a6 = a .&. mask8sc6
         b6 = b .&. mask8sc6
-        max6 = if (a6 == b6) && (popCount a6 == 1) then 0 else 1
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
 
         a7 = a .&. mask8sc7
         b7 = b .&. mask8sc7
-        max7 = if (a7 == b7) && (popCount a7 == 1) then 0 else 1
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
 
 
         -- sum up values
