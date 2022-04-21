@@ -990,7 +990,7 @@ preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
+        c3 = xor mask2A (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
         c4 = c3 .|. (shiftL c3 1)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -1004,7 +1004,7 @@ preOrder4 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask4B ((mask4E .&. x1) .|. (shiftR (mask4D .&. x1) 1) .|. (shiftR (mask4C .&. x1) 2) .|. (shiftR (mask4B .&. x1) 3))
+        c1 = xor mask4E ((mask4E .&. x1) .|. (shiftR (mask4D .&. x1) 1) .|. (shiftR (mask4C .&. x1) 2) .|. (shiftR (mask4B .&. x1) 3))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
         t = c2 .|. y1
 
@@ -1042,7 +1042,7 @@ preOrder8 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask8B ((mask8I .&. x1) .|. (shiftR (mask8H .&. x1) 1) .|. (shiftR (mask8G .&. x1) 2) .|. (shiftR (mask8F .&. x1) 3) .|. (shiftR (mask8E .&. x1) 4) .|. (shiftR (mask8D .&. x1) 5) .|. (shiftR (mask8C .&. x1) 6) .|. (shiftR (mask8B .&. x1) 7))
+        c1 = xor mask8I ((mask8I .&. x1) .|. (shiftR (mask8H .&. x1) 1) .|. (shiftR (mask8G .&. x1) 2) .|. (shiftR (mask8F .&. x1) 3) .|. (shiftR (mask8E .&. x1) 4) .|. (shiftR (mask8D .&. x1) 5) .|. (shiftR (mask8C .&. x1) 6) .|. (shiftR (mask8B .&. x1) 7))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
         t = c2 .|. y1
 
