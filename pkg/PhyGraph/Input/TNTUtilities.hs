@@ -176,7 +176,7 @@ glueInterleave fileName lineList numTax numChars curData
     -- check chars after process due to ambiguities
     if length curData /= numTax then error ("Error in glueInterleave: final taxon number error: " ++ show numTax ++ " vs. " ++ show (length curData))
     else
-        let nameList = fmap fst curData
+        let nameList = fmap T.strip $ fmap fst curData
             charShortTextList = fmap (fmap ST.fromString . snd) curData
         in
         --trace ((show $ length curData) ++ " " ++ (show $ length $ snd $ head curData))

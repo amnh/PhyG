@@ -328,8 +328,8 @@ getRawDataPairsFastA modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
-            firstData = T.filter C.isPrint $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
+            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstData = T.strip $ T.filter C.isPrint $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstData)
             firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)
@@ -415,7 +415,7 @@ getRawDataPairsFastC modifier inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = filter (/= T.pack "-") firstData
         in

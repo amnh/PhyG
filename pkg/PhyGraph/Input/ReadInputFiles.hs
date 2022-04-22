@@ -303,7 +303,7 @@ makeNamePairs :: String -> String -> [(T.Text, T.Text)]
 makeNamePairs inFileName inLine =
     if null inLine then []
     else
-        let lineWords = T.words $ T.pack $ filter (/= '"') $ filter C.isPrint inLine
+        let lineWords = fmap T.strip $ T.words $ T.pack $ filter (/= '"') $ filter C.isPrint inLine
         in
         if length lineWords < 2 then errorWithoutStackTrace ("Rename file " ++ inFileName ++ " line needs at least two Strings to rename the second as the first: " ++ inLine)
         else

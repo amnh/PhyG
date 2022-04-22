@@ -510,43 +510,7 @@ preOrderTreeTraversal
 
 313) Checkl prealigned and static in TNT
 
-315) for nonadd
-	recode as 2,4,5,8,64 states
-	64 -- stright and/or, bit processs for preorder 
-	2-8
-	   shift through characters 
-	   mask top bits
-	   look up for 2-8 states
-
-	   to pull bits for nth charcater
-	   mask = all 0, all 1 in bits (i-i+states)
-	   	a uniquer mask for each character within Word
-	   AND mask with 64 bit Word
-	   	should clear all bit except the ones in that charcater
-	   can do AND/OR for two Word64
-	   if zero then ++ cost (or ++ weight)
-	   else take and
-
-	   unroll for all charctaers 
-
-	   for put back together just OR all characters,
-	   	they shoudl be all zero outside their are
-
-	   use foldl' [bit indices] to set bits in a legible manner
-
-
-	   Use white and holland for postorder 
-	   	with 64-bit modifications and cases for 2,5,8 added
-
-	   Use Golobofff for preorder again
-	   	with 64-bit modifications and cases for 2,5,8 added
-
-	   Maybe add 16 state bit pack?
-
-
 316) hlint, stylish-haskell, remove warnings
-
-317) Recode small state (<10) additive as series of binaries
 
 318) write small adjunct program to filter out constant charaters fomr simple tnt files.
 
@@ -562,7 +526,7 @@ preOrderTreeTraversal
 
 321) Bit packed max distance--need to use masks to calculte did a shim job
 
-322) bit packed sub sample support--samples entiore packed character
+322) bit packed sub sample support--samples entire packed character
 	that's an issue for small numbers of non-additive characters
 
 
@@ -574,3 +538,9 @@ preOrderTreeTraversal
 
 
 330) BV nonadd diagnose screwed up including ambiguoius characters
+	Looks corret for bitpacked so must be a presentation issue not inherently incorrect
+
+331) Diagnosis Outputs:
+	HTU reconstructions--suitable for entry into file wrt ambiguies etc
+	Change list -- marked required/possibke
+
