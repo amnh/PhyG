@@ -240,7 +240,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         in
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
-                    else if firstOption `elem` ["fastc", "custom_alphabet"]  then
+                    else if firstOption `elem` ["fastc"]  then
                         let fastcData = FAC.getFastC "prealigned" fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
@@ -255,7 +255,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     -- prealigned fastc
-                    else if firstOption `elem` ["prefastc", "precustom_alphabet"]  then
+                    else if firstOption `elem` ["prefastc"]  then
                         let fastcData = FAC.getFastC firstOption fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile True tcmPair
                         in
