@@ -44,6 +44,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , preOrderTreeTraversal
                                             , getBlockCostPairsFinal
                                             , setFinalToPreliminaryStates
+                                            , zero2Gap
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -64,6 +65,8 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
+import           Data.Alphabet
+
 -- import           Debug.Trace
 
 
@@ -815,20 +818,21 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
     where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b) 
           equalAndSingleState a b = if (a == b) && (popCount a == 1) then True else False
-{-
+
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
-zero2Gap inVal = if inVal == zeroBits then bit gapIndex
+zero2Gap inVal = if popCount inVal == 0 then bit gapIndex
                  else inVal
 
+{-
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value
 zero2GapWide :: Word64 -> Word64 -> Word64
-zero2GapWide gapChar inVal = if inVal == zeroBits  then bit gapIndex
+zero2GapWide gapChar inVal = if popCount inVal == 0  then bit gapIndex
                          else inVal
 
 -- | zero2GapBV converts a '0' or no bits set to gap (indel) value
 zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
-zero2GapBV gapChar inVal = if inVal == zeroBits then bit gapIndex
+zero2GapBV gapChar inVal = if popCount inVal == 0 then bit gapIndex
                          else inVal
 -}
 
@@ -1127,7 +1131,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar { hugeFinal = GV.filter (/= zeroBits) finalAssignmentDO
+         else childChar { hugeFinal = GV.filter (not . BV.isZeroVector) finalAssignmentDO
                         , hugeAlignment = if isTree then finalGapped
                                           else mempty
                         }

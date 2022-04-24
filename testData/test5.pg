@@ -1,10 +1,13 @@
 -- Test "huge" alphabet sequences
 read("louse.fastc")
 read("woman.fastc")
+
+set(finalassignment:do)
 set(outgroup:"ArabicAfroAsiatic")
 --read(fastc:"louse.fastc", tcm:"louse-11.tcm")
 read("louseWoman.tre")
+--build(distance, dwag)
 --read("louse.dis.csv.tre")
-report("graphs.tre", graphs, newick, append)
+report("louseWoman-new.tre", graphs, newick, append)
 --report("graphs.txt", graphs, ascii, overwrite)
 --report("louse.dis.csv", pairdist, overwrite)

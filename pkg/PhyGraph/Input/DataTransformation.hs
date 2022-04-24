@@ -667,10 +667,13 @@ getGeneralSequenceChar inCharInfo stateList =
               then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
               else (mempty, mempty, mempty)
             newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                             , slimGapped         = if cType `elem` [SlimSeq, NucSeq  ] then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
                                              , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
                                              , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                             , wideGapped         = if cType `elem` [WideSeq, AminoSeq] then (wideVec, wideVec, wideVec) else (mempty, mempty, mempty)
                                              , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
                                              , hugePrelim         = if cType == HugeSeq  then hugeVec else mempty
+                                             , hugeGapped         = if cType == HugeSeq  then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
                                              , hugeFinal          = if cType == HugeSeq  then hugeVec else mempty
                                              , alignedSlimPrelim  = if cType `elem` [AlignedSlim] then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
                                              , alignedSlimFinal   = if cType `elem` [AlignedSlim] then slimVec else mempty

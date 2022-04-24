@@ -1,1 +1,0 @@
-git commit *.txt ./src/Commands/*.hs  ./src/GraphOptimization/*.hs  ./src/Graphs/*.hs  ./src/Input/*.hs ./src/PhyGraph.cabal  ./src/phygraph.hs  ./src/Types/*.hs ./src/Utilities/*.hs ./src/Debug/*.hs ./src/Search/*.hs ./src/Reconciliation/*.hs ./src/System/*.hs ./src/Support/*.hs ./notes/*.txt ./doc/*.tex ./doc/*.pdf  -m

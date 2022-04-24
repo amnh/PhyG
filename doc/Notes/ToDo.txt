@@ -544,3 +544,12 @@ preOrderTreeTraversal
 	HTU reconstructions--suitable for entry into file wrt ambiguies etc
 	Change list -- marked required/possibke
 
+332) Check for double qote pairs for filenames
+	Could just filter and divi length by 2 to get remainder and if 1 then unbalanced
+
+333) Issue with set final ia in hugeSequence
+	per order logic with single 0 state?
+
+334) zero does not work with BVlittleendian corretly 
+	chaneg to popCount == 0 Bits 
+

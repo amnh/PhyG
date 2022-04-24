@@ -162,6 +162,7 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
       let newCharVect = if staticIA then makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
                         else getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
+      -- trace ("M2S: " ++ (show $ localCost  newCharVect))
       (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
@@ -193,7 +194,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
     else if thisType `elem` nonExactCharacterTypes then
          let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
          in
-         -- trace ("M2SNE: " ++ (show thisType))
+         --trace ("M2SNE: " ++ (show thisType) ++ (show $ localCost  newCharVect))
          (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
@@ -535,7 +536,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (hugeGapped leftChar) (hugeGapped rightChar)
-        in  blankCharacterData
+        in blankCharacterData
               { hugePrelim = extractMedians r
               , hugeGapped = r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -906,11 +907,11 @@ local3WaySlim lSlimTCM b c d =
  -- | generalSequenceDiff  takes two sequence elemental bit types and retuns min and max integer
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
-generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " ++ (show (numStates, uState, vState))) (
-    let uState' = if uState == zeroBits then bit gapIndex else uState
-        vState' = if vState == zeroBits then bit gapIndex else vState
+    let uState' = if (popCount uState == 0) then bit gapIndex else uState
+        vState' = if (popCount vState == 0) then bit gapIndex else vState
         uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
         vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
         uvCombinations = cartProd uStateList vStateList
@@ -919,3 +920,7 @@ generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " ++ (show uStateList) ++ " " ++ (show vStateList) ++ " min " ++ (show $ minimum costOfPairs) ++ " max " ++ (show $  maximum costOfPairs))
     (minimum costOfPairs, maximum costOfPairs)
     -- )
+
+
+
+
