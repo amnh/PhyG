@@ -315,6 +315,7 @@ setCommand argList globalSettings processedData inSeedList =
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
     let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
+        --check for balances double quotes and only one pair
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList

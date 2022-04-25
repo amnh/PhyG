@@ -168,7 +168,12 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         (checkCommandArgs "fuse" fstArgList fuseArgList, [""], [""])
 
                                    else if commandInstruction == Read then 
-                                    (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
+                                        in
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in file argument: " ++ fileArgs)
+                                        else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
                                    -- Reblock -- part of read
                                    -- Reconcile -- part of report
@@ -181,7 +186,12 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
 
                                    -- Report
                                    else if commandInstruction == Report then 
-                                        (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
+                                        in
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in file argument: " ++ fileArgs)
+                                        else (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
 
                                    -- Run  -- processed out before this into command list
 
