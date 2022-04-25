@@ -199,10 +199,13 @@ makeTreeFromOrder distMatrix initialTree nOTUs vertexIndex leavesToAdd =
       let (percentAdded, _) = divMod (100 * (nOTUs - (V.length leavesToAdd))) (nOTUs - 2)
           (decileNumber, decileRemainder) = divMod percentAdded 10
       in
+      {-Too much output
       if decileRemainder == 0 then
           trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
           makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
-      else makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
+      else 
+      -}
+      makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
 
 -- | getRandomAdditionSequence initializes based on input sequence and adds in order from there
 getRandomAdditionSequence :: V.Vector String -> M.Matrix Double -> Int -> V.Vector Int -> TreeWithData
