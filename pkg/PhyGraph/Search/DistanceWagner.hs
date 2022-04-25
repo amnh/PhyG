@@ -161,12 +161,16 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
       (firstLeafCost, _, _, _ ) = V.head addPosVect -- To initialize below
       (_, newTree, newLeavesToAdd, augmentedDistMatrix) = getBestLeafAdd (V.tail addPosVect) firstLeafCost (V.head addPosVect)
   in
-  let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
+  let -- progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
+      (percentAdded, _) = divMod (100 * (newVertexIndex - nOTUs)) (nOTUs - 2)
+      (decileNumber, decileRemainder) = divMod percentAdded 10
   in
-  if last progress == '0' then
-      trace ("\t\t"++ progress ++ "%")
+  --trace (show (percentAdded, decileNumber, decileRemainder)) (
+  if decileRemainder == 0 then
+      trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
+  --)
 
 
 -- | calculateWagnerTrees takes an input distance matrix (and options later) and returns
@@ -192,7 +196,13 @@ makeTreeFromOrder distMatrix initialTree nOTUs vertexIndex leavesToAdd =
       let leaf = V.head leavesToAdd
           (_, newTree, _, augmentedDistMatrix) = addTaxonToTree distMatrix initialTree leavesToAdd vertexIndex leaf
       in
-      makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
+      let (percentAdded, _) = divMod (100 * (nOTUs - (V.length leavesToAdd))) (nOTUs - 2)
+          (decileNumber, decileRemainder) = divMod percentAdded 10
+      in
+      if decileRemainder == 0 then
+          trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+          makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
+      else makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
 
 -- | getRandomAdditionSequence initializes based on input sequence and adds in order from there
 getRandomAdditionSequence :: V.Vector String -> M.Matrix Double -> Int -> V.Vector Int -> TreeWithData

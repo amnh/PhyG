@@ -252,11 +252,13 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
         newEdgeVect = edgeVect V.++ V.fromList [newEdgeI, newEdgeJ]
     in
     --trace (M.showMatrixNicely newLittleDMatrix ++ "\n" ++ M.showMatrixNicely bigDMatrix)
-    let progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+    let -- progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+        (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
+        (decileNumber, decileRemainder) = divMod percentAdded 10
     in
-    if last progress == '0' then
-      trace ("\t\t"++ progress ++ "%") -- ++ (show (newVertexVect, newEdgeVect)))
-      addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    if decileRemainder == 0 then
+        trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+        addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
@@ -284,11 +286,13 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
         newEdgeVect = edgeVect V.++ V.fromList [newEdgeI, newEdgeJ]
     in
     --trace (M.showMatrixNicely distMatrix)
-    let progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+    let -- progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
+        (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
+        (decileNumber, decileRemainder) = divMod percentAdded 10
     in
-    if last progress == '0' then
-      trace ("\t\t"++ progress ++ "%")
-      addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    if decileRemainder == 0 then
+        trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+        addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
