@@ -2,7 +2,7 @@
 read("louse.fastc")
 read("woman.fastc")
 
-set(finalassignment:do)
+set(finalassignment:ia)
 set(outgroup:"ArabicAfroAsiatic")
 --read(fastc:"louse.fastc", tcm:"louse-11.tcm")
 read("louseWoman.tre")
