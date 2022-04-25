@@ -196,10 +196,10 @@ makeTreeFromOrder distMatrix initialTree nOTUs vertexIndex leavesToAdd =
       let leaf = V.head leavesToAdd
           (_, newTree, _, augmentedDistMatrix) = addTaxonToTree distMatrix initialTree leavesToAdd vertexIndex leaf
       in
+      {-Too much output
       let (percentAdded, _) = divMod (100 * (nOTUs - (V.length leavesToAdd))) (nOTUs - 2)
           (decileNumber, decileRemainder) = divMod percentAdded 10
       in
-      {-Too much output
       if decileRemainder == 0 then
           trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
           makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
