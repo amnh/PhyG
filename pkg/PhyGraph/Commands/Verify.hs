@@ -176,7 +176,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in 'read' file argument: " ++ fileArgs)
                                         else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
-                                   -- Reblock -- no arguments--but reads string and filenames
+                                   -- Reblock -- no arguments--but reads string and blocknames
                                    else if commandInstruction == Reblock then 
                                         let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
@@ -184,9 +184,9 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         in
                                         -- trace (show (fstArgList, sndArgList,fileNameList)) (
                                         if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " ++ fileArgs)
-                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in reblock command: " ++ fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'reblock' command: " ++ fileArgs)
                                         else (True,[""], [""])
-                                        --)
+                                        -- )
 
                                    -- Reconcile -- part of report
 
@@ -194,7 +194,17 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    else if commandInstruction == Refine then 
                                         (checkCommandArgs "refine" fstArgList refineArgList,[""], [""])
 
-                                   -- Rename -- part of read
+                                   -- Rename -- -- no arguments--but reads string and taxon names
+                                   else if commandInstruction == Rename then 
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
+                                        in
+                                        -- trace (show (fstArgList, sndArgList,fileNameList)) (
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rename' command, new taxon name and old taxon name(s) in double quotes: " ++ fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'rename' command: " ++ fileArgs)
+                                        else (True,[""], [""])
+                                        -- )
 
                                    -- Report
                                    else if commandInstruction == Report then 
