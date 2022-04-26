@@ -59,7 +59,8 @@ import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
 import           Text.Read
-import           Debug.Trace
+
+-- import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
@@ -181,11 +182,11 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
                                         in
-                                        trace (show (fstArgList, sndArgList,fileNameList)) (
+                                        -- trace (show (fstArgList, sndArgList,fileNameList)) (
                                         if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " ++ fileArgs)
                                         else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in reblock command: " ++ fileArgs)
                                         else (True,[""], [""])
-                                        )
+                                        --)
 
                                    -- Reconcile -- part of report
 
