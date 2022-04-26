@@ -286,7 +286,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
+        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
@@ -297,18 +297,18 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
                 previousBlockName = if not $ null curBlockData then fst3 $ head curBlockData
                                     else T.empty
-                thisBlockName' = if T.takeWhile (/= ':') previousBlockName /= T.takeWhile (/= ':') thisBlockName then thisBlockName
+                thisBlockName' = if T.takeWhile (/= '#') previousBlockName /= T.takeWhile (/= '#') thisBlockName then thisBlockName
                                  else
-                                    let oldSuffix = T.dropWhile (/= ':') previousBlockName
-                                        indexSuffix = if T.null oldSuffix then T.pack ":0"
+                                    let oldSuffix = T.dropWhile (/= '#') previousBlockName
+                                        indexSuffix = if T.null oldSuffix then T.pack "#0"
                                                       else
                                                         let oldIndex = readMaybe (T.unpack $ T.tail oldSuffix) :: Maybe Int
                                                             newIndex = 1 + fromJust oldIndex
                                                         in
                                                         if isNothing oldIndex then error "Bad suffix in createNaiveData"
-                                                        else T.pack (":" ++ show newIndex)
+                                                        else T.pack ("#" ++ show newIndex)
                                     in
-                                    T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
+                                    T.append (T.takeWhile (/= '#') thisBlockName)  indexSuffix
 
                 thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
 
@@ -324,7 +324,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
 
             in
             -- trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
-            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
+            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/='#') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             else
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')

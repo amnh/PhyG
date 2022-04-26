@@ -166,10 +166,10 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , slimTCM = localDenseCostMatrix
                                              , wideTCM = localWideTCM
                                              , hugeTCM = localHugeTCM
-                                             , name = T.pack (filter (/= ' ') dataName <> ":0")
+                                             , name = T.pack (filter (/= ' ') dataName <> "#0")
                                              , alphabet = thisAlphabet
                                              , prealigned = isPrealigned
-                                             , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> ":0"), alignedSeqType, thisAlphabet)
+                                             , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                              }
         in
         -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
@@ -289,10 +289,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , slimTCM = localDenseCostMatrix
                                      , wideTCM = localWideTCM
                                      , hugeTCM = localHugeTCM
-                                     , name = T.pack (filter (/= ' ') dataName ++ ":0")
+                                     , name = T.pack (filter (/= ' ') dataName ++ "#0")
                                      , alphabet = thisAlphabet
                                      , prealigned = isPrealigned
-                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ ":0"), alignedSeqType, thisAlphabet)
+                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
                                      }
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (

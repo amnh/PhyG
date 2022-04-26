@@ -59,7 +59,7 @@ import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
 import           Text.Read
--- import           Debug.Trace
+import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
 allowedCommandList :: [String]
@@ -172,10 +172,21 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
                                         in
-                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in file argument: " ++ fileArgs)
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in 'read' file argument: " ++ fileArgs)
                                         else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
-                                   -- Reblock -- part of read
+                                   -- Reblock -- no arguments--but reads string and filenames
+                                   else if commandInstruction == Reblock then 
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
+                                        in
+                                        trace (show (fstArgList, sndArgList,fileNameList)) (
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " ++ fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in reblock command: " ++ fileArgs)
+                                        else (True,[""], [""])
+                                        )
+
                                    -- Reconcile -- part of report
 
                                    -- Refine
@@ -190,7 +201,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
                                         in
-                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in file argument: " ++ fileArgs)
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in report file argument: " ++ fileArgs)
                                         else (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
 
                                    -- Run  -- processed out before this into command list
@@ -213,19 +224,19 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             else (False, [], [])
                                    -- Select
                                    else if commandInstruction == Select then 
-                                        (checkCommandArgs "report" fstArgList selectArgList, [""], [""])
+                                        (checkCommandArgs "select" fstArgList selectArgList, [""], [""])
 
                                    -- Set
                                    else if commandInstruction == Set then 
-                                        (checkCommandArgs "report" fstArgList setArgList, [""], [""])
+                                        (checkCommandArgs "set" fstArgList setArgList, [""], [""])
 
                                    -- Support
                                    else if commandInstruction == Support then 
-                                        (checkCommandArgs "report" fstArgList supportArgList, [""], [""])
+                                        (checkCommandArgs "support" fstArgList supportArgList, [""], [""])
 
                                    -- Swap
                                    else if commandInstruction == Swap then 
-                                        (checkCommandArgs "report" fstArgList swapArgList, [""], [""])
+                                        (checkCommandArgs "swap" fstArgList swapArgList, [""], [""])
 
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
             in

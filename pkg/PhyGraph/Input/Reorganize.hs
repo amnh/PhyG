@@ -193,6 +193,7 @@ getRecodingType inMatrix =
 -- reblock pair names may contain wildcards
 reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
+    -- trace ("RBD:" ++ (show $ fmap fst3 blockDataV )) (
     if null reBlockPairs then trace "Character Blocks as input files" inData
     else
         let -- those block to be reassigned--nub in case repeated names
@@ -202,23 +203,24 @@ reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
             newBlocks = makeNewBlocks reBlockPairs blocksToChange []
             reblockedBlocks = unChangedBlocks V.++ V.fromList newBlocks
         in
-        trace ("Reblocking: " ++ show toBeReblockedNames ++ " leaving unchanged: " ++ show (fmap fst3 unChangedBlocks)
-            ++ "\nNew blocks: " ++ show (fmap fst3 reblockedBlocks))
+        trace ("\nReblocking: " ++ show toBeReblockedNames ++ " leaving unchanged: " ++ show (fmap fst3 unChangedBlocks)
+            ++ "\n\tNew blocks: " ++ show (fmap fst3 reblockedBlocks) ++ "\n")
         (leafNames, leafBVs, reblockedBlocks)
+        -- )
 
 -- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and creates new blocks returned as a list
 makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> [BlockData]
 makeNewBlocks reBlockPairs inBlockV curBlockList
   | null reBlockPairs = curBlockList
   | V.null inBlockV && null curBlockList =
-    errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing ':0/N'? Blocks: " ++ show (fmap snd reBlockPairs))
+    errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0/N'? Blocks: " ++ (show $ fmap snd reBlockPairs))
   | V.null inBlockV = curBlockList
   | otherwise =
     let firstBlock = V.head inBlockV
         firstName = fst3 firstBlock
         newPairList = fst <$> filter (textMatchWildcards firstName.snd) reBlockPairs
     in
-    if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing ':0'? Specified pairs: " ++ show reBlockPairs
+    if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0'? Specified pairs: " ++ show reBlockPairs
         ++ " input block name: " ++ T.unpack firstName)
     else if length newPairList > 1 then errorWithoutStackTrace ("Multiple reblock destinations for single input block" ++ show newPairList)
     else
