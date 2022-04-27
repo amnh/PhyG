@@ -136,13 +136,15 @@ executeReadCommands' :: [RawData]
 executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
-        --hPutStrLn stderr (show argList)
+        hPutStrLn stderr (show argList)
         let isPrealigned'
               | isPrealigned = True
               | "prealigned" `elem`  fmap fst argList = True
               | otherwise = False
-        let (firstOption, firstFile) = head argList
-        -- Check for prealigned
+        let (firstOption', firstFile) = head argList
+        let firstOption = if isPrealigned' then ""
+                          else firstOption'
+        --Check for prealigned
         -- if firstOption == "prealigned" then
         --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
         -- else do
@@ -240,14 +242,14 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if firstOption `elem` ["fastc"]  then
-                        let fastcData = FAC.getFastC "prealigned" fileContents firstFile
+                        let fastcData = FAC.getFastC firstOption fileContents firstFile
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
-                        let fastaData = FAC.getFastA  "prealigned" fileContents firstFile
+                        let fastaData = FAC.getFastA firstOption fileContents firstFile
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
@@ -295,6 +297,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             blockPairs = concatMap (makeNamePairs firstFile) renameLines
                         in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs (blockPairs ++ curReBlockPairs) isPrealigned' tcmPair (tail argList)
+                    --else if firstOption == "prealigned" then
+                    --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else errorWithoutStackTrace ("\n\n'Read' command error: option " ++ firstOption ++ " not recognized/implemented")
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
