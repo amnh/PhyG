@@ -324,16 +324,25 @@ getReadArgs fullCommand argList =
     else
         let (firstPart, secondPart) = head argList
         in
+        -- command in wrong place like prealigned or rename after file name
+        if (not . null) firstPart && null secondPart then 
+            errorWithoutStackTrace ("\n\n'Read' command error: possibly incorrect placement of option specification '" ++ firstPart 
+                ++ "' should be before filename as in '" ++ firstPart ++ ":filename'")
+        
         -- plain file name with no modifier
-        if null firstPart then
+        else if null firstPart then
             if (head secondPart == '"') || (last secondPart == '"') then (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
-            else errorWithoutStackTrace ("\n\n'Read' command error (*) '" ++ secondPart ++"' : Need to specify filename in double quotes")
+            else errorWithoutStackTrace ("\n\n'Read' command error: '" ++ secondPart ++"' : Need to specify filename in double quotes")
+
         -- Change to allowed modifiers
         else if fmap toLower firstPart `notElem` V.readArgList then
-            errorWithoutStackTrace ("\n\n'Read' command error (**): " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
+            errorWithoutStackTrace ("\n\n'Read' command error: " ++ fullCommand ++ " contains unrecognized option '" ++ firstPart ++ "'")
+
         else if null secondPart && (firstPart == "prealigned")  then
             (firstPart, []) : getReadArgs fullCommand (tail argList)
+
         else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
+        
 
 -- | getFENewickGraph takes graph contents and returns local graph format
 -- could be mulitple input graphs
