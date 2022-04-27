@@ -639,8 +639,16 @@ getGeneralBVCode bvCodeVect inState =
     --if '[' `notElem` inStateString then --single state
     if (head inStateString /= '[') && (last inStateString /= ']') then --single state
         let newCode = V.find ((== inState).fst) bvCodeVect
+            bvDimension = fromEnum $ BV.dimension $ snd $ V.head bvCodeVect
         in
-        if isNothing newCode then error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
+        if isNothing newCode then 
+            if inState == ST.fromString "X" then 
+                let x = BV.fromBits $ False : (replicate (bvDimension - 1) True)
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+            else if inState == ST.fromString "?" then 
+                let x = BV.fromBits (replicate bvDimension True)
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+            else error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
         else let x = snd $ fromJust newCode
              in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
     else

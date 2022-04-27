@@ -305,8 +305,8 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- | getFastA processes fasta file
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> String -> [TermData]
-getFastA modifier fileContents' fileName  =
+getFastA :: String -> String -> String -> Bool-> [TermData]
+getFastA modifier fileContents' fileName isPreligned=
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments
@@ -315,7 +315,7 @@ getFastA modifier fileContents' fileName  =
         if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
             let terminalSplits = T.split (=='>') $ T.pack fileContents
-                pairData =  getRawDataPairsFastA modifier (tail terminalSplits)
+                pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
@@ -323,8 +323,8 @@ getFastA modifier fileContents' fileName  =
             else pairData
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
-getRawDataPairsFastA :: String -> [T.Text] -> [TermData]
-getRawDataPairsFastA modifier inTextList =
+getRawDataPairsFastA :: Bool -> [T.Text] -> [TermData]
+getRawDataPairsFastA isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
@@ -336,16 +336,16 @@ getRawDataPairsFastA modifier inTextList =
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         -- trace ("FA " ++ (show firtDataSTList)) (
-        if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
-        else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
+        if isPreligned then (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
+        else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         -- )
 
 -- | getFastC processes fasta file
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
 -- NEED TO ADD AMBIGUITY
-getFastC :: String -> String -> String -> [TermData]
-getFastC modifier fileContents' fileName =
+getFastC :: String -> String -> String -> Bool -> [TermData]
+getFastC modifier fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         let fileContentLines = filter (not.null) $ stripString <$> lines fileContents'
@@ -362,7 +362,7 @@ getFastC modifier fileContents' fileName =
             else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') $ T.pack fileContents
-                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
+                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
                 -- tail because initial split will an empty text
@@ -410,8 +410,8 @@ getRestAmbiguityGroup fileName inList =
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
-getRawDataPairsFastC :: String -> [T.Text] -> [TermData]
-getRawDataPairsFastC modifier inTextList =
+getRawDataPairsFastC :: Bool -> [T.Text] -> [TermData]
+getRawDataPairsFastC isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
@@ -421,8 +421,8 @@ getRawDataPairsFastC modifier inTextList =
         in
         --trace (show firstData) (
         -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        if isPreligned then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC isPreligned (tail inTextList)
+        else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC isPreligned (tail inTextList)
 
 -- | add to tnt
 genDiscreteDenseOfDimension
