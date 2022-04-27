@@ -108,8 +108,8 @@ main = do
     let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
 
     -- Process Rename Commands
-    newNamePairList <- CE.executeRenameReblockCommands renameFilePairs thingsToDo
-    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
+    newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") 
     else hPutStrLn stderr ("No terminals to be renamed")
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
@@ -157,9 +157,9 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-
     -- Execute any 'Block' change commands--make reBlockedNaiveData
-    newBlockPairList <- CE.executeRenameReblockCommands reBlockPairs thingsToDo
+    newBlockPairList <- CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
+     
     let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 

@@ -636,21 +636,21 @@ getCharInfoStrings inChar =
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
 -- as Text
-executeRenameReblockCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
-executeRenameReblockCommands curPairs commandList  =
+executeRenameReblockCommands :: Instruction -> [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
+executeRenameReblockCommands thisInStruction curPairs commandList  =
     if null commandList then return curPairs
     else do
         let (firstOption, firstArgs) = head commandList
 
         -- skip "Read" and "Rename "commands already processed
-        if (firstOption /= Rename) && (firstOption /= Reblock) then executeRenameReblockCommands curPairs (tail commandList)
+        if (firstOption /= thisInStruction) then executeRenameReblockCommands thisInStruction curPairs (tail commandList)
         else
             let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
                 oldNameList = (fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs))
                 newPairs = zip newNameList oldNameList
             in
-            executeRenameReblockCommands (curPairs ++ newPairs) (tail commandList)
+            executeRenameReblockCommands thisInStruction (curPairs ++ newPairs) (tail commandList)
 
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices

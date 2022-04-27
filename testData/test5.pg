@@ -2,7 +2,7 @@
 read("louse.fastc")
 read("woman.fastc")
 
-set(finalassignment:ia)
+set(finalassignment:do)
 set(outgroup:"ArabicAfroAsiatic")
 --read(fastc:"louse.fastc", tcm:"louse-11.tcm")
 read("louseWoman.tre")
@@ -11,3 +11,4 @@ read("louseWoman.tre")
 report("louseWoman-new.tre", graphs, newick, append)
 --report("graphs.txt", graphs, ascii, overwrite)
 --report("louse.dis.csv", pairdist, overwrite)
+report("louse.data.csv", data, overwrite)
