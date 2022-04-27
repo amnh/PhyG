@@ -77,13 +77,12 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
     else do
         globbedFileNames <- mapM SPG.glob fileNames
         if all null globbedFileNames then errorWithoutStackTrace ("File name(s) not found in 'read' command (could be due to missing closing double quote (\")): " ++ show fileNames)
-        -- else if length (concat globbedFileNames) == length fileNames then return [inCommand]
         else
             let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
                 commandList = replicate (length newArgPairs) commandType
             in
             return $ zip commandList newArgPairs
-    --)
+    -- )
 
 -- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 -- globbed file name list to create a list of arguments
@@ -276,8 +275,9 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         if not $ null hasLoops then errorWithoutStackTrace ("Input graphin " ++ firstFile ++ "  has loops/self-edges")
                         else if not $ null hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                         else executeReadCommands' curData (thisGraphList ++ curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    -- reding terminals list to include--must be "new" names if taxa are renamed
-                    else if firstOption `elem` ["terminals", "include"]  then
+                    
+                    -- reading terminals list to include--must be "new" names if taxa are renamed
+                    else if firstOption == "include"  then
                         let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ lines fileContents)
                         in
                         executeReadCommands' curData curGraphs (terminalsList ++ curTerminals) curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)

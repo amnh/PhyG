@@ -544,9 +544,6 @@ preOrderTreeTraversal
 	HTU reconstructions--suitable for entry into file wrt ambiguies etc
 	Change list -- marked required/possibke
 
-332) Check for double qote pairs for filenames
-	Could just filter and divi length by 2 to get remainder and if 1 then unbalanced
-
 333) Issue with set final ia in hugeSequence
 	per order logic with single 0 state?
 
@@ -554,6 +551,8 @@ preOrderTreeTraversal
 	chaneg to popCount == 0 Bits 
 
 
-335) clear up reblock/rename name reporting
-	looks likre rename list is prepended to reblock list
-	perhpas by 'run'
+336)  add gap, subs, ledgin gap options and make own tcm for fasta and fastc
+
+337) make sure steepst returns equal cost gaphs
+
+338) all--resolve graphs earlier to reduce memory footprint
