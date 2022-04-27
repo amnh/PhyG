@@ -553,3 +553,7 @@ preOrderTreeTraversal
 334) zero does not work with BVlittleendian corretly 
 	chaneg to popCount == 0 Bits 
 
+
+335) clear up reblock/rename name reporting
+	looks likre rename list is prepended to reblock list
+	perhpas by 'run'
