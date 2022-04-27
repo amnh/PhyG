@@ -552,3 +552,7 @@ preOrderTreeTraversal
 
 
 336)  add gap, subs, ledgin gap options and make own tcm for fasta and fastc
+
+337) make sure steepst returns equal cost gaphs
+
+338) all--resolve graphs earlier to reduce memory footprint

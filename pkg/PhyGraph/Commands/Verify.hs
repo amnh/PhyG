@@ -89,7 +89,7 @@ netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "n
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
 readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
+    "dot", "newick" , "enewick", "fenewick", "include", "exclude", "rename", "block", "prefasta", 
     "prefastc", "preaminoacid", "prenucleotide"]
 
 -- should be moved to a single file for import

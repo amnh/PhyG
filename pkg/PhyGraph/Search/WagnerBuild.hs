@@ -143,9 +143,10 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
       let -- progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
           (percentAdded, _) = divMod (100 * ((numLeaves - 2) - (V.length additionSequence))) (numLeaves - 2)
           (decileNumber, decileRemainder) = divMod percentAdded 10
+          (_, oddRemainder) = divMod ((numLeaves - 2) - (V.length additionSequence)) 2
       in
       --trace (show (percentAdded, decileNumber, decileRemainder)) (
-      if decileRemainder == 0 then
+      if decileRemainder == 0 && oddRemainder == 0 then
           trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
           recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       else recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph

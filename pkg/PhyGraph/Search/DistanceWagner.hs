@@ -164,9 +164,10 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   let -- progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
       (percentAdded, _) = divMod (100 * (newVertexIndex - nOTUs)) (nOTUs - 2)
       (decileNumber, decileRemainder) = divMod percentAdded 10
+      (_, oddRemainder) = divMod (newVertexIndex - nOTUs) 2
   in
   --trace (show (percentAdded, decileNumber, decileRemainder)) (
-  if decileRemainder == 0 then
+  if decileRemainder == 0  && oddRemainder == 0 then
       trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
