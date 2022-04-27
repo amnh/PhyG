@@ -224,7 +224,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- trace ("(Est, [FP]): " ++ (show minimumCandidateGraphCost) ++ " " ++ (show $ fmap snd6 reoptimizedSwapGraphList)) (
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
-      --trace ("Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
+      trace ("Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
       if bestSwapCost == curBestCost then
          if (length curSameBetterList == numToKeep) then 
             -- trace ("Same cost and maxed out")
@@ -256,7 +256,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
          swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor
          -- )
       -- )
-      -- )
+      )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
 -- infomrs evaluation--less parallelism
