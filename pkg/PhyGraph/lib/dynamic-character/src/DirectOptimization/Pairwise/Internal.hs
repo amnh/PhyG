@@ -86,7 +86,7 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
           regappedAlignment = insertGaps gap gapsLesser gapsLonger ungappedAlignment
           transformation    = if swapped then transposeCharacter else id
           alignmentContext  = transformation regappedAlignment
-      in  (alignmentCost, alignmentContext)
+      in  (alignmentCost, forceAlignment alignmentContext)
 
 
 {-# SCC directOptimizationFromDirectionMatrix #-}
@@ -95,9 +95,9 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
 {-# SPECIALISE directOptimizationFromDirectionMatrix :: (HugeState -> (HugeState -> HugeState -> (HugeState, Word)) ->  V.Vector HugeState ->  V.Vector HugeState -> (Word, UM.Matrix Direction)) -> (HugeState -> HugeState -> (HugeState, Word)) -> HugeDynamicCharacter -> HugeDynamicCharacter -> (Word, HugeDynamicCharacter) #-}
 directOptimizationFromDirectionMatrix
   :: ( FiniteBits e
+     , Matrix m t Direction
      , Ord (v e)
      , Vector v e
-     , Matrix m t Direction
      )
   => (e -> TCMλ e -> v e -> v e -> (Word, m t Direction)) -- ^ Alignment matrix generator function
   -> TCMλ e -- ^ Metric for computing state distance and median state
@@ -128,7 +128,7 @@ traceback
   -> v e -- ^ Shorter dynamic character related to the "left column"
   -> v e -- ^ Longer  dynamic character related to the "top row"
   -> OpenDynamicCharacter v e -- ^ Resulting dynamic character alignment context
-traceback gap overlapλ directionMatrix lesser longer = alignment
+traceback gap overlapλ directionMatrix lesser longer = forceAlignment alignment
   where
     f x y = fst $ overlapλ x y
     getDirection = curry $ unsafeIndex directionMatrix
@@ -213,3 +213,7 @@ handleMissing f lhs rhs =
     (True , False) -> (0, rhs)
     (False, True ) -> (0, lhs)
     (False, False) -> f lhs rhs
+
+
+forceAlignment :: Vector v e => OpenDynamicCharacter v e -> OpenDynamicCharacter v e
+forceAlignment (x,y,z) = ( GV.force x, GV.force y, GV.force z )
