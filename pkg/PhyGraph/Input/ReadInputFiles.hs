@@ -77,7 +77,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
     else do
         globbedFileNames <- mapM SPG.glob fileNames
         if all null globbedFileNames then errorWithoutStackTrace ("File name(s) not found in 'read' command (could be due to missing closing double quote (\")): " ++ show fileNames)
-        else if length (concat globbedFileNames) == length fileNames then return [inCommand]
+        -- else if length (concat globbedFileNames) == length fileNames then return [inCommand]
         else
             let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
                 commandList = replicate (length newArgPairs) commandType
