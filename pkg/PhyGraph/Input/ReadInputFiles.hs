@@ -221,13 +221,13 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                 in
                                 -- spaces between alphabet elements suggest fastc
                                 if numSpaces > 0 then
-                                    let fastcData = FAC.getFastC firstOption fileContents firstFile isPrealigned'
+                                    let fastcData = FAC.getFastC fileContents firstFile isPrealigned'
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else
-                                    let fastaData = FAC.getFastA  firstOption fileContents firstFile isPrealigned'
+                                    let fastaData = FAC.getFastA fileContents firstFile isPrealigned'
                                         fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
@@ -236,20 +236,20 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid"] then
-                        let fastaData = FAC.getFastA  firstOption fileContents firstFile isPrealigned'
+                        let fastaData = FAC.getFastA fileContents firstFile isPrealigned'
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if firstOption `elem` ["fastc"]  then
-                        let fastcData = FAC.getFastC firstOption fileContents firstFile isPrealigned'
+                        let fastcData = FAC.getFastC fileContents firstFile isPrealigned'
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
-                        let fastaData = FAC.getFastA firstOption fileContents firstFile True
+                        let fastaData = FAC.getFastA fileContents firstFile True
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
@@ -257,7 +257,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                     -- prealigned fastc
                     else if firstOption `elem` ["prefastc"]  then
-                        let fastcData = FAC.getFastC firstOption fileContents firstFile True
+                        let fastcData = FAC.getFastC fileContents firstFile True
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile True tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)

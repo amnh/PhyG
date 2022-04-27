@@ -305,8 +305,8 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- | getFastA processes fasta file
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> String -> Bool-> [TermData]
-getFastA modifier fileContents' fileName isPreligned=
+getFastA :: String -> String -> Bool-> [TermData]
+getFastA fileContents' fileName isPreligned=
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments
@@ -344,8 +344,8 @@ getRawDataPairsFastA isPreligned inTextList =
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
 -- NEED TO ADD AMBIGUITY
-getFastC :: String -> String -> String -> Bool -> [TermData]
-getFastC modifier fileContents' fileName isPreligned =
+getFastC :: String -> String -> Bool -> [TermData]
+getFastC fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         let fileContentLines = filter (not.null) $ stripString <$> lines fileContents'
