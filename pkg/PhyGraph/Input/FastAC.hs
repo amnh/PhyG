@@ -80,15 +80,17 @@ getAlphabet curList inList =
 
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
 --   in already)
-generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> [[Int]]
-generateDefaultMatrix inAlph rowCount =
+generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> Int -> Int -> [[Int]]
+generateDefaultMatrix inAlph rowCount indelCost substitutionCost =
     if null inAlph then []
     else if rowCount == length inAlph then []
     else
-        let firstPart = replicate rowCount 1
-            thirdPart = replicate ((length inAlph) - rowCount - 1) 1
+        let firstPart = if rowCount < ((length inAlph) - 1) then replicate rowCount substitutionCost
+                        else replicate rowCount indelCost
+            thirdPart = if rowCount < ((length inAlph) - 1) then (replicate ((length inAlph) - rowCount - 1 - 1) substitutionCost) ++ [indelCost]
+                        else []
         in
-        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1)
+        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -124,7 +126,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                     _        -> sequenceData
 
-            localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
+            localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0 1 1
                               else S.fromLists $ snd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
@@ -246,7 +248,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             inMatrix
               | not $ null $ fst3 localTCM = S.fromLists $ snd3 localTCM
-              | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0
+              | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0 1 1
 
             tcmWeightFactor = thd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)

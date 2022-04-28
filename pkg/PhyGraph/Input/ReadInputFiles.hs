@@ -68,8 +68,10 @@ import qualified Utilities.Utilities        as U
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
 -- read command can have multiple file names
 expandReadCommands ::  [Command] -> Command -> IO [Command]
-expandReadCommands _newReadList inCommand@(commandType, argList) =
-    let fileNames = fmap snd $ filter ((/="tcm") . fst) $ filter ((/= "") . snd) argList
+expandReadCommands _newReadList inCommand@(commandType, argList') =
+    let argList = filter ((`notElem` ["tcm"]) . fst) argList'
+        tcmArgList = filter ((`elem` ["tcm"]) . fst) argList'
+        fileNames = fmap snd $ filter ((/="tcm") . fst) $ filter ((/= "") . snd) argList'
         modifierList = fmap fst argList
     in
     -- trace ("ERC: " ++ (show fileNames)) (
@@ -80,8 +82,9 @@ expandReadCommands _newReadList inCommand@(commandType, argList) =
         else
             let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
                 commandList = replicate (length newArgPairs) commandType
+                tcmArgListL = replicate (length newArgPairs) tcmArgList
             in
-            return $ zip commandList newArgPairs
+            return $ zip commandList (zipWith (++) newArgPairs tcmArgListL)
     -- )
 
 -- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
@@ -133,23 +136,22 @@ executeReadCommands' :: [RawData]
                     -> ([ST.ShortText], [[Int]], Double)
                     -> [Argument]
                     -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
-executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned tcmPair argList = do
+executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs _ tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
-        -- hPutStrLn stderr (show argList)
-        let isPrealigned'
-              | isPrealigned = True
-              | "prealigned" `elem`  fmap fst argList = True
-              | otherwise = False
+        hPutStrLn stderr ("ERC: " ++ (show argList) ++ " " ++ (show tcmPair))
+        let isPrealigned'= False
+        --      | isPrealigned = True
+        --     | "prealigned" `elem`  fmap fst argList = True
+        --      | otherwise = False
         let (firstOption', firstFile) = head argList
-        let firstOption = if isPrealigned' then ""
-                          else fmap C.toLower firstOption'
+        let firstOption = fmap C.toLower firstOption'
         --Check for prealigned
         -- if firstOption == "prealigned" then
         --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
         -- else do
         do
-            fileHandle <- openFile  firstFile ReadMode
+            fileHandle <- openFile firstFile ReadMode
             canBeReadFrom <- hIsReadable fileHandle
             if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
             else
@@ -168,16 +170,23 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
             -- not "dot" files
             else do
-                -- destroys lazyness but allows closing right away
-                -- this so don't have huge numbers of open files for large data sets
+                fileContents <- if (',' `notElem` firstFile) then hGetContents fileHandle
+                                else return firstFile
+
+                {--Strict version--don't think necessary--but could getvinot open fikle number issues?
+                 -- destroys lazyness but allows closing right away
+                 -- this so don't have huge numbers of open files for large data sets
                 fileContents <- hGetContents' fileHandle
                 hClose fileHandle
+                -}
+
                 if null fileContents then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
                 else
                     -- try to figure out file type based on first and following characters
                     if firstOption == "tcm" then
                         let newTCMPair = processTCMContents fileContents firstFile
                         in
+                        trace ("ERC2: " ++ "Getting tcm pair " ++ (show newTCMPair))
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' newTCMPair (tail argList)
                     else if null firstOption then
                         let firstChar = head $ dropWhile (== ' ') fileContents
@@ -233,7 +242,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
-                        else errorWithoutStackTrace ("Cannot determine file type for " ++ firstOption ++ " need to prepend type")
+                        else errorWithoutStackTrace ("Cannot determine file type for " ++ firstFile ++ " need to prepend type")
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid"] then
                         let fastaData = FAC.getFastA fileContents firstFile isPrealigned'
@@ -326,6 +335,7 @@ getReadArgs :: String -> [(String, String)] -> [Argument]
 getReadArgs fullCommand argList =
     if null argList then []
     else
+        trace ("GRA: " ++ fullCommand ++ " " ++ (show argList)) (
         let (firstPart, secondPart) = head argList
         in
         -- command in wrong place like prealigned or rename after file name
@@ -345,7 +355,10 @@ getReadArgs fullCommand argList =
         else if null secondPart && (firstPart == "prealigned")  then
             (firstPart, []) : getReadArgs fullCommand (tail argList)
 
+        else if null (tail secondPart) then argList
+
         else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
+        )
         
 
 -- | getFENewickGraph takes graph contents and returns local graph format
@@ -361,27 +374,29 @@ processTCMContents :: String -> String -> ([ST.ShortText], [[Int]], Double)
 processTCMContents inContents fileName =
     if null inContents then errorWithoutStackTrace ("\n\n'Read' 'tcm' command error: empty tcmfile `" ++ fileName)
     else
+        if ',' `elem` inContents then ([],[],0.0)
         --First line is alphabet
-        let tcmLines = lines inContents
-            localAlphabet =  fmap ST.pack $ words $ head tcmLines
-            -- to account for '-'
-            numElements = 1 + length localAlphabet
-            costMatrixStrings = words <$> tail tcmLines
-            -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
-            (scaleFactor, localCostMatrix) = getCostMatrixAndScaleFactor fileName costMatrixStrings
-            numLines = length localCostMatrix
-            lengthRowList = fmap length localCostMatrix
-            rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
-        in
-        if (any (== ST.singleton '-') localAlphabet) then errorWithoutStackTrace "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
-        else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from "
-            ++ fileName ++ " there should be (including '-') " ++ show numElements ++ " and there are " ++ show numLines)
-        else if not rowsCorrectLength then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
-            ++ fileName ++ " there should be (including '-') " ++ show numElements)
-        else
-            --trace (show (scaleFactor, localCostMatrix))
-            -- trace (show localAlphabet ++ "\n" ++ show localCostMatrix)
-            (localAlphabet ++ [ST.singleton '-'], localCostMatrix, scaleFactor)
+        else 
+            let tcmLines = lines inContents
+                localAlphabet =  fmap ST.pack $ words $ head tcmLines
+                -- to account for '-'
+                numElements = 1 + length localAlphabet
+                costMatrixStrings = words <$> tail tcmLines
+                -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
+                (scaleFactor, localCostMatrix) = getCostMatrixAndScaleFactor fileName costMatrixStrings
+                numLines = length localCostMatrix
+                lengthRowList = fmap length localCostMatrix
+                rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
+            in
+            if (any (== ST.singleton '-') localAlphabet) then errorWithoutStackTrace "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
+            else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from "
+                ++ fileName ++ " there should be (including '-') " ++ show numElements ++ " and there are " ++ show numLines)
+            else if not rowsCorrectLength then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
+                ++ fileName ++ " there should be (including '-') " ++ show numElements)
+            else
+                --trace (show (scaleFactor, localCostMatrix))
+                -- trace (show localAlphabet ++ "\n" ++ show localCostMatrix)
+                (localAlphabet ++ [ST.singleton '-'], localCostMatrix, scaleFactor)
 
 
 -- | getCostMatrixAndScaleFactor takes [[String]] and returns cost matrix as

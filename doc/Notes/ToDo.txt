@@ -556,3 +556,8 @@ preOrderTreeTraversal
 337) make sure steepst returns equal cost gaphs
 
 338) all--resolve graphs earlier to reduce memory footprint
+
+339) display trees as pecentages on reconiliation at and
+	to look at whichngenes go where
+
+

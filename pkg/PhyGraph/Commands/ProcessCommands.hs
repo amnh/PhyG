@@ -57,8 +57,7 @@ import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
 import qualified Commands.Verify              as V
-
--- import           Debug.Trace
+import           Debug.Trace
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
@@ -181,7 +180,6 @@ parseCommand inLine =
             localInstruction = getInstruction instructionString V.allowedCommandList
             processedArg = parseCommandArg firstString localInstruction argList
         in
-        --trace (instructionString ++ " " ++  show argList)
         (localInstruction, processedArg) : parseCommand restString
 
 
@@ -259,7 +257,7 @@ argumentSplitter inString
 freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString
   | null commandString = errorWithoutStackTrace ("\n\nError in command string--empty")
-  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments.")
+  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
   | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
   | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
   | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
