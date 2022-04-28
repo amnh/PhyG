@@ -126,8 +126,13 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                     _        -> sequenceData
 
-            localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0 1 1
+            localCostMatrix = if null $ fst3 localTCM then
+                                let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
+                                                                    else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
+                                in
+                                S.fromLists $ generateDefaultMatrix seqAlphabet 0 indelCost substitutionCost
                               else S.fromLists $ snd3 localTCM
+
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
@@ -155,7 +160,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultHugeSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = CharInfo {
                                                charType = alignedSeqType
                                              , activity = True
                                              , weight = tcmWeightFactor *
@@ -174,9 +179,13 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                              }
         in
-        -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
-        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
-        else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
+        -- trace ("FASTCINFO:" ++ (show $ charType defaultSeqCharInfo)) (
+        if (null . fst3) localTCM && (null . snd3) localTCM then 
+            trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
+            defaultSeqCharInfo
+        else 
+            trace ("Processing TCM data for file : "  ++ dataName) 
+            defaultSeqCharInfo
         -- )
 
 
@@ -248,7 +257,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             inMatrix
               | not $ null $ fst3 localTCM = S.fromLists $ snd3 localTCM
-              | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0 1 1
+              | otherwise = let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
+                                                                else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
+                            in
+                            S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
 
             tcmWeightFactor = thd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)

@@ -63,6 +63,9 @@ import qualified System.Path.Glob           as SPG
 import           Types.Types
 import qualified Utilities.LocalGraph       as LG
 import qualified Utilities.Utilities        as U
+import           Data.Maybe
+import           Text.Read
+
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -139,10 +142,10 @@ executeReadCommands' :: [RawData]
 executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs _ tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
-        hPutStrLn stderr ("ERC: " ++ (show argList) ++ " " ++ (show tcmPair))
-        let isPrealigned'= False
+        -- hPutStrLn stderr ("ERC: " ++ (show argList) ++ " " ++ (show tcmPair))
+        let isPrealigned'= False  --removed this option and m,asde specific to sequence types
         --      | isPrealigned = True
-        --     | "prealigned" `elem`  fmap fst argList = True
+        --      | "prealigned" `elem`  fmap fst argList = True
         --      | otherwise = False
         let (firstOption', firstFile) = head argList
         let firstOption = fmap C.toLower firstOption'
@@ -151,7 +154,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
         --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
         -- else do
         do
-            fileHandle <- openFile firstFile ReadMode
+            fileHandle <- if (',' `notElem` firstFile) then openFile firstFile ReadMode
+                          else return (stdin :: Handle)
             canBeReadFrom <- hIsReadable fileHandle
             if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " ++ firstFile ++ " cannot be read")
             else
@@ -170,6 +174,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
             -- not "dot" files
             else do
+                -- hPutStrLn stderr ("FC1: " ++ firstFile)
                 fileContents <- if (',' `notElem` firstFile) then hGetContents fileHandle
                                 else return firstFile
 
@@ -179,14 +184,13 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 fileContents <- hGetContents' fileHandle
                 hClose fileHandle
                 -}
-
+            
                 if null fileContents then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
                 else
                     -- try to figure out file type based on first and following characters
                     if firstOption == "tcm" then
-                        let newTCMPair = processTCMContents fileContents firstFile
+                        let newTCMPair = processTCMContents (',' `elem` firstFile) fileContents firstFile
                         in
-                        trace ("ERC2: " ++ "Getting tcm pair " ++ (show newTCMPair))
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' newTCMPair (tail argList)
                     else if null firstOption then
                         let firstChar = head $ dropWhile (== ' ') fileContents
@@ -335,7 +339,7 @@ getReadArgs :: String -> [(String, String)] -> [Argument]
 getReadArgs fullCommand argList =
     if null argList then []
     else
-        trace ("GRA: " ++ fullCommand ++ " " ++ (show argList)) (
+        -- trace ("GRA: " ++ fullCommand ++ " " ++ (show argList)) (
         let (firstPart, secondPart) = head argList
         in
         -- command in wrong place like prealigned or rename after file name
@@ -358,7 +362,7 @@ getReadArgs fullCommand argList =
         else if null (tail secondPart) then argList
 
         else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
-        )
+        -- )
         
 
 -- | getFENewickGraph takes graph contents and returns local graph format
@@ -370,11 +374,19 @@ getFENewickGraph fileString =
 
 -- | processTCMContents
 -- functionality added to integerize tcm and add weight factor to allow for decimal tcm values
-processTCMContents :: String -> String -> ([ST.ShortText], [[Int]], Double)
-processTCMContents inContents fileName =
+processTCMContents :: Bool -> String -> String -> ([ST.ShortText], [[Int]], Double)
+processTCMContents indelGap inContents fileName =
     if null inContents then errorWithoutStackTrace ("\n\n'Read' 'tcm' command error: empty tcmfile `" ++ fileName)
     else
-        if ',' `elem` inContents then ([],[],0.0)
+        if indelGap then 
+            let indelString = L.takeWhile (/= ',') inContents
+                substString = tail $ L.dropWhile (/= ',') inContents
+                indelMaybe = readMaybe indelString :: Maybe Int
+                substMaybe = readMaybe substString :: Maybe Int
+            in
+            if isNothing indelMaybe then errorWithoutStackTrace ("Specification of indel cost must be an Integer (Indel cost, Substitution cost): " ++ indelString)
+            else if isNothing substMaybe then errorWithoutStackTrace ("Specification of substitution cost must be an Integer (Indel cost, Substitution cost): " ++ substString)
+            else ([], [[fromJust indelMaybe, fromJust substMaybe],[]], 1.0)
         --First line is alphabet
         else 
             let tcmLines = lines inContents
