@@ -70,10 +70,14 @@ expandRunCommands curLines inLines =
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
+
+            leftParens = length $ filter (=='(') firstLine
+            rightParens = length $ filter (==')') firstLine
         in
         --trace ("FL " ++ firstLine) (
         -- only deal with run lines
-        if null firstLine then expandRunCommands curLines (tail inLines)
+        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ firstLine)
+        else if null firstLine then expandRunCommands curLines (tail inLines)
         else if take 3 (fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : tail inLines)
         else do -- is a "run command"
              let (_, runFileList) = head $ parseCommand firstLine
@@ -91,12 +95,15 @@ splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
     else
-        let firstPart = takeWhile (/= '(') inLine
+        let leftParens = length $ filter (=='(') inLine
+            rightParens = length $ filter (==')') inLine
+            firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
             firstCommand = firstPart ++ parenPart
             restPart = drop (length firstCommand) inLine
         in
-        (firstCommand, restPart)
+        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ inLine)
+        else (firstCommand, restPart)
 
 -- | checkFileNames checks if first and last element of String are double quotes and removes them
 checkFileNames :: String -> String
