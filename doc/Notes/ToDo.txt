@@ -561,3 +561,4 @@ preOrderTreeTraversal
 	to look at whichngenes go where
 
 
+340) NOte--if pbit packing results in all max states---then check missing value calcualtion for bits
