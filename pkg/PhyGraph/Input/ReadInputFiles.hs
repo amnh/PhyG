@@ -136,14 +136,14 @@ executeReadCommands' :: [RawData]
 executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
-        hPutStrLn stderr (show argList)
+        -- hPutStrLn stderr (show argList)
         let isPrealigned'
               | isPrealigned = True
               | "prealigned" `elem`  fmap fst argList = True
               | otherwise = False
         let (firstOption', firstFile) = head argList
         let firstOption = if isPrealigned' then ""
-                          else firstOption'
+                          else fmap C.toLower firstOption'
         --Check for prealigned
         -- if firstOption == "prealigned" then
         --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
