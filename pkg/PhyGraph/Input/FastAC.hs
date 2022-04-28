@@ -290,7 +290,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultHugeSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = CharInfo {
                                        charType = alignedSeqType
                                      , activity = True
                                      , weight = tcmWeightFactor *
@@ -310,8 +310,12 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      }
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
-        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
-        else defaultHugeSeqCharInfo
+        if (null . fst3) localTCM && (null . snd3) localTCM then 
+            trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
+            defaultSeqCharInfo
+        else 
+            trace ("Processing TCM data for file : "  ++ dataName) 
+            defaultSeqCharInfo
         --)
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
