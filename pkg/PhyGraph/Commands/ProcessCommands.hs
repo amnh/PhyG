@@ -57,7 +57,7 @@ import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
 import qualified Commands.Verify              as V
-import           Debug.Trace
+--import           Debug.Trace
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
