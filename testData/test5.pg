@@ -2,7 +2,11 @@
 read("louse.fastc")
 read("woman.fastc")
 
+--Alex this is the line to change  "ia" to trip error "do" goes fine.
 set(finalassignment:ia)
+--set(finalassignment:do)
+
+
 set(outgroup:"ArabicAfroAsiatic")
 --read(fastc:"louse.fastc", tcm:"louse-11.tcm")
 --read("louseWoman.tre")
