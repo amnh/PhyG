@@ -80,15 +80,17 @@ getAlphabet curList inList =
 
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
 --   in already)
-generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> [[Int]]
-generateDefaultMatrix inAlph rowCount =
+generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> Int -> Int -> [[Int]]
+generateDefaultMatrix inAlph rowCount indelCost substitutionCost =
     if null inAlph then []
     else if rowCount == length inAlph then []
     else
-        let firstPart = replicate rowCount 1
-            thirdPart = replicate ((length inAlph) - rowCount - 1) 1
+        let firstPart = if rowCount < ((length inAlph) - 1) then replicate rowCount substitutionCost
+                        else replicate rowCount indelCost
+            thirdPart = if rowCount < ((length inAlph) - 1) then (replicate ((length inAlph) - rowCount - 1 - 1) substitutionCost) ++ [indelCost]
+                        else []
         in
-        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1)
+        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -124,8 +126,13 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                     _        -> sequenceData
 
-            localCostMatrix = if localTCM == ([],[], 1.0) then S.fromLists $ generateDefaultMatrix seqAlphabet 0
+            localCostMatrix = if null $ fst3 localTCM then
+                                let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
+                                                                    else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
+                                in
+                                S.fromLists $ generateDefaultMatrix seqAlphabet 0 indelCost substitutionCost
                               else S.fromLists $ snd3 localTCM
+
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
@@ -153,7 +160,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultHugeSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = CharInfo {
                                                charType = alignedSeqType
                                              , activity = True
                                              , weight = tcmWeightFactor *
@@ -172,9 +179,13 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                              }
         in
-        -- trace ("FASTCINFO:" ++ (show $ charType defaultHugeSeqCharInfo)) (
-        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
-        else trace ("Processing TCM data for file : "  ++ dataName) defaultHugeSeqCharInfo
+        -- trace ("FASTCINFO:" ++ (show $ charType defaultSeqCharInfo)) (
+        if (null . fst3) localTCM && (null . snd3) localTCM then 
+            trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
+            defaultSeqCharInfo
+        else 
+            trace ("Processing TCM data for file : "  ++ dataName) 
+            defaultSeqCharInfo
         -- )
 
 
@@ -246,7 +257,10 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
             inMatrix
               | not $ null $ fst3 localTCM = S.fromLists $ snd3 localTCM
-              | otherwise = S.fromLists $ generateDefaultMatrix thisAlphabet 0
+              | otherwise = let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
+                                                                else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
+                            in
+                            S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
 
             tcmWeightFactor = thd3 localTCM
             tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
@@ -276,7 +290,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultHugeSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = CharInfo {
                                        charType = alignedSeqType
                                      , activity = True
                                      , weight = tcmWeightFactor *
@@ -296,8 +310,12 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      }
         in
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
-        if null (fst3 localTCM) then trace ("Warning: no tcm file specified for use with fastc file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") defaultHugeSeqCharInfo
-        else defaultHugeSeqCharInfo
+        if (null . fst3) localTCM && (null . snd3) localTCM then 
+            trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
+            defaultSeqCharInfo
+        else 
+            trace ("Processing TCM data for file : "  ++ dataName) 
+            defaultSeqCharInfo
         --)
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
@@ -305,8 +323,8 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- | getFastA processes fasta file
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> String -> [TermData]
-getFastA modifier fileContents' fileName  =
+getFastA :: String -> String -> Bool-> [TermData]
+getFastA fileContents' fileName isPreligned=
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments
@@ -315,7 +333,7 @@ getFastA modifier fileContents' fileName  =
         if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
             let terminalSplits = T.split (=='>') $ T.pack fileContents
-                pairData =  getRawDataPairsFastA modifier (tail terminalSplits)
+                pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
@@ -323,8 +341,8 @@ getFastA modifier fileContents' fileName  =
             else pairData
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
-getRawDataPairsFastA :: String -> [T.Text] -> [TermData]
-getRawDataPairsFastA modifier inTextList =
+getRawDataPairsFastA :: Bool -> [T.Text] -> [TermData]
+getRawDataPairsFastA isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
@@ -336,16 +354,16 @@ getRawDataPairsFastA modifier inTextList =
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         -- trace ("FA " ++ (show firtDataSTList)) (
-        if modifier == "prealigned" then (firstName, firtDataSTList) : getRawDataPairsFastA modifier (tail inTextList)
-        else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA modifier (tail inTextList)
+        if isPreligned then (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
+        else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         -- )
 
 -- | getFastC processes fasta file
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
 -- NEED TO ADD AMBIGUITY
-getFastC :: String -> String -> String -> [TermData]
-getFastC modifier fileContents' fileName =
+getFastC :: String -> String -> Bool -> [TermData]
+getFastC fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         let fileContentLines = filter (not.null) $ stripString <$> lines fileContents'
@@ -362,7 +380,7 @@ getFastC modifier fileContents' fileName =
             else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') $ T.pack fileContents
-                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC modifier (tail terminalSplits)
+                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
                 -- tail because initial split will an empty text
@@ -410,8 +428,8 @@ getRestAmbiguityGroup fileName inList =
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
-getRawDataPairsFastC :: String -> [T.Text] -> [TermData]
-getRawDataPairsFastC modifier inTextList =
+getRawDataPairsFastC :: Bool -> [T.Text] -> [TermData]
+getRawDataPairsFastC isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
@@ -421,8 +439,8 @@ getRawDataPairsFastC modifier inTextList =
         in
         --trace (show firstData) (
         -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
-        if modifier == "prealigned" then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC modifier (tail inTextList)
-        else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC modifier (tail inTextList)
+        if isPreligned then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC isPreligned (tail inTextList)
+        else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC isPreligned (tail inTextList)
 
 -- | add to tnt
 genDiscreteDenseOfDimension

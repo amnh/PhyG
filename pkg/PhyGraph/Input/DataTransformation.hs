@@ -632,6 +632,7 @@ getAminoAcidSequenceChar stateList =
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
+-- the AND to all states makes ambiguityoes only observed states
 getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CUInt, Word64, BV.BitVector)
 getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
@@ -639,8 +640,26 @@ getGeneralBVCode bvCodeVect inState =
     --if '[' `notElem` inStateString then --single state
     if (head inStateString /= '[') && (last inStateString /= ']') then --single state
         let newCode = V.find ((== inState).fst) bvCodeVect
+            allBVStates = V.foldl1' (.|.) (fmap snd bvCodeVect)
+            bvDimension = fromEnum $ BV.dimension $ snd $ V.head bvCodeVect
         in
-        if isNothing newCode then error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
+        if isNothing newCode then 
+            
+            --B is Aspartic Acid or Asparagine if '-' =0 then states 3 and 12.
+            if inState == ST.fromString "B" then 
+                let x = BV.fromBits $ (replicate 3 False) ++ [True] ++ (replicate 8 False) ++ [True] ++ (replicate (bvDimension - 13) False)
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+
+            -- any amino acid but not '-'
+            else if inState == ST.fromString "X" then 
+                let x = allBVStates .&. (BV.fromBits (False : (replicate (bvDimension - 1) True)))
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+
+            -- any state including '-'    
+            else if inState == ST.fromString "?" then 
+                let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+            else error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
         else let x = snd $ fromJust newCode
              in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
     else

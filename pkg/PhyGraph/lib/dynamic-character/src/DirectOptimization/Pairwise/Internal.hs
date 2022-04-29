@@ -86,7 +86,7 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
           regappedAlignment = insertGaps gap gapsLesser gapsLonger ungappedAlignment
           transformation    = if swapped then transposeCharacter else id
           alignmentContext  = transformation regappedAlignment
-      in  (alignmentCost, forceAlignment alignmentContext)
+      in  (alignmentCost, forceDynamicCharacter alignmentContext)
 
 
 {-# SCC directOptimizationFromDirectionMatrix #-}
@@ -128,7 +128,7 @@ traceback
   -> v e -- ^ Shorter dynamic character related to the "left column"
   -> v e -- ^ Longer  dynamic character related to the "top row"
   -> OpenDynamicCharacter v e -- ^ Resulting dynamic character alignment context
-traceback gap overlapλ directionMatrix lesser longer = forceAlignment alignment
+traceback gap overlapλ directionMatrix lesser longer = forceDynamicCharacter alignment
   where
     f x y = fst $ overlapλ x y
     getDirection = curry $ unsafeIndex directionMatrix
@@ -213,7 +213,3 @@ handleMissing f lhs rhs =
     (True , False) -> (0, rhs)
     (False, True ) -> (0, lhs)
     (False, False) -> f lhs rhs
-
-
-forceAlignment :: Vector v e => OpenDynamicCharacter v e -> OpenDynamicCharacter v e
-forceAlignment (x,y,z) = ( GV.force x, GV.force y, GV.force z )

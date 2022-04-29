@@ -1571,7 +1571,7 @@ getStateNumber  characterDataVV characterIndex =
     if null characterDataVV then (0, [])
     else
         let thisCharV = fmap (V.! characterIndex) characterDataVV
-            missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (head $ thisCharV)) True
+            missingVal = L.foldl1' (.|.) thisCharV
             nonMissingStates = filter (/= missingVal) thisCharV
             nonMissingBV = L.foldl1' (.|.) nonMissingStates
             numStates = popCount nonMissingBV
@@ -1579,6 +1579,7 @@ getStateNumber  characterDataVV characterIndex =
             -- this turns off non-missing bits
             thisCharL = (fmap (.&. nonMissingBV) thisCharV)
         in
+        -- trace ("GSN:" ++ (show nonMissingStates) ++ "\nNMBV " ++ (show nonMissingBV) ++ " MBV " ++ (show missingVal) ++ " -> " ++ (show numStates) ) (
         if null nonMissingStates then (1, [])
         else if numStates == 1 then (1, [])
         else if numStates == 2 then (2, thisCharL)
