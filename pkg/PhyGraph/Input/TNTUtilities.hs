@@ -619,7 +619,7 @@ getAlphabetFromSTList fileName inStates inCharInfo =
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
-    (fromSymbolsWOGap thisAlphabet, newWeight, newColumn)
+    (fromSymbols thisAlphabet, newWeight, newColumn)
 
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range

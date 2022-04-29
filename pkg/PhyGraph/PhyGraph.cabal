@@ -27,6 +27,9 @@ Source-Repository-Package head
   location: git@github.com:wardwheeler/PhyGraph.git
   subdir:   pkg/PhyloLib
 
+Source-Repository-Package head
+  type:     git
+  location: git@github.com:recursion-ninja/bv-little.git
 
 -- Global deviations from Haskell98
 common ffi-build-info
