@@ -256,12 +256,12 @@ defaultTNTCharInfo = CharInfo { charType = NonAdd
                                 , weight = 1.0
                                 , costMatrix = SM.empty
                                 , name = T.empty
-                                , alphabet = fromSymbols []
+                                , alphabet = fromSymbolsWOGap [] -- fromSymbols []
                                 , prealigned = True
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
                                 , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
-                                , origInfo   = V.singleton (T.empty, NonAdd, fromSymbols [])
+                                , origInfo   = V.singleton (T.empty, NonAdd, fromSymbolsWOGap []) -- fromSymbols [])
                                 }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
@@ -529,7 +529,8 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         in
         if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList)
         else
-            let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
+            --let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
+            let updatedCharInfo = firstCharInfo {alphabet = fromSymbolsWOGap localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
             -- trace ("TNT2" ++ (show $ alphabet updatedCharInfo))
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
@@ -537,7 +538,7 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
 -- | reconcileAlphabetAndCostMatrix trakes the original charcater alphabet created from the cost matrix and compares to the
 -- observed states.  If observed states are a subset of the inferred, the inferred are used to replace the original
 -- this could happen if a matrix is specified for arange of characters, some of which do not exhibit all the states
--- otherwsie an error is thrown since states done't agree with m,artrix specification
+-- otherwsie an error is thrown since states don't agree with m,artrix specification
 -- this could happen for a DNA character (ACGT-) with a martix specified of numerical values (01234)
 reconcileAlphabetAndCostMatrix
   :: ( Ord s
@@ -558,11 +559,23 @@ reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphab
         , show inferredAlphabet
         ]
 
-isAlphabetSubsetOf :: Ord s => Alphabet s -> Alphabet s -> Bool
+-- checks is observed alphabet is sub set of inferred (ie that from cost matrix string)
+-- this can happen if a general DNA cost is sspecified for many characters, but some
+-- characters may have only a few of the states.
+isAlphabetSubsetOf :: (Show s, Ord s) => Alphabet s -> Alphabet s -> Bool
 isAlphabetSubsetOf specialAlphabet queryAlphabet =
     let querySet   = alphabetSymbols   queryAlphabet
         specialSet = alphabetSymbols specialAlphabet
-    in  querySet `Set.isSubsetOf` specialSet
+    in  not $ querySet `Set.isSubsetOf` specialSet
+
+{-
+-- this seems to produce backwards logic
+isAlphabetSubsetOf' :: Ord s => Alphabet s -> Alphabet s -> Bool
+isAlphabetSubsetOf' specialAlphabet queryAlphabet =
+    let querySet   = alphabetSymbols   queryAlphabet
+        specialSet = alphabetSymbols specialAlphabet
+    in  trace ("RACM: " ++ (show $ querySet `Set.isSubsetOf` specialSet)) querySet `Set.isSubsetOf` specialSet
+-}
 
 -- | checkAndRecodeCharacterAlphabets take RawData and checks the data with char info.
 -- verifies that states (including in ambiguity) are Numerical for additive, and checks alphabets and cost matrices
@@ -605,7 +618,8 @@ getAlphabetFromSTList fileName inStates inCharInfo =
                     else thisWeight
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
-    (fromSymbols thisAlphabet, newWeight, newColumn)
+    -- (fromSymbols thisAlphabet, newWeight, newColumn)
+    (fromSymbolsWOGap thisAlphabet, newWeight, newColumn)
 
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range
