@@ -104,8 +104,12 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
+    -- get set paritions character from Set commands early
+    let setCommands = filter ((== Set).fst) thingsToDo
+    (_, partitionCharGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings mempty mempty mempty mempty mempty mempty mempty setCommands
+    
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
-    let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
+    let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharGlobalSettings)) rawData
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
@@ -116,7 +120,7 @@ main = do
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
-
+   
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
@@ -187,6 +191,7 @@ main = do
                                                , rootCost = NoRootCost
                                                , seed = timeD
                                                , searchData = []
+                                               , partitionCharacter = "#"
                                                }
     --hPutStrLn stderr (show defaultGlobalSettings)
 

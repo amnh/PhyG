@@ -228,6 +228,22 @@ setCommand argList globalSettings processedData inSeedList =
 
     in
     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ show argList)
+
+    -- early extraction of parition character, follows from null inputs
+    else if (null inSeedList) then 
+        if head commandList == "partitioncharacter"  then
+            let localPartitionChar = head optionList
+            in
+            if length localPartitionChar /= 1 then errorWithoutStackTrace ("Error in 'set' command. Partitioncharacter '" ++ (show localPartitionChar) ++ "' must be a single character")
+            else 
+                trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
+                (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
+
+        -- partition charcter to reset
+        else 
+            trace ("PartitionCharacter set to " ++ (partitionCharacter globalSettings))
+            (globalSettings, processedData, inSeedList)
+        
     else
         if head commandList == "outgroup"  then
             let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
@@ -289,6 +305,18 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("GraphFactor set to " ++ head optionList)
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "partitioncharacter"  then
+            let localPartitionChar = head optionList
+            in
+            if length localPartitionChar /= 1 then errorWithoutStackTrace ("Error in 'set' command. Partitioncharacter '" ++ (show localPartitionChar) ++ "' must be a single character")
+            else 
+                if (localPartitionChar /= partitionCharacter globalSettings) then
+                    trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
+                    (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
+                else 
+                    (globalSettings, processedData, inSeedList)
+        
         else if head commandList == "rootcost"  then
             let localMethod
                   | (head optionList == "norootcost") = NoRootCost

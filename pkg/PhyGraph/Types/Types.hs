@@ -185,6 +185,7 @@ data  GlobalSettings
     , compressResolutions :: Bool -- "nub" resolutions in softwired graph
     , finalAssignment     :: AssignmentMethod
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
+    , partitionCharacter  :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
     , rootCost            :: RootCost
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
@@ -472,6 +473,21 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
 
 
 -- | empty structures for convenient use
+
+-- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
+emptyGlobalSettings :: GlobalSettings
+emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
+                                     , outGroupName = T.pack "NoOutgroupSet"
+                                     , optimalityCriterion = Parsimony
+                                     , graphType = Tree
+                                     , compressResolutions = True
+                                     , finalAssignment = ImpliedAlignment
+                                     , graphFactor = Wheeler2015Network
+                                     , rootCost = NoRootCost
+                                     , seed = 0
+                                     , searchData = []
+                                     , partitionCharacter = "#"
+                                     }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph

@@ -12,6 +12,7 @@ read(prefasta:"chel-prealiged.fas", tcm:"sg2t2.mat")
 --read("chel.hen")
 read("chel-3.hen")
 
+--set(partitionCharacter:%)
 set(finalassignment:ia)
 
 -- For network testing
