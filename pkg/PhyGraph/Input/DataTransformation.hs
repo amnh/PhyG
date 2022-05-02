@@ -81,7 +81,7 @@ import qualified Utilities.Utilities         as U
 
 --Todo-- add stuff for proper input of prealign seeunces--need charactert types set before this
 
--- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
+-- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
 -- a number to character name
 -- assumes that input rawdata are a single character (as in form a single file) for sequence data
@@ -102,7 +102,7 @@ partitionSequences partChar inDataList =
        in
 
        -- check partition numbers consistent + 1 because of tail
-       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ T.unpack (name $ head charInfoList) ++ " " ++ show pairPartitions)
+       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ T.unpack (name $ head charInfoList) ++ " " ++ (show pairPartitions) ++ "\n\tThis may be due to occurence of the partition character '" ++ (show partChar) ++ "' in sequence data.  This value can be changed with the 'set' command.")
 
        -- if single partition then nothing to do
        else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
@@ -115,7 +115,7 @@ partitionSequences partChar inDataList =
            let leafNameListList = replicate firstPartNumber leafNameList
 
                -- these filtered from terminal partitions
-               leafDataListList = fmap (fmap (filter (/= ST.fromString "#"))) partitionCharListByPartition
+               leafDataListList = fmap (fmap (filter (/= partChar))) partitionCharListByPartition
 
                -- create TermData
                newTermDataList = joinLists leafNameListList leafDataListList
