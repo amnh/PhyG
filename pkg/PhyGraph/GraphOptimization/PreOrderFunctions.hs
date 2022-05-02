@@ -66,7 +66,7 @@ import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
 import           Data.Alphabet
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -852,10 +852,12 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
         cartesianPairs = cartProdPair statePairs
         costList = fmap (localCostMatrix S.!) cartesianPairs
     in
-    trace ("MMCD:" ++ (show cartesianPairs) ++ " " ++ (show costList)) (
+    {-THis ti check for errors
     if (not . null) costList then (minimum costList, maximum costList)
     else (-1, -1)
-    )
+    -}
+    (minimum costList, maximum costList)
+    
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
@@ -926,7 +928,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
-        childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
+        childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
         childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
@@ -981,7 +983,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
-         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
+         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
         childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
@@ -1444,24 +1446,26 @@ setCostsAndStates bestPrelimStates leftChildState rightChildStates stateIndex =
 
 
 -- | setMinCostStatesMatrix  sets the cost of non-minimal cost states to maxBounnd :: StateCost (Int)
-setMinCostStatesMatrix ::  Int -> V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
-setMinCostStatesMatrix numStates inCostVect inStateVect =
-    V.filter ((/= (maxBound :: StateCost)).fst3) <$> V.zipWith (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) inCostVect inStateVect
+setMinCostStatesMatrix ::  Int -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
+setMinCostStatesMatrix numStates inStateVect =
+    let outStates = V.filter ((/= (maxBound :: StateCost)).fst3) <$> fmap (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) inStateVect
+    in
+    outStates
 
 -- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple
--- retiurns a new character with the states cost either the minium value or maxBound iof not
--- this only really useful at root--other vertices minimu costs may not be paert of the
+-- returns a new character with the states cost either the minium value or maxBound if not
+-- this only applied at root or leaf--other vertices minimum costs may not be part of the
 -- miniumm cost assignment, but may be useful heuristically
-nonMinCostStatesToMaxCost :: V.Vector StateCost -> StateCost -> V.Vector MatrixTriple -> V.Vector MatrixTriple
-nonMinCostStatesToMaxCost stateIndexList minStateCost tripleVect =
-   let result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
+nonMinCostStatesToMaxCost :: V.Vector StateCost -> V.Vector MatrixTriple -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost stateIndexList tripleVect =
+   let minStateCost = V.minimum $ fmap fst3 tripleVect
+       result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
    in
    -- trace ((show stateIndexList) ++ " " ++ (show $ V.zip tripleVect stateIndexList))
    result
       where
          modifyStateCost d (a,b,c) e = if a == d then (e,b,c)
                                        else (maxBound :: StateCost ,b,c)
-
 
 -- | setFinalToPreliminaryStates takes VertexBlockData and sets the final values to Preliminary
 setFinalToPreliminaryStates :: VertexBlockData -> VertexBlockData

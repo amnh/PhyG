@@ -561,4 +561,8 @@ preOrderTreeTraversal
 	to look at whichngenes go where
 
 
-340) NOte--if pbit packing results in all max states---then check missing value calcualtion for bits
+340) Note--if bit packing results in all max states---then check missing value calculation for bits
+	'missing' codes to determine states present has been evolving 
+
+341) make '-' state for non-0additive consistent and sensible (fromSymbols, fromSymbolsWOGap)
+
