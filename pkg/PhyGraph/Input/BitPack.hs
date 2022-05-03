@@ -41,6 +41,7 @@ module Input.BitPack
   , median2Packed
   , packedPreorder
   , threeWayPacked
+  , threeWayPacked'
   , unionPacked
   , minMaxCharDiff
   ) where
@@ -453,11 +454,29 @@ mask8sc6 = shiftL mask8sc0 (8 * 6)
 mask8sc7 :: Word64
 mask8sc7 = shiftL mask8sc0 (8 * 7)
 
-{-Show functions-}
+{--
+Lists of sub-character masks for operations over packed characters
+-}
 
+packed2SubCharList :: [Word64]
+packed2SubCharList = [mask2sc0, mask2sc1, mask2sc2, mask2sc3, mask2sc4, mask2sc5, mask2sc6, mask2sc7, mask2sc8, mask2sc9,
+                            mask2sc10, mask2sc11, mask2sc12, mask2sc13, mask2sc14, mask2sc15, mask2sc16, mask2sc17, mask2sc18, mask2sc19,
+                            mask2sc20, mask2sc21, mask2sc22, mask2sc23, mask2sc24, mask2sc25, mask2sc26, mask2sc27, mask2sc28, mask2sc29,
+                            mask2sc30, mask2sc31] 
+                            
+packed4SubCharList :: [Word64]
+packed4SubCharList = [mask4sc0, mask4sc1, mask4sc2, mask4sc3, mask4sc4, mask4sc5, mask4sc6, mask4sc7, mask4sc8, mask4sc9,
+                            mask4sc10, mask4sc11, mask4sc12, mask4sc13, mask4sc14, mask4sc15] 
+                            
+packed5SubCharList :: [Word64]
+packed5SubCharList = [mask5sc0, mask5sc1, mask5sc2, mask5sc3, mask5sc4, mask5sc5, mask5sc6, mask5sc7, mask5sc8, mask5sc9,
+                            mask5sc10, mask5sc11] 
+                            
+packed8SubCharList :: [Word64]
+packed8SubCharList = [mask8sc0, mask8sc1, mask8sc2, mask8sc3, mask8sc4, mask8sc5, mask8sc6, mask8sc7] 
 
 {-
-Packed character minimum and maximum length functionsd
+Packed character minimum and maximum length functions
 -}
 
 -- | mainMxCharDiff get the approximate minimum and maximum difference in number of states
@@ -1223,7 +1242,41 @@ threeWayPacked inCharType parent1 parent2 curNode =
     in
     newStateVect
 
+-- | threeWayPacked' median 3 for hard-wired networks
+-- this uses lists of masks so likely slower than Goloboff
+-- this approach could also be used for min/max to be simpler but alos likelu slower since previous is
+-- manually unrolled
+threeWayPacked' :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
+threeWayPacked' inCharType parent1 parent2 curNode =
+    let newStateVect = if inCharType == Packed2       then V.zipWith3 (threeWayNWord64 packed2SubCharList) parent1 parent2 curNode
+                       else if inCharType == Packed4  then V.zipWith3 (threeWayNWord64 packed4SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed5  then V.zipWith3 (threeWayNWord64 packed5SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed8  then V.zipWith3 (threeWayNWord64 packed8SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode
+                       else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    newStateVect
+
+
+-- | threeWayNWord64 3-way hardwired optimization for Packed N Word64
+-- non-additive character--maps over sub-characters with appropriate masks
+-- lists of subcharacters with all ovther bits OFF are created via masks
+-- then zipped over threeway function and ORed to create 32 bit final state
+-- this is an alternate approach to the three node optimization of Golobiff below.
+-- both should yield same result-- this is polymoprhic and simple--but not parallel 
+--as in Goloboff so likely slower
+threeWayNWord64 :: [Word64] -> Word64 -> Word64 -> Word64 -> Word64
+threeWayNWord64 packedSubCharList p1 p2 cN =
+       let p1SubCharList = fmap (p1 .&.) packedSubCharList
+           p2SubCharList = fmap (p2 .&.) packedSubCharList
+           cNSubCharList = fmap (cN .&.) packedSubCharList
+           threeWayList  = zipWith3 threeWay64 p1SubCharList p2SubCharList cNSubCharList
+       in
+       L.foldl1' (.|.) threeWayList
+
+
 -- | threeWay2 3-way hardwired optimization for Packed2 Word64
+-- but used on subCharacters
 threeWay2 :: Word64 -> Word64 -> Word64 -> Word64
 threeWay2 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
@@ -1286,7 +1339,7 @@ threeWay64 p1 p2 cN =
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
     in
-    if x /= (zeroBits:: Word64) then x
+    if x /= (zeroBits :: Word64) then x
     else if y /=  (zeroBits :: Word64) then y
     else z
 
