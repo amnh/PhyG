@@ -915,7 +915,7 @@ stringGraph2TextGraphDouble inStringGraph =
       dummyRelabelEdges :: (a, b, String) -> (a, b, Double)
       dummyRelabelEdges (a,b,c) = (a,b, read c :: Double)
 
-    -- |  textGraph2StringGraph take P.Gr String a and converts to P.Gr Text a
+-- |  textGraph2StringGraph take P.Gr String a and converts to P.Gr Text a
 textGraph2StringGraph :: P.Gr T.Text b -> P.Gr String b
 textGraph2StringGraph inTextGraph =
     let (indices, labels) = unzip $ G.labNodes inTextGraph
@@ -947,7 +947,7 @@ getLeafText (nodeIndex, nodeLabel) =
   in
   fromMaybe (T.pack $ show nodeIndex)  maybeTextLabel
 
- -- | splitVertexList splits the vertices of a graph into ([root], [leaf], [non-leaf-non-root])
+-- | splitVertexList splits the vertices of a graph into ([root], [leaf], [non-leaf-non-root])
 splitVertexList ::  P.Gr a b -> ([G.LNode a], [G.LNode a], [G.LNode a])
 splitVertexList inGraph =
   if G.isEmpty inGraph then ([],[],[])
@@ -1021,7 +1021,7 @@ fgl2DotString :: (GV.Labellable a, GV.Labellable b) => P.Gr a b -> String
 fgl2DotString inGraph =
   T.unpack $ GVP.renderDot $ GVP.toDot $ GV.graphToDot GV.quickParams inGraph
 
- -- | modifyVertexEdgeLabels keeps or removes vertex and edge labels
+-- | modifyVertexEdgeLabels keeps or removes vertex and edge labels
 modifyVertexEdgeLabels :: (Show b) => Bool -> Bool -> P.Gr String b -> P.Gr String String
 modifyVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
   let inLabNodes = G.labNodes inGraph
