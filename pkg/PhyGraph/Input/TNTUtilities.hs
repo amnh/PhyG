@@ -251,7 +251,7 @@ collectAmbiguities fileName inStringList =
 
 -- | defaultTNTCharInfo default values for TNT characters
 defaultTNTCharInfo :: CharInfo
-defaultTNTCharInfo = CharInfo { charType = NonAdd
+defaultTNTCharInfo = emptyCharInfo { charType = NonAdd
                                 , activity = True
                                 , weight = 1.0
                                 , costMatrix = SM.empty

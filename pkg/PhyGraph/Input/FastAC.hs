@@ -133,7 +133,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                 S.fromLists $ generateDefaultMatrix seqAlphabet 0 indelCost substitutionCost
                               else S.fromLists $ snd3 localTCM
 
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (getCost localCostMatrix)
+            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (S.getCost localCostMatrix)
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
             localDenseCostMatrix = if seqType `elem` [NucSeq, SlimSeq] then tcmDense
@@ -160,7 +160,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = emptyCharInfo {
                                                charType = alignedSeqType
                                              , activity = True
                                              , weight = tcmWeightFactor *
@@ -187,14 +187,6 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             trace ("Processing TCM data for file : "  ++ dataName) 
             defaultSeqCharInfo
         -- )
-
-
--- | getCost is helper function for generartion for a dense TCM
-getCost :: S.Matrix Int -> Word -> Word -> Word
-getCost localCM i j =
-    let x = S.getFullVects localCM
-    in  toEnum $ (x V.! fromEnum i) V.! fromEnum j
-
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
 getTCMMemo
@@ -263,7 +255,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                             S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
 
             tcmWeightFactor = thd3 localTCM
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (getCost inMatrix)
+            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (S.getCost inMatrix)
 
             -- not sure of this
             tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
@@ -290,7 +282,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastaCharInfo"
 
-            defaultSeqCharInfo = CharInfo {
+            defaultSeqCharInfo = emptyCharInfo {
                                        charType = alignedSeqType
                                      , activity = True
                                      , weight = tcmWeightFactor *
@@ -451,4 +443,4 @@ genDiscreteDenseOfDimension d =
   let n = toEnum $ fromEnum d
       r = [0 .. n - 1]
       m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
-  in  TCMD.generateDenseTransitionCostMatrix n n . getCost $ V.fromList <$> V.fromList m
+  in  TCMD.generateDenseTransitionCostMatrix n n . S.getCost $ V.fromList <$> V.fromList m

@@ -67,6 +67,7 @@ module SymMatrix
     , safeIndex
     , makeDefaultMatrix
     , getFullVects
+    , getCost
     ) where
 
 import Data.List           qualified as L
@@ -441,3 +442,9 @@ combine f m1 m2 =
   else 
     SymMatrix.map g $ SymMatrix.zip m1 m2  
     where g (a,b) = f a b
+
+-- | getCost is helper function for generation for a dense TCM
+getCost :: Matrix Int -> Word -> Word -> Word
+getCost localCM i j =
+    let x = SymMatrix.getFullVects localCM
+    in  toEnum $ (x V.! fromEnum i) V.! fromEnum j

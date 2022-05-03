@@ -120,7 +120,7 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed","partitioncharacter"]
+setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed","partitioncharacter", "modelcomplexity"]
 
 -- | refinement arguments
 supportArgList :: [String]

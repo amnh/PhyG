@@ -181,17 +181,10 @@ main = do
 
 
     -- Set global vaues before search--should be integrated with executing commands
-    let defaultGlobalSettings = GlobalSettings { outgroupIndex = 0
+    -- only stuff that is data dependent here (and seed)
+    let defaultGlobalSettings = emptyGlobalSettings { outgroupIndex = 0
                                                , outGroupName = head dataLeafNames
-                                               , optimalityCriterion = Parsimony
-                                               , graphType = Tree
-                                               , compressResolutions = True
-                                               , finalAssignment = ImpliedAlignment
-                                               , graphFactor = Wheeler2015Network
-                                               , rootCost = NoRootCost
                                                , seed = timeD
-                                               , searchData = []
-                                               , partitionCharacter = "#"
                                                }
     --hPutStrLn stderr (show defaultGlobalSettings)
 

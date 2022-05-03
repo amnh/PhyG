@@ -329,10 +329,19 @@ setCommand argList globalSettings processedData inSeedList =
         else if head commandList == "seed"  then
             let localValue = readMaybe (head optionList) :: Maybe Int
             in
-            if localValue == Nothing then error ("Set option 'seed' muts be set to an integer value (e.g. seed:123): " ++ (head optionList))
+            if localValue == Nothing then error ("Set option 'seed' must be set to an integer value (e.g. seed:123): " ++ (head optionList))
             else 
                 trace ("Random Seed set to " ++ head optionList)
                 (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
+
+        else if head commandList == "modelcomplexity"  then
+            let localValue = readMaybe (head optionList) :: Maybe Double
+            in
+            if localValue == Nothing then error ("Set option 'modelComplexity' must be set to a double value (e.g. m,odelComplexity:123.456): " ++ (head optionList))
+            else 
+                trace ("Model Complexity set to " ++ head optionList)
+                (globalSettings {modelComplexity = (fromJust localValue)}, processedData, inSeedList)
+        
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 
