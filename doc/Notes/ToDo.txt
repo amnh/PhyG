@@ -566,4 +566,7 @@ preOrderTreeTraversal
 
 341) make '-' state for non-0additive consistent and sensible (fromSymbols, fromSymbolsWOGap)
 
-342) tnt scopes allow scope first then type after
+342) tnt scopes allow scope first then type after? not sure of standard
+
+343) add stupidf graph cost over edges for hardwired cost
+
