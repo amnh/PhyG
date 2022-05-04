@@ -140,8 +140,17 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
       in
-      recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
-      -- )
+      let -- progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
+          (percentAdded, _) = divMod (100 * ((numLeaves - 2) - (V.length additionSequence))) (numLeaves - 2)
+          (decileNumber, decileRemainder) = divMod percentAdded 10
+          (_, oddRemainder) = divMod ((numLeaves - 2) - (V.length additionSequence)) 2
+      in
+      --trace (show (percentAdded, decileNumber, decileRemainder)) (
+      if decileRemainder == 0 && oddRemainder == 0 then
+          trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+          recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+      else recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+         -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)

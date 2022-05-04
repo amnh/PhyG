@@ -228,6 +228,22 @@ setCommand argList globalSettings processedData inSeedList =
 
     in
     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ show argList)
+
+    -- early extraction of parition character, follows from null inputs
+    else if (null inSeedList) then 
+        if head commandList == "partitioncharacter"  then
+            let localPartitionChar = head optionList
+            in
+            if length localPartitionChar /= 1 then errorWithoutStackTrace ("Error in 'set' command. Partitioncharacter '" ++ (show localPartitionChar) ++ "' must be a single character")
+            else 
+                trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
+                (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
+
+        -- partition charcter to reset
+        else 
+            trace ("PartitionCharacter set to " ++ (partitionCharacter globalSettings))
+            (globalSettings, processedData, inSeedList)
+        
     else
         if head commandList == "outgroup"  then
             let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
@@ -289,6 +305,18 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("GraphFactor set to " ++ head optionList)
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "partitioncharacter"  then
+            let localPartitionChar = head optionList
+            in
+            if length localPartitionChar /= 1 then errorWithoutStackTrace ("Error in 'set' command. Partitioncharacter '" ++ (show localPartitionChar) ++ "' must be a single character")
+            else 
+                if (localPartitionChar /= partitionCharacter globalSettings) then
+                    trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
+                    (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
+                else 
+                    (globalSettings, processedData, inSeedList)
+        
         else if head commandList == "rootcost"  then
             let localMethod
                   | (head optionList == "norootcost") = NoRootCost
@@ -301,10 +329,19 @@ setCommand argList globalSettings processedData inSeedList =
         else if head commandList == "seed"  then
             let localValue = readMaybe (head optionList) :: Maybe Int
             in
-            if localValue == Nothing then error ("Set option 'seed' muts be set to an integer value (e.g. seed:123): " ++ (head optionList))
+            if localValue == Nothing then error ("Set option 'seed' must be set to an integer value (e.g. seed:123): " ++ (head optionList))
             else 
                 trace ("Random Seed set to " ++ head optionList)
                 (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
+
+        else if head commandList == "modelcomplexity"  then
+            let localValue = readMaybe (head optionList) :: Maybe Double
+            in
+            if localValue == Nothing then error ("Set option 'modelComplexity' must be set to a double value (e.g. m,odelComplexity:123.456): " ++ (head optionList))
+            else 
+                trace ("Model Complexity set to " ++ head optionList)
+                (globalSettings {modelComplexity = (fromJust localValue)}, processedData, inSeedList)
+        
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 
@@ -315,6 +352,7 @@ setCommand argList globalSettings processedData inSeedList =
 reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
     let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
+        --check for balances double quotes and only one pair
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
         -- reconcileList = filter (/= "") $ fmap fst argList
@@ -635,21 +673,21 @@ getCharInfoStrings inChar =
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
 -- as Text
-executeRenameReblockCommands :: [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
-executeRenameReblockCommands curPairs commandList  =
+executeRenameReblockCommands :: Instruction -> [(T.Text, T.Text)] -> [Command] -> IO [(T.Text, T.Text)]
+executeRenameReblockCommands thisInStruction curPairs commandList  =
     if null commandList then return curPairs
     else do
         let (firstOption, firstArgs) = head commandList
 
         -- skip "Read" and "Rename "commands already processed
-        if (firstOption /= Rename) && (firstOption /= Reblock) then executeRenameReblockCommands curPairs (tail commandList)
+        if (firstOption /= thisInStruction) then executeRenameReblockCommands thisInStruction curPairs (tail commandList)
         else
             let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
                 oldNameList = (fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs))
                 newPairs = zip newNameList oldNameList
             in
-            executeRenameReblockCommands (curPairs ++ newPairs) (tail commandList)
+            executeRenameReblockCommands thisInStruction (curPairs ++ newPairs) (tail commandList)
 
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices

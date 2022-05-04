@@ -42,6 +42,7 @@ module Types.Types where
 
 import           Control.DeepSeq
 import           Data.Alphabet
+import qualified Data.TCM                  as TCM
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
@@ -144,7 +145,8 @@ data GraphType = Tree | HardWired | SoftWired
     deriving stock (Show, Eq)
 
 -- | Optimality criterion sets the cost function for graphs and potentially models
-data OptimalityCriterion = Parsimony | PMDL
+-- likelihood form is the "self Information" in context of Kolmogorov complexity/MDL/PMDL
+data OptimalityCriterion = Parsimony | PMDL | Likelihood
     deriving stock (Show, Eq)
 
 data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
@@ -185,7 +187,9 @@ data  GlobalSettings
     , compressResolutions :: Bool -- "nub" resolutions in softwired graph
     , finalAssignment     :: AssignmentMethod
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
+    , partitionCharacter  :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
     , rootCost            :: RootCost
+    , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
     } deriving stock (Show, Eq)
@@ -198,6 +202,8 @@ instance NFData GlobalSettings where rnf x = seq x ()
 --  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
 --  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
 --  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
+-- changeCost and noChange costs are for PMDL costs for packed/non-additive character for 
+-- other character types the cost matrix holds this information in comvcert with weight since the matrix values are integers
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
                          , activity   :: Bool
@@ -206,6 +212,8 @@ data CharInfo = CharInfo { name       :: NameText
                          , slimTCM    :: TCMD.DenseTransitionCostMatrix
                          , wideTCM    :: MR.MetricRepresentation Word64
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
+                         , changeCost :: Double 
+                         , noChangeCost :: Double 
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
                          , origInfo   :: V.Vector (NameText, CharType, Alphabet ST.ShortText)
@@ -473,6 +481,22 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
 
 -- | empty structures for convenient use
 
+-- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
+emptyGlobalSettings :: GlobalSettings
+emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
+                                     , outGroupName = T.pack "NoOutgroupSet"
+                                     , optimalityCriterion = Parsimony
+                                     , graphType = Tree
+                                     , compressResolutions = True
+                                     , finalAssignment = ImpliedAlignment
+                                     , graphFactor = Wheeler2015Network
+                                     , rootCost = NoRootCost
+                                     , modelComplexity = 0.0
+                                     , seed = 0
+                                     , searchData = []
+                                     , partitionCharacter = "#"
+                                     }
+
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
 emptyPhylogeneticGraph :: PhylogeneticGraph
 emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
@@ -555,3 +579,21 @@ dummyEdge = EdgeInfo    { minLength = 0
                         , midRangeLength = 0
                         , edgeType  = TreeEdge
                         }
+
+-- emptyCharInfo for convenience
+emptyCharInfo :: CharInfo
+emptyCharInfo = CharInfo { name       = T.pack "EmptyCharName"
+                         , charType   = NonAdd
+                         , activity   = True
+                         , weight     = 1.0
+                         , costMatrix = S.empty
+                         , slimTCM    = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList [[0,1],[1,0]] -- genDiscreteDenseOfDimension 2
+                         , wideTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                         , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                         , changeCost = 1.0 
+                         , noChangeCost = 0.0
+                         , alphabet   = fromSymbols $ fmap ST.fromString ["0", "1"]
+                         , prealigned = False
+                         , origInfo   = V.empty
+                         } 
+

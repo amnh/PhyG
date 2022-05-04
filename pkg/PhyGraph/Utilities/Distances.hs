@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 module Utilities.Distances (getPairwiseDistances
                 , getBlockDistance
-                , getPairwiseBlocDistance
+                , getPairwiseBlockDistance
                 ) where
 
 import           Control.Parallel.Strategies
@@ -59,7 +59,7 @@ getPairwiseDistances (nameVect, _, blockDataVect)
   | V.null nameVect = error "Null name vector in getPairwiseDistances"
   | V.null blockDataVect = error "Null Block Data vector in getPairwiseDistances"
   | otherwise =
-    let blockDistancesList =  V.toList $ V.map (getPairwiseBlocDistance (V.length nameVect)) blockDataVect
+    let blockDistancesList =  V.toList $ V.map (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
         summedBlock = foldl' (S.zipWith (+)) (head blockDistancesList) (tail blockDistancesList)
     in
     trace ("\tGenerating pairwise distances for " ++ show (V.length blockDataVect) ++ " character blocks")
@@ -81,8 +81,8 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
-getPairwiseBlocDistance :: Int -> BlockData-> S.Matrix VertexCost
-getPairwiseBlocDistance  numVerts inData =
+getPairwiseBlockDistance :: Int -> BlockData-> S.Matrix VertexCost
+getPairwiseBlockDistance  numVerts inData =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
         pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS

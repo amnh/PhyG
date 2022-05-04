@@ -44,6 +44,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , preOrderTreeTraversal
                                             , getBlockCostPairsFinal
                                             , setFinalToPreliminaryStates
+                                            , zero2Gap
                                             ) where
 
 import           Bio.DynamicCharacter
@@ -64,6 +65,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
+import           Data.Alphabet
 -- import           Debug.Trace
 
 
@@ -730,17 +732,18 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType == NonAdd then
         let -- minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
-            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntesection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
-            maxDiff = length $ V.filter (==False) $ V.zipWith (==) (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntersection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            maxDiff = length $ V.filter (==False) $ V.zipWith equalAndSingleState (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxCost = thisWeight * fromIntegral maxDiff
             minCost = thisWeight * fromIntegral minDiff
         in
         (minCost, maxCost)
 
     else if thisCharType `elem` packedNonAddTypes then
-        let minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-            maxDiff = V.sum $ V.zipWith (BP.maxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
-            maxCost = thisWeight * fromIntegral maxDiff
+        let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
+            (minDiffV, maxDiffV) = V.unzip $ V.zipWith (BP.minMaxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
+            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
         in
         (minCost, maxCost)
 
@@ -812,21 +815,23 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
-    where hasBVIntesection a b = (not . BV.isZeroVector) (a .&. b) 
-{-
+    where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b) 
+          equalAndSingleState a b = if (a == b) && (popCount a == 1) then True else False
+
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
-zero2Gap inVal = if inVal == zeroBits then bit gapIndex
+zero2Gap inVal = if popCount inVal == 0 then bit gapIndex
                  else inVal
 
+{-
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value
 zero2GapWide :: Word64 -> Word64 -> Word64
-zero2GapWide gapChar inVal = if inVal == zeroBits  then bit gapIndex
+zero2GapWide gapChar inVal = if popCount inVal == 0  then bit gapIndex
                          else inVal
 
 -- | zero2GapBV converts a '0' or no bits set to gap (indel) value
 zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
-zero2GapBV gapChar inVal = if inVal == zeroBits then bit gapIndex
+zero2GapBV gapChar inVal = if popCount inVal == 0 then bit gapIndex
                          else inVal
 -}
 
@@ -847,8 +852,12 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
         cartesianPairs = cartProdPair statePairs
         costList = fmap (localCostMatrix S.!) cartesianPairs
     in
-    --trace (show cartesianPairs  ++ " " ++ show costList)
+    {-THis ti check for errors
+    if (not . null) costList then (minimum costList, maximum costList)
+    else (-1, -1)
+    -}
     (minimum costList, maximum costList)
+    
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
@@ -919,7 +928,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
-        childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (localCostVect childChar) (matrixStatesPrelim childChar)}
+        childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
         childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
@@ -974,7 +983,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {packedNonAddFinal = snd3 $ packedNonAddPrelim childChar}
 
       else if localCharType == Matrix then
-         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (V.replicate  (fromEnum symbolCount) 0) (matrixStatesPrelim childChar)}
+         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
         childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
@@ -1125,7 +1134,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar { hugeFinal = GV.filter (/= zeroBits) finalAssignmentDO
+         else childChar { hugeFinal = GV.filter (not . BV.isZeroVector) finalAssignmentDO
                         , hugeAlignment = if isTree then finalGapped
                                           else mempty
                         }
@@ -1172,7 +1181,33 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
         -- )
 
+    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then -- parentChar
+         -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
+         if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
+         else childChar { wideFinal = wideFinal parentChar
+                        , wideAlignment = if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
+                                          else mempty
+                        , wideGapped = wideGapped parentChar -- wideGapped' -- wideGapped parentChar -- finalGappedO --wideGapped parentChar
+                        -- , wideIAPrelim = wideIAPrelim parentChar
+                        , wideIAFinal = if isTree then wideFinal parentChar
+                                        else mempty
+                        }
+        -- )
 
+    else if (localCharType == HugeSeq)  then -- parentChar
+         -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
+         if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
+         else childChar { hugeFinal = hugeFinal parentChar
+                        , hugeAlignment = if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
+                                          else mempty
+                        , hugeGapped = hugeGapped parentChar -- hugeGapped' -- hugeGapped parentChar -- finalGappedO --hugeGapped parentChar
+                        -- , hugeIAPrelim = hugeIAPrelim parentChar
+                        , hugeIAFinal = if isTree then hugeFinal parentChar
+                                        else mempty
+                        }
+        -- )
+
+      {-
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
          else childChar { wideFinal = if isTree then wideFinal parentChar
@@ -1191,7 +1226,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         , hugeIAFinal = if isTree then hugeFinal parentChar
                                        else mempty
                         }
-
+    -}
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
       -- )
 
@@ -1411,24 +1446,26 @@ setCostsAndStates bestPrelimStates leftChildState rightChildStates stateIndex =
 
 
 -- | setMinCostStatesMatrix  sets the cost of non-minimal cost states to maxBounnd :: StateCost (Int)
-setMinCostStatesMatrix ::  Int -> V.Vector StateCost -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
-setMinCostStatesMatrix numStates inCostVect inStateVect =
-    V.filter ((/= (maxBound :: StateCost)).fst3) <$> V.zipWith (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) inCostVect inStateVect
+setMinCostStatesMatrix ::  Int -> V.Vector (V.Vector MatrixTriple) ->  V.Vector (V.Vector MatrixTriple)
+setMinCostStatesMatrix numStates inStateVect =
+    let outStates = V.filter ((/= (maxBound :: StateCost)).fst3) <$> fmap (nonMinCostStatesToMaxCost (V.fromList [0.. (numStates - 1)])) inStateVect
+    in
+    outStates
 
 -- | nonMinCostStatesToMaxCost takes an individual pair of minimum state cost and matrix character triple
--- retiurns a new character with the states cost either the minium value or maxBound iof not
--- this only really useful at root--other vertices minimu costs may not be paert of the
+-- returns a new character with the states cost either the minium value or maxBound if not
+-- this only applied at root or leaf--other vertices minimum costs may not be part of the
 -- miniumm cost assignment, but may be useful heuristically
-nonMinCostStatesToMaxCost :: V.Vector StateCost -> StateCost -> V.Vector MatrixTriple -> V.Vector MatrixTriple
-nonMinCostStatesToMaxCost stateIndexList minStateCost tripleVect =
-   let result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
+nonMinCostStatesToMaxCost :: V.Vector StateCost -> V.Vector MatrixTriple -> V.Vector MatrixTriple
+nonMinCostStatesToMaxCost stateIndexList tripleVect =
+   let minStateCost = V.minimum $ fmap fst3 tripleVect
+       result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
    in
    -- trace ((show stateIndexList) ++ " " ++ (show $ V.zip tripleVect stateIndexList))
    result
       where
          modifyStateCost d (a,b,c) e = if a == d then (e,b,c)
                                        else (maxBound :: StateCost ,b,c)
-
 
 -- | setFinalToPreliminaryStates takes VertexBlockData and sets the final values to Preliminary
 setFinalToPreliminaryStates :: VertexBlockData -> VertexBlockData

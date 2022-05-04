@@ -61,11 +61,11 @@ import qualified Data.List                           as L
 import qualified Data.Map                            as MAP
 import           Data.Maybe
 import qualified Data.Vector                         as V
-import           Debug.Trace
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
 
+--import           Debug.Trace
 
 
 

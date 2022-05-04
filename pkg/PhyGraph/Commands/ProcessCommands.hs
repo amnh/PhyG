@@ -57,8 +57,7 @@ import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
 import qualified Commands.Verify              as V
-
--- import           Debug.Trace
+--import           Debug.Trace
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
@@ -71,10 +70,14 @@ expandRunCommands curLines inLines =
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
+
+            leftParens = length $ filter (=='(') firstLine
+            rightParens = length $ filter (==')') firstLine
         in
         --trace ("FL " ++ firstLine) (
         -- only deal with run lines
-        if null firstLine then expandRunCommands curLines (tail inLines)
+        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ firstLine)
+        else if null firstLine then expandRunCommands curLines (tail inLines)
         else if take 3 (fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : tail inLines)
         else do -- is a "run command"
              let (_, runFileList) = head $ parseCommand firstLine
@@ -92,14 +95,17 @@ splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
     else
-        let firstPart = takeWhile (/= '(') inLine
+        let leftParens = length $ filter (=='(') inLine
+            rightParens = length $ filter (==')') inLine
+            firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
             firstCommand = firstPart ++ parenPart
             restPart = drop (length firstCommand) inLine
         in
-        (firstCommand, restPart)
+        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ inLine)
+        else (firstCommand, restPart)
 
--- | checkFileNames checks if forst and last element of String are double quotes and remomves them
+-- | checkFileNames checks if first and last element of String are double quotes and removes them
 checkFileNames :: String -> String
 checkFileNames inName
   | null inName = errorWithoutStackTrace "Error: Null file name"
@@ -167,7 +173,7 @@ getInstruction inString possibleCommands
 
 
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
--- asumes single command per line
+-- assumes single command per line
 parseCommand :: String -> [Command]
 parseCommand inLine =
     if null inLine then []
@@ -181,7 +187,6 @@ parseCommand inLine =
             localInstruction = getInstruction instructionString V.allowedCommandList
             processedArg = parseCommandArg firstString localInstruction argList
         in
-        --trace (instructionString ++ " " ++  show argList)
         (localInstruction, processedArg) : parseCommand restString
 
 
@@ -219,7 +224,7 @@ getBalancedParenPart curString inString countLeft countRight =
 
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
--- these are eac pairs of an option string (could be null) and a subarguments String (also could be null)
+-- these are each pairs of an option string (could be null) and a subarguments String (also could be null)
 argumentSplitter :: String -> [(String, String)]
 argumentSplitter inString
   | null inString = []
@@ -259,7 +264,7 @@ argumentSplitter inString
 freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString
   | null commandString = errorWithoutStackTrace ("\n\nError in command string--empty")
-  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments.")
+  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
   | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after arguments.")
   | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
   | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")

@@ -59,6 +59,7 @@ import           GeneralUtilities
 import qualified Data.List as L
 import qualified Data.Char as C
 import           Text.Read
+
 -- import           Debug.Trace
 
 -- | allowedCommandList is the permitted command string list
@@ -87,9 +88,9 @@ netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "n
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["tcm", "prealigned", "nucleotide", "aminoacid", "custom_alphabet", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "terminals", "include", "exclude", "rename", "block", "prefasta", 
-    "prefastc", "preaminoacid", "prenucleotide", "precustom_alphabet"]
+readArgList = ["tcm", "nucleotide", "aminoacid", "fasta", "fastc", "tnt", "csv",
+    "dot", "newick" , "enewick", "fenewick", "include", "exclude", "rename", "block", "prefasta", 
+    "prefastc", "preaminoacid", "prenucleotide"] -- "prealigned", 
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
@@ -119,7 +120,7 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed"]
+setArgList = ["outgroup", "criterion", "graphtype", "compressresolutions", "finalassignment", "graphfactor", "rootcost", "seed","partitioncharacter", "modelcomplexity"]
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -168,20 +169,51 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         (checkCommandArgs "fuse" fstArgList fuseArgList, [""], [""])
 
                                    else if commandInstruction == Read then 
-                                    (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
+                                        in
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in 'read' file argument: " ++ fileArgs)
+                                        else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
-                                   -- Reblock -- part of read
+                                   -- Reblock -- no arguments--but reads string and blocknames
+                                   else if commandInstruction == Reblock then 
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
+                                        in
+                                        -- trace (show (fstArgList, sndArgList,fileNameList)) (
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " ++ fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'reblock' command: " ++ fileArgs)
+                                        else (True,[""], [""])
+                                        -- )
+
                                    -- Reconcile -- part of report
 
                                    -- Refine
                                    else if commandInstruction == Refine then 
                                         (checkCommandArgs "refine" fstArgList refineArgList,[""], [""])
 
-                                   -- Rename -- part of read
+                                   -- Rename -- -- no arguments--but reads string and taxon names
+                                   else if commandInstruction == Rename then 
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
+                                        in
+                                        -- trace (show (fstArgList, sndArgList,fileNameList)) (
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rename' command, new taxon name and old taxon name(s) in double quotes: " ++ fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'rename' command: " ++ fileArgs)
+                                        else (True,[""], [""])
+                                        -- )
 
                                    -- Report
                                    else if commandInstruction == Report then 
-                                        (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
+                                        let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
+                                            numDoubleQuotes = length $ filter (== '"') fileArgs
+                                            has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
+                                        in
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in report file argument: " ++ fileArgs)
+                                        else (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
 
                                    -- Run  -- processed out before this into command list
 
@@ -203,19 +235,19 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             else (False, [], [])
                                    -- Select
                                    else if commandInstruction == Select then 
-                                        (checkCommandArgs "report" fstArgList selectArgList, [""], [""])
+                                        (checkCommandArgs "select" fstArgList selectArgList, [""], [""])
 
                                    -- Set
                                    else if commandInstruction == Set then 
-                                        (checkCommandArgs "report" fstArgList setArgList, [""], [""])
+                                        (checkCommandArgs "set" fstArgList setArgList, [""], [""])
 
                                    -- Support
                                    else if commandInstruction == Support then 
-                                        (checkCommandArgs "report" fstArgList supportArgList, [""], [""])
+                                        (checkCommandArgs "support" fstArgList supportArgList, [""], [""])
 
                                    -- Swap
                                    else if commandInstruction == Swap then 
-                                        (checkCommandArgs "report" fstArgList swapArgList, [""], [""])
+                                        (checkCommandArgs "swap" fstArgList swapArgList, [""], [""])
 
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
             in

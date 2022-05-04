@@ -81,7 +81,7 @@ import qualified Utilities.Utilities         as U
 
 --Todo-- add stuff for proper input of prealign seeunces--need charactert types set before this
 
--- | partitionSequences takes a character to split sequnces, usually '#'' as in POY
+-- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
 -- a number to character name
 -- assumes that input rawdata are a single character (as in form a single file) for sequence data
@@ -102,7 +102,7 @@ partitionSequences partChar inDataList =
        in
 
        -- check partition numbers consistent + 1 because of tail
-       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ T.unpack (name $ head charInfoList) ++ " " ++ show pairPartitions)
+       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " ++ T.unpack (name $ head charInfoList) ++ " " ++ (show pairPartitions) ++ "\n\tThis may be due to occurence of the partition character '" ++ (show partChar) ++ "' in sequence data.  This value can be changed with the 'set' command.")
 
        -- if single partition then nothing to do
        else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
@@ -115,7 +115,7 @@ partitionSequences partChar inDataList =
            let leafNameListList = replicate firstPartNumber leafNameList
 
                -- these filtered from terminal partitions
-               leafDataListList = fmap (fmap (filter (/= ST.fromString "#"))) partitionCharListByPartition
+               leafDataListList = fmap (fmap (filter (/= partChar))) partitionCharListByPartition
 
                -- create TermData
                newTermDataList = joinLists leafNameListList leafDataListList
@@ -286,7 +286,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames  curBlockData
+        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
@@ -297,18 +297,18 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 --thisBlockGuts = V.zip (V.fromList $ fmap snd leafBitVectorNames) recodedCharacters
                 previousBlockName = if not $ null curBlockData then fst3 $ head curBlockData
                                     else T.empty
-                thisBlockName' = if T.takeWhile (/= ':') previousBlockName /= T.takeWhile (/= ':') thisBlockName then thisBlockName
+                thisBlockName' = if T.takeWhile (/= '#') previousBlockName /= T.takeWhile (/= '#') thisBlockName then thisBlockName
                                  else
-                                    let oldSuffix = T.dropWhile (/= ':') previousBlockName
-                                        indexSuffix = if T.null oldSuffix then T.pack ":0"
+                                    let oldSuffix = T.dropWhile (/= '#') previousBlockName
+                                        indexSuffix = if T.null oldSuffix then T.pack "#0"
                                                       else
                                                         let oldIndex = readMaybe (T.unpack $ T.tail oldSuffix) :: Maybe Int
                                                             newIndex = 1 + fromJust oldIndex
                                                         in
                                                         if isNothing oldIndex then error "Bad suffix in createNaiveData"
-                                                        else T.pack (":" ++ show newIndex)
+                                                        else T.pack ("#" ++ show newIndex)
                                     in
-                                    T.append (T.takeWhile (/= ':') thisBlockName)  indexSuffix
+                                    T.append (T.takeWhile (/= '#') thisBlockName)  indexSuffix
 
                 thisBlockCharInfo'' = V.zipWith (resetAddNonAddAlphabets recodedCharacters) thisBlockCharInfo (V.fromList [0.. (V.length thisBlockCharInfo - 1)])
 
@@ -324,7 +324,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
 
             in
             -- trace ("CND:" ++ (show $ fmap length $ (fmap snd firstData))) (
-            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/=':') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
+            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " ++ (takeWhile (/='#') $ T.unpack thisBlockName') ++ "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " ++ (show nameMinPairList) ++ "\nNon Minimum length taxa: " ++ (show nameNonMinPairList) )
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             else
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
@@ -381,7 +381,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
-                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
+                stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RNA: " ++ (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
@@ -632,6 +632,7 @@ getAminoAcidSequenceChar stateList =
 -- | getGeneralBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
+-- the AND to all states makes ambiguityoes only observed states
 getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CUInt, Word64, BV.BitVector)
 getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
@@ -639,8 +640,26 @@ getGeneralBVCode bvCodeVect inState =
     --if '[' `notElem` inStateString then --single state
     if (head inStateString /= '[') && (last inStateString /= ']') then --single state
         let newCode = V.find ((== inState).fst) bvCodeVect
+            allBVStates = V.foldl1' (.|.) (fmap snd bvCodeVect)
+            bvDimension = fromEnum $ BV.dimension $ snd $ V.head bvCodeVect
         in
-        if isNothing newCode then error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
+        if isNothing newCode then 
+            
+            --B is Aspartic Acid or Asparagine if '-' =0 then states 3 and 12.
+            if inState == ST.fromString "B" then 
+                let x = BV.fromBits $ (replicate 3 False) ++ [True] ++ (replicate 8 False) ++ [True] ++ (replicate (bvDimension - 13) False)
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+
+            -- any amino acid but not '-'
+            else if inState == ST.fromString "X" then 
+                let x = allBVStates .&. (BV.fromBits (False : (replicate (bvDimension - 1) True)))
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+
+            -- any state including '-'    
+            else if inState == ST.fromString "?" then 
+                let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
+                in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+            else error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
         else let x = snd $ fromJust newCode
              in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
     else
@@ -667,10 +686,13 @@ getGeneralSequenceChar inCharInfo stateList =
               then (\(x,y,z) -> (SV.fromList $ toList x, UV.fromList $ toList y, z)) . V.unzip3 . V.fromList $ fmap (getGeneralBVCode stateBVPairVect) stateList
               else (mempty, mempty, mempty)
             newSequenceChar = emptyCharacter { slimPrelim         = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
+                                             , slimGapped         = if cType `elem` [SlimSeq, NucSeq  ] then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
                                              , slimFinal          = if cType `elem` [SlimSeq, NucSeq  ] then slimVec else mempty
                                              , widePrelim         = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
+                                             , wideGapped         = if cType `elem` [WideSeq, AminoSeq] then (wideVec, wideVec, wideVec) else (mempty, mempty, mempty)
                                              , wideFinal          = if cType `elem` [WideSeq, AminoSeq] then wideVec else mempty
                                              , hugePrelim         = if cType == HugeSeq  then hugeVec else mempty
+                                             , hugeGapped         = if cType == HugeSeq  then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
                                              , hugeFinal          = if cType == HugeSeq  then hugeVec else mempty
                                              , alignedSlimPrelim  = if cType `elem` [AlignedSlim] then (slimVec, slimVec, slimVec) else (mempty, mempty, mempty)
                                              , alignedSlimFinal   = if cType `elem` [AlignedSlim] then slimVec else mempty
@@ -830,7 +852,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                             in
                             -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList))
                             L.foldl1' (.|.) stateBVList
-                newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
+                newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -839,7 +861,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange),mempty) }
+                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -868,7 +890,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
   | null inCharInfoList =
         error "Null data in charInfoList createLeafCharacter"
   | null rawDataList =  -- missing data
-   getMissingValue inCharInfoList maxCharLength
+        getMissingValue inCharInfoList maxCharLength
   | otherwise = let localCharType = charType $ head inCharInfoList
                 in if localCharType `elem` sequenceCharacterTypes then
                 --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes

@@ -224,10 +224,10 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- trace ("(Est, [FP]): " ++ (show minimumCandidateGraphCost) ++ " " ++ (show $ fmap snd6 reoptimizedSwapGraphList)) (
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
-      trace ("Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
+      trace ("All--Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
       if bestSwapCost == curBestCost then
          if (length curSameBetterList == numToKeep) then 
-            trace ("Same cost and maxed out")
+            -- trace ("Same cost and maxed out")
             swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor
          else
              --equality informed by zero-length edges
@@ -320,6 +320,7 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
 
+      -- trace ("Steepest--Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length reoptimizedSwapGraphList))) (
       -- check that graphs were returned.  If nothing then return in Graph
       if bestSwapCost == infinity then (inGraphList, counter + 1)
 
@@ -483,6 +484,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
 
       -- case where swap split returned empty because too few nodes in remaining graph to add to
       -- else
+      -- trace ("RGKBS:" ++ (show (length candidateGraphList, fmap snd6 candidateGraphList)) ++ " " ++ (show $ LG.isEmpty splitGraph)) (
       if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
 
       -- normal steepest--only return if better if equal does not return, but will return multiple
@@ -500,7 +502,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
       else
          ([(head candidateGraphList, snd6 $ head candidateGraphList)], newAnnealVals)
 
-
+      -- )
 
       -- ))
 
@@ -551,7 +553,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
           (newTBRList, newAnnealVals) = getSubGraphDeltaTBR inGS inData targetEdgeData [edge0, edge1] (eNode, vNode) doIA inGraph splitCost curBestCost charInfoVV inSimAnnealVals subGraphEdgeVertDataTripleList
 
       in
-      -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost))) (
+      -- trace ("ASGR: " ++ (show (delta, splitCost, delta + splitCost, curBestCost))) (
       -- do not redo origal edge so retun infinite cost and dummy edits
       if doSPR && (eNode == nakedNode) then addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals (tail targetEdgeList)
 
@@ -994,7 +996,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
          ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
       -}
-      trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
+      --trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
       (fullSplitGraph, splitGraphCost)
 
 -- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple

@@ -104,19 +104,23 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
+    -- get set paritions character from Set commands early
+    let setCommands = filter ((== Set).fst) thingsToDo
+    (_, partitionCharGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings mempty mempty mempty mempty mempty mempty mempty setCommands
+    
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
-    let rawDataSplit = DT.partitionSequences (ST.fromString "#") rawData
+    let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharGlobalSettings)) rawData
 
     -- Process Rename Commands
-    newNamePairList <- CE.executeRenameReblockCommands renameFilePairs thingsToDo
-    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") -- ++ (show $ L.sortBy (\(a,_) (b,_) -> compare a b) newNamePairList))
+    newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
+    if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") 
     else hPutStrLn stderr ("No terminals to be renamed")
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
-
+   
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
@@ -157,9 +161,9 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-
     -- Execute any 'Block' change commands--make reBlockedNaiveData
-    newBlockPairList <- CE.executeRenameReblockCommands reBlockPairs thingsToDo
+    newBlockPairList <- CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
+     
     let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
@@ -177,16 +181,10 @@ main = do
 
 
     -- Set global vaues before search--should be integrated with executing commands
-    let defaultGlobalSettings = GlobalSettings { outgroupIndex = 0
+    -- only stuff that is data dependent here (and seed)
+    let defaultGlobalSettings = emptyGlobalSettings { outgroupIndex = 0
                                                , outGroupName = head dataLeafNames
-                                               , optimalityCriterion = Parsimony
-                                               , graphType = Tree
-                                               , compressResolutions = True
-                                               , finalAssignment = ImpliedAlignment
-                                               , graphFactor = Wheeler2015Network
-                                               , rootCost = NoRootCost
                                                , seed = timeD
-                                               , searchData = []
                                                }
     --hPutStrLn stderr (show defaultGlobalSettings)
 

@@ -41,16 +41,14 @@ module Input.BitPack
   , median2Packed
   , packedPreorder
   , threeWayPacked
+  , threeWayPacked'
   , unionPacked
-  , maxCharDiff
-  , showBits
-  , showBitsV
+  , minMaxCharDiff
   ) where
 
 import           Control.Parallel.Strategies
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
-import           Data.Char                   (intToDigit)
 import qualified Data.List                   as L
 import qualified Data.List.Split             as SL
 import qualified Data.Text.Lazy              as T
@@ -58,7 +56,6 @@ import qualified Data.Vector                 as V
 import           Data.Word
 import           Debug.Trace
 import           GeneralUtilities
-import           Numeric                     (showIntAtBase)
 import qualified ParallelUtilities           as PU
 import           Types.Types
 import qualified Utilities.Utilities         as U
@@ -105,65 +102,9 @@ These are used in post-order graph traversals and pairwise
 distance functions among others.
 -}
 
--- | showBits cponverts Value to bits as Srting
-showBits :: Word64 -> String
-showBits inVal = showIntAtBase 2 intToDigit inVal ""
-
--- | showBitsV shoiw vector of bits
-showBitsV :: V.Vector Word64 -> String
-showBitsV inValV = concat $ fmap (++ " ") $ V.toList $ fmap showBits inValV
-
-
--- | maxCharDiff get the approximate maximum differnet in number of states
--- could do exact with masking, but this likely good enough for general purposes
-maxCharDiff :: CharType -> Word64 -> Word64 -> Int
-maxCharDiff inCharType a b =
-    let numDiffBits = popCount $ xor a b
-        numPacked = if inCharType == Packed2       then 2
-                    else if inCharType == Packed4  then 4
-                    else if inCharType == Packed5  then 5
-                    else if inCharType == Packed8  then 8
-                    else if inCharType == Packed64 then 64
-                    else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
-    in
-    if inCharType == Packed64 then if a == b then 0 else 1
-    else
-        let (maxNum, _) = divMod numDiffBits numPacked
-        in
-        maxNum
-
--- | median2Packed takes two characters of packedNonAddTypes
--- and retuns new character data based on 2-median and cost
-median2Packed :: CharType -> CharacterData -> CharacterData -> CharacterData
-median2Packed inCharType leftChar rightChar =
-    --assumes all weight 1
-    let (newStateVect, newCost) = if inCharType == Packed2       then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else if inCharType == Packed8  then median2Word64 andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
-
-        newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
-                                      , localCost = fromIntegral newCost
-                                      , globalCost = (fromIntegral newCost) + globalCost leftChar + globalCost rightChar
-                                      }
-    in
-    -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
-    newCharacter
-
--- | unionPacked returns character that is the union (== OR) for bit packed characters
--- of the final fields as preliminary and final
-unionPacked :: CharacterData -> CharacterData -> CharacterData
-unionPacked charL charR =
-    let newVect = V.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
-    in
-    emptyCharacter { packedNonAddPrelim = (newVect, newVect, newVect)
-                   , packedNonAddFinal = newVect
-                   }
 
 {-
-Masks for vaious operations and state numbers
+Masks for various operations and state numbers
 -}
 
 -- | mask2A first Mask for 2 state 64 bit
@@ -305,6 +246,757 @@ mask8H = 0x202020202020202
 mask8I :: Word64
 mask8I = 0x101010101010101
 
+-- | mask2scN 11(32x00) mask to reveal states of Nth subcharacter in 64Bit Word
+mask2sc0 :: Word64
+mask2sc0 = 0x3
+
+mask2sc1 :: Word64
+mask2sc1 = shiftL mask2sc0 (2 * 1)
+
+mask2sc2 :: Word64
+mask2sc2 = shiftL mask2sc0 (2 * 2)
+
+mask2sc3 :: Word64
+mask2sc3 = shiftL mask2sc0 (2 * 3)
+
+mask2sc4 :: Word64
+mask2sc4 = shiftL mask2sc0 (2 * 4)
+
+mask2sc5 :: Word64
+mask2sc5 = shiftL mask2sc0 (2 * 5)
+
+mask2sc6 :: Word64
+mask2sc6 = shiftL mask2sc0 (2 * 6)
+
+mask2sc7 :: Word64
+mask2sc7 = shiftL mask2sc0 (2 * 7)
+
+mask2sc8 :: Word64
+mask2sc8 = shiftL mask2sc0 (2 * 8)
+
+mask2sc9 :: Word64
+mask2sc9 = shiftL mask2sc0 (2 * 9)
+
+mask2sc10 :: Word64
+mask2sc10 = shiftL mask2sc0 (2 * 10)
+
+mask2sc11 :: Word64
+mask2sc11 = shiftL mask2sc0 (2 * 11)
+
+mask2sc12 :: Word64
+mask2sc12 = shiftL mask2sc0 (2 * 12)
+
+mask2sc13 :: Word64
+mask2sc13 = shiftL mask2sc0 (2 * 13)
+
+mask2sc14 :: Word64
+mask2sc14 = shiftL mask2sc0 (2 * 14)
+
+mask2sc15 :: Word64
+mask2sc15 = shiftL mask2sc0 (2 * 15)
+
+mask2sc16 :: Word64
+mask2sc16 = shiftL mask2sc0 (2 * 16)
+
+mask2sc17 :: Word64
+mask2sc17 = shiftL mask2sc0 (2 * 17)
+
+mask2sc18 :: Word64
+mask2sc18 = shiftL mask2sc0 (2 * 18)
+
+mask2sc19 :: Word64
+mask2sc19 = shiftL mask2sc0 (2 * 19)
+
+mask2sc20 :: Word64
+mask2sc20 = shiftL mask2sc0 (2 * 20)
+
+mask2sc21 :: Word64
+mask2sc21 = shiftL mask2sc0 (2 * 21)
+
+mask2sc22 :: Word64
+mask2sc22 = shiftL mask2sc0 (2 * 22)
+
+mask2sc23 :: Word64
+mask2sc23 = shiftL mask2sc0 (2 * 23)
+
+mask2sc24 :: Word64
+mask2sc24 = shiftL mask2sc0 (2 * 24)
+
+mask2sc25 :: Word64
+mask2sc25 = shiftL mask2sc0 (2 * 25)
+
+mask2sc26 :: Word64
+mask2sc26 = shiftL mask2sc0 (2 * 26)
+
+mask2sc27 :: Word64
+mask2sc27 = shiftL mask2sc0 (2 * 27)
+
+mask2sc28 :: Word64
+mask2sc28 = shiftL mask2sc0 (2 * 28)
+
+mask2sc29 :: Word64
+mask2sc29 = shiftL mask2sc0 (2 * 29)
+
+mask2sc30 :: Word64
+mask2sc30 = shiftL mask2sc0 (2 * 30)
+
+mask2sc31 :: Word64
+mask2sc31 = shiftL mask2sc0 (2 * 31)
+
+-- | mask4scN 1111(16x0000) mask to reveal states of Nth subcharacter in 64Bit Word
+mask4sc0 :: Word64
+mask4sc0 = 0xF
+
+mask4sc1 :: Word64
+mask4sc1 = shiftL mask4sc0 (4 * 1)
+
+mask4sc2 :: Word64
+mask4sc2 = shiftL mask4sc0 (4 * 2)
+
+mask4sc3 :: Word64
+mask4sc3 = shiftL mask4sc0 (4 * 3)
+
+mask4sc4 :: Word64
+mask4sc4 = shiftL mask4sc0 (4 * 4)
+
+mask4sc5 :: Word64
+mask4sc5 = shiftL mask4sc0 (4 * 5)
+
+mask4sc6 :: Word64
+mask4sc6 = shiftL mask4sc0 (4 * 6)
+
+mask4sc7 :: Word64
+mask4sc7 = shiftL mask4sc0 (4 * 7)
+
+mask4sc8 :: Word64
+mask4sc8 = shiftL mask4sc0 (4 * 8)
+
+mask4sc9 :: Word64
+mask4sc9 = shiftL mask4sc0 (4 * 9)
+
+mask4sc10 :: Word64
+mask4sc10 = shiftL mask4sc0 (4 * 10)
+
+mask4sc11 :: Word64
+mask4sc11 = shiftL mask4sc0 (4 * 11)
+
+mask4sc12 :: Word64
+mask4sc12 = shiftL mask4sc0 (4 * 12)
+
+mask4sc13 :: Word64
+mask4sc13 = shiftL mask4sc0 (4 * 13)
+
+mask4sc14 :: Word64
+mask4sc14 = shiftL mask4sc0 (4 * 14)
+
+mask4sc15 :: Word64
+mask4sc15 = shiftL mask4sc0 (4 * 15)
+
+-- | mask5scN 11111(12x00000) mask to reveal states of Nth subcharacter in 64Bit Word
+mask5sc0 :: Word64
+mask5sc0 = 0x1F
+
+mask5sc1 :: Word64
+mask5sc1 = shiftL mask5sc0 (5 * 1)
+
+mask5sc2 :: Word64
+mask5sc2 = shiftL mask5sc0 (5 * 2)
+
+mask5sc3 :: Word64
+mask5sc3 = shiftL mask5sc0 (5 * 3)
+
+mask5sc4 :: Word64
+mask5sc4 = shiftL mask5sc0 (5 * 4)
+
+mask5sc5 :: Word64
+mask5sc5 = shiftL mask5sc0 (5 * 5)
+
+mask5sc6 :: Word64
+mask5sc6 = shiftL mask5sc0 (5 * 6)
+
+mask5sc7 :: Word64
+mask5sc7 = shiftL mask5sc0 (5 * 7)
+
+mask5sc8 :: Word64
+mask5sc8 = shiftL mask5sc0 (5 * 8)
+
+mask5sc9 :: Word64
+mask5sc9 = shiftL mask5sc0 (5 * 9)
+
+mask5sc10 :: Word64
+mask5sc10 = shiftL mask5sc0 (5 * 10)
+
+mask5sc11 :: Word64
+mask5sc11 = shiftL mask5sc0 (5 * 11)
+
+-- | mask8scN 11111111(7x00000000) mask to reveal states of Nth subcharacter in 64Bit Word
+mask8sc0 :: Word64
+mask8sc0 = 0xFF
+
+mask8sc1 :: Word64
+mask8sc1 = shiftL mask8sc0 (8 * 1)
+
+mask8sc2 :: Word64
+mask8sc2 = shiftL mask8sc0 (8 * 2)
+
+mask8sc3 :: Word64
+mask8sc3 = shiftL mask8sc0 (8 * 3)
+
+mask8sc4 :: Word64
+mask8sc4 = shiftL mask8sc0 (8 * 4)
+
+mask8sc5 :: Word64
+mask8sc5 = shiftL mask8sc0 (8 * 5)
+
+mask8sc6 :: Word64
+mask8sc6 = shiftL mask8sc0 (8 * 6)
+
+mask8sc7 :: Word64
+mask8sc7 = shiftL mask8sc0 (8 * 7)
+
+{--
+Lists of sub-character masks for operations over packed characters
+-}
+
+packed2SubCharList :: [Word64]
+packed2SubCharList = [mask2sc0, mask2sc1, mask2sc2, mask2sc3, mask2sc4, mask2sc5, mask2sc6, mask2sc7, mask2sc8, mask2sc9,
+                            mask2sc10, mask2sc11, mask2sc12, mask2sc13, mask2sc14, mask2sc15, mask2sc16, mask2sc17, mask2sc18, mask2sc19,
+                            mask2sc20, mask2sc21, mask2sc22, mask2sc23, mask2sc24, mask2sc25, mask2sc26, mask2sc27, mask2sc28, mask2sc29,
+                            mask2sc30, mask2sc31] 
+                            
+packed4SubCharList :: [Word64]
+packed4SubCharList = [mask4sc0, mask4sc1, mask4sc2, mask4sc3, mask4sc4, mask4sc5, mask4sc6, mask4sc7, mask4sc8, mask4sc9,
+                            mask4sc10, mask4sc11, mask4sc12, mask4sc13, mask4sc14, mask4sc15] 
+                            
+packed5SubCharList :: [Word64]
+packed5SubCharList = [mask5sc0, mask5sc1, mask5sc2, mask5sc3, mask5sc4, mask5sc5, mask5sc6, mask5sc7, mask5sc8, mask5sc9,
+                            mask5sc10, mask5sc11] 
+                            
+packed8SubCharList :: [Word64]
+packed8SubCharList = [mask8sc0, mask8sc1, mask8sc2, mask8sc3, mask8sc4, mask8sc5, mask8sc6, mask8sc7] 
+
+{-
+Packed character minimum and maximum length functions
+-}
+
+-- | mainMxCharDiff get the approximate minimum and maximum difference in number of states
+-- uses masking with &/==
+minMaxCharDiff :: CharType -> Word64 -> Word64 -> (Int, Int)
+minMaxCharDiff inCharType a b =
+    let (minVal, maxVal) =  if inCharType == Packed2       then minMaxPacked2 a b 
+                            else if inCharType == Packed4  then minMaxPacked4 a b 
+                            else if inCharType == Packed5  then minMaxPacked5 a b 
+                            else if inCharType == Packed8  then minMaxPacked8 a b 
+                            else if inCharType == Packed64 then minMaxPacked64 a b
+                            else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    (minVal, maxVal)
+
+
+-- | minMaxPacked2 minium and maximum cost 32x2 bit nonadditive character
+-- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
+-- basically unrolled to make faster
+minMaxPacked2 :: Word64 -> Word64 -> (Int, Int)
+minMaxPacked2 a b =
+    let a0 = a .&. mask2sc0
+        b0 = b .&. mask2sc0
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
+
+        a1 = a .&. mask2sc1
+        b1 = b .&. mask2sc1
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
+
+        a2 = a .&. mask2sc2
+        b2 = b .&. mask2sc2
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
+
+        a3 = a .&. mask2sc3
+        b3 = b .&. mask2sc3
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
+
+        a4 = a .&. mask2sc4
+        b4 = b .&. mask2sc4
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
+
+        a5 = a .&. mask2sc5
+        b5 = b .&. mask2sc5
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
+
+        a6 = a .&. mask2sc6
+        b6 = b .&. mask2sc6
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
+
+        a7 = a .&. mask2sc7
+        b7 = b .&. mask2sc7
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
+
+        a8 = a .&. mask2sc8
+        b8 = b .&. mask2sc8
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
+
+        a9 = a .&. mask2sc9
+        b9 = b .&. mask2sc9
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
+
+        a10 = a .&. mask2sc10
+        b10 = b .&. mask2sc10
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
+
+        a11 = a .&. mask2sc11
+        b11 = b .&. mask2sc11
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
+
+        a12 = a .&. mask2sc12
+        b12 = b .&. mask2sc12
+        max12 = if a12 == (0 :: Word64) then 0
+               else if (a12 .&. b12) == (0 :: Word64) then 1
+               else if (a12 == b12)  then 0 else 1
+
+        a13 = a .&. mask2sc13
+        b13 = b .&. mask2sc13
+        max13 = if a13 == (0 :: Word64) then 0
+               else if (a13 .&. b13) == (0 :: Word64) then 1
+               else if (a13 == b13) then 0 else 1
+
+        a14 = a .&. mask2sc14
+        b14 = b .&. mask2sc14
+        max14 = if a14 == (0 :: Word64) then 0
+               else if (a14 .&. b14) == (0 :: Word64) then 1
+               else if (a14 == b14) then 0 else 1
+
+        a15 = a .&. mask2sc15
+        b15 = b .&. mask2sc15
+        max15 = if a15 == (0 :: Word64) then 0
+               else if (a15 .&. b15) == (0 :: Word64) then 1
+               else if (a15 == b15) then 0 else 1
+
+        a16 = a .&. mask2sc16
+        b16 = b .&. mask2sc16
+        max16 = if a16 == (0 :: Word64) then 0
+               else if (a16 .&. b16) == (0 :: Word64) then 1
+               else if (a16 == b16) then 0 else 1
+
+        a17 = a .&. mask2sc17
+        b17 = b .&. mask2sc17
+        max17 = if a17 == (0 :: Word64) then 0
+               else if (a17 .&. b17) == (0 :: Word64) then 1
+               else if (a17 == b17) then 0 else 1
+
+        a18 = a .&. mask2sc18
+        b18 = b .&. mask2sc18
+        max18 = if a18 == (0 :: Word64) then 0
+               else if (a18 .&. b18) == (0 :: Word64) then 1
+               else if (a1 == b18) then 0 else 1
+
+        a19 = a .&. mask2sc19
+        b19 = b .&. mask2sc19
+        max19 = if a19 == (0 :: Word64) then 0
+               else if (a19 .&. b19) == (0 :: Word64) then 1
+               else if (a19 == b19) then 0 else 1
+
+        a20 = a .&. mask2sc20
+        b20 = b .&. mask2sc20
+        max20 = if a20 == (0 :: Word64) then 0
+               else if (a20 .&. b20) == (0 :: Word64) then 1
+               else if (a20 == b20) then 0 else 1
+
+        a21 = a .&. mask2sc21
+        b21 = b .&. mask2sc21
+        max21 = if a21 == (0 :: Word64) then 0
+               else if (a21 .&. b21) == (0 :: Word64) then 1
+               else if (a21 == b21) then 0 else 1
+
+        a22 = a .&. mask2sc22
+        b22 = b .&. mask2sc22
+        max22 = if a22 == (0 :: Word64) then 0
+               else if (a22 .&. b22) == (0 :: Word64) then 1
+               else if (a22 == b22) then 0 else 1
+        
+        a23 = a .&. mask2sc23
+        b23 = b .&. mask2sc23
+        max23 = if a23 == (0 :: Word64) then 0
+               else if (a23 .&. b23) == (0 :: Word64) then 1
+               else if (a23 == b23) then 0 else 1
+
+        a24 = a .&. mask2sc24
+        b24 = b .&. mask2sc24
+        max24 = if a24 == (0 :: Word64) then 0
+               else if (a24 .&. b24) == (0 :: Word64) then 1
+               else if (a24 == b24) then 0 else 1
+
+        a25 = a .&. mask2sc25
+        b25 = b .&. mask2sc25
+        max25 = if a25 == (0 :: Word64) then 0
+               else if (a25 .&. b25) == (0 :: Word64) then 1
+               else if (a25 == b25)  then 0 else 1
+
+        a26 = a .&. mask2sc26
+        b26 = b .&. mask2sc26
+        max26 = if a26 == (0 :: Word64) then 0
+               else if (a26 .&. b26) == (0 :: Word64) then 1
+               else if (a26 == b26) then 0 else 1
+
+        a27 = a .&. mask2sc27
+        b27 = b .&. mask2sc27
+        max27 = if a27 == (0 :: Word64) then 0
+               else if (a27 .&. b27) == (0 :: Word64) then 1
+               else if (a27 == b27) then 0 else 1
+
+        a28 = a .&. mask2sc28
+        b28 = b .&. mask2sc28
+        max28 = if a28 == (0 :: Word64) then 0
+               else if (a28 .&. b28) == (0 :: Word64) then 1
+               else if (a28 == b28)  then 0 else 1
+
+        a29 = a .&. mask2sc29
+        b29 = b .&. mask2sc29
+        max29 = if a29 == (0 :: Word64) then 0
+               else if (a29 .&. b29) == (0 :: Word64) then 1
+               else if (a29 == b29) then 0 else 1
+
+        a30 = a .&. mask2sc30
+        b30 = b .&. mask2sc30
+        max30 = if a30 == (0 :: Word64) then 0
+               else if (a30 .&. b30) == (0 :: Word64) then 1
+               else if (a30 == b30) then 0 else 1
+
+        a31 = a .&. mask2sc31
+        b31 = b .&. mask2sc31
+        max31 = if a31 == (0 :: Word64) then 0
+               else if (a31 .&. b31) == (0 :: Word64) then 1
+               else if (a31 == b31) then 0 else 1
+
+        -- sum up values
+        (_, minVal) = andOR2 a b
+        maxVal = max0  + max1 + max2 + max3 + max4 + max5 + max6 + max7 + max8 + max9 
+                + max10 + max11 + max12 + max13 + max14 + max15 + max16 + max17 + max18 + max19 
+                + max20 + max21 + max22 + max23 + max24 + max25 + max26 + max27 + max28 + max29 
+                + max30 + max31
+    in
+    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
+    (minVal, maxVal) 
+
+-- | minMaxPacked4 minium and maximum cost 16x4 bit nonadditive character
+-- could add popcount == 1 for equality A/C -> A/C is identical but could be A->C so max 1
+-- basically unrolled to make faster
+-- any diffference between states gets 1 for max
+minMaxPacked4 :: Word64 -> Word64 -> (Int, Int)
+minMaxPacked4 a b =
+    let a0 = a .&. mask4sc0
+        b0 = b .&. mask4sc0
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
+
+        a1 = a .&. mask4sc1
+        b1 = b .&. mask4sc1
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
+
+        a2 = a .&. mask4sc2
+        b2 = b .&. mask4sc2
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
+
+        a3 = a .&. mask4sc3
+        b3 = b .&. mask4sc3
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
+
+        a4 = a .&. mask4sc4
+        b4 = b .&. mask4sc4
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
+
+        a5 = a .&. mask4sc5
+        b5 = b .&. mask4sc5
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
+
+        a6 = a .&. mask4sc6
+        b6 = b .&. mask4sc6
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
+
+        a7 = a .&. mask4sc7
+        b7 = b .&. mask4sc7
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
+
+        a8 = a .&. mask4sc8
+        b8 = b .&. mask4sc8
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
+
+        a9 = a .&. mask4sc9
+        b9 = b .&. mask4sc9
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
+
+        a10 = a .&. mask4sc10
+        b10 = b .&. mask4sc10
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
+
+        a11 = a .&. mask4sc11
+        b11 = b .&. mask4sc11
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
+
+        a12 = a .&. mask4sc12
+        b12 = b .&. mask4sc12
+        max12 = if a12 == (0 :: Word64) then 0
+               else if (a12 .&. b12) == (0 :: Word64) then 1
+               else if (a12 == b12)  then 0 else 1
+
+        a13 = a .&. mask4sc13
+        b13 = b .&. mask4sc13
+        max13 = if a13 == (0 :: Word64) then 0
+               else if (a13 .&. b13) == (0 :: Word64) then 1
+               else if (a13 == b13) then 0 else 1
+
+        a14 = a .&. mask4sc14
+        b14 = b .&. mask4sc14
+        max14 = if a14 == (0 :: Word64) then 0
+               else if (a14 .&. b14) == (0 :: Word64) then 1
+               else if (a14 == b14) then 0 else 1
+
+        a15 = a .&. mask4sc15
+        b15 = b .&. mask4sc15
+        max15 = if a15 == (0 :: Word64) then 0
+               else if (a15 .&. b15) == (0 :: Word64) then 1
+               else if (a15 == b15) then 0 else 1
+
+        -- sum up values
+        (_, minVal) = andOR4 a b
+        maxVal = max0  + max1 + max2 + max3 + max4 + max5 + max6 + max7 + max8 + max9 
+                + max10 + max11 + max12 + max13 + max14 + max15 
+    in
+    (minVal, maxVal) 
+
+-- | minMaxPacked5 minium and maximum cost 12x5 bit nonadditive character
+-- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
+-- basically unrolled to make faster
+minMaxPacked5 :: Word64 -> Word64 -> (Int, Int)
+minMaxPacked5 a b =
+    let a0 = a .&. mask8sc0
+        b0 = b .&. mask5sc0
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
+
+        a1 = a .&. mask5sc1
+        b1 = b .&. mask5sc1
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
+
+        a2 = a .&. mask5sc2
+        b2 = b .&. mask5sc2
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
+
+        a3 = a .&. mask5sc3
+        b3 = b .&. mask5sc3
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
+
+        a4 = a .&. mask5sc4
+        b4 = b .&. mask5sc4
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
+
+        a5 = a .&. mask5sc5
+        b5 = b .&. mask5sc5
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
+
+        a6 = a .&. mask5sc6
+        b6 = b .&. mask5sc6
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
+
+        a7 = a .&. mask5sc7
+        b7 = b .&. mask5sc7
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
+
+        a8 = a .&. mask5sc8
+        b8 = b .&. mask5sc8
+        max8 = if a8 == (0 :: Word64) then 0
+               else if (a8 .&. b8) == (0 :: Word64) then 1
+               else if (a8 == b8)  then 0 else 1
+
+        a9 = a .&. mask5sc9
+        b9 = b .&. mask5sc9
+        max9 = if a9 == (0 :: Word64) then 0
+               else if (a9 .&. b9) == (0 :: Word64) then 1
+               else if (a9 == b9)  then 0 else 1
+
+        a10 = a .&. mask5sc10
+        b10 = b .&. mask5sc10
+        max10 = if a10 == (0 :: Word64) then 0
+               else if (a10 .&. b10) == (0 :: Word64) then 1
+               else if (a10 == b10)  then 0 else 1
+
+        a11 = a .&. mask5sc11
+        b11 = b .&. mask5sc11
+        max11 = if a11 == (0 :: Word64) then 0
+               else if (a11 .&. b11) == (0 :: Word64) then 1
+               else if (a11 == b11)  then 0 else 1
+
+
+        -- sum up values
+        (_, minVal) = andOR5 a b
+        maxVal = max0  + max1 + max2 + max3 + max4 + max5 + max6 + max7 + max8 + max9 
+                + max10 + max11 
+    in
+    (minVal, maxVal) 
+
+-- | minMaxPacked8 minium and maximum cost 12x5 bit nonadditive character
+-- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
+-- basically unrolled to make faster
+minMaxPacked8 :: Word64 -> Word64 -> (Int, Int)
+minMaxPacked8 a b =
+    let a0 = a .&. mask8sc0
+        b0 = b .&. mask8sc0
+        max0 = if a0 == (0 :: Word64) then 0
+               else if (a0 .&. b0) == (0 :: Word64) then 1
+               else if (a0 == b0) then 0 else 1
+
+        a1 = a .&. mask8sc1
+        b1 = b .&. mask8sc1
+        max1 = if a1 == (0 :: Word64) then 0
+               else if (a1 .&. b1) == (0 :: Word64) then 1
+               else if (a1 == b1) then 0 else 1
+
+        a2 = a .&. mask8sc2
+        b2 = b .&. mask8sc2
+        max2 = if a2 == (0 :: Word64) then 0
+               else if (a2 .&. b2) == (0 :: Word64) then 1
+               else if (a2 == b2) then 0 else 1
+
+        a3 = a .&. mask8sc3
+        b3 = b .&. mask8sc3
+        max3 = if a3 == (0 :: Word64) then 0
+               else if (a3 .&. b3) == (0 :: Word64) then 1
+               else if (a3 == b3)  then 0 else 1
+
+        a4 = a .&. mask8sc4
+        b4 = b .&. mask8sc4
+        max4 = if a4 == (0 :: Word64) then 0
+               else if (a4 .&. b4) == (0 :: Word64) then 1
+               else if (a4 == b4) then 0 else 1
+
+        a5 = a .&. mask8sc5
+        b5 = b .&. mask8sc5
+        max5 = if a5 == (0 :: Word64) then 0
+               else if (a5 .&. b5) == (0 :: Word64) then 1
+               else if (a5 == b5) then 0 else 1
+
+        a6 = a .&. mask8sc6
+        b6 = b .&. mask8sc6
+        max6 = if a6 == (0 :: Word64) then 0
+               else if (a6 .&. b6) == (0 :: Word64) then 1
+               else if (a6 == b6)  then 0 else 1
+
+        a7 = a .&. mask8sc7
+        b7 = b .&. mask8sc7
+        max7 = if a7 == (0 :: Word64) then 0
+               else if (a7 .&. b7) == (0 :: Word64) then 1
+               else if (a7 == b7)  then 0 else 1
+
+
+        -- sum up values
+        (_, minVal) = andOR5 a b
+        maxVal = max0  + max1 + max2 + max3 + max4 + max5 + max6 + max7 
+    in
+    (minVal, maxVal) 
+
+
+
+-- | minMaxPacked64 minium and maximum cost 64 bit nonadditive character
+-- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
+-- operattion over each sub-character
+minMaxPacked64 :: Word64 -> Word64 -> (Int, Int)
+minMaxPacked64 a b =
+    let maxVal = if (a == b) && (popCount a == 1) then 0 else 1
+        minVal = if (a .&. b) == (0 :: Word64) then 1 else 0
+    in
+    (minVal, maxVal) 
+
+-- | median2Packed takes two characters of packedNonAddTypes
+-- and retuns new character data based on 2-median and cost
+median2Packed :: CharType -> CharacterData -> CharacterData -> CharacterData
+median2Packed inCharType leftChar rightChar =
+    --assumes all weight 1
+    let (newStateVect, newCost) = if inCharType == Packed2       then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed8  then median2Word64 andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
+                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+
+        newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
+                                      , localCost = fromIntegral newCost
+                                      , globalCost = (fromIntegral newCost) + globalCost leftChar + globalCost rightChar
+                                      }
+    in
+    -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
+    newCharacter
+
+-- | unionPacked returns character that is the union (== OR) for bit packed characters
+-- of the final fields as preliminary and final
+unionPacked :: CharacterData -> CharacterData -> CharacterData
+unionPacked charL charR =
+    let newVect = V.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
+    in
+    emptyCharacter { packedNonAddPrelim = (newVect, newVect, newVect)
+                   , packedNonAddFinal = newVect
+                   }
+
+
 {-
 andOrN functions derived from White and Holland 2011
 -}
@@ -369,7 +1061,7 @@ andOR4 x y =
 
 -- | andOR5 and or function for Packed5 encoding
 -- potential issue with top 4 bits--not sure on mask5B whether top 4 should be on or OFF.
--- can always maske top 4 with AND 0000111... (0xFFFFFFFFFFFFFFF or 1152921504606846975)
+-- can always mask top 4 with AND 0000111... (0xFFFFFFFFFFFFFFF or 1152921504606846975)
 -- to remove bits for counting
 -- and calcualted state
 andOR5:: Word64 -> Word64 -> (Word64, Int)
@@ -451,11 +1143,12 @@ preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask2B .&. x2) .|. (shiftR (mask2A .&. x2) 1)
+        c3 = (mask2A .&. x2) .|. (shiftR (mask2B .&. x2) 1)
         c4 = c3 .|. (shiftL c3 1)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
     in
+    -- trace ("PO2: " ++ " in " ++ (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) ++ "->" ++ (show $ showBits finalState))
     finalState
 
 -- | preOrder4 from preOrder2 but for 4 states
@@ -464,13 +1157,13 @@ preOrder4 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask4B ((mask4B .&. x1) .|. (shiftR (mask4C .&. x1) 1) .|. (shiftR (mask4D .&. x1) 2) .|. (shiftR (mask4E .&. x1) 3))
+        c1 = xor mask4E ((mask4E .&. x1) .|. (shiftR (mask4D .&. x1) 1) .|. (shiftR (mask4C .&. x1) 2) .|. (shiftR (mask4B .&. x1) 3))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask4B .&. x2) .|. (shiftR (mask4C .&. x2) 1) .|. (shiftR (mask4D .&. x2) 2) .|. (shiftR (mask4E .&. x2) 3)
+        c3 = (mask4E .&. x2) .|. (shiftR (mask4D .&. x2) 1) .|. (shiftR (mask4C .&. x2) 2) .|. (shiftR (mask4B .&. x2) 3)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -483,13 +1176,13 @@ preOrder5 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask5B ((mask5B .&. x1) .|. (shiftR (mask5C .&. x1) 1) .|. (shiftR (mask5D .&. x1) 2) .|. (shiftR (mask5E .&. x1) 3) .|. (shiftR (mask5F .&. x1) 4))
+        c1 = xor mask5F ((mask5F .&. x1) .|. (shiftR (mask5E .&. x1) 1) .|. (shiftR (mask5D .&. x1) 2) .|. (shiftR (mask5C .&. x1) 3) .|. (shiftR (mask5B .&. x1) 4))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask5B .&. x2) .|. (shiftR (mask5C .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5E .&. x2) 3) .|. (shiftR (mask5F .&. x2) 4)
+        c3 = (mask5F .&. x2) .|. (shiftR (mask5E .&. x2) 1) .|. (shiftR (mask5D .&. x2) 2) .|. (shiftR (mask5C .&. x2) 3) .|. (shiftR (mask5B .&. x2) 4)
         c4 = c3 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -502,13 +1195,13 @@ preOrder8 leftPrelim childPrelim rightPrelim parentFinal =
     -- post-order stuff to get "temp" state used to calculate final
     let x1 = leftPrelim .&. rightPrelim
         y1 = leftPrelim .|. rightPrelim
-        c1 = xor mask8B ((mask8B .&. x1) .|. (shiftR (mask8C .&. x1) 1) .|. (shiftR (mask8D .&. x1) 2) .|. (shiftR (mask8E .&. x1) 3) .|. (shiftR (mask8F .&. x1) 4) .|. (shiftR (mask8G .&. x1) 5) .|. (shiftR (mask8H .&. x1) 6) .|. (shiftR (mask8I .&. x1) 7))
+        c1 = xor mask8I ((mask8I .&. x1) .|. (shiftR (mask8H .&. x1) 1) .|. (shiftR (mask8G .&. x1) 2) .|. (shiftR (mask8F .&. x1) 3) .|. (shiftR (mask8E .&. x1) 4) .|. (shiftR (mask8D .&. x1) 5) .|. (shiftR (mask8C .&. x1) 6) .|. (shiftR (mask8B .&. x1) 7))
         c2 = c1 .|. (shiftL c1 1) .|. (shiftL c1 2) .|. (shiftL c1 3) .|. (shiftL c1 4) .|. (shiftL c1 5) .|. (shiftL c1 6) .|. (shiftL c1 7)
         t = c2 .|. y1
 
     -- preOrder values
         x2 = parentFinal .&. (complement childPrelim)
-        c3 = (mask8B .&. x2) .|. (shiftR (mask8C .&. x2) 1) .|. (shiftR (mask8D .&. x2) 2) .|. (shiftR (mask8E .&. x2) 3) .|. (shiftR (mask8F .&. x2) 4) .|. (shiftR (mask8G .&. x2) 5) .|. (shiftR (mask8H .&. x2) 6) .|. (shiftR (mask8I .&. x2) 7)
+        c3 = (mask8I .&. x2) .|. (shiftR (mask8H .&. x2) 1) .|. (shiftR (mask8G .&. x2) 2) .|. (shiftR (mask8F .&. x2) 3) .|. (shiftR (mask8E .&. x2) 4) .|. (shiftR (mask8D .&. x2) 5) .|. (shiftR (mask8C .&. x2) 6) .|. (shiftR (mask8B .&. x2) 7)
         c4 = c1 .|. (shiftL c3 1) .|. (shiftL c3 2) .|. (shiftL c3 3) .|. (shiftL c3 4) .|. (shiftL c3 5) .|. (shiftL c3 6) .|. (shiftL c3 7)
 
         finalState = (parentFinal .&. (complement c4)) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
@@ -549,7 +1242,41 @@ threeWayPacked inCharType parent1 parent2 curNode =
     in
     newStateVect
 
+-- | threeWayPacked' median 3 for hard-wired networks
+-- this uses lists of masks so likely slower than Goloboff
+-- this approach could also be used for min/max to be simpler but alos likelu slower since previous is
+-- manually unrolled
+threeWayPacked' :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
+threeWayPacked' inCharType parent1 parent2 curNode =
+    let newStateVect = if inCharType == Packed2       then V.zipWith3 (threeWayNWord64 packed2SubCharList) parent1 parent2 curNode
+                       else if inCharType == Packed4  then V.zipWith3 (threeWayNWord64 packed4SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed5  then V.zipWith3 (threeWayNWord64 packed5SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed8  then V.zipWith3 (threeWayNWord64 packed8SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode
+                       else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+    in
+    newStateVect
+
+
+-- | threeWayNWord64 3-way hardwired optimization for Packed N Word64
+-- non-additive character--maps over sub-characters with appropriate masks
+-- lists of subcharacters with all ovther bits OFF are created via masks
+-- then zipped over threeway function and ORed to create 32 bit final state
+-- this is an alternate approach to the three node optimization of Golobiff below.
+-- both should yield same result-- this is polymoprhic and simple--but not parallel 
+--as in Goloboff so likely slower
+threeWayNWord64 :: [Word64] -> Word64 -> Word64 -> Word64 -> Word64
+threeWayNWord64 packedSubCharList p1 p2 cN =
+       let p1SubCharList = fmap (p1 .&.) packedSubCharList
+           p2SubCharList = fmap (p2 .&.) packedSubCharList
+           cNSubCharList = fmap (cN .&.) packedSubCharList
+           threeWayList  = zipWith3 threeWay64 p1SubCharList p2SubCharList cNSubCharList
+       in
+       L.foldl1' (.|.) threeWayList
+
+
 -- | threeWay2 3-way hardwired optimization for Packed2 Word64
+-- but used on subCharacters
 threeWay2 :: Word64 -> Word64 -> Word64 -> Word64
 threeWay2 p1 p2 cN =
     let x = p1 .&. p2 .&. cN
@@ -612,7 +1339,7 @@ threeWay64 p1 p2 cN =
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
     in
-    if x /= (zeroBits:: Word64) then x
+    if x /= (zeroBits :: Word64) then x
     else if y /=  (zeroBits :: Word64) then y
     else z
 
@@ -897,7 +1624,7 @@ getStateNumber  characterDataVV characterIndex =
     if null characterDataVV then (0, [])
     else
         let thisCharV = fmap (V.! characterIndex) characterDataVV
-            missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (head $ thisCharV)) True
+            missingVal = L.foldl1' (.|.) thisCharV
             nonMissingStates = filter (/= missingVal) thisCharV
             nonMissingBV = L.foldl1' (.|.) nonMissingStates
             numStates = popCount nonMissingBV
@@ -905,6 +1632,7 @@ getStateNumber  characterDataVV characterIndex =
             -- this turns off non-missing bits
             thisCharL = (fmap (.&. nonMissingBV) thisCharV)
         in
+        -- trace ("GSN:" ++ (show nonMissingStates) ++ "\nNMBV " ++ (show nonMissingBV) ++ " MBV " ++ (show missingVal) ++ " -> " ++ (show numStates) ) (
         if null nonMissingStates then (1, [])
         else if numStates == 1 then (1, [])
         else if numStates == 2 then (2, thisCharL)

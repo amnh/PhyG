@@ -28,6 +28,8 @@ module Bio.DynamicCharacter
   , isGap
   , isMissing
   , characterLength
+    -- * Strictness
+  , forceDynamicCharacter
     -- * Mutators
   , setAlign
   , setDelete
@@ -276,7 +278,7 @@ setGapped
   -> Int -- ^ Index to set
   -> m ()
 setGapped (lc,mc,rc) i = do
-    tmp <- unsafeRead mc i
+    tmp <- unsafeRead mc 0 -- Get cell dimension context from first cell in vector
     let (# gap, nil #) = buildGapAndNil tmp
     unsafeWrite lc i nil
     unsafeWrite mc i gap
@@ -291,6 +293,14 @@ transposeCharacter (lc,mc,rc) = (rc,mc,lc)
 {-# INLINEABLE characterLength #-}
 characterLength :: Vector v e  => OpenDynamicCharacter v e -> Word
 characterLength = toEnum . GV.length . extractMediansGapped
+
+
+{-# INLINEABLE forceDynamicCharacter #-}
+{-# SPECIALISE forceDynamicCharacter :: SlimDynamicCharacter -> SlimDynamicCharacter #-}
+{-# SPECIALISE forceDynamicCharacter :: WideDynamicCharacter -> WideDynamicCharacter #-}
+{-# SPECIALISE forceDynamicCharacter :: HugeDynamicCharacter -> HugeDynamicCharacter #-}
+forceDynamicCharacter :: Vector v e  => OpenDynamicCharacter v e -> OpenDynamicCharacter v e
+forceDynamicCharacter (lv,mv,rv) = ( GV.force lv, GV.force mv, GV.force rv )
 
 
 -- |
@@ -425,7 +435,8 @@ freezeTempCharacter
   => TempOpenDynamicCharacter m v e
   -> m (OpenDynamicCharacter v e)
 freezeTempCharacter (lc,mc,rc) =
-    (,,) <$> unsafeFreeze lc <*> unsafeFreeze mc <*> unsafeFreeze rc
+    let forcedFreeze = fmap GV.force . unsafeFreeze
+    in  (,,) <$> forcedFreeze lc <*> forcedFreeze mc <*> forcedFreeze rc
 
 
 {-# INLINEABLE generateCharacter #-}
