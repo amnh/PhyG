@@ -192,6 +192,7 @@ data  GlobalSettings
     , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
+    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -495,6 +496,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , seed = 0
                                      , searchData = []
                                      , partitionCharacter = "#"
+                                     , numDataLeaves = 0
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

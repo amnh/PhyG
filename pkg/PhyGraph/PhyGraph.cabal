@@ -121,6 +121,19 @@ executable phyg
     -rtsopts
     -static
 
+  -- delete these for OSX the options are for for linux static binaries
+  if !os(darwin) 
+    cc-options: 
+      -static
+  else 
+    cc-options:
+
+  if !os(darwin) 
+    ld-options: 
+      -static -pthread
+  else 
+    ld-options:
+
   build-depends:  alphabet
                 , dynamic-character
                 , PhyloLib

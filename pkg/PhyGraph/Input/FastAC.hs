@@ -316,7 +316,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
 getFastA :: String -> String -> Bool-> [TermData]
-getFastA fileContents' fileName isPreligned=
+getFastA fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments

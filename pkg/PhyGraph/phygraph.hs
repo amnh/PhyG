@@ -185,6 +185,7 @@ main = do
     let defaultGlobalSettings = emptyGlobalSettings { outgroupIndex = 0
                                                , outGroupName = head dataLeafNames
                                                , seed = timeD
+                                               , numDataLeaves = length leafBitVectorNames
                                                }
     --hPutStrLn stderr (show defaultGlobalSettings)
 

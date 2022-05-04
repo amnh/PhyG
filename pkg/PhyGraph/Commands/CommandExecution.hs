@@ -424,8 +424,11 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
                     trace ("No graphs to create implied alignments")
                     ("No impliedAlgnments to report", outfileName, writeMode)
                 else
-                    let iaContentList = zipWith (getImpliedAlignmentString globalSettings processedData) curGraphs [0.. (length curGraphs - 1)]
+                    let includeMissing = any (=="includemissing") commandList
+                        concatSeqs = any (=="concatenate") commandList
+                        iaContentList = zipWith (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData) curGraphs [0.. (length curGraphs - 1)]
                     in
+                    trace ("\tWarning--prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additve characters and will not appear in implied alignment output.")
                     (concat iaContentList, outfileName, writeMode)
 
             else if "pairdist" `elem` commandList then
@@ -1068,13 +1071,15 @@ bitVectToCharStringTNT localAlphabet bitValue =
 
 -- | getImpliedAlignmentString returns as a single String the implied alignments of all sequence characters
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
-getImpliedAlignmentString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
-getImpliedAlignmentString inGS inData inGraph graphNumber =
+getImpliedAlignmentString :: GlobalSettings -> Bool ->  Bool -> ProcessedData -> PhylogeneticGraph -> Int -> String
+getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
     else
         let headerString = "Implied Alignments for Graph " ++ (show graphNumber) ++ "\n"
         in
-        if graphType inGS == Tree then headerString ++ (getTreeIAString inGraph)
+        if graphType inGS == Tree then 
+            if not concatSeqs then headerString ++ (getTreeIAString includeMissing inGraph)
+            else headerString ++ (U.concatFastas $ getTreeIAString includeMissing inGraph)
 
         -- for softwired networks--use display trees
         else if graphType inGS == SoftWired then 
@@ -1088,10 +1093,11 @@ getImpliedAlignmentString inGS inData inGraph graphNumber =
                 decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
 
                 -- extract IA strings as if mutiple graphs
-                diplayIAStringList = fmap getTreeIAString $ V.toList decoratedBlockTreeList
+                diplayIAStringList = fmap (getTreeIAString includeMissing) $ V.toList decoratedBlockTreeList
 
             in
-            concat diplayIAStringList
+            if not concatSeqs then headerString ++ (concat diplayIAStringList)
+            else headerString ++ (U.concatFastas $ concat diplayIAStringList)
 
         -- There is no IA for Hardwired at least as of yet 
         -- so convert to softwired and use display trees
@@ -1113,23 +1119,25 @@ getImpliedAlignmentString inGS inData inGraph graphNumber =
                 decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
 
                 -- extract IA strings as if mutiple graphs
-                diplayIAStringList = fmap getTreeIAString $ V.toList decoratedBlockTreeList
+                diplayIAStringList = fmap (getTreeIAString includeMissing) $ V.toList decoratedBlockTreeList
             in
-            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way")
-            concat diplayIAStringList
+            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way") (
+            if not concatSeqs then headerString ++ (concat diplayIAStringList)
+            else headerString ++ (U.concatFastas $ concat diplayIAStringList)
+            )
 
         else 
             trace ("IA  not yet implemented for graphtype " ++ show (graphType inGS))
             ("There is no implied alignment for " ++  (show (graphType inGS)))
 
--- | getTreeIAString takes a Tree Decorated Graph and returns Implied ALignmentString
-getTreeIAString :: PhylogeneticGraph -> String
-getTreeIAString inGraph =
+-- | getTreeIAString takes a Tree Decorated Graph and returns Implied AlignmentString
+getTreeIAString :: Bool -> PhylogeneticGraph -> String
+getTreeIAString includeMissing inGraph =
     let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
         leafNameList = fmap (vertName . snd) leafList
         leafDataList = V.fromList $ fmap (vertData . snd) leafList
         charInfoVV = six6 inGraph
-        characterStringList = makeFullIAStrings charInfoVV leafNameList leafDataList
+        characterStringList = makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList
     in
     concat characterStringList
 
@@ -1138,25 +1146,33 @@ makeBlockData :: V.Vector NameText-> V.Vector NameBV -> BlockData -> ProcessedDa
 makeBlockData a b c = (a, b, V.singleton c)
 
 -- | makeFullIAStrings goes block by block, creating fasta strings for each
-makeFullIAStrings ::  V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
-makeFullIAStrings charInfoVV leafNameList leafDataList = 
+makeFullIAStrings ::  Bool -> V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
+makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList = 
     let numBlocks = V.length charInfoVV
     in
-    concat $ fmap (makeBlockIAStrings leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
+    concat $ fmap (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
 
--- | makeBlockIAStrings extracts data for a block (via index) and calls funciton to make iaStrings for each character
-makeBlockIAStrings :: [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
-makeBlockIAStrings leafNameList leafDataList charInfoVV blockIndex =
+-- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
+makeBlockIAStrings :: Bool -> [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
+makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockIndex =
     let thisBlockCharInfo = charInfoVV V.! blockIndex
         numChars = V.length thisBlockCharInfo
         thisBlockCharData = fmap (V.! blockIndex) leafDataList
-        blockCharacterStringList = V.zipWith (makeBlockCharacterString leafNameList thisBlockCharData) thisBlockCharInfo (V.fromList [0 .. (numChars - 1)])
+        blockCharacterStringList = V.zipWith (makeBlockCharacterString includeMissing leafNameList thisBlockCharData) thisBlockCharInfo (V.fromList [0 .. (numChars - 1)])
     in
-    filter (/= []) $ V.toList blockCharacterStringList
+    V.toList blockCharacterStringList
+
+-- | isAllGaps checks wether a sequence is all gap charcaters '-'
+isAllGaps :: String -> Bool
+isAllGaps inSeq =
+    if null inSeq then True
+    else
+        if length (filter (`notElem` ['-', '\n']) inSeq) == 0 then True
+        else False
 
 -- | makeBlockCharacterString creates implied alignmennt string for sequnce charactes and null if not
-makeBlockCharacterString :: [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
-makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
+makeBlockCharacterString :: Bool -> [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
+makeBlockCharacterString includeMissing leafNameList leafDataVV thisCharInfo charIndex =
     -- check if sequence type character
     let thisCharType = charType thisCharInfo
         thisCharName = name thisCharInfo
@@ -1166,7 +1182,7 @@ makeBlockCharacterString leafNameList leafDataVV thisCharInfo charIndex =
         let -- thisCharData = fmap (V.! charIndex) leafDataVV
             thisCharData = getTaxDataOrMissing leafDataVV charIndex 0 []
             nameDataPairList = zip leafNameList thisCharData 
-            fastaString = pairList2Fasta thisCharInfo nameDataPairList
+            fastaString = pairList2Fasta includeMissing thisCharInfo nameDataPairList
         in 
         -- trace ("MBCS: " ++ (show $ length leafNameList) ++ " " ++ (show $ V.length thisCharData) ++ "\n" ++ (show leafDataVV))
         "\nSequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString ++ "\n"
@@ -1192,8 +1208,8 @@ getTaxDataOrMissing charDataV charIndex taxonIndex newTaxList =
 
 -- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
 -- and character data and returns fasta formated string
-pairList2Fasta :: CharInfo -> [(NameText, CharacterData)] -> String
-pairList2Fasta inCharInfo nameDataPairList = 
+pairList2Fasta :: Bool -> CharInfo -> [(NameText, CharacterData)] -> String
+pairList2Fasta includeMissing inCharInfo nameDataPairList = 
     if null nameDataPairList then []
     else 
         let (firstName, blockDatum) = head nameDataPairList
@@ -1210,7 +1226,9 @@ pairList2Fasta inCharInfo nameDataPairList =
 
             sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
 
-        in
-        if blockDatum == emptyCharacter then (pairList2Fasta inCharInfo (tail nameDataPairList))
-        else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta inCharInfo (tail nameDataPairList))
+        in 
+        if (not includeMissing) && (isAllGaps sequenceString) then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
+        else if blockDatum == emptyCharacter then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
+        else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta includeMissing inCharInfo (tail nameDataPairList))
+        
 

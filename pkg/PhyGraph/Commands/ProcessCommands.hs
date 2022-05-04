@@ -183,7 +183,7 @@ parseCommand inLine =
             -- this doesn not allow recursive multi-option arguments
             -- NEED TO FIX
             -- make in to a more sophisticated split outside of parens
-            argList = argumentSplitter  $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
+            argList = argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
             localInstruction = getInstruction instructionString V.allowedCommandList
             processedArg = parseCommandArg firstString localInstruction argList
         in
@@ -225,8 +225,8 @@ getBalancedParenPart curString inString countLeft countRight =
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
 -- these are each pairs of an option string (could be null) and a subarguments String (also could be null)
-argumentSplitter :: String -> [(String, String)]
-argumentSplitter inString
+argumentSplitter :: String -> String -> [(String, String)]
+argumentSplitter commandLineString inString
   | null inString = []
   | (freeOfSimpleErrors inString) == False = errorWithoutStackTrace ("Error in command specification format")
   | otherwise =
@@ -241,21 +241,22 @@ argumentSplitter inString
         else [(inString, [])]
     else if commaIndex == firstDivider then
         -- no arg
-        if head (take firstDivider inString) == '"' then ([], (take firstDivider inString)) : argumentSplitter (drop (firstDivider + 1) inString)
-        else ((take firstDivider inString), []) : argumentSplitter (drop (firstDivider + 1) inString)
+        if null (take firstDivider inString) then errorWithoutStackTrace ("Error in command '" ++ commandLineString ++ "' perhaps due to extraneous commas (',')")
+        else if head (take firstDivider inString) == '"' then ([], (take firstDivider inString)) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+        else ((take firstDivider inString), []) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
     else if semiIndex == firstDivider then
         -- has arg after ':'
         if inString !! (semiIndex + 1) == '(' then
-            (take firstDivider inString,(takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")")) : argumentSplitter (drop 2 $ dropWhile (/= ')') inString)
+            (take firstDivider inString,(takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")")) : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
         else
             let nextStuff =  dropWhile (/= ',') inString
                 remainder = if null nextStuff then [] else tail nextStuff
             in
-            (take firstDivider inString, takeWhile (/= ',') (drop (firstDivider + 1) inString)) : argumentSplitter remainder
+            (take firstDivider inString, takeWhile (/= ',') (drop (firstDivider + 1) inString)) : argumentSplitter commandLineString remainder
     else -- arg is sub-commnd
         let (subCommand, remainderString) = getSubCommand inString True
         in
-        (subCommand, []) : argumentSplitter remainderString
+        (subCommand, []) : argumentSplitter commandLineString remainderString
 
 
 -- | freeOfSimpleErrors take command string and checks for simple for atting errors

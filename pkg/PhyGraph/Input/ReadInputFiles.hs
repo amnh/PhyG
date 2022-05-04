@@ -402,7 +402,7 @@ processTCMContents indelGap inContents fileName =
             in
             if (any (== ST.singleton '-') localAlphabet) then errorWithoutStackTrace "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
             else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from "
-                ++ fileName ++ " there should be (including '-') " ++ show numElements ++ " and there are " ++ show numLines)
+                ++ fileName ++ " this could be due to a missing element symbol line at the beginning of the file (e.g. A C G T, '-' is assumed) or there is a mismatch in the dimensions of the tcm (including '-') " ++ show numElements ++ " elements are implied and there are " ++ show numLines)
             else if not rowsCorrectLength then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
                 ++ fileName ++ " there should be (including '-') " ++ show numElements)
             else
