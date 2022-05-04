@@ -108,7 +108,7 @@ refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneti
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt"] ++ reconcileArgList
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt", "includemissing", "concatenate"] ++ reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]

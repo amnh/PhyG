@@ -546,3 +546,13 @@ glueBackTaxChar singleCharVect =
 getSingleCharacter :: V.Vector (V.Vector CharacterData) -> Int -> V.Vector CharacterData
 getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
 
+-- | concatFastas is used by "report(ia)" to create a single concatenated fasta
+-- for use by programs such as RAxML andf TNT
+-- takes a single string of multiple fasta output, each entity to be concated (by taxon name)
+-- separate by a line starting with "Seqeunce character" from ia output
+-- there must be the same number of taxa and names in each element to be concatenated
+concatFastas :: String -> String
+concatFastas inMultFastaString =
+    if null inMultFastaString then []
+    else 
+        inMultFastaString

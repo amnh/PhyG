@@ -123,10 +123,10 @@ executable phyg
 
 -- delete these for OSX the options are for for linux static binaries
 --  if !os(darwin)
---  cc-options: 
---    -static
---  ld-options: 
---    -static -pthread
+  cc-options: 
+    -static
+  ld-options: 
+    -static -pthread
 
   build-depends:  alphabet
                 , dynamic-character
