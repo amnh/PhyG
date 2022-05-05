@@ -7,7 +7,7 @@
 	
 	\begin{phygdescription}
 		{Builds initial graphs. Most options (with the exception of the $O(n^3)$ distance based 
-		\texttt{dWag} option) 	are $O(n^2)$. Builds may be based on character methods or those 
+		\texttt{rdWag} option) 	are $O(n^2)$. Builds may be based on character methods or those 
 		based on distance methods. Distance methods are considerably faster (lower constant 
 		factor), but approximate in terms of character-based methods. Refinement (branch swapping) 
 		can be specified within the command for distance builds. Refinement for character-based 
@@ -48,7 +48,7 @@
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis 
 		for distance tree construction.
 		
-		\item [dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to 
+		\item [rdWag] Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to 
 		add at each step, yielding a single tree. Time complexity of $O(n^3)$.
 		
 		\item [eun] Reconciles block trees into a Edge-Union-Network \citep{MiyagiandWheeler2019, 
@@ -88,7 +88,7 @@
 
 	\begin{example}
 	
-		\item{\texttt{build(distance, dWag, nj, wpgma)} \\ 
+		\item{\texttt{build(distance, rdWag, nj, wpgma)} \\ 
 		Builds a single `best' addition sequence distance Wagner build, 
 		a Neighbor-Joining tree, and a WPGMA tree.}
 		
