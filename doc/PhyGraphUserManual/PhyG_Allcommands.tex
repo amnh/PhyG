@@ -218,11 +218,7 @@
 		\href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}{here}.
 			
 		\item [nucleotide:] File contents are parsed as IUPAC coded nucleotide data in fasta 
-			\citep{PearsonandLipman1988} format. .
-			
-		\item [prealigned:] Specifies that the sequences are prealigned, leaving gap characters
-			(``-'') in the sequences and alignment correspondences are not re-examined. Without this option,
-			gap characters are filtered out of the sequences after input.
+			\citep{PearsonandLipman1988} format.
 			
 		\item [prefasta:] Specifies that the sequences are prealigned in a fasta format, leaving gap characters
 			(``-'') in the sequences and alignment correspondences are not re-examined. This option exists to 
@@ -321,8 +317,8 @@
 		
 	\begin{example}
 		
-		\item{\texttt{read(prealigned:"myDnaSequenceFile")}\\ Reads sequence data from 
-		``myDnaSequenceFile'' as prealigned data.}
+		\item{\texttt{read(prefasta:"myDnaSequenceFile.fas")}\\ Reads sequence data from 
+		``myDnaSequenceFile.fas'' as prealigned data.}
 		
 		\item{\texttt{read(rename:"myRenameFile")}\\ Reads a list of taxa and names to be assigned.} 
 		
