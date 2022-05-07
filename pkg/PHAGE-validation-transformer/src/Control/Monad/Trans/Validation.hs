@@ -16,77 +16,76 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# Language BangPatterns #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts #-}
+{-# Language FlexibleInstances #-}
+{-# Language MultiParamTypeClasses #-}
 
 module Control.Monad.Trans.Validation
-  ( ValidationT(..)
-  , emap
-  , invalid
-  ) where
+    ( ValidationT (..)
+    , emap
+    , invalid
+    ) where
 
 import Control.Applicative
 import Control.DeepSeq
-import Control.Monad.Fix         (MonadFix(..))
+import Control.Monad.Fix (MonadFix(..))
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Control.Monad.Zip         (MonadZip(..))
+import Control.Monad.Zip (MonadZip(..))
 import Data.Bifunctor
-import Data.Functor.Alt          (Alt(..))
-import Data.Functor.Apply        (Apply(..))
-import Data.Functor.Bind         (Bind(..))
-import Data.Functor.Classes      (Eq1(..), Ord1(..), Show1(..))
+import Data.Functor.Alt (Alt(..))
+import Data.Functor.Apply (Apply(..))
+import Data.Functor.Bind (Bind(..))
+import Data.Functor.Classes (Eq1(..), Ord1(..), Show1(..))
 import Data.String
 import Data.Validation
 import GHC.Generics
-import Test.QuickCheck           hiding (Failure, Success)
+import Test.QuickCheck hiding (Failure, Success)
 
 
 -- |
 -- A monad transformer of 'Data.Validation.Validation'.
 newtype ValidationT e m a
-      = ValidationT
-      { -- | Run the 'Control.Monad.Trans.Validation.ValidationT' monad transformer
-        runValidationT :: m (Validation e a)
-      } deriving stock (Generic)
+    = ValidationT { runValidationT :: m (Validation e a) }
+    -- | Run the 'Control.Monad.Trans.Validation.ValidationT' monad transformer
+    deriving stock (Generic)
 
 
 instance Alt m => Alt (ValidationT e m)  where
 
-    {-# INLINEABLE (<!>) #-}
+    {-# INLINABLE (<!>) #-}
 
     (<!>) x y = ValidationT $ runValidationT x <!> runValidationT y
 
 
 instance  (Monad m, Semigroup e) => Apply (ValidationT e m)  where
 
-    {-# INLINEABLE (<.>) #-}
-    {-# INLINE     (.>)  #-}
+    {-# INLINABLE (<.>) #-}
+    {-# INLINE (.>) #-}
 
     (<.>) f v = ValidationT $ do
         x <- runValidationT f
         case x of
-          Failure e -> pure $ Failure e
-          Success y -> fmap y <$> runValidationT v
+            Failure e -> pure $ Failure e
+            Success y -> fmap y <$> runValidationT v
 
-    (.>)  x y = ValidationT $ do
+    (.>) x y = ValidationT $ do
         z <- runValidationT x
         case z of
-          Failure e -> pure $ Failure e
-          Success _ -> runValidationT y
+            Failure e -> pure $ Failure e
+            Success _ -> runValidationT y
 
 
 instance (Monad m, Semigroup e) => Applicative (ValidationT e m) where
 
-    {-# INLINEABLE (<*>) #-}
-    {-# INLINE     (*>)  #-}
-    {-# INLINE     pure  #-}
+    {-# INLINABLE (<*>) #-}
+    {-# INLINE (*>) #-}
+    {-# INLINE pure #-}
 
-    pure = ValidationT . pure . Success
+    pure  = ValidationT . pure . Success
 
     (<*>) = (<.>)
 
@@ -98,19 +97,20 @@ instance (Arbitrary a, Arbitrary e, Arbitrary1 m) => Arbitrary (ValidationT e m 
     {-# INLINE arbitrary #-}
 
     arbitrary = ValidationT <$> liftArbitrary genValidation
-      where
-        genValidation = arbitrary >>= \success -> if success then Success <$> arbitrary else Failure <$> arbitrary
+        where
+            genValidation =
+                arbitrary >>= \success -> if success then Success <$> arbitrary else Failure <$> arbitrary
 
 
 instance (Apply m, Monad m, Semigroup e) => Bind (ValidationT e m) where
 
-    {-# INLINEABLE (>>-) #-}
+    {-# INLINABLE (>>-) #-}
 
     (>>-) v f = ValidationT $ do
         x <- runValidationT v
         case x of
-          Failure e -> pure $ Failure e
-          Success a -> runValidationT $ f a
+            Failure e -> pure $ Failure e
+            Success a -> runValidationT $ f a
 
 
 instance (Eq a, Eq e, Eq1 m) => Eq (ValidationT e m a) where
@@ -131,16 +131,16 @@ instance Eq1 m => Eq1 (ValidationT e m) where
 
 instance Foldable m => Foldable (ValidationT e m) where
 
-    {-# INLINEABLE foldMap #-}
+    {-# INLINABLE foldMap #-}
 
     foldMap f = foldMap (foldMap f) . runValidationT
 
 
 instance Functor m => Functor (ValidationT e m) where
 
-    {-# INLINEABLE fmap #-}
+    {-# INLINABLE fmap #-}
 
-    fmap f = ValidationT . fmap (fmap f). runValidationT
+    fmap f = ValidationT . fmap (fmap f) . runValidationT
 
 
 instance (Monad m, NFData a, NFData e) => NFData (ValidationT e m a) where
@@ -152,15 +152,15 @@ instance (Monad m, NFData a, NFData e) => NFData (ValidationT e m a) where
 
 instance (Monad m, Semigroup e) => Monad (ValidationT e m) where
 
-    {-# INLINEABLE (>>=)  #-}
-    {-# INLINE     (>>)   #-}
-    {-# INLINE     return #-}
+    {-# INLINABLE (>>=) #-}
+    {-# INLINE (>>) #-}
+    {-# INLINE return #-}
 
     (>>=) v f = ValidationT $ do
         x <- runValidationT v
         case x of
-          Failure e -> pure $ Failure e
-          Success a -> runValidationT $ f a
+            Failure e -> pure $ Failure e
+            Success a -> runValidationT $ f a
 
     (>>)   = (*>)
 
@@ -195,19 +195,24 @@ instance MonadTrans (ValidationT e) where
 
 instance (Monad m, Semigroup e) => MonadZip (ValidationT e m) where
 
-    {-# INLINEABLE mzip     #-}
-    {-# INLINEABLE munzip   #-}
-    {-# INLINE     mzipWith #-}
+    {-# INLINABLE mzip #-}
+    {-# INLINABLE munzip #-}
+    {-# INLINE mzipWith #-}
 
     mzip     = liftA2 (,)
 
     mzipWith = liftA2
 
     munzip x = let !v = runValidationT x in (f fst v, f snd v)
-      where
-        f t = ValidationT . fmap (t . vunzip)
-        vunzip (Failure e    ) = (Failure e, Failure e)
-        vunzip (Success (a,b)) = (Success a, Success b)
+        where
+            f :: Functor f
+              => ((Validation err a, Validation err b) -> Validation e c)
+              -> f (Validation err (a, b)) -> ValidationT e f c
+            f t = ValidationT . fmap (t . vunzip)
+            
+            vunzip :: Validation err (a, b) -> (Validation err a, Validation err b)
+            vunzip (Failure e     ) = (Failure e, Failure e)
+            vunzip (Success (a, b)) = (Success a, Success b)
 
 
 instance (Ord a, Ord e, Ord1 m) => Ord (ValidationT e m a) where

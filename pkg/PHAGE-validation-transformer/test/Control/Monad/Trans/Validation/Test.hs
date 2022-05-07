@@ -626,10 +626,10 @@ traversableLaws = testGroup "Traversable Laws"
   where
     naturality :: Fun W [W] -> f W -> Property
     naturality (apply -> f) x =
-        (headMay . traverse f) x === traverse (headMay . f) x
-      where
-        headMay    [] = Nothing
-        headMay (a:_) = Just a
+        let headMay :: [a] -> Maybe a
+            headMay    [] = Nothing
+            headMay (a:_) = Just a
+        in  (headMay . traverse f) x === traverse (headMay . f) x
 
     identity :: f W -> Property
     identity x =
