@@ -570,3 +570,8 @@ preOrderTreeTraversal
 
 343) add stupidf graph cost over edges for hardwired cost
 
+344) Bit pack before rebloc/reorganize
+	add reorgnize for packed
+	check reorganize to copy extensive vectots--not assume V.singleton
+	
+
