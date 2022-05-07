@@ -16,7 +16,6 @@
 --
 -----------------------------------------------------------------------------
 
-{-# Language BangPatterns #-}
 {-# Language DeriveGeneric #-}
 {-# Language DerivingStrategies #-}
 {-# Language FlexibleContexts #-}
@@ -212,11 +211,10 @@ instance (Monad m, Semigroup e) => MonadZip (ValidationT e m) where
             extracting t = ValidationT . fmap (t . vunzip)
 
             valuation = runValidationT x
-            
+
             vunzip :: Validation err (a, b) -> (Validation err a, Validation err b)
             vunzip (Failure e     ) = (Failure e, Failure e)
             vunzip (Success (a, b)) = (Success a, Success b)
-            
         in  (extracting fst valuation, extracting snd valuation)
 
 

@@ -11,26 +11,21 @@
 -----------------------------------------------------------------------------
 
 module Main
-  ( main
-  ) where
+    ( main
+    ) where
 
-import qualified Control.Monad.Trans.Validation.Test as ValidationT
-import           Test.Tasty
-import           Test.Tasty.Ingredients.Rerun        (rerunningTests)
+import Control.Monad.Trans.Validation.Test qualified as ValidationT
+import Test.Tasty
+import Test.Tasty.Ingredients.Rerun (rerunningTests)
 
 
 -- |
 -- The entry point for the test suite.
 main :: IO ()
-main =
-  defaultMainWithIngredients
-  [ rerunningTests defaultIngredients ]
-  testSuite
+main = defaultMainWithIngredients [rerunningTests defaultIngredients] testSuite
 
 
 -- |
 -- Complete test-suite for 'Control.Monad.Trans.Validation.ValidationT'.
 testSuite :: TestTree
-testSuite = testGroup "ValidationT test-suite"
-    [ ValidationT.testSuite
-    ]
+testSuite = testGroup "ValidationT test-suite" [ValidationT.testSuite]
