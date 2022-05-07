@@ -188,10 +188,7 @@ writeSTDOUT = liftIO . \case
 -- Operational inverse of 'serializeBinary'.
 deserializeBinary :: Binary a => FileSource -> ValidationT (Either InputStreamError ParseStreamError) IO a
 deserializeBinary fSource =
-    let deserialize
-          :: Binary b
-          => FileSource
-          -> ValidationT (Either InputStreamError ParseStreamError) IO b
+    let deserialize :: Binary b => FileSource -> ValidationT (Either InputStreamError ParseStreamError) IO b
         deserialize fs = do
             res <- ValidationT $ catch
                 (Success <$> decodeFileOrFail (otoList fs))
@@ -310,7 +307,7 @@ safelyMoveFile :: FileSource -> IO ()
 safelyMoveFile fSource =
     let filePath            = otoList fSource
         getFilePathPrefixes = fmap (drop (length filePath)) . filter (filePath `isPrefixOf`)
-        getNumericSuffixes  =
+        getNumericSuffixes =
             let hasDotThenNumberSuffix ('.' : x : xs) = all isNumber $ x : xs
                 hasDotThenNumberSuffix _              = False
             in  fmap tail . filter hasDotThenNumberSuffix . fmap takeExtension
@@ -318,16 +315,17 @@ safelyMoveFile fSource =
         getLargestNumericSuffix :: (Num a, Ord a, Read a) => [String] -> a
         getLargestNumericSuffix []       = -1
         getLargestNumericSuffix (x : xs) = maximum . fmap read $ x :| xs
-    in  do  absPath <- makeAbsolute filePath
-            exists  <- doesFileExist absPath
-            when exists $ do
-                allFiles <- getDirectoryContents $ takeDirectory absPath
-                let prefixed = getFilePathPrefixes allFiles
-                let numbers  = getNumericSuffixes prefixed
-                let lastNum  = getLargestNumericSuffix numbers
-                let nextNum  = lastNum + 1 :: Word
-                let newName  = absPath <> "." <> show nextNum
-                renameFile absPath newName
+    in  do
+        absPath <- makeAbsolute filePath
+        exists  <- doesFileExist absPath
+        when exists $ do
+            allFiles <- getDirectoryContents $ takeDirectory absPath
+            let prefixed = getFilePathPrefixes allFiles
+            let numbers  = getNumericSuffixes prefixed
+            let lastNum  = getLargestNumericSuffix numbers
+            let nextNum  = lastNum + 1 :: Word
+            let newName  = absPath <> "." <> show nextNum
+            renameFile absPath newName
 
 
 -- |

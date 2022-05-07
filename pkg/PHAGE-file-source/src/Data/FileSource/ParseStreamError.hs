@@ -99,15 +99,14 @@ instance TextShow ParseStreamError where
         where
             (pErrors, aErrors, dErrors) = partitionParseStreamErrors errors
 
-
             showUnparsable              = case sortOn fst pErrors of
-                []     -> Nothing
+                [] -> Nothing
                 x : xs ->
                     let errorMessages = fromText . intercalate "\n" . toList
                         preamble :: TextShow s => NonEmpty s -> Builder
                         preamble (y :| ys) = case ys of
                             [] -> "Could not parse file '" <> showb y <> "'\n"
-                            _  -> unlinesB . ("Could not parse the following files:" :) . showbIndent $ y:ys
+                            _  -> unlinesB . ("Could not parse the following files:" :) . showbIndent $ y : ys
                     in  Just $ unlinesB [preamble $ fst <$> (x :| xs), errorMessages $ snd <$> (x :| xs)]
 
             showUnaligned = case aErrors of
