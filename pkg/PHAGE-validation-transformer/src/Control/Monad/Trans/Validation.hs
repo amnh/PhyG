@@ -81,14 +81,20 @@ instance  (Monad m, Semigroup e) => Apply (ValidationT e m)  where
 instance (Monad m, Semigroup e) => Applicative (ValidationT e m) where
 
     {-# INLINABLE (<*>) #-}
+    {-# INLINABLE liftA2 #-}
     {-# INLINE (*>) #-}
+    {-# INLINE (<*) #-}
     {-# INLINE pure #-}
+
+    liftA2 f x = ValidationT . liftA2 (liftA2 f) (runValidationT x) . runValidationT
 
     pure  = ValidationT . pure . Success
 
     (<*>) = (<.>)
 
     (*>)  = (.>)
+
+    (<*)  = (<.)
 
 
 instance (Arbitrary a, Arbitrary e, Arbitrary1 m) => Arbitrary (ValidationT e m a) where
@@ -255,16 +261,20 @@ instance (Show a, Show e, Show1 m) => Show (ValidationT e m a) where
 
 instance Traversable m => Traversable (ValidationT e m) where
 
+    {-# INLINABLE traverse #-}
+
     traverse f = fmap ValidationT . traverse (traverse f) . runValidationT
 
 
 -- |
 -- Map over the error value.
+{-# INLINABLE emap #-}
 emap :: Functor f => (e -> b) -> ValidationT e f a -> ValidationT b f a
 emap f = ValidationT . fmap (first f) . runValidationT
 
 
 -- |
 -- Place an error value into the Monad transformer.
+{-# INLINABLE invalid #-}
 invalid :: Applicative f => e -> ValidationT e f a
 invalid = ValidationT . pure . Failure

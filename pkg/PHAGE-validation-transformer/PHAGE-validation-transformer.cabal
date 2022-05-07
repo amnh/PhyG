@@ -58,7 +58,7 @@ common ghc-extensive-warnings
 
 
 
-library validation-transformer
+library
 
   import:
     ghc-extensive-warnings
