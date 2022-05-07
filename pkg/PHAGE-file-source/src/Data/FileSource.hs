@@ -19,38 +19,38 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language GeneralizedNewtypeDeriving #-}
+{-# Language TypeFamilies #-}
 
 module Data.FileSource
-  ( FileExtension()
-  , FileSource(..)
-  , extractExtension
-  , toFileSource
-  ) where
+    ( FileExtension ()
+    , FileSource (..)
+    , extractExtension
+    , toFileSource
+    ) where
 
-import           Control.DeepSeq           (NFData)
-import           Data.Bifunctor            (first)
-import           Data.Binary
-import           Data.Char                 (toLower)
-import           Data.Data
-import           Data.Foldable
-import           Data.Hashable
-import           Data.Key
-import           Data.Maybe                (fromMaybe, isJust)
-import           Data.MonoTraversable
-import           Data.MonoTraversable.Keys
-import           Data.String
-import           Data.Text.Short           (ShortText, pack, unpack)
-import qualified Data.Text.Short           as TS
-import           GHC.Generics              (Generic)
-import           System.FilePath.Posix     (takeExtension)
-import           Test.QuickCheck           (Arbitrary(..), CoArbitrary(..))
-import           Text.Printf               (PrintfArg)
-import           TextShow                  (TextShow(..), fromText)
+import Control.DeepSeq (NFData)
+import Data.Bifunctor (first)
+import Data.Binary
+import Data.Char (toLower)
+import Data.Data
+import Data.Foldable
+import Data.Hashable
+import Data.Key
+import Data.Maybe (fromMaybe, isJust)
+import Data.MonoTraversable
+import Data.MonoTraversable.Keys
+import Data.String
+import Data.Text.Short (ShortText, pack, unpack)
+import Data.Text.Short qualified as TS
+import GHC.Generics (Generic)
+import System.FilePath.Posix (takeExtension)
+import Test.QuickCheck (Arbitrary(..), CoArbitrary(..))
+import Text.Printf (PrintfArg)
+import TextShow (TextShow(..), fromText)
 
 
 -- |
@@ -59,36 +59,18 @@ import           TextShow                  (TextShow(..), fromText)
 -- Space efficient representation for in-memory storage.
 --
 -- Use exported functionality from 'Data.FileSource.IO' to interact with the disk.
-newtype FileSource = FileSource { toShortText :: ShortText }
-    deriving stock   (Data, Eq, Generic, Typeable)
-    deriving newtype ( Binary
-                     , Hashable
-                     , IsString
-                     , Monoid
-                     , NFData
-                     , Ord
-                     , PrintfArg
-                     , Read
-                     , Semigroup
-                     , Show
-                     )
+newtype FileSource
+    = FileSource { toShortText :: ShortText }
+    deriving stock (Data, Eq, Generic)
+    deriving newtype (Binary, Hashable, IsString, Monoid, NFData, Ord, PrintfArg, Read, Semigroup, Show)
 
 
 -- |
 -- Extension of a 'FileSource'.
-newtype FileExtension = FileExtension { unwrapExtension :: ShortText }
-    deriving stock (Data, Eq, Generic, Typeable)
-    deriving newtype ( Binary
-                     , Hashable
-                     , IsString
-                     , Monoid
-                     , NFData
-                     , Ord
-                     , PrintfArg
-                     , Read
-                     , Semigroup
-                     , Show
-                     )
+newtype FileExtension
+    = FileExtension { unwrapExtension :: ShortText }
+    deriving stock (Data, Eq, Generic)
+    deriving newtype (Binary, Hashable, IsString, Monoid, NFData, Ord, PrintfArg, Read, Semigroup, Show)
 
 
 type instance Element FileSource = Char
@@ -119,14 +101,16 @@ instance MonoFoldable FileSource where
     ofoldl' f e = TS.foldl' f e . toShortText
 
     {-# INLINE ofoldr1Ex #-}
-    ofoldr1Ex f = maybe errorMessage (uncurry $ TS.foldr f) . TS.uncons . toShortText
-      where
-        errorMessage = error "call to Data.FileSource.ofoldr1Ex with empty value"
+    ofoldr1Ex f =
+        let errorMessage :: a
+            errorMessage = error "call to Data.FileSource.ofoldr1Ex with empty value"
+        in  maybe errorMessage (uncurry $ TS.foldr f) . TS.uncons . toShortText
 
     {-# INLINE ofoldl1Ex' #-}
-    ofoldl1Ex' f = maybe errorMessage (uncurry $ TS.foldl' f) . TS.uncons . toShortText
-      where
-        errorMessage = error "call to Data.FileSource.ofoldl1Ex with empty value"
+    ofoldl1Ex' f =
+        let errorMessage :: a
+            errorMessage = error "call to Data.FileSource.ofoldl1Ex with empty value"
+        in  maybe errorMessage (uncurry $ TS.foldl' f) . TS.uncons . toShortText
 
     {-# INLINE otoList #-}
     otoList = unpack . toShortText
@@ -143,18 +127,16 @@ instance MonoFoldable FileSource where
     {-# INLINE olength #-}
     olength = TS.length . toShortText
 
-    headEx fs =
-        case TS.uncons $ toShortText fs of
-          Nothing    -> error "call to Data.FileSource.headEx with empty value"
-          Just (c,_) -> c
+    headEx fs = case TS.uncons $ toShortText fs of
+        Nothing     -> error "call to Data.FileSource.headEx with empty value"
+        Just (c, _) -> c
 
-    lastEx fs =
-        case TS.unsnoc $ toShortText fs of
-          Nothing    -> error "call to Data.FileSource.lastEx with empty value"
-          Just (_,c) -> c
+    lastEx fs = case TS.unsnoc $ toShortText fs of
+        Nothing     -> error "call to Data.FileSource.lastEx with empty value"
+        Just (_, c) -> c
 
     {-# INLINE oelem #-}
-    oelem e = isJust . TS.findIndex (==e) . toShortText
+    oelem e = isJust . TS.findIndex (== e) . toShortText
 
     {-# INLINE onotElem #-}
     onotElem e = not . oelem e
@@ -190,15 +172,15 @@ instance MonoIndexable FileSource where
 
     -- | /O(1)/
     {-# INLINE oindex #-}
-    oindex fs i = fromMaybe errorMessage $ i `olookup` fs
-      where
-        errorMessage = error $ fold
-            [ "Data.FileSource.oindex: "
-            , "The index "
-            , show i
-            , " was greater than or equal to the length of the file source "
-            , show $ olength fs
-            ]
+    oindex fs i =
+        let errorMessage = error $ fold
+                [ "Data.FileSource.oindex: "
+                , "The index "
+                , show i
+                , " was greater than or equal to the length of the file source "
+                , show $ olength fs
+                ]
+        in  fromMaybe errorMessage $ i `olookup` fs
 
 
 instance MonoKeyed FileSource where
@@ -238,9 +220,10 @@ instance TextShow FileSource where
 -- /O(n)/
 --
 -- Takes a structure that container of 'Char's and creates a 'FileSource'.
-{-# INLINE[1] toFileSource #-}
+{-# INLINE [1] toFileSource #-}
 toFileSource :: (MonoFoldable s, Element s ~ Char) => s -> FileSource
 toFileSource = FileSource . pack . otoList
+
 
 {-# RULES
 "toFileSource/ShortText"     forall (s :: ShortText).       toFileSource s = FileSource s
@@ -257,7 +240,7 @@ toFileSource = FileSource . pack . otoList
 -- Returns @Nothing@ if there is no extension.
 extractExtension :: FileSource -> Maybe FileExtension
 extractExtension = fmap (FileExtension . fromString) . dropDot . fmap toLower . takeExtension . otoList
-  where
-    dropDot      []  = Nothing
-    dropDot ('.':xs) = Just xs
-    dropDot      xs  = Just xs
+    where
+        dropDot []         = Nothing
+        dropDot ('.' : xs) = Just xs
+        dropDot xs         = Just xs

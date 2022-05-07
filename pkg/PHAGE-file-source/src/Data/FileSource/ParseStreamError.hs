@@ -12,38 +12,37 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE UnboxedSums        #-}
+{-# Language DeriveAnyClass #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts #-}
+{-# Language OverloadedStrings #-}
+{-# Language UnboxedSums #-}
 
 module Data.FileSource.ParseStreamError
-  ( ParseStreamError()
-  , makeInvalidPrealigned
-  , makeDeserializeErrorInBinaryEncoding
-  , makeUnparsableFile
-  ) where
+    ( ParseStreamError ()
+    , makeDeserializeErrorInBinaryEncoding
+    , makeInvalidPrealigned
+    , makeUnparsableFile
+    ) where
 
-import           Control.DeepSeq         (NFData)
-import           Data.Data
-import           Data.FileSource
-import           Data.Foldable
-import           Data.List               (sortOn)
-import           Data.List.NonEmpty      (NonEmpty(..))
-import           Data.Maybe              (catMaybes)
-import           Data.Semigroup.Foldable
-import           Data.String
-import           Data.Text               (Text)
-import           Data.Text.Short         (ShortText, toShortByteString)
-import           Data.Vector.Unboxed     (Vector, fromList)
-import qualified Data.Vector.Unboxed     as V
-import           GHC.Generics            (Generic)
-import           Text.Megaparsec
-import           TextShow                hiding (fromString)
-import           TextShow.Custom
+import Control.DeepSeq (NFData)
+import Data.Data
+import Data.FileSource
+import Data.Foldable
+import Data.List (intersperse, sortOn)
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.Maybe (catMaybes)
+import Data.Semigroup.Foldable
+import Data.String
+import Data.Text (Text, intercalate)
+import Data.Text.Short (ShortText, toShortByteString)
+import Data.Vector.Unboxed (Vector, fromList)
+import Data.Vector.Unboxed qualified as V
+import GHC.Generics (Generic)
+import Text.Megaparsec
+import TextShow hiding (fromString)
 
 
 -- |
@@ -63,23 +62,24 @@ import           TextShow.Custom
 -- attempting to interpretation data read into PCG.
 --
 -- The 'Show' instance should only be used for debugging purposes.
-newtype ParseStreamError = ParseStreamError (NonEmpty ParseStreamErrorMessage)
-    deriving stock    (Data, Generic, Show, Typeable)
+newtype ParseStreamError
+    = ParseStreamError (NonEmpty ParseStreamErrorMessage)
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
 data  ParseStreamErrorMessage
-    = FileUnparsable     {-# UNPACK #-} !FileSource {-# UNPACK #-} !Text
-    | InvalidPrealigned  {-# UNPACK #-} !FileSource {-# UNPACK #-} !(Vector Word)
+    = FileUnparsable {-# UNPACK #-} !FileSource {-# UNPACK #-} !Text
+    | InvalidPrealigned {-# UNPACK #-} !FileSource {-# UNPACK #-} !(Vector Word)
     | FileBadDeserialize {-# UNPACK #-} !FileSource !DataSerializationFormat {-# UNPACK #-} !ShortText
-    deriving stock    (Data, Generic, Show, Typeable)
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
 data  DataSerializationFormat
     = BinaryFormat
-    deriving stock    (Data, Generic, Typeable)
-    deriving anyclass (NFData)
+    deriving stock (Data, Generic)
+    deriving anyclass NFData
 
 
 instance Semigroup ParseStreamError where
@@ -89,83 +89,89 @@ instance Semigroup ParseStreamError where
 
 instance Show DataSerializationFormat where
 
-    show BinaryFormat  = "Binary Encoding"
+    show BinaryFormat = "Binary Encoding"
 
 
 instance TextShow ParseStreamError where
 
-    showb (ParseStreamError errors) = unlinesB $ catMaybes
-        [ showUnparsable
-        , showUnaligned
-        , showDeserializationFailures
-        ]
-      where
-        (pErrors, aErrors, dErrors) = partitionParseStreamErrors errors
+    showb (ParseStreamError errors) = unlinesB
+        $ catMaybes [showUnparsable, showUnaligned, showDeserializationFailures]
+        where
+            (pErrors, aErrors, dErrors) = partitionParseStreamErrors errors
 
-        showUnparsable =
-            case sortOn fst pErrors of
-              []   -> Nothing
-              x:xs -> Just $ unlinesB
-                  [ preamble      $ fst <$> (x:|xs)
-                  , errorMessages $ snd <$> (x:|xs)
-                  ]
-          where
-            preamble (x:|xs) =
-                case xs of
-                  [] -> "Could not parse file '" <> showb x <> "'\n"
-                  _  -> unlinesB . ("Could not parse the following files:":) $ showbIndent xs
 
-            errorMessages = intercalateB "\n" . fmap fromText
+            showUnparsable              = case sortOn fst pErrors of
+                []     -> Nothing
+                x : xs ->
+                    let errorMessages = fromText . intercalate "\n" . toList
+                        preamble :: TextShow s => NonEmpty s -> Builder
+                        preamble (y :| ys) = case ys of
+                            [] -> "Could not parse file '" <> showb y <> "'\n"
+                            _  -> unlinesB . ("Could not parse the following files:" :) . showbIndent $ y:ys
+                    in  Just $ unlinesB [preamble $ fst <$> (x :| xs), errorMessages $ snd <$> (x :| xs)]
 
-        showUnaligned =
-            case aErrors of
-              []  -> Nothing
-              [x] -> Just $ unlinesB   [ "The file was specified as prealigned," , "but not all characters had the same length.", showInvalidPrealigned x ]
-              xs  -> Just . unlinesB $ [ "The following files were specified as prealigned,", "but not all characters had the same length:"] <> (showInvalidPrealigned <$> xs)
-          where
-            showInvalidPrealigned :: (FileSource, Vector Word) -> Builder
-            showInvalidPrealigned (path, cols) = fold ["  ", showb path, ", has characters of lengths ", intercalateB ", " $ showb <$> V.toList cols]
+            showUnaligned = case aErrors of
+                []  -> Nothing
+                [x] -> Just $ unlinesB
+                    [ "The file was specified as prealigned,"
+                    , "but not all characters had the same length."
+                    , showInvalidPrealigned x
+                    ]
+                xs ->
+                    Just
+                        .  unlinesB
+                        $  [ "The following files were specified as prealigned,"
+                           , "but not all characters had the same length:"
+                           ]
+                        <> (showInvalidPrealigned <$> xs)
+                where
+                    showInvalidPrealigned :: (FileSource, Vector Word) -> Builder
+                    showInvalidPrealigned (path, cols) = fold
+                        [ "  "
+                        , showb path
+                        , ", has characters of lengths "
+                        , fold . intersperse ", " $ showb <$> V.toList cols
+                        ]
 
-        showDeserializationFailures =
-            case dErrors of
-              [] -> Nothing
-              xs -> Just . unlinesB $ showBadDeserialize <$> xs
+            showDeserializationFailures = case dErrors of
+                [] -> Nothing
+                xs -> Just . unlinesB $ showBadDeserialize <$> xs
 
-        partitionParseStreamErrors = foldr f ([],[],[])
-          where
-            f e (x,y,z) =
-              case e of
-                FileUnparsable     a b   -> ((a,b):x,       y,         z)
-                InvalidPrealigned  a b   -> (      x, (a,b):y,         z)
-                FileBadDeserialize a b c -> (      x,       y, (a,b,c):z)
+            partitionParseStreamErrors = foldr f ([], [], [])
+                where
+                    f e (x, y, z) = case e of
+                        FileUnparsable    a b    -> ((a, b) : x, y, z)
+                        InvalidPrealigned a b    -> (x, (a, b) : y, z)
+                        FileBadDeserialize a b c -> (x, y, (a, b, c) : z)
 
 
 -- |
 -- Remark that a parsing error occurred when reading the file. Note that the 'ParseError' should contain the 'FileSource' information.
 makeUnparsableFile
-  :: ( ShowErrorComponent e
-     , TraversableStream s
-     , VisualStream s
-     )
-  => FileSource
-  -> ParseErrorBundle s e
-  -> ParseStreamError
-makeUnparsableFile path =
-    ParseStreamError . pure . FileUnparsable path . fromString . errorBundlePretty
+    :: (ShowErrorComponent e, TraversableStream s, VisualStream s)
+    => FileSource
+    -> ParseErrorBundle s e
+    -> ParseStreamError
+makeUnparsableFile path = ParseStreamError . pure . FileUnparsable path . fromString . errorBundlePretty
 
 
 -- |
 -- Remark that the file was marked as prealigned but the data within was not aligned.
 makeInvalidPrealigned :: (Foldable1 f, Integral i) => FileSource -> f i -> ParseStreamError
 makeInvalidPrealigned path =
-    ParseStreamError . pure . InvalidPrealigned path . fromList . fmap (fromIntegral . abs) . toList . toNonEmpty
+    ParseStreamError
+        . pure
+        . InvalidPrealigned path
+        . fromList
+        . fmap (fromIntegral . abs)
+        . toList
+        . toNonEmpty
 
 
 -- |
 -- Remark that the file has could not be deserialized.
 makeDeserializeErrorInBinaryEncoding :: FileSource -> ShortText -> ParseStreamError
-makeDeserializeErrorInBinaryEncoding path =
-    ParseStreamError . pure . FileBadDeserialize path BinaryFormat
+makeDeserializeErrorInBinaryEncoding path = ParseStreamError . pure . FileBadDeserialize path BinaryFormat
 
 
 showBadDeserialize :: (TextShow a, Show b) => (a, b, ShortText) -> Builder

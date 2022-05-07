@@ -12,31 +12,31 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE UnboxedSums        #-}
+{-# Language DeriveAnyClass #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts #-}
+{-# Language OverloadedStrings #-}
+{-# Language UnboxedSums #-}
 
 module Data.FileSource.InputStreamError
-  ( InputStreamError()
-  , makeAmbiguousFiles
-  , makeEmptyFileStream
-  , makeFileInUseOnRead
-  , makeFileNoReadPermissions
-  , makeFileNotFound
-  ) where
+    ( InputStreamError ()
+    , makeAmbiguousFiles
+    , makeEmptyFileStream
+    , makeFileInUseOnRead
+    , makeFileNoReadPermissions
+    , makeFileNotFound
+    ) where
 
-import Control.DeepSeq         (NFData)
+import Control.DeepSeq (NFData)
 import Data.Data
 import Data.FileSource
 import Data.Foldable
-import Data.List.NonEmpty      hiding (toList)
-import Data.Maybe              (catMaybes)
+import Data.List.NonEmpty hiding (toList)
+import Data.Maybe (catMaybes)
 import Data.Semigroup.Foldable
-import GHC.Generics            (Generic)
+import GHC.Generics (Generic)
 import TextShow
 
 
@@ -52,18 +52,19 @@ import TextShow
 -- collection of input errors that occurred while attempting to input data into PCG.
 --
 -- The 'Show' instance should only be used for debugging purposes.
-newtype InputStreamError = InputStreamError (NonEmpty InputStreamErrorMessage)
-    deriving stock    (Data, Generic, Show, Typeable)
+newtype InputStreamError
+    = InputStreamError (NonEmpty InputStreamErrorMessage)
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
 data  InputStreamErrorMessage
-    = FileAlreadyInUse   {-# UNPACK #-} !FileSource
-    | FileAmbiguous      {-# UNPACK #-} !FileSource {-# UNPACK #-} !(NonEmpty FileSource)
+    = FileAlreadyInUse {-# UNPACK #-} !FileSource
+    | FileAmbiguous {-# UNPACK #-} !FileSource {-# UNPACK #-} !(NonEmpty FileSource)
     | FileBadPermissions {-# UNPACK #-} !FileSource
-    | FileEmptyStream    {-# UNPACK #-} !FileSource
-    | FileUnfindable     {-# UNPACK #-} !FileSource
-    deriving stock    (Data, Generic, Show, Typeable)
+    | FileEmptyStream {-# UNPACK #-} !FileSource
+    | FileUnfindable {-# UNPACK #-} !FileSource
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
@@ -75,76 +76,70 @@ instance Semigroup InputStreamError where
 instance TextShow InputStreamError where
 
     showb (InputStreamError errors) = unlinesB $ catMaybes
-        [ unfindableMessage
-        , ambiguousMessage
-        , unopenableMessage
-        , alreadInUseMessage
-        , emptyStreamsMessage
-        ]
-      where
-        (inUseFiles, ambiguity, badPermissions, emptyStreams, unfindables) = partitionInputStreamErrorMessages $ toList errors
+        [unfindableMessage, ambiguousMessage, unopenableMessage, alreadInUseMessage, emptyStreamsMessage]
+        where
+            (inUseFiles, ambiguity, badPermissions, emptyStreams, unfindables) =
+                partitionInputStreamErrorMessages $ toList errors
 
-        alreadInUseMessage =
-          case inUseFiles of
-            []  -> Nothing
-            [x] -> Just $ "The file " <> showb x <> " is already in use"
-            xs  -> Just $ "The following files were already in use:\n" <> unlinesB (showb <$> xs)
+            alreadInUseMessage = case inUseFiles of
+                []  -> Nothing
+                [x] -> Just $ "The file " <> showb x <> " is already in use"
+                xs  -> Just $ "The following files were already in use:\n" <> unlinesB (showb <$> xs)
 
-        ambiguousMessage =
-          case ambiguity of
-            [] -> Nothing
-            xs -> Just . unlinesB $ showb <$> xs
+            ambiguousMessage = case ambiguity of
+                [] -> Nothing
+                xs -> Just . unlinesB $ showb <$> xs
 
-        emptyStreamsMessage =
-          case emptyStreams of
-            []  -> Nothing
-            [x] -> Just $ "The file " <> showb x <> " was empty"
-            xs  -> Just $ "The following files were empty:\n" <> unlinesB (showb <$> xs)
+            emptyStreamsMessage = case emptyStreams of
+                []  -> Nothing
+                [x] -> Just $ "The file " <> showb x <> " was empty"
+                xs  -> Just $ "The following files were empty:\n" <> unlinesB (showb <$> xs)
 
-        unfindableMessage =
-          case unfindables of
-            []  -> Nothing
-            [x] -> Just $ "The file " <> showb x <> " does not exist"
-            xs  -> Just $ "The following files do not exists:\n" <> unlinesB (showb <$> xs)
+            unfindableMessage = case unfindables of
+                []  -> Nothing
+                [x] -> Just $ "The file " <> showb x <> " does not exist"
+                xs  -> Just $ "The following files do not exists:\n" <> unlinesB (showb <$> xs)
 
-        unopenableMessage =
-          case badPermissions of
-            []  -> Nothing
-            [x] -> Just $ "The file " <> showb x <> " had premissions which prevent it from being opened"
-            xs  -> Just $ "The following files have permissions which prevent them from being opened:\n" <> unlinesB (showb <$> xs)
+            unopenableMessage = case badPermissions of
+                []  -> Nothing
+                [x] -> Just $ "The file " <> showb x <> " had premissions which prevent it from being opened"
+                xs ->
+                    Just
+                        $  "The following files have permissions which prevent them from being opened:\n"
+                        <> unlinesB (showb <$> xs)
 
-        partitionInputStreamErrorMessages
-          :: [InputStreamErrorMessage]
-          -> ( [InputStreamErrorMessage]
-             , [InputStreamErrorMessage]
-             , [InputStreamErrorMessage]
-             , [InputStreamErrorMessage]
-             , [InputStreamErrorMessage]
-             )
-        partitionInputStreamErrorMessages = foldr f ([],[],[],[],[])
-          where
-            f e@FileAlreadyInUse   {} (v,w,x,y,z) = (e:v,   w,   x,   y,   z)
-            f e@FileAmbiguous      {} (v,w,x,y,z) = (  v, e:w,   x,   y,   z)
-            f e@FileBadPermissions {} (v,w,x,y,z) = (  v,   w, e:x,   y,   z)
-            f e@FileEmptyStream    {} (v,w,x,y,z) = (  v,   w,   x, e:y,   z)
-            f e@FileUnfindable     {} (v,w,x,y,z) = (  v,   w,   x,   y, e:z)
+            partitionInputStreamErrorMessages
+                :: [InputStreamErrorMessage]
+                -> ( [InputStreamErrorMessage]
+                   , [InputStreamErrorMessage]
+                   , [InputStreamErrorMessage]
+                   , [InputStreamErrorMessage]
+                   , [InputStreamErrorMessage]
+                   )
+            partitionInputStreamErrorMessages = foldr f ([], [], [], [], [])
+                where
+                    f e@FileAlreadyInUse{}   (v, w, x, y, z) = (e : v, w, x, y, z)
+                    f e@FileAmbiguous{}      (v, w, x, y, z) = (v, e : w, x, y, z)
+                    f e@FileBadPermissions{} (v, w, x, y, z) = (v, w, e : x, y, z)
+                    f e@FileEmptyStream{}    (v, w, x, y, z) = (v, w, x, e : y, z)
+                    f e@FileUnfindable{}     (v, w, x, y, z) = (v, w, x, y, e : z)
 
 
 instance TextShow InputStreamErrorMessage where
 
-    showb (FileAlreadyInUse   path        ) = "'" <> showb path <> "'"
-    showb (FileEmptyStream    path        ) = "'" <> showb path <> "'"
-    showb (FileUnfindable     path        ) = "'" <> showb path <> "'"
-    showb (FileBadPermissions path        ) = "'" <> showb path <> "'"
-    showb (FileAmbiguous      path matches) = message
-      where
-        files   = toList matches
-        message = unlinesB
-          [ "The following file specification is ambiguous:"
-          , "\t'" <> showb path <> "'"
-          , "The file specification should match a single file, but multiple matches were found:"
-          , unlinesB $ (\x -> "'" <> showb x <> "'") <$> files
-          ]
+    showb (FileAlreadyInUse   path   ) = "'" <> showb path <> "'"
+    showb (FileEmptyStream    path   ) = "'" <> showb path <> "'"
+    showb (FileUnfindable     path   ) = "'" <> showb path <> "'"
+    showb (FileBadPermissions path   ) = "'" <> showb path <> "'"
+    showb (FileAmbiguous path matches) = message
+        where
+            files   = toList matches
+            message = unlinesB
+                [ "The following file specification is ambiguous:"
+                , "\t'" <> showb path <> "'"
+                , "The file specification should match a single file, but multiple matches were found:"
+                , unlinesB $ (\x -> "'" <> showb x <> "'") <$> files
+                ]
 
 
 -- |

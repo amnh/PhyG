@@ -12,29 +12,29 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE UnboxedSums        #-}
+{-# Language DeriveAnyClass #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts #-}
+{-# Language OverloadedStrings #-}
+{-# Language UnboxedSums #-}
 
 module Data.FileSource.OutputStreamError
-  ( OutputStreamError()
-  , makeFileInUseOnWrite
-  , makeFileNoWritePermissions
-  , makePathDoesNotExist
-  , makeNotEnoughSpace
-  ) where
+    ( OutputStreamError ()
+    , makeFileInUseOnWrite
+    , makeFileNoWritePermissions
+    , makeNotEnoughSpace
+    , makePathDoesNotExist
+    ) where
 
-import Control.DeepSeq    (NFData)
+import Control.DeepSeq (NFData)
 import Data.Data
 import Data.FileSource
 import Data.Foldable
 import Data.List.NonEmpty hiding (toList)
-import Data.Maybe         (catMaybes)
-import GHC.Generics       (Generic)
+import Data.Maybe (catMaybes)
+import GHC.Generics (Generic)
 import TextShow
 
 
@@ -50,17 +50,18 @@ import TextShow
 -- collection of output errors that occurred while attempting to output data from PCG.
 --
 -- The 'Show' instance should only be used for debugging purposes.
-newtype OutputStreamError = OutputStreamError (NonEmpty OutputStreamErrorMessage)
-    deriving stock    (Data, Generic, Show, Typeable)
+newtype OutputStreamError
+    = OutputStreamError (NonEmpty OutputStreamErrorMessage)
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
 data  OutputStreamErrorMessage
     = FileAlreadyInUse {-# UNPACK #-} !FileSource
     | PathDoesNotExist {-# UNPACK #-} !FileSource
-    | NoPermissions    {-# UNPACK #-} !FileSource
-    | NotEnoughSpace   {-# UNPACK #-} !FileSource
-    deriving stock    (Data, Generic, Show, Typeable)
+    | NoPermissions {-# UNPACK #-} !FileSource
+    | NotEnoughSpace {-# UNPACK #-} !FileSource
+    deriving stock (Data, Generic, Show)
     deriving anyclass (NFData)
 
 
@@ -71,52 +72,55 @@ instance Semigroup OutputStreamError where
 
 instance TextShow OutputStreamError where
 
-    showb (OutputStreamError errors) = unlinesB $ catMaybes
-        [ lockedFilesMessage
-        , missingPathMessage
-        , badPermissionMessage
-        , noSpaceMessage
-        ]
-      where
-        (lockedFiles, missingPaths, badPermissions, noSpaceErrors) = partitionOutputStreamErrorMessages $ toList errors
+    showb (OutputStreamError errors) = unlinesB
+        $ catMaybes [lockedFilesMessage, missingPathMessage, badPermissionMessage, noSpaceMessage]
+        where
+            (lockedFiles, missingPaths, badPermissions, noSpaceErrors) =
+                partitionOutputStreamErrorMessages $ toList errors
 
-        lockedFilesMessage =
-          case lockedFiles of
-            []  -> Nothing
-            [x] -> Just $ "The file " <> showb x <> " was locked"
-            xs  -> Just $ "The following files were locked and could not be written to: \n" <> unlinesB (showb <$> xs)
+            lockedFilesMessage = case lockedFiles of
+                []  -> Nothing
+                [x] -> Just $ "The file " <> showb x <> " was locked"
+                xs  -> Just $ "The following files were locked and could not be written to: \n" <> unlinesB
+                    (showb <$> xs)
 
-        missingPathMessage =
-          case missingPaths of
-            []  -> Nothing
-            [x] -> Just $ "The output file path " <> showb x <> " could not be found"
-            xs  -> Just $ "The following output file paths could not be found:\n" <> unlinesB  (showb <$> xs)
+            missingPathMessage = case missingPaths of
+                []  -> Nothing
+                [x] -> Just $ "The output file path " <> showb x <> " could not be found"
+                xs ->
+                    Just $ "The following output file paths could not be found:\n" <> unlinesB (showb <$> xs)
 
-        badPermissionMessage =
-          case badPermissions of
-            []  -> Nothing
-            [x] -> Just $ "The file path " <> showb x <> " had premissions which prevent it from being written to"
-            xs  -> Just $ "The following file paths had premissions which prevent them from being written to:\n" <> unlinesB  (showb <$> xs)
+            badPermissionMessage = case badPermissions of
+                [] -> Nothing
+                [x] ->
+                    Just
+                        $  "The file path "
+                        <> showb x
+                        <> " had premissions which prevent it from being written to"
+                xs ->
+                    Just
+                        $  "The following file paths had premissions which prevent them from being written to:\n"
+                        <> unlinesB (showb <$> xs)
 
-        noSpaceMessage =
-          case noSpaceErrors of
-            []  -> Nothing
-            [x] -> Just $ "There is was not enough space to write the file " <> showb x <> "."
-            xs  -> Just $ "There was not enough disk space to write the following files:\n" <> unlinesB  (showb <$> xs)
+            noSpaceMessage = case noSpaceErrors of
+                []  -> Nothing
+                [x] -> Just $ "There is was not enough space to write the file " <> showb x <> "."
+                xs  -> Just $ "There was not enough disk space to write the following files:\n" <> unlinesB
+                    (showb <$> xs)
 
-        partitionOutputStreamErrorMessages
-          ::  [OutputStreamErrorMessage]
-          -> ([OutputStreamErrorMessage]
-             ,[OutputStreamErrorMessage]
-             ,[OutputStreamErrorMessage]
-             ,[OutputStreamErrorMessage]
-             )
-        partitionOutputStreamErrorMessages = foldr f ([],[],[],[])
-          where
-            f e@FileAlreadyInUse{} (v,x,y,z) = (e:v,   x,   y,   z)
-            f e@PathDoesNotExist{} (v,x,y,z) = (  v, e:x,   y,   z)
-            f e@NoPermissions   {} (v,x,y,z) = (  v,   x, e:y,   z)
-            f e@NotEnoughSpace  {} (v,x,y,z) = (  v,   x,   y, e:z)
+            partitionOutputStreamErrorMessages
+                :: [OutputStreamErrorMessage]
+                -> ( [OutputStreamErrorMessage]
+                   , [OutputStreamErrorMessage]
+                   , [OutputStreamErrorMessage]
+                   , [OutputStreamErrorMessage]
+                   )
+            partitionOutputStreamErrorMessages = foldr f ([], [], [], [])
+                where
+                    f e@FileAlreadyInUse{} (v, x, y, z) = (e : v, x, y, z)
+                    f e@PathDoesNotExist{} (v, x, y, z) = (v, e : x, y, z)
+                    f e@NoPermissions{}    (v, x, y, z) = (v, x, e : y, z)
+                    f e@NotEnoughSpace{}   (v, x, y, z) = (v, x, y, e : z)
 
 
 instance TextShow OutputStreamErrorMessage where
