@@ -30,8 +30,7 @@ module Data.FileSource
   , FileSource(..)
   , extractExtension
   , toFileSource
-  )
-  where
+  ) where
 
 import           Control.DeepSeq           (NFData)
 import           Data.Bifunctor            (first)
