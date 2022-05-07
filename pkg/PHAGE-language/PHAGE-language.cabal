@@ -1,0 +1,100 @@
+Cabal-Version: 3.0
+Name:          PHAGE-language
+Version:       0.1.0
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.2
+
+
+Author:        Alex Washburn <github@recursion.ninja>
+Copyright:     (c) 2022 Alex Washburn
+License:       BSD-3-Clause
+License-File:  LICENSE
+
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
+                
+Synopsis:      Defines the grammar & specific commands of the PCG language
+Description:
+  In addition to the grammar definition, this library exports a parser for the
+  grammar. Each command available in PCG is defined here and a script parser is
+  exported to parse a sequence of commands which represents the computation to
+  be performed by PCG.
+Category:
+  Language
+  Parser
+  Parsing
+  Scripting
+
+
+Extra-Doc-Files:
+  CHANGELOG.md
+  README.md
+
+
+Source-Repository-Package head
+  type:     git
+  location: git@github.com:wardwheeler/PhyGraph.git
+  subdir:   pkg/PhyGraph
+
+
+library language
+
+  default-language:
+    GHC2021
+
+  hs-source-dirs:
+    src
+
+  build-depends:
+--    file-source,
+    base                     >= 4.16      && < 5.0,
+    case-insensitive         >= 1.2.0     && < 1.3,
+    containers               >= 0.6.2     && < 1.0,
+    free                     >= 5.1       && < 6.0,
+    keys                     >= 3.12      && < 4.0,
+    megaparsec               >= 9.0       && < 10.0,
+    parser-combinators       >= 1.0       && < 2.0,
+    scientific               >= 0.3.6     && < 0.4,
+    text-short               >= 0.1.3     && < 1.0,
+    time                     >= 1.9.3     && < 2.0,
+
+  autogen-modules:
+    Paths_PHAGE_language
+    
+  exposed-modules:
+    PCG.Syntax
+    PCG.Command.Build
+    PCG.Command.Echo
+    PCG.Command.Load
+    PCG.Command.Read
+    PCG.Command.Report
+    PCG.Command.Save
+    PCG.Command.Version
+    PCG.Syntax.Combinators
+
+  other-modules:
+    Paths_PHAGE_language
+    PCG.Syntax.Parser
+    PCG.Syntax.Primitive
+
+  ghc-options:
+    -- Sanity check warnings:
+    --   1. Fail on a warning
+    --   2. Include all warnings by default
+    --   3. Exclude the undesirable warnings
+    -Werror
+    -Weverything
+    -- Exclusions:
+    -Wno-implicit-prelude
+    -Wno-inferred-safe-imports
+    -Wno-missing-import-lists
+    -Wno-missing-kind-signatures
+    -Wno-missing-safe-haskell-mode
+    -Wno-monomorphism-restriction
+    -Wno-type-defaults
+    -Wno-unsafe
+
