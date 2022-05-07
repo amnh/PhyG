@@ -16,10 +16,9 @@
 -----------------------------------------------------------------------------
 
 module PCG.Syntax
-  ( module PCG.Syntax.Parser
-  , module PCG.Syntax.Combinators
---  , syntacticStreamParser
-  ) where
+    ( module PCG.Syntax.Combinators
+    , module PCG.Syntax.Parser
+    ) where
 
 import PCG.Syntax.Combinators
 import PCG.Syntax.Parser

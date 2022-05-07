@@ -13,16 +13,16 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE StrictData         #-}
-{-# LANGUAGE TypeFamilies       #-}
-{-# LANGUAGE UnboxedSums        #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts #-}
+{-# Language StrictData #-}
+{-# Language TypeFamilies #-}
+{-# Language UnboxedSums #-}
 
 module PCG.Syntax.Parser where
 
-import Data.CaseInsensitive   (FoldCase)
-import Data.List.NonEmpty     (NonEmpty, some1)
+import Data.CaseInsensitive (FoldCase)
+import Data.List.NonEmpty (NonEmpty, some1)
 import PCG.Command.Build
 import PCG.Command.Echo
 import PCG.Command.Load
@@ -37,49 +37,42 @@ import Text.Megaparsec
 -- |
 -- All the commands of the PCG scripting language.
 data  Command
-    = BUILD   {-# UNPACK #-} !BuildCommand
-    | ECHO                   !EchoCommand
-    | LOAD                   !LoadCommand
-    | READ    {-# UNPACK #-} !ReadCommand
-    | REPORT  {-# UNPACK #-} !ReportCommand
-    | SAVE                   !SaveCommand
-    | VERSION                !VersionCommand
+    = BUILD {-# UNPACK #-} !BuildCommand
+    | ECHO !EchoCommand
+    | LOAD !LoadCommand
+    | READ {-# UNPACK #-} !ReadCommand
+    | REPORT {-# UNPACK #-} !ReportCommand
+    | SAVE !SaveCommand
+    | VERSION !VersionCommand
     deriving stock (Show)
 
 
 -- |
 -- A non-empty list of Commands to be sequentially evaluated.
-newtype Computation = Computation (NonEmpty Command)
+newtype Computation
+    = Computation (NonEmpty Command)
     deriving stock (Show)
 
 
 -- |
 -- Parse a series of PCG commands.
 computationalStreamParser
-  :: ( FoldCase (Tokens s)
-     , MonadParsec e s m
-     , Token s ~ Char
-     , VisualStream s
-     )
-  => m Computation
+    :: (FoldCase (Tokens s), MonadParsec e s m, Token s ~ Char, VisualStream s) => m Computation
 computationalStreamParser = Computation <$> some1 commandStreamParser <* eof
 
 
 -- |
 -- Parse a single, well defined PCG command.
-commandStreamParser
-  :: ( FoldCase (Tokens s)
-     , MonadParsec e s m
-     , Token s ~ Char
-     , VisualStream s
-     )
-  => m Command
-commandStreamParser = whitespace *> choice
-    [ BUILD   <$> parseCommand   buildCommandSpecification
-    , ECHO    <$> parseCommand    echoCommandSpecification
-    , READ    <$> parseCommand    readCommandSpecification
-    , REPORT  <$> parseCommand  reportCommandSpecification
-    , SAVE    <$> parseCommand    saveCommandSpecification
-    , LOAD    <$> parseCommand    loadCommandSpecification
-    , VERSION <$> parseCommand versionCommandSpecification
-    ] <* whitespace
+commandStreamParser :: (FoldCase (Tokens s), MonadParsec e s m, Token s ~ Char, VisualStream s) => m Command
+commandStreamParser =
+    whitespace
+        *> choice
+            [ BUILD <$> parseCommand buildCommandSpecification
+            , ECHO <$> parseCommand echoCommandSpecification
+            , READ <$> parseCommand readCommandSpecification
+            , REPORT <$> parseCommand reportCommandSpecification
+            , SAVE <$> parseCommand saveCommandSpecification
+            , LOAD <$> parseCommand loadCommandSpecification
+            , VERSION <$> parseCommand versionCommandSpecification
+            ]
+        <* whitespace
