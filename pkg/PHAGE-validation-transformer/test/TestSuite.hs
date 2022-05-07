@@ -10,7 +10,9 @@
 --
 -----------------------------------------------------------------------------
 
-module Main where
+module Main
+  ( main
+  ) where
 
 import qualified Control.Monad.Trans.Validation.Test as ValidationT
 import           Test.Tasty

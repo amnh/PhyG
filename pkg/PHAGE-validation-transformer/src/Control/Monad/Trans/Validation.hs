@@ -204,19 +204,20 @@ instance (Monad m, Semigroup e) => MonadZip (ValidationT e m) where
     mzipWith = liftA2
 
     munzip x =
-        let !v = runValidationT x
-            extract 
+        let extracting
                 :: Functor f
                 => ((Validation err a, Validation err b) -> Validation e c)
                 -> f (Validation err (a, b))
                 -> ValidationT e f c
-            extract t = ValidationT . fmap (t . vunzip)
+            extracting t = ValidationT . fmap (t . vunzip)
 
+            valuation = runValidationT x
+            
             vunzip :: Validation err (a, b) -> (Validation err a, Validation err b)
             vunzip (Failure e     ) = (Failure e, Failure e)
             vunzip (Success (a, b)) = (Success a, Success b)
-
-        in (extract fst v, extract snd v)
+            
+        in  (extracting fst valuation, extracting snd valuation)
 
 
 instance (Ord a, Ord e, Ord1 m) => Ord (ValidationT e m a) where
