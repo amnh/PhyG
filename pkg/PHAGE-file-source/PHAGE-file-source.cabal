@@ -33,7 +33,6 @@ Category:
   IO-Streams
 
 
-
 Extra-Doc-Files:
   CHANGELOG.md
   README.md
@@ -48,8 +47,7 @@ library file-source
     src
 
   build-depends:
---    serialize,
---    validation-transformer,
+    PHAGE-validation-transformer,
     base                     >= 4.11      && < 5.0,
     binary                   >= 0.8       && < 1.0,
     bytestring               >= 0.10.10   && < 0.11,

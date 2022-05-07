@@ -79,7 +79,7 @@ import System.IO.Error
 -- exist multiple files which match the "file-glob" pattern, an "ambiguous file"
 -- failure state will be returned.
 readFile :: FileSource -> ValidationT InputStreamError IO Text
-readFile filePath = readFilesAndLocate readFileContent (invalid . makeAmbiguousFiles filePath) filePath
+readFile fSource = readFilesAndLocate readFileContent (invalid . makeAmbiguousFiles fSource) fSource
 
 
 -- |
@@ -147,17 +147,17 @@ streamBytes = B
 -- |
 -- Write textual stream to the /end/ of the file.
 appendFile :: FileSource -> FileStream -> ValidationT OutputStreamError IO ()
-appendFile filePath str = ValidationT $ catch
-    (Success <$> streamToFile AppendMode filePath str)
-    (runValidationT . outputErrorHandling filePath)
+appendFile fSource str = ValidationT $ catch
+    (Success <$> streamToFile AppendMode fSource str)
+    (runValidationT . outputErrorHandling fSource)
 
 
 -- |
 -- Write textual stream to the to the file, overwriting any existing file contents.
 writeFile :: FileSource -> FileStream -> ValidationT OutputStreamError IO ()
-writeFile filePath str = ValidationT $ catch
-    (Success <$> streamToFile WriteMode filePath str)
-    (runValidationT . outputErrorHandling filePath)
+writeFile fSource str = ValidationT $ catch
+    (Success <$> streamToFile WriteMode fSource str)
+    (runValidationT . outputErrorHandling fSource)
 
 
 -- |
@@ -171,7 +171,7 @@ writeFile filePath str = ValidationT $ catch
 -- however if that filepath also exists, it will add ".1", ".2", ".3", ",.4", etc.
 -- The suffix added will be one greater than the highest existing numeric suffix.
 writeFileWithMove :: FileSource -> FileStream -> ValidationT OutputStreamError IO ()
-writeFileWithMove filePath str = liftIO (safelyMoveFile filePath) *> writeFile filePath str
+writeFileWithMove fSource str = liftIO (safelyMoveFile fSource) *> writeFile fSource str
 
 
 -- |
@@ -187,20 +187,20 @@ writeSTDOUT = liftIO . \case
 --
 -- Operational inverse of 'serializeBinary'.
 deserializeBinary :: Binary a => FileSource -> ValidationT (Either InputStreamError ParseStreamError) IO a
-deserializeBinary filePath = readFilesAndLocate'
-    Left
-    deserialize
-    (invalid . Left . makeAmbiguousFiles filePath)
-    filePath
-    where
-        deserialize fp = do
+deserializeBinary fSource =
+    let deserialize
+          :: Binary b
+          => FileSource
+          -> ValidationT (Either InputStreamError ParseStreamError) IO b
+        deserialize fs = do
             res <- ValidationT $ catch
-                (Success <$> decodeFileOrFail (otoList fp))
-                (fmap (first Left) . runValidationT . inputErrorHandling fp)
+                (Success <$> decodeFileOrFail (otoList fs))
+                (fmap (first Left) . runValidationT . inputErrorHandling fs)
             case res of
                 Right val        -> pure val
-                Left  (off, err) -> invalid . Right . makeDeserializeErrorInBinaryEncoding fp $ fold
+                Left  (off, err) -> invalid . Right . makeDeserializeErrorInBinaryEncoding fs $ fold
                     ["At stream offset ", fromString $ show off, ", ", fromString err]
+    in  readFilesAndLocate' Left deserialize (invalid . Left . makeAmbiguousFiles fSource) fSource
 
 
 -- |
@@ -208,9 +208,9 @@ deserializeBinary filePath = readFilesAndLocate'
 --
 -- Operational inverse of 'deserializeBinary'.
 serializeBinary :: Binary a => FileSource -> a -> ValidationT OutputStreamError IO ()
-serializeBinary filePath val = ValidationT $ catch
-    (fmap Success . streamToFile WriteMode filePath . streamBytes $ encode val)
-    (runValidationT . outputErrorHandling filePath)
+serializeBinary fSource val = ValidationT $ catch
+    (fmap Success . streamToFile WriteMode fSource . streamBytes $ encode val)
+    (runValidationT . outputErrorHandling fSource)
 
 
 -- |
@@ -232,19 +232,19 @@ readFilesAndLocate'
     -> (NonEmpty FileSource -> ValidationT e IO a) -- ^ What to do in the ambiguous case
     -> FileSource -- ^ Path description
     -> ValidationT e IO a -- ^ Result
-readFilesAndLocate' e f g filePath = do
+readFilesAndLocate' e f g fSource = do
     -- Check if the file exists exactly as specified
-    exists <- liftIO $ doesFileExist (otoList filePath)
+    exists <- liftIO $ doesFileExist (otoList fSource)
     if exists
     -- If it exists exactly as specified, read it in
-        then f filePath
+        then f fSource
         else do
         -- If the file does not exists exactly as specified
         -- try to match other files to the given path
         -- by interpreting the path as a 'glob'
-            matches <- fmap (fmap fromString) . liftIO . glob $ otoList filePath
+            matches <- fmap (fmap fromString) . liftIO . glob $ otoList fSource
             case matches of
-                []     -> invalid . e $ makeFileNotFound filePath
+                []     -> invalid . e $ makeFileNotFound fSource
                 [ x ]  -> f x
                 x : xs -> g $ x :| xs
 
@@ -254,17 +254,17 @@ readFilesAndLocate' e f g filePath = do
 --
 -- Checks if the file permissions allows the file contents to be read.
 readFileContent :: FileSource -> ValidationT InputStreamError IO Text
-readFileContent filePath =
-    let path = force $ otoList filePath
+readFileContent fSource =
+    let path = force $ otoList fSource
     in  do
             canRead <- liftIO $ readable <$> getPermissions path
             if not canRead
-                then invalid $ makeFileNoReadPermissions filePath
+                then invalid $ makeFileNoReadPermissions fSource
                 else do
                     txt <- ValidationT $ catch
-                        (Success <$> streamfromFile filePath)
-                        (runValidationT . inputErrorHandling filePath)
-                    if onull txt then invalid $ makeEmptyFileStream filePath else pure txt
+                        (Success <$> streamfromFile fSource)
+                        (runValidationT . inputErrorHandling fSource)
+                    if onull txt then invalid $ makeEmptyFileStream fSource else pure txt
 
 
 -- |
@@ -272,10 +272,10 @@ readFileContent filePath =
 --
 -- Re-throws errors not specially handled and reported by 'InputStreamError'.
 inputErrorHandling :: FileSource -> IOError -> ValidationT InputStreamError IO a
-inputErrorHandling filePath e
-    | isAlreadyInUseError e = invalid $ makeFileInUseOnRead filePath
-    | isPermissionError e   = invalid $ makeFileNoReadPermissions filePath
-    | isDoesNotExistError e = invalid $ makeFileNotFound filePath
+inputErrorHandling fSource e
+    | isAlreadyInUseError e = invalid $ makeFileInUseOnRead fSource
+    | isPermissionError e   = invalid $ makeFileNoReadPermissions fSource
+    | isDoesNotExistError e = invalid $ makeFileNotFound fSource
     |
   -- Re-throw if it is not an error we explicitly handle and report
       otherwise             = ValidationT $ ioError e
@@ -286,11 +286,11 @@ inputErrorHandling filePath e
 --
 -- Re-throws errors not specially handled and reported by 'OutputStreamError'.
 outputErrorHandling :: FileSource -> IOError -> ValidationT OutputStreamError IO a
-outputErrorHandling filePath e
-    | isAlreadyInUseError e = invalid $ makeFileInUseOnWrite filePath
-    | isFullError e         = invalid $ makeNotEnoughSpace filePath
-    | isPermissionError e   = invalid $ makeFileNoWritePermissions filePath
-    | isDoesNotExistError e = invalid $ makePathDoesNotExist filePath
+outputErrorHandling fSource e
+    | isAlreadyInUseError e = invalid $ makeFileInUseOnWrite fSource
+    | isFullError e         = invalid $ makeNotEnoughSpace fSource
+    | isPermissionError e   = invalid $ makeFileNoWritePermissions fSource
+    | isDoesNotExistError e = invalid $ makePathDoesNotExist fSource
     |
   -- Re-throw if it is not an error we explicitly handle and report
       otherwise             = ValidationT $ ioError e
@@ -307,29 +307,27 @@ outputErrorHandling filePath e
 -- however if that filepath also exists, it will add ".1", ".2", ".3", ",.4", etc.
 -- The suffix added will be one greater than the highest existing numeric suffix.
 safelyMoveFile :: FileSource -> IO ()
-safelyMoveFile fs = do
-    absPath <- makeAbsolute fp
-    exists  <- doesFileExist absPath
-    when exists $ do
-        allFiles <- getDirectoryContents $ takeDirectory absPath
-        let prefixed = getFilePathPrefixes allFiles
-        let numbers  = getNumericSuffixes prefixed
-        let lastNum  = getLargestNumericSuffix numbers
-        let nextNum  = lastNum + 1 :: Word
-        let newName  = absPath <> "." <> show nextNum
-        renameFile absPath newName
-    where
-        fp                  = otoList fs
-
-        getFilePathPrefixes = fmap (drop (length fp)) . filter (fp `isPrefixOf`)
-
-        getNumericSuffixes  = fmap tail . filter hasDotThenNumberSuffix . fmap takeExtension
-            where
-                hasDotThenNumberSuffix ('.' : x : xs) = all isNumber $ x : xs
+safelyMoveFile fSource =
+    let filePath            = otoList fSource
+        getFilePathPrefixes = fmap (drop (length filePath)) . filter (filePath `isPrefixOf`)
+        getNumericSuffixes  =
+            let hasDotThenNumberSuffix ('.' : x : xs) = all isNumber $ x : xs
                 hasDotThenNumberSuffix _              = False
+            in  fmap tail . filter hasDotThenNumberSuffix . fmap takeExtension
 
+        getLargestNumericSuffix :: (Num a, Ord a, Read a) => [String] -> a
         getLargestNumericSuffix []       = -1
         getLargestNumericSuffix (x : xs) = maximum . fmap read $ x :| xs
+    in  do  absPath <- makeAbsolute filePath
+            exists  <- doesFileExist absPath
+            when exists $ do
+                allFiles <- getDirectoryContents $ takeDirectory absPath
+                let prefixed = getFilePathPrefixes allFiles
+                let numbers  = getNumericSuffixes prefixed
+                let lastNum  = getLargestNumericSuffix numbers
+                let nextNum  = lastNum + 1 :: Word
+                let newName  = absPath <> "." <> show nextNum
+                renameFile absPath newName
 
 
 -- |
@@ -338,8 +336,8 @@ streamfromFile :: FileSource -> IO Text
 streamfromFile = T.readFile . otoList
 -- This streaming from file doesn't work...
 {-
-streamfromFile filePath = do
-    h   <- openFile (otoList filePath) ReadMode
+streamfromFile fSource = do
+    h   <- openFile (otoList fSource) ReadMode
     txt <- runEffect $ (liftIO (T.hGetLine h)) >~ await
     hClose h
     pure txt
@@ -349,15 +347,15 @@ streamfromFile filePath = do
 -- |
 -- Streams text to a file in constant memory.
 streamToFile :: IOMode -> FileSource -> FileStream -> IO ()
-streamToFile m fs = \case
-    T txt -> runStream T.hPutStr m fs txt
-    B bts -> runStream BS.hPutStr m fs bts
+streamToFile m fSource = \case
+    T txt -> runStream T.hPutStr m fSource txt
+    B bts -> runStream BS.hPutStr m fSource bts
 
 
 -- |
 -- Given a streaming function to a file handle, write out a data stream.
 runStream :: (Handle -> v -> IO ()) -> IOMode -> FileSource -> v -> IO ()
-runStream f mode fp v = do
-    h <- openFile (otoList fp) mode
+runStream f mode fSource v = do
+    h <- openFile (otoList fSource) mode
     runEffect $ for (yield v) (liftIO . f h)
     hClose h
