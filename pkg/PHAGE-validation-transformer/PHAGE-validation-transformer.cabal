@@ -1,0 +1,127 @@
+Cabal-Version: 3.0
+Name:          PHAGE-validation-transformer
+Version:       0.1.0
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.2
+
+
+Author:        Alex Washburn <github@recursion.ninja>
+Copyright:     (c) 2022 Alex Washburn
+License:       BSD-3-Clause
+License-File:  LICENSE
+
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
+
+Synopsis:
+  Monad transformer for collecting failures through the applicative instance.
+
+
+Description:
+  This monad transformer provides a data-type for collection failures through
+  the applicative instance. The monad, and monad transformer instances will
+  "short-circuit" with all collected errors at the first monadic bind.
+
+
+Category:
+  Monads
+  Validation
+
+
+Extra-Doc-Files:
+  CHANGELOG.md
+  README.md
+
+
+common ghc-extensive-warnings
+
+  ghc-options:
+    -- Sanity check warnings:
+    --   1. Fail on a warning
+    --   2. Include all warnings by default
+    --   3. Exclude the undesirable warnings
+    -Werror
+    -Weverything
+    -- Exclusions:
+    -Wno-implicit-prelude
+    -Wno-inferred-safe-imports
+    -Wno-missing-import-lists
+    -Wno-missing-kind-signatures
+    -Wno-missing-safe-haskell-mode
+    -Wno-monomorphism-restriction
+    -Wno-type-defaults
+    -Wno-unsafe
+
+
+
+library validation-transformer
+
+  import:
+    ghc-extensive-warnings
+
+  build-depends:
+    base                     >= 4.11      && < 5.0,
+    deepseq                  >= 1.4       && < 2.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    semigroupoids            >= 5.3       && < 5.4,
+    transformers             >= 0.5.6     && < 1.0,
+    validation               >= 1.1       && < 2.0,
+
+  autogen-modules:
+    Paths_PHAGE_validation_transformer
+    
+  exposed-modules:
+    Control.Monad.Trans.Validation
+
+  other-modules:
+    Paths_PHAGE_validation_transformer
+
+  default-language:
+    GHC2021
+
+  hs-source-dirs:
+    src
+
+
+test-suite test-suite
+
+  import:
+    ghc-extensive-warnings
+
+  build-depends:
+    validation-transformer,
+    base                     >= 4.11      && < 5.0,
+    deepseq                  >= 1.4       && < 2.0,
+    mtl                      >= 2.2.2     && < 3.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    semigroupoids            >= 5.3       && < 5.4,
+    tasty                    >= 1.2       && < 2.0,
+    tasty-quickcheck         >= 0.9       && < 1.0,
+    tasty-rerun              >= 1.1.14    && < 2.0,
+    transformers             >= 0.5.6     && < 1.0,
+
+  autogen-modules:
+    Paths_PHAGE_validation_transformer
+    
+  other-modules:
+    Control.Monad.Trans.Validation.Test
+    Paths_PHAGE_validation_transformer
+
+  default-language:
+    GHC2021
+
+  hs-source-dirs:
+    test
+
+  ghc-options:
+    -threaded
+
+  main-is:
+    TestSuite.hs
+
+  type:
+    exitcode-stdio-1.0
