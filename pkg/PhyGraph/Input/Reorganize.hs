@@ -265,7 +265,7 @@ groupDataByType inData =
 
 -- | organizeBlockData' special cases and divides characters so that exact characters
 -- are reorgnized into single characters by type and cost matrix, while non-exact sequence
--- characters are unchanged.  Characters are reorganized wiht exact first in block then non-exact
+-- characters are unchanged.  Characters are reorganized with exact first in block then non-exact
 organizeBlockData' :: BlockData -> BlockData
 organizeBlockData' localBlockData =
     let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
@@ -387,11 +387,11 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
            else error ("Unrecognized/not implemented charcter type: " ++ show fCharType))
         -- )
 
--- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
+-- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new character data
 -- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
 -- non-exact characters and those with non-integer weights
 -- and character Information vector
--- these only bupdate preliminary of their type--meant to happen before decoration processes
+-- these only update preliminary of their type--meant to happen before decoration processes
 -- emptyCharacter defined in Types
 makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
@@ -414,6 +414,7 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
         origAddData = V.fromList $ zip3 (fmap name $ fmap snd addCharList) (fmap charType $ fmap snd addCharList) (fmap alphabet $ fmap snd addCharList)
 
         addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters", origInfo = origAddData}
+        
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
 

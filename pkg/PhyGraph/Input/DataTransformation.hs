@@ -266,7 +266,7 @@ createBVNames inDataList =
 
 -- | createNaiveData takes input RawData and transforms to "Naive" data.
 -- these data are organized into blocks (set to input filenames initially)
--- and are bitvector coded, but are not organized by charcter type, packed ot
+-- and are bitvector coded, but are not organized by character type, packed ot
 -- optimized in any other way (prealigned-> nonadd, Sankoff.  2 state sankoff to binary,
 -- constant characters skipped etc)
 -- these processes take place later
