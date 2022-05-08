@@ -575,13 +575,13 @@ preOrderTreeTraversal
 	check reorganize to copy extensive vectots--not assume V.singleton
 
 	Could take Naive data and back data at that stage before reorganizing
-		could : 
+		could (need to remember to replicate with integer weights): 
 			1) bitPack before reorganize and treat like nonExact and don't put together
 				Would "join" nonadds (and recode adds) and bit pack before reblocking/reorgnization
 				+ relatively easy, - inefficinecy with multiple blocks together (like genomes)
 				but could join packed after reblocking to fix that--or put in reorganization
 			2) would end up with recoded Naive data
-			
+
 	Should probably make unboxed as well
 
 
