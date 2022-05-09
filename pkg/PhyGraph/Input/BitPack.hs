@@ -1354,9 +1354,10 @@ based on their number of states
 -- that are encoded as bitvectors
 packNonAdditiveData :: ProcessedData -> ProcessedData
 packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
-    let newBlockDataVect = fmap recodeNonAddCharacters blockDataVect
+    -- need to check if this blowws out memory on big data sets (e.g. genomic)
+    let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) `using` PU.myParListChunkRDS
     in
-    (nameVect, bvNameVect, newBlockDataVect)
+    (nameVect, bvNameVect, V.fromList newBlockDataList)
 
 -- | recodeNonAddCharacters takes block data, goes through characters
 -- and recodes NonAdditive.
@@ -1379,7 +1380,7 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
     -- trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
 
--- | packNonAdd takes taxon by vector character data and list of character information
+-- | packNonAdd takes (vector of taxa) by character data and list of character information
 -- and returns bit packed and recoded non-additive characters and charInfo
 -- input int is character index in block
 -- the weight is skipping because of the weight replication in reorganize

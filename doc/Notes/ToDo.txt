@@ -585,4 +585,7 @@ preOrderTreeTraversal
 	Should probably make unboxed as well
 
 
+345) reblock globbing with '*' at end didn't work but "??" did.
+	reblock("nonAddData", "*.tnt??") versus reblock("nonAddData", "*.tnt*")
 
+346) Parition charcater trace multiple times

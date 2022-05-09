@@ -54,6 +54,7 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Utilities.Utilities          as U
+import qualified Input.BitPack                as BP
 
 -- | main driver
 main :: IO ()
@@ -161,24 +162,28 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
+    -- Group Data--all nonadditives to single character, additives with same alphabet,
+    let naiveDataGrouped = R.groupDataByType naiveData
+
+    -- Bit pack non-additive data 
+    let naiveDataPacked = BP.packNonAdditiveData naiveDataGrouped
+
+    -- Optimize Data convert
+        -- prealigned to non-additive or matrix
+        -- bitPack resulting non-additive
+    let optimizedPrealignedData = R.optimizePrealignedData naiveDataPacked
+
+
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList <- CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
      
-    let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
+    let reBlockedNaiveData = R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
+    -- Combines data of exact types into single vectors in each block
+    let optimizedData = R.combineDataByType reBlockedNaiveData
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet,
-    let groupedData = R.groupDataByType reBlockedNaiveData
-
-    -- Optimize Data convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-        -- all binary characters to nonadditive
-        -- matrix 2 states to non-additive with weight
-        -- prealigned to non-additive or matrix
-        -- bitPack non-additive
-    let optimizedData = R.optimizeData groupedData
-
+    
 
     -- Set global vaues before search--should be integrated with executing commands
     -- only stuff that is data dependent here (and seed)

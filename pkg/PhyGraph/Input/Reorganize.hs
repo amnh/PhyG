@@ -37,10 +37,11 @@ Portability :  portable (I hope)
 
 module Input.Reorganize
   ( groupDataByType
+  , combineDataByType
   , reBlockData
   , removeConstantCharactersPrealigned
   , removeConstantCharsPrealigned
-  , optimizeData
+  , optimizePrealignedData
   , convert2BV
   , getRecodingType
   ) where
@@ -70,19 +71,13 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.Utilities         as U
 
--- | optimizeData convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-            -- happens in reorganize byt type
-        -- all binary characters to nonadditive
-            -- not done explicitly-- but ocurs via add->non add and bit packing
-        -- matrix 2 states to non-additive with weight
-            -- not done
+-- | optimizePrealignedData convert
         -- prealigned to non-additive or matrix
             -- here
-        -- bitPack non-additive
+        -- bitPack new non-additive
             -- packNonAdditive
-optimizeData :: ProcessedData -> ProcessedData
-optimizeData inData =
+optimizePrealignedData :: ProcessedData -> ProcessedData
+optimizePrealignedData inData =
     -- convert prealigned to nonadditive if all 1 tcms
     let inData' = convertPrealignedToNonAdditive inData
 
@@ -245,6 +240,13 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
             makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : filter ((/=newBlockName).fst3) curBlockList)
 
 
+-- | combineDataByType combines data of same type for (exact types) into 
+-- same vectors in character so have one non-add, one add, one of each packed type, 
+-- can have multiple matrix (due to cost matrix differneces)
+-- simialr result to groupDataByType, but does not assume single characters.
+combineDataByType :: ProcessedData -> ProcessedData
+combineDataByType inData = inData
+
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks)
     -- all non-additive (with same weight) merged to a single vector character
@@ -257,11 +259,11 @@ groupDataByType inData =
         (nameVect, nameBVVect, blockDataVect) = recodeAddToNonAddCharacters maxAddStatesToRecode inData
 
         -- reorganize data into same type
-        organizedBlockData =  V.map organizeBlockData' blockDataVect
+        organizedBlockData =  fmap organizeBlockData' (V.toList blockDataVect) `using` PU.myParListChunkRDS
     in
     --trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
     --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
-    (nameVect, nameBVVect, organizedBlockData)
+    (nameVect, nameBVVect, V.fromList organizedBlockData)
 
 -- | organizeBlockData' special cases and divides characters so that exact characters
 -- are reorgnized into single characters by type and cost matrix, while non-exact sequence
@@ -271,10 +273,10 @@ organizeBlockData' localBlockData =
     let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
         numNonExactChars = U.getNumberSequenceCharacters (V.singleton localBlockData)
     in
-    -- if no nonexact--nothing to combine
+    -- if no exact--nothing to combine
     if numExactChars == 0 then localBlockData
 
-    -- if only non exact--split and recombine
+    -- if only non-exact--split and recombine
     else if numNonExactChars == 0 then organizeBlockData [] [] [] [] localBlockData
 
     -- if both nonexact and exact--pull out non-exact and recombine exact
