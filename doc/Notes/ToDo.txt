@@ -587,5 +587,6 @@ preOrderTreeTraversal
 
 345) reblock globbing with '*' at end didn't work but "??" did.
 	reblock("nonAddData", "*.tnt??") versus reblock("nonAddData", "*.tnt*")
+	maybe becasue * more than once and doesn't test?
 
-346) Parition charcater trace multiple times
+347) 

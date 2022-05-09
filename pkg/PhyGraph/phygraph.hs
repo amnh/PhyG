@@ -158,11 +158,19 @@ main = do
     -- Create unique bitvector names for leaf taxa.
     let leafBitVectorNames = DT.createBVNames reconciledData
 
+    {-
+    Data processing here-- there are multiple steps not cvomposed so that
+    large data files can be precessed and intermediate data goes out
+    of scope and can be freed back to system
+    -}
+
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet,
+    -- Group Data--all nonadditives to single character, additives with 
+    -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
+    -- combined,
     let naiveDataGrouped = R.groupDataByType naiveData
 
     -- Bit pack non-additive data 
@@ -181,6 +189,7 @@ main = do
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
     -- Combines data of exact types into single vectors in each block
+    -- thids is final data processing step
     let optimizedData = R.combineDataByType reBlockedNaiveData
 
     
