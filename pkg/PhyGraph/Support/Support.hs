@@ -43,7 +43,7 @@ import           Data.Char
 import qualified Data.List                      as L
 import           Data.Maybe
 import qualified Data.Vector                    as V
--- import qualified Data.Vector.Unboxed            as UV
+import qualified Data.Vector.Unboxed            as UV
 import qualified Data.Vector.Generic            as GV
 import           Debug.Trace
 import           GeneralUtilities
@@ -283,7 +283,7 @@ subSampleStatic randIntList inCharData inCharInfo =
 
        -- get character indices based on number "subcharacters"
        staticCharIndices = V.fromList $ fmap (randIndex charLength) (take charLength randIntList)
-       staticCharIndicesGV = GV.fromList $ fmap (randIndex charLength) (take charLength randIntList)
+       staticCharIndicesUV = UV.fromList $ fmap (randIndex charLength) (take charLength randIntList)
 
 
    in
@@ -295,7 +295,7 @@ subSampleStatic randIntList inCharData inCharInfo =
          inCharData {stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)}
 
    else if inCharType `elem` packedNonAddTypes then
-         inCharData {packedNonAddPrelim = (GV.map (pa1 GV.!) staticCharIndicesGV, GV.map (pa2 GV.!) staticCharIndicesGV, GV.map (pa3 GV.!) staticCharIndicesGV)}
+         inCharData {packedNonAddPrelim = (UV.map (pa1 UV.!) staticCharIndicesUV, UV.map (pa2 UV.!) staticCharIndicesUV, UV.map (pa3 UV.!) staticCharIndicesUV)}
 
    else if inCharType == Matrix then
          inCharData {matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
