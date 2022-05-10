@@ -387,13 +387,21 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then
-            let (minRange, maxRange) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
+            let (minRangeL, maxRangeL) = V.unzip $ fmap (V.head . snd3 . rangePrelim ) $ fmap (V.! charIndex) taxonByCharData
 
-                foundSymbols = fmap ST.fromString $ fmap show [(minimum minRange).. (maximum maxRange)]
+                minRange = if minimum minRangeL < (maxBound :: Int) then minimum minRangeL
+                           else 0
+
+                maxRange = if maximum maxRangeL > (minBound :: Int) then maximum maxRangeL
+                           else 0
+
+                foundSymbols = fmap ST.fromString $ fmap show [minRange.. maxRange]
                 stateAlphabet = fromSymbolsWOGap foundSymbols -- fromSymbolsWOGap foundSymbols
             in
-            -- trace ("RA: " ++ (show stateAlphabet))
-            charInfo {alphabet = stateAlphabet}
+            if maxRange < minRange then error ("Error in processing of additive character states " ++ (show (minRange, maxRange)))
+            else 
+                trace ("RA: " ++ (show (minimum minRangeL, maximum maxRangeL)) ++ " -> " ++ (show (minRange, maxRange)) ++ " " ++ (show foundSymbols)) -- ++ " -> " ++ (show stateAlphabet))
+                charInfo {alphabet = stateAlphabet}
 
 
 
