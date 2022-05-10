@@ -171,6 +171,7 @@ executable phyg
                , async
                , process
                , directory
+               
  
                 
   default-extensions: BangPatterns                

@@ -55,13 +55,15 @@ import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
+import qualified Data.Time                    as DT
 
 -- | main driver
 main :: IO ()
 main = do
+    dateFull <- DT.getCurrentTime
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "under the 3-Clause BSD License.\n"
+    let splash3 = "under the 3-Clause BSD License.\nCompiled " ++ (show dateFull)
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
 
     -- Process arguments--a single file containing commands
