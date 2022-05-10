@@ -61,7 +61,7 @@ import qualified Data.Time                    as DT
 main :: IO ()
 main = do
     dateFull <- DT.getCurrentTime
-    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
+    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "under the 3-Clause BSD License.\nCompiled " ++ (show dateFull)
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
@@ -192,7 +192,8 @@ main = do
 
     -- Combines data of exact types into single vectors in each block
     -- thids is final data processing step
-    let optimizedData = R.combineDataByType reBlockedNaiveData
+    let optimizedData = if (not . null) newBlockPairList then R.combineDataByType reBlockedNaiveData
+                        else optimizedPrealignedData
 
     
 
