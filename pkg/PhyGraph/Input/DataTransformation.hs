@@ -400,7 +400,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
             in
             if maxRange < minRange then error ("Error in processing of additive character states " ++ (show (minRange, maxRange)))
             else 
-                trace ("RA: " ++ (show (minimum minRangeL, maximum maxRangeL)) ++ " -> " ++ (show (minRange, maxRange)) ++ " " ++ (show foundSymbols)) -- ++ " -> " ++ (show stateAlphabet))
+                -- trace ("RA: " ++ (show (minimum minRangeL, maximum maxRangeL)) ++ " -> " ++ (show (minRange, maxRange)) ++ " " ++ (show foundSymbols)) -- ++ " -> " ++ (show stateAlphabet))
                 charInfo {alphabet = stateAlphabet}
 
 

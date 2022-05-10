@@ -949,10 +949,12 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
+        numStates = min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         origName = name inCharInfo
+        charWeight = weight inCharInfo
     in
-    if (inCharType /= Add) || (numStates > maxStateToRecode) || (numStates < 2) then (V.singleton inCharData, V.singleton inCharInfo)
+    -- if a single state recodes to a single uninfomative binary which will be filtered out when bit-packed
+    if (inCharType /= Add) || (numStates > maxStateToRecode) || charWeight /= (1 :: Double) then (V.singleton inCharData, V.singleton inCharInfo)
     else
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
         -- bits ON-- [0.. snd range]
