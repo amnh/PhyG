@@ -54,13 +54,16 @@ import           System.IO
 import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Utilities.Utilities          as U
+import qualified Input.BitPack                as BP
+import qualified Data.Time                    as DT
 
 -- | main driver
 main :: IO ()
 main = do
-    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2021 Ward Wheeler and The American Museum of Natural History\n"
+    dateFull <- DT.getCurrentTime
+    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "under the 3-Clause BSD License.\n"
+    let splash3 = "under the 3-Clause BSD License.\nCompiled " ++ (show dateFull)
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
 
     -- Process arguments--a single file containing commands
@@ -157,28 +160,42 @@ main = do
     -- Create unique bitvector names for leaf taxa.
     let leafBitVectorNames = DT.createBVNames reconciledData
 
+    {-
+    Data processing here-- there are multiple steps not cvomposed so that
+    large data files can be precessed and intermediate data goes out
+    of scope and can be freed back to system
+    -}
+
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
+    -- Group Data--all nonadditives to single character, additives with 
+    -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
+    -- combined,
+    let naiveDataGrouped = R.groupDataByType naiveData
+
+    -- Bit pack non-additive data 
+    let naiveDataPacked = BP.packNonAdditiveData naiveDataGrouped
+
+    -- Optimize Data convert
+        -- prealigned to non-additive or matrix
+        -- bitPack resulting non-additive
+    let optimizedPrealignedData = R.optimizePrealignedData naiveDataPacked
+
+
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList <- CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
      
-    let reBlockedNaiveData = R.reBlockData newBlockPairList naiveData
+    let reBlockedNaiveData = R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
+    -- Combines data of exact types into single vectors in each block
+    -- thids is final data processing step
+    let optimizedData = if (not . null) newBlockPairList then R.combineDataByType reBlockedNaiveData
+                        else optimizedPrealignedData
 
-    -- Group Data--all nonadditives to single character, additives with same alphabet,
-    let groupedData = R.groupDataByType reBlockedNaiveData
-
-    -- Optimize Data convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-        -- all binary characters to nonadditive
-        -- matrix 2 states to non-additive with weight
-        -- prealigned to non-additive or matrix
-        -- bitPack non-additive
-    let optimizedData = R.optimizeData groupedData
-
+    
 
     -- Set global vaues before search--should be integrated with executing commands
     -- only stuff that is data dependent here (and seed)

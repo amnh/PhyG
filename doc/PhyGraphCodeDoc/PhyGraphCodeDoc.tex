@@ -80,7 +80,7 @@
 		\item{Commands that involve data and graph input, inclusion and exclusion of terminal taxa, taxon renaming, and network 
 			block assignment are processed.}
 		
-		\item{Internal sequence partitions (via `\#' characters) are applied (Module Input.DataTransformation).}
+		\item{Internal sequence partitions (via default `\#' or `set(partitionCharacter:X)' specified characters) are applied (Module Input.DataTransformation).}
 		
 		\item{Data block names are assigned (via module Commands.CommandExecution)}
 		
@@ -97,12 +97,13 @@
 		
 		\item{Initial ``naive'', analyzable (i.e. in correct structures), data are created (Module Input.DataTransformation).}
 		
-		\item{Data blocks are reassigned based on naive data (Module Input.Reorganize), and relevant commands remove from command queue.}
 		
-		\item{Data are reorganized by type (Module Input.Reorganize).  This puts all additive, non-additive, and matrix (with same 
+		\item{Data are reorganized (groupDataByType) by type (Module Input.Reorganize).  This puts all additive, non-additive, and matrix (with same 
 			transformation cost/step matrix) characters in a data block into single character structures.  These structures contain vectors of 
 			characters of the same type.  
 			This improves both efficiency and clarity of code.} 
+		
+		\item{Data blocks are reassigned from naive data (Module Input.Reorganize), and relevant commands remove from command queue.}
 		
 		\item{Data are optimized by 1) removing constant positions in prealigned sequence characters; 2) recoding additive characters with maximum state $<$ 65 
 			 as non-additive binary characters \cite{Farris1970}; and 3) ``bit packing'' non-additive characters into 64-bit words to improve both memory consumption

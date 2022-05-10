@@ -570,3 +570,12 @@ preOrderTreeTraversal
 
 343) add stupidf graph cost over edges for hardwired cost
 
+344) Should probably make packedData unboxed
+
+
+345) reblock globbing with '*' at end didn't work but "??" did.
+	reblock("nonAddData", "*.tnt??") versus reblock("nonAddData", "*.tnt*")
+	maybe becasue * more than once and doesn't test?
+
+347) maybe have a size limit for parallel bitpacking--as in over 100k (tax * chars) or something
+

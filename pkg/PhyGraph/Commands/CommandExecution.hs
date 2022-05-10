@@ -239,9 +239,9 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
                 (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
 
-        -- partition charcter to reset
+        -- partition character to reset
         else 
-            trace ("PartitionCharacter set to " ++ (partitionCharacter globalSettings))
+            -- trace ("PartitionCharacter set to '" ++ (partitionCharacter globalSettings) ++ "'")
             (globalSettings, processedData, inSeedList)
         
     else

@@ -37,10 +37,11 @@ Portability :  portable (I hope)
 
 module Input.Reorganize
   ( groupDataByType
+  , combineDataByType
   , reBlockData
   , removeConstantCharactersPrealigned
   , removeConstantCharsPrealigned
-  , optimizeData
+  , optimizePrealignedData
   , convert2BV
   , getRecodingType
   ) where
@@ -70,19 +71,13 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.Utilities         as U
 
--- | optimizeData convert
-        -- Additive characters with alphabets < 64 to multiple binary nonadditive
-            -- happens in reorganize byt type
-        -- all binary characters to nonadditive
-            -- not done explicitly-- but ocurs via add->non add and bit packing
-        -- matrix 2 states to non-additive with weight
-            -- not done
+-- | optimizePrealignedData convert
         -- prealigned to non-additive or matrix
             -- here
-        -- bitPack non-additive
+        -- bitPack new non-additive
             -- packNonAdditive
-optimizeData :: ProcessedData -> ProcessedData
-optimizeData inData =
+optimizePrealignedData :: ProcessedData -> ProcessedData
+optimizePrealignedData inData =
     -- convert prealigned to nonadditive if all 1 tcms
     let inData' = convertPrealignedToNonAdditive inData
 
@@ -245,6 +240,149 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
             makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : filter ((/=newBlockName).fst3) curBlockList)
 
 
+-- | combineDataByType combines data of same type for (exact types) into 
+-- same vectors in character so have one non-add, one add, one of each packed type, 
+-- can have multiple matrix (due to cost matrix differneces)
+-- simialr result to groupDataByType, but does not assume single characters.
+combineDataByType :: ProcessedData -> ProcessedData
+combineDataByType (taxNames, taxBVNames, blockDataV) = 
+    let recodedData = fmap combineData blockDataV 
+    in
+    (taxNames, taxBVNames, recodedData)
+
+-- | combineData creates for a block) lists of each data type and concats then creating new data and new char info
+combineData :: BlockData -> BlockData
+combineData (blockName, blockDataVV, charInfoV) =
+    let (newBlockDataLV, newCharInfoLV) = unzip (fmap (combineBlockData charInfoV) (V.toList blockDataVV) `using` PU.myParListChunkRDS)
+    in 
+    (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
+
+-- | combineBlockData takes a vector of char info and vector or charcater data for a taxon and 
+-- combined exact data types into single characters
+combineBlockData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+combineBlockData inCharInfoV inCharDataV = 
+    let pairCharsInfo = V.zip inCharInfoV inCharDataV
+
+        -- characters to not be reorganized-- nbasically the sequence characters
+        sequenceCharacters = V.toList $ V.filter ((`elem` sequenceCharacterTypes) . charType . fst) pairCharsInfo
+
+        -- matrix charcaters are more complext--can only join if same matrix
+        matrixCharsPair = V.filter ((== Matrix) . charType . fst) pairCharsInfo
+        (newMatrixCharL, newMatrixCharInfoL) = if (not . null) matrixCharsPair then unzip $ organizeMatrixCharsByMatrix (V.toList matrixCharsPair)
+                                               else ([],[])
+
+        -- non-additive charaacters
+        nonAddChars = V.filter ((== NonAdd) . charType . fst) pairCharsInfo
+        nonAddPrelimV = fmap (snd3 . stateBVPrelim . snd) nonAddChars
+        concatNonAddPrelim = V.concat $ V.toList nonAddPrelimV
+        newNonAddChar = ((snd . V.head) nonAddChars) { stateBVPrelim = (concatNonAddPrelim, concatNonAddPrelim, concatNonAddPrelim)
+                                                   , stateBVFinal = concatNonAddPrelim
+                                                   }
+        newNonAddCharInfo = ((fst . V.head) nonAddChars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) nonAddChars}  
+
+        -- additve characters
+        addChars = V.filter ((== Add) . charType . fst) pairCharsInfo
+        rangePrelimV = fmap (snd3 . rangePrelim . snd) addChars
+        concatAddPrelim = V.concat $ V.toList rangePrelimV
+        newAddChar = ((snd . V.head) addChars) { rangePrelim = (concatAddPrelim, concatAddPrelim, concatAddPrelim)
+                                                   , rangeFinal = concatAddPrelim
+                                                   }
+        newAddCharInfo = ((fst . V.head) addChars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) addChars}  
+
+        -- Packed2 characters
+        packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
+        packed2NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed2Chars
+        concatPacked2Prelim = V.concat $ V.toList packed2NonAddPrelimV
+        newPacked2Char = ((snd . V.head) packed2Chars) { packedNonAddPrelim = (concatPacked2Prelim, concatPacked2Prelim, concatPacked2Prelim)
+                                                   , packedNonAddFinal = concatPacked2Prelim
+                                                   }
+        newPacked2CharInfo = ((fst . V.head) packed2Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed2Chars}  
+
+        -- Packed4 characters
+        packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
+        packed4NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed4Chars
+        concatPacked4Prelim = V.concat $ V.toList packed4NonAddPrelimV
+        newPacked4Char = ((snd . V.head) packed4Chars) { packedNonAddPrelim = (concatPacked4Prelim, concatPacked4Prelim, concatPacked4Prelim)
+                                                   , packedNonAddFinal = concatPacked4Prelim
+                                                   }
+        newPacked4CharInfo = ((fst . V.head) packed4Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed4Chars}  
+
+        -- Packed5 characters
+        packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
+        packed5NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed5Chars
+        concatPacked5Prelim = V.concat $ V.toList packed5NonAddPrelimV
+        newPacked5Char = ((snd . V.head) packed5Chars) { packedNonAddPrelim = (concatPacked5Prelim, concatPacked5Prelim, concatPacked5Prelim)
+                                                   , packedNonAddFinal = concatPacked5Prelim
+                                                   }
+        newPacked5CharInfo = ((fst . V.head) packed5Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed5Chars}  
+
+        -- Packed8 characters
+        packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
+        packed8NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed8Chars
+        concatPacked8Prelim = V.concat $ V.toList packed8NonAddPrelimV
+        newPacked8Char = ((snd . V.head) packed8Chars) { packedNonAddPrelim = (concatPacked8Prelim, concatPacked8Prelim, concatPacked8Prelim)
+                                                   , packedNonAddFinal = concatPacked8Prelim
+                                                   }
+        newPacked8CharInfo = ((fst . V.head) packed8Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed8Chars}  
+
+       -- Packed64 characters
+        packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
+        packed64NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed64Chars
+        concatPacked64Prelim = V.concat $ V.toList packed64NonAddPrelimV
+        newPacked64Char = ((snd . V.head) packed64Chars) { packedNonAddPrelim = (concatPacked64Prelim, concatPacked64Prelim, concatPacked64Prelim)
+                                                   , packedNonAddFinal = concatPacked64Prelim
+                                                   }
+        newPacked64CharInfo = ((fst . V.head) packed64Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed64Chars}  
+
+        -- check for characters for concat this to control for all the 'head' statement above and only include relevent characters
+        (newNonAddCharL, newNonAddCharInfoL) = if (not . null) nonAddChars then ([newNonAddChar], [newNonAddCharInfo]) else ([],[])
+        (newAddCharL, newAddCharInfoL) = if (not . null) addChars then ([newAddChar], [newAddCharInfo]) else ([],[])
+        (newPacked2CharL, newPacked2CharInfoL) = if (not . null) packed2Chars then ([newPacked2Char], [newPacked2CharInfo]) else ([],[])
+        (newPacked4CharL, newPacked4CharInfoL) = if (not . null) packed4Chars then ([newPacked4Char], [newPacked4CharInfo]) else ([],[])
+        (newPacked5CharL, newPacked5CharInfoL) = if (not . null) packed5Chars then ([newPacked5Char], [newPacked5CharInfo]) else ([],[])
+        (newPacked8CharL, newPacked8CharInfoL) = if (not . null) packed8Chars then ([newPacked8Char], [newPacked8CharInfo]) else ([],[])
+        (newPacked64CharL, newPacked64CharInfoL) = if (not . null) packed64Chars then ([newPacked64Char], [newPacked64CharInfo]) else ([],[])
+
+        
+        -- Add together all new characters, seqeunce characters and char info
+        newCharList = newNonAddCharL ++ newAddCharL ++ newPacked2CharL ++ newPacked4CharL ++ newPacked5CharL ++ newPacked8CharL ++ newPacked64CharL ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
+        newCharInfoList = newNonAddCharInfoL ++ newAddCharInfoL ++ newPacked2CharInfoL ++ newPacked4CharInfoL ++ newPacked5CharInfoL ++ newPacked8CharInfoL ++ newPacked64CharInfoL ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
+
+    in
+    (V.fromList newCharList, V.fromList newCharInfoList)
+
+
+-- | organizeMatrixCharsByMatrix combines matrix charcters if they have the same cost matrix
+organizeMatrixCharsByMatrix :: [(CharInfo, CharacterData)] -> [(CharacterData, CharInfo)]
+organizeMatrixCharsByMatrix incharsPair = 
+    if null incharsPair then []
+    else 
+        let costMatrixList = L.nub $ fmap costMatrix (fmap fst incharsPair)
+            charMatrixLL = fmap (getSameMatrixChars incharsPair) costMatrixList
+            newMatrixPairs = fmap combineMatrixCharsByMatrix charMatrixLL
+        in
+        newMatrixPairs 
+
+-- | combineMatrixCharsByMatrix combines matrix characters--assumes cost matrices are the same
+combineMatrixCharsByMatrix :: [(CharInfo, CharacterData)] -> (CharacterData, CharInfo)
+combineMatrixCharsByMatrix inCharList =
+    let newMatrixcharData = V.concat $ fmap matrixStatesPrelim $ fmap snd inCharList
+        newMatrixChar = ((snd . head) inCharList) { matrixStatesPrelim = newMatrixcharData
+                                                  , matrixStatesFinal = newMatrixcharData
+                                                  }
+        newMatrixCharInfo = ((fst . head) inCharList) {origInfo = V.concat $ fmap (origInfo . fst) inCharList}
+    in
+    (newMatrixChar, newMatrixCharInfo)
+
+-- | getSameMatrixChars returns character pairs with same matrix as testMatrix
+getSameMatrixChars ::  [(CharInfo, CharacterData)] -> S.Matrix Int -> [(CharInfo, CharacterData)] 
+getSameMatrixChars incharsPair testMatrix =
+    let inMatrixList = fmap costMatrix (fmap fst incharsPair)
+        matrixPairPair = zip inMatrixList incharsPair
+        matchList = filter ((== testMatrix) . costMatrix . fst . snd) matrixPairPair
+    in
+    fmap snd matchList
+ 
 -- | groupDataByType takes naive data (ProcessedData) and returns PrcessedData
 -- with characters reorganized (within blocks)
     -- all non-additive (with same weight) merged to a single vector character
@@ -257,24 +395,24 @@ groupDataByType inData =
         (nameVect, nameBVVect, blockDataVect) = recodeAddToNonAddCharacters maxAddStatesToRecode inData
 
         -- reorganize data into same type
-        organizedBlockData =  V.map organizeBlockData' blockDataVect
+        organizedBlockData =  fmap organizeBlockData' (V.toList blockDataVect) `using` PU.myParListChunkRDS
     in
     --trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
     --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
-    (nameVect, nameBVVect, organizedBlockData)
+    (nameVect, nameBVVect, V.fromList organizedBlockData)
 
 -- | organizeBlockData' special cases and divides characters so that exact characters
 -- are reorgnized into single characters by type and cost matrix, while non-exact sequence
--- characters are unchanged.  Characters are reorganized wiht exact first in block then non-exact
+-- characters are unchanged.  Characters are reorganized with exact first in block then non-exact
 organizeBlockData' :: BlockData -> BlockData
 organizeBlockData' localBlockData =
     let numExactChars = U.getNumberExactCharacters (V.singleton localBlockData)
         numNonExactChars = U.getNumberSequenceCharacters (V.singleton localBlockData)
     in
-    -- if no nonexact--nothing to combine
+    -- if no exact--nothing to combine
     if numExactChars == 0 then localBlockData
 
-    -- if only non exact--split and recombine
+    -- if only non-exact--split and recombine
     else if numNonExactChars == 0 then organizeBlockData [] [] [] [] localBlockData
 
     -- if both nonexact and exact--pull out non-exact and recombine exact
@@ -387,11 +525,11 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
            else error ("Unrecognized/not implemented charcter type: " ++ show fCharType))
         -- )
 
--- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new charcter data
+-- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new character data
 -- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
 -- non-exact characters and those with non-integer weights
 -- and character Information vector
--- these only bupdate preliminary of their type--meant to happen before decoration processes
+-- these only update preliminary of their type--meant to happen before decoration processes
 -- emptyCharacter defined in Types
 makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
@@ -414,6 +552,7 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
         origAddData = V.fromList $ zip3 (fmap name $ fmap snd addCharList) (fmap charType $ fmap snd addCharList) (fmap alphabet $ fmap snd addCharList)
 
         addCharInfo = V.singleton $ (snd $ head addCharList) {name = T.pack "CombinedAdditiveCharacters", origInfo = origAddData}
+        
         -- Matrix Characters
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
 
