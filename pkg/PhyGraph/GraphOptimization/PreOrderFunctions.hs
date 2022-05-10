@@ -55,6 +55,7 @@ import qualified Data.Map                    as MAP
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
+import qualified Data.Vector.Unboxed         as UV
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
@@ -741,9 +742,9 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType `elem` packedNonAddTypes then
         let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-            (minDiffV, maxDiffV) = V.unzip $ V.zipWith (BP.minMaxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
-            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
-            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
+            (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            maxCost = thisWeight * (fromIntegral $ UV.sum maxDiffV)
+            minCost = thisWeight * (fromIntegral $ UV.sum minDiffV)
         in
         (minCost, maxCost)
 

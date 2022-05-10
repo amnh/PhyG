@@ -43,6 +43,8 @@ import           Data.Char
 import qualified Data.List                      as L
 import           Data.Maybe
 import qualified Data.Vector                    as V
+-- import qualified Data.Vector.Unboxed            as UV
+import qualified Data.Vector.Generic            as GV
 import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphOptimization.Traversals   as T
@@ -281,6 +283,8 @@ subSampleStatic randIntList inCharData inCharInfo =
 
        -- get character indices based on number "subcharacters"
        staticCharIndices = V.fromList $ fmap (randIndex charLength) (take charLength randIntList)
+       staticCharIndicesGV = GV.fromList $ fmap (randIndex charLength) (take charLength randIntList)
+
 
    in
    -- trace ("SSS:" ++ (show $ V.length staticCharIndices) ++ " " ++ (show staticCharIndices)) (
@@ -291,7 +295,7 @@ subSampleStatic randIntList inCharData inCharInfo =
          inCharData {stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)}
 
    else if inCharType `elem` packedNonAddTypes then
-         inCharData {packedNonAddPrelim = (V.map (pa1 V.!) staticCharIndices, V.map (pa2 V.!) staticCharIndices, V.map (pa3 V.!) staticCharIndices)}
+         inCharData {packedNonAddPrelim = (GV.map (pa1 GV.!) staticCharIndicesGV, GV.map (pa2 GV.!) staticCharIndicesGV, GV.map (pa3 GV.!) staticCharIndicesGV)}
 
    else if inCharType == Matrix then
          inCharData {matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
@@ -306,16 +310,16 @@ subSampleStatic randIntList inCharData inCharInfo =
 -- across the vetor of those characters (since they re vectors of charcters themselves
 -- returned as a pair of vectors (reversed--but shouldn't matter for resampling purposes)
 -- does not check if equal in length
-makeSampledVect :: [Bool] -> [a] -> V.Vector a -> V.Vector a
+makeSampledVect ::  (GV.Vector v a) => [Bool] -> [a] -> v a -> v a
 makeSampledVect boolList accumList inVect  =
-   if V.null inVect then
+   if GV.null inVect then
     -- trace ("MSV R: " ++ (show $ length accumList))
-    V.fromList accumList
+    GV.fromList accumList
    else
       -- trace ("MSV: " ++ (show $ head boolList)) (
-      if head boolList then makeSampledVect (tail boolList) ((V.head inVect) : accumList) (V.tail inVect)
+      if head boolList then makeSampledVect (tail boolList) ((GV.head inVect) : accumList) (GV.tail inVect)
 
-      else makeSampledVect (tail boolList) accumList (V.tail inVect)
+      else makeSampledVect (tail boolList) accumList (GV.tail inVect)
       -- )
 
 -- | makeSampledVect takes a liust of Bool and avector and returns those values
@@ -356,7 +360,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
             let newCharData = firstCharData {stateBVPrelim = (makeSampledVect fullBoolList [] na1, makeSampledVect fullBoolList [] na2, makeSampledVect fullBoolList [] na3)}
             in
             -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
-            if V.null (makeSampledVect fullBoolList [] na2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList(V.tail inCharInfoVect)  (V.tail inCharDataVect)
+            if V.null (makeSampledVect fullBoolList [] na2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (V.tail inCharInfoVect)  (V.tail inCharDataVect)
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
             -- )
 
@@ -364,8 +368,8 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
             let newCharData = firstCharData {packedNonAddPrelim = (makeSampledVect fullBoolList [] pa1, makeSampledVect fullBoolList [] pa2, makeSampledVect fullBoolList [] pa3)}
             in
             -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
-            if V.null (makeSampledVect fullBoolList [] pa2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList(V.tail inCharInfoVect)  (V.tail inCharDataVect)
-            else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
+            if GV.null (makeSampledVect fullBoolList [] pa2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (GV.tail inCharInfoVect)  (GV.tail inCharDataVect)
+            else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (GV.tail inCharInfoVect) (GV.tail inCharDataVect)
             -- )
 
          else if firstCharType == Matrix then
