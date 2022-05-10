@@ -489,7 +489,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , optimalityCriterion = Parsimony
                                      , graphType = Tree
                                      , compressResolutions = True
-                                     , finalAssignment = ImpliedAlignment
+                                     , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
                                      , modelComplexity = 0.0
