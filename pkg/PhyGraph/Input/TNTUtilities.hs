@@ -55,8 +55,9 @@ One Big thing--
             NEED TO FIX
 -}
 
-module Input.TNTUtilities  (getTNTData
-                      ) where
+module Input.TNTUtilities   (getTNTData
+                            , getTNTDataText
+                            ) where
 
 import           Data.Alphabet
 import           Data.Char
@@ -70,7 +71,7 @@ import qualified Data.TCM                  as TCM
 import qualified Data.Text.Lazy            as T
 import qualified Data.Text.Short           as ST
 import           Debug.Trace
-import qualified GeneralUtilities          as GU
+--import qualified GeneralUtilities          as GU
 import qualified Input.DataTransformation  as DT
 import qualified Input.FastAC              as FAC
 import qualified SymMatrix                 as SM
@@ -79,15 +80,20 @@ import           Text.Read
 import           Types.Types
 
 
-
-
 -- getTNTData take file contents and returns raw data and char info form TNT file
 getTNTData :: String -> String -> RawData
 getTNTData inString fileName =
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else
-        let inString' = unlines $ filter (not . null) $ GU.stripString <$> lines inString
-            inText = T.strip $ T.pack inString'
+        getTNTDataText (T.pack inString) fileName
+
+-- getTNTDataText take file contents and returns raw data and char info form TNT file
+getTNTDataText :: T.Text -> String -> RawData
+getTNTDataText inString fileName =
+    if T.null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
+    else
+        let inString' = T.unlines $ filter (not . T.null) $ fmap T.strip (T.lines inString)
+            inText = T.strip inString'
         in
         if toLower (T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else

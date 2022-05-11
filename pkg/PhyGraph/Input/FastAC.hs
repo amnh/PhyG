@@ -36,8 +36,10 @@ Portability :  portable (I hope)
 
 module Input.FastAC
   ( getFastA
+  , getFastAText
   , getFastaCharInfo
   , getFastC
+  , getFastCText
   , getFastcCharInfo
   , genDiscreteDenseOfDimension
   ) where
@@ -332,6 +334,28 @@ getFastA fileContents' fileName isPreligned =
             if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
             else pairData
 
+-- | getFastAText processes fasta file
+-- assumes single character alphabet
+-- deletes '-' (unless "prealigned"), and spaces
+getFastAText :: T.Text -> String -> Bool-> [TermData]
+getFastAText fileContents' fileName isPreligned =
+    if T.null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
+    else
+        -- removes ';' comments
+        let fileContents =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents'
+        in
+        if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
+        else
+            let terminalSplits = T.split (=='>') fileContents
+                pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
+                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+            in
+            -- tail because initial split will an empty text
+            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            else pairData
+
+
+
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
 getRawDataPairsFastA :: Bool -> [T.Text] -> [TermData]
 getRawDataPairsFastA isPreligned inTextList =
@@ -372,6 +396,35 @@ getFastC fileContents' fileName isPreligned =
             else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') $ T.pack fileContents
+                    pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
+                    (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
+                in
+                -- tail because initial split will an empty text
+                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                else pairData
+
+-- | getFastCText processes fasta file
+-- assumes spaces between alphabet elements
+-- deletes '-' (unless "prealigned")
+-- NEED TO ADD AMBIGUITY
+getFastCText :: T.Text -> String -> Bool -> [TermData]
+getFastCText fileContents' fileName isPreligned =
+    if T.null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
+    else
+        let fileContentLines = filter (not . T.null) $ fmap T.strip (T.lines fileContents')
+        in
+        if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+            ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+        -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
+        --  because of latexIPA encodings using ';'(and '$')
+        else
+            let fileContents = T.unlines $ filter ((/=';') . T.head) fileContentLines
+            in
+            if T.null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+                ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+            else if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
+            else
+                let terminalSplits = T.split (=='>') fileContents
                     pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in

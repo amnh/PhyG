@@ -65,6 +65,7 @@ import qualified Utilities.LocalGraph       as LG
 import qualified Utilities.Utilities        as U
 import           Data.Maybe
 import           Text.Read
+import qualified Data.Text.Lazy.IO          as TIO
 
 
 
@@ -175,8 +176,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
             -- not "dot" files
             else do
                 -- hPutStrLn stderr ("FC1: " ++ firstFile)
-                fileContents <- if (',' `notElem` firstFile) then hGetContents fileHandle
-                                else return firstFile
+                fileContents <- if (',' `notElem` firstFile) then TIO.hGetContents fileHandle
+                                else return (T.pack firstFile)
 
                 {--Strict version--don't think necessary--but could getvinot open fikle number issues?
                  -- destroys lazyness but allows closing right away
@@ -185,15 +186,15 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 hClose fileHandle
                 -}
             
-                if null fileContents then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
+                if T.null fileContents then errorWithoutStackTrace ("Error: Input file " ++ firstFile ++ " is empty")
                 else
                     -- try to figure out file type based on first and following characters
                     if firstOption == "tcm" then
-                        let newTCMPair = processTCMContents (',' `elem` firstFile) fileContents firstFile
+                        let newTCMPair = processTCMContents (',' `elem` firstFile) (T.unpack fileContents) firstFile
                         in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' newTCMPair (tail argList)
                     else if null firstOption then
-                        let firstChar = head $ dropWhile (== ' ') fileContents
+                        let firstChar = T.head $ T.dropWhile (== ' ') fileContents
                         in
                         if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
                             hPutStrLn stderr ("\tTrying to parse " ++ firstFile ++ " as dot")
@@ -210,7 +211,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             if hasCycles then errorWithoutStackTrace ("Input graph in " ++ firstFile ++ " has at least one cycle")
                             else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
-                            let thisGraphList = getFENewickGraph fileContents
+                            let thisGraphList = getFENewickGraphText fileContents
                                 hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                                 hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList
                             in
@@ -219,28 +220,28 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             else executeReadCommands' curData (thisGraphList ++ curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else if toLower firstChar == 'x' then
-                            let tntData = TNT.getTNTData fileContents firstFile
+                            let tntData = TNT.getTNTDataText fileContents firstFile
                             in
                             trace ("\tTrying to parse " ++ firstFile ++ " as TNT")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
-                            let fileContents' =  unlines $ filter (not.null) $ takeWhile (/= ';') <$> lines fileContents
+                            let fileContents' =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents
                             in
-                              if null (dropWhile (== ' ') fileContents') then errorWithoutStackTrace ("Null file '" ++ firstFile ++ "' input")
-                              else if head (dropWhile (== ' ') fileContents') == '>' then
-                                let secondLine = head $ tail $ lines fileContents'
-                                    numSpaces = length $ L.elemIndices ' ' secondLine
+                              if T.null (T.dropWhile (== ' ') fileContents') then errorWithoutStackTrace ("Null file '" ++ firstFile ++ "' input")
+                              else if T.head (T.dropWhile (== ' ') fileContents') == '>' then
+                                let secondLine = (T.lines fileContents') !! 1
+                                    hasSpaces = T.find (== ' ') secondLine
                                     -- numWords = length $ words secondLine
                                 in
                                 -- spaces between alphabet elements suggest fastc
-                                if numSpaces > 0 then
-                                    let fastcData = FAC.getFastC fileContents firstFile isPrealigned'
+                                if isJust hasSpaces then
+                                    let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else
-                                    let fastaData = FAC.getFastA fileContents firstFile isPrealigned'
+                                    let fastaData = FAC.getFastAText fileContents firstFile isPrealigned'
                                         fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " ++ firstFile ++ " as fasta")
@@ -249,20 +250,20 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         else errorWithoutStackTrace ("Cannot determine file type for " ++ firstFile ++ " need to prepend type")
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid"] then
-                        let fastaData = FAC.getFastA fileContents firstFile isPrealigned'
+                        let fastaData = FAC.getFastAText fileContents firstFile isPrealigned'
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if firstOption `elem` ["fastc"]  then
-                        let fastcData = FAC.getFastC fileContents firstFile isPrealigned'
+                        let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
-                        let fastaData = FAC.getFastA fileContents firstFile True
+                        let fastaData = FAC.getFastAText fileContents firstFile True
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
                         in
                         -- trace ("POSTREAD:" ++ (show fastaCharInfo) ++ "\n" ++ (show fastaData))
@@ -270,20 +271,20 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                     -- prealigned fastc
                     else if firstOption `elem` ["prefastc"]  then
-                        let fastcData = FAC.getFastC fileContents firstFile True
+                        let fastcData = FAC.getFastCText fileContents firstFile True
                             fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile True tcmPair
                         in
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- tnt
                     -- tnt
                     else if firstOption == "tnt" then
-                        let tntData = TNT.getTNTData fileContents firstFile
+                        let tntData = TNT.getTNTDataText fileContents firstFile
                         in
                         executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- FENEwick
                     else if firstOption `elem` ["newick" , "enewick", "fenewick"]  then
-                        let thisGraphList = getFENewickGraph fileContents
+                        let thisGraphList = getFENewickGraphText fileContents
                             hasLoops = filter (== True) $ fmap B.hasLoop thisGraphList
                             hasCycles = filter (== True) $ fmap GFU.cyclic thisGraphList
                         in
@@ -293,20 +294,20 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     
                     -- reading terminals list to include--must be "new" names if taxa are renamed
                     else if firstOption == "include"  then
-                        let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ lines fileContents)
+                        let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ fmap T.unpack $ T.lines fileContents)
                         in
                         executeReadCommands' curData curGraphs (terminalsList ++ curTerminals) curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else if firstOption == "exclude"  then
-                        let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ lines fileContents)
+                        let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments $ fmap T.unpack $ T.lines fileContents)
                         in
                         executeReadCommands' curData curGraphs curTerminals (excludeList ++ curExcludeList) curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else if firstOption == "rename"  then
-                        let renameLines = U.stripComments $ lines fileContents
+                        let renameLines = U.stripComments $ fmap T.unpack $ T.lines fileContents
                             namePairs = concatMap (makeNamePairs firstFile) renameLines
                         in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs ++ curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else if firstOption == "block"  then
-                        let renameLines = U.stripComments $ lines fileContents
+                        let renameLines = U.stripComments $ fmap T.unpack $ T.lines fileContents
                             blockPairs = concatMap (makeNamePairs firstFile) renameLines
                         in
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs (blockPairs ++ curReBlockPairs) isPrealigned' tcmPair (tail argList)
@@ -364,13 +365,21 @@ getReadArgs fullCommand argList =
         else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
         -- )
         
+{-  Not used when migrated to Text input from String
 
 -- | getFENewickGraph takes graph contents and returns local graph format
 -- could be mulitple input graphs
 getFENewickGraph :: String -> [LG.Gr T.Text Double]
 getFENewickGraph fileString =
+    getFENewickGraphText (T.pack fileString)
+-}
+
+-- | getFENewickGraphText takes graph contents and returns local graph format
+-- could be mulitple input graphs
+getFENewickGraphText :: T.Text -> [LG.Gr T.Text Double]
+getFENewickGraphText fileString =
     -- trace (fileString)
-    LG.getFENLocal (T.filter (/= '\n') $ T.strip $ T.pack fileString)
+    LG.getFENLocal (T.filter (/= '\n') $ T.strip fileString)
 
 -- | processTCMContents
 -- functionality added to integerize tcm and add weight factor to allow for decimal tcm values
