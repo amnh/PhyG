@@ -306,8 +306,8 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , alignedHugeFinal   :: V.Vector BV.BitVector
 
                                      -- coiuld be made Storable later is using C or GPU/Accelerate
-                                     , packedNonAddPrelim :: (V.Vector Word64, V.Vector Word64, V.Vector Word64)
-                                     , packedNonAddFinal  :: V.Vector Word64
+                                     , packedNonAddPrelim :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , packedNonAddFinal  :: UV.Vector Word64
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
@@ -489,7 +489,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , optimalityCriterion = Parsimony
                                      , graphType = Tree
                                      , compressResolutions = True
-                                     , finalAssignment = ImpliedAlignment
+                                     , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
                                      , modelComplexity = 0.0

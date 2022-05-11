@@ -75,15 +75,16 @@ rasWagnerBuild inGS inData rSeed numReplicates =
       in
       trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-      fmap (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences `using` PU.myParListChunkRDS
+      zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
 -- afterwards
 -- basic procs is to add edges to unresolved tree
 -- currently naive wrt candidate tree costs
-wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> PhylogeneticGraph
-wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence =
+wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> Int -> PhylogeneticGraph
+wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex =
+   trace ("\tBuilding Wagner replicate " ++ (show replicateIndex)) (
    let rootHTU = (numLeaves, TL.pack $ "HTU" ++ (show numLeaves))
        nextHTU = (numLeaves + 1, TL.pack $ "HTU" ++ (show $ numLeaves + 1))
 
@@ -106,6 +107,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
    -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n"
    --   ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
    wagnerTree
+   )
 
 
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
@@ -140,16 +142,20 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
       in
+      {-
       let -- progress = takeWhile (/='.') $ show  ((fromIntegral (100 * (newVertexIndex - nOTUs))/fromIntegral (nOTUs - 2)) :: Double)
           (percentAdded, _) = divMod (100 * ((numLeaves - 2) - (V.length additionSequence))) (numLeaves - 2)
           (decileNumber, decileRemainder) = divMod percentAdded 10
           (_, oddRemainder) = divMod ((numLeaves - 2) - (V.length additionSequence)) 2
       in
       --trace (show (percentAdded, decileNumber, decileRemainder)) (
+      
       if decileRemainder == 0 && oddRemainder == 0 then
           trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
           recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
-      else recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+      else 
+      -}
+      recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
          -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more

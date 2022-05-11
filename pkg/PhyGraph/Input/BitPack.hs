@@ -53,6 +53,8 @@ import qualified Data.List                   as L
 import qualified Data.List.Split             as SL
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
+import qualified Data.Vector.Unboxed         as UV
+import qualified Data.Vector.Generic         as GV
 import           Data.Word
 import           Debug.Trace
 import           GeneralUtilities
@@ -990,7 +992,7 @@ median2Packed inCharType leftChar rightChar =
 -- of the final fields as preliminary and final
 unionPacked :: CharacterData -> CharacterData -> CharacterData
 unionPacked charL charR =
-    let newVect = V.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
+    let newVect = UV.zipWith (.|.) (packedNonAddFinal charL) (packedNonAddFinal charR)
     in
     emptyCharacter { packedNonAddPrelim = (newVect, newVect, newVect)
                    , packedNonAddFinal = newVect
@@ -1102,11 +1104,11 @@ andOR64 x y =
      else (x .|. y, 1)
 
 -- | median2Word64 driver function for median of two PackedN states
-median2Word64 :: (Word64 -> Word64 -> (Word64, Int)) -> V.Vector Word64 -> V.Vector Word64 -> (V.Vector Word64, Int)
+median2Word64 :: (Word64 -> Word64 -> (Word64, Int)) -> UV.Vector Word64 -> UV.Vector Word64 -> (UV.Vector Word64, Int)
 median2Word64 andOrFun leftVect rightVect =
-    let (stateVect, costVect) = V.unzip $ V.zipWith andOrFun leftVect rightVect
+    let (stateVect, costVect) = UV.unzip $ UV.zipWith andOrFun leftVect rightVect
     in
-    (stateVect, V.sum costVect)
+    (stateVect, UV.sum costVect)
 
 {-
 Functions for median3 calculations of packed types
@@ -1119,13 +1121,13 @@ among others.
 -- and parent final assignment and creates final assignment for current node
 -- a bit clumsy since uses Goloboff modifications and have to do some of the preOrder pass
 -- in Goloboff but not done here
-packedPreorder :: CharType -> (V.Vector Word64, V.Vector Word64, V.Vector Word64) -> V.Vector Word64 -> V.Vector Word64
+packedPreorder :: CharType -> (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64) -> UV.Vector Word64 -> UV.Vector Word64
 packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
-    let newStateVect = if inCharType == Packed2       then V.zipWith4 preOrder2 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed4  then V.zipWith4 preOrder4 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed5  then V.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed8  then V.zipWith4 preOrder8 leftPrelim childPrelim rightPrelim parentFinal
-                       else if inCharType == Packed64 then V.zipWith4 preOrder64 leftPrelim childPrelim rightPrelim parentFinal
+    let newStateVect = if inCharType == Packed2       then UV.zipWith4 preOrder2 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed4  then UV.zipWith4 preOrder4 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed5  then UV.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed8  then UV.zipWith4 preOrder8 leftPrelim childPrelim rightPrelim parentFinal
+                       else if inCharType == Packed64 then UV.zipWith4 preOrder64 leftPrelim childPrelim rightPrelim parentFinal
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     newStateVect
@@ -1231,13 +1233,13 @@ Functions for hard-wired 3-way optimization
 -}
  -- | threeWayPacked median 3 for hard-wired networks
  -- this is based on Goloboff (2002) for trichotomous trees
-threeWayPacked :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
+threeWayPacked :: CharType -> UV.Vector Word64 -> UV.Vector Word64 -> UV.Vector Word64 -> UV.Vector Word64
 threeWayPacked inCharType parent1 parent2 curNode =
-    let newStateVect = if inCharType == Packed2       then V.zipWith3 threeWay2 parent1 parent2 curNode
-                       else if inCharType == Packed4  then V.zipWith3 threeWay4 parent1 parent2 curNode
-                       else if inCharType == Packed5  then V.zipWith3 threeWay5 parent1 parent2 curNode
-                       else if inCharType == Packed8  then V.zipWith3 threeWay8 parent1 parent2 curNode
-                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode
+    let newStateVect = if inCharType == Packed2       then UV.zipWith3 threeWay2 parent1 parent2 curNode
+                       else if inCharType == Packed4  then UV.zipWith3 threeWay4 parent1 parent2 curNode
+                       else if inCharType == Packed5  then UV.zipWith3 threeWay5 parent1 parent2 curNode
+                       else if inCharType == Packed8  then UV.zipWith3 threeWay8 parent1 parent2 curNode
+                       else if inCharType == Packed64 then UV.zipWith3 threeWay64 parent1 parent2 curNode
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     newStateVect
@@ -1246,13 +1248,13 @@ threeWayPacked inCharType parent1 parent2 curNode =
 -- this uses lists of masks so likely slower than Goloboff
 -- this approach could also be used for min/max to be simpler but alos likelu slower since previous is
 -- manually unrolled
-threeWayPacked' :: CharType -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
+threeWayPacked' :: CharType -> UV.Vector Word64 -> UV.Vector Word64 -> UV.Vector Word64 -> UV.Vector Word64
 threeWayPacked' inCharType parent1 parent2 curNode =
-    let newStateVect = if inCharType == Packed2       then V.zipWith3 (threeWayNWord64 packed2SubCharList) parent1 parent2 curNode
-                       else if inCharType == Packed4  then V.zipWith3 (threeWayNWord64 packed4SubCharList) parent1 parent2 curNode 
-                       else if inCharType == Packed5  then V.zipWith3 (threeWayNWord64 packed5SubCharList) parent1 parent2 curNode 
-                       else if inCharType == Packed8  then V.zipWith3 (threeWayNWord64 packed8SubCharList) parent1 parent2 curNode 
-                       else if inCharType == Packed64 then V.zipWith3 threeWay64 parent1 parent2 curNode
+    let newStateVect = if inCharType == Packed2       then UV.zipWith3 (threeWayNWord64 packed2SubCharList) parent1 parent2 curNode
+                       else if inCharType == Packed4  then UV.zipWith3 (threeWayNWord64 packed4SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed5  then UV.zipWith3 (threeWayNWord64 packed5SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed8  then UV.zipWith3 (threeWayNWord64 packed8SubCharList) parent1 parent2 curNode 
+                       else if inCharType == Packed64 then UV.zipWith3 threeWay64 parent1 parent2 curNode
                        else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
     in
     newStateVect
@@ -1466,10 +1468,11 @@ recodeBV2Word64Single charInfo charTaxBVLL =
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
 -- of type a (bitvector or Word64) and returns a list of taxa each of which is a vector
 -- of type a charactyer data
-makeNewCharacterData :: [[a]] -> [V.Vector a]
+-- generic verctor so can have Unboxed V and Boxed V
+makeNewCharacterData :: (GV.Vector v a) => [[a]] -> [v a]
 makeNewCharacterData charByTaxSingleCharData  =
     let taxonByCharL = L.transpose charByTaxSingleCharData
-        taxonByCharV = fmap V.fromList taxonByCharL
+        taxonByCharV = fmap GV.fromList taxonByCharL
     in
     taxonByCharV
 
@@ -1520,7 +1523,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         packIndexLL = SL.chunksOf numToPack stateCharacterIndexL
 
         -- pack each chunk
-        packedWordVect = V.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
+        packedWordVect = UV.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
     in
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))

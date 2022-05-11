@@ -76,8 +76,9 @@ wPGMA leafNames distMatrix outgroup =
 
 -- | pulls dWagner function from module Wagner
 doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> [V.Vector Int]-> [TreeWithData]
-doWagnerS = trace "\n\tBuilding Wagner tree"
-  W.doWagnerS
+doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSequences = 
+  trace ("\tBuilding " ++ (show $ length replicateSequences) ++ " Wagner tree(s)")
+  W.doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSequences
 
 -- | pulls Wagner refinement from Wagner module
 performWagnerRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> [TreeWithData]

@@ -79,7 +79,7 @@ getCharacterInsertCost inChar charInfo =
     in
     if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ rangePrelim inChar)
     else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ stateBVPrelim inChar)
-    else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ packedNonAddPrelim inChar)
+    else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
     else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
     else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
@@ -508,7 +508,7 @@ getCharacterLength inCharData inCharInfo =
     -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
       x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ stateBVPrelim inCharData
-      x | x `elem` packedNonAddTypes   -> V.length  $ snd3 $ packedNonAddPrelim inCharData
+      x | x `elem` packedNonAddTypes   -> UV.length  $ snd3 $ packedNonAddPrelim inCharData
       x | x `elem` [Add              ] -> V.length  $ snd3 $ rangePrelim inCharData
       x | x `elem` [Matrix           ] -> V.length  $ matrixStatesPrelim inCharData
       x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
