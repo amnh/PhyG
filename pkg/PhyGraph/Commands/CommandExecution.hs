@@ -580,25 +580,25 @@ makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
 outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList lOutgroupIndex graphList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
+  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
--- | outputGraphString is a wrapper arounf graph output functions
+-- | outputGraphString is a wrapper around graph output functions
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
+  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
--- | outputGraphStringSimple is a wrapper arounf graph output functions
+-- | outputGraphStringSimple is a wrapper around graph output functions
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex graphList costList
+  | "newick" `elem` commandList = makeNewickList True True lOutgroupIndex graphList costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex graphList
@@ -611,9 +611,18 @@ makeDotList rootIndex graphList =
      L.intercalate "\n" (fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList)
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
-makeNewickList ::  Int -> [SimpleGraph] -> [VertexCost] -> String
-makeNewickList rootIndex graphList costList =
-    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  True True
+makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
+makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
+
+        -- check for network HTU label requirement
+        writeNodeLabel = if allTrees then writeNodeLabel'
+                         else if writeNodeLabel' then writeNodeLabel'
+                         else 
+                            trace ("HTU labels are required for ENewick Output")
+                            True
+
+        graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
         costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
         graphStringCost = concat $ zipWith (++) newickStringList costStringList
