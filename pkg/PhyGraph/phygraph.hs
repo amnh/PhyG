@@ -56,6 +56,7 @@ import qualified Utilities.Distances          as D
 import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.Time                    as DT
+import           Debug.Trace
 
 -- | main driver
 main :: IO ()
@@ -192,7 +193,9 @@ main = do
 
     -- Combines data of exact types into single vectors in each block
     -- thids is final data processing step
-    let optimizedData = if (not . null) newBlockPairList then R.combineDataByType reBlockedNaiveData
+    let optimizedData = if (not . null) newBlockPairList then 
+                            trace ("Reorganizing Block data") 
+                            R.combineDataByType reBlockedNaiveData
                         else optimizedPrealignedData
 
     
