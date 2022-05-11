@@ -474,8 +474,8 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
 
         -- remove inactive characters
-        if not fCharActivity || (length fAlphabet < 2) || (fCharWeight == (0 :: Double)) then
-            -- trace ("Innactive")
+        if not fCharActivity || fCharWeight == (0 :: Double) then
+            trace ("Innactive/Weight 0")
             organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
         else (if isNothing intWeight then
                -- add to unchanged pile

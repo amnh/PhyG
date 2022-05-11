@@ -317,10 +317,10 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
 ccodeChars :: [Char]
 ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
 
--- | getCCodes takes aline form TNT and modifies characters according to cc-code option
+-- | getCCodes takes a line from TNT and modifies characters according to cc-code option
 -- assumes single command (ccodeChars) per line
 -- could sort and num so only hit each char once--but would be n^2 then.
--- teh sinfglton stuff for compount things like "+."
+-- the singleton stuff for compount things like "+."
 getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
 getCCodes fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
@@ -330,7 +330,7 @@ getCCodes fileName charNumber commandWordList curCharInfo =
             scopeList = if T.length (head commandWordList) == 1 then tail commandWordList
                         else T.tail (head commandWordList) : tail commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
-            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus charIndices 0 []
+            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " character status processing error:  option not recognized/implemented " ++ (T.unpack charStatus))
@@ -482,8 +482,8 @@ scopeToIndex fileName numChars scopeText =
 -- in a single pass.
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise return the reverse since new values are prepended
-getNewCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
-getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
+getNewCharInfo :: String -> [CharInfo] -> T.Text -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
+getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
     if null inCharList then reverse curCharList
     else if null indexList then
@@ -494,7 +494,7 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then getNewCharInfo fileName (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList)
+        if charIndex /= firstIndex then getNewCharInfo fileName (tail inCharList) newStatus newStatusFull indexList (charIndex + 1) (firstCharInfo : curCharList)
         else
             let updatedCharInfo
                   | newStatus == T.pack "-" = firstCharInfo {charType = NonAdd}
@@ -503,17 +503,17 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
                   | newStatus == T.pack "]" = firstCharInfo {activity = False}
                   | newStatus == T.pack "(" = firstCharInfo {charType = Matrix}
                   | newStatus == T.pack ")" = firstCharInfo {charType = NonAdd}
-                  | newStatus == T.pack "/" = firstCharInfo {weight = 1.0}
+                  -- | newStatus == T.pack "/" = firstCharInfo {weight = 1.0}
                   | T.head newStatus ==  '/' =
-                     let newWeight = readMaybe (tail $ T.unpack newStatus) :: Maybe Double
+                     let newWeight = readMaybe (tail $ T.unpack newStatusFull) :: Maybe Double
                      in
-                     if isNothing newWeight then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: weight " ++ tail (T.unpack newStatus) ++ " not an integer")
+                     if isNothing newWeight then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: weight " ++ tail (T.unpack newStatusFull) ++ " not a double")
                      else firstCharInfo {weight = fromJust newWeight}
-                          | otherwise =
+                  | otherwise =
                      trace ("Warning: TNT file " ++ fileName ++ " ccodes command " ++ T.unpack newStatus ++ " is unrecognized/not implemented--skipping")
                      firstCharInfo
-                    in
-                    getNewCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
+            in
+            getNewCharInfo fileName (tail inCharList) newStatus newStatusFull (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
 
 -- | newCharInfoMatrix updates alphabet and tcm matrix for characters in indexList
@@ -619,12 +619,16 @@ getAlphabetFromSTList fileName inStates inCharInfo =
         thisWeight = weight inCharInfo
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
                        else 0
-        (thisAlphabet, newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] []
+        (thisAlphabet', newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] []
         newWeight = if mostDecimals > 0 then  thisWeight / (10.0 ** fromIntegral mostDecimals)
                     else thisWeight
+
+        thisAlphabet = if null thisAlphabet' then [ST.fromString "0"]
+                       else thisAlphabet'
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
+    trace ("getAlph weight: " ++ (show thisWeight))
     (fromSymbols thisAlphabet, newWeight, newColumn)
 
 
