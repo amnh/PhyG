@@ -99,15 +99,18 @@
 		
 		
 		\item{Data are reorganized (groupDataByType) by type (Module Input.Reorganize).  This puts all additive, non-additive, and matrix (with same 
-			transformation cost/step matrix) characters in a data block into single character structures.  These structures contain vectors of 
+			transformation cost/step matrix) characters in the initial data block into single character structures.  These structures contain vectors of 
 			characters of the same type.  
-			This improves both efficiency and clarity of code.} 
+			This improves both efficiency and clarity of code. In addition, Additive characters with maximum state 	$<$ 65 
+			are recoded as non-additive binary characters \cite{Farris1970} if they do not have weights--this to ensure proper optimization of 
+			`continuous' characters.} 
 		
-		\item{Data blocks are reassigned from naive data (Module Input.Reorganize), and relevant commands remove from command queue.}
+		\item{Data are optimized by 1) ``bit-packing'' non-additive characters into 64-bit words to improve both memory consumption
+			and efficiency of operations \cite{Ronquist1998, moilanen1999, goloboff2002, WhiteandHolland2011}, and 2) removing constant positions in prealigned sequence characters and recoding those with non-additive-type costs (ie all 1) as non-additive and then bit-packed.}
 		
-		\item{Data are optimized by 1) removing constant positions in prealigned sequence characters; 2) recoding additive characters with maximum state $<$ 65 
-			 as non-additive binary characters \cite{Farris1970}; and 3) ``bit packing'' non-additive characters into 64-bit words to improve both memory consumption
-			 and efficiency of operations \cite{Ronquist1998, moilanen1999, goloboff2002, WhiteandHolland2011}.}
+		\item{Data blocks are reassigned from  data (Module Input.Reorganize), and relevant commands remove from command queue.}
+		
+		\item{Characters in each data block are combined by type as with groupDataByType (using a different function that operated on non-singleton characters---ie after initial grouping by type in initial blocks).}
 		
 		\item{Global ``set'' operations are performed and relevant commands
 			removed from command queue.}

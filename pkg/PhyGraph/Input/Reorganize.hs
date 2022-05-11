@@ -292,7 +292,7 @@ combineBlockData inCharInfoV inCharDataV =
         -- Packed2 characters
         packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
         packed2NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed2Chars
-        concatPacked2Prelim = V.concat $ V.toList packed2NonAddPrelimV
+        concatPacked2Prelim = UV.concat $ V.toList packed2NonAddPrelimV
         newPacked2Char = ((snd . V.head) packed2Chars) { packedNonAddPrelim = (concatPacked2Prelim, concatPacked2Prelim, concatPacked2Prelim)
                                                    , packedNonAddFinal = concatPacked2Prelim
                                                    }
@@ -301,7 +301,7 @@ combineBlockData inCharInfoV inCharDataV =
         -- Packed4 characters
         packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
         packed4NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed4Chars
-        concatPacked4Prelim = V.concat $ V.toList packed4NonAddPrelimV
+        concatPacked4Prelim = UV.concat $ V.toList packed4NonAddPrelimV
         newPacked4Char = ((snd . V.head) packed4Chars) { packedNonAddPrelim = (concatPacked4Prelim, concatPacked4Prelim, concatPacked4Prelim)
                                                    , packedNonAddFinal = concatPacked4Prelim
                                                    }
@@ -310,7 +310,7 @@ combineBlockData inCharInfoV inCharDataV =
         -- Packed5 characters
         packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
         packed5NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed5Chars
-        concatPacked5Prelim = V.concat $ V.toList packed5NonAddPrelimV
+        concatPacked5Prelim = UV.concat $ V.toList packed5NonAddPrelimV
         newPacked5Char = ((snd . V.head) packed5Chars) { packedNonAddPrelim = (concatPacked5Prelim, concatPacked5Prelim, concatPacked5Prelim)
                                                    , packedNonAddFinal = concatPacked5Prelim
                                                    }
@@ -319,7 +319,7 @@ combineBlockData inCharInfoV inCharDataV =
         -- Packed8 characters
         packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
         packed8NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed8Chars
-        concatPacked8Prelim = V.concat $ V.toList packed8NonAddPrelimV
+        concatPacked8Prelim = UV.concat $ V.toList packed8NonAddPrelimV
         newPacked8Char = ((snd . V.head) packed8Chars) { packedNonAddPrelim = (concatPacked8Prelim, concatPacked8Prelim, concatPacked8Prelim)
                                                    , packedNonAddFinal = concatPacked8Prelim
                                                    }
@@ -328,7 +328,7 @@ combineBlockData inCharInfoV inCharDataV =
        -- Packed64 characters
         packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
         packed64NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed64Chars
-        concatPacked64Prelim = V.concat $ V.toList packed64NonAddPrelimV
+        concatPacked64Prelim = UV.concat $ V.toList packed64NonAddPrelimV
         newPacked64Char = ((snd . V.head) packed64Chars) { packedNonAddPrelim = (concatPacked64Prelim, concatPacked64Prelim, concatPacked64Prelim)
                                                    , packedNonAddFinal = concatPacked64Prelim
                                                    }
@@ -949,10 +949,12 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
+        numStates = min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         origName = name inCharInfo
+        charWeight = weight inCharInfo
     in
-    if (inCharType /= Add) || (numStates > maxStateToRecode) || (numStates < 2) then (V.singleton inCharData, V.singleton inCharInfo)
+    -- if a single state recodes to a single uninfomative binary which will be filtered out when bit-packed
+    if (inCharType /= Add) || (numStates > maxStateToRecode) || charWeight /= (1 :: Double) then (V.singleton inCharData, V.singleton inCharInfo)
     else
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
         -- bits ON-- [0.. snd range]

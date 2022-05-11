@@ -63,7 +63,7 @@ main = do
     dateFull <- DT.getCurrentTime
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "under the 3-Clause BSD License.\nCompiled " ++ (show dateFull)
+    let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ (show dateFull)
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
 
     -- Process arguments--a single file containing commands
