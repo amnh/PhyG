@@ -589,7 +589,7 @@ outputDisplayString commandList lOutgroupIndex graphList
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = trace ("OGS: " ++ (show commandList)) makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
+  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -612,8 +612,17 @@ makeDotList rootIndex graphList =
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
 makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
-makeNewickList writeEdgeWeight writeNodeLable rootIndex graphList costList =
-    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLable
+makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
+
+        -- check for network HTU label requirement
+        writeNodeLabel = if allTrees then writeNodeLabel'
+                         else if writeNodeLabel' then writeNodeLabel'
+                         else 
+                            trace ("HTU labels are required for ENewick Output")
+                            True
+
+        graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
         costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
         graphStringCost = concat $ zipWith (++) newickStringList costStringList
