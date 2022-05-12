@@ -123,7 +123,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                          else if charType charInfo == AlignedWide then
                             convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
                          else if charType charInfo == AlignedHuge then
-                            alignedHugePrelim charData
+                            (mempty, snd3 $ alignedHugePrelim charData, mempty)
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in
         (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd})
@@ -137,7 +137,7 @@ convert2BVTriple size inM =
        inMBV = fmap (BV.fromNumber size) inMList
 
    in
-   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
+   (mempty, V.fromList inMBV, mempty)
 
 -- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
 -- this for leaves so assume M only one needed really
@@ -147,7 +147,7 @@ convert2BV size (_, inM, _) =
        inMBV = fmap (BV.fromNumber size) inMList
 
    in
-   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
+   (mempty, V.fromList inMBV, mempty)
 
 -- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive,
 -- non-additive with gap chars, or matrix
@@ -275,7 +275,7 @@ combineBlockData inCharInfoV inCharDataV =
         nonAddChars = V.filter ((== NonAdd) . charType . fst) pairCharsInfo
         nonAddPrelimV = fmap (snd3 . stateBVPrelim . snd) nonAddChars
         concatNonAddPrelim = V.concat $ V.toList nonAddPrelimV
-        newNonAddChar = ((snd . V.head) nonAddChars) { stateBVPrelim = (concatNonAddPrelim, concatNonAddPrelim, concatNonAddPrelim)
+        newNonAddChar = ((snd . V.head) nonAddChars) { stateBVPrelim = (mempty, concatNonAddPrelim, mempty)
                                                    , stateBVFinal = concatNonAddPrelim
                                                    }
         newNonAddCharInfo = ((fst . V.head) nonAddChars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) nonAddChars}  
@@ -284,7 +284,7 @@ combineBlockData inCharInfoV inCharDataV =
         addChars = V.filter ((== Add) . charType . fst) pairCharsInfo
         rangePrelimV = fmap (snd3 . rangePrelim . snd) addChars
         concatAddPrelim = V.concat $ V.toList rangePrelimV
-        newAddChar = ((snd . V.head) addChars) { rangePrelim = (concatAddPrelim, concatAddPrelim, concatAddPrelim)
+        newAddChar = ((snd . V.head) addChars) { rangePrelim = (mempty, concatAddPrelim, mempty)
                                                    , rangeFinal = concatAddPrelim
                                                    }
         newAddCharInfo = ((fst . V.head) addChars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) addChars}  
@@ -293,7 +293,7 @@ combineBlockData inCharInfoV inCharDataV =
         packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
         packed2NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed2Chars
         concatPacked2Prelim = UV.concat $ V.toList packed2NonAddPrelimV
-        newPacked2Char = ((snd . V.head) packed2Chars) { packedNonAddPrelim = (concatPacked2Prelim, concatPacked2Prelim, concatPacked2Prelim)
+        newPacked2Char = ((snd . V.head) packed2Chars) { packedNonAddPrelim = (mempty, concatPacked2Prelim, mempty)
                                                    , packedNonAddFinal = concatPacked2Prelim
                                                    }
         newPacked2CharInfo = ((fst . V.head) packed2Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed2Chars}  
@@ -302,7 +302,7 @@ combineBlockData inCharInfoV inCharDataV =
         packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
         packed4NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed4Chars
         concatPacked4Prelim = UV.concat $ V.toList packed4NonAddPrelimV
-        newPacked4Char = ((snd . V.head) packed4Chars) { packedNonAddPrelim = (concatPacked4Prelim, concatPacked4Prelim, concatPacked4Prelim)
+        newPacked4Char = ((snd . V.head) packed4Chars) { packedNonAddPrelim = (mempty, concatPacked4Prelim, mempty)
                                                    , packedNonAddFinal = concatPacked4Prelim
                                                    }
         newPacked4CharInfo = ((fst . V.head) packed4Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed4Chars}  
@@ -311,7 +311,7 @@ combineBlockData inCharInfoV inCharDataV =
         packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
         packed5NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed5Chars
         concatPacked5Prelim = UV.concat $ V.toList packed5NonAddPrelimV
-        newPacked5Char = ((snd . V.head) packed5Chars) { packedNonAddPrelim = (concatPacked5Prelim, concatPacked5Prelim, concatPacked5Prelim)
+        newPacked5Char = ((snd . V.head) packed5Chars) { packedNonAddPrelim = (mempty, concatPacked5Prelim, mempty)
                                                    , packedNonAddFinal = concatPacked5Prelim
                                                    }
         newPacked5CharInfo = ((fst . V.head) packed5Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed5Chars}  
@@ -320,7 +320,7 @@ combineBlockData inCharInfoV inCharDataV =
         packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
         packed8NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed8Chars
         concatPacked8Prelim = UV.concat $ V.toList packed8NonAddPrelimV
-        newPacked8Char = ((snd . V.head) packed8Chars) { packedNonAddPrelim = (concatPacked8Prelim, concatPacked8Prelim, concatPacked8Prelim)
+        newPacked8Char = ((snd . V.head) packed8Chars) { packedNonAddPrelim = (mempty, concatPacked8Prelim, mempty)
                                                    , packedNonAddFinal = concatPacked8Prelim
                                                    }
         newPacked8CharInfo = ((fst . V.head) packed8Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed8Chars}  
@@ -329,7 +329,7 @@ combineBlockData inCharInfoV inCharDataV =
         packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
         packed64NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed64Chars
         concatPacked64Prelim = UV.concat $ V.toList packed64NonAddPrelimV
-        newPacked64Char = ((snd . V.head) packed64Chars) { packedNonAddPrelim = (concatPacked64Prelim, concatPacked64Prelim, concatPacked64Prelim)
+        newPacked64Char = ((snd . V.head) packed64Chars) { packedNonAddPrelim = (mempty, concatPacked64Prelim, mempty)
                                                    , packedNonAddFinal = concatPacked64Prelim
                                                    }
         newPacked64CharInfo = ((fst . V.head) packed64Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed64Chars}  
@@ -655,13 +655,13 @@ combineAdditveCharacters addCharList charTemplate currentRangeList =
 -- convertes chars to single vector and makes new character for the taxon
 -- assumes a leaf so all fields same
 makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
-makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (V.fromList bvList, V.fromList bvList, V.fromList bvList)}
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (mempty, V.fromList bvList,mempty)}
 
 -- | makeAddCharacterList takes a taxon list of characters
 -- to single vector and makes new character for the taxon
 -- assums a leaf so so all fields same
 makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
-makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (V.fromList rangeList, V.fromList rangeList, V.fromList rangeList)}
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (mempty, V.fromList rangeList, mempty)}
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters
 -- replicates character by integer weight
@@ -913,12 +913,12 @@ assignNewField :: CharType
                -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
                -> CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
-    if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
-    else if inCharType == Add then charData {rangePrelim = (addData, addData, addData)}
+    if inCharType == NonAdd then charData {stateBVPrelim = (mempty, nonAddData, mempty)}
+    else if inCharType == Add then charData {rangePrelim = (mempty, addData, mempty)}
     else if inCharType == Matrix then charData {matrixStatesPrelim = matrixData}
-    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
-    else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
-    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
+    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (mempty, alignedSlimData, mempty)}
+    else if inCharType == AlignedWide then charData {alignedWidePrelim = (mempty, alignedWideData, mempty)}
+    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (mempty, alignedHugeData, mempty)}
     else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
 
 -- | recodeAddToNonAddCharacters takes an max states number and processsed data
@@ -998,7 +998,7 @@ makeNewNonAddChar minStateIndex maxStateIndex charIndex =
 
         bvState = bvMinState .|. bvMaxState
     in
-    emptyCharacter { stateBVPrelim = (V.singleton bvState, V.singleton bvState, V.singleton bvState)
+    emptyCharacter { stateBVPrelim = (mempty, V.singleton bvState, mempty)
                    , stateBVFinal = V.singleton bvState
                    }
 

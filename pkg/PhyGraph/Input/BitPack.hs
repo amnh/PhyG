@@ -1440,13 +1440,14 @@ recodeBV2BV charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = NonAdd}])
-        where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
+        where makeNewData a b = a {stateBVPrelim = (mempty,b,mempty), stateBVFinal = b}
 
 
 -- | recodeBV2Word64Single take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- of Word64 unpacked non-additive characters of type Packed64.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
+-- Aassumes a leaf only sets snd3
 recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64Single charInfo charTaxBVLL =
     if null charTaxBVLL then ([],[])
@@ -1463,7 +1464,7 @@ recodeBV2Word64Single charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
-        where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
+        where makeNewData a b = a {packedNonAddPrelim = (mempty,b,mempty), packedNonAddFinal = b}
 
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
 -- of type a (bitvector or Word64) and returns a list of taxa each of which is a vector
@@ -1527,7 +1528,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
 
     in
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
-    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
+    emptyCharacter { packedNonAddPrelim = (mempty, packedWordVect, mempty)
                    , packedNonAddFinal = packedWordVect
                    }
 

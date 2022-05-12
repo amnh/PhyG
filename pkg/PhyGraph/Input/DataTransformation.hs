@@ -471,7 +471,7 @@ missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
     let missingChar = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
     in
-    emptyCharacter { stateBVPrelim = (missingChar, missingChar, missingChar)
+    emptyCharacter { stateBVPrelim = (mempty, missingChar, mempty)
                    , stateBVFinal  = missingChar
                    }
 
@@ -484,7 +484,7 @@ missingAdditive inCharInfo =
                         (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
                         (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
   in
-  emptyCharacter { rangePrelim = (missingRange, missingRange, missingRange)
+  emptyCharacter { rangePrelim = (mempty, missingRange, mempty)
                  , rangeFinal = missingRange
                  }
 
@@ -621,7 +621,7 @@ getNucleotideSequenceChar stateList =
           | null stateList = mempty
           | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
         newSequenceChar = emptyCharacter { slimPrelim         = sequenceVect
-                                         , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                         , slimGapped         = (mempty, sequenceVect, mempty)
                                          }
     in [newSequenceChar]
 
@@ -632,7 +632,7 @@ getAminoAcidSequenceChar stateList =
           | null stateList = mempty
           | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
         newSequenceChar = emptyCharacter { widePrelim         = sequenceVect
-                                         , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                         , wideGapped         = (mempty, sequenceVect, mempty)
                                          }
     in [newSequenceChar]
 
@@ -682,8 +682,9 @@ getGeneralBVCode bvCodeVect inState =
             where getBV s = V.find ((== s).fst) bvCodeVect
 
 -- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
--- as bitvectors,.  Main difference with getSequenceChar is in dealing wioth ambiguities
+-- as bitvectors.  Main difference with getSequenceChar is in dealing wioth ambiguities
 -- they need to be parsed and "or-ed" differently
+-- need to have all three preliminary fields populatied for some reason--prob shouldn't need that
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
