@@ -328,7 +328,12 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         let charStatus =  if T.length (head commandWordList) == 1 then head commandWordList
                           else T.singleton $ T.head $ head commandWordList
             scopeList = if T.length (head commandWordList) == 1 then tail commandWordList
-                        else T.tail (head commandWordList) : tail commandWordList
+                        --not a weight--weight gets added to scope without special case
+                        else if (T.head $ head commandWordList) /= '/' then 
+                            T.tail (head commandWordList) : tail commandWordList
+                        --a weight '/'--weight gets added to scope without special case
+                        else 
+                            (T.unwords $ tail $ T.words $ T.tail (head commandWordList)) : tail commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
             updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
         in
@@ -628,7 +633,7 @@ getAlphabetFromSTList fileName inStates inCharInfo =
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
-    trace ("getAlph weight: " ++ (show thisWeight))
+    -- trace ("getAlph weight: " ++ (show thisWeight))
     (fromSymbols thisAlphabet, newWeight, newColumn)
 
 

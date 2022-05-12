@@ -77,14 +77,14 @@ import qualified Utilities.Utilities         as U
         -- bitPack new non-additive
             -- packNonAdditive
 optimizePrealignedData :: ProcessedData -> ProcessedData
-optimizePrealignedData inData =
-    -- convert prealigned to nonadditive if all 1 tcms
-    let inData' = convertPrealignedToNonAdditive inData
-
-    -- remove constant characters from prealigned
-        inData'' = removeConstantCharactersPrealigned inData'
-
-    -- bit packing for non-additivecharacters
+optimizePrealignedData inData = 
+    let -- remove constant characters from prealigned
+        inData' = removeConstantCharactersPrealigned inData
+        
+        -- convert prealigned to nonadditive if all 1 tcms
+        inData'' = convertPrealignedToNonAdditive inData'
+    
+        -- bit packing for non-additivecharacters
         inData''' = BP.packNonAdditiveData inData''
 
     in
@@ -454,7 +454,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         (blockNamne, newCharacterVector, newCharInfoVect)
         -}
         --trace ("New Char lengths :" ++ (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
-        let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList
+        let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList
         in
         (blockName, newCharDataVectVect, newCharInfoVect)
         -- )
@@ -474,10 +474,12 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
 
         -- remove inactive characters
-        if not fCharActivity || fCharWeight == (0 :: Double) then
-            trace ("Innactive/Weight 0")
+        if not fCharActivity || (length fAlphabet < 2) || fCharWeight == (0 :: Double) then
+            --trace ("Innactive/Weight 0")
             organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-        else (if isNothing intWeight then
+        else 
+            (-- trace ("OBD: " ++ (show intWeight)) (
+            if isNothing intWeight then
                -- add to unchanged pile
                let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter)
 
@@ -522,8 +524,8 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                -- )
 
            -- error in type--there should be no bit-packed data created yet.
-           else error ("Unrecognized/not implemented charcter type: " ++ show fCharType))
-        -- )
+           else error ("Unrecognized/not implemented charcter type: " ++ show fCharType)) -- )
+        
 
 -- | makeNewCharacterData takes nonAddCharList addCharList matrixCharListList unchangedCharList and synthesises them into new character data
 -- with a single character for the exact types (nonAdd, Add, Matrix) and mulitple characters for the "unchanged" which includes
@@ -534,8 +536,9 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
 makeNewCharacterData :: [([CharacterData], CharInfo)]
                      -> [([CharacterData], CharInfo)]
                      -> [([[CharacterData]], CharInfo)]
+                     -> [([CharacterData], CharInfo)]
                      -> (V.Vector (V.Vector CharacterData), V.Vector CharInfo)
-makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
+makeNewCharacterData nonAddCharList addCharList matrixCharListList  unchangedCharList =
     let
         -- Non-Additive Characters
         nonAddCharacter = combineNonAdditveCharacters nonAddCharList emptyCharacter []
@@ -557,18 +560,18 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  =
         (matrixCharacters, matrixCharInfoList) = mergeMatrixCharacters matrixCharListList emptyCharacter
 
         -- Unchanged characters
-        -- (unchangedCharacters, unchangeCharacterInfoList) = combineUnchangedCharacters unchangedCharList
+        (unchangedCharacters, unchangeCharacterInfoList) = unzip unchangedCharList
 
         -- buildList incrementally
         newCharacterList' = [nonAddCharacter | not (null nonAddCharacter)]
         newCharacterList'' = if null addCharacter then newCharacterList'
                              else addCharacter : newCharacterList'
-        newCharacterList''' = newCharacterList'' ++ matrixCharacters
+        newCharacterList''' = newCharacterList'' ++ matrixCharacters ++ unchangedCharacters
 
         newChararacterInfoList' = [nonAddCharInfo | not (null nonAddCharacter)]
         newChararacterInfoList'' = if null addCharacter then newChararacterInfoList'
                                   else addCharInfo : newChararacterInfoList'
-        newChararacterInfoList''' = newChararacterInfoList'' ++ fmap V.singleton matrixCharInfoList
+        newChararacterInfoList''' = newChararacterInfoList'' ++ (fmap V.singleton matrixCharInfoList) ++ (fmap V.singleton unchangeCharacterInfoList)
 
     in
     {-

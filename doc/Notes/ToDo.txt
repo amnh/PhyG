@@ -579,3 +579,6 @@ preOrderTreeTraversal
 
 347) maybe have a size limit for parallel bitpacking--as in over 100k (tax * chars) or something
 
+348) More fuse progress info
+
+349) CHeck weights and tcms for prealigned/sequence for PMDL
