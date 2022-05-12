@@ -699,7 +699,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
-                trace ("GAlphAmb: " ++ (show firstState)) (
+                -- trace ("GAlphAmb: " ++ (show firstState)) (
                 let hasDecimal = any (== '.') firstState
                     gutsList = if hasDecimal then words $ filter (`notElem` ['[',']']) firstState
                                else fmap (:[]) $ filter (`notElem` ['[',']']) firstState
@@ -712,7 +712,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                                         else ST.fromString $ '[' : (concat newStateNumberStringList) ++ "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (fmap ST.fromString newStateNumberStringList ++ newAlph) (newAmbigState : newStates)
-                )
+                -- )
 
 
 

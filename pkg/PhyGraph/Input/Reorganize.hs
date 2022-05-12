@@ -976,7 +976,7 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
             
                                               
         in
-        trace ("RTNA: Numstates " ++ (show numStates) ++ " " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
+        -- trace ("RTNA: Numstates " ++ (show numStates) ++ " " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
             -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
         (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
         where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int

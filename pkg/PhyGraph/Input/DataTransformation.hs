@@ -803,10 +803,10 @@ getIntRange localState totalAlphabet =
                                    --words $ tail $ init stateString
                 stateInts = fmap readMaybe statesStringList :: [Maybe Int]
             in
-            trace ("GIR:" ++ (show localState) ++ " -> " ++ (show (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts))) (
+            -- trace ("GIR:" ++ (show localState) ++ " -> " ++ (show (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts))) (
             if Nothing `elem` stateInts then error ("Non-integer in range " ++ ST.toString localState)
             else (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts)
-            )
+            -- )
 
 -- | getTripleList
 getTripleList :: MatrixTriple -> MatrixTriple -> [ST.ShortText] -> [ST.ShortText]-> [MatrixTriple]
@@ -877,7 +877,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                     newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange), mempty) }
                 in
                 if ST.length firstState > 1 then 
-                    trace ("GQC: " ++ show firstState)
+                    -- trace ("GQC: " ++ show firstState)
                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
                 else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
