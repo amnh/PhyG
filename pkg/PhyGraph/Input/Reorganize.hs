@@ -952,7 +952,8 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        numStates = 1 + (L.maximum $ fmap makeInt  $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
+        -- numStates = 1 + (L.maximum $ fmap makeInt $ symbolSet $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
+        numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
         origName = name inCharInfo
         charWeight = weight inCharInfo
     in
@@ -980,7 +981,7 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
         (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
         where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int
                           in
-                          if isNothing newA then error ("State " ++ (show a) ++ "not recoding to Int")
+                          if isNothing newA then error ("State '" ++ (ST.toString  a) ++ "'' not recoding to Int")
                           else fromJust newA
 
 -- | makeNewNonAddCharacter takes a stateIndex and charcatear number

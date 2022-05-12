@@ -249,7 +249,7 @@ collectAmbiguities fileName inStringList =
         else if firstString == "[" then
             let ambiguityStringList = takeWhile (/="]") inStringList ++ ["]"]
             in
-            trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            --trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
             (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
         -- )

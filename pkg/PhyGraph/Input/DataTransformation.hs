@@ -356,7 +356,7 @@ recodeNonAddMissingCharacter charInfo inCharData =
                        else V.singleton nonAddState
         in
         if  BV.isZeroVector nonAddState then
-            inCharData { stateBVPrelim = (newState, newState, newState)
+            inCharData { stateBVPrelim = (mempty, newState, mempty)
                        , stateBVFinal = newState}
         else
             inCharData
@@ -527,13 +527,13 @@ missingAligned inChar charLength =
         in
         -- trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
         if inCharType ==  AlignedSlim then
-            emptyCharacter {alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
+            emptyCharacter {alignedSlimPrelim = (mempty, missingElementSlim, mempty)}
 
         else if inCharType ==  AlignedWide then
-            emptyCharacter {alignedWidePrelim = (missingElementWide, missingElementWide, missingElementWide)}
+            emptyCharacter {alignedWidePrelim = (mempty, missingElementWide, mempty)}
 
         else if inCharType ==  AlignedHuge then
-            emptyCharacter {alignedHugePrelim = (missingElementHuge, missingElementHuge, missingElementHuge)}
+            emptyCharacter {alignedHugePrelim = (mempty, missingElementHuge, mempty)}
 
         else error ("Datatype " ++ (show inCharType) ++ " not recognized")
         -- )
@@ -865,7 +865,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                             in
                             -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList))
                             L.foldl1' (.|.) stateBVList
-                newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
+                newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -874,7 +874,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
+                    newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange), mempty) }
                 in
                 if ST.length firstState > 1 then 
                     trace ("GQC: " ++ show firstState)
