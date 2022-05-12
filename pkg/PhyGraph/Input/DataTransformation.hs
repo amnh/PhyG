@@ -797,11 +797,16 @@ getIntRange localState totalAlphabet =
             else (fromJust onlyInt, fromJust onlyInt)
         --Range of states
         else
-            let statesStringList = words $ tail $ init stateString
+            let hasDash = ST.any (== '-') localState 
+                statesStringList = if hasDash then fmap ST.toString $ fmap (ST.filter (`notElem` ['[',']'])) $ ST.split (== '-') localState
+                                   else fmap (: []) $ ST.toString $ ST.filter (`notElem` ['[',']']) localState
+                                   --words $ tail $ init stateString
                 stateInts = fmap readMaybe statesStringList :: [Maybe Int]
             in
+            trace ("GIR:" ++ (show localState) ++ " -> " ++ (show (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts))) (
             if Nothing `elem` stateInts then error ("Non-integer in range " ++ ST.toString localState)
             else (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts)
+            )
 
 -- | getTripleList
 getTripleList :: MatrixTriple -> MatrixTriple -> [ST.ShortText] -> [ST.ShortText]-> [MatrixTriple]
@@ -871,7 +876,10 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
                 in
-                getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+                if ST.length firstState > 1 then 
+                    trace ("GQC: " ++ show firstState)
+                    getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+                else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Matrix then
             if firstState `elem` fmap ST.fromString ["?","-"] then

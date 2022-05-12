@@ -159,7 +159,7 @@ getTNTDataText inString fileName =
                     ) -- ) )
                     where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
--- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
+-- | removeNCharNTax removes teh first two "words" of nchar and ntax, but leaves text  with line feeds so can use
 -- lines later
 removeNCharNTax :: T.Text -> (T.Text, T.Text, T.Text)
 removeNCharNTax inText =
@@ -198,8 +198,8 @@ glueInterleave fileName lineList numTax numChars curData
                          else blockNames
         canonicalStrings = fmap snd curData
     in
-    --trace (show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
-    --check for raxon order
+    -- trace ("GIL: " ++ show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
+    --check for taxon order
     --trace ("Words:" ++ (show $ length $ head thisDataBlock)) (
     if blockNames /= canonicalNames then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ "processing error--interleaved taxon order error or mispecified number of taxa")
     else
@@ -207,7 +207,7 @@ glueInterleave fileName lineList numTax numChars curData
                        else blockStrings
         in
         glueInterleave fileName (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
-            --)
+    -- )
 
 -- | collectMultiCharAmbiguities take a list of Strings and collects TNT ambiguities [X Y]  into single Strings
 -- this only for multicharacter TNT characters as opposed to collectAmbiguities
@@ -249,8 +249,8 @@ collectAmbiguities fileName inStringList =
         else if firstString == "[" then
             let ambiguityStringList = takeWhile (/="]") inStringList ++ ["]"]
             in
-            -- trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
-            concat ambiguityStringList : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
+            trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
         -- )
 
@@ -663,13 +663,13 @@ getDecimals inChar =
 
 
 -- | getAlphWithAmbiguity take a list of ShortText with information and accumulatiors
--- For both nonadditive and additve looks for [] to denote ambiguity and splits states
+-- For both nonadditive and additive. Searches for [] to denote ambiguity and splits states
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
 --  else if no spaces
 --    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
--- for additive charcaters if states are not nummerical then throws an error
+-- for additive characters if states are not nummerical then throws an error
 getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType  -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
 getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
     if null inStates then (L.sort $ L.nub newAlph, reverse newStates)
@@ -699,15 +699,20 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
-                let gutsList  = words $ filter (`notElem` ['[',']']) firstState
+                trace ("GAlphAmb: " ++ (show firstState)) (
+                let hasDecimal = any (== '.') firstState
+                    gutsList = if hasDecimal then words $ filter (`notElem` ['[',']']) firstState
+                               else fmap (:[]) $ filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
                     newStateNumberStringList = fmap (((takeWhile (/='.') . show) . (/ scaleFactor)) . fromJust) newStateNumberList
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                 else
-                    let newAmbigState =  ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
+                    let newAmbigState = if hasDecimal then ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
+                                        else ST.fromString $ '[' : (concat newStateNumberStringList) ++ "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (fmap ST.fromString newStateNumberStringList ++ newAlph) (newAmbigState : newStates)
+                )
 
 
 

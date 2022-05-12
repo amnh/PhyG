@@ -952,26 +952,30 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        numStates = min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
+        numStates = 1 + (L.maximum $ fmap makeInt  $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         origName = name inCharInfo
         charWeight = weight inCharInfo
     in
-    -- if a single state recodes to a single uninfomative binary which will be filtered out when bit-packed
-    if (inCharType /= Add) || (numStates > maxStateToRecode) || charWeight /= (1 :: Double) then (V.singleton inCharData, V.singleton inCharInfo)
+    -- if a single state recodes to a single uninfomative binary 
+    if numStates < 2 then (V.empty, V.empty)
+    else if (inCharType /= Add) || (numStates > maxStateToRecode) || charWeight /= (1 :: Double) then (V.singleton inCharData, V.singleton inCharInfo)
     else
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
         -- bits ON-- [0.. snd range]
-        let stateIndex = snd $ V.head $ snd3 $ rangePrelim inCharData
+        let minRangeIndex = fst $ V.head $ snd3 $ rangePrelim inCharData
+            maxRangeIndex = snd $ V.head $ snd3 $ rangePrelim inCharData
             inCharOrigData = origInfo inCharInfo
             newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) ++ "RecodedToNonAdd")
                                      , charType = NonAdd
                                      , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [(0 :: Int), (1 :: Int)]
                                      , origInfo = inCharOrigData
                                      }
-            newCharList = fmap (makeNewNonAddChar stateIndex) [0..numStates - 2]
 
+            newCharList = fmap (makeNewNonAddChar minRangeIndex maxRangeIndex) [0..numStates - 2]                         
+            
+                                              
         in
-        -- trace ("RTNA: " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
+        trace ("RTNA: Numstates " ++ (show numStates) ++ " " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
             -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
         (V.fromList newCharList, V.replicate (numStates - 1) newCharInfo)
         where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int
@@ -983,12 +987,17 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
 -- and makes a non-additive character with 0 or 1 coding
 -- based on stateIndex versus state number
 -- if stateIndex > charNumber then 1 else 0 (coded as bit 0 for 0, bit 1 for 1)
-makeNewNonAddChar :: Int -> Int -> CharacterData
-makeNewNonAddChar stateIndex charIndex =
-    let bvState = if stateIndex > charIndex then BV.fromBits [False, True]
-                  else BV.fromBits [True, False]
+makeNewNonAddChar :: Int -> Int -> Int -> CharacterData
+makeNewNonAddChar minStateIndex maxStateIndex charIndex =
+    let bvMinState = if minStateIndex <= charIndex then BV.fromBits [True, False]
+                     else BV.fromBits [False, True]
+
+        bvMaxState = if maxStateIndex <= charIndex then BV.fromBits [True, False]
+                     else BV.fromBits [False, True]
+
+        bvState = bvMinState .|. bvMaxState
     in
-    -- trace ("MNNA: " ++ (show (stateIndex, charIndex, bvState)))
     emptyCharacter { stateBVPrelim = (V.singleton bvState, V.singleton bvState, V.singleton bvState)
                    , stateBVFinal = V.singleton bvState
                    }
+
