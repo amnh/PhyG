@@ -77,7 +77,7 @@ import qualified Utilities.Utilities         as U
         -- bitPack new non-additive
             -- packNonAdditive
 optimizePrealignedData :: ProcessedData -> ProcessedData
-optimizePrealignedData inData = 
+optimizePrealignedData inData@(_, _, blockDataVect) = 
     let -- remove constant characters from prealigned
         inData' = removeConstantCharactersPrealigned inData
         
@@ -88,8 +88,9 @@ optimizePrealignedData inData =
         inData''' = BP.packNonAdditiveData inData''
 
     in
-    inData'''
-    -- inData
+    if U.getNumberPrealignedCharacters blockDataVect == 0 then inData
+    else inData'''
+    
 
 -- | convertPrealignedToNonAdditive converts prealigned data to non-additive
 -- if homogeneous TCM (all 1's non-diagnoal)
@@ -702,21 +703,23 @@ removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
 removeConstantBlockPrealigned :: BlockData -> BlockData
-removeConstantBlockPrealigned (blockName, taxVectByCharVect, charInfoV) =
-    let numChars = V.length $ V.head taxVectByCharVect
+removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV) =
+    if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 then inBlockData
+    else 
+        let numChars = V.length $ V.head taxVectByCharVect
 
-        -- create vector of single characters with vector of taxon data of sngle character each
-        -- like a standard matrix with a single character
-        singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
+            -- create vector of single characters with vector of taxon data of sngle character each
+            -- like a standard matrix with a single character
+            singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0.. numChars - 1])
 
-        -- actually remove constants form chaarcter list
-        singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV
+            -- actually remove constants form chaarcter list
+            singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV
 
-        -- recreate the taxa vext by character vect block data expects
-        -- should filter out length zero characters
-        newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
-    in
-    (blockName, newTaxVectByCharVect, charInfoV)
+            -- recreate the taxa vext by character vect block data expects
+            -- should filter out length zero characters
+            newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
+        in
+        (blockName, newTaxVectByCharVect, charInfoV)
 
 -- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.
