@@ -704,7 +704,10 @@ removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
 removeConstantBlockPrealigned :: BlockData -> BlockData
 removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV) =
+    -- check for null data--really reallyu shouldn't happen
     if V.null taxVectByCharVect then trace ("Warning: Null block data in removeConstantBlockPrealigned") inBlockData
+    
+    -- check for prealigned data in block
     else if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 then inBlockData
     else 
         let numChars = V.length $ V.head taxVectByCharVect
