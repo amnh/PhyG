@@ -704,7 +704,8 @@ removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
 removeConstantBlockPrealigned :: BlockData -> BlockData
 removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV) =
-    if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 then inBlockData
+    if V.null taxVectByCharVect then trace ("Warning: Null block data in removeConstantBlockPrealigned") inBlockData
+    else if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 then inBlockData
     else 
         let numChars = V.length $ V.head taxVectByCharVect
 
@@ -718,8 +719,8 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
             -- recreate the taxa vext by character vect block data expects
             -- should filter out length zero characters
             newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
-        in
-        (blockName, newTaxVectByCharVect, charInfoV)
+         in
+         (blockName, newTaxVectByCharVect, charInfoV)
 
 -- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.

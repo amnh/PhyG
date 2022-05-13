@@ -193,8 +193,7 @@ main = do
 
     -- Combines data of exact types into single vectors in each block
     -- thids is final data processing step
-    let optimizedData = -- naiveData 
-                        if (not . null) newBlockPairList then 
+    let optimizedData = if (not . null) newBlockPairList then 
                             trace ("Reorganizing Block data") 
                             R.combineDataByType reBlockedNaiveData
                         else optimizedPrealignedData
