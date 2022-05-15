@@ -582,3 +582,12 @@ preOrderTreeTraversal
 348) More fuse progress info
 
 349) CHeck weights and tcms for prealigned/sequence for PMDL
+
+350)  Still transfrom add to nonadd--but keep weight (when non-integer)
+
+35) Comnbine non-add with same non-integer weights
+	can still be bitpacked.
+
+352)  Add weight to read command so can weight prealigned and non-aligned sequences
+	need this for PMDL
+	
