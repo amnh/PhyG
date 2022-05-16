@@ -63,11 +63,9 @@ import           Data.Bits
 import qualified Input.Reorganize            as R
 import qualified Input.DataTransformation    as TRANS
 import qualified Input.BitPack               as BP
+import qualified Commands.Verify             as VER
 
 
--- | transformArgList is the list of valid transform arguments
-transformArgList :: [String]
-transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees"]
 
 
 -- | transform changes aspects of data sande settings during execution
@@ -77,7 +75,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "transform" fstArgList transformArgList
+       checkCommandList = checkCommandArgs "transform" fstArgList VER.transformArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " ++ show inArgs)
