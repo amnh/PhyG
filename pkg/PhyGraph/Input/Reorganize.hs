@@ -261,10 +261,11 @@ combineData (blockName, blockDataVV, charInfoV) =
 
 -- | combineBlockData takes a vector of char info and vector or charcater data for a taxon and 
 -- combined exact data types into single characters
--- additive characters should ahve already been converted (if less that maxAddStatesToRecode) to binary
--- if weight was integer and repeated by that integer multiplier
--- non-additive characters with integer weights are repeated (like addiitve earlier) before combining
+-- additive characters should have already been converted (if less that maxAddStatesToRecode) to binary
+-- non-additive characters with integer weights could be  repeated before combining-- but this has been disabled 
+-- due to memory issues in large data sets
 -- non-integer additive and non-additive are grouped together by weight so they can be combined and bit packed
+-- all other types are grouped by weight for efficiency of optimization and reducitionn of multiplies
 combineBlockData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
 combineBlockData inCharInfoV inCharDataV = 
     let pairCharsInfo = V.zip inCharInfoV inCharDataV
@@ -278,96 +279,107 @@ combineBlockData inCharInfoV inCharDataV =
                                                else ([],[])
 
         -- non-additive characters
-            --only combine those with integer weights (replicated to reduce multiplications) 
-            --others leave as list
+            -- multiple characters by weight, if only 1 weight then all together
         nonAddChars = V.filter ((== NonAdd) . charType . fst) pairCharsInfo
-        nonAddCharsWeightIsInt = V.filter (doubleIsInt . weight . fst) nonAddChars
-
-        -- this concat map to avoid n**2 if recursive addition of lists
-        nonAddCharsWeightIsIntReplicated = concatMap replicateCharPairByWeight (V.toList nonAddCharsWeightIsInt)
-        (nonAddCharsWeightNotIntInfo, nonAddCharsWeightNotInt) = V.unzip $ V.filter (not . doubleIsInt . weight . fst) nonAddChars
-        nonAddPrelimV = fmap (snd3 . stateBVPrelim . snd) nonAddCharsWeightIsIntReplicated
-        concatNonAddPrelim = V.concat nonAddPrelimV
-        newNonAddChar = ((snd . head) nonAddCharsWeightIsIntReplicated) { stateBVPrelim = (mempty, concatNonAddPrelim, mempty)
-                                                   , stateBVFinal = concatNonAddPrelim
-                                                   }
-        newNonAddCharInfo = ((fst . head) nonAddCharsWeightIsIntReplicated) {origInfo = V.concat $ fmap (origInfo . fst) nonAddCharsWeightIsIntReplicated}  
+        (newNonAddCharInfo, newNonAddChar) = unzip $ V.toList $ groupCharactersByWeight nonAddChars
 
         -- additive characters
-            --only combine those with weight = 1 --they should have been replicated by integer weight 
-            --   (if possible) when converted to non-additive characters
-            --others leave as list
+            -- multiple characters by weight, if only 1 weight then all together
+            
         addChars = V.filter ((== Add) . charType . fst) pairCharsInfo
-        addCharsWeight1 = V.filter (doubleIsInt1 . weight . fst) addChars
-        (addCharsWeightNot1Info, addCharsWeightNot1) = V.unzip $ V.filter (not . doubleIsInt1 . weight . fst) addChars
-        rangePrelimV = fmap (snd3 . rangePrelim . snd) addCharsWeight1
-        concatAddPrelim = V.concat $ V.toList rangePrelimV
-        newAddChar = ((snd . V.head) addCharsWeight1) { rangePrelim = (mempty, concatAddPrelim, mempty)
-                                                   , rangeFinal = concatAddPrelim
-                                                   }
-        newAddCharInfo = ((fst . V.head) addCharsWeight1) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) addCharsWeight1}  
+        (newAddCharInfo, newAddChar) = unzip $ V.toList $ groupCharactersByWeight addChars
 
         -- Packed2 characters
         packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
-        packed2NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed2Chars
-        concatPacked2Prelim = UV.concat $ V.toList packed2NonAddPrelimV
-        newPacked2Char = ((snd . V.head) packed2Chars) { packedNonAddPrelim = (mempty, concatPacked2Prelim, mempty)
-                                                   , packedNonAddFinal = concatPacked2Prelim
-                                                   }
-        newPacked2CharInfo = ((fst . V.head) packed2Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed2Chars}  
+        (newPacked2CharInfo, newPacked2Char) = unzip $ V.toList $ groupCharactersByWeight packed2Chars
 
         -- Packed4 characters
         packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
-        packed4NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed4Chars
-        concatPacked4Prelim = UV.concat $ V.toList packed4NonAddPrelimV
-        newPacked4Char = ((snd . V.head) packed4Chars) { packedNonAddPrelim = (mempty, concatPacked4Prelim, mempty)
-                                                   , packedNonAddFinal = concatPacked4Prelim
-                                                   }
-        newPacked4CharInfo = ((fst . V.head) packed4Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed4Chars}  
+        (newPacked4CharInfo, newPacked4Char) = unzip $ V.toList $ groupCharactersByWeight packed4Chars
+
 
         -- Packed5 characters
         packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
-        packed5NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed5Chars
-        concatPacked5Prelim = UV.concat $ V.toList packed5NonAddPrelimV
-        newPacked5Char = ((snd . V.head) packed5Chars) { packedNonAddPrelim = (mempty, concatPacked5Prelim, mempty)
-                                                   , packedNonAddFinal = concatPacked5Prelim
-                                                   }
-        newPacked5CharInfo = ((fst . V.head) packed5Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed5Chars}  
+        (newPacked5CharInfo, newPacked5Char) = unzip $ V.toList $ groupCharactersByWeight packed5Chars
+
 
         -- Packed8 characters
         packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
-        packed8NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed8Chars
-        concatPacked8Prelim = UV.concat $ V.toList packed8NonAddPrelimV
-        newPacked8Char = ((snd . V.head) packed8Chars) { packedNonAddPrelim = (mempty, concatPacked8Prelim, mempty)
-                                                   , packedNonAddFinal = concatPacked8Prelim
-                                                   }
-        newPacked8CharInfo = ((fst . V.head) packed8Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed8Chars}  
+        (newPacked8CharInfo, newPacked8Char) = unzip $ V.toList $ groupCharactersByWeight packed8Chars
 
-       -- Packed64 characters
+        -- Packed64 characters
         packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
-        packed64NonAddPrelimV = fmap (snd3 . packedNonAddPrelim . snd) packed64Chars
-        concatPacked64Prelim = UV.concat $ V.toList packed64NonAddPrelimV
-        newPacked64Char = ((snd . V.head) packed64Chars) { packedNonAddPrelim = (mempty, concatPacked64Prelim, mempty)
-                                                   , packedNonAddFinal = concatPacked64Prelim
-                                                   }
-        newPacked64CharInfo = ((fst . V.head) packed64Chars) {origInfo = V.concat $ V.toList $ fmap (origInfo . fst) packed64Chars}  
-
-        -- check for characters for concat this to control for all the 'head' statement above and only include relevent characters
-        (newNonAddCharL, newNonAddCharInfoL) = if (not . null) nonAddCharsWeightIsInt then ([newNonAddChar], [newNonAddCharInfo]) else ([],[])
-        (newAddCharL, newAddCharInfoL) = if (not . null) addCharsWeight1 then ([newAddChar], [newAddCharInfo]) else ([],[])
-        (newPacked2CharL, newPacked2CharInfoL) = if (not . null) packed2Chars then ([newPacked2Char], [newPacked2CharInfo]) else ([],[])
-        (newPacked4CharL, newPacked4CharInfoL) = if (not . null) packed4Chars then ([newPacked4Char], [newPacked4CharInfo]) else ([],[])
-        (newPacked5CharL, newPacked5CharInfoL) = if (not . null) packed5Chars then ([newPacked5Char], [newPacked5CharInfo]) else ([],[])
-        (newPacked8CharL, newPacked8CharInfoL) = if (not . null) packed8Chars then ([newPacked8Char], [newPacked8CharInfo]) else ([],[])
-        (newPacked64CharL, newPacked64CharInfoL) = if (not . null) packed64Chars then ([newPacked64Char], [newPacked64CharInfo]) else ([],[])
+        (newPacked64CharInfo, newPacked64Char) = unzip $ V.toList $ groupCharactersByWeight packed64Chars
 
         -- Add together all new characters, seqeunce characters and char info
-        newCharList = newNonAddCharL ++ (V.toList nonAddCharsWeightNotInt) ++ newAddCharL ++ (V.toList addCharsWeightNot1) ++ newPacked2CharL ++ newPacked4CharL ++ newPacked5CharL ++ newPacked8CharL ++ newPacked64CharL ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
-        newCharInfoList = newNonAddCharInfoL ++ (V.toList nonAddCharsWeightNotIntInfo) ++ newAddCharInfoL ++ (V.toList addCharsWeightNot1Info) ++ newPacked2CharInfoL ++ newPacked4CharInfoL ++ newPacked5CharInfoL ++ newPacked8CharInfoL ++ newPacked64CharInfoL ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
+        -- newCharList = newNonAddCharL ++ (V.toList nonAddCharsWeightNotInt) ++ newAddCharL ++ (V.toList addCharsWeightNot1) ++ newPacked2CharL ++ newPacked4CharL ++ newPacked5CharL ++ newPacked8CharL ++ newPacked64CharL ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
+        -- newCharInfoList = newNonAddCharInfoL ++ (V.toList nonAddCharsWeightNotIntInfo) ++ newAddCharInfoL ++ (V.toList addCharsWeightNot1Info) ++ newPacked2CharInfoL ++ newPacked4CharInfoL ++ newPacked5CharInfoL ++ newPacked8CharInfoL ++ newPacked64CharInfoL ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
+        
+        newCharList = newNonAddChar ++ newAddChar ++ newPacked2Char ++ newPacked4Char ++ newPacked5Char ++ newPacked8Char ++ newPacked64Char ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
+        newCharInfoList = newNonAddCharInfo ++ newAddCharInfo ++ newPacked2CharInfo ++ newPacked4CharInfo ++ newPacked5CharInfo ++ newPacked8CharInfo ++ newPacked64CharInfo ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
 
     in
     (V.fromList newCharList, V.fromList newCharInfoList)
 
+-- | groupCharactersByWeight takes a list of characters and returns a list of lists of charcter with same weight
+-- checked as Double.  
+-- NB--Does not check for character type---assuming this is desired it must be assured before input
+groupCharactersByWeight :: V.Vector (CharInfo, CharacterData) -> V.Vector (CharInfo, CharacterData)
+groupCharactersByWeight inCharsPairList =
+    if V.null inCharsPairList then V.empty
+    else 
+        let weightList = L.nub $ V.toList $ fmap weight (fmap fst inCharsPairList)
+            charListByWeight = fmap (getSameWeightChars inCharsPairList) $ V.fromList weightList
+        in
+        V.concatMap mergeCharacters charListByWeight
+
+-- | mergeCharacters merges the data fieed of characters based on type
+-- NB--Does not check all chars are same type or weight--will silently combine mempty values
+-- with whatever weight.  
+-- returns list with single member so can concat later
+mergeCharacters :: V.Vector (CharInfo, CharacterData) -> V.Vector (CharInfo, CharacterData)
+mergeCharacters inCharsPairList =
+    if V.null inCharsPairList then V.empty
+    else 
+        let thisCharType = (charType . fst . V.head) inCharsPairList
+            
+            -- non-add data
+            dataFieldNonAdd = V.concatMap (snd3 . stateBVPrelim . snd) inCharsPairList
+            newNonAddChar = ((snd . V.head) inCharsPairList) {stateBVPrelim = (mempty, dataFieldNonAdd, mempty), stateBVFinal = dataFieldNonAdd}
+            
+            -- add data
+            dataFieldAdd = V.concatMap (snd3 . rangePrelim . snd) inCharsPairList
+            newAddChar = ((snd . V.head) inCharsPairList) {rangePrelim = (mempty, dataFieldAdd, mempty), rangeFinal = dataFieldAdd}
+            
+            -- packed data
+            dataFieldPacked = UV.concat $ V.toList $ fmap (snd3 . packedNonAddPrelim . snd) inCharsPairList
+            newPackedChar = ((snd . V.head) inCharsPairList) {packedNonAddPrelim = (mempty, dataFieldPacked, mempty), packedNonAddFinal = dataFieldPacked}
+
+            -- add info of merging to character info
+            newOrigInfo = V.concatMap (origInfo . fst) inCharsPairList
+            newCharInfo = ((fst . V.head) inCharsPairList) {origInfo = newOrigInfo}
+
+        in
+        if thisCharType == NonAdd then V.singleton (newCharInfo, newNonAddChar)
+        else if thisCharType == Add then V.singleton (newCharInfo, newAddChar)
+        else if thisCharType `elem` packedNonAddTypes then V.singleton (newCharInfo, newPackedChar)
+        else error ("Error in mergeCharacters: Character type " ++ show thisCharType ++ " unrecognized/not implemented")
+
+
+
+-- | getSameWeightChars returns character pairs with same matrix as testMatrix
+getSameWeightChars ::  V.Vector (CharInfo, CharacterData) -> Double -> V.Vector (CharInfo, CharacterData)
+getSameWeightChars inCharsPairList testWeight =
+    if V.null inCharsPairList then V.empty
+    else 
+        let inWeightList = fmap weight (fmap fst inCharsPairList)
+            weightPairPair = V.zip inWeightList inCharsPairList
+            matchList = V.filter ((== testWeight) . weight . fst . snd) weightPairPair
+        in
+        fmap snd matchList
+
+{- Currently unused--employed to reduce chrater umbers by replicating characters with integer weight
+    can cause memory issues with large data sets
 -- | replicateCharPairByWeight replicates characters by integer weight
 replicateCharPairByWeight :: (CharInfo, CharacterData) -> [(CharInfo, CharacterData)] 
 replicateCharPairByWeight firstPair = 
@@ -376,14 +388,15 @@ replicateCharPairByWeight firstPair =
     if isNothing charIntWeight then error ("Character weight not an integer in replicateCharPair: " ++ (show $ (weight . fst) firstPair))
     else 
         (replicate (fromJust charIntWeight) firstPair)
+-}
 
 -- | organizeMatrixCharsByMatrix combines matrix charcters if they have the same cost matrix
 organizeMatrixCharsByMatrix :: [(CharInfo, CharacterData)] -> [(CharacterData, CharInfo)]
-organizeMatrixCharsByMatrix incharsPair = 
-    if null incharsPair then []
+organizeMatrixCharsByMatrix inCharsPairList = 
+    if null inCharsPairList then []
     else 
-        let costMatrixList = L.nub $ fmap costMatrix (fmap fst incharsPair)
-            charMatrixLL = fmap (getSameMatrixChars incharsPair) costMatrixList
+        let costMatrixList = L.nub $ fmap costMatrix (fmap fst inCharsPairList)
+            charMatrixLL = fmap (getSameMatrixChars inCharsPairList) costMatrixList
             newMatrixPairs = fmap combineMatrixCharsByMatrix charMatrixLL
         in
         newMatrixPairs 
@@ -401,9 +414,9 @@ combineMatrixCharsByMatrix inCharList =
 
 -- | getSameMatrixChars returns character pairs with same matrix as testMatrix
 getSameMatrixChars ::  [(CharInfo, CharacterData)] -> S.Matrix Int -> [(CharInfo, CharacterData)] 
-getSameMatrixChars incharsPair testMatrix =
-    let inMatrixList = fmap costMatrix (fmap fst incharsPair)
-        matrixPairPair = zip inMatrixList incharsPair
+getSameMatrixChars inCharsPairList testMatrix =
+    let inMatrixList = fmap costMatrix (fmap fst inCharsPairList)
+        matrixPairPair = zip inMatrixList inCharsPairList
         matchList = filter ((== testMatrix) . costMatrix . fst . snd) matrixPairPair
     in
     fmap snd matchList
@@ -678,8 +691,6 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
         numStates = 1 + (L.maximum $ fmap makeInt $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         -- numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
         origName = name inCharInfo
-        charWeight = weight inCharInfo
-        intCharWeight = doubleAsInt charWeight
     in
     -- if a single state recodes to a single uninfomative binary 
         -- removed || ((not . doubleIsInt . weight) inCharInfo)  to allow for recodding (leaving weight) for non-integer weights
