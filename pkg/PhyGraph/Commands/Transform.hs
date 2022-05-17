@@ -64,6 +64,8 @@ import qualified Input.Reorganize            as R
 import qualified Input.DataTransformation    as TRANS
 import qualified Input.BitPack               as BP
 import qualified Commands.Verify             as VER
+import qualified Data.Text.Lazy              as TL
+import qualified Data.Char as C
 
 
 
@@ -95,7 +97,18 @@ transform inArgs inGS origData inData rSeed inGraphList =
             toDynamic = any ((=="dynamic").fst) lcArgList
             atRandom = any ((=="atrandom").fst) lcArgList
             chooseFirst = any ((=="first").fst) lcArgList
+            reWeight =  any ((=="weight").fst) lcArgList
 
+            reweightBlock = filter ((=="weight").fst) lcArgList
+            weightValue
+               | length reweightBlock > 1 =
+                  errorWithoutStackTrace ("Multiple weight specifications in tansform--can have only one: " ++ show inArgs)
+               | null reweightBlock = Just 1.0
+               | null (snd $ head reweightBlock) = Just 1
+               | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
+
+            nameList = fmap TL.pack $ fmap snd $ filter ((=="name").fst) lcArgList
+            charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
 
         in
         if (length $ filter (== True) [toTree, toSoftWired, toHardWired]) > 1 then 
@@ -165,10 +178,50 @@ transform inArgs inGS origData inData rSeed inGraphList =
                trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, newData, newPhylogeneticGraphList)
 
+            -- change weight values in charInfo and reoptimize   
+            else if reWeight then
+               let newData = reWeightData (fromJust weightValue) charTypeList nameList inData
+                   newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+               in
+               trace ("Reweighting something to " ++ (show $ fromJust weightValue)) 
+               (inGS, newData, newPhylogeneticGraphList)
+
+
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
-            
-  
+
+-- | reWeightData sets weights to new values based on      
+reWeightData :: Double -> [String] -> [NameText] -> ProcessedData -> ProcessedData
+reWeightData weightValue charTypeStringList charNameList (inName, inNameBV, inBlockDataV) =
+   let charTypeList = concatMap stringToType charTypeStringList
+       newBlockData = fmap (reweightBlockData weightValue charTypeList charNameList) inBlockDataV
+   in
+   (inName, inNameBV, newBlockData)
+
+-- |  stringToType takes  String and returns typelist 
+stringToType :: String -> [CharType]
+stringToType inString =
+   if null inString then []
+   else 
+      let inVal = fmap C.toLower inString 
+          typeList = if inVal == "prealigned" then [AlignedSlim, AlignedWide, AlignedHuge]
+                     else []
+      in
+      typeList
+
+-- | reweightBlockData applies new weight to catagories of data
+reweightBlockData :: Double -> [CharType] -> [NameText] -> BlockData -> BlockData
+reweightBlockData  weightValue charTypeList charNameList (blockName, blockData, charInfoV) =
+   let newCharacterInfoV = fmap (reweightCharacterData weightValue charTypeList charNameList) charInfoV
+   in
+   (blockName, blockData, newCharacterInfoV)
+
+-- | reweightCharacterData changes weight in charInfo based on type or name
+reweightCharacterData ::  Double -> [CharType] -> [NameText] -> CharInfo -> CharInfo
+reweightCharacterData weightValue charTypeList charNameList charInfo =
+   if (name charInfo) `notElem` charNameList && (charType charInfo) `notElem` charTypeList then charInfo
+   else charInfo {weight = weightValue}
+
 -- | makeStaticApprox takes ProcessedData and returns static approx (implied alignment recoded) ProcessedData
 -- if Tree take SA fields and recode appropriatrely given cost regeme of character
 -- if Softwired--use display trees for SA

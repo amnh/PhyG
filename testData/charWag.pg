@@ -50,6 +50,9 @@ build(distance, dwag)
 -- transform(staticApprox)
 --swap(tbr, steepest)
 --swap(tbr, all, keep:10)
+
+transform(weight:1000, name:"chel-prealiged.fas#0")
+
 -- transform(dynamic)
 -- select(best)
 --report("test0-data.csv", data, overwrite)

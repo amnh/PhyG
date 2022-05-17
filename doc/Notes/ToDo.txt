@@ -593,4 +593,7 @@ preOrderTreeTraversal
 	
 353) Output continuous from recoded non-add binary
 	convert back or something
-	
+
+354) In docs transfomr weight is undone if transform from static approx back to orig data 
+
+355) add sub argument processing for transform weight etc
