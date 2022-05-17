@@ -591,3 +591,6 @@ preOrderTreeTraversal
 352)  Add weight to read command so can weight prealigned and non-aligned sequences
 	need this for PMDL
 	
+353) Output continuous from recoded non-add binary
+	convert back or something
+	

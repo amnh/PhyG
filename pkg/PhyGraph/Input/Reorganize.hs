@@ -261,7 +261,10 @@ combineData (blockName, blockDataVV, charInfoV) =
 
 -- | combineBlockData takes a vector of char info and vector or charcater data for a taxon and 
 -- combined exact data types into single characters
--- need to add in integer weight copy stuff
+-- additive characters should ahve already been converted (if less that maxAddStatesToRecode) to binary
+-- if weight was integer and repeated by that integer multiplier
+-- non-additive characters with integer weights are repeated (like addiitve earlier) before combining
+-- non-integer additive and non-additive are grouped together by weight so they can be combined and bit packed
 combineBlockData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
 combineBlockData inCharInfoV inCharDataV = 
     let pairCharsInfo = V.zip inCharInfoV inCharDataV
@@ -668,6 +671,7 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 -- |recodeAddToNonAddCharacter takes a single character for single taxon and recodes if non-additive with
 -- fewer than maxStateToRecode states.
 -- assumes states in linear order
+-- replicatee charinfo for multiple new characters after recoding
 recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
 recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
@@ -678,7 +682,8 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
         intCharWeight = doubleAsInt charWeight
     in
     -- if a single state recodes to a single uninfomative binary 
-    if (inCharType /= Add) || (numStates > maxStateToRecode) || (isNothing intCharWeight) then (V.singleton inCharData, V.singleton inCharInfo)
+        -- removed || ((not . doubleIsInt . weight) inCharInfo)  to allow for recodding (leaving weight) for non-integer weights
+    if (inCharType /= Add) || (numStates > maxStateToRecode) then (V.singleton inCharData, V.singleton inCharInfo)
     else if numStates < 2 then (V.empty, V.empty)
     else 
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
@@ -692,13 +697,16 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
                                      , origInfo = inCharOrigData
                                      }
 
-            newCharList = concat $ replicate (fromJust intCharWeight) $ fmap (makeNewNonAddChar minRangeIndex maxRangeIndex) [0..numStates - 2]                         
+            -- create new characters and new character info 
+            newCharList = fmap (makeNewNonAddChar minRangeIndex maxRangeIndex) [0..numStates - 2]
+
+            newCharInfoList =  replicate (numStates - 1) newCharInfo                  
             
                                               
         in
         -- trace ("RTNA: Numstates " ++ (show numStates) ++ " " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
             -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
-        (V.fromList newCharList, V.replicate ((fromJust intCharWeight) * (numStates - 1)) newCharInfo)
+        (V.fromList newCharList, V.fromList newCharInfoList)
         where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int
                           in
                           if isNothing newA then error ("State '" ++ (ST.toString  a) ++ "' not recoding to Int")

@@ -77,9 +77,11 @@ infinity = (read "Infinity") :: Double
 
 
 -- |maxAddStatesToRecode maximum size of addditive charcater to recode into
---non-additive charcaters 65 can fit in Word64
+--non-additive charcaters 65 can fit in 4 Word64 since nstates - 1 binaries
+-- prob could be bigger based on cost of optimizing additive versus but this 
+-- seems a reasonale number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
-maxAddStatesToRecode = 65
+maxAddStatesToRecode = 129
 
 -- | Types for timed searches
 type Days = Int
