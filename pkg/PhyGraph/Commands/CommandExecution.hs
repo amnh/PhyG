@@ -39,7 +39,7 @@ Portability :  portable (I hope)
 module Commands.CommandExecution
   ( executeCommands
   , executeRenameReblockCommands
-  , getDataListList'
+  , getDataListList
   ) where
 
 import Data.Foldable
@@ -635,6 +635,7 @@ makeAsciiList :: Int -> [SimpleGraph] -> String
 makeAsciiList rootIndex graphList =
     concatMap LG.prettify (fmap (GO.rerootTree rootIndex) graphList)
 
+{- Older version wiht more data dependenncy
 -- | getDataListList returns a list of lists of Strings for data output as csv
 -- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
 -- input file
@@ -649,13 +650,14 @@ getDataListList inDataList processedData =
         in
         --trace (show fileNames)
         fileNames : fullMatrix
+-}
 
--- | getDataListList' returns a list of lists of Strings for data output as csv
+-- | getDataListList returns a list of lists of Strings for data output as csv
 -- for row is source file names, subsequent rows by taxon with +/- for present absent taxon in
 -- input file
 -- different from getDataListList in removeal or processed data requiremenrt replaced with taxan name list
-getDataListList' :: [RawData] -> [T.Text] -> [[String]]
-getDataListList' inDataList fullTaxList =
+getDataListList :: [RawData] -> [T.Text] -> [[String]]
+getDataListList inDataList fullTaxList =
     if null inDataList then []
     else
         let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)

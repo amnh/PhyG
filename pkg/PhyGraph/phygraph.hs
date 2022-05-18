@@ -144,7 +144,7 @@ main = do
 
     -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
     -- reduce memory footprint keeoing that stuff around.
-    let crossReferenceString = CSV.genCsvFile $ CE.getDataListList' renamedData dataLeafNames
+    let crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dataLeafNames
 
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
