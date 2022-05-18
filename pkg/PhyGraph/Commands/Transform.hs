@@ -235,14 +235,14 @@ reweightCharacterData ::  Double -> [CharType] -> [NameText] -> CharInfo -> Char
 reweightCharacterData weightValue charTypeList charNameList charInfo =
    let wildCardMatchCharName = filter (== True) $ fmap (textMatchWildcards (name charInfo)) charNameList
    in
-   trace ("RWC Wildcards: " ++ (show $ fmap (textMatchWildcards (name charInfo)) charNameList)) (
+   -- trace ("RWC Wildcards: " ++ (show $ fmap (textMatchWildcards (name charInfo)) charNameList)) (
    if null wildCardMatchCharName && (charType charInfo) `notElem` charTypeList then 
-      trace ("RWC not : " ++ (show $ name charInfo) ++ " of " ++ (show charNameList) ++ " " ++ (show $ charType charInfo) ++ " of " ++ (show charTypeList)) 
+      -- trace ("RWC not : " ++ (show $ name charInfo) ++ " of " ++ (show charNameList) ++ " " ++ (show $ charType charInfo) ++ " of " ++ (show charTypeList)) 
       charInfo
    else 
-      trace ("RWC: " ++ (show $ name charInfo) ++ " " ++ (show $ charType charInfo)) 
+      -- trace ("RWC: " ++ (show $ name charInfo) ++ " " ++ (show $ charType charInfo)) 
       charInfo {weight = weightValue}
-   )
+   -- )
 
 -- | makeStaticApprox takes ProcessedData and returns static approx (implied alignment recoded) ProcessedData
 -- if Tree take SA fields and recode appropriatrely given cost regeme of character
