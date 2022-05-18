@@ -205,7 +205,18 @@ stringToType inString =
    else 
       let inVal = fmap C.toLower inString 
           typeList = if inVal == "prealigned" then [AlignedSlim, AlignedWide, AlignedHuge]
-                     else []
+                     else if inVal == "dynamic" then [SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
+                     else if inVal == "nonadditive" then [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
+                     else if inVal == "matrix" then [Matrix]
+                     else if inVal == "sequence" then [AlignedSlim, AlignedWide, AlignedHuge, SlimSeq, WideSeq, HugeSeq, NucSeq, AminoSeq]
+                     else if inVal == "packed2" then [Packed2]
+                     else if inVal == "packed4" then [Packed4]
+                     else if inVal == "packed5" then [Packed5]
+                     else if inVal == "packed8" then [Packed8]
+                     else if inVal == "packed64" then [Packed64]
+                     else if inVal == "qualitative" then [NonAdd, Add, Matrix, Packed2, Packed4, Packed5, Packed8, Packed64]
+                     
+                     else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" ++ inString ++ "'")
       in
       typeList
 
