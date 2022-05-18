@@ -56,6 +56,7 @@ import qualified Utilities.Distances          as D
 import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.Time                    as DT
+import qualified Data.CSV                     as CSV
 import           Debug.Trace
 
 -- | main driver
@@ -110,7 +111,7 @@ main = do
 
     -- get set paritions character from Set commands early
     let setCommands = filter ((== Set).fst) thingsToDo
-    (_, partitionCharGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings mempty mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty setCommands
     
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharGlobalSettings)) rawData
@@ -123,14 +124,16 @@ main = do
     let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
 
+    let numInputFiles = length renamedData
+
     let thingsToDoAfterReadRename = (filter ((/= Read) .fst) $ filter ((/= Rename) .fst) thingsToDo)
    
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
-    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++show terminalsToInclude)
+    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++ show terminalsToInclude)
     else hPutStrLn stderr ("")
-    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++show terminalsToExclude)
+    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ show terminalsToExclude)
     else hPutStrLn stderr ("")
 
     -- Uses names form terminal list if non-null, and remove exckuded terminals
@@ -138,6 +141,10 @@ main = do
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
     hPutStrLn stderr ("Data were input for " ++ (show $ length dataLeafNames) ++ " terminals")
+
+    -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
+    -- reduce memory footprint keeoing that stuff around.
+    let crossReferenceString = CSV.genCsvFile $ CE.getDataListList' renamedData dataLeafNames
 
 
     let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
@@ -213,7 +220,7 @@ main = do
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings renamedData optimizedData optimizedData [] [] seedList [] initialSetCommands
+    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData [] [] seedList [] initialSetCommands
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (GO.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
 
@@ -222,7 +229,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands initialGlobalSettings renamedData optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
+    (finalGraphList, _, _, _) <- CE.executeCommands initialGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
