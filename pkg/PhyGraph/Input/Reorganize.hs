@@ -255,7 +255,7 @@ combineDataByType inData@(taxNames, taxBVNames, _) =
 -- | combineData creates for a block) lists of each data type and concats then creating new data and new char info
 combineData :: BlockData -> BlockData
 combineData (blockName, blockDataVV, charInfoV) =
-    let (newBlockDataLV, newCharInfoLV) = unzip (fmap (combineBlockData charInfoV) (V.toList blockDataVV) `using` PU.myParListChunkRDS)
+    let (newBlockDataLV, newCharInfoLV) = unzip (fmap (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
     in 
     (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
 

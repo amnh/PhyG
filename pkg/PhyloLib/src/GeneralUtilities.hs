@@ -444,6 +444,8 @@ textMatchWildcards straightText wildText =
         True
     else if TL.null wildText then
         False
+    else if ((TL.head wildText == '*') &&  (TL.length wildText == 1)) then 
+        True
     else if TL.null straightText then 
         False
     else if ((TL.head wildText == '*') &&  ((TL.length $ TL.dropWhile (== '*') wildText ) > 0)) && (TL.null straightText) then 

@@ -1356,7 +1356,7 @@ based on their number of states
 packNonAdditiveData :: ProcessedData -> ProcessedData
 packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
-    let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) `using` PU.myParListChunkRDS
+    let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) -- `using` PU.myParListChunkRDS -- could be an option to save memory etc
     in
     (nameVect, bvNameVect, V.fromList newBlockDataList)
 

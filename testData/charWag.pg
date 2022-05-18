@@ -51,7 +51,7 @@ build(distance, dwag)
 --swap(tbr, steepest)
 --swap(tbr, all, keep:10)
 
-transform(weight:1000, name:"chel-prealiged.fas#0")
+transform(weight:1000, name:"chel-prealiged.fas#0*")
 
 -- transform(dynamic)
 -- select(best)

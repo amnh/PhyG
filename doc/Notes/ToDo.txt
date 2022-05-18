@@ -597,3 +597,8 @@ preOrderTreeTraversal
 354) In docs transfomr weight is undone if transform from static approx back to orig data 
 
 355) add sub argument processing for transform weight etc
+
+356) make processing data sequential for big data sets as option?
+	combining and packing
+
+357) Move rawdata out reports up so can remove later.
