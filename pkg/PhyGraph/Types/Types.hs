@@ -61,7 +61,6 @@ import qualified Utilities.LocalGraph        as LG
 isDebug :: Bool
 isDebug = False
 
-
 -- | Program Version
 pgVersion :: String
 pgVersion = "0.1"
@@ -74,7 +73,6 @@ epsilon = 0.0001
 -- | infinity is a large Double for use with Graph costs
 infinity :: Double
 infinity = (read "Infinity") :: Double
-
 
 -- |maxAddStatesToRecode maximum size of addditive charcater to recode into
 --non-additive charcaters 65 can fit in 4 Word64 since nstates - 1 binaries

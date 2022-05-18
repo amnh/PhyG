@@ -120,8 +120,8 @@ executable phyg
     -O2
     -rtsopts
     -static
+    -- -fllvm takes long to compile
 
-  -- delete these for OSX the options are for for linux static binaries
   if !os(darwin) 
     cc-options: 
       -static
