@@ -68,6 +68,7 @@ import qualified SymMatrix                   as S
 import           Text.Read
 import           Types.Types
 import qualified Utilities.Utilities         as U
+import qualified Data.MetricRepresentation   as MR
 
 
 -- | optimizePrealignedData convert
@@ -118,7 +119,16 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
     if charType charInfo `notElem` prealignedCharacterTypes then (charData, charInfo)
     else if matrixType /= "nonAdd" then (charData, charInfo)
     else
-        let newStateBV = if charType charInfo == AlignedSlim then
+            -- this coefficient do to reducion by integer factors in matrix representation
+            -- need to be multipled or 2:2 goes to 1:1 and weigh/cost incorrect (non for slim--ffi etc)
+        let matrixCoefficient = if (charType charInfo) == AlignedSlim then 1
+                                else if (charType charInfo) == AlignedWide then MR.minInDelCost (wideTCM charInfo)
+                                else if (charType charInfo) == AlignedHuge then MR.minInDelCost (hugeTCM charInfo)
+                                else error ("Unrecognized--unimplemented character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
+
+            charWeight = weight charInfo
+
+            newStateBV = if charType charInfo == AlignedSlim then
                             convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
                          else if charType charInfo == AlignedWide then
                             convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
@@ -126,7 +136,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                             (mempty, snd3 $ alignedHugePrelim charData, mempty)
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in
-        (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd})
+        (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)})
 
 
 
