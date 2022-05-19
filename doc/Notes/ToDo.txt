@@ -594,3 +594,8 @@ preOrderTreeTraversal
 	combining and packing
 
 358) Make all "read" "readMaybe" and check to catch failures
+
+359) llvm for OSX
+
+360) add no changed filed to bitpacked and non-add (maybe add too?, matrix?) chars
+

@@ -120,7 +120,7 @@ executable phyg
     -O2
     -rtsopts
     -static
-    -- -fllvm takes long to compile
+    -- -fllvm
 
   if !os(darwin) 
     cc-options: 
@@ -132,7 +132,7 @@ executable phyg
     ld-options: 
       -static -pthread
   else 
-    ld-options:
+    ld-options: 
 
 
   build-depends:  alphabet

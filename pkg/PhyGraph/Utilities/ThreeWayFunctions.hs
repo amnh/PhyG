@@ -63,7 +63,7 @@ import qualified GraphOptimization.Medians   as M
 import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
---import           Debug.Trace
+-- import           Debug.Trace
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -334,7 +334,9 @@ threeWayHuge charInfo parent1 parent2 curNode =
 -- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
 addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
 addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
-   let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
+   -- logic for leaf not haveing left and right
+   let (reGappedLeft, reGappedRight) = if (not . GV.null) gappedLeftChild || (not . GV.null) gappedRightChild then slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
+                                       else slideRegap reGappedNodePrelim gappedNodePrelim gappedNodePrelim gappedNodePrelim mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
       ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
@@ -344,11 +346,11 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
 -- to the 3rd and 4th input vectors
 slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
 slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
-   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode))) (
+   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode, GV.length gappedLeft, GV.length gappedRight))) (
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode
-          firstGN = GV.head  gappedNode
+          -- firstGN = GV.head  gappedNode
       in
 
       -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
@@ -358,7 +360,7 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
         in
         (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
 
-      else if firstRGN /= firstGN then
+      else if firstRGN /= GV.head gappedNode then
          let gap = bit gapIndex
          in
          slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)

@@ -136,7 +136,6 @@ prealignedCharacterTypes = [AlignedSlim, AlignedWide, AlignedHuge]
 sequenceCharacterTypes :: [CharType]
 sequenceCharacterTypes = nonExactCharacterTypes ++ prealignedCharacterTypes
 
-
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types
 -- 'Tree'  would be a single tree in the sense as produced by typical phylogentic
