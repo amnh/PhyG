@@ -585,20 +585,12 @@ preOrderTreeTraversal
 
 350)  Still transfrom add to nonadd--but keep weight (when non-integer)
 
-35) Comnbine non-add with same non-integer weights
-	can still be bitpacked.
-
-352)  Add weight to read command so can weight prealigned and non-aligned sequences
-	need this for PMDL
-	
 353) Output continuous from recoded non-add binary
 	convert back or something
-
-354) In docs transfomr weight is undone if transform from static approx back to orig data 
 
 355) add sub argument processing for transform weight etc
 
 356) make processing data sequential for big data sets as option?
 	combining and packing
 
-357) Move rawdata out reports up so can remove later.
+358) Make all "read" "readMaybe" and check to catch failures
