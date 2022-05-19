@@ -480,9 +480,17 @@ missingNonAdditive inCharInfo =
 -- | missingAdditive is additive missing character value, all 1's based on alphabet size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
-  let missingRange = V.zip
-                        (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
-                        (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
+  let minState' = readMaybe (ST.toString . head . toList $ alphabet inCharInfo) :: Maybe Int
+      maxState' = readMaybe (ST.toString . last . toList $ alphabet inCharInfo) :: Maybe Int
+      minState = if isNothing minState' then 0
+                 else fromJust minState'
+      maxState = if isNothing maxState' then 0
+                 else fromJust maxState'
+
+      missingRange = V.zip
+                        (V.singleton minState)
+                        (V.singleton maxState)
+
   in
   emptyCharacter { rangePrelim = (mempty, missingRange, mempty)
                  , rangeFinal = missingRange
