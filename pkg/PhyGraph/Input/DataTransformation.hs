@@ -356,7 +356,7 @@ recodeNonAddMissingCharacter charInfo inCharData =
                        else V.singleton nonAddState
         in
         if  BV.isZeroVector nonAddState then
-            inCharData { stateBVPrelim = (newState, newState, newState)
+            inCharData { stateBVPrelim = (mempty, newState, mempty)
                        , stateBVFinal = newState}
         else
             inCharData
@@ -471,7 +471,7 @@ missingNonAdditive :: CharInfo -> CharacterData
 missingNonAdditive inCharInfo =
     let missingChar = V.singleton (BV.fromBits $ replicate (length $ alphabet inCharInfo) True)
     in
-    emptyCharacter { stateBVPrelim = (missingChar, missingChar, missingChar)
+    emptyCharacter { stateBVPrelim = (mempty, missingChar, mempty)
                    , stateBVFinal  = missingChar
                    }
 
@@ -480,11 +480,19 @@ missingNonAdditive inCharInfo =
 -- | missingAdditive is additive missing character value, all 1's based on alphabet size
 missingAdditive :: CharInfo -> CharacterData
 missingAdditive inCharInfo =
-  let missingRange = V.zip
-                        (V.singleton (read (ST.toString . head . toList $ alphabet inCharInfo) :: Int))
-                        (V.singleton (read (ST.toString . last . toList $ alphabet inCharInfo) :: Int))
+  let minState' = readMaybe (ST.toString . head . toList $ alphabet inCharInfo) :: Maybe Int
+      maxState' = readMaybe (ST.toString . last . toList $ alphabet inCharInfo) :: Maybe Int
+      minState = if isNothing minState' then 0
+                 else fromJust minState'
+      maxState = if isNothing maxState' then 0
+                 else fromJust maxState'
+
+      missingRange = V.zip
+                        (V.singleton minState)
+                        (V.singleton maxState)
+
   in
-  emptyCharacter { rangePrelim = (missingRange, missingRange, missingRange)
+  emptyCharacter { rangePrelim = (mempty, missingRange, mempty)
                  , rangeFinal = missingRange
                  }
 
@@ -527,13 +535,13 @@ missingAligned inChar charLength =
         in
         -- trace ("MA: " ++ (show charLength) ++ (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
         if inCharType ==  AlignedSlim then
-            emptyCharacter {alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
+            emptyCharacter {alignedSlimPrelim = (mempty, missingElementSlim, mempty)}
 
         else if inCharType ==  AlignedWide then
-            emptyCharacter {alignedWidePrelim = (missingElementWide, missingElementWide, missingElementWide)}
+            emptyCharacter {alignedWidePrelim = (mempty, missingElementWide, mempty)}
 
         else if inCharType ==  AlignedHuge then
-            emptyCharacter {alignedHugePrelim = (missingElementHuge, missingElementHuge, missingElementHuge)}
+            emptyCharacter {alignedHugePrelim = (mempty, missingElementHuge, mempty)}
 
         else error ("Datatype " ++ (show inCharType) ++ " not recognized")
         -- )
@@ -621,7 +629,7 @@ getNucleotideSequenceChar stateList =
           | null stateList = mempty
           | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
         newSequenceChar = emptyCharacter { slimPrelim         = sequenceVect
-                                         , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                         , slimGapped         = (mempty, sequenceVect, mempty)
                                          }
     in [newSequenceChar]
 
@@ -632,7 +640,7 @@ getAminoAcidSequenceChar stateList =
           | null stateList = mempty
           | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
         newSequenceChar = emptyCharacter { widePrelim         = sequenceVect
-                                         , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                         , wideGapped         = (mempty, sequenceVect, mempty)
                                          }
     in [newSequenceChar]
 
@@ -682,8 +690,9 @@ getGeneralBVCode bvCodeVect inState =
             where getBV s = V.find ((== s).fst) bvCodeVect
 
 -- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
--- as bitvectors,.  Main difference with getSequenceChar is in dealing wioth ambiguities
+-- as bitvectors.  Main difference with getSequenceChar is in dealing wioth ambiguities
 -- they need to be parsed and "or-ed" differently
+-- need to have all three preliminary fields populatied for some reason--prob shouldn't need that
 getGeneralSequenceChar :: CharInfo -> [ST.ShortText] -> [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
         let cType = charType inCharInfo
@@ -797,11 +806,16 @@ getIntRange localState totalAlphabet =
             else (fromJust onlyInt, fromJust onlyInt)
         --Range of states
         else
-            let statesStringList = words $ tail $ init stateString
+            let hasDash = ST.any (== '-') localState 
+                statesStringList = if hasDash then fmap ST.toString $ fmap (ST.filter (`notElem` ['[',']'])) $ ST.split (== '-') localState
+                                   else fmap (: []) $ ST.toString $ ST.filter (`notElem` ['[',']']) localState
+                                   --words $ tail $ init stateString
                 stateInts = fmap readMaybe statesStringList :: [Maybe Int]
             in
+            -- trace ("GIR:" ++ (show localState) ++ " -> " ++ (show (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts))) (
             if Nothing `elem` stateInts then error ("Non-integer in range " ++ ST.toString localState)
             else (minimum $ fmap fromJust stateInts, maximum $ fmap fromJust stateInts)
+            -- )
 
 -- | getTripleList
 getTripleList :: MatrixTriple -> MatrixTriple -> [ST.ShortText] -> [ST.ShortText]-> [MatrixTriple]
@@ -860,7 +874,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                             in
                             -- trace ("GQC: " ++ (show ambiguousStateString) ++ " " ++ (show stateSTList) ++ " " ++ (show stateBVList))
                             L.foldl1' (.|.) stateBVList
-                newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
+                newCharacter = emptyCharacter {  stateBVPrelim = (mempty, V.singleton stateBV, mempty) }
                 in
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
@@ -869,9 +883,12 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
+                    newCharacter = emptyCharacter { rangePrelim = (mempty, V.singleton (minRange, maxRange), mempty) }
                 in
-                getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+                if ST.length firstState > 1 then 
+                    -- trace ("GQC: " ++ show firstState)
+                    getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
+                else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Matrix then
             if firstState `elem` fmap ST.fromString ["?","-"] then

@@ -52,6 +52,7 @@ module Commands.Verify
     , selectArgList
     , supportArgList
     , swapArgList
+    , transformArgList
     ) where
 
 import           Types.Types
@@ -108,7 +109,7 @@ refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneti
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt", "includemissing", "concatenate"] ++ reconcileArgList
+reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt", "includemissing", "concatenate", "htulabels", "branchlengths", "nohtulabels", "nobranchlengths"] ++ reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]
@@ -129,6 +130,11 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
 swapArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
+
+-- | transform arguments
+transformArgList :: [String]
+transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees", "weight", "name", "type"]
+
 
 -- | verifyCommands takes a command list and tests whether the commands 
 -- and arguments are permissible before program execution--prevents late failure 
@@ -249,7 +255,14 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    else if commandInstruction == Swap then 
                                         (checkCommandArgs "swap" fstArgList swapArgList, [""], [""])
 
+                                   -- Transform 
+                                   else if commandInstruction == Transform then 
+                                        (checkCommandArgs "swap" fstArgList transformArgList, [""], [""])
+                                         
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
+
+                                   
+
             in
             if checkOptions then
                 let allFilesToReadFrom = filter (/= "") $ filesToReadFrom ++ inFilesToRead

@@ -144,7 +144,7 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
 
     else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
-        let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
+        let newCharVect = BP.median2Packed thisType thisWeight firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 

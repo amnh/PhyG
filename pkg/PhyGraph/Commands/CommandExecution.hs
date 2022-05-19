@@ -39,6 +39,7 @@ Portability :  portable (I hope)
 module Commands.CommandExecution
   ( executeCommands
   , executeRenameReblockCommands
+  , getDataListList
   ) where
 
 import Data.Foldable
@@ -85,8 +86,8 @@ import qualified Input.Reorganize            as IR
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
-executeCommands :: GlobalSettings -> [RawData] -> ProcessedData -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [PhylogeneticGraph] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
-executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList commandList = do
+executeCommands :: GlobalSettings -> Int -> String -> ProcessedData -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [PhylogeneticGraph] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
+executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
         let (firstOption, firstArgs) = head commandList
@@ -104,7 +105,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Refine then do 
             (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
@@ -112,7 +113,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Fuse then do
             (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
@@ -120,21 +121,21 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Report then do
-            let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs rawData  processedData curGraphs supportGraphList pairwiseDist
+            let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData curGraphs supportGraphList pairwiseDist
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
 
             if null reportString then do
-                executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+                executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
             else  do
                 hPutStrLn stderr ("Report writing to " ++ outFile)
 
                 if doDotPDF then do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
                     printGraphVizDot reportString' outFile
-                    executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+                    executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
 
                 else do
                     if outFile == "stderr" then hPutStr stderr reportString
@@ -142,7 +143,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
                     else if writeMode == "overwrite" then writeFile outFile reportString
                     else if writeMode == "append" then appendFile outFile reportString
                     else error ("Error 'read' command not properly formatted" ++ show reportStuff)
-                    executeCommands globalSettings rawData origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
+                    executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
         
         else if firstOption == Search then do
             (elapsedSeconds, output) <- timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
@@ -150,7 +151,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings origProcessedData processedData pairwiseDist (head seedList) curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs (fst output) (fromIntegral $ toMilliseconds elapsedSeconds) (concat $ fmap (L.intercalate "\n") $ snd output)
             let newSearchData = searchInfo : (searchData globalSettings)
-            executeCommands (globalSettings {searchData = newSearchData})  rawData origProcessedData processedData  (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData})  numInputFiles crossReferenceString origProcessedData processedData  (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Select then do
             (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) VER.selectArgList curGraphs
@@ -158,7 +159,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Set then 
             -- if set changes graph aspects--may nned to reoptimize
@@ -170,7 +171,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
                 newSearchData = searchInfo : (searchData newGlobalSettings)   
             in
             
-            executeCommands (newGlobalSettings {searchData = newSearchData}) rawData origProcessedData processedData newGraphList pairwiseDist seedList' supportGraphList (tail commandList)
+            executeCommands (newGlobalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist seedList' supportGraphList (tail commandList)
         
         else if firstOption == Swap then do
             (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.swapMaster firstArgs globalSettings processedData (head seedList)  curGraphs
@@ -178,7 +179,7 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Support then do
             (elapsedSeconds, newSupportGraphList) <- timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList)  curGraphs
@@ -186,15 +187,15 @@ executeCommands globalSettings rawData origProcessedData processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (globalSettings {searchData = newSearchData}) rawData origProcessedData processedData curGraphs pairwiseDist (tail seedList) (supportGraphList ++ newSupportGraphList) (tail commandList)
+            executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist (tail seedList) (supportGraphList ++ newSupportGraphList) (tail commandList)
 
         else if firstOption == Transform then do
-            (elapsedSeconds, (newGS, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
+            (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
                 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
-            executeCommands (newGS {searchData = newSearchData}) rawData origProcessedData newProcessedData newGraphs pairwiseDist (tail seedList) supportGraphList (tail commandList)
+            executeCommands (newGS {searchData = newSearchData}) numInputFiles crossReferenceString newOrigData newProcessedData newGraphs pairwiseDist (tail seedList) supportGraphList (tail commandList)
 
         else error ("Command " ++ (show firstOption) ++ " not recognized/implemented")
 
@@ -349,8 +350,8 @@ setCommand argList globalSettings processedData inSeedList =
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
-reportCommand :: GlobalSettings -> [Argument] -> [RawData] -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
-reportCommand globalSettings argList rawData processedData curGraphs supportGraphs pairwiseDistanceMatrix =
+reportCommand :: GlobalSettings -> [Argument] -> Int -> String -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
+reportCommand globalSettings argList numInputFiles crossReferenceString processedData curGraphs supportGraphs pairwiseDistanceMatrix =
     let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
         --check for balances double quotes and only one pair
         outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands --argList
@@ -373,13 +374,13 @@ reportCommand globalSettings argList rawData processedData curGraphs supportGrap
         else
             -- This for reconciled data
             if "crossrefs" `elem` commandList then
-                let dataString = CSV.genCsvFile $ getDataListList rawData processedData
+                let dataString = crossReferenceString
                 in
                 (dataString, outfileName, writeMode)
 
             else if "data" `elem` commandList then
                 let dataString = phyloDataToString 0 $ thd3 processedData
-                    baseData = ("There were " ++ show (length rawData) ++ " input data files with " ++ show (length $ thd3 processedData) ++ " blocks and " ++ (show ((length dataString) - 1)) ++ " total characters\n")
+                    baseData = ("There were " ++ (show numInputFiles) ++ " input data files with " ++ show (length $ thd3 processedData) ++ " blocks and " ++ (show ((length dataString) - 1)) ++ " total characters\n")
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
@@ -580,25 +581,25 @@ makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
 outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList lOutgroupIndex graphList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
+  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
--- | outputGraphString is a wrapper arounf graph output functions
+-- | outputGraphString is a wrapper around graph output functions
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
+  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
--- | outputGraphStringSimple is a wrapper arounf graph output functions
+-- | outputGraphStringSimple is a wrapper around graph output functions
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
-  | "newick" `elem` commandList = makeNewickList lOutgroupIndex graphList costList
+  | "newick" `elem` commandList = makeNewickList True True lOutgroupIndex graphList costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex graphList
@@ -611,9 +612,18 @@ makeDotList rootIndex graphList =
      L.intercalate "\n" (fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList)
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
-makeNewickList ::  Int -> [SimpleGraph] -> [VertexCost] -> String
-makeNewickList rootIndex graphList costList =
-    let graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  True True
+makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
+makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
+
+        -- check for network HTU label requirement
+        writeNodeLabel = if allTrees then writeNodeLabel'
+                         else if writeNodeLabel' then writeNodeLabel'
+                         else 
+                            trace ("HTU labels are required for ENewick Output")
+                            True
+
+        graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
         costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
         graphStringCost = concat $ zipWith (++) newickStringList costStringList
@@ -625,6 +635,7 @@ makeAsciiList :: Int -> [SimpleGraph] -> String
 makeAsciiList rootIndex graphList =
     concatMap LG.prettify (fmap (GO.rerootTree rootIndex) graphList)
 
+{- Older version wiht more data dependenncy
 -- | getDataListList returns a list of lists of Strings for data output as csv
 -- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
 -- input file
@@ -634,6 +645,22 @@ getDataListList inDataList processedData =
     else
         let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
             fullTaxList = V.toList $ fst3  processedData
+            presenceAbsenceList = fmap (isThere inDataList) fullTaxList
+            fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
+        in
+        --trace (show fileNames)
+        fileNames : fullMatrix
+-}
+
+-- | getDataListList returns a list of lists of Strings for data output as csv
+-- for row is source file names, subsequent rows by taxon with +/- for present absent taxon in
+-- input file
+-- different from getDataListList in removeal or processed data requiremenrt replaced with taxan name list
+getDataListList :: [RawData] -> [T.Text] -> [[String]]
+getDataListList inDataList fullTaxList =
+    if null inDataList then []
+    else
+        let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
             presenceAbsenceList = fmap (isThere inDataList) fullTaxList
             fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
         in

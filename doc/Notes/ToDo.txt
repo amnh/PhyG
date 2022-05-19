@@ -579,3 +579,18 @@ preOrderTreeTraversal
 
 347) maybe have a size limit for parallel bitpacking--as in over 100k (tax * chars) or something
 
+348) More fuse progress info
+
+349) CHeck weights and tcms for prealigned/sequence for PMDL
+
+350)  Still transfrom add to nonadd--but keep weight (when non-integer)
+
+353) Output continuous from recoded non-add binary
+	convert back or something
+
+355) add sub argument processing for transform weight etc
+
+356) make processing data sequential for big data sets as option?
+	combining and packing
+
+358) Make all "read" "readMaybe" and check to catch failures

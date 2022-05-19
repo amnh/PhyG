@@ -55,8 +55,9 @@ One Big thing--
             NEED TO FIX
 -}
 
-module Input.TNTUtilities  (getTNTData
-                      ) where
+module Input.TNTUtilities   (getTNTData
+                            , getTNTDataText
+                            ) where
 
 import           Data.Alphabet
 import           Data.Char
@@ -70,7 +71,7 @@ import qualified Data.TCM                  as TCM
 import qualified Data.Text.Lazy            as T
 import qualified Data.Text.Short           as ST
 import           Debug.Trace
-import qualified GeneralUtilities          as GU
+--import qualified GeneralUtilities          as GU
 import qualified Input.DataTransformation  as DT
 import qualified Input.FastAC              as FAC
 import qualified SymMatrix                 as SM
@@ -79,15 +80,20 @@ import           Text.Read
 import           Types.Types
 
 
-
-
 -- getTNTData take file contents and returns raw data and char info form TNT file
 getTNTData :: String -> String -> RawData
 getTNTData inString fileName =
     if null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
     else
-        let inString' = unlines $ filter (not . null) $ GU.stripString <$> lines inString
-            inText = T.strip $ T.pack inString'
+        getTNTDataText (T.pack inString) fileName
+
+-- getTNTDataText take file contents and returns raw data and char info form TNT file
+getTNTDataText :: T.Text -> String -> RawData
+getTNTDataText inString fileName =
+    if T.null inString then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--empty file")
+    else
+        let inString' = T.unlines $ filter (not . T.null) $ fmap T.strip (T.lines inString)
+            inText = T.strip inString'
         in
         if toLower (T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--must begin with 'xread'")
         else
@@ -153,7 +159,7 @@ getTNTData inString fileName =
                     ) -- ) )
                     where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
--- | removeNCharNTax removes teh first two "words" of nachr and ntx, but leaves text  with line feeds so can use
+-- | removeNCharNTax removes teh first two "words" of nchar and ntax, but leaves text  with line feeds so can use
 -- lines later
 removeNCharNTax :: T.Text -> (T.Text, T.Text, T.Text)
 removeNCharNTax inText =
@@ -192,8 +198,8 @@ glueInterleave fileName lineList numTax numChars curData
                          else blockNames
         canonicalStrings = fmap snd curData
     in
-    --trace (show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
-    --check for raxon order
+    -- trace ("GIL: " ++ show blockNames ++ "\n" ++ show canonicalNames ++ "\n" ++ show blockStrings ++ "\n" ++ show canonicalStrings) (
+    --check for taxon order
     --trace ("Words:" ++ (show $ length $ head thisDataBlock)) (
     if blockNames /= canonicalNames then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ "processing error--interleaved taxon order error or mispecified number of taxa")
     else
@@ -201,7 +207,7 @@ glueInterleave fileName lineList numTax numChars curData
                        else blockStrings
         in
         glueInterleave fileName (drop numTax lineList) numTax numChars (zip canonicalNames newChars)
-            --)
+    -- )
 
 -- | collectMultiCharAmbiguities take a list of Strings and collects TNT ambiguities [X Y]  into single Strings
 -- this only for multicharacter TNT characters as opposed to collectAmbiguities
@@ -243,8 +249,8 @@ collectAmbiguities fileName inStringList =
         else if firstString == "[" then
             let ambiguityStringList = takeWhile (/="]") inStringList ++ ["]"]
             in
-            -- trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
-            concat ambiguityStringList : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
+            --trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
+            (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
         -- )
 
@@ -311,10 +317,10 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
 ccodeChars :: [Char]
 ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
 
--- | getCCodes takes aline form TNT and modifies characters according to cc-code option
+-- | getCCodes takes a line from TNT and modifies characters according to cc-code option
 -- assumes single command (ccodeChars) per line
 -- could sort and num so only hit each char once--but would be n^2 then.
--- teh sinfglton stuff for compount things like "+."
+-- the singleton stuff for compount things like "+."
 getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
 getCCodes fileName charNumber commandWordList curCharInfo =
     if null curCharInfo then []
@@ -322,9 +328,14 @@ getCCodes fileName charNumber commandWordList curCharInfo =
         let charStatus =  if T.length (head commandWordList) == 1 then head commandWordList
                           else T.singleton $ T.head $ head commandWordList
             scopeList = if T.length (head commandWordList) == 1 then tail commandWordList
-                        else T.tail (head commandWordList) : tail commandWordList
+                        --not a weight--weight gets added to scope without special case
+                        else if (T.head $ head commandWordList) /= '/' then 
+                            T.tail (head commandWordList) : tail commandWordList
+                        --a weight '/'--weight gets added to scope without special case
+                        else 
+                            (T.unwords $ tail $ T.words $ T.tail (head commandWordList)) : tail commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
-            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus charIndices 0 []
+            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
         in
         --trace (show charStatus ++ " " ++ (show scopeList) ++ " " ++ show charIndices)
         --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " character status processing error:  option not recognized/implemented " ++ (T.unpack charStatus))
@@ -476,8 +487,8 @@ scopeToIndex fileName numChars scopeText =
 -- in a single pass.
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise return the reverse since new values are prepended
-getNewCharInfo :: String -> [CharInfo] -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
-getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
+getNewCharInfo :: String -> [CharInfo] -> T.Text -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
+getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex curCharList =
     --trace (show charIndex ++ " " ++ show indexList ++ " " ++ (show $ length inCharList)) (
     if null inCharList then reverse curCharList
     else if null indexList then
@@ -488,7 +499,7 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
         in
-        if charIndex /= firstIndex then getNewCharInfo fileName (tail inCharList) newStatus indexList (charIndex + 1) (firstCharInfo : curCharList)
+        if charIndex /= firstIndex then getNewCharInfo fileName (tail inCharList) newStatus newStatusFull indexList (charIndex + 1) (firstCharInfo : curCharList)
         else
             let updatedCharInfo
                   | newStatus == T.pack "-" = firstCharInfo {charType = NonAdd}
@@ -497,17 +508,17 @@ getNewCharInfo fileName inCharList newStatus indexList charIndex curCharList =
                   | newStatus == T.pack "]" = firstCharInfo {activity = False}
                   | newStatus == T.pack "(" = firstCharInfo {charType = Matrix}
                   | newStatus == T.pack ")" = firstCharInfo {charType = NonAdd}
-                  | newStatus == T.pack "/" = firstCharInfo {weight = 1.0}
+                  -- | newStatus == T.pack "/" = firstCharInfo {weight = 1.0}
                   | T.head newStatus ==  '/' =
-                     let newWeight = readMaybe (tail $ T.unpack newStatus) :: Maybe Double
+                     let newWeight = readMaybe (tail $ T.unpack newStatusFull) :: Maybe Double
                      in
-                     if isNothing newWeight then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: weight " ++ tail (T.unpack newStatus) ++ " not an integer")
+                     if isNothing newWeight then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: weight " ++ tail (T.unpack newStatusFull) ++ " not a double")
                      else firstCharInfo {weight = fromJust newWeight}
-                          | otherwise =
+                  | otherwise =
                      trace ("Warning: TNT file " ++ fileName ++ " ccodes command " ++ T.unpack newStatus ++ " is unrecognized/not implemented--skipping")
                      firstCharInfo
-                    in
-                    getNewCharInfo fileName (tail inCharList) newStatus (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
+            in
+            getNewCharInfo fileName (tail inCharList) newStatus newStatusFull (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
 
 -- | newCharInfoMatrix updates alphabet and tcm matrix for characters in indexList
@@ -613,12 +624,16 @@ getAlphabetFromSTList fileName inStates inCharInfo =
         thisWeight = weight inCharInfo
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
                        else 0
-        (thisAlphabet, newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] []
+        (thisAlphabet', newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] []
         newWeight = if mostDecimals > 0 then  thisWeight / (10.0 ** fromIntegral mostDecimals)
                     else thisWeight
+
+        thisAlphabet = if null thisAlphabet' then [ST.fromString "0"]
+                       else thisAlphabet'
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
+    -- trace ("getAlph weight: " ++ (show thisWeight))
     (fromSymbols thisAlphabet, newWeight, newColumn)
 
 
@@ -648,13 +663,13 @@ getDecimals inChar =
 
 
 -- | getAlphWithAmbiguity take a list of ShortText with information and accumulatiors
--- For both nonadditive and additve looks for [] to denote ambiguity and splits states
+-- For both nonadditive and additive. Searches for [] to denote ambiguity and splits states
 --  if splits on spaces if there are spaces (within []) (ala fastc or multicharacter states)
 --  else if no spaces
 --    if non-additive then each symbol is split out as an alphabet element -- as in TNT
 --    if is additive splits on '-' to denote range
 -- rescales (integerizes later) additive characters with decimal places to an integer type rep
--- for additive charcaters if states are not nummerical then throws an error
+-- for additive characters if states are not nummerical then throws an error
 getAlphWithAmbiguity ::  String -> [ST.ShortText] -> CharType  -> Int -> [ST.ShortText] -> [ST.ShortText] -> ([ST.ShortText], [ST.ShortText])
 getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
     if null inStates then (L.sort $ L.nub newAlph, reverse newStates)
@@ -684,15 +699,20 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
-                let gutsList  = words $ filter (`notElem` ['[',']']) firstState
+                -- trace ("GAlphAmb: " ++ (show firstState)) (
+                let hasDecimal = any (== '.') firstState
+                    gutsList = if hasDecimal then words $ filter (`notElem` ['[',']']) firstState
+                               else fmap (:[]) $ filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
                     newStateNumberStringList = fmap (((takeWhile (/='.') . show) . (/ scaleFactor)) . fromJust) newStateNumberList
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                 else
-                    let newAmbigState =  ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
+                    let newAmbigState = if hasDecimal then ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
+                                        else ST.fromString $ '[' : (concat newStateNumberStringList) ++ "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (fmap ST.fromString newStateNumberStringList ++ newAlph) (newAmbigState : newStates)
+                -- )
 
 
 

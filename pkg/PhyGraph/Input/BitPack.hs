@@ -970,9 +970,8 @@ minMaxPacked64 a b =
 
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
-median2Packed :: CharType -> CharacterData -> CharacterData -> CharacterData
-median2Packed inCharType leftChar rightChar =
-    --assumes all weight 1
+median2Packed :: CharType -> Double -> CharacterData -> CharacterData -> CharacterData
+median2Packed inCharType inCharWeight leftChar rightChar =
     let (newStateVect, newCost) = if inCharType == Packed2       then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
@@ -981,8 +980,8 @@ median2Packed inCharType leftChar rightChar =
                                   else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
 
         newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
-                                      , localCost = fromIntegral newCost
-                                      , globalCost = (fromIntegral newCost) + globalCost leftChar + globalCost rightChar
+                                      , localCost = inCharWeight * (fromIntegral newCost)
+                                      , globalCost = (inCharWeight * (fromIntegral newCost)) + globalCost leftChar + globalCost rightChar
                                       }
     in
     -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
@@ -1357,7 +1356,7 @@ based on their number of states
 packNonAdditiveData :: ProcessedData -> ProcessedData
 packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
-    let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) `using` PU.myParListChunkRDS
+    let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) -- `using` PU.myParListChunkRDS -- could be an option to save memory etc
     in
     (nameVect, bvNameVect, V.fromList newBlockDataList)
 
@@ -1390,7 +1389,8 @@ recodeNonAddCharacters (nameBlock, charDataVV, charInfoV) =
 -- as single BV--here as well. Should be very few (if any) of them.
 packNonAdd :: V.Vector CharacterData -> CharInfo -> ([[CharacterData]], [CharInfo])
 packNonAdd inCharDataV charInfo =
-    if (charType charInfo /= NonAdd) || (weight charInfo > 1)  then ([V.toList inCharDataV],[charInfo])
+    -- trace ("PNA in weight: " ++ (show $ weight charInfo)) (
+    if (charType charInfo /= NonAdd) then ([V.toList inCharDataV],[charInfo])
     else
         -- recode non-additive characters
         let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
@@ -1406,8 +1406,9 @@ packNonAdd inCharDataV charInfo =
             (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
 
         in
-        -- trace ("PNA: " ++ (show numNonAdd))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
+        -- trace ("PNA out weights : " ++ (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
         (newStateCharListList, concat newCharInfoList)
+        -- )
 
 -- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
@@ -1440,13 +1441,14 @@ recodeBV2BV charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = NonAdd}])
-        where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
+        where makeNewData a b = a {stateBVPrelim = (mempty,b,mempty), stateBVFinal = b}
 
 
 -- | recodeBV2Word64Single take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- of Word64 unpacked non-additive characters of type Packed64.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
+-- Aassumes a leaf only sets snd3
 recodeBV2Word64Single :: CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64Single charInfo charTaxBVLL =
     if null charTaxBVLL then ([],[])
@@ -1463,7 +1465,7 @@ recodeBV2Word64Single charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
-        where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
+        where makeNewData a b = a {packedNonAddPrelim = (mempty,b,mempty), packedNonAddFinal = b}
 
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
 -- of type a (bitvector or Word64) and returns a list of taxa each of which is a vector
@@ -1527,7 +1529,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
 
     in
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
-    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
+    emptyCharacter { packedNonAddPrelim = (mempty, packedWordVect, mempty)
                    , packedNonAddFinal = packedWordVect
                    }
 

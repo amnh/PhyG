@@ -177,9 +177,9 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
 
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
-          ((inGS, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
+          ((inGS, _, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
                                                                 (TRANS.transform [("staticapprox",[])] inGS inData' inData' 0 inGraphList', "StaticApprox ")
-                                                              else ((inGS', inData', inGraphList'), "")
+                                                              else ((inGS', inData', inData', inGraphList'), "")
 
 
       in

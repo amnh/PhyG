@@ -201,6 +201,18 @@ vectResolveMaybe inVect =
     else V.singleton $ fromJust $ V.head inVect
     )
 
+-- | getNumberPrealignedCharacters takes processed data and returns the number of prealigned sequence characters
+-- used to special case procedurs with prealigned sequences
+getNumberPrealignedCharacters :: V.Vector BlockData -> Int
+getNumberPrealignedCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            sequenceChars = length $ V.filter (== True) $ V.map (`elem` prealignedCharacterTypes) characterTypes
+        in
+        sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
+
 -- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequen ce) characters
 -- ised to special case datasets with limited non-exact characters
 getNumberSequenceCharacters :: V.Vector BlockData -> Int

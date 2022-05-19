@@ -63,21 +63,21 @@ import           Data.Bits
 import qualified Input.Reorganize            as R
 import qualified Input.DataTransformation    as TRANS
 import qualified Input.BitPack               as BP
+import qualified Commands.Verify             as VER
+import qualified Data.Text.Lazy              as TL
+import qualified Data.Char as C
 
 
--- | transformArgList is the list of valid transform arguments
-transformArgList :: [String]
-transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees"]
 
 
 -- | transform changes aspects of data sande settings during execution
 -- as opposed to Set with all happens at begginign of program execution
-transform :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, [PhylogeneticGraph])
+transform :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, ProcessedData, [PhylogeneticGraph])
 transform inArgs inGS origData inData rSeed inGraphList = 
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
        lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "transform" fstArgList transformArgList
+       checkCommandList = checkCommandArgs "transform" fstArgList VER.transformArgList
    in
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " ++ show inArgs)
@@ -97,7 +97,18 @@ transform inArgs inGS origData inData rSeed inGraphList =
             toDynamic = any ((=="dynamic").fst) lcArgList
             atRandom = any ((=="atrandom").fst) lcArgList
             chooseFirst = any ((=="first").fst) lcArgList
+            reWeight =  any ((=="weight").fst) lcArgList
 
+            reweightBlock = filter ((=="weight").fst) lcArgList
+            weightValue
+               | length reweightBlock > 1 =
+                  errorWithoutStackTrace ("Multiple weight specifications in tansform--can have only one: " ++ show inArgs)
+               | null reweightBlock = Just 1.0
+               | null (snd $ head reweightBlock) = Just 1
+               | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
+
+            nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
+            charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
 
         in
         if (length $ filter (== True) [toTree, toSoftWired, toHardWired]) > 1 then 
@@ -116,7 +127,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             -- transform nets to tree
             if toTree then
                -- already Tree return
-               if (graphType inGS == Tree) then (inGS, inData, inGraphList)
+               if (graphType inGS == Tree) then (inGS, origData, inData, inGraphList)
                else 
                   let newGS = inGS {graphType = Tree}
                   
@@ -130,33 +141,33 @@ transform inArgs inGS origData inData rSeed inGraphList =
                       -- reoptimize as Trees
                       newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs `using` PU.myParListChunkRDS
                   in
-                  (newGS, inData, newPhylogeneticGraphList)
+                  (newGS, origData, inData, newPhylogeneticGraphList)
             
             -- transform to softwired
             else if toSoftWired then 
-               if (graphType inGS == SoftWired) then (inGS, inData, inGraphList)
+               if (graphType inGS == SoftWired) then (inGS, origData, inData, inGraphList)
                else 
                   let newGS = inGS {graphType = SoftWired}
                       newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
                   in
-                  (newGS, inData, newPhylogeneticGraphList)
+                  (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- transform to hardwired
             else if toHardWired then
-               if (graphType inGS == HardWired) then (inGS, inData, inGraphList)
+               if (graphType inGS == HardWired) then (inGS, origData, inData, inGraphList)
                else 
                   let newGS = inGS {graphType = HardWired}
                       
                       newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
                   in
-                  (newGS, inData, newPhylogeneticGraphList)
+                  (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- roll back to dynamic data from static approx      
             else if toDynamic then 
                let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
                in
                trace ("Transforming data to dynamic: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
-               (inGS, origData, newPhylogeneticGraphList)
+               (inGS, origData, origData, newPhylogeneticGraphList)
 
             -- transform to static approx--using first Tree
             else if toStaticApprox then
@@ -165,12 +176,77 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
                in
                trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
-               (inGS, newData, newPhylogeneticGraphList)
+               (inGS, origData, newData, newPhylogeneticGraphList)
+
+            -- change weight values in charInfo and reoptimize   
+            -- reweights both origData and inData so weighting doens't get undone by static approc to and from transfomrations
+            else if reWeight then
+               let newOrigData = reWeightData (fromJust weightValue) charTypeList nameList origData
+                   newData = reWeightData (fromJust weightValue) charTypeList nameList inData
+                   newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+               in
+               trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
+                  ++ "\n\tReoptimizing graphs") 
+               (inGS, newOrigData, newData, newPhylogeneticGraphList)
+
 
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
-            
-  
+
+-- | reWeightData sets weights to new values based on      
+reWeightData :: Double -> [String] -> [NameText] -> ProcessedData -> ProcessedData
+reWeightData weightValue charTypeStringList charNameList (inName, inNameBV, inBlockDataV) =
+   let charTypeList = concatMap stringToType charTypeStringList
+       newBlockData = fmap (reweightBlockData weightValue charTypeList charNameList) inBlockDataV
+   in
+   (inName, inNameBV, newBlockData)
+
+-- |  stringToType takes  String and returns typelist 
+stringToType :: String -> [CharType]
+stringToType inString =
+   if null inString then []
+   else 
+      let inVal = fmap C.toLower inString 
+          typeList = if inVal == "all" then exactCharacterTypes ++ sequenceCharacterTypes
+                     else if inVal == "prealigned" then prealignedCharacterTypes
+                     else if inVal `elem` ["nonexact", "dynamic"] then nonExactCharacterTypes
+                     else if inVal == "nonadditive" then [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
+                     else if inVal == "additive" then [Add]
+                     else if inVal == "matrix" then [Matrix]
+                     else if inVal == "sequence" then sequenceCharacterTypes
+                     else if inVal == "packed" then   packedNonAddTypes
+                     else if inVal == "packed2" then [Packed2]
+                     else if inVal == "packed4" then [Packed4]
+                     else if inVal == "packed5" then [Packed5]
+                     else if inVal == "packed8" then [Packed8]
+                     else if inVal == "packed64" then [Packed64]
+                     else if inVal `elem` ["static", "exact", "qualitative"] then exactCharacterTypes
+                     
+                     else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" ++ inString ++ "'")
+      in
+      typeList
+
+-- | reweightBlockData applies new weight to catagories of data
+reweightBlockData :: Double -> [CharType] -> [NameText] -> BlockData -> BlockData
+reweightBlockData  weightValue charTypeList charNameList (blockName, blockData, charInfoV) =
+   let newCharacterInfoV = fmap (reweightCharacterData weightValue charTypeList charNameList) charInfoV
+   in
+   (blockName, blockData, newCharacterInfoV)
+
+-- | reweightCharacterData changes weight in charInfo based on type or name
+reweightCharacterData ::  Double -> [CharType] -> [NameText] -> CharInfo -> CharInfo
+reweightCharacterData weightValue charTypeList charNameList charInfo =
+   let wildCardMatchCharName = filter (== True) $ fmap (textMatchWildcards (name charInfo)) charNameList
+   in
+   -- trace ("RWC Wildcards: " ++ (show $ fmap (textMatchWildcards (name charInfo)) charNameList)) (
+   if null wildCardMatchCharName && (charType charInfo) `notElem` charTypeList then 
+      -- trace ("RWC not : " ++ (show $ name charInfo) ++ " of " ++ (show charNameList) ++ " " ++ (show $ charType charInfo) ++ " of " ++ (show charTypeList)) 
+      charInfo
+   else 
+      -- trace ("RWC: " ++ (show $ name charInfo) ++ " " ++ (show $ charType charInfo)) 
+      charInfo {weight = weightValue}
+   -- )
+
 -- | makeStaticApprox takes ProcessedData and returns static approx (implied alignment recoded) ProcessedData
 -- if Tree take SA fields and recode appropriatrely given cost regeme of character
 -- if Softwired--use display trees for SA

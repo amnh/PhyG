@@ -136,6 +136,18 @@ doubleAsInt inDouble =
     if ceiling inDouble /= floor inDouble then Nothing
     else Just (floor inDouble :: Int)
 
+-- | doubleIsInt returns True if Double is an integer
+doubleIsInt :: Double -> Bool
+doubleIsInt inDouble =
+    if ceiling inDouble /= floor inDouble then False
+    else True
+
+-- | doubleIsInt1 returns True if Double is = Integer 1
+doubleIsInt1 :: Double -> Bool
+doubleIsInt1 inDouble =
+    if (ceiling inDouble == 1) && (floor inDouble == 1) then True
+    else False
+
 -- | editDistance is a naive edit distance between two lists
 -- takes two  lists and returns edit distance
 --- from  https://wiki.haskell.org/Edit_distance
@@ -432,6 +444,8 @@ textMatchWildcards straightText wildText =
         True
     else if TL.null wildText then
         False
+    else if ((TL.head wildText == '*') &&  (TL.length wildText == 1)) then 
+        True
     else if TL.null straightText then 
         False
     else if ((TL.head wildText == '*') &&  ((TL.length $ TL.dropWhile (== '*') wildText ) > 0)) && (TL.null straightText) then 
