@@ -599,3 +599,9 @@ preOrderTreeTraversal
 
 360) add no changed filed to bitpacked and non-add (maybe add too?, matrix?) chars
 
+361) filter weight 0 characters
+
+362) change naked '-' in additive to 0 as innaplicable length
+	make doc change to note this.
+	
+
