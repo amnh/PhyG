@@ -133,7 +133,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                          else if charType charInfo == AlignedWide then
                             convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
                          else if charType charInfo == AlignedHuge then
-                            (mempty, snd3 $ alignedHugePrelim charData, mempty)
+                            (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in
         (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)})
@@ -147,7 +147,7 @@ convert2BVTriple size inM =
        inMBV = fmap (BV.fromNumber size) inMList
 
    in
-   (mempty, V.fromList inMBV, mempty)
+   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
 
 -- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
 -- this for leaves so assume M only one needed really
@@ -157,7 +157,7 @@ convert2BV size (_, inM, _) =
        inMBV = fmap (BV.fromNumber size) inMList
 
    in
-   (mempty, V.fromList inMBV, mempty)
+   (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
 
 -- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive,
 -- non-additive with gap chars, or matrix
@@ -355,15 +355,15 @@ mergeCharacters inCharsPairList =
             
             -- non-add data
             dataFieldNonAdd = V.concatMap (snd3 . stateBVPrelim . snd) inCharsPairList
-            newNonAddChar = ((snd . V.head) inCharsPairList) {stateBVPrelim = (mempty, dataFieldNonAdd, mempty), stateBVFinal = dataFieldNonAdd}
+            newNonAddChar = ((snd . V.head) inCharsPairList) {stateBVPrelim = (dataFieldNonAdd, dataFieldNonAdd, dataFieldNonAdd), stateBVFinal = dataFieldNonAdd}
             
             -- add data
             dataFieldAdd = V.concatMap (snd3 . rangePrelim . snd) inCharsPairList
-            newAddChar = ((snd . V.head) inCharsPairList) {rangePrelim = (mempty, dataFieldAdd, mempty), rangeFinal = dataFieldAdd}
+            newAddChar = ((snd . V.head) inCharsPairList) {rangePrelim = (dataFieldAdd, dataFieldAdd, dataFieldAdd), rangeFinal = dataFieldAdd}
             
             -- packed data
             dataFieldPacked = UV.concat $ V.toList $ fmap (snd3 . packedNonAddPrelim . snd) inCharsPairList
-            newPackedChar = ((snd . V.head) inCharsPairList) {packedNonAddPrelim = (mempty, dataFieldPacked, mempty), packedNonAddFinal = dataFieldPacked}
+            newPackedChar = ((snd . V.head) inCharsPairList) {packedNonAddPrelim = (dataFieldPacked, dataFieldPacked, dataFieldPacked), packedNonAddFinal = dataFieldPacked}
 
             -- add info of merging to character info
             newOrigInfo = V.concatMap (origInfo . fst) inCharsPairList
@@ -658,12 +658,12 @@ assignNewField :: CharType
                -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
                -> CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
-    if inCharType == NonAdd then charData {stateBVPrelim = (mempty, nonAddData, mempty)}
-    else if inCharType == Add then charData {rangePrelim = (mempty, addData, mempty)}
+    if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
+    else if inCharType == Add then charData {rangePrelim = (addData, addData, addData)}
     else if inCharType == Matrix then charData {matrixStatesPrelim = matrixData}
-    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (mempty, alignedSlimData, mempty)}
-    else if inCharType == AlignedWide then charData {alignedWidePrelim = (mempty, alignedWideData, mempty)}
-    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (mempty, alignedHugeData, mempty)}
+    else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
+    else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
+    else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
     else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
 
 -- | recodeAddToNonAddCharacters takes an max states number and processsed data
@@ -747,7 +747,7 @@ makeNewNonAddChar minStateIndex maxStateIndex charIndex =
 
         bvState = bvMinState .|. bvMaxState
     in
-    emptyCharacter { stateBVPrelim = (mempty, V.singleton bvState, mempty)
+    emptyCharacter { stateBVPrelim = (V.singleton bvState, V.singleton bvState, V.singleton bvState)
                    , stateBVFinal = V.singleton bvState
                    }
 
@@ -1027,13 +1027,13 @@ combineAdditveCharacters addCharList charTemplate currentRangeList =
 -- convertes chars to single vector and makes new character for the taxon
 -- assumes a leaf so all fields same
 makeNonAddCharacterList :: CharacterData -> [BV.BitVector] -> CharacterData
-makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (mempty, V.fromList bvList,mempty)}
+makeNonAddCharacterList charTemplate bvList = charTemplate {stateBVPrelim = (V.fromList bvList, V.fromList bvList,V.fromList bvList)}
 
 -- | makeAddCharacterList takes a taxon list of characters
 -- to single vector and makes new character for the taxon
 -- assums a leaf so so all fields same
 makeAddCharacterList :: CharacterData -> [(Int, Int)] -> CharacterData
-makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (mempty, V.fromList rangeList, mempty)}
+makeAddCharacterList charTemplate rangeList = charTemplate {rangePrelim = (V.fromList rangeList, V.fromList rangeList, V.fromList rangeList)}
 
 -- | addMatrixCharacter adds a matrix character to the appropriate (by cost matrix) list of matrix characters
 -- replicates character by integer weight

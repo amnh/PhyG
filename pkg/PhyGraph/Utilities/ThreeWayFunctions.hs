@@ -329,14 +329,10 @@ threeWayHuge charInfo parent1 parent2 curNode =
    else if cost2 == minCost then median2
    else median3
 
-
-
 -- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
 addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
 addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
-   -- logic for leaf not haveing left and right
-   let (reGappedLeft, reGappedRight) = if (not . GV.null) gappedLeftChild || (not . GV.null) gappedRightChild then slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
-                                       else slideRegap reGappedNodePrelim gappedNodePrelim gappedNodePrelim gappedNodePrelim mempty mempty
+   let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
       ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
