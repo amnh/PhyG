@@ -603,5 +603,7 @@ preOrderTreeTraversal
 
 362) change naked '-' in additive to 0 as innaplicable length
 	make doc change to note this.
-	
+	new character '=' perhaps?
+
+
 
