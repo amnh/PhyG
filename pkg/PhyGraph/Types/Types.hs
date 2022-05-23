@@ -191,7 +191,7 @@ data  GlobalSettings
     , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
-    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
+    , numDataLeaves       :: Int --number of leaves  set after data processing--for conveniance really
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()

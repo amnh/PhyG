@@ -1111,7 +1111,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         parentFinal = (mempty, parentFinalDC, mempty)
                                         --parentGapped = (mempty, wideGapped parentChar, mempty)
                                         childGapped = (mempty, wideGapped childChar, mempty)
-                                        finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal  childGapped
+                                        finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
                                     extractMedians finalAssignmentDOGapped
                                  else extractMedians finalGapped
@@ -1261,7 +1261,7 @@ getDOFinal charInfo parentFinal nodeGapped =
    gappedFinal
 
 
--- | makeGappedLeftRight takes an alignment parent charcater and original node character and inserts "new" gaps into nodeCharcater
+-- | makeGappedLeftRight takes an alignment parent character and original node character and inserts "new" gaps into nodeCharcater
 -- makeGappedLeftRight :: CharacterData -> CharacterData -> CharInfo -> CharacterData
 -- makeGappedLeftRight gappedLeftRight nodeChar charInfo =
 makeGappedLeftRight :: CharInfo

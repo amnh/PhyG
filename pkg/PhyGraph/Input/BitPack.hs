@@ -1353,8 +1353,8 @@ based on their number of states
 -- | packData takes input data and creates a variety of bit-packed data types
 -- to increase efficiency and reduce footprint of non-additive characters
 -- that are encoded as bitvectors
-packNonAdditiveData :: ProcessedData -> ProcessedData
-packNonAdditiveData (nameVect, bvNameVect, blockDataVect) =
+packNonAdditiveData :: GlobalSettings -> ProcessedData -> ProcessedData
+packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
     let newBlockDataList = fmap recodeNonAddCharacters (V.toList blockDataVect) -- `using` PU.myParListChunkRDS -- could be an option to save memory etc
     in
@@ -1441,7 +1441,7 @@ recodeBV2BV charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = NonAdd}])
-        where makeNewData a b = a {stateBVPrelim = (mempty,b,mempty), stateBVFinal = b}
+        where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
 
 
 -- | recodeBV2Word64Single take a list of BV.bitvector non-add characters and creates a list (taxa)
@@ -1465,7 +1465,7 @@ recodeBV2Word64Single charInfo charTaxBVLL =
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
         (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
-        where makeNewData a b = a {packedNonAddPrelim = (mempty,b,mempty), packedNonAddFinal = b}
+        where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
 
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
 -- of type a (bitvector or Word64) and returns a list of taxa each of which is a vector
@@ -1529,7 +1529,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
 
     in
     -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
-    emptyCharacter { packedNonAddPrelim = (mempty, packedWordVect, mempty)
+    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
 
