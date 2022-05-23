@@ -597,7 +597,7 @@ preOrderTreeTraversal
 
 359) llvm for OSX
 
-360) add no changed filed to bitpacked and non-add (maybe add too?, matrix?) chars
+360) add no changed field to bitpacked and non-add (maybe add too?, matrix?) chars
 
 361) filter weight 0 characters
 

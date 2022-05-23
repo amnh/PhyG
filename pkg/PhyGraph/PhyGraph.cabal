@@ -120,7 +120,8 @@ executable phyg
     -O2
     -rtsopts
     -static
-    -- -fllvm
+    -- problems getting llvm to function in OSX (can't find opt)
+    -fllvm
 
   if !os(darwin) 
     cc-options: 

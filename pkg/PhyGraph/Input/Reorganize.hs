@@ -275,50 +275,51 @@ combineData (blockName, blockDataVV, charInfoV) =
 -- non-additive characters with integer weights could be  repeated before combining-- but this has been disabled 
 -- due to memory issues in large data sets
 -- non-integer additive and non-additive are grouped together by weight so they can be combined and bit packed
--- all other types are grouped by weight for efficiency of optimization and reducitionn of multiplies
+-- all other types are grouped by weight for efficiency of optimization and reductionn of multiplies
+-- zero weight characters are filtered out
 combineBlockData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
 combineBlockData inCharInfoV inCharDataV = 
     let pairCharsInfo = V.zip inCharInfoV inCharDataV
 
         -- characters to not be reorganized-- nbasically the sequence characters
-        sequenceCharacters = V.toList $ V.filter ((`elem` sequenceCharacterTypes) . charType . fst) pairCharsInfo
+        sequenceCharacters = V.toList $ V.filter ((> 0) . weight . fst) $ V.filter ((`elem` sequenceCharacterTypes) . charType . fst)  pairCharsInfo
 
         -- matrix characters are more complex--can only join if same matrix
-        matrixCharsPair = V.filter ((== Matrix) . charType . fst) pairCharsInfo
+        matrixCharsPair = V.filter ((> 0) . weight . fst) $ V.filter ((== Matrix) . charType . fst) pairCharsInfo
         (newMatrixCharL, newMatrixCharInfoL) = if (not . null) matrixCharsPair then unzip $ organizeMatrixCharsByMatrix (V.toList matrixCharsPair)
                                                else ([],[])
 
         -- non-additive characters
             -- multiple characters by weight, if only 1 weight then all together
-        nonAddChars = V.filter ((== NonAdd) . charType . fst) pairCharsInfo
+        nonAddChars = V.filter ((> 0) . weight . fst) $ V.filter ((== NonAdd) . charType . fst) pairCharsInfo
         (newNonAddCharInfo, newNonAddChar) = unzip $ V.toList $ groupCharactersByWeight nonAddChars
 
         -- additive characters
             -- multiple characters by weight, if only 1 weight then all together
             
-        addChars = V.filter ((== Add) . charType . fst) pairCharsInfo
+        addChars = V.filter ((> 0) . weight . fst) $ V.filter ((== Add) . charType . fst) pairCharsInfo
         (newAddCharInfo, newAddChar) = unzip $ V.toList $ groupCharactersByWeight addChars
 
         -- Packed2 characters
-        packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
+        packed2Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed2) . charType . fst) pairCharsInfo
         (newPacked2CharInfo, newPacked2Char) = unzip $ V.toList $ groupCharactersByWeight packed2Chars
 
         -- Packed4 characters
-        packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
+        packed4Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed4) . charType . fst) pairCharsInfo
         (newPacked4CharInfo, newPacked4Char) = unzip $ V.toList $ groupCharactersByWeight packed4Chars
 
 
         -- Packed5 characters
-        packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
+        packed5Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed5) . charType . fst) pairCharsInfo
         (newPacked5CharInfo, newPacked5Char) = unzip $ V.toList $ groupCharactersByWeight packed5Chars
 
 
         -- Packed8 characters
-        packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
+        packed8Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed8) . charType . fst) pairCharsInfo
         (newPacked8CharInfo, newPacked8Char) = unzip $ V.toList $ groupCharactersByWeight packed8Chars
 
         -- Packed64 characters
-        packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
+        packed64Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed64) . charType . fst) pairCharsInfo
         (newPacked64CharInfo, newPacked64Char) = unzip $ V.toList $ groupCharactersByWeight packed64Chars
 
         -- Add together all new characters, seqeunce characters and char info
