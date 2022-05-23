@@ -883,7 +883,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                      getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (missingAdditive firstCharInfo : curCharList)
                else
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
-                    newCharacter = emptyCharacter { rangePrelim = ( V.singleton (minRange, maxRange), V.singleton (minRange, maxRange),  V.singleton (minRange, maxRange)) }
+                    newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
                 in
                 if ST.length firstState > 1 then 
                     -- trace ("GQC: " ++ show firstState)

@@ -330,8 +330,9 @@ threeWayHuge charInfo parent1 parent2 curNode =
    else median3
 
 -- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
+-- importand node filed orders correct--has moved around
 addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
-addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
+addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, ga
    let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
@@ -346,7 +347,7 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode
-          -- firstGN = GV.head  gappedNode
+          firstGN = GV.head  gappedNode
       in
 
       -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
@@ -356,7 +357,7 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
         in
         (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
 
-      else if firstRGN /= GV.head gappedNode then
+      else if firstRGN /= firstGN then
          let gap = bit gapIndex
          in
          slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)

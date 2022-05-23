@@ -76,8 +76,8 @@ import qualified Data.MetricRepresentation   as MR
             -- here
         -- bitPack new non-additive
             -- packNonAdditive
-optimizePrealignedData :: ProcessedData -> ProcessedData
-optimizePrealignedData inData@(_, _, blockDataVect) = 
+optimizePrealignedData :: GlobalSettings -> ProcessedData -> ProcessedData
+optimizePrealignedData inGS inData@(_, _, blockDataVect) = 
     let -- remove constant characters from prealigned
         inData' = removeConstantCharactersPrealigned inData
         
@@ -85,7 +85,7 @@ optimizePrealignedData inData@(_, _, blockDataVect) =
         inData'' = convertPrealignedToNonAdditive inData'
     
         -- bit packing for non-additivecharacters
-        inData''' = BP.packNonAdditiveData inData''
+        inData''' = BP.packNonAdditiveData inGS inData''
 
     in
     if U.getNumberPrealignedCharacters blockDataVect == 0 then inData
@@ -254,10 +254,10 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
 -- same vectors in character so have one non-add, one add, one of each packed type, 
 -- can have multiple matrix (due to cost matrix differneces)
 -- simialr result to groupDataByType, but does not assume single characters.
-combineDataByType :: ProcessedData -> ProcessedData
-combineDataByType inData@(taxNames, taxBVNames, _) =
+combineDataByType :: GlobalSettings -> ProcessedData -> ProcessedData
+combineDataByType inGS inData@(taxNames, taxBVNames, _) =
     --recode add to non-add before combine-- takes care wor integer weighting 
-    let (_, _, blockDataV') = recodeAddToNonAddCharacters maxAddStatesToRecode inData
+    let (_, _, blockDataV') = recodeAddToNonAddCharacters inGS maxAddStatesToRecode inData
         recodedData = fmap combineData blockDataV' 
     in
     (taxNames, taxBVNames, recodedData)
@@ -275,50 +275,51 @@ combineData (blockName, blockDataVV, charInfoV) =
 -- non-additive characters with integer weights could be  repeated before combining-- but this has been disabled 
 -- due to memory issues in large data sets
 -- non-integer additive and non-additive are grouped together by weight so they can be combined and bit packed
--- all other types are grouped by weight for efficiency of optimization and reducitionn of multiplies
+-- all other types are grouped by weight for efficiency of optimization and reductionn of multiplies
+-- zero weight characters are filtered out
 combineBlockData :: V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
 combineBlockData inCharInfoV inCharDataV = 
     let pairCharsInfo = V.zip inCharInfoV inCharDataV
 
         -- characters to not be reorganized-- nbasically the sequence characters
-        sequenceCharacters = V.toList $ V.filter ((`elem` sequenceCharacterTypes) . charType . fst) pairCharsInfo
+        sequenceCharacters = V.toList $ V.filter ((> 0) . weight . fst) $ V.filter ((`elem` sequenceCharacterTypes) . charType . fst)  pairCharsInfo
 
         -- matrix characters are more complex--can only join if same matrix
-        matrixCharsPair = V.filter ((== Matrix) . charType . fst) pairCharsInfo
+        matrixCharsPair = V.filter ((> 0) . weight . fst) $ V.filter ((== Matrix) . charType . fst) pairCharsInfo
         (newMatrixCharL, newMatrixCharInfoL) = if (not . null) matrixCharsPair then unzip $ organizeMatrixCharsByMatrix (V.toList matrixCharsPair)
                                                else ([],[])
 
         -- non-additive characters
             -- multiple characters by weight, if only 1 weight then all together
-        nonAddChars = V.filter ((== NonAdd) . charType . fst) pairCharsInfo
+        nonAddChars = V.filter ((> 0) . weight . fst) $ V.filter ((== NonAdd) . charType . fst) pairCharsInfo
         (newNonAddCharInfo, newNonAddChar) = unzip $ V.toList $ groupCharactersByWeight nonAddChars
 
         -- additive characters
             -- multiple characters by weight, if only 1 weight then all together
             
-        addChars = V.filter ((== Add) . charType . fst) pairCharsInfo
+        addChars = V.filter ((> 0) . weight . fst) $ V.filter ((== Add) . charType . fst) pairCharsInfo
         (newAddCharInfo, newAddChar) = unzip $ V.toList $ groupCharactersByWeight addChars
 
         -- Packed2 characters
-        packed2Chars = V.filter ((== Packed2) . charType . fst) pairCharsInfo
+        packed2Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed2) . charType . fst) pairCharsInfo
         (newPacked2CharInfo, newPacked2Char) = unzip $ V.toList $ groupCharactersByWeight packed2Chars
 
         -- Packed4 characters
-        packed4Chars = V.filter ((== Packed4) . charType . fst) pairCharsInfo
+        packed4Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed4) . charType . fst) pairCharsInfo
         (newPacked4CharInfo, newPacked4Char) = unzip $ V.toList $ groupCharactersByWeight packed4Chars
 
 
         -- Packed5 characters
-        packed5Chars = V.filter ((== Packed5) . charType . fst) pairCharsInfo
+        packed5Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed5) . charType . fst) pairCharsInfo
         (newPacked5CharInfo, newPacked5Char) = unzip $ V.toList $ groupCharactersByWeight packed5Chars
 
 
         -- Packed8 characters
-        packed8Chars = V.filter ((== Packed8) . charType . fst) pairCharsInfo
+        packed8Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed8) . charType . fst) pairCharsInfo
         (newPacked8CharInfo, newPacked8Char) = unzip $ V.toList $ groupCharactersByWeight packed8Chars
 
         -- Packed64 characters
-        packed64Chars = V.filter ((== Packed64) . charType . fst) pairCharsInfo
+        packed64Chars = V.filter ((> 0) . weight . fst) $ V.filter ((== Packed64) . charType . fst) pairCharsInfo
         (newPacked64CharInfo, newPacked64Char) = unzip $ V.toList $ groupCharactersByWeight packed64Chars
 
         -- Add together all new characters, seqeunce characters and char info
@@ -669,24 +670,24 @@ assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlim
 -- | recodeAddToNonAddCharacters takes an max states number and processsed data
 -- and recodes additive characters with max state < input max (0..input max - 1)
 -- as a series of binary non-additive characters
-recodeAddToNonAddCharacters :: Int -> ProcessedData -> ProcessedData
-recodeAddToNonAddCharacters maxStateToRecode (nameVect, nameBVVect, blockDataVect) =
-    let newBlockDataVect = fmap (convertAddToNonAddBlock maxStateToRecode) blockDataVect
+recodeAddToNonAddCharacters :: GlobalSettings -> Int -> ProcessedData -> ProcessedData
+recodeAddToNonAddCharacters inGS maxStateToRecode (nameVect, nameBVVect, blockDataVect) =
+    let newBlockDataVect = fmap (convertAddToNonAddBlock inGS maxStateToRecode) blockDataVect
     in
     (nameVect, nameBVVect, newBlockDataVect)
 
 -- | convertAddToNonAddBlock converts additive charcters to no-additive in a block
-convertAddToNonAddBlock :: Int -> BlockData -> BlockData
-convertAddToNonAddBlock maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
-    let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData maxStateToRecode charInfoV) taxByCharDataVV
+convertAddToNonAddBlock :: GlobalSettings ->  Int -> BlockData -> BlockData
+convertAddToNonAddBlock inGS maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
+    let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData inGS maxStateToRecode charInfoV) taxByCharDataVV
     in
     -- trace ("CNAB: " ++ (show (V.length $ V.head newTaxByCharDataVV, V.length $ V.head newCharInfoVV)))
     (blockName, newTaxByCharDataVV, V.head newCharInfoVV)
 
 -- | recodeTaxonData recodes Add as nonAdd for each taxon in turn
-recodeTaxonData :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
-recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
-    let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
+recodeTaxonData :: GlobalSettings -> Int -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+recodeTaxonData inGS maxStateToRecode charInfoV taxonCharacterDataV =
+    let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter inGS maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
     in
     -- trace ("RTD: " ++ (show (V.length $ V.concat newCharDataVV, V.length $ V.concat newCharInfoVV)))
     (V.concat newCharDataVV, V.concat newCharInfoVV)
@@ -695,8 +696,8 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 -- fewer than maxStateToRecode states.
 -- assumes states in linear order
 -- replicatee charinfo for multiple new characters after recoding
-recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
-recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
+recodeAddToNonAddCharacter :: GlobalSettings -> Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
+recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
         numStates = 1 + (L.maximum $ fmap makeInt $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         -- numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
@@ -704,7 +705,10 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     in
     -- if a single state recodes to a single uninfomative binary 
         -- removed || ((not . doubleIsInt . weight) inCharInfo)  to allow for recodding (leaving weight) for non-integer weights
-    if (inCharType /= Add) || (numStates > maxStateToRecode) then (V.singleton inCharData, V.singleton inCharInfo)
+    if (inCharType /= Add) then (V.singleton inCharData, V.singleton inCharInfo)
+    
+        -- the limit on recoded states is removed for PMDL/ML since otherwise bit costs will be incorrect
+    else if (numStates > maxStateToRecode) && ((optimalityCriterion inGS)  `notElem` [PMDL, Likelihood]) then (V.singleton inCharData, V.singleton inCharInfo)
     else if numStates < 2 then (V.empty, V.empty)
     else 
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)

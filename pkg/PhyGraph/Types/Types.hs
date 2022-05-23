@@ -191,7 +191,13 @@ data  GlobalSettings
     , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
-    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
+    , numDataLeaves       :: Int --number of leaves  set after data processing--for conveniance really
+    , bc2                 :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
+    , bc4                 :: (Double, Double) -- PMDL bitCost for 4 states of no-change and change as pair
+    , bc5                 :: (Double, Double) -- PMDL bitCost for 5 states of no-change and change as pair
+    , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
+    , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
+    , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -496,6 +502,12 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , searchData = []
                                      , partitionCharacter = "#"
                                      , numDataLeaves = 0
+                                     , bc2 = (0.0,1.0)
+                                     , bc4 = (0.0,1.0)
+                                     , bc5 = (0.0,1.0)
+                                     , bc8 = (0.0,1.0)
+                                     , bc64 = (0.0,1.0)
+                                     , bcgt64 = (0.0,1.0)
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
