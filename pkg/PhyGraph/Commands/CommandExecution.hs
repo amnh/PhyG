@@ -230,6 +230,9 @@ setCommand argList globalSettings processedData inSeedList =
     in
     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'set': " ++ show argList)
 
+    -- this could be changed later
+    else if length commandList > 1 || length optionList > 1 then errorWithoutStackTrace ("Set option error: can only have one set argument for each command: " ++ (show (commandList,optionList))) 
+
     -- early extraction of parition character, follows from null inputs
     else if (null inSeedList) then 
         if head commandList == "partitioncharacter"  then
@@ -246,27 +249,110 @@ setCommand argList globalSettings processedData inSeedList =
             (globalSettings, processedData, inSeedList)
         
     else
-        if head commandList == "outgroup"  then
-            let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
-                outTaxonIndex = V.elemIndex outTaxonName leafNameVect
-
+        if head commandList == "bc2"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
             in
-            if isNothing outTaxonIndex then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ T.unpack outTaxonName ++ " not found in input leaf list" ++ show (fmap (T.unpack) leafNameVect))
-            else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData, inSeedList)
-        else if head commandList == "graphtype"  then
-            let localGraphType
-                  | (head optionList == "tree") = Tree
-                  | (head optionList == "softwired") = SoftWired
-                  | (head optionList == "hardwired") = HardWired
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
-            in
-            if localGraphType /= Tree then 
-                trace ("Graphtype set to " ++ (head optionList) ++ " and final assignment to DO")
-                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData, inSeedList)
+            if length commandList /= length optionList then errorWithoutStackTrace ("Set option error: number of values and options do not match: " ++ (show (commandList,optionList)))
+            else if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): " ++ (head optionList))
             else 
-                trace ("Graphtype set to " ++ head optionList)
-                (globalSettings {graphType = localGraphType}, processedData, inSeedList)
-        else if head commandList == "criterion"  then
+                if (bc2 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bc2 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+        else if head commandList == "bc4"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc4 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bc4 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+       else if head commandList == "bc5"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc5 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bc5 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bc8"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc8 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bc8 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bc64"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bc64 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bcgt64"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bcgt64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bcgt64 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "criterion"  then
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
                   | (head optionList == "pmdl") = PMDL
@@ -274,6 +360,7 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("Optimality criterion set to " ++ head optionList)
             (globalSettings {optimalityCriterion = localCriterion}, processedData, inSeedList)
+
         else if head commandList == "compressresolutions"  then
             let localCriterion
                   | (head optionList == "true") = True
@@ -282,6 +369,7 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("CompressResolutions set to " ++ head optionList)
             (globalSettings {compressResolutions = localCriterion}, processedData, inSeedList)
+
         else if head commandList == "finalassignment"  then
             let localMethod
                   | ((head optionList == "do") || (head optionList == "directoptimization")) = DirectOptimization
@@ -307,6 +395,36 @@ setCommand argList globalSettings processedData inSeedList =
             trace ("GraphFactor set to " ++ head optionList)
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
 
+        else if head commandList == "graphtype"  then
+            let localGraphType
+                  | (head optionList == "tree") = Tree
+                  | (head optionList == "softwired") = SoftWired
+                  | (head optionList == "hardwired") = HardWired
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
+            in
+            if localGraphType /= Tree then 
+                trace ("Graphtype set to " ++ (head optionList) ++ " and final assignment to DO")
+                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData, inSeedList)
+            else 
+                trace ("Graphtype set to " ++ head optionList)
+                (globalSettings {graphType = localGraphType}, processedData, inSeedList)
+
+        else if head commandList == "modelcomplexity"  then
+            let localValue = readMaybe (head optionList) :: Maybe Double
+            in
+            if localValue == Nothing then error ("Set option 'modelComplexity' must be set to a double value (e.g. modelComplexity:123.456): " ++ (head optionList))
+            else 
+                trace ("Model Complexity set to " ++ head optionList)
+                (globalSettings {modelComplexity = (fromJust localValue)}, processedData, inSeedList)
+        
+        else if head commandList == "outgroup"  then
+            let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
+                outTaxonIndex = V.elemIndex outTaxonName leafNameVect
+
+            in
+            if isNothing outTaxonIndex then errorWithoutStackTrace ("Error in 'set' command. Out-taxon " ++ T.unpack outTaxonName ++ " not found in input leaf list" ++ show (fmap (T.unpack) leafNameVect))
+            else trace ("Outgroup set to " ++ T.unpack outTaxonName) (globalSettings {outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData, inSeedList)
+
         else if head commandList == "partitioncharacter"  then
             let localPartitionChar = head optionList
             in
@@ -327,6 +445,7 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("RootCost set to " ++ head optionList)
             (globalSettings {rootCost = localMethod}, processedData, inSeedList)
+
         else if head commandList == "seed"  then
             let localValue = readMaybe (head optionList) :: Maybe Int
             in
@@ -335,14 +454,6 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("Random Seed set to " ++ head optionList)
                 (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
 
-        else if head commandList == "modelcomplexity"  then
-            let localValue = readMaybe (head optionList) :: Maybe Double
-            in
-            if localValue == Nothing then error ("Set option 'modelComplexity' must be set to a double value (e.g. m,odelComplexity:123.456): " ++ (head optionList))
-            else 
-                trace ("Model Complexity set to " ++ head optionList)
-                (globalSettings {modelComplexity = (fromJust localValue)}, processedData, inSeedList)
-        
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 
