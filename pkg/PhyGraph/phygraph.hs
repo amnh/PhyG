@@ -181,7 +181,7 @@ main = do
     -- Group Data--all nonadditives to single character, additives with 
     -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
-    let naiveDataGrouped = R.combineDataByType naiveData -- R.groupDataByType naiveData
+    let naiveDataGrouped = R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
     -- Bit pack non-additive data 
     let naiveDataPacked = BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
@@ -202,7 +202,7 @@ main = do
     -- thids is final data processing step
     let optimizedData = if (not . null) newBlockPairList then 
                             trace ("Reorganizing Block data") 
-                            R.combineDataByType reBlockedNaiveData
+                            R.combineDataByType partitionCharOptimalityGlobalSettings reBlockedNaiveData
                         else optimizedPrealignedData
                         
     

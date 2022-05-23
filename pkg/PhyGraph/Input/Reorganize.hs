@@ -254,10 +254,10 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
 -- same vectors in character so have one non-add, one add, one of each packed type, 
 -- can have multiple matrix (due to cost matrix differneces)
 -- simialr result to groupDataByType, but does not assume single characters.
-combineDataByType :: ProcessedData -> ProcessedData
-combineDataByType inData@(taxNames, taxBVNames, _) =
+combineDataByType :: GlobalSettings -> ProcessedData -> ProcessedData
+combineDataByType inGS inData@(taxNames, taxBVNames, _) =
     --recode add to non-add before combine-- takes care wor integer weighting 
-    let (_, _, blockDataV') = recodeAddToNonAddCharacters maxAddStatesToRecode inData
+    let (_, _, blockDataV') = recodeAddToNonAddCharacters inGS maxAddStatesToRecode inData
         recodedData = fmap combineData blockDataV' 
     in
     (taxNames, taxBVNames, recodedData)
@@ -670,24 +670,24 @@ assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlim
 -- | recodeAddToNonAddCharacters takes an max states number and processsed data
 -- and recodes additive characters with max state < input max (0..input max - 1)
 -- as a series of binary non-additive characters
-recodeAddToNonAddCharacters :: Int -> ProcessedData -> ProcessedData
-recodeAddToNonAddCharacters maxStateToRecode (nameVect, nameBVVect, blockDataVect) =
-    let newBlockDataVect = fmap (convertAddToNonAddBlock maxStateToRecode) blockDataVect
+recodeAddToNonAddCharacters :: GlobalSettings -> Int -> ProcessedData -> ProcessedData
+recodeAddToNonAddCharacters inGS maxStateToRecode (nameVect, nameBVVect, blockDataVect) =
+    let newBlockDataVect = fmap (convertAddToNonAddBlock inGS maxStateToRecode) blockDataVect
     in
     (nameVect, nameBVVect, newBlockDataVect)
 
 -- | convertAddToNonAddBlock converts additive charcters to no-additive in a block
-convertAddToNonAddBlock :: Int -> BlockData -> BlockData
-convertAddToNonAddBlock maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
-    let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData maxStateToRecode charInfoV) taxByCharDataVV
+convertAddToNonAddBlock :: GlobalSettings ->  Int -> BlockData -> BlockData
+convertAddToNonAddBlock inGS maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
+    let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData inGS maxStateToRecode charInfoV) taxByCharDataVV
     in
     -- trace ("CNAB: " ++ (show (V.length $ V.head newTaxByCharDataVV, V.length $ V.head newCharInfoVV)))
     (blockName, newTaxByCharDataVV, V.head newCharInfoVV)
 
 -- | recodeTaxonData recodes Add as nonAdd for each taxon in turn
-recodeTaxonData :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
-recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
-    let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
+recodeTaxonData :: GlobalSettings -> Int -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+recodeTaxonData inGS maxStateToRecode charInfoV taxonCharacterDataV =
+    let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter inGS maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
     in
     -- trace ("RTD: " ++ (show (V.length $ V.concat newCharDataVV, V.length $ V.concat newCharInfoVV)))
     (V.concat newCharDataVV, V.concat newCharInfoVV)
@@ -696,8 +696,8 @@ recodeTaxonData maxStateToRecode charInfoV taxonCharacterDataV =
 -- fewer than maxStateToRecode states.
 -- assumes states in linear order
 -- replicatee charinfo for multiple new characters after recoding
-recodeAddToNonAddCharacter :: Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
-recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
+recodeAddToNonAddCharacter :: GlobalSettings -> Int -> CharacterData -> CharInfo -> (V.Vector CharacterData,  V.Vector CharInfo)
+recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
     let inCharType = charType inCharInfo
         numStates = 1 + (L.maximum $ fmap makeInt $ alphabet inCharInfo) -- min 2 (1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo))
         -- numStates = 1 + (L.last $ L.sort $ fmap makeInt $ alphabetSymbols $ alphabet inCharInfo)
@@ -705,7 +705,10 @@ recodeAddToNonAddCharacter maxStateToRecode inCharData inCharInfo =
     in
     -- if a single state recodes to a single uninfomative binary 
         -- removed || ((not . doubleIsInt . weight) inCharInfo)  to allow for recodding (leaving weight) for non-integer weights
-    if (inCharType /= Add) || (numStates > maxStateToRecode) then (V.singleton inCharData, V.singleton inCharInfo)
+    if (inCharType /= Add) then (V.singleton inCharData, V.singleton inCharInfo)
+    
+        -- the limit on recoded states is removed for PMDL/ML since otherwise bit costs will be incorrect
+    else if (numStates > maxStateToRecode) && ((optimalityCriterion inGS)  `notElem` [PMDL, Likelihood]) then (V.singleton inCharData, V.singleton inCharInfo)
     else if numStates < 2 then (V.empty, V.empty)
     else 
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)

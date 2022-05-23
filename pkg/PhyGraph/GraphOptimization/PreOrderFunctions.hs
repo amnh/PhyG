@@ -720,7 +720,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
         thisMatrix = costMatrix charInfo
         thisCharType = charType charInfo
+        lChangeCost = changeCost charInfo
+        lNoChangeCost = noChangeCost charInfo
     in
+    -- no nded to do nochange/change--all recoded in that case
     if thisCharType == Add then
         let --minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
             (minDiffV, maxDiffV) = V.unzip $ V.zipWith maxMinIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
@@ -730,21 +733,27 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         in
         (minCost, maxCost)
 
-
+    -- assumes noChangeCost < changeCost for PMDL/ML
     else if thisCharType == NonAdd then
         let -- minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
             minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntersection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxDiff = length $ V.filter (==False) $ V.zipWith equalAndSingleState (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxCost = thisWeight * fromIntegral maxDiff
             minCost = thisWeight * fromIntegral minDiff
+            minNoChange = (length (stateBVFinal uCharacter)) - minDiff
+            maxNoChange = (length (stateBVFinal uCharacter)) - maxDiff
+            minCost' = thisWeight * ((lNoChangeCost * (fromIntegral minNoChange)) + (lChangeCost * (fromIntegral minDiff)))
+            maxCost' = thisWeight * ((lNoChangeCost * (fromIntegral maxNoChange)) + (lChangeCost * (fromIntegral maxDiff)))
+            
         in
-        (minCost, maxCost)
+        if lNoChangeCost == 0.0 then (minCost, maxCost)
+        else (minCost', maxCost')
 
     else if thisCharType `elem` packedNonAddTypes then
         let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-            (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff thisCharType) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
-            maxCost = thisWeight * (fromIntegral $ UV.sum maxDiffV)
-            minCost = thisWeight * (fromIntegral $ UV.sum minDiffV)
+            (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff thisCharType (lNoChangeCost, lChangeCost)) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            maxCost = thisWeight * (UV.sum maxDiffV)
+            minCost = thisWeight * (UV.sum minDiffV)
         in
         (minCost, maxCost)
 
