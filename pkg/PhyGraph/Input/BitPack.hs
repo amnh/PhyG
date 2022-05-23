@@ -1480,11 +1480,7 @@ recodeBV2Word64Single inGS charInfo charTaxBVLL =
             -- make new character data
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
         in
-<<<<<<< HEAD
-        (newCharDataList, [charInfo {name = newCharName, charType = Packed64}])
-=======
         (newCharDataList, [charInfo {name = newCharName, charType = Packed64, noChangeCost = (fst . bc64) inGS, changeCost = (snd . bc64) inGS}])
->>>>>>> 2532a9c861ced28cbda7c5a785329d476893f3c3
         where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
 
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
