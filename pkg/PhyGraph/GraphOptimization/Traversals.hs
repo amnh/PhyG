@@ -192,9 +192,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         graphWithBestAssignments = L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
         -- same root cost if same data and number of roots
-        localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+        localRootCost = rootComplexity inGS 
+                        {-if (rootCost inGS) == NoRootCost then 0.0
                         else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+                        -}
 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
@@ -213,7 +215,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             staticOnlyGraph = if (graphType inGS) == SoftWired then updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
             -- staticOnlyGraph = head recursiveRerootList'
-            staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + localRootCost + (snd6 staticOnlyGraph))
+                               else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
         (staticOnlyGraph', localRootCost, head startVertexList)
@@ -225,7 +228,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-            newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+            newCostList' = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+
+            newCostList = if startVertex == Nothing then zipWith (+) (replicate (length finalizedPostOrderGraphList) localRootCost) newCostList'
+                          else newCostList'
 
             finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
@@ -241,7 +247,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+            graphWithBestAssignments' = if startVertex == Nothing then updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + localRootCost + (snd6 graphWithBestAssignments))
+                                        else updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)

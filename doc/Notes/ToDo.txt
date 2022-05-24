@@ -605,5 +605,8 @@ preOrderTreeTraversal
 	make doc change to note this.
 	new character '=' perhaps?
 
+363) verify local root cost and swap and fuse thing--perhaps not add if in there
+	can be subtracted if double counted (inGS etc)
+
 
 
