@@ -58,6 +58,28 @@ import qualified GeneralUtilities            as GU
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+import qualified Data.InfList                as IL
+
+-- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
+-- number of network nodes-assumes for now--single component gaph not forest
+calculateGraphComplexity :: ProcessedData -> IL.InfList VertexCost
+calculateGraphComplexity (nameVect, _, _) = 
+    let numNetNodesList = IL.fromList [(0 :: Int)..]
+        numRoots = 1
+        graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots) numNetNodesList
+    in
+    graphComplexity
+
+-- | getGraphComplexity takes the number of leaves and number of 
+-- network nodes and calculates the graph complexity
+getGraphComplexity :: Int -> Int -> Int -> VertexCost
+getGraphComplexity numLeaves numRoots numNetNodes =
+    -- place holder for now
+    let treeComplexity = fromIntegral $ (2 * numLeaves) - 2 - (2 * (numRoots - 1))
+        numDisplayTrees = 2.0 ** (fromIntegral numNetNodes)
+    in
+    treeComplexity * numDisplayTrees
+
 
 -- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa

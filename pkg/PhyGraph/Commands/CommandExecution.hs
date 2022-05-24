@@ -80,6 +80,7 @@ import           Data.Alphabet
 import Data.Bits
 import qualified Commands.Verify             as VER
 import qualified Input.Reorganize            as IR
+import qualified Data.InfList                as IL
 
 
 
@@ -461,10 +462,16 @@ setCommand argList globalSettings processedData inSeedList =
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
                   | (head optionList == "pmdl") = PMDL
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony' or 'pmdl'")
+                  | (head optionList == "ml") = Likelihood
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
+
+                -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
+                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat 0.0
+                                      else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
+                                      else error ("Optimality criterion not recognized: " ++ (show localCriterion))
             in
-            trace ("Optimality criterion set to " ++ head optionList)
-            (globalSettings {optimalityCriterion = localCriterion}, processedData, inSeedList)
+            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ IL.head lGraphComplexityList) ++ " bits")
+            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList}, processedData, inSeedList)
 
         else if head commandList == "compressresolutions"  then
             let localCriterion
@@ -546,13 +553,14 @@ setCommand argList globalSettings processedData inSeedList =
                   | (head optionList == "norootcost") = NoRootCost
                   | (head optionList == "w15") = Wheeler2015Root
                   | (head optionList == "pmdl") = PMDLRoot
+                  | (head optionList == "ml") = MLRoot
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. RootCost  '" ++ (head optionList) ++ "' is not 'NoRootCost', 'W15', or 'PMDL'")
 
                 lRootComplexity = if localMethod == NoRootCost then 0.0
-                                 else if localMethod `elem` [Wheeler2015Root, PMDLRoot] then U.calculateW15RootCost processedData
+                                 else if localMethod `elem` [Wheeler2015Root, PMDLRoot, MLRoot] then U.calculateW15RootCost processedData
                                  else error ("Root cost method not recognized: " ++ (show localMethod))
             in
-            trace ("RootCost set to " ++ (show localMethod) ++ " " ++ (show lRootComplexity))
+            trace ("RootCost set to " ++ (show localMethod) ++ " " ++ (show lRootComplexity) ++ " bits")
             (globalSettings {rootCost = localMethod, rootComplexity = lRootComplexity}, processedData, inSeedList)
 
         else if head commandList == "seed"  then
