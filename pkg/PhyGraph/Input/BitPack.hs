@@ -1533,6 +1533,7 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
 
         in
         -- trace ("RBV2W64 Out: " ++ (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
+        -- trace ("RBV2W64: " ++ (show (lNoChangeCost, lChangeCost)))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType, noChangeCost = lNoChangeCost, changeCost = lChangeCost}])
         -- )
 

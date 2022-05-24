@@ -220,6 +220,7 @@ makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime commen
 
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
+-- needs to be abtracted--too long
 setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalSettings, ProcessedData, [Int])
 setCommand argList globalSettings processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
@@ -233,7 +234,8 @@ setCommand argList globalSettings processedData inSeedList =
     -- this could be changed later
     else if length commandList > 1 || length optionList > 1 then errorWithoutStackTrace ("Set option error: can only have one set argument for each command: " ++ (show (commandList,optionList))) 
 
-    -- early extraction of parition character, follows from null inputs
+    -- early extraction of partition character and bc2-gt64 follows from null inputs
+    -- this due to not having all info required for all global settings, so optoin resitrcted and repeated
     else if (null inSeedList) then 
         if head commandList == "partitioncharacter"  then
             let localPartitionChar = head optionList
@@ -243,7 +245,110 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
                 (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
 
-        -- partition character to reset
+        else if head commandList == "bc2"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if length commandList /= length optionList then errorWithoutStackTrace ("Set option error: number of values and options do not match: " ++ (show (commandList,optionList)))
+            else if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc2 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost 2 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+        else if head commandList == "bc4"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc4 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost 4 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+       else if head commandList == "bc5"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc5 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost 5 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bc8"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc8 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost 8 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bc64"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bc64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost 64 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         else if head commandList == "bcgt64"  then
+            let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                noChangeValue = readMaybe noChangeString :: Maybe Double
+                changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
+                changeValue = readMaybe changeString :: Maybe Double
+            in
+            if (null . head) optionList then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found ")
+            else if (',' `notElem` (head optionList)) then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found ")
+            else if isNothing noChangeValue then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): " ++ (head optionList))
+            else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): " ++ (head optionList))
+            else 
+                if (bcgt64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
+                    trace ("bit cost > 64 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+        
+        
+         -- partition character to reset
         else 
             -- trace ("PartitionCharacter set to '" ++ (partitionCharacter globalSettings) ++ "'")
             (globalSettings, processedData, inSeedList)
@@ -262,7 +367,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bc2 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bc2 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost 2 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
@@ -279,7 +384,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bc4 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bc4 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost 4 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
@@ -296,7 +401,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bc5 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bc5 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost 5 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
@@ -313,7 +418,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bc8 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bc8 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost 8 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
@@ -330,7 +435,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bc64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bc64 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost 64 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
@@ -347,7 +452,7 @@ setCommand argList globalSettings processedData inSeedList =
             else if isNothing changeValue then errorWithoutStackTrace ("Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): " ++ (head optionList))
             else 
                 if (bcgt64 globalSettings) /= (fromJust noChangeValue, fromJust changeValue) then 
-                    trace ("bcgt64 set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
+                    trace ("bit cost > 64 state set to " ++ (show (fromJust noChangeValue, fromJust changeValue)))
                     (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         

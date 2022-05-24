@@ -116,6 +116,8 @@ main = do
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
 
+    hPutStrLn stderr ("First global setting: " ++ (show partitionCharOptimalityGlobalSettings))
+
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
     if (not $ null newNamePairList) then hPutStrLn stderr ("Renaming " ++ (show $ length newNamePairList) ++ " terminals") 
