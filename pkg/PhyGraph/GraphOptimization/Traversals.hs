@@ -193,7 +193,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
         -- same root cost if same data and number of roots
         localRootCost = if (rootCost inGS) == NoRootCost then 0.0
-                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRooted
+                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
 
     in
@@ -246,7 +246,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    --)
+    -- )
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph
@@ -255,16 +255,15 @@ updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
-getW15RootCost :: ProcessedData -> PhylogeneticGraph -> VertexCost
-getW15RootCost (_, _, blockDataV) inGraph =
+getW15RootCost :: GlobalSettings -> PhylogeneticGraph -> VertexCost
+getW15RootCost inGS inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else
-        let (rootList, leafList, _, _) = LG.splitVertexList $ fst6 inGraph
+        let (rootList, _, _, _) = LG.splitVertexList $ fst6 inGraph
             numRoots = length rootList
-            numLeaves = length leafList
-            insertDataCost = V.sum $ fmap U.getblockInsertDataCost blockDataV
+            
         in
-        (fromIntegral numRoots) * insertDataCost /  (fromIntegral numLeaves)
+        (fromIntegral numRoots) * (rootComplexity inGS)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length

@@ -500,7 +500,7 @@ insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGr
 insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 -}
 
--- | heuristicAddDelta takes teh existing graph, edge pair, and new nodes to create and makes
+-- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoprtimizes starting nodes of two edges.  Returns cost delta based on
 -- previous and new node resolution caches
 -- returns cost delta and the reoptimized nodes for use in incremental optimization

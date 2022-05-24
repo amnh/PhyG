@@ -59,12 +59,24 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 
--- | getblockInsertDataCost gets teh total cost of 'inserting' the data in a block
+-- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
+-- leaf taxa
+-- this for a single root
+calculateW15RootCost :: ProcessedData -> VertexCost
+calculateW15RootCost (nameVect, _, blockDataV) =
+    let numLeaves = V.length nameVect
+        insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+    in
+    insertDataCost /  (fromIntegral numLeaves)
+
+-- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
+-- this most easily done before bit packing since won't vary anyway.
+-- then store value in Global Settings
 getblockInsertDataCost :: BlockData -> Double
 getblockInsertDataCost (_, characterDataVV, charInfoV) =
     V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
 
--- | getLeafInsertCost is the cost or ortiginating or 'inserting' leaf data
+-- | getLeafInsertCost is the cost or originating or 'inserting' leaf data
 -- for all characters in a block
 getLeafInsertCost :: V.Vector CharInfo -> V.Vector CharacterData -> Double
 getLeafInsertCost charInfoV charDataV =
@@ -79,6 +91,7 @@ getCharacterInsertCost inChar charInfo =
     in
     if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ rangePrelim inChar)
     else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ stateBVPrelim inChar)
+    -- this wrong--need to count actual characters packed2/32, packed4/32
     else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
     else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)

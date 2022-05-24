@@ -547,9 +547,13 @@ setCommand argList globalSettings processedData inSeedList =
                   | (head optionList == "w15") = Wheeler2015Root
                   | (head optionList == "pmdl") = PMDLRoot
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. RootCost  '" ++ (head optionList) ++ "' is not 'NoRootCost', 'W15', or 'PMDL'")
+
+                lRootComplexity = if localMethod == NoRootCost then 0.0
+                                 else if localMethod `elem` [Wheeler2015Root, PMDLRoot] then U.calculateW15RootCost processedData
+                                 else error ("Root cost method not recognized: " ++ (show localMethod))
             in
-            trace ("RootCost set to " ++ head optionList)
-            (globalSettings {rootCost = localMethod}, processedData, inSeedList)
+            trace ("RootCost set to " ++ (show localMethod) ++ " " ++ (show lRootComplexity))
+            (globalSettings {rootCost = localMethod, rootComplexity = lRootComplexity}, processedData, inSeedList)
 
         else if head commandList == "seed"  then
             let localValue = readMaybe (head optionList) :: Maybe Int
