@@ -235,6 +235,7 @@ main = do
     --hPutStrLn stderr (show _finalGlobalSettings)
 
     -- Add in model and root cost if optimality criterion needs it
+    hPutStrLn stderr ("\tUpdating final graph costs") 
     let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
 
     -- Final Stderr report
