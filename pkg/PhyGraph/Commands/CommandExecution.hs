@@ -458,7 +458,7 @@ setCommand argList globalSettings processedData inSeedList =
                     (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
-        
+         --  modified criterion causes changes in graphfactor and root cost 
          else if head commandList == "criterion"  then
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
@@ -474,9 +474,12 @@ setCommand argList globalSettings processedData inSeedList =
                 lRootComplexity = if localCriterion == Parsimony then 0.0
                                  else if localCriterion `elem`  [PMDL, Likelihood] then U.calculateW15RootCost processedData
                                  else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+
+                lGraphFactor = if localCriterion `elem` [PMDL, Likelihood] then PMDLGraph
+                               else graphFactor globalSettings
             in
             trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
-            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity}, processedData, inSeedList)
+            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity, graphFactor = lGraphFactor}, processedData, inSeedList)
 
         else if head commandList == "compressresolutions"  then
             let localCriterion
