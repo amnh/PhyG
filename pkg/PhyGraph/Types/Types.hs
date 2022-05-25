@@ -190,7 +190,7 @@ data  GlobalSettings
     , partitionCharacter  :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
     , rootCost            :: RootCost
     , rootComplexity      :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
-    , graphComplexityList :: IL.InfList VertexCost --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
+    , graphComplexityList :: IL.InfList (VertexCost, VertexCost) --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
     , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
@@ -501,7 +501,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
                                      , rootComplexity  = 0.0 
-                                     , graphComplexityList  = IL.repeat 0.0 
+                                     , graphComplexityList  = IL.repeat (0.0, 0.0) 
                                      , modelComplexity = 0.0
                                      , seed = 0
                                      , searchData = []

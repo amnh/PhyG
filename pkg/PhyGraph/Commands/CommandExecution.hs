@@ -466,11 +466,11 @@ setCommand argList globalSettings processedData inSeedList =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
 
                 -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
-                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat 0.0
-                                      else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
-                                      else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat (0.0, 0.0)
+                                       else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
+                                       else error ("Optimality criterion not recognized: " ++ (show localCriterion))
             in
-            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ IL.head lGraphComplexityList) ++ " bits")
+            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
             (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList}, processedData, inSeedList)
 
         else if head commandList == "compressresolutions"  then

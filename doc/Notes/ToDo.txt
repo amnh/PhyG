@@ -609,4 +609,9 @@ preOrderTreeTraversal
 	can be subtracted if double counted (inGS etc)
 
 
+364) bit no bits stuff for ML versius PMDL
+
+365) Check heiristic versus postorder graph costs--heuristics too high for dynamic?
+	do to not rejiggering homologies?
+
 
