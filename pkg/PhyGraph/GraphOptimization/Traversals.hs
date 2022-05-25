@@ -51,6 +51,7 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , postDecorateSoftWired'
                                     , updateAndFinalizePostOrderSoftWired
                                     , updatePhylogeneticGraphCost
+                                    , updateGraphCostsComplexities
                                     , getW15NetPenalty
                                     , getW15RootCost
                                     , generalizedGraphPostOrderTraversal
@@ -254,6 +255,18 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
     -- )
+
+-- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
+updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
+updateGraphCostsComplexities inGS inGraph = 
+    if optimalityCriterion inGS == Parsimony then inGraph
+    else if optimalityCriterion inGS == Likelihood then
+        -- trace ("\tFinalizing graph cost with root priors")
+        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
+    else if optimalityCriterion inGS == PMDL then
+        -- trace ("\tFinalizing graph cost with model and root complexities")
+        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
+    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph

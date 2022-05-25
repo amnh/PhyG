@@ -615,3 +615,6 @@ preOrderTreeTraversal
 	do to not rejiggering homologies?
 
 
+366) Move root cost and model cost to final output--otherwise confusing
+	to swap and fuse
+	

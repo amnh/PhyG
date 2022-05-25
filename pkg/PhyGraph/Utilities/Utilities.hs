@@ -701,3 +701,4 @@ getRawDataPairs inList =
         in
         ('>' : firstName ++ "\n", firstData) : getRawDataPairs (tail inList)
  
+
