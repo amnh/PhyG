@@ -117,11 +117,11 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
         let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
-            (postOrderGraph, localRootCost, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+            (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
         in
         -- trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
-        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (localRootCost + (snd6 fullyOptimizedGraph))
+        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters
@@ -135,7 +135,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
     else
         let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
             -- False for staticIA
-            (postOrderGraph, _, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+            (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
         in
         PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
 
@@ -145,7 +145,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
 -- include penalty factor cost but not root cost which may or may not be wanted depending on context
 -- if full graph--yes, if a component yes or no.
 -- hence returnde das pair
-generalizedGraphPostOrderTraversal :: GlobalSettings -> Int -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> (PhylogeneticGraph, VertexCost, Int)
+generalizedGraphPostOrderTraversal :: GlobalSettings -> Int -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> (PhylogeneticGraph, Int)
 generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph =
 
     -- select postOrder function based on graph type
@@ -192,12 +192,14 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- doesn't have to be sorted, but should minimize assignments
         graphWithBestAssignments = L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
+        {-  root and model complexities moved to output
         -- same root cost if same data and number of roots
         localRootCost = rootComplexity inGS 
                         {-if (rootCost inGS) == NoRootCost then 0.0
                         else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
                         -}
+        -}
 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
@@ -216,11 +218,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             staticOnlyGraph = if (graphType inGS) == SoftWired then updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
             -- staticOnlyGraph = head recursiveRerootList'
-            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + localRootCost + (snd6 staticOnlyGraph))
+            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
                                else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
-        (staticOnlyGraph', localRootCost, head startVertexList)
+        (staticOnlyGraph', head startVertexList)
 
     -- single seuquence (prealigned, dynamic) only (ie no static)
     else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
@@ -229,15 +231,13 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-            newCostList' = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+            newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
-            newCostList = if startVertex == Nothing then zipWith (+) (replicate (length finalizedPostOrderGraphList) localRootCost) newCostList'
-                          else newCostList'
 
             finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
         -- trace ("GPOT-1: " ++ (show (snd6 finalizedPostOrderGraph)))
-        (finalizedPostOrderGraph, localRootCost, head startVertexList)
+        (finalizedPostOrderGraph, head startVertexList)
 
     -- multiple dynamic characters--checks for best root for each character
     -- important to have outgroup rooted graph first for fold so don't use sorted recursive list
@@ -248,11 +248,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            graphWithBestAssignments' = if startVertex == Nothing then updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + localRootCost + (snd6 graphWithBestAssignments))
-                                        else updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
-        (graphWithBestAssignments', localRootCost, head startVertexList)
+        (graphWithBestAssignments', head startVertexList)
 
     -- )
 

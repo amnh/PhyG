@@ -948,7 +948,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
 
           -- create optimized base graph
           -- False for staticIA
-          (postOrderBaseGraph, localRootCost, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
+          (postOrderBaseGraph, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
 
 
           fullBaseGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
@@ -962,7 +962,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
 
 
           -- False for staticIA
-          (postOrderPrunedGraph, _, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
+          (postOrderPrunedGraph, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
 
 
           -- False for staticIA
@@ -985,7 +985,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
           -- cost of split graph to be later combined with re-addition delta for heuristic graph cost
           prunedCost = if LG.isLeaf origGraph prunedSubGraphRootVertex then 0
                        else snd6 fullPrunedGraph
-          splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost)) + localRootCost
+          splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost))
 
       in
 
@@ -1042,9 +1042,11 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             -- True flag fior staticIA
             fullBaseGraph = PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
+            {-
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
                               else if (rootCost inGS) == Wheeler2015Root then T.getW15RootCost inGS postOrderBaseGraph
                               else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+            -}
 
             -- get root node of base graph
             startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
@@ -1072,13 +1074,13 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             -- make fully optimized graph from base and split components
             fullSplitGraph = LG.mkGraph ([startBaseNode, startPrunedNode, startPrunedParentNode] ++  baseGraphNonRootNodes ++ prunedGraphNonRootNodes) (startPrunedParentEdge : (baseGraphEdges ++ prunedGraphEdges))
 
-            splitGraphCost = ((1.0 + netPenaltyFactor) * (baseGraphCost + prunedGraphCost)) + localRootCost
+            splitGraphCost = ((1.0 + netPenaltyFactor) * (baseGraphCost + prunedGraphCost))
 
       in
       -- remove when working
       -- trace ("ROGFVIA split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)) (
       if splitGraphCost == 0 then
-         error ("Split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)
+         error ("Split costs:" ++ (show (baseGraphCost, prunedGraphCost)) ++ " -> " ++ (show splitGraphCost)
             ++ " Split graph simple:\n" ++ (LG.prettify splitGraphSimple)
             ++ "\nFull:\n" ++ (show inSplitGraph)
             ++ "\nOriginal Graph:\n" ++ (show origGraph))
