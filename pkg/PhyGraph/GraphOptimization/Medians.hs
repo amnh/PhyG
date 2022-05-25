@@ -121,6 +121,8 @@ median2StaticIA = V.zipWith3 (median2Single True)
 -- used for post-order assignments
 -- this is from preliminary states
 -- staticIA for dynm,aic assumes all same length
+-- PMDL costs are claculate by type--additive by conversion to non-additive --but if states> 129 worn't do it so warning in docs
+-- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
 median2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 median2Single staticIA firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
@@ -130,6 +132,8 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         thisWideTCM = wideTCM inCharInfo
         thisHugeTCM = hugeTCM inCharInfo
         thisActive  = activity inCharInfo
+        thisNoChangeCost = noChangeCost inCharInfo
+        thisChangeCost = changeCost inCharInfo
     in
     if not thisActive then (firstVertChar, 0)
     else if thisType == Add then
@@ -138,13 +142,13 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else if thisType == NonAdd then
-        let newCharVect = interUnion thisWeight firstVertChar secondVertChar
+        let newCharVect = interUnion thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
-        let newCharVect = BP.median2Packed thisType thisWeight firstVertChar secondVertChar
+        let newCharVect = BP.median2Packed thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
@@ -265,11 +269,11 @@ localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
 localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interBV
 -}
 
--- | interUnionBV takes two bitvectors and returns new state and cost (1 or 0)
-interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int)
+-- | interUnionBV takes two bitvectors and returns new state, nochange number (1 or 0), change number (0 or 1)
+interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int, Int)
 interUnionBV leftBV rightBV =
-    if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 1)
-    else (leftBV .&. rightBV, 0)
+    if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 0, 1)
+    else (leftBV .&. rightBV, 1, 0)
 
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
@@ -277,10 +281,12 @@ interUnionBV leftBV rightBV =
 -- assumes a single weight for all
 -- performs two passes though chars to get cost of assignments
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
-interUnion :: Double -> CharacterData -> CharacterData -> CharacterData
-interUnion thisWeight leftChar rightChar =
-    let (newStateVect, costVect) = V.unzip $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        newCost = thisWeight * (fromIntegral $ V.sum costVect)
+-- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since 
+-- only for nonadd characters with > 64 states.
+interUnion :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
+    let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
+        newCost = thisWeight * ((lNoChangeCost * (fromIntegral $ V.sum noChangeCostVect)) + (lChangeCost * (fromIntegral $ V.sum changeCostVect)))
         newCharacter = emptyCharacter { stateBVPrelim = (snd3 $ stateBVPrelim leftChar, newStateVect, snd3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar

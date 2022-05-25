@@ -63,7 +63,7 @@ import qualified GraphOptimization.Medians   as M
 import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
---import           Debug.Trace
+-- import           Debug.Trace
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -329,9 +329,8 @@ threeWayHuge charInfo parent1 parent2 curNode =
    else if cost2 == minCost then median2
    else median3
 
-
-
 -- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
+-- importand node filed orders correct--has moved around
 addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
 addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
    let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
@@ -344,7 +343,7 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
 -- to the 3rd and 4th input vectors
 slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
 slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
-   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode))) (
+   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode, GV.length gappedLeft, GV.length gappedRight))) (
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode

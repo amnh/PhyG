@@ -271,7 +271,7 @@ makeStaticApprox inGS inData inGraph =
           newProcessedData  = R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
           -- bit pack any new non-additive characters
-          newProcessedData' = BP.packNonAdditiveData newProcessedData
+          newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
       in
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       newProcessedData'

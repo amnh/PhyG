@@ -56,6 +56,7 @@ import           Foreign.C.Types             (CUInt)
 import           GHC.Generics
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
+import qualified Data.InfList                as IL
 
 -- | Debug Flag
 isDebug :: Bool
@@ -136,7 +137,6 @@ prealignedCharacterTypes = [AlignedSlim, AlignedWide, AlignedHuge]
 sequenceCharacterTypes :: [CharType]
 sequenceCharacterTypes = nonExactCharacterTypes ++ prealignedCharacterTypes
 
-
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types
 -- 'Tree'  would be a single tree in the sense as produced by typical phylogentic
@@ -152,7 +152,7 @@ data OptimalityCriterion = Parsimony | PMDL | Likelihood
 data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
     deriving stock (Show, Eq)
 
-data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot
+data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
     deriving stock (Show, Eq)
 
 -- | Method for makeing final seqeujnce charcatert states assignment
@@ -189,10 +189,18 @@ data  GlobalSettings
     , graphFactor         :: GraphFactor -- net penalty/graph complexity
     , partitionCharacter  :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
     , rootCost            :: RootCost
+    , rootComplexity      :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
+    , graphComplexityList :: IL.InfList VertexCost --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
     , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
     , seed                :: Int -- random seed
     , searchData          :: [SearchData]
-    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
+    , numDataLeaves       :: Int --number of leaves  set after data processing--for conveniance really
+    , bc2                 :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
+    , bc4                 :: (Double, Double) -- PMDL bitCost for 4 states of no-change and change as pair
+    , bc5                 :: (Double, Double) -- PMDL bitCost for 5 states of no-change and change as pair
+    , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
+    , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
+    , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -492,11 +500,19 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
+                                     , rootComplexity  = 0.0 
+                                     , graphComplexityList  = IL.repeat 0.0 
                                      , modelComplexity = 0.0
                                      , seed = 0
                                      , searchData = []
                                      , partitionCharacter = "#"
                                      , numDataLeaves = 0
+                                     , bc2 = (0.0,1.0)
+                                     , bc4 = (0.0,1.0)
+                                     , bc5 = (0.0,1.0)
+                                     , bc8 = (0.0,1.0)
+                                     , bc64 = (0.0,1.0)
+                                     , bcgt64 = (0.0,1.0)
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

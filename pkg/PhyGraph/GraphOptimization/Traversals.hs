@@ -192,9 +192,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         graphWithBestAssignments = L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
         -- same root cost if same data and number of roots
-        localRootCost = if (rootCost inGS) == NoRootCost then 0.0
-                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inData outgroupRooted
+        localRootCost = rootComplexity inGS 
+                        {-if (rootCost inGS) == NoRootCost then 0.0
+                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+                        -}
 
     in
     -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
@@ -213,7 +215,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             staticOnlyGraph = if (graphType inGS) == SoftWired then updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
             -- staticOnlyGraph = head recursiveRerootList'
-            staticOnlyGraph' = updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + localRootCost + (snd6 staticOnlyGraph))
+                               else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
         (staticOnlyGraph', localRootCost, head startVertexList)
@@ -225,7 +228,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-            newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+            newCostList' = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+
+            newCostList = if startVertex == Nothing then zipWith (+) (replicate (length finalizedPostOrderGraphList) localRootCost) newCostList'
+                          else newCostList'
 
             finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
@@ -241,12 +247,13 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+            graphWithBestAssignments' = if startVertex == Nothing then updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + localRootCost + (snd6 graphWithBestAssignments))
+                                        else updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', localRootCost, head startVertexList)
 
-    --)
+    -- )
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph
@@ -255,16 +262,15 @@ updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
-getW15RootCost :: ProcessedData -> PhylogeneticGraph -> VertexCost
-getW15RootCost (_, _, blockDataV) inGraph =
+getW15RootCost :: GlobalSettings -> PhylogeneticGraph -> VertexCost
+getW15RootCost inGS inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else
-        let (rootList, leafList, _, _) = LG.splitVertexList $ fst6 inGraph
+        let (rootList, _, _, _) = LG.splitVertexList $ fst6 inGraph
             numRoots = length rootList
-            numLeaves = length leafList
-            insertDataCost = V.sum $ fmap U.getblockInsertDataCost blockDataV
+            
         in
-        (fromIntegral numRoots) * insertDataCost /  (fromIntegral numLeaves)
+        (fromIntegral numRoots) * (rootComplexity inGS)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take theg union of all edges of trees of minimal length

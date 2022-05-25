@@ -120,7 +120,8 @@ executable phyg
     -O2
     -rtsopts
     -static
-    -- -fllvm takes long to compile
+    -- problems getting llvm to function in OSX (can't find opt)
+    -fllvm
 
   if !os(darwin) 
     cc-options: 
@@ -132,7 +133,7 @@ executable phyg
     ld-options: 
       -static -pthread
   else 
-    ld-options:
+    ld-options: 
 
   build-depends:  alphabet
                 , dynamic-character
@@ -170,6 +171,7 @@ executable phyg
                , async
                , process
                , directory
+               , inflist
                
  
                 

@@ -1,7 +1,7 @@
 {- |
 Module      :  TNTUtilities.hs
 Description :  Module to read tnt input files for phylogenetic analysis
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2021-2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without

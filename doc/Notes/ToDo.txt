@@ -594,3 +594,19 @@ preOrderTreeTraversal
 	combining and packing
 
 358) Make all "read" "readMaybe" and check to catch failures
+
+359) llvm for OSX
+
+360) add no changed field to bitpacked and non-add (maybe add too?, matrix?) chars
+
+361) filter weight 0 characters
+
+362) change naked '-' in additive to 0 as innaplicable length
+	make doc change to note this.
+	new character '=' perhaps?
+
+363) verify local root cost and swap and fuse thing--perhaps not add if in there
+	can be subtracted if double counted (inGS etc)
+
+
+
