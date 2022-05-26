@@ -377,6 +377,8 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 missingVal = BV.fromBits $ L.replicate (fromEnum $ BV.dimension (V.head . snd3 . stateBVPrelim . V.head $ V.head taxonByCharData)) True
                 --missingVal = V.foldl1' (.|.) inCharV
                 nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) inCharV
+
+                -- max in case of all missing character
                 numStates = max 1 (popCount nonMissingBV)
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex

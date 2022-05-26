@@ -57,6 +57,7 @@ import qualified ParallelUtilities                    as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import qualified Utilities.Utilities                  as U
+import qualified Data.InfList                         as IL
 
 -- Need a "steepest" that takes first better netowrk for add and delete.
 -- Choose order in max branch length, root-end, leaf-end, and at random
@@ -553,16 +554,46 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
 -- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calcualtion of penalty
 -- if PMDLGraph -- KMDL not yet implemented
 -- if NoNetworkPenalty then 0
-deltaPenaltyAdjustment :: GraphFactor -> Int -> PhylogeneticGraph -> VertexCost
-deltaPenaltyAdjustment edgeCostModel numLeaves inGraph =
+-- modification "add" or subrtaxct to calculate delta
+-- always delta is positive--whether neg or pos is deltermined when used
+deltaPenaltyAdjustment :: GlobalSettings -> PhylogeneticGraph -> String -> VertexCost
+deltaPenaltyAdjustment inGS inGraph modification =
+   let numLeaves = numDataLeaves inGS
+       edgeCostModel = graphFactor inGS
+       (_, _, _, networkNodeList) = LG.splitVertexList (fst6 inGraph)
+   in
    if edgeCostModel == NoNetworkPenalty then 0.0
+
+   else if length networkNodeList == 0 then 0.0      
+   
    else if edgeCostModel == Wheeler2015Network then
       let graphCost = snd6 inGraph -- this includes any existing penalties--would be better not to include
           numBlocks = V.length $ fth6 inGraph
       in
       graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))
 
-   else if edgeCostModel == PMDLGraph then error ("PMDLGraph  not yet implemented")
+   else if edgeCostModel == PMDLGraph then 
+      if graphType inGS == Tree then 
+         fst $ IL.head (graphComplexityList inGS)
+
+      else if graphType inGS == SoftWired then
+         let currentComplexity = fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+             nextComplexity    = if modification == "add" then fst $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
+                                 else if modification == "delete" then fst $ (graphComplexityList inGS) IL.!!!  ((length networkNodeList) - 1)
+                                 else error ("SoftWired deltaPenaltyAdjustment modification not recognized: " ++ modification)
+         in
+         abs (currentComplexity - nextComplexity)
+
+      else if graphType inGS == HardWired then 
+         let currentComplexity = snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+             nextComplexity    = if modification == "add" then snd $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
+                                 else if modification == "delete" then snd $ (graphComplexityList inGS) IL.!!!  ((length networkNodeList) - 1)
+                                 else error ("HardWired deltaPenaltyAdjustment modification not recognized: " ++ modification)
+         in
+         abs (currentComplexity - nextComplexity)
+
+      else error ("Graph type not yet implemented: " ++ (show $ graphType inGS))
+   
    else error ("Network edge cost model not yet implemented: " ++ (show edgeCostModel))
 
 
@@ -626,7 +657,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
            (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
 
 
-           edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
+           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
 
            -- full two-pass optimization
@@ -732,7 +763,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
            (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
 
 
-           edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
+           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
 
 
@@ -788,7 +819,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
            (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
 
 
-           edgeAddDelta = deltaPenaltyAdjustment (graphFactor inGS) (V.length $ fst3 inData) inPhyloGraph
+           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
 
            -- full two-pass optimization

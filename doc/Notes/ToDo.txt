@@ -613,8 +613,10 @@ preOrderTreeTraversal
 
 365) Check heiristic versus postorder graph costs--heuristics too high for dynamic?
 	do to not rejiggering homologies?
+	could add emprical epsilon for dynamic characters to evaluate fully
+	but only needed for dynamic I ouwld think
+	this percentage could be basd on differnce between dynamic and static costs for those charctaers
 
 
 366) Move root cost and model cost to final output--otherwise confusing
 	to swap and fuse
-	

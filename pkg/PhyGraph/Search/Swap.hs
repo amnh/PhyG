@@ -224,7 +224,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- trace ("(Est, [FP]): " ++ (show minimumCandidateGraphCost) ++ " " ++ (show $ fmap snd6 reoptimizedSwapGraphList)) (
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
-      trace ("All--Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
+      -- trace ("All--Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
       if bestSwapCost == curBestCost then
          if (length curSameBetterList == numToKeep) then 
             -- trace ("Same cost and maxed out")
@@ -256,7 +256,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
          swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBestList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor
          -- )
       -- )
-      )
+      -- )
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
 -- infomrs evaluation--less parallelism
@@ -642,7 +642,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
 
       -- regular TBR case
       if inSimAnnealVals == Nothing then
-          if subGraphEdgeUnionCost + splitCost < curBestCost then
+          if subGraphEdgeUnionCost + splitCost <= curBestCost then
              -- reoptimize and check
              let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
                  swapSimpleGraph = applyGraphEdits splitGraphSimple (subGraphEdgeUnionCost + splitCost, edgeToAddInList ++ tbrEdgesAdd, edgeToDeleteIn : tbrEdgesDelete)
@@ -850,12 +850,7 @@ getSubGraphDelta :: VertexBlockData
                  -> (LG.Edge, VertexBlockData, ([LG.LEdge Double],[LG.Edge]))
                  -> (VertexCost, LG.Edge, ([LG.LEdge Double],[LG.Edge]))
 getSubGraphDelta evEdgeData doIA charInfoVV (edgeToJoin, subGraphVertData, edgeSubGraphEdits) =
-   let -- existingEdgeCost = minLength edgeToJoin
-       --eNodeVertData = vertData $ fromJust $ LG.lab inGraph (fst edgeToJoin)
-       --vNodeVertData = vertData $ fromJust $ LG.lab inGraph (snd edgeToJoin)
-       -- subGraphVertData = snd subGraphEdgeVertDataPair
-
-       -- create edge union 'character' blockData
+   let -- create edge union 'character' blockData
        -- based on final assignments but set to preliminary
        -- need to filter gaps if DO, not itIA
        --edgeUnionVertData = M.makeEdgeData doIA inGraph charInfoVV evEdge
@@ -876,10 +871,16 @@ getSubGraphDelta evEdgeData doIA charInfoVV (edgeToJoin, subGraphVertData, edgeS
        {-
        This estimate very close to subGraphEdgeUnionCost.  Seems to always underestmate where as subGraphEdgeUnionCost can sometimes overestimate
        but 3x as much work if use costEV, 2x if use existingEdgeCost
+      
+       -- existingEdgeCost = minLength edgeToJoin
+       -- eNodeVertData = vertData $ fromJust $ LG.lab inGraph (fst edgeToJoin)
+       -- vNodeVertData = vertData $ fromJust $ LG.lab inGraph (snd edgeToJoin)
+       -- subGraphVertData = snd subGraphEdgeVertDataPair
 
-       dummyE = M.createEdgeUnionOverBlocks (not doIA) eNodeVertData eNodeVertData charInfoVV []
-       dummyV = M.createEdgeUnionOverBlocks (not doIA) vNodeVertData vNodeVertData charInfoVV []
-       dummySGV = M.createEdgeUnionOverBlocks (not doIA) (PRE.setFinalToPreliminaryStates subGraphVertData) (PRE.setFinalToPreliminaryStates subGraphVertData) charInfoVV []
+       
+       -- dummyE = M.createEdgeUnionOverBlocks False eNodeVertData eNodeVertData charInfoVV []
+       -- dummyV = M.createEdgeUnionOverBlocks False vNodeVertData vNodeVertData charInfoVV []
+       -- dummySGV = M.createEdgeUnionOverBlocks False (PRE.setFinalToPreliminaryStates subGraphVertData) (PRE.setFinalToPreliminaryStates subGraphVertData) charInfoVV []
 
        costNewE = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyE subGraphVertData charInfoVV []
        costNewV = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks dummyV subGraphVertData charInfoVV []
@@ -887,6 +888,7 @@ getSubGraphDelta evEdgeData doIA charInfoVV (edgeToJoin, subGraphVertData, edgeS
 
        subGraphEdgeUnionCost' = (costNewE + costNewV - costEV) / 2.0
        -}
+       
 
 
 
@@ -903,7 +905,7 @@ getSubGraphDelta evEdgeData doIA charInfoVV (edgeToJoin, subGraphVertData, edgeS
     --min raphEdgeUnionCost  subGraphEdgeUnionCost'
    else
    -}
-      -- trace ("SGD no 0:" ++ (show (subGraphEdgeUnionCost,edgeToJoin)))
+    -- trace ("SGD :" ++ (show subGraphEdgeUnionCost) ++ " vs " ++ (show subGraphEdgeUnionCost'))
     (subGraphEdgeUnionCost, edgeToJoin, edgeSubGraphEdits)
 
 
