@@ -22,7 +22,7 @@ set(bc8:(0.4, 1.4))
 set(bc64:(0.5,1.5))
 set(bcgt64:(0.6,1.6))
 
-set(dynamicEpsilon:1.1)
+set(dynamicEpsilon:-0.1)
 
 -- For network testing
 --set (outgroup:"one")

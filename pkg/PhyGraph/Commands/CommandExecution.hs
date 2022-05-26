@@ -494,11 +494,11 @@ setCommand argList globalSettings processedData inSeedList =
         else if head commandList == "dynamicepsilon"  then
             let localValue = readMaybe (head optionList) :: Maybe Double
             in
-            if localValue == Nothing then error ("Set option 'dynamicEpsilon' must be set to an double value >= 1.0 (e.g. dynamicepsilon:1.23): " ++ (head optionList))
-            else if (fromJust localValue) < 1.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to an double value >= 1.0 (e.g. dynamicepsilon:1.23): " ++ (head optionList))
+            if localValue == Nothing then error ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
+            else if (fromJust localValue) < 0.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
             else 
                 trace ("Dynammic Epsilon factor set to " ++ head optionList)
-                (globalSettings {dynamicEpsilon = (fromJust localValue)}, processedData, inSeedList)
+                (globalSettings {dynamicEpsilon = 1.0 + (fromJust localValue)}, processedData, inSeedList)
 
         else if head commandList == "finalassignment"  then
             let localMethod
