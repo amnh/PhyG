@@ -622,3 +622,6 @@ preOrderTreeTraversal
 
 366) Move root cost and model cost to final output--otherwise confusing
 	to swap and fuse
+
+367) write collapse graph zero egde
+	use in unique graph/ nubGraph

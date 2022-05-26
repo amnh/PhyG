@@ -980,7 +980,7 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
                         -- nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
 
                         -- keep only unique graphs based on non-zero edges--in sorted by cost
-                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
+                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then
@@ -1007,9 +1007,25 @@ getUniqueGraphs removeZeroEdges inGraphList =
     getUniqueGraphs' (zip inGraphEdgeList inGraphList) []
 
 
+-- | getUniqueGraphs Using fgl ==
+-- basically a nub
+-- need to add a collapse function for compare as well
+getUniqueGraphs'' :: [PhylogeneticGraph] -> [PhylogeneticGraph] 
+getUniqueGraphs'' inList = nubGraph [] inList
 
--- | could use FGL '==' ?
--- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
+-- | keeps and returns unique graphs based on Eq
+nubGraph :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+nubGraph curList inList =
+  if null inList then curList
+  else 
+    let firstGraph = (snd6 . head) inList
+        isMatch = filter (== firstGraph) (fmap snd6 curList)
+    in
+    if null curList then nubGraph [head inList] (tail inList)
+    else if null isMatch then nubGraph ((head inList) : curList) (tail inList)
+    else nubGraph curList (tail inList)
+
+-- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
 getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
 getUniqueGraphs' inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
