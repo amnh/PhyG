@@ -9,7 +9,7 @@ read(prefasta:"chel-prealiged.fas")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 read(fasta:"chel.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
-read("chel.hen")
+--read("chel.hen")
 read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 

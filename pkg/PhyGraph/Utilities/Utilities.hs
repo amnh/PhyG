@@ -62,7 +62,8 @@ import qualified Data.InfList                as IL
 
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component gaph not forest
-calculateGraphComplexity :: ProcessedData -> IL.InfList VertexCost
+-- first in pair is softwired complexity, second hardwired complexity
+calculateGraphComplexity :: ProcessedData -> IL.InfList (VertexCost, VertexCost)
 calculateGraphComplexity (nameVect, _, _) = 
     let numNetNodesList = IL.fromList [(0 :: Int)..]
         numRoots = 1
@@ -72,13 +73,20 @@ calculateGraphComplexity (nameVect, _, _) =
 
 -- | getGraphComplexity takes the number of leaves and number of 
 -- network nodes and calculates the graph complexity
-getGraphComplexity :: Int -> Int -> Int -> VertexCost
+-- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify) 
+getGraphComplexity :: Int -> Int -> Int -> (VertexCost, VertexCost)
 getGraphComplexity numLeaves numRoots numNetNodes =
     -- place holder for now
-    let treeComplexity = fromIntegral $ (2 * numLeaves) - 2 - (2 * (numRoots - 1))
+    let nodeComplexity = logBase 2.0 (fromIntegral $ (2 * numLeaves) - 1 + numNetNodes) -- bits to specify each vertex
+        treeEdges = (2 * numLeaves) - 2
+        extraRootEdges = 2 * (numRoots - 1)
+        baseTreeComplexity = nodeComplexity * (fromIntegral $ 2 * (treeEdges - extraRootEdges))
         numDisplayTrees = 2.0 ** (fromIntegral numNetNodes)
+        harWiredEdges = (treeEdges - extraRootEdges) + (3 * numNetNodes)
+        hardwiredAddComplexity = nodeComplexity * (fromIntegral $ 2 * harWiredEdges)
     in
-    treeComplexity * numDisplayTrees
+    -- maybe softwired is numDisplatTrees * harWired since have those edges in input
+    (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
 
 
 -- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
@@ -693,3 +701,4 @@ getRawDataPairs inList =
         in
         ('>' : firstName ++ "\n", firstData) : getRawDataPairs (tail inList)
  
+

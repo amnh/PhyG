@@ -62,7 +62,6 @@ import qualified Utilities.Utilities    as U
 import qualified Data.Char              as C
 import qualified Search.Build           as B
 import qualified Reconciliation.ReconcileGraphs as R
-import qualified GraphOptimization.Traversals as TRA
 import qualified Search.Refinement as REF
 import qualified Search.Search as S
 import qualified Commands.Transform as TRANS
@@ -71,7 +70,7 @@ import qualified Support.Support as SUP
 import           Data.Char
 import qualified Data.List.Split as SL 
 import Graphs.GraphOperations as GO
-import GraphOptimization.Traversals as TRAV
+import qualified GraphOptimization.Traversals as TRAV
 import System.Info
 import System.Process
 import System.Directory
@@ -125,7 +124,9 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Report then do
-            let reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData curGraphs supportGraphList pairwiseDist
+            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
+            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs
+                reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
 
             if null reportString then do
@@ -166,7 +167,7 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
                 newGraphList = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
-                               else trace ("Reoptimizing gaphs") fmap (TRA.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+                               else trace ("Reoptimizing gaphs") fmap (TRAV.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
                 
                 searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
                 newSearchData = searchInfo : (searchData newGlobalSettings)   
@@ -457,7 +458,7 @@ setCommand argList globalSettings processedData inSeedList =
                     (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
-        
+         --  modified criterion causes changes in graphfactor and root cost 
          else if head commandList == "criterion"  then
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
@@ -466,12 +467,19 @@ setCommand argList globalSettings processedData inSeedList =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
 
                 -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
-                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat 0.0
-                                      else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
-                                      else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat (0.0, 0.0)
+                                       else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
+                                       else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+
+                lRootComplexity = if localCriterion == Parsimony then 0.0
+                                 else if localCriterion `elem`  [PMDL, Likelihood] then U.calculateW15RootCost processedData
+                                 else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+
+                lGraphFactor = if localCriterion `elem` [PMDL, Likelihood] then PMDLGraph
+                               else graphFactor globalSettings
             in
-            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ IL.head lGraphComplexityList) ++ " bits")
-            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList}, processedData, inSeedList)
+            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
+            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity, graphFactor = lGraphFactor}, processedData, inSeedList)
 
         else if head commandList == "compressresolutions"  then
             let localCriterion
@@ -639,7 +647,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
 
             else if "graphs" `elem` commandList then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
-                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                let 
+                    graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs then 
                     trace ("No graphs to report")

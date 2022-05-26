@@ -234,9 +234,13 @@ main = do
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
 
+    -- Add in model and root cost if optimality criterion needs it
+    hPutStrLn stderr ("\tUpdating final graph costs") 
+    let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
+
     -- Final Stderr report
     timeDN <- getSystemTimeSeconds
-    let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList
-    let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList) ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
+    let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
+    let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
 

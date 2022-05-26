@@ -262,7 +262,7 @@ defaultTNTCharInfo = emptyCharInfo { charType = NonAdd
                                 , weight = 1.0
                                 , costMatrix = SM.empty
                                 , name = T.empty
-                                , alphabet = fromSymbolsWOGap [] -- fromSymbols []
+                                , alphabet = fromSymbolsWOGap [ST.fromString "0"] -- fromSymbols []
                                 , prealigned = True
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
@@ -634,7 +634,7 @@ getAlphabetFromSTList fileName inStates inCharInfo =
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
     -- trace ("getAlph weight: " ++ (show thisWeight))
-    (fromSymbols thisAlphabet, newWeight, newColumn)
+    (fromSymbolsWOGap thisAlphabet, newWeight, newColumn)
 
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range
@@ -678,7 +678,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
         in
             if thisType /= Add then
                 if head firstState /= '['  then
-                    if firstState == "?" then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph (head inStates : newStates)
+                    if firstState `elem` ["?", "-"]  then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph (head inStates : newStates)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (head inStates : newAlph) (head inStates : newStates)
                 else -- ambiguity
                     let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
@@ -695,7 +695,7 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         newStateNumber = takeWhile (/='.') $ show (fromJust stateNumber / scaleFactor)
                     in
                     if isNothing stateNumber then
-                        if firstState == "?" then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString "-1" : newAlph) (ST.fromString "-1" : newStates)
+                        if firstState `elem` ["?", "-"] then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString "-1" : newAlph) (ST.fromString "-1" : newStates)
                         else errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
