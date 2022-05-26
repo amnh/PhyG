@@ -185,15 +185,15 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
                           else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
 
           -- create list of breaks
-          splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList `using` PU.myParListChunkRDS
+          splitTupleList = fmap (GO.splitGraphOnEdge firstDecoratedGraph) breakEdgeList -- `using` PU.myParListChunkRDS
           (splitGraphList, graphRootList, prunedGraphRootIndexList,  originalConnectionOfPruned) = L.unzip4 splitTupleList
 
-          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor) splitGraphList graphRootList prunedGraphRootIndexList `using` PU.myParListChunkRDS
+          reoptimizedSplitGraphList = zipWith3 (reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor) splitGraphList graphRootList prunedGraphRootIndexList -- `using` PU.myParListChunkRDS
 
           -- create rejoins-- adds in break list so don't remake the initial graph
           -- didn't concatMap so can parallelize later
           -- this cost prob doesn't include the root/net penalty--so need to figure out
-          swapPairList = concat $ L.zipWith4 (rejoinGraphKeepBest inGS swapType hardwiredSPR curBestCost maxMoveEdgeDist doIA charInfoVV) reoptimizedSplitGraphList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList)
+          swapPairList = concat (L.zipWith4 (rejoinGraphKeepBest inGS swapType hardwiredSPR curBestCost maxMoveEdgeDist doIA charInfoVV) reoptimizedSplitGraphList prunedGraphRootIndexList originalConnectionOfPruned (fmap head $ fmap ((LG.parents $ thd6 firstGraph).fst3) breakEdgeList) `using` PU.myParListChunkRDS)
 
           -- keeps better heuristic swap costs graphs based on current best as opposed to minimum heuristic costs
           -- minimumCandidateGraphCost = if (null swapPairList) then infinity
