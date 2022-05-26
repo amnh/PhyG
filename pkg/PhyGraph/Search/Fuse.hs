@@ -53,6 +53,7 @@ import qualified ParallelUtilities                    as PU
 import qualified Search.Swap                          as S
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
+import qualified Data.InfList                as IL
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
@@ -92,11 +93,17 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
 
          curBestGraph = head $ filter ((== curBest) . snd6) inGraphList
 
-         -- get net penalty estyimate from optimial graph for delta recombine later
+         -- get net penalty estimate from optimal graph for delta recombine later
          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing curBestGraph
-                             else if (graphType inGS == HardWired) then error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                             else if (graphFactor inGS) == PMDLGraph then 
+                                 let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
+                                 in
+                                 if (graphType inGS) == Tree then fst $ IL.head (graphComplexityList inGS)
+                                 else if (graphType inGS) == SoftWired then fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                                 else if (graphType inGS) == HardWired then snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                                 else error ("Graph type " ++ (show $ graphType inGS) ++ " is not yet implemented in fuseAllGraphs")
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
          inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
@@ -301,7 +308,7 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
       in
       --trace ("Checking in fusing") (
       if null recombinedSimpleGraphCostPairList then []
-      else if bestFuseCost <= curBestCost then
+      else if (bestFuseCost / (dynamicEpsilon inGS)) <= curBestCost then
          let rediagnodedGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) bestFuseSimpleGraphs `using` PU.myParListChunkRDS
              bestRediagnosedGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rediagnodedGraphList
          in

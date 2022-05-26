@@ -121,7 +121,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
-              let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+              let endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length newGraphList'') ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
                                 ("\tAfter Simulated Annealing: " ++ (show $ length newGraphList'') ++ " resulting graphs")
                               else

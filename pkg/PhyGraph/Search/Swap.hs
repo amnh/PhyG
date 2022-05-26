@@ -200,8 +200,8 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
           --                             else minimum $ fmap snd swapPairList
           candidateSwapGraphList = if (graphType inGS /= Tree) then
                                         -- checks for cylces--rare but can occur
-                                        filter ((== False) . (GO.parentInChain . fst)) $ filter ((== False) . (LG.cyclic . fst)) $ filter ((<= curBestCost). snd) swapPairList
-                                   else filter ((<= curBestCost). snd) swapPairList
+                                        filter ((== False) . (GO.parentInChain . fst)) $ filter ((== False) . (LG.cyclic . fst)) $ filter ((<= (curBestCost * (dynamicEpsilon inGS))). snd) swapPairList
+                                   else filter ((<= (curBestCost * (dynamicEpsilon inGS))). snd) swapPairList
 
 
           -- this should be incremental--full 2-pass for now
@@ -429,7 +429,7 @@ rejoinGraphKeepBest inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist  doI
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph splitGraph)) (
       if minCandidateCost > curBestCost then []
       else
-         let bestEdits = filter ((<= curBestCost). fst3) candidateEditList -- not minimum cancidate cost--better if check all equal or better than curent best
+         let bestEdits = filter ((<= (curBestCost * (dynamicEpsilon inGS))). fst3) candidateEditList -- not minimum cancidate cost--better if check all equal or better than curent best
              splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
@@ -569,7 +569,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
       else if inSimAnnealVals == Nothing then
           -- better heursitic cost
           -- reoptimize to check  cost
-          if (delta + splitCost <= curBestCost) then
+          if (delta + splitCost <= (curBestCost * (dynamicEpsilon inGS))) then
              let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
                  swapSimpleGraph = applyGraphEdits splitGraphSimple (delta + splitCost, [edge0, edge1] ++ tbrEdgesAdd, (eNode, vNode) : tbrEdgesDelete)
                  reoptimizedCandidateGraph = if (graphType inGS == Tree) then T.multiTraverseFullyLabelGraph inGS inData False False Nothing swapSimpleGraph
@@ -642,7 +642,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
 
       -- regular TBR case
       if inSimAnnealVals == Nothing then
-          if subGraphEdgeUnionCost + splitCost <= curBestCost then
+          if subGraphEdgeUnionCost + splitCost <= (curBestCost * (dynamicEpsilon inGS)) then
              -- reoptimize and check
              let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
                  swapSimpleGraph = applyGraphEdits splitGraphSimple (subGraphEdgeUnionCost + splitCost, edgeToAddInList ++ tbrEdgesAdd, edgeToDeleteIn : tbrEdgesDelete)

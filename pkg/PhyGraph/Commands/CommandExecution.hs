@@ -354,7 +354,7 @@ setCommand argList globalSettings processedData inSeedList =
         else 
             -- trace ("PartitionCharacter set to '" ++ (partitionCharacter globalSettings) ++ "'")
             (globalSettings, processedData, inSeedList)
-        
+    -- regular command stuff not initial at start   
     else
         if head commandList == "bc2"  then
             let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
@@ -469,7 +469,7 @@ setCommand argList globalSettings processedData inSeedList =
                 -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                 lGraphComplexityList = if localCriterion == Parsimony then IL.repeat (0.0, 0.0)
                                        else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
-                                       else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+                                       else errorWithoutStackTrace ("Optimality criterion not recognized: " ++ (show localCriterion))
 
                 lRootComplexity = if localCriterion == Parsimony then 0.0
                                  else if localCriterion `elem`  [PMDL, Likelihood] then U.calculateW15RootCost processedData
@@ -489,6 +489,16 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("CompressResolutions set to " ++ head optionList)
             (globalSettings {compressResolutions = localCriterion}, processedData, inSeedList)
+
+        -- this not intended to be for users
+        else if head commandList == "dynamicepsilon"  then
+            let localValue = readMaybe (head optionList) :: Maybe Double
+            in
+            if localValue == Nothing then error ("Set option 'dynamicEpsilon' must be set to an double value >= 1.0 (e.g. dynamicepsilon:1.23): " ++ (head optionList))
+            else if (fromJust localValue) < 1.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to an double value >= 1.0 (e.g. dynamicepsilon:1.23): " ++ (head optionList))
+            else 
+                trace ("Dynammic Epsilon factor set to " ++ head optionList)
+                (globalSettings {dynamicEpsilon = (fromJust localValue)}, processedData, inSeedList)
 
         else if head commandList == "finalassignment"  then
             let localMethod

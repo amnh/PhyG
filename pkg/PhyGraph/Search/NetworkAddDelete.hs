@@ -683,7 +683,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
             else deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
 
           -- better for tree / softwired
-          else if heuristicDelta - edgeAddDelta < 0 then
+          else if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then
             -- check cost and better
             if (snd6 newPhyloGraph < snd6 inPhyloGraph) then [newPhyloGraph]
 
@@ -831,7 +831,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
        if force || (graphType inGS) == HardWired then newPhyloGraph
-       else if heuristicDelta - edgeAddDelta < 0 then newPhyloGraph
+       else if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
        else emptyPhylogeneticGraph
 
 

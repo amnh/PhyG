@@ -563,8 +563,8 @@ reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphab
     | otherwise = errorWithoutStackTrace $ fold
         [ "Error: TNT file "
         , fileName
-        , " character "
-        , charName, " Observed alphabet "
+        , " character number "
+        , (tail $ dropWhile (/= '#') charName), " Observed "
         , show observedAlphabet
         , " is incompatible with matrix specification states "
         , show inferredAlphabet

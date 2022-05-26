@@ -902,7 +902,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
             -- trace (show initialMatrixVector) (
             --trace ((show $ alphabet firstCharInfo) ++ " " ++ (ST.toString firstState)) (
             --trace ("GQC " ++ (T.unpack $ name firstCharInfo) ++ (show $ alphabet firstCharInfo) ++ " " ++ (show $ costMatrix firstCharInfo)) (
-            if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ T.unpack (name firstCharInfo))
+            if null (costMatrix firstCharInfo) then errorWithoutStackTrace ("\n\nMatrix character input error: No cost matrix has been specified for character " ++ T.unpack (name firstCharInfo) ++ " perhaps file " ++ (takeWhile (/= '#') $ T.unpack (name firstCharInfo)) ++ " character " ++ ((tail $ dropWhile (/= '#') $ T.unpack (name firstCharInfo)) ))
             else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
             -- )
 

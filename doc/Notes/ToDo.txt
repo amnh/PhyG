@@ -616,6 +616,8 @@ preOrderTreeTraversal
 	could add emprical epsilon for dynamic characters to evaluate fully
 	but only needed for dynamic I ouwld think
 	this percentage could be basd on differnce between dynamic and static costs for those charctaers
+	get fraction length due to dynamic characters (costs random set pairwsie?) tjhat percent * percent reduction dynamic v static
+	only need for cases of heuristic cost estimation--swap, fuse with swap, net add delete?
 
 
 366) Move root cost and model cost to final output--otherwise confusing
