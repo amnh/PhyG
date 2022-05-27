@@ -70,6 +70,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , convertGeneralGraphToPhylogeneticGraph
                                , parentInChain
                                , selectGraphStochastic
+                               , makeNewickList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -90,6 +91,25 @@ import qualified ParallelUtilities           as PU
 import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+
+-- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
+makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
+makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
+
+        -- check for network HTU label requirement
+        writeNodeLabel = if allTrees then writeNodeLabel'
+                         else if writeNodeLabel' then writeNodeLabel'
+                         else 
+                            trace ("HTU labels are required for ENewick Output")
+                            True
+
+        graphString = GFU.fglList2ForestEnhancedNewickString (fmap (rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
+        newickStringList = fmap init $ filter (not . null) $ lines graphString
+        costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
+        graphStringCost = concat $ zipWith (++) newickStringList costStringList
+    in
+    graphStringCost
 
 -- | convertGeneralGraphToPhylogeneticGraph inputs a SimpleGraph and converts it to a Phylogenetic graph by:
 --  1) transitive reduction -- removes anc <-> desc netork edges
@@ -1013,17 +1033,23 @@ getUniqueGraphs removeZeroEdges inGraphList =
 getUniqueGraphs'' :: [PhylogeneticGraph] -> [PhylogeneticGraph] 
 getUniqueGraphs'' inList = nubGraph [] inList
 
--- | keeps and returns unique graphs based on Eq
-nubGraph :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+-- | keeps and returns unique graphs based on Eq of Topological Simple Graph
+-- String newick w/0 HTU names and branch lengths
+-- arbitrarily rooted on 0 for oonsistency
+--reversed to keep original order in case sorted on length
+nubGraph :: [(PhylogeneticGraph, String)] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 nubGraph curList inList =
-  if null inList then curList
+  if null inList then reverse $ fmap fst curList
   else 
-    let firstGraph = (snd6 . head) inList
-        isMatch = filter (== firstGraph) (fmap snd6 curList)
+    let firstGraph = (fst6 . head) inList
+        firstString = makeNewickList False False 0 [firstGraph] [snd6 $ head inList] 
+        isMatch = filter (== firstString) (fmap snd curList)
     in
-    if null curList then nubGraph [head inList] (tail inList)
-    else if null isMatch then nubGraph ((head inList) : curList) (tail inList)
+    trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
+    if null curList then nubGraph [(head inList, firstString)] (tail inList)
+    else if null isMatch then nubGraph ((head inList, firstString) : curList) (tail inList)
     else nubGraph curList (tail inList)
+    )
 
 -- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
 getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
@@ -1038,6 +1064,7 @@ getUniqueGraphs' inGraphPairList currentUniquePairs =
             in
             if null equalList then getUniqueGraphs' (tail inGraphPairList) (firstPair : currentUniquePairs)
             else getUniqueGraphs' (tail inGraphPairList) currentUniquePairs
+
 
 
 {-
