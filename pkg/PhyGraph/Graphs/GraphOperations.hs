@@ -1045,11 +1045,11 @@ nubGraph curList inList =
         firstString = makeNewickList False False 0 [firstGraph] [snd6 $ head inList] 
         isMatch = filter (== firstString) (fmap snd curList)
     in
-    trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
+    -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
     if null curList then nubGraph [(head inList, firstString)] (tail inList)
     else if null isMatch then nubGraph ((head inList, firstString) : curList) (tail inList)
     else nubGraph curList (tail inList)
-    )
+    -- )
 
 -- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
 getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]

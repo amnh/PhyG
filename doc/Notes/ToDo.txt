@@ -627,3 +627,7 @@ preOrderTreeTraversal
 	use in unique graph/ nubGraph
 
 368) make sure swapSteepest' is not evaluating everyhting at any stage--do a rewrite
+
+369) integrate collapse for graph compare
+	add 7th field?
+	

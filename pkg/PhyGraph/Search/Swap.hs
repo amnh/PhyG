@@ -94,10 +94,10 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
 
       if inSimAnnealParams == Nothing then
        -- trace ("Non SA swap") (
-      -- steepest takes immediate best--does not keep equall cost
-      -- NOthing for SimAnneal Params
+      -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+      -- Nothing for SimAnneal Params
           if steepest then
-             let (swappedGraphs, counter) = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor -- Nothing
+             let (swappedGraphs, counter) = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor -- Nothing
 
                  -- swap "all" after steepest descent
                  -- (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
