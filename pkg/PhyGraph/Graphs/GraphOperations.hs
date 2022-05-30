@@ -91,6 +91,7 @@ import qualified ParallelUtilities           as PU
 import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+import qualified Utilities.Utilities         as U
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
 makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
@@ -996,11 +997,11 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
                     let -- minimum graph cost
                         minGraphCost = minimum $ fmap snd6 curGraphs
 
-                        -- nonZeroEdgeLists for graphs
-                        -- nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
+                        -- collapse zero-length branchs for unique
+                        curGraphsCollapsed = fmap U.collapseGraph curGraphs
 
                         -- keep only unique graphs based on non-zero edges--in sorted by cost
-                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
+                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' (zip curGraphs curGraphsCollapsed)-- curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
                     in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then
@@ -1030,24 +1031,26 @@ getUniqueGraphs removeZeroEdges inGraphList =
 -- | getUniqueGraphs Using fgl ==
 -- basically a nub
 -- need to add a collapse function for compare as well
-getUniqueGraphs'' :: [PhylogeneticGraph] -> [PhylogeneticGraph] 
+-- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
+-- mke strings based on collapsed and returns not collpased
+getUniqueGraphs'' :: [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph] 
 getUniqueGraphs'' inList = nubGraph [] inList
 
 -- | keeps and returns unique graphs based on Eq of Topological Simple Graph
 -- String newick w/0 HTU names and branch lengths
 -- arbitrarily rooted on 0 for oonsistency
 --reversed to keep original order in case sorted on length
-nubGraph :: [(PhylogeneticGraph, String)] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]
 nubGraph curList inList =
-  if null inList then reverse $ fmap fst curList
+  if null inList then reverse $ fmap fst3 curList
   else 
-    let firstGraph = (fst6 . head) inList
-        firstString = makeNewickList False False 0 [firstGraph] [snd6 $ head inList] 
-        isMatch = filter (== firstString) (fmap snd curList)
+    let (firstGraphNC, firstGraphC) = head inList
+        firstString = makeNewickList False False 0 [fst6 firstGraphC] [snd6 firstGraphNC] 
+        isMatch = filter (== firstString) (fmap thd3 curList)
     in
     -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
-    if null curList then nubGraph [(head inList, firstString)] (tail inList)
-    else if null isMatch then nubGraph ((head inList, firstString) : curList) (tail inList)
+    if null curList then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
+    else if null isMatch then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
     else nubGraph curList (tail inList)
     -- )
 

@@ -124,16 +124,30 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Report then do
-            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
-            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs
-                reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
+            
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
+            let collapse' = any (=="true") $ fmap (fmap toLower . snd) firstArgs
+            let noCollapse' = any (=="false") $ fmap (fmap toLower . snd) firstArgs
 
+            -- set default collapse for dotPDF to True, False otherwise
+            let collapse = if collapse' then True
+                           else if noCollapse' then False
+                           else if doDotPDF then True
+                           else False
+
+            let curGraphs' = if (not collapse) then curGraphs
+                             else fmap U.collapseGraph curGraphs
+            
+            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
+            -- reporting collapsed 
+            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs'
+                reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
+            
             if null reportString then do
                 executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
             else  do
                 hPutStrLn stderr ("Report writing to " ++ outFile)
-
+                
                 if doDotPDF then do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
                     printGraphVizDot reportString' outFile

@@ -69,13 +69,18 @@ import qualified Data.InfList                as IL
 -- (u, x) and (u,y) with length labels of (v,x) and (v,y)
 -- assumes all indexing is the same between the simple and decorated graph
 -- done recusively until no minLength == zero edges so edges renumbered properly
--- network edges are not collapsed
+-- network edges, pendant edges and root edges, are not collapsed
 collapseGraph :: PhylogeneticGraph -> PhylogeneticGraph
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
     if LG.isEmpty inSimple then inPhylograph
     else
         let inDecTreeEdgeList = filter (not . (LG.isNetworkLabEdge inDecorated)) $ LG.labEdges inDecorated
-            zeroEdgeList = filter ((== 0.0) . minLength . thd3) inDecTreeEdgeList
+            zeroEdgeList' = filter ((== 0.0) . minLength . thd3) inDecTreeEdgeList
+
+            -- remove cases of pendent edges--don't remove those either
+            leafIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
+            rootIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
+            zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootIndexList)) . snd3) zeroEdgeList'
         in
         if null zeroEdgeList then inPhylograph
         else 

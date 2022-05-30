@@ -630,4 +630,9 @@ preOrderTreeTraversal
 
 369) integrate collapse for graph compare
 	add 7th field?
-	
+	options to report graph--collapse:True|False
+	default for graphic is true, for newick/dot is false (so can get resolved graph back)
+
+370) select unique--collapse and save but return rseolved (optimizable) graphs
+
+
