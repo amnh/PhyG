@@ -79,8 +79,8 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
 
             -- remove cases of pendent edges--don't remove those either
             leafIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
-            rootIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
-            zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootIndexList)) . snd3) zeroEdgeList'
+            rootChildIndexList = fmap snd3 $ concatMap (LG.out inSimple) $ fmap fst $ fst4 $ LG.splitVertexList inSimple
+            zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootChildIndexList)) . snd3) zeroEdgeList'
         in
         if null zeroEdgeList then inPhylograph
         else 

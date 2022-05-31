@@ -1002,19 +1002,24 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
 
                         -- keep only unique graphs based on non-zero edges--in sorted by cost
                         uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' (zip curGraphs curGraphsCollapsed)-- curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
-                    in
+                        
+                        -- this to avaoid alot of unncesesary graph comparisons for 'best' graphs
+                        bestCostGraphs = filter ((== minGraphCost).snd6) curGraphs
+                        uniqueBestGraphs = getUniqueGraphs'' (zip bestCostGraphs (fmap U.collapseGraph bestCostGraphs))
+
+                      in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then
-                      -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
-                      take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
+                     -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
+                      take (fromJust numberToKeep) uniqueBestGraphs
                     else if doRandom then
                          let randList = head $ shuffleInt rSeed 1 [0..(length curGraphs - 1)]
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
                          take (fromJust numberToKeep) shuffledGraphs
-                    -- default is best and unique
+                    -- default is all best and unique
                     else
-                        filter ((== minGraphCost).snd6) uniqueGraphList
+                        uniqueBestGraphs
 
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 -- maybe chnge to nub LG.pretify graphList?
