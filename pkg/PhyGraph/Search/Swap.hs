@@ -94,10 +94,10 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
 
       if inSimAnnealParams == Nothing then
        -- trace ("Non SA swap") (
-      -- steepest takes immediate best--does not keep equall cost
-      -- NOthing for SimAnneal Params
+      -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+      -- Nothing for SimAnneal Params
           if steepest then
-             let (swappedGraphs, counter) = swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor Nothing
+             let (swappedGraphs, counter) = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist False 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor -- Nothing
 
                  -- swap "all" after steepest descent
                  -- (swappedGraphs', counter') = swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist True counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired hasNonExactChars charInfoVV doIA inGraphNetPenaltyFactor
@@ -211,6 +211,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
                                         in filter ((== False) . (GO.hasNetNodeAncestorViolation . thd6)) newGraphs
                                      else fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst candidateSwapGraphList) `using` PU.myParListChunkRDS
 
+          firstBettterGraphList = takeFirstBetterGraph curBestCost reoptimizedSwapGraphList
 
           -- selects best graph list based on full optimization
           bestSwapGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] reoptimizedSwapGraphList
@@ -225,7 +226,11 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
       -- either no better or more of same cost graphs
       -- trace ("BSG: " ++ " simple " ++ (LG.prettify $ fst6 $ head bestSwapGraphList) ++ " Decorated " ++ (LG.prettify $ thd6 $ head bestSwapGraphList) ++ "\nCharinfo\n" ++ (show $ charType $ V.head $ V.head $ six6 $ head bestSwapGraphList)) (
       -- trace ("All--Choosing what to do: " ++ (show (bestSwapCost, curBestCost, length curSameBetterList, numToKeep)) ++ " " ++ (show (length reoptimizedSplitGraphList, length swapPairList, length candidateSwapGraphList, length reoptimizedSwapGraphList, length bestSwapGraphList))) (
-      if bestSwapCost == curBestCost then
+      if steepest && (not . null) firstBettterGraphList then 
+         trace ("\t->" ++ (show $ (snd6. head) firstBettterGraphList)) 
+         swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) ((snd6. head) firstBettterGraphList) firstBettterGraphList firstBettterGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor
+
+      else if bestSwapCost == curBestCost then
          if (length curSameBetterList == numToKeep) then 
             -- trace ("Same cost and maxed out")
             swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor
@@ -257,6 +262,13 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
          -- )
       -- )
       -- )
+
+-- | takeFirstBetterGraph returns the first graph with cost lower than input
+takeFirstBetterGraph :: VertexCost -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+takeFirstBetterGraph curBestCost inGraphList =
+   if null inGraphList then []
+   else if (snd6 . head) inGraphList < curBestCost then [head inGraphList]
+   else takeFirstBetterGraph curBestCost (tail inGraphList)
 
 -- | swapSteepest performs branch swapping greedily switching to found graph if better
 -- infomrs evaluation--less parallelism

@@ -70,6 +70,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , convertGeneralGraphToPhylogeneticGraph
                                , parentInChain
                                , selectGraphStochastic
+                               , makeNewickList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -90,6 +91,26 @@ import qualified ParallelUtilities           as PU
 import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
+import qualified Utilities.Utilities         as U
+
+-- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
+makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
+makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
+
+        -- check for network HTU label requirement
+        writeNodeLabel = if allTrees then writeNodeLabel'
+                         else if writeNodeLabel' then writeNodeLabel'
+                         else 
+                            trace ("HTU labels are required for ENewick Output")
+                            True
+
+        graphString = GFU.fglList2ForestEnhancedNewickString (fmap (rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
+        newickStringList = fmap init $ filter (not . null) $ lines graphString
+        costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
+        graphStringCost = concat $ zipWith (++) newickStringList costStringList
+    in
+    graphStringCost
 
 -- | convertGeneralGraphToPhylogeneticGraph inputs a SimpleGraph and converts it to a Phylogenetic graph by:
 --  1) transitive reduction -- removes anc <-> desc netork edges
@@ -635,7 +656,7 @@ rerootTree rerootIndex inGraph =
               rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
               --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph")
                                  else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
               newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
@@ -976,24 +997,29 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
                     let -- minimum graph cost
                         minGraphCost = minimum $ fmap snd6 curGraphs
 
-                        -- nonZeroEdgeLists for graphs
-                        -- nonZeroEdgeListGraphPairList = fmap getNonZeroEdges curGraphs
+                        -- collapse zero-length branchs for unique
+                        curGraphsCollapsed = fmap U.collapseGraph curGraphs
 
                         -- keep only unique graphs based on non-zero edges--in sorted by cost
-                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
-                    in
+                        uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' (zip curGraphs curGraphsCollapsed)-- curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
+                        
+                        -- this to avaoid alot of unncesesary graph comparisons for 'best' graphs
+                        bestCostGraphs = filter ((== minGraphCost).snd6) curGraphs
+                        uniqueBestGraphs = getUniqueGraphs'' (zip bestCostGraphs (fmap U.collapseGraph bestCostGraphs))
+
+                      in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
                     else if doBest then
-                      -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
-                      take (fromJust numberToKeep) $ filter ((== minGraphCost).snd6) uniqueGraphList
+                     -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
+                      take (fromJust numberToKeep) uniqueBestGraphs
                     else if doRandom then
                          let randList = head $ shuffleInt rSeed 1 [0..(length curGraphs - 1)]
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
                          take (fromJust numberToKeep) shuffledGraphs
-                    -- default is best and unique
+                    -- default is all best and unique
                     else
-                        filter ((== minGraphCost).snd6) uniqueGraphList
+                        uniqueBestGraphs
 
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 -- maybe chnge to nub LG.pretify graphList?
@@ -1007,9 +1033,33 @@ getUniqueGraphs removeZeroEdges inGraphList =
     getUniqueGraphs' (zip inGraphEdgeList inGraphList) []
 
 
+-- | getUniqueGraphs Using fgl ==
+-- basically a nub
+-- need to add a collapse function for compare as well
+-- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
+-- mke strings based on collapsed and returns not collpased
+getUniqueGraphs'' :: [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph] 
+getUniqueGraphs'' inList = nubGraph [] inList
 
--- | could use FGL '==' ?
--- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
+-- | keeps and returns unique graphs based on Eq of Topological Simple Graph
+-- String newick w/0 HTU names and branch lengths
+-- arbitrarily rooted on 0 for oonsistency
+--reversed to keep original order in case sorted on length
+nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]
+nubGraph curList inList =
+  if null inList then reverse $ fmap fst3 curList
+  else 
+    let (firstGraphNC, firstGraphC) = head inList
+        firstString = makeNewickList False False 0 [fst6 firstGraphC] [snd6 firstGraphNC] 
+        isMatch = filter (== firstString) (fmap thd3 curList)
+    in
+    -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
+    if null curList then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
+    else if null isMatch then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
+    else nubGraph curList (tail inList)
+    -- )
+
+-- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
 getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
 getUniqueGraphs' inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
@@ -1022,6 +1072,7 @@ getUniqueGraphs' inGraphPairList currentUniquePairs =
             in
             if null equalList then getUniqueGraphs' (tail inGraphPairList) (firstPair : currentUniquePairs)
             else getUniqueGraphs' (tail inGraphPairList) currentUniquePairs
+
 
 
 {-

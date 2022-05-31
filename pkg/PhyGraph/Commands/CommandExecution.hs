@@ -124,16 +124,30 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Report then do
-            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
-            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs
-                reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
+            
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
+            let collapse' = any (=="collapse") $ fmap (fmap toLower . fst) firstArgs
+            let noCollapse' = any (=="nocollapse") $ fmap (fmap toLower . fst) firstArgs
 
+            -- set default collapse for dotPDF to True, False otherwise
+            let collapse = if collapse' then True
+                           else if noCollapse' then False
+                           else if doDotPDF then True
+                           else False
+
+            let curGraphs' = if (not collapse) then curGraphs
+                             else fmap U.collapseGraph curGraphs
+            
+            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
+            -- reporting collapsed 
+            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs'
+                reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
+            
             if null reportString then do
                 executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
             else  do
                 hPutStrLn stderr ("Report writing to " ++ outFile)
-
+                
                 if doDotPDF then do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = rect];\n" reportString
                     printGraphVizDot reportString' outFile
@@ -828,7 +842,7 @@ makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
 outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList lOutgroupIndex graphList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
+  | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -837,7 +851,7 @@ outputDisplayString commandList lOutgroupIndex graphList
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
+  | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -846,7 +860,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
-  | "newick" `elem` commandList = makeNewickList True True lOutgroupIndex graphList costList 
+  | "newick" `elem` commandList = GO.makeNewickList True True lOutgroupIndex graphList costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
     makeDotList lOutgroupIndex graphList
@@ -857,25 +871,6 @@ outputGraphStringSimple commandList lOutgroupIndex graphList costList
 makeDotList :: Int -> [SimpleGraph] -> String
 makeDotList rootIndex graphList =
      L.intercalate "\n" (fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList)
-
--- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
-makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
-makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
-    let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
-
-        -- check for network HTU label requirement
-        writeNodeLabel = if allTrees then writeNodeLabel'
-                         else if writeNodeLabel' then writeNodeLabel'
-                         else 
-                            trace ("HTU labels are required for ENewick Output")
-                            True
-
-        graphString = fglList2ForestEnhancedNewickString (fmap (GO.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
-        newickStringList = fmap init $ filter (not . null) $ lines graphString
-        costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
-        graphStringCost = concat $ zipWith (++) newickStringList costStringList
-    in
-    graphStringCost
 
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [SimpleGraph] -> String

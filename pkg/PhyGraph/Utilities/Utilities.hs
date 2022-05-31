@@ -60,6 +60,56 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Data.InfList                as IL
 
+-- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
+-- does not affect display trees or character graphs
+-- fst6 and thd6 (both) are modified since this is used for output
+-- Collapsed frst can no longer be used for greaph optimization since non-binary
+-- this is done by removing the end vertex 'v' of min length 0 edge (u->v)
+-- this removes (u,v) and teh two (v, x) and (v, y) out edges from v.  New edges are created
+-- (u, x) and (u,y) with length labels of (v,x) and (v,y)
+-- assumes all indexing is the same between the simple and decorated graph
+-- done recusively until no minLength == zero edges so edges renumbered properly
+-- network edges, pendant edges and root edges, are not collapsed
+collapseGraph :: PhylogeneticGraph -> PhylogeneticGraph
+collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
+    if LG.isEmpty inSimple then inPhylograph
+    else
+        let inDecTreeEdgeList = filter (not . (LG.isNetworkLabEdge inDecorated)) $ LG.labEdges inDecorated
+            zeroEdgeList' = filter ((== 0.0) . minLength . thd3) inDecTreeEdgeList
+
+            -- remove cases of pendent edges--don't remove those either
+            leafIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
+            rootChildIndexList = fmap snd3 $ concatMap (LG.out inSimple) $ fmap fst $ fst4 $ LG.splitVertexList inSimple
+            zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootChildIndexList)) . snd3) zeroEdgeList'
+        in
+        if null zeroEdgeList then inPhylograph
+        else 
+            -- get node to be deleted and its out edges
+            let nodeToDelete = snd3 $ head zeroEdgeList
+                sourceEdgeToDelete = fst3 $ head zeroEdgeList
+                
+                -- new dec edges
+                firstOutEdgeDec = head $ LG.out inDecorated nodeToDelete
+                secondOutEdgeDec = last $ LG.out inDecorated nodeToDelete
+                
+                newFirstEdgeDec = (sourceEdgeToDelete, snd3 firstOutEdgeDec, thd3 firstOutEdgeDec)
+                newSecondEdgeDec = (sourceEdgeToDelete, snd3 secondOutEdgeDec, thd3 secondOutEdgeDec)
+
+                -- new simple edges
+                firstOutEdgeSimple = head $ LG.out inSimple nodeToDelete
+                secondOutEdgeSimple = last $ LG.out inSimple nodeToDelete
+                
+                newFirstEdgeSimple = (sourceEdgeToDelete, snd3 firstOutEdgeSimple, thd3 firstOutEdgeSimple)
+                newSecondEdgeSimple = (sourceEdgeToDelete, snd3 secondOutEdgeSimple, thd3 secondOutEdgeSimple)
+
+                -- make new decorated--deleting node removes all incident edges
+                newDecGraph = LG.insEdges [newFirstEdgeDec, newSecondEdgeDec] $ LG.delNode nodeToDelete inDecorated
+
+                -- make new simple--deleting node removes all incident edges
+                newSimpleGraph =  LG.insEdges [newFirstEdgeSimple, newSecondEdgeSimple] $ LG.delNode nodeToDelete inSimple
+            in
+            (newSimpleGraph, inC, newDecGraph, inD, inE, inF)
+
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component gaph not forest
 -- first in pair is softwired complexity, second hardwired complexity

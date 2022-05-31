@@ -622,3 +622,17 @@ preOrderTreeTraversal
 
 366) Move root cost and model cost to final output--otherwise confusing
 	to swap and fuse
+
+367) write collapse graph zero egde
+	use in unique graph/ nubGraph
+
+368) make sure swapSteepest' is not evaluating everyhting at any stage--do a rewrite
+
+369) integrate collapse for graph compare
+	add 7th field?
+	options to report graph--collapse:True|False
+	default for graphic is true, for newick/dot is false (so can get resolved graph back)
+
+370) select unique--collapse and save but return rseolved (optimizable) graphs
+
+
