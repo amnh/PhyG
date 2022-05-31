@@ -636,3 +636,9 @@ preOrderTreeTraversal
 370) select unique--collapse and save but return rseolved (optimizable) graphs
 
 
+371) Fix parsing errro newick single '
+	Uto-Aztecan
+
+372) Boostrap/Jackknife output--collapse < 50%
+
+373) Add fgraph cost comment to dot files
