@@ -126,8 +126,8 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
         else if firstOption == Report then do
             
             let doDotPDF = any (=="dotpdf") $ fmap (fmap toLower . fst) firstArgs
-            let collapse' = any (=="true") $ fmap (fmap toLower . snd) firstArgs
-            let noCollapse' = any (=="false") $ fmap (fmap toLower . snd) firstArgs
+            let collapse' = any (=="collapse") $ fmap (fmap toLower . fst) firstArgs
+            let noCollapse' = any (=="nocollapse") $ fmap (fmap toLower . fst) firstArgs
 
             -- set default collapse for dotPDF to True, False otherwise
             let collapse = if collapse' then True

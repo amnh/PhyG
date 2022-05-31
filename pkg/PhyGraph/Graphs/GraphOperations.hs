@@ -656,7 +656,7 @@ rerootTree rerootIndex inGraph =
               rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
               --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 1 in rerootGraph")
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph")
                                  else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
               newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
