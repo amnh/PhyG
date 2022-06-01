@@ -124,8 +124,11 @@ convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
 convertGeneralGraphToPhylogeneticGraph inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
-    let -- transitive reduction
-        reducedGraph = LG.transitiveReduceGraph inGraph
+    let -- remove single "tail" edge from root with single child, replace child node with root
+        noTailGraph = LG.contactRootOut1Edge inGraph
+
+        -- transitive reduction
+        reducedGraph = LG.transitiveReduceGraph noTailGraph
 
         -- laderization of indegree and outdegree edges
         ladderGraph = ladderizeGraph reducedGraph
@@ -610,7 +613,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --)
 
 -- | rerootTree' flipped version of rerootGraph
-rerootTree' :: (Eq b) => LG.Gr a b -> Int -> LG.Gr a b
+rerootTree' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 
 -- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
@@ -619,7 +622,7 @@ rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
-rerootTree :: (Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
 rerootTree rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
@@ -656,7 +659,8 @@ rerootTree rerootIndex inGraph =
               rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
 
               --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph")
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
+                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
                                  else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
               newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
@@ -737,7 +741,7 @@ getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesT
 
 -- | generateDisplayTreesRandom generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
-generateDisplayTreesRandom :: (Show a, Show b, Eq a, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b]
+generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b]
 generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
   if LG.isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
   else
@@ -748,14 +752,15 @@ generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
 
 -- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges
 -- uniformly at random and deleting all others from graph
--- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed,l graph reindexed
--- but not renamed
-randomlyResolveGraphToTree :: (Show a, Show b, Eq a) => LG.Gr a b -> Int -> LG.Gr a b
+-- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
+-- but not renamed--edges from root are left alone.
+randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 randomlyResolveGraphToTree inGraph randVal =
   if LG.isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
   else
-    let (_, leafList, _, _) = LG.splitVertexList inGraph
-        inEdgeListByVertex = fmap (LG.inn inGraph) (LG.nodes inGraph)
+    let (rootList, leafList, _, _) = LG.splitVertexList inGraph
+        rootEdgeList = fmap (LG.out inGraph) $ fmap fst rootList
+        inEdgeListByVertex = (fmap (LG.inn inGraph) (LG.nodes inGraph)) L.\\ rootEdgeList
         randList = fmap abs $ randomIntList randVal
         edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap LG.toEdge) inEdgeListByVertex)
         newTree = LG.delEdges edgesToDelete inGraph
