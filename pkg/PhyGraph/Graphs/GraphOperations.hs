@@ -125,10 +125,13 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let -- remove single "tail" edge from root with single child, replace child node with root
-        noTailGraph = LG.contactRootOut1Edge inGraph
+        noTailGraph = LG.contractRootOut1Edge inGraph
+
+        -- remove indeg 1 out deg 1 edges
+        noIn1Out1Graph = LG.contractIn1Out1Edges noTailGraph
 
         -- transitive reduction
-        reducedGraph = LG.transitiveReduceGraph noTailGraph
+        reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
 
         -- laderization of indegree and outdegree edges
         ladderGraph = ladderizeGraph reducedGraph
@@ -519,6 +522,7 @@ ladderizeGraph inGraph = ladderizeGraph' inGraph (LG.nodes inGraph)
 
 -- | ladderize takes an input graph and ensures/creates nodes
 -- such that all vertices are (indegree, outdegree) (0,>0), (1,2) (2,1) (1,0)
+--ladderizeGraph' :: SimpleGraph -> [LG.Node] -> SimpleGraph
 ladderizeGraph' :: SimpleGraph -> [LG.Node] -> SimpleGraph
 ladderizeGraph' inGraph nodeList
   | LG.isEmpty inGraph = LG.empty

@@ -54,7 +54,6 @@ import qualified Data.Text.Lazy                      as T
                                                     --Label (..))
 import qualified Data.Graph.Inductive.Graph          as G
 import           Data.GraphViz.Commands.IO           as GVIO
-
 import           Control.Parallel.Strategies
 import qualified Cyclic                              as C
 import qualified Data.List                           as L
@@ -64,7 +63,6 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
-
 -- import           Debug.Trace
 
 
@@ -624,19 +622,21 @@ indexMatchNode (a, _) (b, _) = if a == b then True else False
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
 indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
 
--- | contactRootOut1Edge contracts indegree 0, outdegree 1, edges and removes the node in the middle
+-- | contractRootOut1Edge contracts indegree 0, outdegree 1, edges and removes the node in the middle
 -- does one at a time and makes a graph and recurses
 -- removes "tail" edges (single) from root to single child
-contactRootOut1Edge :: (Show a) => Gr a b -> Gr a b
-contactRootOut1Edge inGraph =
+contractRootOut1Edge :: (Show a, Show b) => Gr a b -> Gr a b
+contractRootOut1Edge inGraph =
     if G.isEmpty inGraph then G.empty
     else
         let inOutDeg = getInOutDeg inGraph <$> labNodes inGraph
             out1RootList = filter ((==1) . thd3) $ filter ((==0) . snd3) inOutDeg
+            out2RootList = filter ((>1) . thd3) $ filter ((==0) . snd3) inOutDeg
         in
-        -- trace ("CRO1E :" ++ (show (inOutDeg, out1RootList))) (
+        -- trace ("CRO1E :" ++ (show (inOutDeg, out1RootList, out2RootList))) (
         if null out1RootList then inGraph
-        else
+        else if length out2RootList > 1 then error ("Multiple roots in graph in contractRootOut1Edge: " ++ (show $ length out2RootList))
+        else if null out2RootList then
             let -- get root with out = 1 and its child, that childs' children, and edges
                 rootVertex = head out1RootList
                 childOfRoot = snd3 $ head $ out inGraph ((fst . fst3) rootVertex)
@@ -647,11 +647,32 @@ contactRootOut1Edge inGraph =
 
                 -- create new Graph, deleting child node deltes three edges around it
                 newGraph = insEdges [newEdgeToAdd0, newEdgeToAdd1] $ delNode childOfRoot inGraph
+                
 
             in
-            -- trace ("Removing tail edge")
-            contactRootOut1Edge $ reindexGraph newGraph
-            -- )
+            -- trace ("Removing tail edge root :" ++ (show $ snd3 $ head $ out inGraph ((fst . fst3) rootVertex)))
+            contractRootOut1Edge $ reindexGraph newGraph
+        else  -- case where mupltiple roots--combine by deleting in0out1 node and creting edge to its child from regular root.
+            let rootVertex = head out1RootList
+                in0out1RootIndex = (fst . fst3) rootVertex
+                
+                out2RootVertex = (fst . fst3 . head) out2RootList
+
+                -- removes one of root out edges and inserts teh in0 out1 node adding two oew edges 
+                root02EdgeToDelete = last $ out inGraph out2RootVertex
+                newEdgeFrom02Root = (out2RootVertex, in0out1RootIndex, thd3 root02EdgeToDelete)
+                newEdgeFrom01Root = (in0out1RootIndex, snd3 root02EdgeToDelete, thd3 root02EdgeToDelete)
+
+                -- this relies on (a) root in first HTU
+                nonOTUOut0Nodes = fmap (fst . fst3) $ filter ((>= out2RootVertex) . (fst . fst3)) $ filter ((==0) . thd3) $ filter ((>0) . snd3) inOutDeg
+
+                newGraph = insEdges [newEdgeFrom02Root, newEdgeFrom01Root] $ delEdge (toEdge root02EdgeToDelete) $ delNodes nonOTUOut0Nodes inGraph
+
+            in
+            -- trace ("Removing extra edge root :" ++ (show $ (root02EdgeToDelete, newEdgeFrom02Root, newEdgeFrom01Root)))
+            contractRootOut1Edge $ reindexGraph $ newGraph
+
+        -- )
 
 
 
