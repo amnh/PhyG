@@ -65,7 +65,7 @@ import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
 
---import           Debug.Trace
+-- import           Debug.Trace
 
 
 
@@ -623,6 +623,37 @@ indexMatchNode (a, _) (b, _) = if a == b then True else False
 -- | indexMatchEdge returns True if two labelled edges have same node indices
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
 indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
+
+-- | contactRootOut1Edge contracts indegree 0, outdegree 1, edges and removes the node in the middle
+-- does one at a time and makes a graph and recurses
+-- removes "tail" edges (single) from root to single child
+contactRootOut1Edge :: (Show a) => Gr a b -> Gr a b
+contactRootOut1Edge inGraph =
+    if G.isEmpty inGraph then G.empty
+    else
+        let inOutDeg = getInOutDeg inGraph <$> labNodes inGraph
+            out1RootList = filter ((==1) . thd3) $ filter ((==0) . snd3) inOutDeg
+        in
+        -- trace ("CRO1E :" ++ (show (inOutDeg, out1RootList))) (
+        if null out1RootList then inGraph
+        else
+            let -- get root with out = 1 and its child, that childs' children, and edges
+                rootVertex = head out1RootList
+                childOfRoot = snd3 $ head $ out inGraph ((fst . fst3) rootVertex)
+                childOfRootEdges = out inGraph childOfRoot
+
+                newEdgeToAdd0 = ((fst . fst3) rootVertex, snd3 $ head childOfRootEdges, thd3 $ head childOfRootEdges)
+                newEdgeToAdd1 = ((fst . fst3) rootVertex, snd3 $ last childOfRootEdges, thd3 $ last childOfRootEdges)
+
+                -- create new Graph, deleting child node deltes three edges around it
+                newGraph = insEdges [newEdgeToAdd0, newEdgeToAdd1] $ delNode childOfRoot inGraph
+
+            in
+            -- trace ("Removing tail edge")
+            contactRootOut1Edge $ reindexGraph newGraph
+            -- )
+
+
 
 -- | contractIn1Out1Edges contracts indegree 1, outdegree 1, edges and removes the node in the middle
 -- does one at a time and makes a graph and recurses

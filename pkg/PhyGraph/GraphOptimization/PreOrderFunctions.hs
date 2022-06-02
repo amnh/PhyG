@@ -67,7 +67,7 @@ import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
 import           Data.Alphabet
--- import           Debug.Trace
+--import           Debug.Trace
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -758,7 +758,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else if thisCharType == Matrix then
-        let minMaxListList= V.zipWith (minMaxMatrixDiff thisMatrix)  (fmap fst3 <$> matrixStatesFinal uCharacter) (fmap fst3 <$> matrixStatesFinal vCharacter)
+        let minMaxListList= V.zipWith (minMaxMatrixDiff thisMatrix)  (fmap getLowestCostMatrixStates (matrixStatesFinal uCharacter)) (fmap getLowestCostMatrixStates (matrixStatesFinal vCharacter))
             minDiff = V.sum $ fmap fst minMaxListList
             maxDiff = V.sum $ fmap snd minMaxListList
             minCost = thisWeight * fromIntegral minDiff
@@ -854,6 +854,19 @@ maxMinIntervalDiff (a,b) (x,y) =
     in
     (min upper lower, max  upper lower)
 
+-- | getLowestCostMatrixStates takes a Vector Triple for matrix charxcter and returns lowest cost states as vector
+-- of Ints
+getLowestCostMatrixStates :: V.Vector MatrixTriple -> V.Vector Int
+getLowestCostMatrixStates tripleVect =
+    if V.null tripleVect then V.empty
+    else
+        let minCost = minimum $ fmap fst3 tripleVect
+            stateCostPairList = V.zip (V.fromList [0..(V.length tripleVect - 1)]) (fmap fst3 tripleVect)
+            (minStateVect, _) = V.unzip $ V.filter ((== minCost) . snd) stateCostPairList
+        in
+        minStateVect
+
+
 -- | minMaxMatrixDiff takes twovetors of states and calculates the minimum and maximum state differnce cost
 -- between the two
 minMaxMatrixDiff :: S.Matrix Int -> V.Vector Int -> V.Vector Int -> (Int, Int)
@@ -866,6 +879,7 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
     if (not . null) costList then (minimum costList, maximum costList)
     else (-1, -1)
     -}
+    -- trace ("MMD: " ++ (show (statePairs,cartesianPairs)))
     (minimum costList, maximum costList)
     
 

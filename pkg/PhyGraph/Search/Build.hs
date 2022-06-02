@@ -159,8 +159,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst6 blockTrees
           -- fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
-          reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", [])]
-                             else [("cun", []), ("vertexLabel:true", [])]
+          reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
+                             else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
 
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
@@ -170,7 +170,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
                            else GO.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
-          displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
+          displayGraphs = fmap GO.convertGeneralGraphToPhylogeneticGraph displayGraphs'
+          -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
       if returnGraph && not returnTrees then [reconciledGraph]
       else if not returnGraph && returnTrees then
@@ -180,12 +181,14 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
      -- )
 
 
--- | buildTree' wrapps build tree and changes order of arguments for mapping
+-- | buildTree' wraps build tree and changes order of arguments for mapping
 buildTree' :: Bool-> [Argument] -> GlobalSettings -> Int -> ([[VertexCost]], ProcessedData) -> [PhylogeneticGraph]
 buildTree' simpleTreeOnly inArgs inGS rSeed (pairwiseDistances, inData) =
    buildTree simpleTreeOnly inArgs inGS inData pairwiseDistances rSeed
 
 -- | buildTree takes build options and returns contructed graphList
+-- simpleTreeOnly (for block build) returns a single best tree to reduce edges in
+-- reconcile step
 buildTree :: Bool -> [Argument] -> GlobalSettings ->ProcessedData ->  [[VertexCost]] -> Int-> [PhylogeneticGraph]
 buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances rSeed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
@@ -250,8 +253,10 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
             let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')))
                                   else ""
             in
-            trace ("\tDistance build yielded " ++ (show $ length treeList''') ++ " trees" ++ costRangeString)
-            treeList'''
+            trace ("\tDistance build yielded " ++ (show $ length treeList''') ++ " trees" ++ costRangeString) (
+            if (not simpleTreeOnly) then treeList'''
+            else GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList'''
+            )
          )
 
       else
@@ -259,14 +264,15 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
          -- final diagnosis in input graph type
          trace ("\tBuilding Character Wagner") (
          let treeList = WB.rasWagnerBuild inGS inData rSeed (fromJust numReplicates)
-         in
-         let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
+             costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
                                else ""
          in
-         trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " trees" ++ costRangeString) (
-         if (not simpleTreeOnly) then treeList
-         else GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList
-         )
+         if (not simpleTreeOnly) then 
+            trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " tree(s)" ++ costRangeString)
+            treeList
+         else 
+            trace ("\tCharacter build yielded " ++ (show $ length $ GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList) ++ " tree(s)" ++ costRangeString)
+            GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList
          )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns

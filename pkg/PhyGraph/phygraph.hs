@@ -77,6 +77,7 @@ main = do
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
+    hPutStrLn stderr ("Initial random seed set to " ++ (show timeD))
 
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
     let seedList = randomIntList timeD

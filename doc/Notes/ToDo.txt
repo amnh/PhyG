@@ -642,3 +642,7 @@ preOrderTreeTraversal
 372) Boostrap/Jackknife output--collapse < 50%
 
 373) Add fgraph cost comment to dot files
+
+374) Add select best (1) for block build
+
+375) Check wagner build character in prallel--seems low

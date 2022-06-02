@@ -371,7 +371,7 @@ processCostsLine fileName wordList =
             transCosts = getTransformationCosts fileName localAlphabet wordList
             localMatrix = makeMatrix fileName localAlphabet transCosts
         in
-        --trace ("TNT" ++ show localAlphabet ++ " " ++ show transCosts ++ "\n\t" ++ show localMatrix)
+        -- trace ("TNT" ++ show localAlphabet ++ " " ++ show transCosts ++ "\n\t" ++ show localMatrix)
         (localAlphabet, localMatrix)
 
 -- | makeMatrix takes triples and makes a square matrix with 0 diagonals if  not specified
