@@ -670,7 +670,7 @@ contractRootOut1Edge inGraph =
 
             in
             -- trace ("Removing extra edge root :" ++ (show $ (root02EdgeToDelete, newEdgeFrom02Root, newEdgeFrom01Root)))
-            contractRootOut1Edge $ reindexGraph $ newGraph
+            contractRootOut1Edge $ reindexGraph $ contractIn1Out1Edges $ newGraph
 
         -- )
 
