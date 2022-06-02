@@ -739,7 +739,7 @@ getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesT
       getContractGraphEdits (tail inEdgeNodeList) (firstInEdges ++ firstOutEdges ++ edgesToDelete, newEdge : edgesToAdd, firstNode : nodesToDelete)
 
 
--- | generateDisplayTreesRandom generates display trees up to input number by choosing
+-- | Random generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
 generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b]
 generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
@@ -758,9 +758,9 @@ randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => LG.Gr a b -> Int -
 randomlyResolveGraphToTree inGraph randVal =
   if LG.isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
   else
-    let (rootList, leafList, _, _) = LG.splitVertexList inGraph
-        rootEdgeList = fmap (LG.out inGraph) $ fmap fst rootList
-        inEdgeListByVertex = (fmap (LG.inn inGraph) (LG.nodes inGraph)) L.\\ rootEdgeList
+    let (_, leafList, _, _) = LG.splitVertexList inGraph
+        -- rootEdgeList = fmap (LG.out inGraph) $ fmap fst rootList
+        inEdgeListByVertex = (fmap (LG.inn inGraph) (LG.nodes inGraph)) -- L.\\ rootEdgeList
         randList = fmap abs $ randomIntList randVal
         edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap LG.toEdge) inEdgeListByVertex)
         newTree = LG.delEdges edgesToDelete inGraph
