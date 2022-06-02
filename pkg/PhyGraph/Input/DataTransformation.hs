@@ -831,7 +831,7 @@ getTripleList hasState notHasState localAlphabet stateList =
             hasState : getTripleList hasState notHasState (tail localAlphabet) stateList
         else notHasState : getTripleList hasState notHasState (tail localAlphabet) stateList
 
--- | getInitialMatrixVector gets matric vector
+-- | getInitialMatrixVector gets matrix vector
 getInitialMatrixVector :: Alphabet ST.ShortText -> ST.ShortText -> V.Vector MatrixTriple
 getInitialMatrixVector alphabet' localState =
     let hasState = (0 :: StateCost , [] ,[])
@@ -842,7 +842,7 @@ getInitialMatrixVector alphabet' localState =
         in
         --single state
         if '[' `notElem` stateString then
-           --  trace (show $ V.fromList $ getTripleList hasState notHasState localAlphabet [localState])
+            -- trace ("GIMV: " ++ (show $ V.fromList $ getTripleList hasState notHasState localAlphabet [localState]))
             V.fromList $ getTripleList hasState notHasState localAlphabet [localState]
         -- polylorphic/ambiguous
         else
