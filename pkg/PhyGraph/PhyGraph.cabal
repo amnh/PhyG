@@ -80,6 +80,12 @@ common language-specs
     DerivingStrategies
 
 
+flag SingleThreaded
+  Description: Disable multi-threading
+  Default:     False
+  Manual:      True
+
+
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
 -- Preamble of package description and reusable definitions from above has ended
@@ -111,15 +117,18 @@ executable phyg
   main-is:
     phygraph.hs
 
+  if !flag(SingleThreaded)
+    ghc-options:
+      -threaded 
+      -with-rtsopts=-N
+  
   ghc-options:
-    -Wall
-    -Wincomplete-patterns
-    -threaded 
     -feager-blackholing
-    -with-rtsopts=-N
     -O2
     -rtsopts
     -static
+    -Wall
+    -Wincomplete-patterns
     -- problems getting llvm to function in OSX (can't find opt)
     -- -fllvm
 
