@@ -373,7 +373,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode)) NetworkNode
+                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph)) NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one
