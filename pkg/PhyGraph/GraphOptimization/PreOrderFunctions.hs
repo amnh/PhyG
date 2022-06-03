@@ -67,7 +67,7 @@ import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
 import           Data.Alphabet
---import           Debug.Trace
+import           Debug.Trace
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -371,7 +371,9 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
 
             -- get current node data
             firstLabel = snd firstNode
-            firstNodeType = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
+            firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
+            firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
+                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode)) NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one
@@ -392,6 +394,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
             isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- harwired can happen, need to pass both parents
 
+            
             -- this OK with one or two children
             firstChildrenBV = fmap (bvLabel . snd) firstChildren
             firstChildrenIsLeft
@@ -938,8 +941,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
        isTree = (graphType inGS) == Tree
    in
    -- Three cases, Root, leaf, HTU
-   --trace ("set final:" ++ (show isLeft) ++ " " ++ (show isOutDegree1) ++ " " ++ (show $ slimAlignment parentChar) ++ " "
-   --   ++ (show $ slimGapped parentChar) ++ " " ++ (show $ slimGapped childChar)) (
+   trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
    if childType == RootNode then
 
       if localCharType == Add then
@@ -1260,7 +1262,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         else TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
-   -- )
+   )
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
 -- to get the final state.  This takes place in several steps
