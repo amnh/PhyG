@@ -655,3 +655,9 @@ preOrderTreeTraversal
 		Better--cleaner--but slower
 		
 
+377) Various parallel steepest--do the numbe ron parallel at once then check
+	for better use of parallel
+
+378) Go through and refactor treee/softwored/hardwired traversal post and preorder
+
+379) NOte for docs--for best tree analsyis use single block

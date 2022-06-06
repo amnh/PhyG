@@ -57,6 +57,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , updateDisplayTreesAndCost
                                              , getAllResolutionList
                                              , getBestResolutionListPair
+                                             , getDisplayBasedRerootGraph
                                              ) where
 
 import           Data.Bits
@@ -71,6 +72,8 @@ import qualified Graphs.GraphOperations      as GO
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities           as PU
 -- import Debug.Debug
 import           Debug.Trace
 
@@ -980,9 +983,37 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 -}
                 (newGraph, nodesToReoptimize)
 
+-- | getDisplayBasedRerootGraph takes a graph and genertes reroot costs for each character of each block
+-- based on rerooting the display tree for that block.
+-- Written for soft-wired, but can be used for tree
+-- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
+-- cost detemiend from that single rerooting
+-- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
+-- all the condition (cycles, time consistency etc) that occur.
+-- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
+-- well as softwired, but noit for hardwired where reticulations are maintianed.
+getDisplayBasedRerootGraph :: PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootGraph inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
+    if LG.isEmpty inSimpleGraph then inPhyloGraph
+    else if V.null inBlockGraphV then error "Empty dasplay tree field in getDisplayBasedRerootGraph"
+    else 
+        -- map over blocks 
+        let (blockCharGraphL, blockCostL) = unzip (zipWith getDispayRerootBlock (V.toList inBlockGraphV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
+        in
+        (inSimpleGraph, sum blockCostL, inDecGraph, inBlockGraphV, V.fromList blockCharGraphL, charInfoVV)
+
+-- | getDispayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
+-- and best cost as pair
+getDispayRerootBlock :: [DecoratedGraph] -> V.Vector CharInfo -> (V.Vector CharacterTraversalForest, VertexCost)
+getDispayRerootBlock inDisplayTreeList charInfoVect =
+    if null inDisplayTreeList then error "Empty display tree list in getDispayRerootBlock"
+    else 
+        -- to make compile for now
+        (V.singleton $ head inDisplayTreeList, -1)
+
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
--- continaing a list of decorated tryees that are the display trees for that block
+-- continaing a list of decorated trees that are the display trees for that block
 -- with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
 -- over blocks and characters with the block diplay graph, but only a single block and character for each graph

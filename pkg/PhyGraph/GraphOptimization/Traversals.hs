@@ -174,8 +174,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
         -- hardwired reroot cause much pain
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [outgroupRooted]
-                              else outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
+                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootGraph outgroupRooted]
+                              else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
+                              else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- perform traceback on resolution caches is graphtype = softWired
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
@@ -418,6 +419,8 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else
         let outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
+
+            -- is this repetetive--aftet post order?  Done already?
             (displayGraphVL, lDisplayCost) = PO.extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
 
             -- traceback on resolutions
