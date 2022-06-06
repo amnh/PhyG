@@ -647,3 +647,11 @@ preOrderTreeTraversal
 
 375) Check wagner build character in prallel--seems low
 
+376) Sofwired/hardwired
+	1) only reroot on bridges
+		get bridge list from graph and pass to reroot to check if valid place to reroot
+
+	2) resolve display trees and reroot those
+		Better--cleaner--but slower
+		
+
