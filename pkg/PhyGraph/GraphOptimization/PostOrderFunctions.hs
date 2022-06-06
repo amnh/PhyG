@@ -1004,6 +1004,7 @@ getDisplayBasedRerootGraph inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBl
 
 -- | getDispayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
 -- and best cost as pair
+-- for now just deal with head of display list
 getDispayRerootBlock :: [DecoratedGraph] -> V.Vector CharInfo -> (V.Vector CharacterTraversalForest, VertexCost)
 getDispayRerootBlock inDisplayTreeList charInfoVect =
     if null inDisplayTreeList then error "Empty display tree list in getDispayRerootBlock"
