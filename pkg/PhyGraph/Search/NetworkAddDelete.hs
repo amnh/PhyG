@@ -819,7 +819,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- naive for now
 -- force requires reoptimization no matter what--used for net move
--- slipping heuristics fopr now--aeful
+-- slipping heuristics for now--awful
 deleteNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
 deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
@@ -837,10 +837,10 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
            -- graph optimization from root
            startVertex = Nothing
 
-           (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
+           -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
 
 
-           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
 
            -- full two-pass optimization

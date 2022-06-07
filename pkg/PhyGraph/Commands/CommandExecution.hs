@@ -823,7 +823,7 @@ requireReoptimization gsOld gsNew =
     else False
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
-outputBlockTrees :: [String] -> Int -> (String , V.Vector [BlockDisplayForest]) -> String
+outputBlockTrees :: [String] -> Int -> (String , V.Vector [DecoratedGraph]) -> String
 outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) =
     let blockIndexStringList = fmap ((++ "\n") . ("Block " ++)) (fmap show [0..((V.length graphLV) - 1)])
         blockStrings = concatMap (++ "\n") (fmap (makeBlockGraphStrings commandList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV))
@@ -831,7 +831,7 @@ outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) =
     labelString ++ blockStrings
 
 -- | makeBlockGraphStrings makes individual block display trees--potentially multiple
-makeBlockGraphStrings :: [String] -> Int -> (String ,[BlockDisplayForest]) -> String
+makeBlockGraphStrings :: [String] -> Int -> (String ,[DecoratedGraph]) -> String
 makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
     let diplayIndexString =("Display Tree(s): " ++ show (length graphL) ++ "\n")
         displayString = (++ "\n") $ outputDisplayString commandList lOutgroupIndex graphL

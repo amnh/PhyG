@@ -174,7 +174,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
         -- hardwired reroot cause much pain
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootGraph outgroupRooted]
+                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootGraph (head startVertexList) outgroupRooted]
+                              -- reroot test
+                              -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
@@ -309,7 +311,7 @@ getW15NetPenalty startVertex inGraph =
 
 -- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual
 -- penalty cost of that block
-getBlockW2015 :: [LG.Edge] -> Int -> [BlockDisplayForest] -> VertexCost
+getBlockW2015 :: [LG.Edge] -> Int -> [DecoratedGraph] -> VertexCost
 getBlockW2015 treeEdgeList rootIndex blockTreeList =
     if null treeEdgeList || null blockTreeList then 0.0
     else
@@ -374,7 +376,7 @@ undirectedEdgeMinus firstList secondList =
 -- and determines the total cost (over all blocks) of each display tree
 -- the lowest cost display tree(s) as list are returned with cost
 -- this is used in Wheeler (2015) network penalty
-extractLowestCostDisplayTree :: Maybe Int -> PhylogeneticGraph -> ([BlockDisplayForest], VertexCost)
+extractLowestCostDisplayTree :: Maybe Int -> PhylogeneticGraph -> ([DecoratedGraph], VertexCost)
 extractLowestCostDisplayTree startVertex inGraph =
  if LG.isEmpty $ thd6 inGraph then error "Empty graph in extractLowestCostDisplayTree"
  else
@@ -418,10 +420,11 @@ updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> 
 updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else
-        let outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
-
-            -- is this repetetive--aftet post order?  Done already?
-            (displayGraphVL, lDisplayCost) = PO.extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
+        let -- is this repetetive--aftet post order?  Done already?
+            -- outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
+            -- (displayGraphVL, lDisplayCost) = PO.extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
+            displayGraphVL = fth6 inGraph
+            lDisplayCost = snd6 inGraph
 
             -- traceback on resolutions
             newGraph = softWiredPostOrderTraceBack rootIndex (thd6 inGraph)

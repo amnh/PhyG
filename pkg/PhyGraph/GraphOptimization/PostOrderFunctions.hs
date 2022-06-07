@@ -518,7 +518,7 @@ getOutDegree1VertexAndGraph :: (Show a, Show b)
                             -> LG.Gr a b
                             -> [LG.Node]
                             -> DecoratedGraph
-                            -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [BlockDisplayForest])
+                            -> (DecoratedGraph, Bool, VertexInfo, VertexCost, V.Vector [DecoratedGraph])
 getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree =
 
     -- trace ("In out=1: " ++ (show curNode)) (
@@ -596,7 +596,7 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
 
 -- | extractDisplayTrees takes resolutions and pulls out best cost (head for now) need to change type for multiple best
 -- option for filter based on pop-count for root cost and complete display tree check
-extractDisplayTrees :: Maybe Int -> Bool -> V.Vector ResolutionBlockData -> (V.Vector [BlockDisplayForest], VertexCost)
+extractDisplayTrees :: Maybe Int -> Bool -> V.Vector ResolutionBlockData -> (V.Vector [DecoratedGraph], VertexCost)
 extractDisplayTrees startVertex checkPopCount inRBDV =
     if V.null inRBDV then (V.empty, 0.0)
     else
@@ -606,7 +606,7 @@ extractDisplayTrees startVertex checkPopCount inRBDV =
 
 -- | getAllResolutionList takes ResolutionBlockData and retuns a list of the all valid (ie all leaves in subtree) display trees
 -- for that block- and costs
-getAllResolutionList :: ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
+getAllResolutionList :: ResolutionBlockData -> [(DecoratedGraph, VertexCost)]
 getAllResolutionList  inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
@@ -631,7 +631,7 @@ getAllResolutionList  inRDList =
 -- | getBestResolutionList takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees
 -- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
 -- startVertex for a component-- to allow for not every leaf being in componnet but still getting softwired cost
-getBestResolutionList :: Maybe Int -> Bool -> ResolutionBlockData -> ([BlockDisplayForest], VertexCost)
+getBestResolutionList :: Maybe Int -> Bool -> ResolutionBlockData -> ([DecoratedGraph], VertexCost)
 getBestResolutionList startVertex checkPopCount inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
@@ -674,7 +674,7 @@ getBestResolutionList startVertex checkPopCount inRDList =
 -- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
 -- startVertex for a component-- to allow for not every leaf being in componnet but still getting softwired cost
 -- returns list of pairs
-getBestResolutionListPair :: Maybe Int -> Bool -> ResolutionBlockData -> [(BlockDisplayForest, VertexCost)]
+getBestResolutionListPair :: Maybe Int -> Bool -> ResolutionBlockData -> [(DecoratedGraph, VertexCost)]
 getBestResolutionListPair startVertex checkPopCount inRDList =
     --trace ("GBRL: " ++ (show inRDList)) (
     if null inRDList then error "Null resolution list"
@@ -717,7 +717,7 @@ getBestResolutionListPair startVertex checkPopCount inRDList =
 -- new node is created, so original is deleted, new added, and original edges added back
 -- since deleted when node is
 -- assumes its a tree wiht a single root
-updateRootCost :: VertexCost -> BlockDisplayForest -> BlockDisplayForest
+updateRootCost :: VertexCost -> DecoratedGraph -> DecoratedGraph
 updateRootCost newRootCost inGraph =
     let (rootIndex, rootLabel) = head $ LG.getRoots inGraph
         rootEdges = LG.out inGraph rootIndex
@@ -837,7 +837,7 @@ rerootPhylogeneticGraph' inGS isNetworkNode parentIsNetworkNode inGraph original
 --   from graph to graph.
 --   NNB only deals with post-order states
 rerootPhylogeneticGraph ::  GlobalSettings -> Bool -> Int ->  Bool -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockDisplayForestVV, _, charInfoVectVect) =
+rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inPhyGraph@(inSimple, _, inDecGraph, blockGraphVV, _, charInfoVectVect) =
   if LG.isEmpty inSimple then inPhyGraph
   -- else if inCost == 0 then error ("Input graph with cost zero--likely non decorated input graph in rerootPhylogeneticGraph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph))
   else
@@ -873,9 +873,9 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
         newGraphCost = sum $ fmap subGraphCost $ fmap snd $ LG.getRoots newDecGraph'
 
         -- rerooted display forests--don't care about costs--I hope (hence Bool False)
-        newBlockDisplayForestVV = if V.null blockDisplayForestVV then mempty
-                                  --else fmap (fmap (GO.rerootTree rerootIndex)) blockDisplayForestVV
-                                  else fmap (fmap (rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex)) blockDisplayForestVV
+        newblockGraphVV = if V.null blockGraphVV then mempty
+                                  --else fmap (fmap (GO.rerootTree rerootIndex)) blockGraphVV
+                                  else fmap (fmap (rectifyGraphDecorated' isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex)) blockGraphVV
 
         in
         --trace ("rerootPhylogeneticGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nNew\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph) (
@@ -892,8 +892,8 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
           trace ("New RootIndex :" ++ (show (rerootIndex, isNetworkNode, parentIsNetworkNode)) ++ " To optimize:" ++ (show $ fmap fst nodesToOptimize) ++ "\nOG:\n"
           ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nRRG:" ++ ((LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph))) (
           -}
-          -- (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
-          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newBlockDisplayForestVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
+          -- (newSimpleGraph, newGraphCost, newDecGraph', newDecoratedGraphVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
+          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
           else
             -- get root resolutions and cost
             let (displayGraphVL, lDisplayCost) = extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
@@ -983,34 +983,43 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 -}
                 (newGraph, nodesToReoptimize)
 
--- | getDisplayBasedRerootGraph takes a graph and genertes reroot costs for each character of each block
+-- | getDisplayBasedRerootGraph takes a graph and generates reroot costs for each character of each block
 -- based on rerooting the display tree for that block.
 -- Written for soft-wired, but can be used for tree
 -- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
--- cost detemiend from that single rerooting
+-- cost determined from that single rerooting
 -- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
 -- all the condition (cycles, time consistency etc) that occur.
 -- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
 -- well as softwired, but noit for hardwired where reticulations are maintianed.
-getDisplayBasedRerootGraph :: PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootGraph inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
+getDisplayBasedRerootGraph :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootGraph rootIndex inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
     if LG.isEmpty inSimpleGraph then inPhyloGraph
-    else if V.null inBlockGraphV then error "Empty dasplay tree field in getDisplayBasedRerootGraph"
+    --else if V.null inBlockGraphV then error "Empty display tree field in getDisplayBasedRerootGraph"
     else 
         -- map over blocks 
-        let (blockCharGraphL, blockCostL) = unzip (zipWith getDispayRerootBlock (V.toList inBlockGraphV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
+        let (blockCharGraphL, blockCostL) = unzip (zipWith (getDisplayRerootBlock rootIndex) (V.toList inBlockGraphV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
         in
+        -- for testing 
+        -- inPhyloGraph
         (inSimpleGraph, sum blockCostL, inDecGraph, inBlockGraphV, V.fromList blockCharGraphL, charInfoVV)
-
--- | getDispayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
+        
+-- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
 -- and best cost as pair
 -- for now just deal with head of display list
-getDispayRerootBlock :: [DecoratedGraph] -> V.Vector CharInfo -> (V.Vector CharacterTraversalForest, VertexCost)
-getDispayRerootBlock inDisplayTreeList charInfoVect =
+-- THIS IS WRONG
+getDisplayRerootBlock :: LG.Node -> [DecoratedGraph] -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
+getDisplayRerootBlock rootIndex inDisplayTreeList charInfoVect =
     if null inDisplayTreeList then error "Empty display tree list in getDispayRerootBlock"
     else 
-        -- to make compile for now
-        (V.singleton $ head inDisplayTreeList, -1)
+        let numChars = V.length charInfoVect
+            characterTrees = fmap (pullCharacter False (head inDisplayTreeList)) [0.. numChars - 1]
+            rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
+            blockCost = sum $ fmap (vertexCost . fromJust) rootLabelList
+        in
+        -- (V.fromList characterTrees, blockCost)
+        -- to complie for now 
+        (V.singleton (head inDisplayTreeList), -1)
 
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
@@ -1033,7 +1042,7 @@ divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
 
 -- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
--- over blocks and characyets with the same graph, but only a single block and character for each graph
+-- over blocks and characters with the same graph, but only a single block and character for each graph
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
 divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)

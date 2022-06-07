@@ -403,16 +403,16 @@ type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 -- these are "resolved" from more general graphs
 -- will have to allow for indegre=outdegree=1 for dispaly tree generation and reconciliation
 -- the vertData field will always have a single Bloclk--teh vecor of blocks will be a vector of
--- BlockDisplayForests.  These woulod better have a single Vector of cChracter info as
+-- DecoratedGraphs.  These woulod better have a single Vector of cChracter info as
 -- opposed to the Decorated Tree type, but the record naming and use gets screwed up.
-type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo
+-- type BlockDisplayForest = LG.Gr VertexInfo EdgeInfo
 
--- | CharacterTraversalForest is a forest of tree compnents for a single character
+-- | DecoratedGraph is a forest of tree compnents for a single character
 -- this is used for non-exact character traversal trees
 -- there will always be only a single block and single character even though
 -- expresed as Vector fo Vector of Chaarcters.  Would be better as a single character as
 -- opposed to the Decorated Tree type, but the record naming and use gets screwed up.
-type CharacterTraversalForest = LG.Gr VertexInfo EdgeInfo
+-- type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
 
 -- | type RawGraph is input graphs with leaf and edge labels
@@ -437,7 +437,7 @@ type SimpleGraph = LG.Gr NameText Double
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --               one graph per character
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
-type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector CharacterTraversalForest), V.Vector (V.Vector CharInfo))
+type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
 
 -- | RawData type processed from input to be passed to characterData

@@ -663,3 +663,7 @@ preOrderTreeTraversal
 379) NOte for docs--for best tree analsyis use single block
 
 380) heursitic add/delete deltas need to be completely rethought--always negative
+	removed for now
+
+
+381) extractDisplayTrees seems to be caled multiple times in doftwired for given graph
