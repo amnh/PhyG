@@ -741,7 +741,7 @@ deleteNetEdgeSimple inGS inData inPhyloGraph force edgeToDelete =
 -- does not check any edge reasonable-ness properties
 -- new edge directed from first to second edge
 -- naive for now
--- predeletecost ofr edge move
+-- predeletecost of edge move
 insertNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Maybe VertexCost -> (LG.LEdge b, LG.LEdge b) -> PhylogeneticGraph
 insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v', _)) =
    trace ("InsertEdge " ++ (show ((u,v), (u',v'))) )( -- ++ " into:\n " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 inPhyloGraph)) (
@@ -780,26 +780,29 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
        -- trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)
        --  ++ "New Nodes " ++ (show [newNodeOne, newNodeTwo]) ++ " delete edges " ++ (show [(u,v), (u',v')]) ++ " New edges " ++ (show newEdgeList)
        --  ++ "\nInGraph:\n" ++ (LG.prettify inSimple) ++ "\nNewGraph:\n" ++ (LG.prettify newSimple) ) (
-       trace ("INE checking graph ") (
        -- Check for cycles
+       
        {-
+       trace ("INE checking graph ") (
+       
        if LG.cyclic newSimple then
-         --trace ("INE cyclic")
+         trace ("INE cyclic")
          emptyPhylogeneticGraph
 
        
        else if GO.parentInChain newSimple then
-         --trace ("INE PIN")
+         trace ("INE PIN")
          emptyPhylogeneticGraph
-      -}
+      
        -- force evaluation for HardWired
        -- else 
+       -}
        if (graphType inGS) == HardWired then newPhyloGraph
 
        -- preDelete cost changes criterion for edge move
        else if preDeleteCost == Nothing then
          trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, (snd6 inPhyloGraph), (snd6 newPhyloGraph)))) ( 
-         if heuristicDelta + edgeAddDelta < 0 then 
+         if True then -- heuristicDelta + edgeAddDelta < 0 then 
             if (snd6 inPhyloGraph) > (snd6 newPhyloGraph) then newPhyloGraph
             else emptyPhylogeneticGraph
          else emptyPhylogeneticGraph
@@ -807,14 +810,16 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 
        else
          -- no net add cost becasue the numbe rof net nodes is unchaned in add/delete when preDelete cost /= Noting
-         if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
+         --if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
+         if (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
          else emptyPhylogeneticGraph
-         ) )
+         )
 
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 -- naive for now
 -- force requires reoptimization no matter what--used for net move
+-- slipping heuristics fopr now--aeful
 deleteNetEdge :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
 deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
@@ -847,8 +852,9 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
        if force || (graphType inGS) == HardWired then newPhyloGraph
-       else if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
-       else emptyPhylogeneticGraph
+       else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
+         if (snd6 inPhyloGraph) > (snd6 newPhyloGraph) then newPhyloGraph
+         else emptyPhylogeneticGraph
 
 
 -- | heuristicDeleteDelta takes the existing graph, edge to delete,
