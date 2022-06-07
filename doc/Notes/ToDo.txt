@@ -661,3 +661,5 @@ preOrderTreeTraversal
 378) Go through and refactor treee/softwored/hardwired traversal post and preorder
 
 379) NOte for docs--for best tree analsyis use single block
+
+380) heursitic add/delete deltas need to be completely rethought--always negative
