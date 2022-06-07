@@ -799,7 +799,9 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
        -- preDelete cost changes criterion for edge move
        else if preDeleteCost == Nothing then
          trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, (snd6 inPhyloGraph), (snd6 newPhyloGraph)))) ( 
-         if heuristicDelta + edgeAddDelta < 0 then newPhyloGraph
+         if heuristicDelta + edgeAddDelta < 0 then 
+            if (snd6 inPhyloGraph) > (snd6 newPhyloGraph) then newPhyloGraph
+            else emptyPhylogeneticGraph
          else emptyPhylogeneticGraph
          )
 
