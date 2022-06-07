@@ -1013,13 +1013,14 @@ getDisplayRerootBlock rootIndex inDisplayTreeList charInfoVect =
     if null inDisplayTreeList then error "Empty display tree list in getDispayRerootBlock"
     else 
         let numChars = V.length charInfoVect
-            characterTrees = fmap (pullCharacter False (head inDisplayTreeList)) [0.. numChars - 1]
+            characterTrees = makeCharacterGraph (head inDisplayTreeList)
             rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
-            blockCost = sum $ fmap (vertexCost . fromJust) rootLabelList
+            blockCost = V.sum $ fmap (vertexCost . fromJust) rootLabelList
         in
         -- (V.fromList characterTrees, blockCost)
         -- to complie for now 
-        (V.singleton (head inDisplayTreeList), -1)
+        trace ("GDRB: " ++ (show numChars))
+        (characterTrees, blockCost)
 
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
@@ -1093,7 +1094,7 @@ makeCharacterGraph inBlockGraph =
                              -- missing data
                              else [pullCharacter True inBlockGraph 0]
     in
-    if V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error "Number of blocks /= 1 in makeCharacterGraph"
+    if V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error ("Number of blocks /= 1 in makeCharacterGraph :" ++ (show $ V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph)))
     else
       -- trace ("Chars: " ++ show numCharacters)
       V.fromList characterGraphList
