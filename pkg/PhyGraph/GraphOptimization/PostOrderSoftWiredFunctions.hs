@@ -87,15 +87,20 @@ import           Debug.Trace
 -- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
 -- well as softwired, but not for hardwired where reticulations are maintained.
 
--- Input didpay trees are for reproting only and do not contain actual characvtert dat so must be "pulled"
+-- this can be modified for Tree data strcutres--basically by starting with vertdata initialiiy without 
+-- resolutoin data trace back--shouls be more efficeinet in many was than existing code
+
+-- Input didpay trees are for reproting only and do not contain actual character data so must be "pulled"
 -- from concinical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diaplsy trees not uemployed here
-getDisplayBasedRerootSoftWired :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired rootIndex inPhyloGraph  = 
+getDisplayBasedRerootSoftWired :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired graphType rootIndex inPhyloGraph  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data
-            (inSimpleGraph, inCost, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            (inSimpleGraph, inCost, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = if graphType == Tree then inPhyloGraph
+                                                                                                 else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            
             -- reroot block character trees
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph newBlockDisplayTreeVect
@@ -118,10 +123,18 @@ rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
 getCharTreeBestRoot :: LG.Node -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
 getCharTreeBestRoot rootIndex inCharacterGraph charInfo =
     -- place holder for now
-    let bestRootCharGraph = inCharacterGraph
-        bestRootCost = (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex
+    -- if praligned should be rerooted?
+    let (bestRootCharGraph, bestRootCost) = if (charType charInfo `notElem` sequenceCharacterTypes) then (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
+                                            else rerootCharacterTree rootIndex inCharacterGraph charInfo
     in
     (bestRootCharGraph, bestRootCost)
+
+
+-- | rerootCharacterTree takes a character tree and root index and returns best rooted character tree and cost
+rerootCharacterTree :: LG.Node -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
+rerootCharacterTree rootIndex inCharacterGraph charInfo = 
+    (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
+
 
 -- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block doisplay Tree
 -- updates vertData, vertexCost, and subGraphCost for each .  Subgraph cost queationable since relieds on rooting

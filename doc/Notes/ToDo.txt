@@ -676,3 +676,6 @@ preOrderTreeTraversal
 
 385) Clean up reroot code to remove (or mothball) rerooting graphs
 
+386) generalize new reroot code to trees as well
+
+

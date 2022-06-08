@@ -171,7 +171,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- hardwired reroot cause much pain
         -- the head startvertex list for reoptimizing spit trees ni swapping
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired (head startVertexList) outgroupRooted]
+                              else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired SoftWired (head startVertexList) outgroupRooted]
                               -- reroot test
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
