@@ -94,7 +94,7 @@ getDisplayBasedRerootSoftWired :: LG.Node -> PhylogeneticGraph -> PhylogeneticGr
 getDisplayBasedRerootSoftWired rootIndex inPhyloGraph  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
-        let -- update wirth pass to convert to tree vert data more or less
+        let -- update with pass to retrieve vert data from resolution data
             (inSimpleGraph, inCost, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             -- reroot block character trees
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
@@ -124,17 +124,87 @@ getCharTreeBestRoot rootIndex inCharacterGraph charInfo =
     (bestRootCharGraph, bestRootCost)
 
 -- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block doisplay Tree
+-- updates vertData, vertexCost, and subGraphCost for each .  Subgraph cost queationable since relieds on rooting
 backPortCharTreeNodesToBlockTree :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
 backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect =
-    -- placeholder for now
-    blockDisplayTree
+    let blockDisplayNodes = LG.labNodes blockDisplayTree
+        blockDisplayEdges = LG.labEdges blockDisplayTree
+        
+        -- vector (characters) of vector (nodes) of labels
+        charTreeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes rerootedCharTreeVect
+
+        -- for each node index extract (head head) vertdata, vertexCost and subgraphcost
+        (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVect charTreeLabelsVV) (V.fromList [0..(length blockDisplayNodes - 1)])
+
+        -- update labels for block data nodes 
+        updatedDisplayNodes = V.zipWith4 updateNodes (V.fromList blockDisplayNodes) vertDataVV vertCostVV subGraphCostVV
+
+    in
+    LG.mkGraph (V.toList updatedDisplayNodes) blockDisplayEdges
+
+-- | extractTripleVect takes a vector of vector character tree labels and a node index and
+-- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
+extractTripleVect :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector CharacterData, V.Vector VertexCost, V.Vector VertexCost)
+extractTripleVect inLabelVV index =
+    let nodeLabelV = fmap (V.! index) inLabelVV
+        vertDataV = fmap vertData nodeLabelV
+        vertCostV = fmap vertexCost nodeLabelV
+        subGraphCostV = fmap subGraphCost nodeLabelV
+    in
+    (fmap (V.head . V.head) vertDataV, vertCostV, subGraphCostV)
+
+
+-- | updateNodes takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
+updateNodes ::LG.LNode VertexInfo -> V.Vector CharacterData -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
+updateNodes (inIndex, inLabel) charDataV vertexCostV subGraphCostV =
+    let newVertCost = V.sum vertexCostV
+        newSubGraphCost = V.sum subGraphCostV
+        newLabel = inLabel {vertData = V.singleton charDataV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+    in
+    (inIndex, newLabel)
 
 -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph
+-- very similar to backPortCharTreeNodesToBlockTree but character vector is no singleton
 backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
-backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
-    -- placeholder for now
-    inCanonicalGraph
+backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
+    let canonicalDisplayNodes = LG.labNodes inCanonicalGraph
+        canonicalDisplayEdges = LG.labEdges inCanonicalGraph
+
+        -- vector (characters) of vector (nodes) of labels
+        blockTreeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
+
+        -- for each node index extract (head head) vertdata, vertexCost and subgraphcost
+        (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVectBlock blockTreeLabelsVV) (V.fromList [0..(length canonicalDisplayNodes - 1)])
+
+        -- update labels for canonical data nodes 
+        updatedCanonicalNodes = V.zipWith4 updateNodesBlock (V.fromList canonicalDisplayNodes) vertDataVV vertCostVV subGraphCostVV
+
+    in
+    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges
+
+-- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
+updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
+updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
+    let newVertCost = V.sum vertexCostV
+        newSubGraphCost = V.sum subGraphCostV
+        newLabel = inLabel {vertData = charDataVV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+    in
+    (inIndex, newLabel)
+
+-- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
+-- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
+extractTripleVectBlock :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector (V.Vector CharacterData), V.Vector VertexCost, V.Vector VertexCost)
+extractTripleVectBlock inLabelVV index =
+    let nodeLabelV = fmap (V.! index) inLabelVV
+        vertDataV = fmap vertData nodeLabelV
+        vertCostV = fmap vertexCost nodeLabelV
+        subGraphCostV = fmap subGraphCost nodeLabelV
+    in
+    (fmap V.head vertDataV, vertCostV, subGraphCostV)
+
+       
+   
 
 
 -- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
