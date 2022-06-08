@@ -174,7 +174,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
         -- hardwired reroot cause much pain
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootGraph (head startVertexList) outgroupRooted]
+                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootSoftWired (head startVertexList) outgroupRooted]
                               -- reroot test
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot

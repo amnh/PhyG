@@ -57,7 +57,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , updateDisplayTreesAndCost
                                              , getAllResolutionList
                                              , getBestResolutionListPair
-                                             , getDisplayBasedRerootGraph
+                                             , getDisplayBasedRerootSoftWired
                                              ) where
 
 import           Data.Bits
@@ -74,7 +74,7 @@ import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
--- import Debug.Debug
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Debug.Trace
 
 -- | updateDisplayTreesAndCost takes a softwired graph and updates
@@ -983,37 +983,44 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 -}
                 (newGraph, nodesToReoptimize)
 
--- | getDisplayBasedRerootGraph takes a graph and generates reroot costs for each character of each block
+-- | getDisplayBasedRerootSoftWired takes a graph and generates reroot costs for each character of each block
 -- based on rerooting the display tree for that block.
--- Written for soft-wired, but can be used for tree
+-- Written for soft-wired, but could be modified for tree (data split on vertdata not resolution data)
 -- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
 -- cost determined from that single rerooting
 -- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
 -- all the condition (cycles, time consistency etc) that occur.
 -- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
--- well as softwired, but noit for hardwired where reticulations are maintianed.
-getDisplayBasedRerootGraph :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootGraph rootIndex inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
+-- well as softwired, but not for hardwired where reticulations are maintained.
+
+-- INput didpay trees are for reproting only and do not contain actual characvtert dat so must be "pulled"
+-- from concinical Decorated graph (thd field)
+getDisplayBasedRerootSoftWired :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired rootIndex inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
     if LG.isEmpty inSimpleGraph then inPhyloGraph
-    --else if V.null inBlockGraphV then error "Empty display tree field in getDisplayBasedRerootGraph"
     else 
-        -- map over blocks 
-        let (blockCharGraphL, blockCostL) = unzip (zipWith (getDisplayRerootBlock rootIndex) (V.toList inBlockGraphV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
+        trace ("GDRG: " ++ (LG.prettyIndices inDecGraph) ++ "\n" ++ (show inDecGraph)) (
+        let -- create block diaplay graphs with data--num blocks from charinfo (vector of blocks, each a vecttor of charcters)
+            blockGraphList = fmap (pullBlock inDecGraph) [0..(V.length charInfoVV - 1)]
+            -- map over blocks 
+            (newBlockCharGraphL, blockCostL) = unzip (zipWith (getDisplayRerootBlock rootIndex) blockGraphList (V.toList charInfoVV) `using` PU.myParListChunkRDS)
         in
         -- for testing 
         -- inPhyloGraph
-        (inSimpleGraph, sum blockCostL, inDecGraph, inBlockGraphV, V.fromList blockCharGraphL, charInfoVV)
+        trace ("GDRG:" ++ (show blockGraphList))
+        (inSimpleGraph, sum blockCostL, inDecGraph, inBlockGraphV, V.fromList newBlockCharGraphL, charInfoVV)
+        )
         
 -- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
 -- and best cost as pair
 -- for now just deal with head of display list
 -- THIS IS WRONG
-getDisplayRerootBlock :: LG.Node -> [DecoratedGraph] -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
-getDisplayRerootBlock rootIndex inDisplayTreeList charInfoVect =
-    if null inDisplayTreeList then error "Empty display tree list in getDispayRerootBlock"
+getDisplayRerootBlock :: LG.Node -> DecoratedGraph -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
+getDisplayRerootBlock rootIndex inBlockTree charInfoVect =
+    if LG.isEmpty inBlockTree then error "Empty tree in getDispayRerootBlock"
     else 
         let numChars = V.length charInfoVect
-            characterTrees = makeCharacterGraph (head inDisplayTreeList)
+            characterTrees = makeCharacterGraph inBlockTree
             rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
             blockCost = V.sum $ fmap (vertexCost . fromJust) rootLabelList
         in

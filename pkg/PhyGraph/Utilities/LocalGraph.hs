@@ -102,6 +102,23 @@ fglToPrettyString inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else G.prettify inGraph
 
+-- | pretty prints graph to String
+prettify :: (Show a, Show b) => Gr a b -> String
+prettify inGraph =
+    if G.isEmpty inGraph then "Empty Graph"
+    else G.prettify inGraph
+
+-- | prettyIndices prints graph to String only using indices
+prettyIndices :: (Show a, Show b) => Gr a b -> String
+prettyIndices inGraph =
+    if G.isEmpty inGraph then "Empty Graph"
+    else
+        let nodeList = concat $ fmap (++ ",") $ fmap show $ nodes inGraph
+            edgeList = concat $ fmap (++ "\n") $ fmap show $ edges inGraph
+        in
+        nodeList ++ "\n" ++ edgeList
+
+
 -- Wrapper functions for fgl so could swap out later if want to
 
 -- | maps to isEmpty
@@ -486,22 +503,6 @@ splitVertexList inGraph =
         (_, _, networkVertexList) = unzip3 networkTripleList
     in
     (rootList, leafList, treeVertexList, networkVertexList)
-
--- | pretty prints graph to String
-prettify :: (Show a, Show b) => Gr a b -> String
-prettify inGraph =
-    if G.isEmpty inGraph then "Empty Graph"
-    else G.prettify inGraph
-
--- | prettyIndices prints graph to String only using indices
-prettyIndices :: (Show a, Show b) => Gr a b -> String
-prettyIndices inGraph =
-    if G.isEmpty inGraph then "Empty Graph"
-    else
-        let nodeList = concat $ fmap (++ ",") $ fmap show $ nodes inGraph
-            edgeList = concat $ fmap (++ "\n") $ fmap show $ edges inGraph
-        in
-        nodeList ++ "\n" ++ edgeList
 
 -- | pathToRoot takes a graph and a vertex and returns a pair of lists
 -- of vertices and edges to root(s) in order of encountering them to root

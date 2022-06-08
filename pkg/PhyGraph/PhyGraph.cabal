@@ -191,6 +191,7 @@ executable phyg
                   Graphs.GraphOperations
                   GraphOptimization.Medians
                   GraphOptimization.PostOrderFunctions
+                  GraphOptimization.PostOrderSoftWiredFunctions
                   GraphOptimization.PreOrderFunctions
                   GraphOptimization.Traversals
                   Input.BitPack
