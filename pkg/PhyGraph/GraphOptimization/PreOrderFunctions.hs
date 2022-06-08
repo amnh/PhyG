@@ -373,7 +373,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode)) NetworkNode
+                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph)) NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one
@@ -941,7 +941,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
        isTree = (graphType inGS) == Tree
    in
    -- Three cases, Root, leaf, HTU
-   trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
+   -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
    if childType == RootNode then
 
       if localCharType == Add then
@@ -1262,7 +1262,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         else TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
-   )
+   -- )
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
 -- to get the final state.  This takes place in several steps
