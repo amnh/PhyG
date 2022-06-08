@@ -58,6 +58,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import qualified Utilities.Utilities                  as U
 import qualified Data.InfList                         as IL
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 -- Need a "steepest" that takes first better netowrk for add and delete.
 -- Choose order in max branch length, root-end, leaf-end, and at random
@@ -528,16 +529,16 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
           uOtherChild      = head $ filter ((/= v) . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u, uLab)
 
           -- direction first edge to second so n2 is outdegree 1 to v'
-          n2Lab          = POS.getOutDegree1VertexSoftWired n2 vPrimeLab (thd6 inPhyloGraph) [n2]
-          uPrimeLabAfter = POS.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd6 inPhyloGraph)
-          n1Lab          = POS.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd6 inPhyloGraph)
-          uLabAfter      = POS.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd6 inPhyloGraph)
+          n2Lab          = POSW.getOutDegree1VertexSoftWired n2 vPrimeLab (thd6 inPhyloGraph) [n2]
+          uPrimeLabAfter = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd6 inPhyloGraph)
+          n1Lab          = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd6 inPhyloGraph)
+          uLabAfter      = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd6 inPhyloGraph)
 
           -- cost of resolutions
-          (_, uCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-          (_, uPrimeCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-          (_, uCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-          (_, uPrimeCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+          (_, uCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+          (_, uPrimeCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+          (_, uCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+          (_, uPrimeCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
           addNetDelta = uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore
 
@@ -884,14 +885,14 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
           uPrimeOtherChild = head $ filter ((/= n2) . fst) $ LG.labDescendants inGraph (u', uPrimeLab)
 
           -- skip over netnodes
-          uLabAfter      = POS.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u (v, vLab) uOtherChild inGraph
-          uPrimeLabAfter = POS.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
+          uLabAfter      = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u (v, vLab) uOtherChild inGraph
+          uPrimeLabAfter = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
 
           -- cost of resolutions
-          (_, uCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-          (_, uPrimeCostBefore) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-          (_, uCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-          (_, uPrimeCostAfter) = POS.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+          (_, uCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+          (_, uPrimeCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+          (_, uCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+          (_, uPrimeCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
           addNetDelta = uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore
 

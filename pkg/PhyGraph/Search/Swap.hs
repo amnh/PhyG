@@ -54,6 +54,7 @@ import qualified ParallelUtilities                    as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -79,7 +80,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
       let numLeaves = V.length $ fst3 inData
           leafGraph = T.makeSimpleLeafGraph inData
           leafDecGraph = T.makeLeafGraph inData
-          leafGraphSoftWired = T.makeLeafGraphSoftWired inData
+          leafGraphSoftWired = POSW.makeLeafGraphSoftWired inData
           charInfoVV = six6 inGraph
 
 
