@@ -166,19 +166,21 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- subsequent rerooting do not reoptimize exact characters (add nonadd etc)
         -- they are taken from the fully labelled first input decorated graph later when output graph created
         -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this
-        -- will have the preoder assignmentsd for th eoutgroup rooted graph as 3rd field.  This can be used for incremental
+        -- will have the preorder assignments for the outgroup rooted graph as 3rd field.  This can be used for incremental
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
         -- hardwired reroot cause much pain
+        -- the head startvertex list for reoptimizing spit trees ni swapping
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [PO.getDisplayBasedRerootSoftWired (head startVertexList) outgroupRooted]
+                              else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired (head startVertexList) outgroupRooted]
                               -- reroot test
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- perform traceback on resolution caches is graphtype = softWired
+        -- no done in recursive root list
         recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
-                               else if (graphType inGS) == SoftWired then fmap (POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
+                               else if (graphType inGS) == SoftWired then recursiveRerootList -- fmap (POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
                                else if (graphType inGS) == HardWired then recursiveRerootList
                                else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
@@ -639,7 +641,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
             --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
-            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
         -- make node from 2 children
@@ -678,7 +680,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
             --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
-            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
             -- ) -- )

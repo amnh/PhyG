@@ -50,12 +50,13 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getOutDegree1VertexAndGraph
                                                       , getOutDegree1VertexSoftWired
                                                       , getOutDegree2VertexSoftWired
-                                                      , createBlockResolutions
                                                       , extractDisplayTrees
-                                                      , getOutDegree1VertexAndGraph
                                                       , createBlockResolutions
                                                       , makeCharacterGraph
                                                       , getAllResolutionList
+                                                      , getBestResolutionListPair
+                                                      , getDisplayBasedRerootSoftWired
+                                                      , divideDecoratedGraphByBlockAndCharacterTree
                                                       ) where
 
 import           Data.Bits
@@ -76,22 +77,140 @@ import qualified ParallelUtilities           as PU
 import           Debug.Trace
 
 
--- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions to create the correct vertex states,
--- ports the post order assignments to the canonical tree and display trees, and creates the character trees from the block trees
+-- | getDisplayBasedRerootSoftWired takes a graph and generates reroot costs for each character of each block
+-- based on rerooting the display tree for that block.
+-- Written for soft-wired, but could be modified for tree (data split on vertdata not resolution data)
+-- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
+-- cost determined from that single rerooting
+-- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
+-- all the condition (cycles, time consistency etc) that occur.
+-- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
+-- well as softwired, but not for hardwired where reticulations are maintained.
+
+-- Input didpay trees are for reproting only and do not contain actual characvtert dat so must be "pulled"
+-- from concinical Decorated graph (thd field)
+-- the list :[] stuff due to potential list of diaplsy trees not uemployed here
+getDisplayBasedRerootSoftWired :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired rootIndex inPhyloGraph  = 
+    if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
+    else 
+        let -- update wirth pass to convert to tree vert data more or less
+            (inSimpleGraph, inCost, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            -- reroot block character trees
+            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
+            newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph newBlockDisplayTreeVect
+        in
+        (inSimpleGraph, V.sum blockCostV, newCononicalGraph, fmap (:[]) newBlockDisplayTreeVect, newBlockCharGraphVV, charInfoVV)
+        
+-- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
+-- with best character tree node assignment back ported to display tree
+rerootBlockCharTrees :: LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
+    if V.null charTreeVect then error "Empty tree vector in rerootBlockCharTrees"
+    else 
+        let (rerootedCharTreeVect, rerootedCostVect) = V.unzip $ V.zipWith (getCharTreeBestRoot rootIndex) charTreeVect charInfoVect
+            updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect
+        in
+        (updateBlockDisplayTree, rerootedCharTreeVect, V.sum rerootedCostVect)
+
+-- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
+--- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
+getCharTreeBestRoot :: LG.Node -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot rootIndex inCharacterGraph charInfo =
+    -- place holder for now
+    let bestRootCharGraph = inCharacterGraph
+        bestRootCost = (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex
+    in
+    (bestRootCharGraph, bestRootCost)
+
+-- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block doisplay Tree
+backPortCharTreeNodesToBlockTree :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
+backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect =
+    -- placeholder for now
+    blockDisplayTree
+
+-- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
+-- labels to the cononical Graph
+backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
+backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
+    -- placeholder for now
+    inCanonicalGraph
+
+
+-- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
+-- and best cost as pair
+-- for now just deal with head of display list
+-- THIS IS WRONG
+getDisplayRerootBlock :: LG.Node -> DecoratedGraph -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
+getDisplayRerootBlock rootIndex inBlockTree charInfoVect =
+    if LG.isEmpty inBlockTree then error "Empty tree in getDispayRerootBlock"
+    else 
+        let numChars = V.length charInfoVect
+            characterTrees = makeCharacterGraph inBlockTree
+            rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
+            blockCost = V.sum $ fmap (vertexCost . fromJust) rootLabelList
+        in
+        -- (V.fromList characterTrees, blockCost)
+        -- to complie for now 
+        trace ("GDRB: " ++ (show numChars))
+        (characterTrees, blockCost)
+
+
+-- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
+-- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
+-- over blocks and characters with the same graph, but only a single block and character for each graph
+-- this to be used to create the "best" cost over alternate graph traversals
+-- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterTree inGraph =
+  if LG.isEmpty inGraph then V.empty
+  else
+    let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
+        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
+        characterGraphList = fmap makeCharacterGraph blockGraphList
+    in
+    -- trace ("DDGBCT: Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) ++ "\n" ++ (show characterGraphList))
+    V.fromList characterGraphList
+
+-- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
+-- only data from the input block index
+pullBlock :: DecoratedGraph -> Int -> DecoratedGraph
+pullBlock inGraph blockIndex =
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inGraph
+        blockNodeLabelList = fmap (makeBlockNodeLabels blockIndex) inNodeLabelList
+    in
+    LG.mkGraph (zip inNodeIndexList blockNodeLabelList) (LG.labEdges inGraph)
+
+-- | makeBlockNodeLabels takes a block index and an orginal nodel label
+-- and creates a new list of a singleton block from the input block index
+makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
+makeBlockNodeLabels blockIndex inVertexInfo =
+  let newVertexData = vertData inVertexInfo V.! blockIndex
+      newVertexCost = V.sum $ fmap localCost newVertexData
+      newsubGraphCost = V.sum $ fmap globalCost newVertexData
+  in
+  -- trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
+  inVertexInfo { vertData     = V.singleton newVertexData
+               , vertexCost   = newVertexCost
+               , subGraphCost = newsubGraphCost
+               }
+
+-- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
+-- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
 updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else
-        let -- is this repetetive--aftet post order?  Done already?
-            -- outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
-            -- (displayGraphVL, lDisplayCost) = PO.extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
-            displayGraphVL = fth6 inGraph
-            lDisplayCost = snd6 inGraph
-
+        let -- this step is important--not repetetive since pull out teh resolution data for each block
+            outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
+            (displayGraphVL, lDisplayCost) = extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
+            
             -- traceback on resolutions
             newGraph = softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
 
-            -- propagate updated post-order assignments to display trees, which updates dispay tree and cost ealier
+            -- propagate updated post-order assignments to display trees, which updates display tree and cost ealier
             displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph) )) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
 
             -- create new, fully  updated post-order graph

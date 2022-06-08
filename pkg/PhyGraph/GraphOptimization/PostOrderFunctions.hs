@@ -46,9 +46,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticNetwork'
                                              , createVertexDataOverBlocks
                                              , createVertexDataOverBlocksStaticIA
-                                             , divideDecoratedGraphByBlockAndCharacterTree
                                              , updateDisplayTreesAndCost
-                                             , getDisplayBasedRerootSoftWired
                                              ) where
 
 import           Data.Bits
@@ -390,7 +388,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
           ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nRRG:" ++ ((LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph))) (
           -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newDecoratedGraphVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
-          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
+          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, POSW.divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
           else
             -- get root resolutions and cost
             let (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
@@ -479,92 +477,4 @@ rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode reroot
                 else
                 -}
                 (newGraph, nodesToReoptimize)
-
--- | getDisplayBasedRerootSoftWired takes a graph and generates reroot costs for each character of each block
--- based on rerooting the display tree for that block.
--- Written for soft-wired, but could be modified for tree (data split on vertdata not resolution data)
--- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
--- cost determined from that single rerooting
--- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
--- all the condition (cycles, time consistency etc) that occur.
--- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
--- well as softwired, but not for hardwired where reticulations are maintained.
-
--- INput didpay trees are for reproting only and do not contain actual characvtert dat so must be "pulled"
--- from concinical Decorated graph (thd field)
-getDisplayBasedRerootSoftWired :: LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired rootIndex inPhyloGraph@(inSimpleGraph, inCost, inDecGraph, inBlockGraphV, _, charInfoVV) = 
-    if LG.isEmpty inSimpleGraph then inPhyloGraph
-    else 
-        trace ("GDRG: " ++ (LG.prettyIndices inDecGraph) ++ "\n" ++ (show inDecGraph)) (
-        let -- create block diaplay graphs with data--num blocks from charinfo (vector of blocks, each a vecttor of charcters)
-            blockGraphList = fmap (pullBlock inDecGraph) [0..(V.length charInfoVV - 1)]
-            -- map over blocks 
-            (newBlockCharGraphL, blockCostL) = unzip (zipWith (getDisplayRerootBlock rootIndex) blockGraphList (V.toList charInfoVV) `using` PU.myParListChunkRDS)
-        in
-        -- for testing 
-        -- inPhyloGraph
-        trace ("GDRG:" ++ (show blockGraphList))
-        (inSimpleGraph, sum blockCostL, inDecGraph, inBlockGraphV, V.fromList newBlockCharGraphL, charInfoVV)
-        )
-        
--- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
--- and best cost as pair
--- for now just deal with head of display list
--- THIS IS WRONG
-getDisplayRerootBlock :: LG.Node -> DecoratedGraph -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
-getDisplayRerootBlock rootIndex inBlockTree charInfoVect =
-    if LG.isEmpty inBlockTree then error "Empty tree in getDispayRerootBlock"
-    else 
-        let numChars = V.length charInfoVect
-            characterTrees = POSW.makeCharacterGraph inBlockTree
-            rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
-            blockCost = V.sum $ fmap (vertexCost . fromJust) rootLabelList
-        in
-        -- (V.fromList characterTrees, blockCost)
-        -- to complie for now 
-        trace ("GDRB: " ++ (show numChars))
-        (characterTrees, blockCost)
-
-
--- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
--- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
--- over blocks and characters with the same graph, but only a single block and character for each graph
--- this to be used to create the "best" cost over alternate graph traversals
--- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
-divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
-divideDecoratedGraphByBlockAndCharacterTree inGraph =
-  if LG.isEmpty inGraph then V.empty
-  else
-    let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
-        blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
-        characterGraphList = fmap POSW.makeCharacterGraph blockGraphList
-    in
-    -- trace ("DDGBCT: Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) ++ "\n" ++ (show characterGraphList))
-    V.fromList characterGraphList
-
--- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
--- only data from the input block index
-pullBlock :: DecoratedGraph -> Int -> DecoratedGraph
-pullBlock inGraph blockIndex =
-  if LG.isEmpty inGraph then LG.empty
-  else
-    let (inNodeIndexList, inNodeLabelList) = unzip $ LG.labNodes inGraph
-        blockNodeLabelList = fmap (makeBlockNodeLabels blockIndex) inNodeLabelList
-    in
-    LG.mkGraph (zip inNodeIndexList blockNodeLabelList) (LG.labEdges inGraph)
-
--- | makeBlockNodeLabels takes a block index and an orginal nodel label
--- and creates a new list of a singleton block from the input block index
-makeBlockNodeLabels :: Int -> VertexInfo -> VertexInfo
-makeBlockNodeLabels blockIndex inVertexInfo =
-  let newVertexData = vertData inVertexInfo V.! blockIndex
-      newVertexCost = V.sum $ fmap localCost newVertexData
-      newsubGraphCost = V.sum $ fmap globalCost newVertexData
-  in
-  -- trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
-  inVertexInfo { vertData     = V.singleton newVertexData
-               , vertexCost   = newVertexCost
-               , subGraphCost = newsubGraphCost
-               }
 
