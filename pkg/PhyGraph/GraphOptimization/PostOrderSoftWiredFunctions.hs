@@ -94,7 +94,7 @@ import           Debug.Trace
 -- from concinical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diaplsy trees not uemployed here
 getDisplayBasedRerootSoftWired :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,d,e,f)  = 
+getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,_,_,f)  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data
@@ -159,6 +159,7 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
             (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
                                       else (bestGraph, bestCost)
         in
+        --trace ("RRCT:" ++ (show (rootIndex, firstRerootIndex, bestCost, bestCost'))) 
         rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
     
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
