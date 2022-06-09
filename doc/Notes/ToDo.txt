@@ -678,4 +678,5 @@ preOrderTreeTraversal
 
 386) generalize new reroot code to trees as well
 
-
+387) Check swap tree versus softwired
+	Tree finds things softWired does not
