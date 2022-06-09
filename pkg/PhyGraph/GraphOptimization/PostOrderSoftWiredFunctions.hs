@@ -71,8 +71,8 @@ import qualified Graphs.GraphOperations      as GO
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities           as PU
+-- import           Control.Parallel.Strategies
+-- import qualified ParallelUtilities           as PU
 -- import Debug.Debug
 import           Debug.Trace
 
@@ -94,11 +94,12 @@ import           Debug.Trace
 -- from concinical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diaplsy trees not uemployed here
 getDisplayBasedRerootSoftWired :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired graphType rootIndex inPhyloGraph  = 
+getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data
-            (inSimpleGraph, inCost, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = if graphType == Tree then inPhyloGraph
+            -- Trfee allready has data in vertData field
+            (inSimpleGraph, _, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = if inGraphType == Tree then inPhyloGraph
                                                                                                  else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             
             -- reroot block character trees
@@ -113,27 +114,122 @@ rerootBlockCharTrees :: LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> 
 rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
     if V.null charTreeVect then error "Empty tree vector in rerootBlockCharTrees"
     else 
-        let (rerootedCharTreeVect, rerootedCostVect) = V.unzip $ V.zipWith (getCharTreeBestRoot rootIndex) charTreeVect charInfoVect
+        let -- next edges (to vertex in list) to perform rerroting
+            -- progresses recursivey over adjacent edges to minimize node reoptimization
+            -- since initially all same graph can get initial reroot nodes from display tree
+            childrenOfRoot = LG.descendants blockDisplayTree rootIndex
+            grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
+
+            (rerootedCharTreeVect, rerootedCostVect) = V.unzip $ V.zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) charTreeVect charInfoVect
             updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect
         in
         (updateBlockDisplayTree, rerootedCharTreeVect, V.sum rerootedCostVect)
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
-getCharTreeBestRoot :: LG.Node -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot rootIndex inCharacterGraph charInfo =
-    -- place holder for now
-    -- if praligned should be rerooted?
+getCharTreeBestRoot :: LG.Node -> [LG.Node] -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo =
+    -- if prealigned should be rerooted?
     let (bestRootCharGraph, bestRootCost) = if (charType charInfo `notElem` sequenceCharacterTypes) then (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
-                                            else rerootCharacterTree rootIndex inCharacterGraph charInfo
+                                            else rerootCharacterTree rootIndex nodesToRoot charInfo inCharacterGraph 
     in
     (bestRootCharGraph, bestRootCost)
 
+-- | rerootCharacterTree wrapper around rerootCharacterTree' with cleaner interface for "best" results
+rerootCharacterTree :: LG.Node -> [LG.Node] ->  CharInfo -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree rootIndex nodesToRoot charInfo inCharacterGraph = 
+    rerootCharacterTree' rootIndex nodesToRoot charInfo ((subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex) inCharacterGraph inCharacterGraph
 
--- | rerootCharacterTree takes a character tree and root index and returns best rooted character tree and cost
-rerootCharacterTree :: LG.Node -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
-rerootCharacterTree rootIndex inCharacterGraph charInfo = 
-    (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
+-- | rerootCharacterTree' takes a character tree and root index and returns best rooted character tree and cost
+-- this is recursive taking best cost to save on memory over an fmap and minimum
+-- since does reroot stuff over character trees--that component is less efficient
+-- root index always same--just edges conenct to change with rerooting
+-- graph is prgressively rerooted to be efficient
+rerootCharacterTree' :: LG.Node -> [LG.Node] -> CharInfo -> VertexCost -> DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
+    if null nodesToRoot then (bestGraph, bestCost)
+    else
+        let firstRerootIndex = head nodesToRoot
+            nextReroots = (LG.descendants inGraph firstRerootIndex) ++ tail nodesToRoot
+            newGraph = rerootAndDiagnoseTree firstRerootIndex charInfo inGraph
+            newGraphCost = ((subGraphCost . snd) $ LG.labelNode newGraph rootIndex)    
+            (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
+                                      else (bestGraph, bestCost)
+        in
+        rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
+    
+-- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
+rerootAndDiagnoseTree :: LG.Node -> CharInfo -> DecoratedGraph -> DecoratedGraph
+rerootAndDiagnoseTree newRerootIndex charInfo inGraph =
+    let reRootGraph = GO.rerootTree newRerootIndex inGraph
+        (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
+        reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
+    in
+    reOptimizedGraph
+
+
+-- | reOptimizeCharacterNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)
+-- them based on children in input graph
+-- simple recursive since each node depends on children
+-- check for out-degree 1 since can be resolved form diplay trees 
+reOptimizeCharacterNodes :: CharInfo -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
+reOptimizeCharacterNodes charInfo inGraph oldNodeList =
+  -- trace ("RON:" ++ (show $ fmap fst oldNodeList)) (
+  if null oldNodeList then inGraph
+  else
+    let curNode@(curNodeIndex, curNodeLabel) = head oldNodeList
+        nodeChildren = LG.descendants inGraph curNodeIndex  -- should be 1 or 2, not zero since all leaves already in graph
+        foundCurChildern = filter (`elem` nodeChildren) $ fmap fst (tail oldNodeList)
+    in
+    {-These are checks that were in for network code--should be unncesesary for charactaer trees
+    -- make sure that nodes are optimized in correct order so that nodes are only reoptimized using updated children
+    -- this should really not have to happen--order should be determined a priori
+    -}
+    --if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren) ++ "\nGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
+    --else 
+
+    if not $ null foundCurChildern then
+      -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
+      reOptimizeCharacterNodes charInfo inGraph (tail oldNodeList ++ [curNode])
+
+    -- somehow root before others -- remove if not needed after debug
+    --else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
+    --    error ("Root first :" ++ (show $ fmap fst oldNodeList) ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+        --reOptimizeNodes localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
+
+    else
+    
+        -- trace ("RON: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren)) (
+        let leftChild = head nodeChildren
+            rightChild = last nodeChildren
+            
+            -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+            (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab inGraph leftChild, fromJust $ LG.lab inGraph rightChild)
+            (newVertexData, newVertexCost) = M.median2Single False ((V.head . V.head . vertData) leftChildLabel) ((V.head . V.head . vertData)  rightChildLabel) charInfo
+
+        in
+       
+        let (newCost, newBVLabel, newVertData, newSubGraphCost) = if length nodeChildren < 2 then (0, bvLabel leftChildLabel, vertData leftChildLabel, subGraphCost leftChildLabel)
+                                                                   else (newVertexCost, bvLabel leftChildLabel .|. bvLabel rightChildLabel, V.singleton (V.singleton newVertexData), subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost)
+            newVertexLabel = VertexInfo {  index = curNodeIndex
+                                         -- this bit labelling incorect for outdegree = 1, need to prepend bits
+                                         , bvLabel = newBVLabel
+                                         , parents = V.fromList $ LG.parents inGraph curNodeIndex
+                                         , children = V.fromList nodeChildren
+                                         , nodeType = nodeType curNodeLabel
+                                         , vertName = vertName curNodeLabel
+                                         , vertexResolutionData = mempty
+                                         , vertData = newVertData
+                                         , vertexCost = newCost
+                                         , subGraphCost = newSubGraphCost
+                                         }
+
+            -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
+            replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
+            newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
+         in
+         --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
+         reOptimizeCharacterNodes charInfo newGraph (tail oldNodeList)
 
 
 -- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block doisplay Tree
@@ -158,8 +254,8 @@ backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect =
 -- | extractTripleVect takes a vector of vector character tree labels and a node index and
 -- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
 extractTripleVect :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector CharacterData, V.Vector VertexCost, V.Vector VertexCost)
-extractTripleVect inLabelVV index =
-    let nodeLabelV = fmap (V.! index) inLabelVV
+extractTripleVect inLabelVV charIndex =
+    let nodeLabelV = fmap (V.! charIndex) inLabelVV
         vertDataV = fmap vertData nodeLabelV
         vertCostV = fmap vertexCost nodeLabelV
         subGraphCostV = fmap subGraphCost nodeLabelV
@@ -208,36 +304,13 @@ updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
 -- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
 -- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
 extractTripleVectBlock :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector (V.Vector CharacterData), V.Vector VertexCost, V.Vector VertexCost)
-extractTripleVectBlock inLabelVV index =
-    let nodeLabelV = fmap (V.! index) inLabelVV
+extractTripleVectBlock inLabelVV charIndex =
+    let nodeLabelV = fmap (V.! charIndex) inLabelVV
         vertDataV = fmap vertData nodeLabelV
         vertCostV = fmap vertexCost nodeLabelV
         subGraphCostV = fmap subGraphCost nodeLabelV
     in
     (fmap V.head vertDataV, vertCostV, subGraphCostV)
-
-       
-   
-
-
--- | getDisplayRerootBlock take a block tree list and vector of charInfo for that block and returns rerooted character trees
--- and best cost as pair
--- for now just deal with head of display list
--- THIS IS WRONG
-getDisplayRerootBlock :: LG.Node -> DecoratedGraph -> V.Vector CharInfo -> (V.Vector DecoratedGraph, VertexCost)
-getDisplayRerootBlock rootIndex inBlockTree charInfoVect =
-    if LG.isEmpty inBlockTree then error "Empty tree in getDispayRerootBlock"
-    else 
-        let numChars = V.length charInfoVect
-            characterTrees = makeCharacterGraph inBlockTree
-            rootLabelList = fmap ((flip LG.lab) rootIndex) characterTrees
-            blockCost = V.sum $ fmap (vertexCost . fromJust) rootLabelList
-        in
-        -- (V.fromList characterTrees, blockCost)
-        -- to complie for now 
-        trace ("GDRB: " ++ (show numChars))
-        (characterTrees, blockCost)
-
 
 -- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
