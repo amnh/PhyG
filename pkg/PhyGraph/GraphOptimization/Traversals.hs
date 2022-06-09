@@ -159,8 +159,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
         -- next edges (to vertex in list) to perform rerroting
         -- progresses recursivey over adjacent edges to minimize node reoptimization
-        childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
-        grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) childrenOfRoot
+        -- childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
+        -- grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) childrenOfRoot
 
         -- create list of multi-traversals with original rooting first
         -- subsequent rerooting do not reoptimize exact characters (add nonadd etc)
@@ -172,21 +172,15 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- the head startvertex list for reoptimizing spit trees ni swapping
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
                               else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired SoftWired (head startVertexList) outgroupRooted]
-                              -- reroot test
+                             -- need to test which is better
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else if (graphType inGS == Tree) then [POSW.getDisplayBasedRerootSoftWired Tree (head startVertexList) outgroupRooted]
                               --else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
-        -- perform traceback on resolution caches is graphtype = softWired
-        -- no done in recursive root list
-        recursiveRerootList' = if (graphType inGS) == Tree then recursiveRerootList
-                               else if (graphType inGS) == SoftWired then recursiveRerootList -- fmap (POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList)) recursiveRerootList
-                               else if (graphType inGS) == HardWired then recursiveRerootList
-                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
-
-        finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList'
+        -- remove if tree reroot code pans out
+        finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
 
         -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
         -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that
