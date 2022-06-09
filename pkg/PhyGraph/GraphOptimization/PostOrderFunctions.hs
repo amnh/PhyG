@@ -388,7 +388,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
           ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecGraph) ++ "\nRRG:" ++ ((LG.prettify $ GO.convertDecoratedToSimpleGraph newDecGraph))) (
           -}
           -- (newSimpleGraph, newGraphCost, newDecGraph', newDecoratedGraphVect, V.replicate (length charInfoVectVect) (V.singleton newDecGraph'), charInfoVectVect)
-          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, POSW.divideDecoratedGraphByBlockAndCharacterTree newDecGraph', charInfoVectVect)
+          if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, (snd $ POSW.divideDecoratedGraphByBlockAndCharacterTree newDecGraph'), charInfoVectVect)
           else
             -- get root resolutions and cost
             let (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)

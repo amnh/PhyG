@@ -94,13 +94,16 @@ import           Debug.Trace
 -- from concinical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diaplsy trees not uemployed here
 getDisplayBasedRerootSoftWired :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph  = 
+getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,d,e,f)  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
-            (inSimpleGraph, _, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = if inGraphType == Tree then inPhyloGraph
-                                                                                                 else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            (inSimpleGraph, _, inDecGraph, inBlockGraphV, inBlockCharGraphVV, charInfoVV) = if inGraphType == Tree then 
+                                                                                                let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
+                                                                                                in
+                                                                                                (a, b, decGraph, displayTrees, charTrees, f)
+                                                                                            else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             
             -- reroot block character trees
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
@@ -317,16 +320,16 @@ extractTripleVectBlock inLabelVV charIndex =
 -- over blocks and characters with the same graph, but only a single block and character for each graph
 -- this to be used to create the "best" cost over alternate graph traversals
 -- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
-divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterTree :: DecoratedGraph -> (V.Vector [DecoratedGraph], V.Vector (V.Vector DecoratedGraph))
 divideDecoratedGraphByBlockAndCharacterTree inGraph =
-  if LG.isEmpty inGraph then V.empty
+  if LG.isEmpty inGraph then (V.empty, V.empty)
   else
     let numBlocks = V.length $ vertData $ snd $ head $ LG.labNodes inGraph
         blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
     -- trace ("DDGBCT: Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) ++ "\n" ++ (show characterGraphList))
-    V.fromList characterGraphList
+    (V.fromList (fmap (:[]) blockGraphList), V.fromList characterGraphList)
 
 -- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
 -- only data from the input block index

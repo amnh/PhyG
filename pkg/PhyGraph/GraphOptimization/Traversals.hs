@@ -174,7 +174,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                               else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired SoftWired (head startVertexList) outgroupRooted]
                               -- reroot test
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
-                              else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
+                              else if (graphType inGS == Tree) then [POSW.getDisplayBasedRerootSoftWired Tree (head startVertexList) outgroupRooted]
+                              --else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- perform traceback on resolution caches is graphtype = softWired
@@ -192,7 +193,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
         -- are propagated to the Decorated graph field after the preorder pass.
         -- doesn't have to be sorted, but should minimize assignments
-        graphWithBestAssignments = L.foldl1' setBetterGraphAssignment recursiveRerootList'
+        graphWithBestAssignments = head recursiveRerootList -- L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
         {-  root and model complexities moved to output
         -- same root cost if same data and number of roots
@@ -635,13 +636,15 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
+                (newDisplayVect, newCharTreeVV) = POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph
+
             in
             -- th curnode == roiot index for pruned subtrees
             -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
             --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
-            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
         -- make node from 2 children
@@ -674,13 +677,15 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
                 newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
                 newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
+                (newDisplayVect, newCharTreeVV) = POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph
+
             in
             -- th curnode == roiot index for pruned subtrees
             -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
             --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
-            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, mempty, POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
             -- ) -- )
