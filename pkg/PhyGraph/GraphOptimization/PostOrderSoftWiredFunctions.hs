@@ -159,8 +159,9 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
             (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
                                       else (bestGraph, bestCost)
         in
+        if LG.isEmpty newGraph then rerootCharacterTree' rootIndex (tail nodesToRoot) charInfo bestCost bestGraph inGraph 
         -- trace ("RRCT:" ++ (show (rootIndex, firstRerootIndex, bestCost, newGraphCost))) 
-        rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
+        else rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
     
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
 rerootAndDiagnoseTree :: LG.Node -> CharInfo -> DecoratedGraph -> DecoratedGraph
@@ -169,7 +170,8 @@ rerootAndDiagnoseTree newRerootIndex charInfo inGraph =
         (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
         reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
     in
-    reOptimizedGraph
+    if LG.isEmpty reRootGraph then LG.empty
+    else reOptimizedGraph
 
 
 -- | reOptimizeCharacterNodes takes a decorated graph and a list of nodes and reoptimizes (relabels)

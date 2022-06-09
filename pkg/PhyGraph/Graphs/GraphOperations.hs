@@ -639,8 +639,14 @@ rerootTree rerootIndex inGraph =
         componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
     in
 
+    -- rerooting on root so no indegree edges
+    if null $ LG.inn inGraph rerootIndex then trace ("Warning rerooting on current root") LG.empty
+
+
+    else if null componentWithOutgroup then trace ("Warning rooting wierdness in rerootTree") LG.empty
+
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    if null parentNewRootList || (True `elem` parentRootList) then inGraph
+    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
                                                               else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
     else
         --reroot component with new outtaxon
@@ -652,8 +658,10 @@ rerootTree rerootIndex inGraph =
 
         in
 
+        if numRoots == 0 then trace ("No root in rerootTree") LG.empty
+
         -- check if outgroup in a multirooted component
-        if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
+        else if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
         else
           --reroot graph safely automatically will only affect the component with the outgroup
           -- delete old root edge and create two new edges from oringal root node.
