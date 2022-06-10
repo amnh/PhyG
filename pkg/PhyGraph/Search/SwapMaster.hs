@@ -63,7 +63,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR' = any ((=="tbr").fst) lcArgList
                doIA' = any ((=="ia").fst) lcArgList
-               doIA = if (graphType inGS /= Tree) then trace ("\tIgnoring 'IA' swap option for non-Tree") False
+               doIA = if (graphType inGS /= Tree) && doIA' then trace ("\tIgnoring 'IA' swap option for non-Tree") False
                       else doIA'
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList

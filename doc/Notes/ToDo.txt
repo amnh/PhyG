@@ -655,3 +655,28 @@ preOrderTreeTraversal
 		Better--cleaner--but slower
 		
 
+377) Various parallel steepest--do the numbe ron parallel at once then check
+	for better use of parallel
+
+378) Go through and refactor treee/softwored/hardwired traversal post and preorder
+
+379) NOte for docs--for best tree analsyis use single block
+
+380) heursitic add/delete deltas need to be completely rethought--always negative
+	removed for now
+
+
+381) extractDisplayTrees seems to be caled multiple times in doftwired for given graph
+
+382) for net add--randomize and limit
+	
+383) remove recursiveRerootList'
+
+384) rationalize paralle calls
+
+385) Clean up reroot code to remove (or mothball) rerooting graphs
+
+386) generalize new reroot code to trees as well
+
+387) Check swap tree versus softwired
+	Tree finds things softWired does not

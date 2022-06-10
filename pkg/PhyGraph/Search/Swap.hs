@@ -54,6 +54,7 @@ import qualified ParallelUtilities                    as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -79,7 +80,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
       let numLeaves = V.length $ fst3 inData
           leafGraph = T.makeSimpleLeafGraph inData
           leafDecGraph = T.makeLeafGraph inData
-          leafGraphSoftWired = T.makeLeafGraphSoftWired inData
+          leafGraphSoftWired = POSW.makeLeafGraphSoftWired inData
           charInfoVV = six6 inGraph
 
 
@@ -182,6 +183,7 @@ swapAll swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest cou
           -- determine edges to break on--'bridge' edges only for network
           -- filter out edges from root since no use--would just rejoin
           breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
+                          else if LG.isTree firstDecoratedGraph then filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
                           else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
 
           -- create list of breaks
@@ -307,6 +309,7 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
           -- determine edges to break on--'bridge' edges only for network
           -- longest edges first first
           breakEdgeList = if (graphType inGS) == Tree then GO.sortEdgeListByLength firstEdgeList
+                          else if LG.isTree firstDecoratedGraph then GO.sortEdgeListByLength firstEdgeList
                           else GO.sortEdgeListByLength $ GO.getEdgeSplitList firstDecoratedGraph
 
           -- create list of breaks
@@ -421,6 +424,7 @@ rejoinGraphKeepBest inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist  doI
 
           --only sort if limited egde rejoins
           splitEdges = if (graphType inGS) == Tree then LG.labEdges splitGraph
+                       else if LG.isTree splitGraph then LG.labEdges splitGraph
                        else GO.getEdgeSplitList splitGraph
           edgesToInvade = if maxMoveEdgeDist == (maxBound :: Int) then splitEdges L.\\ prunedSubTreeEdges -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)
                           else take maxMoveEdgeDist $ L.intersect splitEdges ((GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges)
@@ -477,6 +481,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
           (_, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [(nakedNode, fromJust $ LG.lab splitGraph nakedNode)]
 
           splitEdges = if (graphType inGS) == Tree then LG.labEdges splitGraph
+                       else if LG.isTree splitGraph then LG.labEdges splitGraph
                        else GO.getEdgeSplitList splitGraph
 
           edgesToInvade = take maxMoveEdgeDist $ L.intersect splitEdges ((GO.sortEdgeListByDistance splitGraph [originalSplitNode] [originalSplitNode]) L.\\ prunedSubTreeEdges) -- L.\\ (outgroupEdges ++ prunedSubTreeEdges)

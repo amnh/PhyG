@@ -130,7 +130,7 @@ executable phyg
     -Wall
     -Wincomplete-patterns
     -- problems getting llvm to function in OSX (can't find opt)
-    -- -fllvm
+    -fllvm
 
   if !os(darwin) 
     cc-options: 
@@ -199,6 +199,7 @@ executable phyg
                   Graphs.GraphOperations
                   GraphOptimization.Medians
                   GraphOptimization.PostOrderFunctions
+                  GraphOptimization.PostOrderSoftWiredFunctions
                   GraphOptimization.PreOrderFunctions
                   GraphOptimization.Traversals
                   Input.BitPack
