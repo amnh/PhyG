@@ -1,0 +1,104 @@
+################################################################################
+### GitHub Actions curation providing quality assurance for Haskell projects 
+###
+name: 'Haskell Quality Assurance CI'
+
+################################################################################
+### Actions Configuration
+###
+defaults:
+  run:
+    shell: bash
+
+env:
+  THISPACKAGE: PHAGE-integration-tests
+  THISTESTEXE: integration-tests
+
+on:
+
+  # Build every pull request, to check for regressions.
+  pull_request:
+
+  # Build when a PR is merged, to update the README's CI badge.
+  push:
+    branches: [ integration-test-development, master ]
+
+  # Build once a month, to detect missing upper bounds.
+  schedule:
+    - cron: '0 0 1 * *'
+
+################################################################################
+### Actions: Curation
+###
+jobs:
+
+################################################################################
+### Check that all test cases pass
+###
+  testing:
+    name: 'Check: Integration Test-suite'
+    needs: build-min-bounds
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ghc:   9.2
+            cabal: 3.6
+            os:    ubuntu-latest
+
+    steps:
+      - name: 'Clone Project'
+        uses: actions/checkout@v3
+      
+      - name: 'Setup Haskell'
+        uses: haskell/actions/setup@v2
+        with:
+          ghc-version:   9.2
+          cabal-version: 3.6
+ 
+      - name: 'Cabal - Configure'
+        run: |
+            cabal update
+            cabal clean
+            cabal freeze
+
+      - name: 'Cabal - Cache'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+          # restore keys is a fall back when the freeze plan is different
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.ghc }}-
+
+      - name: 'Cabal - Build'
+        run: |
+          cabal build --only-dependencies
+          cabal build $CONFIG
+
+      - name: 'Cabal - Test'
+        run: |
+          cabal run ${THISPACKAGE}:THISTESTEXE
+
+      - name: Send mail on failure
+        if: ${{ failure() }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+            # Mail server settings
+            secure: true
+            server_address: smtp.domain.com
+            server_port: 465
+
+            # Sender credentials
+            username: ${{ secrets.EMAIL_USERNAME }}
+            password: ${{ secrets.EMAIL_PASSWORD }}
+
+            # Recipient & email information
+            from: PHAGE ρbit
+            to: crowley@amnh.org
+            cc: wheeler@amnh.org
+            subject: PHAGE CI Failure: Integration Test-suite - job ${{ github.job }}
+            body: The continuous integration performed by GitHub Workflows has failed! Inspect job ${{ github.job.name }} numbered ${{ github.job }} at https://github.com/${{ github.repository }}actions.
