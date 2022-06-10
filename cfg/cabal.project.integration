@@ -75,8 +75,6 @@ package *
     benchmarks:        False
     documentation:     False
     tests:             False
-    library-profiling: False
-    library-profiling-detail: all-functions
     optimization: 2
 
 
@@ -85,7 +83,6 @@ package PHAGE-integration-tests
     benchmarks:        False
     documentation:     False
     tests:             False
-    library-profiling: False
     flags: +SingleThreaded
 
 
@@ -94,7 +91,6 @@ package PhyGraph
     benchmarks:        False
     documentation:     False
     tests:             False
-    library-profiling: False
     flags: +SingleThreaded
     optimization: 2
 
