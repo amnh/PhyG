@@ -832,7 +832,7 @@ rerootTree rerootIndex inGraph =
 
           in
           --trace ("=")
-          --trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
+          trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
           --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
           newGraph')
           -- ) -- )
@@ -849,20 +849,21 @@ preTraverseAndFlipEdges inEdgelist inGraph  =
   else
     let inEdge@(_,v,_) = head inEdgelist
         childEdges = (LG.out inGraph v) ++ (filter (/= inEdge) $ LG.inn inGraph v)
-        -- retursn list of edges that had to be flipped
+
+        -- returns list of edges that had to be flipped
         edgesToFlip = getToFlipEdges v childEdges 
         flippedEdges = fmap LG.flipLEdge edgesToFlip
         newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
     in
-    -- trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
+    trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
     -- edge terminates in leaf or edges in correct orientation
     if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph
     -- edge needs to be reversed to follow through its children from a new graph
     else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph
-    -- )
+    )
 
--- | getToFlipEdges takes an index and ceck edge list
--- and cretes new list of edges that need to be flipped
+-- | getToFlipEdges takes an index and check edge list
+-- and creates new list of edges that need to be flipped
 getToFlipEdges ::  LG.Node -> [LG.LEdge b] -> [LG.LEdge b]
 getToFlipEdges parentNodeIndex inEdgeList =
   if null inEdgeList then []
