@@ -21,7 +21,7 @@ on:
 
   # Build when a PR is merged, to update the README's CI badge.
   push:
-    branches: [ integration-test-development, master ]
+    branches: [ github-ci, integration-test-development, main ]
 
   # Build once a month, to detect missing upper bounds.
   schedule:
@@ -37,7 +37,6 @@ jobs:
 ###
   testing:
     name: 'Check: Integration Test-suite'
-    needs: build-min-bounds
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
