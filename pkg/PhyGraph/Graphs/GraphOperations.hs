@@ -38,7 +38,6 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , rerootTree
                                , rerootTree'
                                , generateDisplayTrees
-                               , contractOneOneEdges
                                , getNodeType
                                , convertDecoratedToSimpleGraph
                                , convertToSimpleEdge
@@ -620,14 +619,15 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
 rerootTree' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 
+{-Errorss for building wagner
 -- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
 --   unclear how will effect network edges--will need to verify that does not create cycles
 --   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
-rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
-rerootTree rerootIndex inGraph =
+rerootTree'' :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree'' rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
   else
@@ -640,10 +640,10 @@ rerootTree rerootIndex inGraph =
     in
 
     -- rerooting on root so no indegree edges
-    if null $ LG.inn inGraph rerootIndex then trace ("Warning rerooting on current root") LG.empty
+    if null $ LG.inn inGraph rerootIndex then error ("Rerooting on indegree 0 node") -- LG.empty
 
 
-    else if null componentWithOutgroup then trace ("Warning rooting wierdness in rerootTree") LG.empty
+    else if null componentWithOutgroup then error ("Error rooting wierdness in rerootTree") -- LG.empty
 
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
     else if null parentNewRootList || (True `elem` parentRootList) then inGraph
@@ -658,10 +658,83 @@ rerootTree rerootIndex inGraph =
 
         in
 
-        if numRoots == 0 then trace ("No root in rerootTree") LG.empty
+        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
 
         -- check if outgroup in a multirooted component
-        else if numRoots > 1 then trace ("Warning: Ignoring reroot of multi-rooted component") inGraph
+        else if numRoots > 1 then error ("Error: Attempting to reroot multi-rooted component") -- inGraph
+        else
+          --reroot graph safely automatically will only affect the component with the outgroup
+          -- delete old root edge and create two new edges from oringal root node.
+          -- keep orignl root node and delte/crete new edges when they are encounterd
+          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
+          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
+              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
+
+              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
+                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
+                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+
+              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
+              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
+
+              -- get edges that need reversing
+              newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
+
+          in
+          --trace ("=")
+          --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges))
+          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
+          newGraph')
+        -- ) -- )
+-}
+
+-- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
+--   if input is a forest then only roots the component that contains the vertex wil be rerooted
+--   unclear how will effect network edges--will need to verify that does not create cycles
+--   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
+--   after checking for existing root and multiroots, should be O(n) where 'n is the length
+--   of the path between the old and new root
+rerootTree'' :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree'' rerootIndex inGraph =
+  --trace ("In reroot Graph: " ++ show rerootIndex) (
+  if LG.isEmpty inGraph then inGraph
+  else
+    let componentList = LG.components inGraph
+        parentNewRootList = LG.pre inGraph rerootIndex
+        newRootOrigEdge = head $ LG.inn inGraph rerootIndex
+        parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
+        outgroupInComponent = fmap (rerootIndex `elem`) componentList
+        componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
+        -- (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
+    in
+
+    -- rerooting on root so no indegree edges
+    -- this for wagner build reroots where can try to reroot on leaf not yet added
+    if null $ LG.inn inGraph rerootIndex then inGraph -- error ("Rerooting on indegree 0 node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
+
+
+    else if null componentWithOutgroup then inGraph  -- error ("Error rooting wierdness in rerootTree " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
+
+    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
+    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
+                                                              else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
+    else
+        --trace ("RRT: " ++ (show (rerootIndex, inNewRoot, outNewRoot))) ( 
+        -- reroot component with new outtaxon
+        let componentWithNewOutgroup = snd $ head componentWithOutgroup
+            (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
+            numRoots = length originalRootList
+            orginalRoot = head originalRootList
+            originalRootEdges = LG.out inGraph orginalRoot
+
+        in
+
+        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
+
+        -- check if outgroup in a multirooted component
+        -- if wagner build this is ok
+        else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
         else
           --reroot graph safely automatically will only affect the component with the outgroup
           -- delete old root edge and create two new edges from oringal root node.
@@ -688,6 +761,83 @@ rerootTree rerootIndex inGraph =
           newGraph')
         -- ) -- )
 
+-- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
+--   if input is a forest then only roots the component that contains the vertex wil be rerooted
+--   unclear how will effect network edges--will need to verify that does not create cycles
+--   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
+--   after checking for existing root and multiroots, should be O(n) where 'n is the length
+--   of the path between the old and new root
+--   need the component stuff for Wagner builds where ther can be many components--only on with real root
+rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree rerootIndex inGraph =
+  --trace ("In reroot Graph: " ++ show rerootIndex) (
+  if LG.isEmpty inGraph then inGraph
+  else
+    let componentList = LG.components inGraph
+        parentNewRootList = LG.pre inGraph rerootIndex
+        newRootOrigEdge = head $ LG.inn inGraph rerootIndex
+        parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
+        outgroupInComponent = fmap (rerootIndex `elem`) componentList
+        componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
+        (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
+    in
+
+    -- rerooting on root so no indegree edges
+    -- this for wagner build reroots where can try to reroot on leaf not yet added
+    if null $ LG.inn inGraph rerootIndex then inGraph -- error ("Rerooting on indegree 0 node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
+
+
+    else if null componentWithOutgroup then inGraph  -- error ("Error rooting wierdness in rerootTree " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
+
+    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
+    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
+                                                              else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
+    else
+        -- trace ("RRT: " ++ (show (rerootIndex, inNewRoot, outNewRoot))) ( 
+        --reroot component with new outtaxon
+        let componentWithNewOutgroup = snd $ head componentWithOutgroup
+            (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
+            numRoots = length originalRootList
+            orginalRoot = head originalRootList
+            originalRootEdges = LG.out inGraph orginalRoot
+
+        in
+
+        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
+
+        -- don't reroot on in=out=1 since same as it descendent edge 
+        else if (inNewRoot == 1) && (outNewRoot == 1) then inGraph
+
+        -- check if outgroup in a multirooted component
+        -- if wagner build this is ok
+        -- else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
+        else
+          --reroot graph safely automatically will only affect the component with the outgroup
+          -- delete old root edge and create two new edges from oringal root node.
+          -- keep orignl root node and delte/crete new edges when they are encounterd
+          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
+          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
+              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
+
+              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
+                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
+                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+
+              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
+              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
+
+              -- get edges that need reversing
+              newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
+
+          in
+          --trace ("=")
+          --trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
+          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
+          newGraph')
+          --) -- )
+
+
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
 -- when recursion its edges that don't need to be fliped then stops
 -- assumes input edge is directed correctly
@@ -700,7 +850,7 @@ preTraverseAndFlipEdges inEdgelist inGraph  =
     let inEdge@(_,v,_) = head inEdgelist
         childEdges = (LG.out inGraph v) ++ (filter (/= inEdge) $ LG.inn inGraph v)
         -- retursn list of edges that had to be flipped
-        edgesToFlip = getToFlipEdges v childEdges
+        edgesToFlip = getToFlipEdges v childEdges 
         flippedEdges = fmap LG.flipLEdge edgesToFlip
         newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
     in
@@ -721,35 +871,6 @@ getToFlipEdges parentNodeIndex inEdgeList =
     in
     if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
     else getToFlipEdges parentNodeIndex (tail inEdgeList)
-
-
--- | contractOneOneEdges removes indegree 1 outdegree 1 nodes and its edges creating a new edge
--- connecting the nodes on either side
-contractOneOneEdges :: LG.Gr a b -> LG.Gr a b
-contractOneOneEdges inGraph =
-  if LG.isEmpty inGraph then LG.empty
-  else
-    let nodeList = LG.nodes inGraph
-        inOutEdgeList = zip (fmap (LG.getInOutEdges inGraph) nodeList) nodeList
-        (edgesToDelete, edgesToAdd, nodesToDelete) = getContractGraphEdits inOutEdgeList ([],[],[])
-        newGraph = LG.insEdges edgesToAdd $ LG.delNodes nodesToDelete $ LG.delLEdges edgesToDelete inGraph
-    in
-    newGraph
-
--- | getContractGraphEdits takes a series of pair of indegree outdegree and nodes and
--- returns list of graph edits to contract edges
-getContractGraphEdits :: [(([LG.LEdge b], [LG.LEdge b]), LG.Node)] -> ([LG.LEdge b],[LG.LEdge b],[LG.Node]) -> ([LG.LEdge b],[LG.LEdge b],[LG.Node])
-getContractGraphEdits inEdgeNodeList curEdits@(edgesToDelete, edgesToAdd, nodesToDelete) =
-  if null inEdgeNodeList then curEdits
-  else
-    let ((firstInEdges, firstOutEdges), firstNode) = head inEdgeNodeList
-    in
-    if  (length firstInEdges, length firstOutEdges) /= (1,1) then getContractGraphEdits (tail inEdgeNodeList) curEdits
-    else
-      let newEdge = (fst3 $ head firstInEdges, snd3 $ head firstOutEdges, thd3 $ head firstInEdges)
-      in
-      getContractGraphEdits (tail inEdgeNodeList) (firstInEdges ++ firstOutEdges ++ edgesToDelete, newEdge : edgesToAdd, firstNode : nodesToDelete)
-
 
 -- | Random generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
