@@ -11,8 +11,8 @@ defaults:
     shell: bash
 
 env:
-  THISPACKAGE: PHAGE-integration-tests
-  THISTESTEXE: integration-tests
+  THISTESTEXE: PHAGE-integration-tests:integration-tests
+  THISMAINEXE: PhyGraph:phyg
 
 on:
 
@@ -75,12 +75,15 @@ jobs:
 
       - name: 'Cabal - Build'
         run: |
-          cabal build --only-dependencies
-          cabal build $CONFIG
+          cabal build ${THISMAINEXE} ${THISTESTEXE} --only-dependencies
+
+      - name: 'Cabal - Install'
+        run: |
+          cabal install ${THISMAINEXE} --only-dependencies
 
       - name: 'Cabal - Integration Tests'
         run: |
-          cabal run ${THISPACKAGE}:THISTESTEXE
+          cabal run ${THISTESTEXE}
 
       - name: Send mail on failure
         if: ${{ failure() }}
@@ -96,8 +99,8 @@ jobs:
             password: ${{ secrets.EMAIL_PASSWORD }}
 
             # Recipient & email information
-            from: PHAGE ρbit
             to: crowley@amnh.org
             cc: wheeler@amnh.org
+            from: PHAGE ρbit
             subject: "PHAGE CI Failure: Integration Test-suite - job ${{ github.job }}"
             body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHAGE ρbit"
