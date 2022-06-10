@@ -290,3 +290,8 @@ TSWLatexianTemp*
 # Testing artifacts
 log.err
 log.out
+
+# Outputs from testing
+*.csv
+*.tre
+*.tree

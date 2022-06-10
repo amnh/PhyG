@@ -17,7 +17,7 @@ packages:
 ---------------------------------------------------------------------------------
 
 executable-static: False
-with-compiler: ghc-9.2.2
+with-compiler: ghc-9.2.3
 
 
 ---------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ with-compiler: ghc-9.2.2
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log
--- install-method:   copy
+install-method:   copy
 overwrite-policy: always
 
 
