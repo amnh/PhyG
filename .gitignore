@@ -290,3 +290,8 @@ TSWLatexianTemp*
 # Testing artifacts
 log.err
 log.out
+
+# Outputs from testing
+./pkg/PHAGE-integration-tests/tests/**/*.csv
+./pkg/PHAGE-integration-tests/tests/**/*.tre
+./pkg/PHAGE-integration-tests/tests/**/*.tree
