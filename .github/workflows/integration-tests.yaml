@@ -36,7 +36,7 @@ jobs:
 ### Check that all test cases pass
 ###
   testing:
-    name: 'Check: Integration Test-suite'
+    name: 'Test: Integration'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -44,7 +44,7 @@ jobs:
         include:
           - ghc:   9.2
             cabal: 3.6
-            os:    ubuntu-latest
+            os:    [ ubuntu-latest, macos-latest]
 
     steps:
       - name: 'Clone Project'
@@ -78,7 +78,7 @@ jobs:
           cabal build --only-dependencies
           cabal build $CONFIG
 
-      - name: 'Cabal - Test'
+      - name: 'Cabal - Integration Tests'
         run: |
           cabal run ${THISPACKAGE}:THISTESTEXE
 
