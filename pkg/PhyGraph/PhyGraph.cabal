@@ -130,7 +130,7 @@ executable phyg
     -Wall
     -Wincomplete-patterns
     -- problems getting llvm to function in OSX (can't find opt)
-    -fllvm
+    -- -fllvm
 
   if !os(darwin) 
     cc-options: 
