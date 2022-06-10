@@ -835,7 +835,7 @@ rerootTree rerootIndex inGraph =
           --trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
           --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
           newGraph')
-          --) -- )
+          -- ) -- )
 
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
@@ -854,7 +854,7 @@ preTraverseAndFlipEdges inEdgelist inGraph  =
         flippedEdges = fmap LG.flipLEdge edgesToFlip
         newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
     in
-    --trace ("+") (
+    -- trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
     -- edge terminates in leaf or edges in correct orientation
     if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph
     -- edge needs to be reversed to follow through its children from a new graph
