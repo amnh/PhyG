@@ -1,7 +1,7 @@
 ################################################################################
 ### GitHub Actions curation providing quality assurance for Haskell projects 
 ###
-name: 'Haskell Quality Assurance CI'
+name: 'PHAGE Integration Test CI'
 
 ################################################################################
 ### Actions Configuration
