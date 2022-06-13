@@ -87,7 +87,7 @@ import           Debug.Trace
 -- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
 -- well as softwired, but not for hardwired where reticulations are maintained.
 
--- this can be modified for Tree data strcutres--basically by starting with vertdata initialiiy without 
+-- this can be modified for Tree data structres--basically by starting with vertdata initialiiy without 
 -- resolutoin data trace back--shouls be more efficeinet in many was than existing code
 
 -- Input didpay trees are for reproting only and do not contain actual character data so must be "pulled"
@@ -109,7 +109,7 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph newBlockDisplayTreeVect
         in
-        trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap LG.prettyIndices $ filter LG.hasDuplicateEdge $ V.toList newBlockDisplayTreeVect))
+        trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap show $ fmap LG.getDuplicateEdges $ V.toList newBlockDisplayTreeVect))
         (inSimpleGraph, V.sum blockCostV, newCononicalGraph, fmap (:[]) newBlockDisplayTreeVect, newBlockCharGraphVV, charInfoVV)
         
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
@@ -381,6 +381,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
             -- create new, fully  updated post-order graph
             finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
         in
+        trace ("UAFPS: after extraction: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL) ++ " after assignment: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL'))
         -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
         finalPreOrderGraph
 
@@ -520,10 +521,15 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                     rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
                     newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree
 
-                    (displayGraphVL, lDisplayCost) = if curNode == rootIndex then extractDisplayTrees (Just curNode) True resolutionBlockVL
+                    (displayGraphVL, lDisplayCost) = if curNode == rootIndex then 
+                                                        let (displayG, displayCost') = extractDisplayTrees (Just curNode) True resolutionBlockVL
+                                                        in
+                                                        (fmap (fmap LG.removeDuplicateEdges) displayG, displayCost')
                                                      else (mempty, 0.0)
 
                 in
+                trace ("PDWS: " ++ (show $ fmap LG.toEdge [leftEdge, rightEdge]) ++ " has edges " ++ (show $ fmap (LG.hasEdge newSubTree) $ fmap LG.toEdge [leftEdge, rightEdge]) ++ " dupes: " ++ (show $ fmap LG.getDuplicateEdges $ V.head $ fst (extractDisplayTrees (Just curNode) True resolutionBlockVL)) ++ " Resolutions " ++ (show $ fmap (fmap U.hasResolutionDuplicateEdges) resolutionBlockVL))
+    
                 (simpleGraph, lDisplayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
 
 -- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
@@ -887,6 +893,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
 
     in
     --trace ("NV1: " ++ show newVertex)
+    trace ("GOD1VG: " ++ (show $ LG.toEdge newLEdge) ++ " has edges " ++ (show $ LG.hasEdge subTree $  LG.toEdge newLEdge) ++ "Resolutions " ++ (show $ fmap (fmap U.hasResolutionDuplicateEdges) curNodeResolutionData))
     (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
     -- (newGraph, False, newVertex, 0.0, mempty)
     -- )
@@ -1060,12 +1067,16 @@ createBlockResolutions
                         newLeftChildBlockResolutionData
                    else -- trace ("ANER-Nothing")
                         mempty
+
+
     in
+   --  trace ("CBR:" ++ (show $ leftIndex == rightIndex)) (
     -- trace ("=> " ++ (show $fmap BV.toBits $ fmap displayBVLabel totalResolutions) )
     -- compress to unique resolutions--can loose display trees, but speed up post-order a great deal
     -- trace ("CBR Num res left: " ++ (show $ V.length leftChild) ++ " Num res right: " ++ (show $ V.length rightChild) ++ " =>NRL " ++ (show $ length newResolutionList) ++ " addleft " ++ (show $ length addLeft)  ++ " addright " ++ (show $ length addRight)) (
     if compress then  V.fromList (nubResolutions newResolutionList []) V.++ (addLeft V.++ addRight)
     else V.fromList newResolutionList V.++ (addLeft V.++ addRight)
+    -- )
     -- )
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
@@ -1111,7 +1122,13 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
 
         newNode = (curNode, newNodeLabel)
 
-        resolutionEdgeList = leftEdge : (rightEdge: (snd leftChildTree ++ snd rightChildTree))
+        -- this check for redundant edges in resoluton cash from combinations
+        -- resolutionEdgeList = leftEdge : (rightEdge: (snd leftChildTree ++ snd rightChildTree))
+        existingEdges = snd leftChildTree ++ snd rightChildTree
+        resolutionEdgeList = if (leftEdge `notElem` existingEdges) && (rightEdge `notElem` existingEdges) then leftEdge : (rightEdge : existingEdges)
+                             else if (leftEdge `notElem` existingEdges) then leftEdge : existingEdges
+                             else rightEdge : existingEdges
+
         resolutionNodeList = newNode : (fst leftChildTree ++ fst rightChildTree)
 
         -- Make the data and cost for the resolution
@@ -1194,9 +1211,13 @@ addNodeEdgeToResolutionList newNode newEdge resolutionIndex curData inData =
     else
         let firstInData = V.head inData
             (inNodeList, inEdgeList) = displaySubGraph firstInData
+            
             -- childResolutionIndexPairList = childResolutions firstInData
             newNodeList = newNode : inNodeList
-            newEdgeList = newEdge : inEdgeList
+            
+            -- this check for redundant edges in resoluton cash from combinations
+            newEdgeList = if (newEdge `notElem` inEdgeList) then newEdge : inEdgeList
+                          else inEdgeList
             newFirstData = firstInData { displaySubGraph  = (newNodeList, newEdgeList)
                                         -- this apir in case of left/right issues later
                                         -- not sure this is correct--LWys first for children of out = 1 node

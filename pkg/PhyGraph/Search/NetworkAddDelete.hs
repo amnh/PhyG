@@ -826,7 +826,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
        -- Check for cycles
        
        
-       trace ("INE checking graph " ++ (show $ fmap LG.toEdge $ newEdgeList) ++ " :" ++ cyclicString ++ parentInCharinString ++ newEdgeExistsString ++ duplicatedsEdgeString) (
+       -- trace ("INE checking graph " ++ (show $ fmap LG.toEdge $ newEdgeList) ++ " :" ++ cyclicString ++ parentInCharinString ++ newEdgeExistsString ++ duplicatedsEdgeString) (
 
 
        {-
@@ -860,7 +860,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
          if (snd6 newPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
          else emptyPhylogeneticGraph
          )
-       )
+       -- )
 
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges

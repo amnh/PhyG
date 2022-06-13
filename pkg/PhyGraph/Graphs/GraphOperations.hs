@@ -769,11 +769,12 @@ rerootTree'' rerootIndex inGraph =
 --   of the path between the old and new root
 --   need the component stuff for Wagner builds where ther can be many components--only on with real root
 rerootTree :: (Show a, Show b, Eq a, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
-rerootTree rerootIndex inGraph =
+rerootTree rerootIndex inGraph' =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph then inGraph
+  if LG.isEmpty inGraph' then inGraph'
   else
-    let componentList = LG.components inGraph
+    let componentList = LG.components inGraph'
+        inGraph = LG.removeDuplicateEdges inGraph'
         parentNewRootList = LG.pre inGraph rerootIndex
         newRootOrigEdge = head $ LG.inn inGraph rerootIndex
         parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
@@ -858,10 +859,10 @@ rerootTree rerootIndex inGraph =
                                             (" Has duplicate edges: " ++ (show $ (fmap LG.toEdge $ LG.labEdges  newGraph') L.\\ (L.nub $ fmap LG.toEdge $ LG.labEdges  newGraph')) ++ " " ++ (show $ fmap LG.toEdge $ dupEdgeList') ++ "\nDeleting " ++ (show $ fmap LG.toEdge $ (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge $ newRootEdges)) 
           in
           --trace ("=")
-          --trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
           --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
 
-          trace ("RRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString')
+          trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges) 
+            ++ "\nRRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString')
 
           newGraph')
           ) -- )

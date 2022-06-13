@@ -128,6 +128,24 @@ hasDuplicateEdge inGraph =
         in 
         (not . null) dupEdge
 
+-- | getDuplicateEdges retuns a list of edges that are duplicated
+-- by indeices--no label comparison
+-- can be used to delete the extra
+getDuplicateEdges :: Gr a b -> [Edge]
+getDuplicateEdges inGraph = 
+    if isEmpty inGraph then []
+    else 
+        (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
+
+-- | removeDuplicateEdges removes duplicate edges from graph
+removeDuplicateEdges :: Gr a b -> Gr a b 
+removeDuplicateEdges inGraph =
+    if isEmpty inGraph then inGraph
+    else 
+        let dupEdges = getDuplicateEdges inGraph
+        in
+        delEdges dupEdges inGraph
+        
 
 -- Wrapper functions for fgl so could swap out later if want to
 
@@ -201,6 +219,10 @@ lab = G.lab
 -- | out-bound edge list from node, maps to out
 out :: Gr a b -> Node -> [LEdge b]
 out = G.out
+
+-- | hasEdge  maps to fgl function returns True if graphs has directed edge between nodes
+hasEdge :: Gr a b -> Edge -> Bool
+hasEdge = G.hasEdge
 
 -- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
 -- as input node
