@@ -119,6 +119,16 @@ prettyIndices inGraph =
         nodeList ++ "\n" ++ edgeList
 
 
+-- hasDuplicateEdge checked for duplicate edges based on indices (not label)
+hasDuplicateEdge :: Gr a b -> Bool
+hasDuplicateEdge inGraph =
+    if isEmpty inGraph then False
+    else 
+        let dupEdge = (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
+        in 
+        (not . null) dupEdge
+
+
 -- Wrapper functions for fgl so could swap out later if want to
 
 -- | maps to isEmpty

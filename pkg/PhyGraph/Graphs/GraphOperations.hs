@@ -616,7 +616,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --)
 
 -- | rerootTree' flipped version of rerootGraph
-rerootTree' :: (Show a, Show b, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
+rerootTree' :: (Show a, Show b, Eq a, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
 rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
 
 {-Errorss for building wagner
@@ -768,7 +768,7 @@ rerootTree'' rerootIndex inGraph =
 --   after checking for existing root and multiroots, should be O(n) where 'n is the length
 --   of the path between the old and new root
 --   need the component stuff for Wagner builds where ther can be many components--only on with real root
-rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
+rerootTree :: (Show a, Show b, Eq a, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
 rerootTree rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
@@ -780,7 +780,21 @@ rerootTree rerootIndex inGraph =
         outgroupInComponent = fmap (rerootIndex `elem`) componentList
         componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
         (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
+
+        cyclicString = if LG.cyclic inGraph then " Is cyclic "
+                          else  " Not cyclic "
+
+        parentInCharinString = if parentInChain inGraph then " Is Parent in Chain "
+                                  else " Not Parent in Chain "
+
+        duplicatedsEdgeString = if (length $ fmap LG.toEdge $ LG.labEdges inGraph) == (length $ L.nub $ fmap LG.toEdge $ LG.labEdges inGraph) then " No duplicate edges "
+                                else 
+                                  let dupEdge = (fmap LG.toEdge $ LG.labEdges inGraph) L.\\ (L.nub $ fmap LG.toEdge $ LG.labEdges inGraph)
+                                      dupEdgeList = filter ((`elem` ((fmap fst dupEdge) ++ (fmap snd dupEdge))) . fst3)  $ LG.labEdges inGraph
+                                  in(" Has duplicate edges: " ++ (show $ (fmap LG.toEdge $ LG.labEdges inGraph) L.\\ (L.nub $ fmap LG.toEdge $ LG.labEdges inGraph)) ++ " " ++ (show $ fmap LG.toEdge $ dupEdgeList)) 
     in
+
+    trace ("RRT In: " ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString) (
 
     -- rerooting on root so no indegree edges
     -- this for wagner build reroots where can try to reroot on leaf not yet added
@@ -803,7 +817,7 @@ rerootTree rerootIndex inGraph =
 
         in
 
-        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
+        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString ++ LG.prettyIndices inGraph) --LG.empty
 
         -- don't reroot on in=out=1 since same as it descendent edge 
         else if (inNewRoot == 1) && (outNewRoot == 1) then inGraph
@@ -830,12 +844,27 @@ rerootTree rerootIndex inGraph =
               -- get edges that need reversing
               newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
 
+
+              cyclicString' = if LG.cyclic newGraph' then " Is cyclic "
+                          else  " Not cyclic "
+
+              parentInCharinString'= if parentInChain newGraph' then " Is Parent in Chain "
+                                  else " Not Parent in Chain "
+
+              duplicatedsEdgeString' = if (length $ fmap LG.toEdge $ LG.labEdges newGraph') == (length $ L.nub $ fmap LG.toEdge $ LG.labEdges newGraph') then " No duplicate edges "
+                                       else let dupEdge = (fmap LG.toEdge $ LG.labEdges  newGraph') L.\\ (L.nub $ fmap LG.toEdge $ LG.labEdges  newGraph')
+                                                dupEdgeList' = filter ((`elem` ((fmap fst dupEdge) ++ (fmap snd dupEdge))) . fst3)  $ LG.labEdges  newGraph'
+                                            in
+                                            (" Has duplicate edges: " ++ (show $ (fmap LG.toEdge $ LG.labEdges  newGraph') L.\\ (L.nub $ fmap LG.toEdge $ LG.labEdges  newGraph')) ++ " " ++ (show $ fmap LG.toEdge $ dupEdgeList') ++ "\nDeleting " ++ (show $ fmap LG.toEdge $ (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge $ newRootEdges)) 
           in
           --trace ("=")
-          trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
+          --trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges))
           --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
+
+          trace ("RRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString')
+
           newGraph')
-          -- ) -- )
+          ) -- )
 
 
 -- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
@@ -855,12 +884,12 @@ preTraverseAndFlipEdges inEdgelist inGraph  =
         flippedEdges = fmap LG.flipLEdge edgesToFlip
         newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
     in
-    trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
+    --trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
     -- edge terminates in leaf or edges in correct orientation
     if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph
     -- edge needs to be reversed to follow through its children from a new graph
     else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph
-    )
+    -- )
 
 -- | getToFlipEdges takes an index and check edge list
 -- and creates new list of edges that need to be flipped

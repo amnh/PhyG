@@ -109,6 +109,7 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = V.unzip3 (V.zipWith3  (rerootBlockCharTrees rootIndex) (fmap head inBlockGraphV) inBlockCharGraphVV charInfoVV) -- not sure if should be parallelized `using` PU.myParListChunkRDS
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph newBlockDisplayTreeVect
         in
+        trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap LG.prettyIndices $ filter LG.hasDuplicateEdge $ V.toList newBlockDisplayTreeVect))
         (inSimpleGraph, V.sum blockCostV, newCononicalGraph, fmap (:[]) newBlockDisplayTreeVect, newBlockCharGraphVV, charInfoVV)
         
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
