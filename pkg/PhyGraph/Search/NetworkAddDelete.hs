@@ -340,7 +340,10 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
           --check for max net edges
           (_, _, _, netNodes) = LG.splitVertexList (thd6 inPhyloGraph)
 
-          newGraph = insertNetEdge inGS inData inPhyloGraph preDeleteCost firstEdgePair
+          -- needf to check disapaly/charcter trees not conical graph
+          newGraph' = insertNetEdge inGS inData inPhyloGraph preDeleteCost firstEdgePair
+          newGraph = if LG.hasDuplicateEdge $ thd6 newGraph' then emptyPhylogeneticGraph
+                     else newGraph'
       in
 
       if length netNodes >= maxNetEdges then
