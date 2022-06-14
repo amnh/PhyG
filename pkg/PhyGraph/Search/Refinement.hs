@@ -118,15 +118,15 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
       trace ("Genetic Algorithm operating on population of " ++ (show $ length inGraphList) ++ " input graph(s) with cost range ("++ (show $ minimum $ fmap snd6 inGraphList) ++ "," ++ (show $ maximum $ fmap snd6 inGraphList) ++ ")") (
 
       -- process args
-      let (doElitist, keepNum, popSize, generations, severity, recombinations) = getGeneticAlgParams inArgs
-          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
+      let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges) = getGeneticAlgParams inArgs
+          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
       in
       trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
       newGraphList
       )
 
 -- | getGeneticAlgParams returns paramlist from arglist
-getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int)
+getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int)
 getGeneticAlgParams inArgs =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -171,9 +171,15 @@ getGeneticAlgParams inArgs =
               | null recombinationsList = Just 100
               | otherwise = readMaybe (snd $ head recombinationsList) :: Maybe Int
 
+             maxNetEdgesList = filter ((=="maxnetedges").fst) lcArgList
+             maxNetEdges
+              | length maxNetEdgesList > 1 =
+                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+              | null maxNetEdgesList = Just 10
+              | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
+
              -- in case want to make it an option
              -- doElitist' = any ((=="nni").fst) lcArgList
-
              doElitist = True
          in
 
@@ -185,7 +191,7 @@ getGeneticAlgParams inArgs =
          else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head recombinationsList))
 
          else
-            (doElitist, keepNum, popSize, generations, severity, recombinations)
+            (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges)
 
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap
@@ -275,7 +281,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
    -- process args for netEdgeMaster
    else
-           let (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList) = getNetEdgeParams inArgs
+           let (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList) = getNetEdgeParams inArgs
                doNetAdd = any ((=="netadd").fst) lcArgList
                doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
                doAddDelete = any ((=="netadddel").fst) lcArgList
@@ -359,7 +365,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             trace (bannerText) (
 
             let (newGraphList, counterDelete) = if doNetDelete || doAddDelete then
-                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
 
@@ -367,14 +373,14 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
 
                 (newGraphList', counterAdd) = if doNetAdd || doAddDelete then
-                                               let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                               let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                 in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
 
                                              else (newGraphList, 0)
 
                 (newGraphList'', counterMove) = if doMove then
-                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
 
@@ -390,7 +396,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             )
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
-getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, [(String, String)])
+getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)])
 getNetEdgeParams inArgs =
      let fstArgList = fmap (fmap toLower . fst) inArgs
          sndArgList = fmap (fmap toLower . snd) inArgs
@@ -451,6 +457,13 @@ getNetEdgeParams inArgs =
               | null maxChangesList = Just 15
               | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
 
+             maxNetEdgesList = filter ((=="maxnetedges").fst) lcArgList
+             maxNetEdges
+              | length maxNetEdgesList > 1 =
+                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " ++ show inArgs)
+              | null maxNetEdgesList = Just 10
+              | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
+
          in
 
          -- check inputs
@@ -461,4 +474,4 @@ getNetEdgeParams inArgs =
          else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
 
          else
-            (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList)
+            (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList)

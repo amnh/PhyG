@@ -509,6 +509,7 @@ updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
 
 -- | updateMoveTuple take a graph and and edge and moves a network edge (or returns tuple if not network)
 -- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
+    -- max bound because its a place holder for max num net edges
 updateMoveTuple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
 updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
    let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
@@ -521,7 +522,7 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
           keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
           rSeed = 0
           saParams = Nothing
-          moveCost = minimum $ fmap snd6 $ N.deleteOneNetAddAll inGS inData keepNum steepest randomOrder inGraph rSeed saParams (inE, inV)
+          moveCost = minimum $ fmap snd6 $ N.deleteOneNetAddAll inGS inData (maxBound :: Int) keepNum steepest randomOrder inGraph rSeed saParams (inE, inV)
       in
       (inE, inV, inEBV, inVBV, min inCost moveCost)
 

@@ -118,15 +118,19 @@ prettyIndices inGraph =
         in
         nodeList ++ "\n" ++ edgeList
 
-
+-- these duplicate edge functions should be O(n log n) based on sort--rest linear
+ 
 -- hasDuplicateEdge checked for duplicate edges based on indices (not label)
 hasDuplicateEdge :: Gr a b -> Bool
 hasDuplicateEdge inGraph =
     if isEmpty inGraph then False
     else 
-        let dupEdge = (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
+        let sortedEdges = L.sort $ fmap toEdge $ labEdges inGraph
+            groupedEdges = L.group sortedEdges
+            dupEdges = filter ((>1) . length ) groupedEdges
+            --dupEdges = (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
         in 
-        (not . null) dupEdge
+        (not . null) dupEdges
 
 -- | getDuplicateEdges retuns a list of edges that are duplicated
 -- by indeices--no label comparison
@@ -135,7 +139,13 @@ getDuplicateEdges :: Gr a b -> [Edge]
 getDuplicateEdges inGraph = 
     if isEmpty inGraph then []
     else 
-        (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
+        let sortedEdges = L.sort $ fmap toEdge $ labEdges inGraph
+            groupedEdges = L.group sortedEdges
+            dupEdges = filter ((>1) . length ) groupedEdges
+            --dupEdges = (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
+        in 
+        fmap head dupEdges
+        -- (fmap toEdge $ labEdges inGraph) L.\\ (L.nub $ fmap toEdge $ labEdges  inGraph)
 
 -- | removeDuplicateEdges removes duplicate edges from graph
 removeDuplicateEdges :: Gr a b -> Gr a b 
