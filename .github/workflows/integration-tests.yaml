@@ -23,9 +23,6 @@ on:
   push:
     branches: [ github-ci, integration-test-development, main ]
 
-  # Build once a month, to detect missing upper bounds.
-  schedule:
-    - cron: '0 0 1 * *'
 
 ################################################################################
 ### Actions: Curation
@@ -36,15 +33,16 @@ jobs:
 ### Check that all test cases pass
 ###
   testing:
+    # NOTE:
+    #   Do *not* include macOS in *any* benchmarking/testing build matrix!
+    #   Only include macOS in build matrices checking for compilation success.
+    #     - macOS consumes x10 the free Linux CI minutes
+    #     - macOS bills at x10 the paid Linux CI minute rate
+    #
     name: 'Test: Integration'
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - ghc:   9.2
-            cabal: 3.6
-            os:    [ ubuntu-latest, macos-latest]
 
     steps:
       - name: 'Clone Project'
