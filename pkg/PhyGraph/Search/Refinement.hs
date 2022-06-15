@@ -293,7 +293,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else if doSteepest' && doAll then True
                             else doSteepest'
-               doRandomOrder = any ((=="atRandom").fst) lcArgList
+               doRandomOrder = any ((=="atrandom").fst) lcArgList
 
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm

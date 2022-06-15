@@ -297,8 +297,9 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
 
           -- radomize pair list
           rSeedList = randomIntList rSeed
-          candidateNetworkEdgeList = if not doRandomOrder || not doSteepest then candidateNetworkEdgeList'
-                                     else permuteList (head rSeedList) candidateNetworkEdgeList
+          candidateNetworkEdgeList = if not doSteepest then candidateNetworkEdgeList'
+                                     else if doRandomOrder then permuteList (head rSeedList) candidateNetworkEdgeList'
+                                     else candidateNetworkEdgeList'
 
           -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
           newGraphList = if not doSteepest then filter (/= emptyPhylogeneticGraph) (fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
@@ -308,7 +309,7 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
           minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
                     else minimum $ fmap snd6 newGraphList
       in
-      trace ("\tExamining at most " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
+      trace ("\tExamining at most " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs, radomized order = " ++ (show doRandomOrder)) (
 
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
@@ -342,7 +343,8 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
 
           -- needf to check disapaly/charcter trees not conical graph
           newGraph' = insertNetEdge inGS inData inPhyloGraph preDeleteCost firstEdgePair
-          newGraph = if LG.hasDuplicateEdge $ thd6 newGraph' then emptyPhylogeneticGraph
+          dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph'
+          newGraph = if (not . null) dupList then trace  (show  dupList) emptyPhylogeneticGraph
                      else newGraph'
       in
 
@@ -357,15 +359,15 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
          -- better cost
          if snd6 newGraph < snd6 inPhyloGraph then 
 
-            let isCyclic = LG.cyclic $ thd6 inPhyloGraph
-                hasDupEdges = LG.hasDuplicateEdge $ thd6 inPhyloGraph
+            let isCyclic = LG.cyclic $ thd6 newGraph
+                dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph'
             in
-            if (not isCyclic && not hasDupEdges) then 
+            if (not isCyclic && null dupList) then 
                trace ("INER: Better") 
                -- trace  ("INER:" ++ (LG.prettyIndices $ thd6 newGraph)) 
                [newGraph]
             else 
-               trace ("Cycle " ++ (show $ snd6 newGraph) ++ " Duplicate Edges " ++ (show $ hasDupEdges)) 
+               trace ("Cycle " ++ (show $ snd6 newGraph) ++ " Duplicate Edges " ++ (show $ dupList)) 
                insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (tail edgePairList)
 
          -- not better
