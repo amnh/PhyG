@@ -342,10 +342,8 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
           (_, _, _, netNodes) = LG.splitVertexList (thd6 inPhyloGraph)
 
           -- needf to check disapaly/charcter trees not conical graph
-          newGraph' = insertNetEdge inGS inData inPhyloGraph preDeleteCost firstEdgePair
-          dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph'
-          newGraph = if (not . null) dupList then trace  (show  dupList) emptyPhylogeneticGraph
-                     else newGraph'
+          newGraph = insertNetEdge inGS inData inPhyloGraph preDeleteCost firstEdgePair
+          
       in
 
       if length netNodes >= maxNetEdges then
@@ -359,15 +357,16 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
          -- better cost
          if snd6 newGraph < snd6 inPhyloGraph then 
 
-            let isCyclic = LG.cyclic $ thd6 newGraph
-                dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph'
+            -- thjis is to check for tree error--need to lock down why this is happening--it shouldn't
+            let isCyclic = V.filter (== True) $ fmap LG.cyclic $ fmap head $ fth6 newGraph
+                dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph
             in
-            if (not isCyclic && null dupList) then 
+            if (null isCyclic && null dupList) then 
                trace ("INER: Better") 
                -- trace  ("INER:" ++ (LG.prettyIndices $ thd6 newGraph)) 
                [newGraph]
             else 
-               trace ("Cycle " ++ (show $ snd6 newGraph) ++ " Duplicate Edges " ++ (show $ dupList)) 
+               trace ("Cycle " ++ (show isCyclic) ++ " Duplicate Edges " ++ (show dupList)) 
                insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (tail edgePairList)
 
          -- not better

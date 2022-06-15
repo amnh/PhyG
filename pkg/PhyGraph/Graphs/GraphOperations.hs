@@ -762,7 +762,7 @@ rerootTree rerootIndex inGraph =
           newGraph')
         -- ) -- )
 
--- | rerootDisplayTree like reroot but inputs original rtoot positin instead of fighuring it out.
+-- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
 -- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
 rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
 rerootDisplayTree orginalRootIndex rerootIndex inGraph =
@@ -781,6 +781,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
         -- componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
         (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
 
+        {- Checks for valid trees
         cyclicString = if LG.cyclic inGraph then " Is cyclic "
                           else  " Not cyclic "
 
@@ -791,6 +792,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
                                 else 
                                   let dupEdgeList' = LG.getDuplicateEdges inGraph
                                   in (" Has duplicate edges: " ++ (show dupEdgeList')) 
+        -}
     in
 
     -- trace ("RRT In: " ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString) (
@@ -801,7 +803,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
       -- trace ("RRT: in 1 out 1") 
       inGraph
 
-    else if cyclicString == " Is cyclic " then LG.empty -- inGraph 
+    -- else if cyclicString == " Is cyclic " then LG.empty -- inGraph 
 
     
     -- rerooting on root so no indegree edges
@@ -825,7 +827,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
 
         in
 
-        if numRoots == 0 then error ("No root in rerootDisplayTree: Attempting to reroot on edge to node " ++ (show (orginalRoot,rerootIndex)) ++ "\n" ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString ++ LG.prettyIndices inGraph) --LG.empty
+        if numRoots == 0 then error ("No root in rerootDisplayTree: Attempting to reroot on edge to node " ++ (show (orginalRoot,rerootIndex)) ++ LG.prettyIndices inGraph) --LG.empty
 
         -- check if outgroup in a multirooted component
         -- if wagner build this is ok
@@ -850,6 +852,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
               newGraph' = preTraverseAndFlipEdgesTree [leftChildEdge,rightChildEdge] newGraph
 
 
+              {- Check for valid tree
               cyclicString' = if LG.cyclic newGraph' then " Is cyclic "
                           else  " Not cyclic "
 
@@ -860,6 +863,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
                                        else let dupEdgeList' = LG.getDuplicateEdges newGraph'
                                             in
                                             (" Has duplicate edges: " ++ (show dupEdgeList') ++ "\nDeleting " ++ (show $ fmap LG.toEdge $ (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge $ newRootEdges)) 
+              -}
           in
           --trace ("=")
           --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
@@ -867,9 +871,10 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
           -- trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges) 
           --   ++ "\nRRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString') (
 
-          if cyclicString' == " Is cyclic " then inGraph 
+          -- if cyclicString' == " Is cyclic " then inGraph 
           -- else if LG.hasDuplicateEdge newGraph' then LG.removeDuplicateEdges newGraph'
-          else newGraph'
+          -- else 
+          newGraph'
           -- )
           -- ) -- )
 

@@ -678,4 +678,9 @@ preOrderTreeTraversal
 
 386) generalize new reroot code to trees as well
 
-388) 
+388) Idenitify cause ofdu edges
+	-- bad edge insert?
+	-- error in resolution cache?
+	-- bad resolution of display graph
+	
+
