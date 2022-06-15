@@ -423,7 +423,7 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
       if LG.isTree (fst6 $ head inPhyloGraphList) then
          let (a,b,c,d) = LG.splitVertexList (fst6 $ head inPhyloGraphList)
          in
-         trace ("\tGraph in delete network edges is tree--skipping :" ++ (show $ (length a, length b, length c, length d)))
+         trace ("\tGraph in delete network edges is tree--skipping :" ++ (show $ (snd6 $ head inPhyloGraphList, length a, length b, length c, length d)))
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
 
       else if null newGraphList then (take numToKeep curBestGraphList, counter)
