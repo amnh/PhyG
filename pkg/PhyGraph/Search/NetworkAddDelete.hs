@@ -309,7 +309,7 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
           minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
                     else minimum $ fmap snd6 newGraphList
       in
-      trace ("\tExamining at most " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs, radomized order = " ++ (show doRandomOrder)) (
+      trace ("\tExamining at most " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
 
       -- no network edges to insert
       if null candidateNetworkEdgeList then ([inPhyloGraph], currentCost)
