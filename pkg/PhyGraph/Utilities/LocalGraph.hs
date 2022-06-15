@@ -119,7 +119,7 @@ prettyIndices inGraph =
         nodeList ++ "\n" ++ edgeList
 
 -- these duplicate edge functions should be O(n log n) based on sort--rest linear
- 
+
 -- hasDuplicateEdge checked for duplicate edges based on indices (not label)
 hasDuplicateEdge :: Gr a b -> Bool
 hasDuplicateEdge inGraph =
@@ -154,7 +154,8 @@ removeDuplicateEdges inGraph =
     else 
         let dupEdges = getDuplicateEdges inGraph
         in
-        delEdges dupEdges inGraph
+        if null dupEdges then inGraph
+        else delEdges dupEdges inGraph
         
 
 -- Wrapper functions for fgl so could swap out later if want to

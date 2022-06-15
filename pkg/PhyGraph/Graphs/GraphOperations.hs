@@ -764,15 +764,16 @@ rerootTree rerootIndex inGraph =
 
 -- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
 -- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
-rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
-rerootDisplayTree orginalRootIndex rerootIndex inGraph =
+rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => GraphType -> LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
+rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph' =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph then inGraph
+  if LG.isEmpty inGraph' then inGraph'
   else
     let -- componentList = LG.components inGraph'
         
-        -- hack  remove when figured out
-        -- inGraph = LG.removeDuplicateEdges inGraph'
+        -- hack---remove when figured out
+        inGraph = if inGraphType == SoftWired then LG.removeDuplicateEdges inGraph'
+                  else inGraph'
 
         parentNewRootList = LG.pre inGraph rerootIndex
         newRootOrigEdge = head $ LG.inn inGraph rerootIndex
@@ -803,7 +804,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
       -- trace ("RRT: in 1 out 1") 
       inGraph
 
-    -- else if cyclicString == " Is cyclic " then LG.empty -- inGraph 
+    -- else if LG.cyclic inGraph then LG.empty -- inGraph 
 
     
     -- rerooting on root so no indegree edges
@@ -849,7 +850,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
               newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
 
               -- get edges that need reversing
-              newGraph' = preTraverseAndFlipEdgesTree [leftChildEdge,rightChildEdge] newGraph
+              newGraph' = preTraverseAndFlipEdgesTree orginalRootIndex [leftChildEdge,rightChildEdge] newGraph
 
 
               {- Check for valid tree
@@ -874,6 +875,12 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
           -- if cyclicString' == " Is cyclic " then inGraph 
           -- else if LG.hasDuplicateEdge newGraph' then LG.removeDuplicateEdges newGraph'
           -- else 
+          {-Cycle check
+          if LG.cyclic newGraph' then 
+            trace ("Orignal root: " ++ (show orginalRootIndex) ++ "New root: " ++ (show rerootIndex) ++ " Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges) 
+              ++ "\nOrigGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph)++ "\nNewGraph': " ++ (LG.prettyIndices newGraph'))
+            LG.empty
+          else newGraph'-}
           newGraph'
           -- )
           -- ) -- )
@@ -884,16 +891,16 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
 -- when recursion its edges that don't need to be fliped then stops
 -- assumes input edge is directed correctly
 -- follows  traversal out "pre" order updating graph as edges flipped
-preTraverseAndFlipEdgesTree :: (Eq b) => [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
-preTraverseAndFlipEdgesTree inEdgeList inGraph  =
+preTraverseAndFlipEdgesTree :: (Eq b) => LG.Node -> [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
+preTraverseAndFlipEdgesTree rootIndex inEdgeList inGraph  =
   if null inEdgeList then inGraph
   else
     let -- first edge directled correctly
         inEdge@(_,v,_) = head inEdgeList
 
         -- edges "in" to child node of first edge--these should be out and need to be flipped
-        childEdges = filter (`notElem` inEdgeList) $ LG.inn inGraph v
-
+        childEdges = filter ((/= rootIndex) . fst3) $ filter (/= inEdge) $ LG.inn inGraph v
+        
         -- flip to "in" to "out" edges
         flippedEdges = fmap LG.flipLEdge childEdges
 
@@ -902,10 +909,10 @@ preTraverseAndFlipEdgesTree inEdgeList inGraph  =
     in
     --trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
     -- edge terminates in leaf or edges in correct orientation
-    if null childEdges then preTraverseAndFlipEdgesTree (tail inEdgeList) inGraph
+    if null childEdges then preTraverseAndFlipEdgesTree rootIndex (tail inEdgeList) inGraph
 
     -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdgesTree (flippedEdges ++ (tail inEdgeList)) newGraph
+    else preTraverseAndFlipEdgesTree rootIndex (flippedEdges ++ (tail inEdgeList)) newGraph
     -- )
 
 

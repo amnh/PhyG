@@ -83,7 +83,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
      else
       let doNetAdd = any ((=="netadd").fst) lcArgList
-          doNetDel = any ((=="netdell").fst) lcArgList || (any ((=="netdelete").fst) lcArgList)
+          doNetDel = any ((=="netdel").fst) lcArgList || (any ((=="netdelete").fst) lcArgList)
           doNetAddDel = any ((=="netadddel").fst) lcArgList
           doNetMov = any ((=="netmove").fst) lcArgList
           doGenAlg = any ((=="ga").fst) lcArgList || any ((=="geneticalgorithm").fst) lcArgList

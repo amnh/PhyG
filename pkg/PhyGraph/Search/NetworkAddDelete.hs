@@ -362,7 +362,7 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
                 dupList = V.filter (== True) $ fmap LG.hasDuplicateEdge $ fmap head $ fth6 newGraph
             in
             if (null isCyclic && null dupList) then 
-               trace ("INER: Better") 
+               trace ("INER: Better -> " ++ (show $ snd6 newGraph)) 
                -- trace  ("INER:" ++ (LG.prettyIndices $ thd6 newGraph)) 
                [newGraph]
             else 
@@ -421,7 +421,9 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
       in
       -- if graph is a tree no edges to delete
       if LG.isTree (fst6 $ head inPhyloGraphList) then
-         trace ("\tGraph in delete network edges is tree--skipping")
+         let (a,b,c,d) = LG.splitVertexList (fst6 $ head inPhyloGraphList)
+         in
+         trace ("\tGraph in delete network edges is tree--skipping :" ++ (show $ (length a, length b, length c, length d)))
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
 
       else if null newGraphList then (take numToKeep curBestGraphList, counter)
