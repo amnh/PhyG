@@ -772,7 +772,7 @@ rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph' =
     let -- componentList = LG.components inGraph'
         
         -- hack---remove when figured out
-        inGraph = if inGraphType == SoftWired then LG.removeDuplicateEdges inGraph'
+        inGraph = if inGraphType == SoftWired then inGraph' -- LG.removeDuplicateEdges inGraph'
                   else inGraph'
 
         parentNewRootList = LG.pre inGraph rerootIndex

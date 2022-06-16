@@ -683,4 +683,5 @@ preOrderTreeTraversal
 	-- error in resolution cache?
 	-- bad resolution of display graph
 	
+389) Remove duplicate /cclic checking outside of creation of disolay trees and charcaters trees
 
