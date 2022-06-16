@@ -106,6 +106,7 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
                                                                                             else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             
             -- purge double edges from display and charcater graphs
+            -- this should not be happening--issue with postorder network resolutions data
             (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
