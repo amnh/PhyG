@@ -765,15 +765,17 @@ rerootTree rerootIndex inGraph =
 -- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
 -- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
 rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => GraphType -> LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
-rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph' =
+rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph' then inGraph'
+  if LG.isEmpty inGraph then inGraph
   else
     let -- componentList = LG.components inGraph'
         
         -- hack---remove when figured out
+        {-
         inGraph = if inGraphType == SoftWired then inGraph' -- LG.removeDuplicateEdges inGraph'
                   else inGraph'
+        -}
 
         parentNewRootList = LG.pre inGraph rerootIndex
         newRootOrigEdge = head $ LG.inn inGraph rerootIndex
@@ -822,18 +824,20 @@ rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph' =
         --reroot component with new outtaxon
         let -- componentWithNewOutgroup = snd $ head componentWithOutgroup
             -- (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-            numRoots = 1 -- length originalRootList
+            -- numRoots = 1 -- length originalRootList
             orginalRoot = orginalRootIndex -- head originalRootList
             originalRootEdges = (LG.out inGraph orginalRoot)
 
         in
 
+        {-
         if numRoots == 0 then error ("No root in rerootDisplayTree: Attempting to reroot on edge to node " ++ (show (orginalRoot,rerootIndex)) ++ LG.prettyIndices inGraph) --LG.empty
 
         -- check if outgroup in a multirooted component
         -- if wagner build this is ok
         -- else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
         else
+        -}
           --reroot graph safely automatically will only affect the component with the outgroup
           -- delete old root edge and create two new edges from oringal root node.
           -- keep orignl root node and delte/crete new edges when they are encounterd
