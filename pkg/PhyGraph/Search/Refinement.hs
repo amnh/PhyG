@@ -387,7 +387,8 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                              else (newGraphList', 0)
 
             in
-            let resultGraphList = take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ newGraphList''
+            let resultGraphList = if null newGraphList'' then inGraphList
+                                  else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ newGraphList''
             in
             trace ("\tAfter network edge add/delete/move: " ++ (show $ length resultGraphList) ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 resultGraphList) ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, "
             ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")

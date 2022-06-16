@@ -746,6 +746,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
        in
 
+       trace  ("DNERec: " ++ (show edgeToDelete) ++ " at " ++ (show $ snd6 newPhyloGraph)) (
        -- forcinmg delete for move
        if force then [newPhyloGraph]
 
@@ -760,6 +761,11 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
             else deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
 
           -- better for tree / softwired
+          -- heuriastic no good so just checing result
+          else if (snd6 newPhyloGraph < snd6 inPhyloGraph) then 
+            trace  ("DNERec Better -> " ++ (show $ snd6 newPhyloGraph))
+            [newPhyloGraph]
+          {-
           else if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then
             -- check cost and better
             if (snd6 newPhyloGraph < snd6 inPhyloGraph) then [newPhyloGraph]
@@ -767,6 +773,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
             -- not better continue
             else
                deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
+          -}
           else
             deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
 
@@ -788,6 +795,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
 
          -- hit end of SA/Drift
          else [inPhyloGraph]
+      )
 
 {-
 -- | deleteEdge deletes an edge (checking if network) and does NOT erdiagnose  graph
@@ -909,6 +917,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
    else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else
+       trace ("DNE: " ++ (show edgeToDelete)) (
        let delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
 
@@ -937,8 +946,11 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
        in
        if force || (graphType inGS) == HardWired then newPhyloGraph
        else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
-         if (snd6 inPhyloGraph) > (snd6 newPhyloGraph) then newPhyloGraph
-         else emptyPhylogeneticGraph
+         if (snd6 inPhyloGraph) > (snd6 newPhyloGraph) then 
+            trace ("DNE Better: " ++ (show $ snd6 newPhyloGraph))
+            newPhyloGraph
+         else inPhyloGraph
+      )
 
 
 -- | heuristicDeleteDelta takes the existing graph, edge to delete,
