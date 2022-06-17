@@ -36,7 +36,6 @@ Portability :  portable (I hope)
 
 module Graphs.GraphOperations (  ladderizeGraph
                                , rerootTree
-                               , rerootTree'
                                , rerootDisplayTree
                                , generateDisplayTrees
                                , getNodeType
@@ -616,80 +615,6 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     --)
 
--- | rerootTree' flipped version of rerootGraph
-rerootTree' :: (Show a, Show b, Eq a, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
-rerootTree' inGraph rerootIndex = rerootTree rerootIndex inGraph
-
-{-Errorss for building wagner
--- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
---   if input is a forest then only roots the component that contains the vertex wil be rerooted
---   unclear how will effect network edges--will need to verify that does not create cycles
---   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
---   after checking for existing root and multiroots, should be O(n) where 'n is the length
---   of the path between the old and new root
-rerootTree'' :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
-rerootTree'' rerootIndex inGraph =
-  --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph then inGraph
-  else
-    let componentList = LG.components inGraph
-        parentNewRootList = LG.pre inGraph rerootIndex
-        newRootOrigEdge = head $ LG.inn inGraph rerootIndex
-        parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
-        outgroupInComponent = fmap (rerootIndex `elem`) componentList
-        componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
-    in
-
-    -- rerooting on root so no indegree edges
-    if null $ LG.inn inGraph rerootIndex then error ("Rerooting on indegree 0 node") -- LG.empty
-
-
-    else if null componentWithOutgroup then error ("Error rooting wierdness in rerootTree") -- LG.empty
-
-    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
-                                                              else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-    else
-        --reroot component with new outtaxon
-        let componentWithNewOutgroup = snd $ head componentWithOutgroup
-            (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-            numRoots = length originalRootList
-            orginalRoot = head originalRootList
-            originalRootEdges = LG.out inGraph orginalRoot
-
-        in
-
-        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
-
-        -- check if outgroup in a multirooted component
-        else if numRoots > 1 then error ("Error: Attempting to reroot multi-rooted component") -- inGraph
-        else
-          --reroot graph safely automatically will only affect the component with the outgroup
-          -- delete old root edge and create two new edges from oringal root node.
-          -- keep orignl root node and delte/crete new edges when they are encounterd
-          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
-
-              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
-                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
-                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
-
-              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
-
-              -- get edges that need reversing
-              newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
-
-          in
-          --trace ("=")
-          --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges))
-          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-          newGraph')
-        -- ) -- )
--}
-
 -- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
 --   if input is a forest then only roots the component that contains the vertex wil be rerooted
 --   unclear how will effect network edges--will need to verify that does not create cycles
@@ -764,8 +689,8 @@ rerootTree rerootIndex inGraph =
 
 -- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
 -- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
-rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => GraphType -> LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
-rerootDisplayTree inGraphType orginalRootIndex rerootIndex inGraph =
+rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
+rerootDisplayTree orginalRootIndex rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if LG.isEmpty inGraph then inGraph
   else

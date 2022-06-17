@@ -111,7 +111,7 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
             -- reroot block character trees
-            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees inGraphType rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS) -- not sure if should be parallelized `using` PU.myParListChunkRDS
+            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS) -- not sure if should be parallelized `using` PU.myParListChunkRDS
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
         -- trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap show $ fmap LG.getDuplicateEdges $ V.toList newBlockDisplayTreeVect))
@@ -119,8 +119,8 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
         
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
-rerootBlockCharTrees :: GraphType -> LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
-rerootBlockCharTrees inGraphType rootIndex blockDisplayTree charTreeVect charInfoVect =
+rerootBlockCharTrees ::LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
     if V.null charTreeVect then error "Empty tree vector in rerootBlockCharTrees"
     else 
         let -- next edges (to vertex in list) to perform rerroting
@@ -129,38 +129,38 @@ rerootBlockCharTrees inGraphType rootIndex blockDisplayTree charTreeVect charInf
             childrenOfRoot = LG.descendants blockDisplayTree rootIndex
             grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
 
-            (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot inGraphType rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect) `using` PU.myParListChunkRDS)
+            (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect) `using` PU.myParListChunkRDS)
             updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect)
         in
         (updateBlockDisplayTree, V.fromList rerootedCharTreeVect, sum rerootedCostVect)
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
-getCharTreeBestRoot :: GraphType -> LG.Node -> [LG.Node] -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot inGraphType rootIndex nodesToRoot inCharacterGraph charInfo =
+getCharTreeBestRoot :: LG.Node -> [LG.Node] -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo =
     -- if prealigned should be rerooted?
     let (bestRootCharGraph, bestRootCost) = if (charType charInfo `notElem` sequenceCharacterTypes) then (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
-                                            else rerootCharacterTree inGraphType rootIndex nodesToRoot charInfo inCharacterGraph 
+                                            else rerootCharacterTree rootIndex nodesToRoot charInfo inCharacterGraph 
     in
     (bestRootCharGraph, bestRootCost)
 
 -- | rerootCharacterTree wrapper around rerootCharacterTree' with cleaner interface for "best" results
-rerootCharacterTree :: GraphType -> LG.Node -> [LG.Node] ->  CharInfo -> DecoratedGraph -> (DecoratedGraph, VertexCost)
-rerootCharacterTree inGraphType rootIndex nodesToRoot charInfo inCharacterGraph = 
-    rerootCharacterTree' inGraphType rootIndex nodesToRoot charInfo ((subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex) inCharacterGraph inCharacterGraph
+rerootCharacterTree :: LG.Node -> [LG.Node] ->  CharInfo -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree  rootIndex nodesToRoot charInfo inCharacterGraph = 
+    rerootCharacterTree' rootIndex nodesToRoot charInfo ((subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex) inCharacterGraph inCharacterGraph
 
 -- | rerootCharacterTree' takes a character tree and root index and returns best rooted character tree and cost
 -- this is recursive taking best cost to save on memory over an fmap and minimum
 -- since does reroot stuff over character trees--that component is less efficient
 -- root index always same--just edges conenct to change with rerooting
 -- graph is prgressively rerooted to be efficient
-rerootCharacterTree' :: GraphType -> LG.Node -> [LG.Node] -> CharInfo -> VertexCost -> DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
-rerootCharacterTree' inGraphType rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
+rerootCharacterTree' ::LG.Node -> [LG.Node] -> CharInfo -> VertexCost -> DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
     if null nodesToRoot then (bestGraph, bestCost)
     else
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants inGraph firstRerootIndex) ++ tail nodesToRoot
-            newGraph = rerootAndDiagnoseTree inGraphType rootIndex firstRerootIndex charInfo inGraph
+            newGraph = rerootAndDiagnoseTree rootIndex firstRerootIndex charInfo inGraph
             newGraphCost = ((subGraphCost . snd) $ LG.labelNode newGraph rootIndex)    
             (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
                                       else (bestGraph, bestCost)
@@ -168,12 +168,12 @@ rerootCharacterTree' inGraphType rootIndex nodesToRoot charInfo bestCost bestGra
         -- if LG.isEmpty newGraph then rerootCharacterTree' rootIndex (tail nodesToRoot) charInfo bestCost bestGraph inGraph 
         -- trace ("RRCT:" ++ (show (rootIndex, firstRerootIndex, bestCost, newGraphCost))) 
         --else 
-        rerootCharacterTree' inGraphType rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
+        rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
     
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
-rerootAndDiagnoseTree :: GraphType -> LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
-rerootAndDiagnoseTree inGraphType rootIndex newRerootIndex charInfo inGraph =
-    let reRootGraph = GO.rerootDisplayTree inGraphType rootIndex newRerootIndex inGraph
+rerootAndDiagnoseTree :: LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
+rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
+    let reRootGraph = GO.rerootDisplayTree rootIndex newRerootIndex inGraph
         (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
         reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
     in

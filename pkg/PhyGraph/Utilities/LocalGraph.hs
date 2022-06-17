@@ -1073,3 +1073,4 @@ notMatchEdgeIndices :: [Edge] -> LEdge b -> Bool
 notMatchEdgeIndices unlabeledEdegList labelledEdge =
     if toEdge labelledEdge `elem` unlabeledEdegList then False
     else True
+

@@ -708,18 +708,53 @@ deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inS
             -- filter later
             (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ uniqueCostGraphList, currentCost)
 
+-- | deleteNetworkEdge deletes a network edges from a simple graph
+-- and contracts, reindexes/names internaledges/veritices around deletion 
+-- can't raise to general graph level due to vertex info 
+-- in edges (b,a) (c,a) (a,d), deleting (a,b) deletes node a, inserts edge (b,d)
+-- contacts node c since  now in1out1 vertex
+deleteNetworkEdge :: LG.Edge -> SimpleGraph -> SimpleGraph
+deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
+   if LG.isEmpty inGraph then error ("Cannot delete edge from empty graph")
+   else 
+      let childrenNodeToDelete = LG.descendants inGraph nodeToDelete
+          parentsNodeToDelete = LG.parents inGraph nodeToDelete
+          parentNodeToKeep = head $ filter (/= p1) parentsNodeToDelete
+          newEdge = (parentNodeToKeep, head childrenNodeToDelete, 0.0)
+          newGraph = LG.insEdge newEdge $ LG.delNode nodeToDelete inGraph
+          newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
--- | deleteNetEdgeRecursive like deleteEdge deletes an edge (checking if network) and rediagnoses graph
--- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
--- except returns on first better or sim annleal/drift
+      in
+      -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resoliutoin cache issues)
+      if length childrenNodeToDelete /= 1 then error ("Cannot delete non-network edge in deleteNetworkEdge: (1)" ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+      else if length parentsNodeToDelete /= 2 then error ("Cannot delete non-network edge in deleteNetworkEdge (2): " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+
+      -- error if chained on input, skip if chained net edges in output
+      else if (LG.isNetworkNode inGraph p1) then error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+      else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 
+         -- trace ("New graph would have chained network nodes--skipping")
+         inGraph
+      else 
+         {-trace ("DNE: Edge to delete " ++ (show inEdge) ++ " cnd " ++ (show childrenNodeToDelete) ++ " pnd " ++ (show parentsNodeToDelete) ++ " pntk " ++ (show parentNodeToKeep) 
+            ++ " ne " ++ (show newEdge) ++ "\nInGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph) ++ "\nNewNewGraph: " 
+            ++ (LG.prettyIndices newGraph')) -}
+         newGraph'
+
+
+-- | deleteNetEdgeRecursive like deleteEdge, deletes an edge (checking if network) and rediagnoses graph
+-- contacts in=out=1 edges and removes node, reindexing nodes and edges
+-- except returns on first better (as opposed to do all deletes first) 
+-- or sim annleal/drift
 deleteNetEdgeRecursive :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> Maybe SAParams -> [LG.Edge] -> [PhylogeneticGraph]
 deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDeleteList =
    if null edgeToDeleteList then []
-   --else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
-   --else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else
        let edgeToDelete = head edgeToDeleteList
-           delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
+
+           -- calls general funtion to remove network graph edge
+           delSimple = deleteNetworkEdge edgeToDelete $ fst6 inPhyloGraph
+
+           -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
 
            -- prune other edges if now unused
@@ -744,6 +779,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
                               if (not . LG.cyclic) delSimple then T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
                               else emptyPhylogeneticGraph
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+
        in
 
        trace  ("DNERec: " ++ (show edgeToDelete) ++ " at " ++ (show $ snd6 newPhyloGraph)) (
@@ -761,20 +797,14 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
             else deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
 
           -- better for tree / softwired
-          -- heuriastic no good so just checing result
+          -- heuristic no good so just checing result
           else if (snd6 newPhyloGraph < snd6 inPhyloGraph) then 
             trace  ("DNERec Better -> " ++ (show $ snd6 newPhyloGraph))
             [newPhyloGraph]
-          {-
-          else if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then
-            -- check cost and better
-            if (snd6 newPhyloGraph < snd6 inPhyloGraph) then [newPhyloGraph]
-
-            -- not better continue
-            else
-               deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
-          -}
+         
           else
+            -- need to update edge list for new graph
+            -- potentially randomize order of list
             deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (tail edgeToDeleteList)
 
       -- sim anneal/drift
@@ -791,26 +821,11 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams edgeToDe
          in
          if (numDone < numMax) then
             if acceptGraph then [newPhyloGraph]
-            else deleteNetEdgeRecursive inGS inData inPhyloGraph force nextSAParams (tail edgeToDeleteList)
+            else deleteNetEdgeRecursive inGS inData newPhyloGraph force nextSAParams (tail edgeToDeleteList)
 
          -- hit end of SA/Drift
          else [inPhyloGraph]
       )
-
-{-
--- | deleteEdge deletes an edge (checking if network) and does NOT erdiagnose  graph
--- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
--- but only returns simple graph field
-deleteNetEdgeSimple :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Bool -> LG.Edge -> PhylogeneticGraph
-deleteNetEdgeSimple inGS inData inPhyloGraph force edgeToDelete =
- if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
-   else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
-   else
-       let delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
-       in
-       -- 3rd field out of sync byut may be needed for leaf graph later
-       (delSimple, snd6 inPhyloGraph, thd6 inPhyloGraph, fth6 inPhyloGraph, fft6 inPhyloGraph, six6 inPhyloGraph)
--}
 
 -- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 -- contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
@@ -852,6 +867,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
            edgeAddDelta = trace ("INE: Getting edgeAddEDelta") deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
 
+           {-
            cyclicString = if LG.cyclic newSimple then " Is cyclic "
                           else  " Not cyclic "
 
@@ -863,6 +879,7 @@ insertNetEdge inGS inData inPhyloGraph preDeleteCost edgePair@((u,v, _), (u',v',
 
            duplicatedsEdgeString = if (length $ fmap LG.toEdge $ LG.labEdges newSimple) == (length $ L.nub $ fmap LG.toEdge $ LG.labEdges newSimple) then " No duplicate edges "
                                    else " Has duplicate edges "
+           -}
 
        in
        -- trace ("INE Deltas: " ++ (show (heuristicDelta, edgeAddDelta)) ++ " preDelete " ++ (show preDeleteCost)
@@ -918,7 +935,8 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else
        trace ("DNE: " ++ (show edgeToDelete)) (
-       let delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
+       let delSimple = deleteNetworkEdge edgeToDelete $ fst6 inPhyloGraph
+           -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
 
            -- prune other edges if now unused
