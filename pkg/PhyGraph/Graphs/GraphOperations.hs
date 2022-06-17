@@ -1196,7 +1196,7 @@ nubGraph curList inList =
   if null inList then reverse $ fmap fst3 curList
   else 
     let (firstGraphNC, firstGraphC) = head inList
-        firstString = makeNewickList False False 0 [fst6 firstGraphC] [snd6 firstGraphNC] 
+        firstString = LG.prettyIndices $ thd6 firstGraphNC
         isMatch = filter (== firstString) (fmap thd3 curList)
     in
     -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (

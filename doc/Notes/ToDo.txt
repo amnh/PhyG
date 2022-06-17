@@ -685,3 +685,6 @@ preOrderTreeTraversal
 	
 389) Remove duplicate /cclic checking outside of creation of disolay trees and charcaters trees
 
+390) Converte to phylogenetic graph
+	check each net node and make sure child is not net node
+
