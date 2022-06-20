@@ -935,6 +935,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
 
       -- error if chained on input, skip if chained net edges in output
       else if (LG.isNetworkNode inGraph p1) then error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+      
+      
       else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 
          -- trace ("New graph would have chained network nodes--skipping")
          (inGraph, False)
@@ -991,10 +993,12 @@ deleteNetEdgeRecursive inGS inData leafGraph inPhyloGraph force inSimAnnealParam
 
        -- trace  ("DNERec: " ++ (show edgeToDelete) ++ " at " ++ (show $ snd6 newPhyloGraph)) (
        -- if not modified retiurn original graph
-       if not wasModified then [inPhyloGraph]
+       
+      -- This check seems to be issue with delete not functioning properly
+       -- if not wasModified then [inPhyloGraph]
 
        -- forcing delete for move
-       else if force then 
+       if force then 
          -- trace ("DNERec forced") 
          [newPhyloGraph]
 
