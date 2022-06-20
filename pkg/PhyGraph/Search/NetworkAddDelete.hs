@@ -935,7 +935,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
    else if not (LG.isNetworkEdge (fst6 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " ++ (show edgeToDelete) ++ " not in graph:\n" ++ (LG.prettify $ fst6 inPhyloGraph))
    else
-       trace ("DNE: " ++ (show edgeToDelete)) (
+       -- trace ("DNE: " ++ (show edgeToDelete)) (
        let delSimple = deleteNetworkEdge edgeToDelete $ fst6 inPhyloGraph
            -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst6 inPhyloGraph
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
@@ -971,7 +971,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
          else 
             trace ("DNE Not Better: " ++ (show $ snd6 newPhyloGraph))
             inPhyloGraph
-      )
+      -- )
 
 
 

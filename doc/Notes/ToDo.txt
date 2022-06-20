@@ -688,3 +688,7 @@ preOrderTreeTraversal
 390) Converte to phylogenetic graph
 	check each net node and make sure child is not net node
 
+391) Net "move" not doing enyhting--not sure if bad graph state yeielding infiniites (probabaly) or 
+	not finding anyhting better via that mechanism
+
+392) Clean up old reroot code--migrate hardwired?
