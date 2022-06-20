@@ -487,7 +487,7 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          , driftChanges      :: Int
                          } deriving stock (Show, Eq)
 
-
+instance NFData SAParams where rnf x = seq x ()
 
 -- | empty structures for convenient use
 

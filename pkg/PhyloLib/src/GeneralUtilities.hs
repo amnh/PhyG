@@ -63,6 +63,36 @@ import           Data.Word
 import Data.Char
 import Numeric
 
+-- imports for traceNoLFIO
+import Foreign.C.String
+import Data.List (partition)
+
+
+-- | traceNOLF is trace modified from Debug/Trace to not have
+-- a line feed (\n) after message
+traceNoLF :: String -> a -> a
+traceNoLF string expr = unsafePerformIO $ do
+    traceNoLFIO string
+    return expr
+
+-- | traceNOLFIO is traceIO modified from Debug/Trace to not have
+-- a line feed (\n) after message
+traceNoLFIO :: String -> IO ()
+traceNoLFIO msg =
+    withCString "%s" $ \cfmt -> do
+     -- NB: debugBelch can't deal with null bytes, so filter them
+     -- out so we don't accidentally truncate the message.  See #9395
+     let (nulls, msg') = partition (== '\0') msg
+     withCString msg' $ \cmsg ->
+      debugBelch cfmt cmsg
+     when (not (null nulls)) $
+       withCString "WARNING: previous trace message had null bytes" $ \cmsg ->
+         debugBelch cfmt cmsg
+
+-- don't use debugBelch() directly, because we cannot call varargs functions
+-- using the FFI.
+foreign import ccall unsafe "HsBase.h debugBelch2"
+   debugBelch :: CString -> CString -> IO ()
 
 -- | functions for triples, quadruples
 fst3 :: (a,b,c) -> a

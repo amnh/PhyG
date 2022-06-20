@@ -752,3 +752,11 @@ getRawDataPairs inList =
         ('>' : firstName ++ "\n", firstData) : getRawDataPairs (tail inList)
  
 
+-- | hasResolutionDuplicateEdges checks resolution subtree in verteexInfo for duplicate d edges in softwired 
+-- subtree field
+hasResolutionDuplicateEdges :: ResolutionData -> Bool
+hasResolutionDuplicateEdges inResData = 
+    let edgeList = snd $ displaySubGraph inResData
+        edgeDupList = length $ (fmap LG.toEdge edgeList) L.\\ (L.nub $ fmap LG.toEdge edgeList)
+    in
+    edgeDupList > 0

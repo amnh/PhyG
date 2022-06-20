@@ -68,6 +68,8 @@ import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
 import           Data.Alphabet
 import           Debug.Trace
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities                    as PU
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -98,7 +100,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.zipWith (doBlockTraversal inGS finalMethod staticIA rootIndex) inCharInfoVV blockCharacterDecoratedVV
+            preOrderBlockVect = V.fromList (zipWith (doBlockTraversal inGS finalMethod staticIA rootIndex) (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV) `using` PU.myParListChunkRDS)
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
@@ -308,7 +310,10 @@ doCharacterTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> Cha
 doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
     -- find root--index should = number of leaves
     --trace ("charT:" ++ (show $ charType inCharInfo)) (
-    let isolateNodeList = LG.getIsolatedNodes inGraph
+    let -- this is a hack--remve after fixed
+        --inGraph = LG.removeDuplicateEdges inGraph'
+
+        isolateNodeList = LG.getIsolatedNodes inGraph
         -- (_, leafVertexList, _, _)  = LG.splitVertexList inGraph
         inEdgeList = LG.labEdges inGraph
     in
@@ -373,7 +378,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph)) NetworkNode
+                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ (show $ LG.getDuplicateEdges inGraph)) NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one
@@ -410,7 +415,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             childrenTriple' = if (graphType inGS) == HardWired then filter (indeg2NotInNodeList inGraph (tail nodesToUpdate)) childrenTriple
                               else childrenTriple
 
-        in
+        in 
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
         -- makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
         -- childrenPair after nodess to do for hardWired to ensure both parent done before child
@@ -610,11 +615,15 @@ getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex inCharInfo (no
     else getCharacterDistFinal finalMethod uCharacter vCharacter inCharInfo
 
 
--- | getEdgeVerts retuns vertex labels if edge in vect or if a virtual edge including root
+-- | getEdgeVerts returns vertex labels if edge in vect or if a virtual edge including root
 getEdgeVerts :: Int -> Int -> Int -> V.Vector (LG.LNode VertexInfo) -> V.Vector (LG.LEdge EdgeInfo) -> Maybe (VertexInfo, VertexInfo)
 getEdgeVerts uNode vNode rootIndex nodeVect edgeVect =
     -- trace ("GEV:" ++ (show (uNode, vNode, rootIndex) ++ " nodes " ++ (show $ fmap fst nodeVect) ++ " edges " ++ (show $ fmap LG.toEdge edgeVect))) (
-    if edgeInVect (uNode, vNode) edgeVect then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
+
+    --hack or display edge check I'm not sure--not all edges are in all display trees
+    if (uNode >= V.length nodeVect) || (vNode >= V.length nodeVect) then Nothing
+
+    else if edgeInVect (uNode, vNode) edgeVect then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
     else if (edgeInVect (rootIndex, uNode) edgeVect) && (edgeInVect (rootIndex, vNode) edgeVect) then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
     else Nothing
     -- )
