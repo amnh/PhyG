@@ -140,7 +140,8 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             
             -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
             -- reporting collapsed 
-            let graphsWithUpdatedCosts = fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs'
+            -- reverse sorting graphs by cost
+            let graphsWithUpdatedCosts = reverse (L.sortOn snd6 $ fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs')
                 reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
             
             if null reportString then do

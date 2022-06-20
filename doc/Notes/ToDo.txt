@@ -678,4 +678,13 @@ preOrderTreeTraversal
 
 386) generalize new reroot code to trees as well
 
-388) 
+388) Idenitify cause ofdu edges
+	-- bad edge insert?
+	-- error in resolution cache?
+	-- bad resolution of display graph
+	
+389) Remove duplicate /cclic checking outside of creation of disolay trees and charcaters trees
+
+390) Converte to phylogenetic graph
+	check each net node and make sure child is not net node
+
