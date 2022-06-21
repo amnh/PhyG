@@ -356,6 +356,7 @@ insertNetEdgeRecursive :: GlobalSettings
                        -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)] 
                        -> [PhylogeneticGraph]
 insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams edgePairList =
+   -- trace ("Edges pairs to go : " ++ (show $ length edgePairList)) (
    if null edgePairList then [inPhyloGraph]
    else
       let 
@@ -376,7 +377,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
 
       -- malformed graph
       else if newGraph == emptyPhylogeneticGraph then 
-         -- trace ("INER: Not Better") 
+         -- trace ("INER: Empty more to go : " ++ (show $ length $ tail edgePairList)) 
          insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (tail edgePairList)
 
       else if (inSimAnnealParams == Nothing) then
@@ -469,6 +470,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
        
        else if (graphType inGS) == HardWired then newPhyloGraph
 
+       else 
+         -- need heuristics in here
+         newPhyloGraph
+
+       {-
        -- preDelete cost changes criterion for edge move
        else if isNothing preDeleteCost then
          -- trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, (snd6 inPhyloGraph), (snd6 newPhyloGraph)))) ( 
@@ -492,6 +498,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
          else emptyPhylogeneticGraph
          -- )
        -- )
+       -}
 
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
@@ -633,11 +640,11 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
           simpleGraphsToInsert' = filter ((== False) . LG.cyclic) simpleGraphsToInsert
 
           -- optimize deleted graph and update cost with input cost
-          graphsToInsert = fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert' `using` PU.myParListChunkRDS
+          graphsToInsert = fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert' -- `using` PU.myParListChunkRDS
           graphsToInsert' = fmap (flip T.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
 
 
-          insertedGraphPairList = fmap (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert' `using` PU.myParListChunkRDS
+          insertedGraphPairList = fmap (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert' -- `using` PU.myParListChunkRDS
 
           newMinimumCost = minimum $ fmap snd insertedGraphPairList
 
