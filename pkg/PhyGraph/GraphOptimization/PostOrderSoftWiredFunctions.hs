@@ -660,7 +660,7 @@ softWiredPrelimTraceback inGraph nodesToUpdate updatedNodes =
 
 
 -- | getResolutionDataAndIndices takes a vertex label (VertexInfo) and returns the resolution data corresponding to
--- the index taken from its child resolution (data, subgraph cost, local resolutoin cost, left/right pairs).
+-- the index taken from its child resolution (data, subgraph cost, local resolution cost, left/right pairs).
 -- Index = (-1) denotes that it is a root label and in that case
 -- the best (lowest cost) resolutions are returned
 getResolutionDataAndIndices :: VertexInfo -> V.Vector (Maybe Int) -> (VertexBlockData, VertexCost, VertexCost, V.Vector (Maybe Int, Maybe Int))
@@ -689,11 +689,14 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             resolutionData = vertexResolutionData nodeLabel
 
             -- get the correct (via index) resolution data for each block
-            -- complex for network node since keeps left right sort of array, but only first element maters--this hack keepsm thingfs ok for
+            -- complex for network node since keeps left right sort of array, but only first element maters--this hack keeps things ok for
             -- tree-like traceback assignment
             resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then
+                                        -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
                                         V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
-                                  else V.zipWith (V.!) resolutionData parentIndexVect
+                                  else 
+                                    -- trace ("+" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
+                                    V.zipWith (V.!) resolutionData parentIndexVect
 
             -- get other resolution info
             charDataVV = fmap displayData resolutionsByBlockV
