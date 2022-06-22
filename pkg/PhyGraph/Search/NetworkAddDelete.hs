@@ -451,9 +451,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            -- graph optimization from root
            startVertex = Nothing
 
+           -- conversion as if input--see if affects length
+           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
 
            -- full two-pass optimization
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
 
            -- calculates heursitic graph delta
            (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -463,12 +465,14 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
        in
        
-       -- Check for cycles  
+       -- Check for cycles in  convertGeneralGraphToPhylogeneticGraph
+       {-
        if LG.cyclic newSimple then
          trace ("\t\t*Insert cyclic")
          emptyPhylogeneticGraph
+      -}
        
-       else if (graphType inGS) == HardWired then newPhyloGraph
+       if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here
@@ -943,6 +947,9 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
           newGraph = LG.insEdge newEdge $ LG.delNode nodeToDelete inGraph
           newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
+          -- conversion as if input--see if affects length
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph'
+
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
       if length childrenNodeToDelete /= 1 then error ("Cannot delete non-network edge in deleteNetworkEdge: (1)" ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
@@ -951,6 +958,7 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
       -- error if chained on input, skip if chained net edges in output
       else if (LG.isNetworkNode inGraph p1) then error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
       
+      {-
       -- test for chaining of network edges --ladderize
       else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 
          -- trace ("New graph would have chained network nodes--skipping")
@@ -958,17 +966,20 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
              laderizedNewGraph' = GO.contractIn1Out1EdgesRename laderizedNewGraph
          in
          (laderizedNewGraph', False)
-
-      -- check for cycles
-      else if LG.cyclic newGraph' then 
+      -}
+      
+      -- check for cycles in convertGeneralGraphToPhylogeneticGraph
+      {-
+      else if LG.cyclic newGraph then 
          trace ("\t\t*Delete edge cyclic")
          (LG.empty, False)
+      -}
 
       else 
          {-trace ("DNE: Edge to delete " ++ (show inEdge) ++ " cnd " ++ (show childrenNodeToDelete) ++ " pnd " ++ (show parentsNodeToDelete) ++ " pntk " ++ (show parentNodeToKeep) 
             ++ " ne " ++ (show newEdge) ++ "\nInGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph) ++ "\nNewNewGraph: " 
             ++ (LG.prettyIndices newGraph')) -}
-         (newGraph', True)
+         (newGraph'', True)
 
 
 -- | deleteNetEdgeRecursive like deleteEdge, deletes an edge (checking if network) and rediagnoses graph
