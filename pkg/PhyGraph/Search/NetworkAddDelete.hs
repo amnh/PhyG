@@ -202,6 +202,7 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                              else []
 
       in
+      -- trace ("IANE: " ++ (show $ length netNodes)) (
       if length netNodes >= maxNetEdges then
          trace ("Maximum number of network edges reached: " ++ (show $ length netNodes))
          (take numToKeep curBestGraphList, counter)
@@ -284,7 +285,7 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                in
                --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
                (take numToKeep bestList, counter')
-
+               -- )
 
 
 -- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
@@ -367,6 +368,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
 
           -- needf to check disapaly/charcter trees not conical graph
           newGraph = insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost firstEdgePair
+
           
       in
 
@@ -458,7 +460,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
 
            -- calculates heursitic graph delta
-           (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+           -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+           heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
 
 
            edgeAddDelta = trace ("INE: Getting edgeAddEDelta") deltaPenaltyAdjustment inGS inPhyloGraph "add"
@@ -771,6 +774,13 @@ isAncDescEdge inGraph (a,_,_) (b, _, _) =
 insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGraph ->  Maybe VertexCost -> (LG.LEdge b, LG.LEdge b) -> [PhylogeneticGraph]
 insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 -}
+
+-- | heuristic add delta' based on new display tree and delta from exiusting costs by block--summing < 0
+heuristicAddDelta' :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> VertexCost
+heuristicAddDelta' inGS inPhyloGraph ((u,v, _), (u',v', _)) = 
+  if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
+  else 0.0
+
 
 -- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
