@@ -131,19 +131,19 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
 
         -- transitive reduction
         -- only wanted to EUN and CUN--but they do it
-        reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
+        -- reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
 
         -- laderization of indegree and outdegree edges
-        ladderGraph = ladderizeGraph reducedGraph
+        ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
-        --noParentChainGraph = removeParentsInChain timeConsistentGraph
+        noParentChainGraph = removeParentsInChain timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges timeConsistentGraph -- noParentChainGraph
+        noSisterSisterGraph = removeSisterSisterEdges noParentChainGraph
 
     in
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
