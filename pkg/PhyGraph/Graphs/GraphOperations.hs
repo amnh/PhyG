@@ -130,15 +130,16 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         noIn1Out1Graph = LG.contractIn1Out1Edges noTailGraph
 
         -- transitive reduction
-        reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
+        -- only wanted to EUN and CUN--but they do it
+        -- reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
 
         -- laderization of indegree and outdegree edges
-        ladderGraph = ladderizeGraph reducedGraph
+        ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
-        -- removes ancestor descendent edges
+        -- removes ancestor descendent edges transitiveReduceGraph should do this
         noParentChainGraph = removeParentsInChain timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
@@ -211,20 +212,49 @@ removeSisterSisterEdges inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let sisterSisterEdges = getSisterSisterEdgeList inGraph
-        newGraph = LG.delEdge (head sisterSisterEdges) inGraph
+        -- newGraph = LG.delEdge (head sisterSisterEdges) inGraph
+        newGraph = LG.delEdges sisterSisterEdges inGraph
         newGraph' = contractIn1Out1EdgesRename newGraph
     in
     if null sisterSisterEdges then inGraph
     else
       -- trace ("Sister")
-      removeSisterSisterEdges  newGraph'
-
+      -- removeSisterSisterEdges  
+      newGraph'
 
 
 -- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
 -- have the same two parents
 getSisterSisterEdgeList :: LG.Gr a b -> [LG.Edge]
 getSisterSisterEdgeList inGraph =
+  if LG.isEmpty inGraph then []
+  else
+      let (_, _, _, netVertexList) = LG.splitVertexList inGraph
+      in
+      if null netVertexList then []
+      else getSisterSisterEdgeByNetVertex inGraph netVertexList 
+
+-- | getSisterSisterEdgeByNetVertex takes a list of vertices and recursively generate a list of edges to delete
+getSisterSisterEdgeByNetVertex ::  LG.Gr a b -> [LG.LNode a] -> [LG.Edge]
+getSisterSisterEdgeByNetVertex inGraph netNodeList =
+  if null netNodeList then []
+  else 
+    let firstNode = fst $ head netNodeList
+        parentsList = LG.parents inGraph firstNode
+        grandParentsList = fmap (LG.parents inGraph) parentsList
+        sameGrandParentList = L.foldl1' L.intersect grandParentsList
+    in
+    if null sameGrandParentList then getSisterSisterEdgeByNetVertex inGraph (tail netNodeList)
+    else
+      -- trace ("Found sister-sister")
+      (LG.toEdge $ head $ LG.inn inGraph firstNode) : getSisterSisterEdgeByNetVertex inGraph (tail netNodeList)
+       
+
+{-
+-- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
+-- have the same two parents
+getSisterSisterEdgeList' :: LG.Gr a b -> [LG.Edge]
+getSisterSisterEdgeList' inGraph =
   if LG.isEmpty inGraph then []
   else
       let (_, _, _, netVertexList) = LG.splitVertexList inGraph
@@ -241,6 +271,7 @@ getSisterSisterEdgeList inGraph =
       else sisterSisterEdges
       where sameParents (_, (b, c)) = if b == c then True else False
             makeChildParentEdges ((a1,a2), (b, _)) = [(head b,a1), (last b,a1), (head b,a2), (last b,a2)]
+-}
 
 
 -- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair

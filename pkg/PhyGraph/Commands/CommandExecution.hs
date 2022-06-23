@@ -659,9 +659,10 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
             else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
                 let inputDisplayVVList = fmap fth6 curGraphs
+                    costList = fmap snd6 curGraphs
                     treeIndexStringList = fmap ((++ "\n") . ("Canonical Tree " ++)) (fmap show [0..(length inputDisplayVVList - 1)])
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
-                    blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList (outgroupIndex globalSettings)) canonicalGraphPairList)
+                    blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
                     -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs || (graphType globalSettings) /= SoftWired then 
@@ -824,54 +825,57 @@ requireReoptimization gsOld gsNew =
     else False
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
-outputBlockTrees :: [String] -> Int -> (String , V.Vector [DecoratedGraph]) -> String
-outputBlockTrees commandList lOutgroupIndex (labelString, graphLV) =
+outputBlockTrees :: [String] -> [VertexCost] -> Int -> (String , V.Vector [DecoratedGraph]) -> String
+outputBlockTrees commandList costList lOutgroupIndex (labelString, graphLV) =
     let blockIndexStringList = fmap ((++ "\n") . ("Block " ++)) (fmap show [0..((V.length graphLV) - 1)])
-        blockStrings = concatMap (++ "\n") (fmap (makeBlockGraphStrings commandList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV))
+        blockStrings = concatMap (++ "\n") (fmap (makeBlockGraphStrings commandList costList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV))
     in
     labelString ++ blockStrings
 
 -- | makeBlockGraphStrings makes individual block display trees--potentially multiple
-makeBlockGraphStrings :: [String] -> Int -> (String ,[DecoratedGraph]) -> String
-makeBlockGraphStrings commandList lOutgroupIndex (labelString, graphL) =
+makeBlockGraphStrings :: [String] -> [VertexCost] -> Int -> (String ,[DecoratedGraph]) -> String
+makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) =
     let diplayIndexString =("Display Tree(s): " ++ show (length graphL) ++ "\n")
-        displayString = (++ "\n") $ outputDisplayString commandList lOutgroupIndex graphL
+        displayString = (++ "\n") $ outputDisplayString commandList costList lOutgroupIndex graphL
     in
     labelString ++ diplayIndexString ++ displayString
 
 -- | outputDisplayString is a wrapper around graph output functions--but without cost list
-outputDisplayString :: [String] -> Int -> [DecoratedGraph] -> String
-outputDisplayString commandList lOutgroupIndex graphList
-  | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+outputDisplayString :: [String] -> [VertexCost] -> Int -> [DecoratedGraph] -> String
+outputDisplayString commandList costList lOutgroupIndex graphList
+  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
-    makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+    makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | outputGraphString is a wrapper around graph output functions
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
-  | "dot" `elem` commandList = makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
-    makeDotList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+    makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | outputGraphStringSimple is a wrapper around graph output functions
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
-  | "dot" `elem` commandList = makeDotList lOutgroupIndex graphList
+  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex graphList
   | "newick" `elem` commandList = GO.makeNewickList True True lOutgroupIndex graphList costList 
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
-    makeDotList lOutgroupIndex graphList
+    makeDotList costList lOutgroupIndex graphList
 
 
 -- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
-makeDotList :: Int -> [SimpleGraph] -> String
-makeDotList rootIndex graphList =
-     L.intercalate "\n" (fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList)
+makeDotList :: [VertexCost] -> Int -> [SimpleGraph] -> String
+makeDotList costList rootIndex graphList =
+    let graphStringList = fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList
+        costStringList = fmap ("\n//" ++) $ fmap show costList
+    in
+    L.intercalate "\n" (zipWith (++) graphStringList costStringList)
 
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [SimpleGraph] -> String
