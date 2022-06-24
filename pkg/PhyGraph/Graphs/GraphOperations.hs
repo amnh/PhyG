@@ -127,7 +127,7 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         noTailGraph = LG.contractRootOut1Edge inGraph
 
         -- remove indeg 1 out deg 1 edges
-        noIn1Out1Graph = LG.contractIn1Out1Edges noTailGraph
+        noIn1Out1Graph = contractIn1Out1EdgesRename noTailGraph
 
         -- transitive reduction
         -- only wanted to EUN and CUN--but they do it
@@ -149,7 +149,9 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
     -- cycle check to make sure
     if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
-    else noSisterSisterGraph
+
+    -- this final need to ladderize or recontract?
+    else  noSisterSisterGraph
 
 -- | parentsInChain checks for parents in chain ie network edges
 -- that implies a network event between nodes where one is the ancestor of the other
@@ -559,12 +561,12 @@ ladderizeGraph' inGraph nodeList
   | null nodeList = inGraph
   | otherwise =
   let -- these are roots, network, tree, leaf nodes
-      okNodeDegrees = [(0,1),(0,2),(1,2),(2,1),(1,0)]
+      okNodeDegrees = [(0,2),(1,2),(2,1),(1,0)]
       firstNode = head nodeList
       (inEdgeList, outEdgeList) = LG.getInOutEdges inGraph firstNode
       inOutPairLength = (length inEdgeList, length outEdgeList)
   in
-  --trace ("node " ++ (show firstNode) ++ " " ++ (show inOutPair)) (
+  -- trace ("node " ++ (show firstNode) ++ " " ++ (show inOutPairLength)) (
   -- node ok to keep
   if inOutPairLength `elem` okNodeDegrees then ladderizeGraph' inGraph (tail nodeList)
   -- node edges need modification
@@ -572,7 +574,7 @@ ladderizeGraph' inGraph nodeList
     let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
     in
     ladderizeGraph' newGraph (LG.nodes newGraph)
-
+    -- )
 
 -- | resolveNode takes a graph and node and inbound edgelist and outbound edge list
 -- and converts node to one of (indeg, outdeg) (0,1),(0,2),(1,2),(2,1),(1,0)

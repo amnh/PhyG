@@ -209,7 +209,7 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
     --else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
     --    error ("Root first :" ++ (show $ fmap fst oldNodeList) ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
         --reOptimizeNodes localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
-
+    else if length nodeChildren > 2 then error ("Node has >2 children: " ++ (show nodeChildren))
     else
     
         -- trace ("RON: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren)) (
@@ -478,7 +478,9 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                 in
                 (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
 
-
+            -- check for error condition
+            else if length nodeChildren > 2 then error ("Node has >2 children: " ++ (show nodeChildren))
+    
             -- 2 children
             else
                 -- trace ("Outdegree 2: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Children: " ++ (show nodeChildren)) (
