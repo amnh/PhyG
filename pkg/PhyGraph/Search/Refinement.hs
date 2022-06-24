@@ -268,7 +268,7 @@ getFuseGraphParams inArgs =
         --check arguments
         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
         else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
-        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in swap: "  ++ show (head pairList))
+        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in fuse: "  ++ show (head pairList))
 
         else
             (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
