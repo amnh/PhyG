@@ -63,7 +63,7 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
@@ -157,6 +157,56 @@ removeDuplicateEdges inGraph =
         if null dupEdges then inGraph
         else delEdges dupEdges inGraph
         
+-- | hasChainedNetworkNodes checks if a graph has network nodes with at least one parent that is also a network node
+hasChainedNetworkNodes :: Gr a b -> Bool
+hasChainedNetworkNodes inGraph = 
+    if isEmpty inGraph then False
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            chainedNodeList = filter (== True) $ fmap (hasNetParent inGraph) $ fmap fst netVertexList
+        in
+        if null netVertexList then False
+        else (not . null) chainedNodeList
+
+-- | hasNetParent checks parent of node and retuens True if one or both are network nodes
+hasNetParent :: Gr a b -> Node -> Bool
+hasNetParent inGraph inNode =
+    let parentList = parents inGraph inNode
+        parentNetList = filter (== True) $ fmap (isNetworkNode inGraph) parentList
+    in
+    (not . null) parentNetList
+
+-- | removeChainedNetworkNodes detectes and fixes (if possible) chained networtk edges
+-- if 1 parent of network edge is tree node can be fixed by delete and contracting that node/edge 
+-- else if both parent are netowrks--cannot be fixed and errors out
+-- doens NOT rename nodes since need vertex info on that--but are reindexed
+removeChainedNetworkNodes :: (Show a, Show b) => Gr a b -> Gr a b 
+removeChainedNetworkNodes inGraph = 
+    if isEmpty inGraph then inGraph
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            parentNetNodeList = fmap (hasNetParent inGraph) $ fmap fst netVertexList
+            chainedNodeList =  fmap fst $ filter ((== True) . snd) $ zip netVertexList parentNetNodeList
+            fixableChainedEdgeList = concatMap (getTreeEdgeParent inGraph) (fmap fst chainedNodeList)
+            newGraph = delEdges fixableChainedEdgeList inGraph
+            newGraph' = reindexGraph $ contractIn1Out1Edges $ newGraph
+        in
+        if null netVertexList then inGraph
+        else if null chainedNodeList then inGraph
+        else if null fixableChainedEdgeList then error ("Error: Unfixable chained network nodes (both parent and child nodes are indegree > 1)")
+        else 
+            trace ("Warning: Chained network nodes (both parent and child nodes are indegree > 1), removing edges to tree node parents: " ++ (show fixableChainedEdgeList))--  ++ "\n" ++ (prettyIndices inGraph))
+            newGraph'
+
+-- | getTreeEdgeParent gets the tree edge (as list) into a network node as opposed to the edge from a network parent
+-- if both parents are netowrk nodes then returns []
+getTreeEdgeParent :: Gr a b -> Node -> [Edge]
+getTreeEdgeParent inGraph inNode =
+    let parentList = parents inGraph inNode
+        parentTreeList = fmap fst $ filter ((== False) . snd) $ zip parentList (fmap (isNetworkNode inGraph) parentList)
+    in
+    if null parentTreeList then []
+    else [(head parentTreeList, inNode)]
 
 -- Wrapper functions for fgl so could swap out later if want to
 
@@ -1000,6 +1050,7 @@ testEdge fullGraph candidateEdge@(e,u,_) =
 -- | transitiveReduceGraph take list of nodes and edges, deletes each edge (e,u) in turn makes graph,
 -- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
 -- transitive reduction  Aho et al. 1972
+-- this not iterative with new graphs--shold it be?
 transitiveReduceGraph ::  (Eq b) => Gr a b -> Gr a b
 transitiveReduceGraph fullGraph =
   let requiredEdges = fmap (testEdge fullGraph) (labEdges fullGraph)
@@ -1073,4 +1124,3 @@ notMatchEdgeIndices :: [Edge] -> LEdge b -> Bool
 notMatchEdgeIndices unlabeledEdegList labelledEdge =
     if toEdge labelledEdge `elem` unlabeledEdegList then False
     else True
-

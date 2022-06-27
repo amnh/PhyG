@@ -965,7 +965,7 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
       if length childrenNodeToDelete /= 1 then error ("Cannot delete non-network edge in deleteNetworkEdge: (1)" ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
       else if length parentsNodeToDelete /= 2 then error ("Cannot delete non-network edge in deleteNetworkEdge (2): " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
 
-      -- error if chained on input, skip if chained net edges in output
+      -- warning if chained on input, skip if chained net edges in output
       else if (LG.isNetworkNode inGraph p1) then 
          -- error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph) ++ " skipping") 
          trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion") 

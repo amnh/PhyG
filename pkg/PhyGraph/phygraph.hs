@@ -57,6 +57,7 @@ import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.Time                    as DT
 import qualified Data.CSV                     as CSV
+import qualified Utilities.LocalGraph        as LG
 import           Debug.Trace
 
 -- | main driver
@@ -158,7 +159,8 @@ main = do
     else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
-    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphs
+    -- chained netowrk nodes should never be introduced later so only checked no
+    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph $ fmap LG.removeChainedNetworkNodes reconciledGraphs
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)

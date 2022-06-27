@@ -119,6 +119,7 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 --        those that violate the most  before/after splits of network edges
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
+-- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
 convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
 convertGeneralGraphToPhylogeneticGraph inGraph =
   if LG.isEmpty inGraph then LG.empty
@@ -131,19 +132,19 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
 
         -- transitive reduction
         -- only wanted to EUN and CUN--but they do it
-        -- reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
+        reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
 
         -- laderization of indegree and outdegree edges
-        ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
+        ladderGraph = ladderizeGraph reducedGraph -- noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
-        noParentChainGraph = removeParentsInChain timeConsistentGraph
+        -- noParentChainGraph = removeParentsInChain timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges noParentChainGraph
+        noSisterSisterGraph = removeSisterSisterEdges timeConsistentGraph -- noParentChainGraph
 
     in
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
