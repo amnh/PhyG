@@ -165,10 +165,11 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
-          -- ladderize, time consistent-ized
+          -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
           noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
-          reconciledGraph = GO.contractIn1Out1EdgesRename $ fromJust noChainedGraph
+          noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
+          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
 
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph

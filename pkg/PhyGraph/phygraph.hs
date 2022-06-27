@@ -161,8 +161,10 @@ main = do
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained netowrk nodes should never be introduced later so only checked no
+    -- checks for children of tree node that are all netowork nodee (causes displayu problem)
     let noChainNetNodesList = fmap fromJust $ filter (/=Nothing) $ fmap LG.removeChainedNetworkNodes reconciledGraphs
-    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph noChainNetNodesList
+    let noSisterNetworkNodes = fmap LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noChainNetNodesList
+    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph noSisterNetworkNodes
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)

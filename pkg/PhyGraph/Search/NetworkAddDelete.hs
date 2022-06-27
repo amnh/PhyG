@@ -435,6 +435,10 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
    else
        let inSimple = fst6 inPhyloGraph
+
+           -- get children of u' to make sure no net children
+           u'ChildrenNetNodes = filter (== True) $ fmap (LG.isNetworkNode inSimple) $ LG.descendants inSimple u'
+           
            numNodes = length $ LG.nodes inSimple
            newNodeOne = (numNodes, TL.pack ("HTU" ++ (show numNodes)))
            newNodeTwo = (numNodes + 1, TL.pack ("HTU" ++ (show $ numNodes + 1)))
@@ -475,8 +479,13 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
       -}
        --if LG.hasChainedNetworkNodes newSimple' then
        --  trace ("Network edge insertion--chained edge") inPhyloGraph
+
+       -- check if new graph has node with 2 netowrk edge descendents
+       if (not . null) u'ChildrenNetNodes then 
+         trace ("\t\t*Making sister network nodes")
+         emptyPhylogeneticGraph
        
-       if (graphType inGS) == HardWired then newPhyloGraph
+       else if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here
@@ -948,6 +957,8 @@ deleteEachNetEdge inGS inData leafGraph rSeed numToKeep doSteepest doRandomOrder
 -- contacts node c since  now in1out1 vertex
 -- checks for chained network edges--can be created by progressive deletion
 -- checks for cycles now
+-- shouldn't need for check for creting a node with children that are both network nodes
+-- sine that woudl require that condition coming in and shodl be there--ie checked earlier in addition and input
 deleteNetworkEdge :: LG.Edge -> SimpleGraph -> (SimpleGraph, Bool)
 deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
    if LG.isEmpty inGraph then error ("Cannot delete edge from empty graph")

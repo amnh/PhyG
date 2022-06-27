@@ -156,6 +156,40 @@ removeDuplicateEdges inGraph =
         in
         if null dupEdges then inGraph
         else delEdges dupEdges inGraph
+
+-- | hasTreeNodeWithAllNetworkChildren checks treenodes for all (should be 2) children that
+-- are netork nodes
+hasTreeNodeWithAllNetworkChildren :: Gr a b -> (Bool, [Node])
+hasTreeNodeWithAllNetworkChildren inGraph =
+    if isEmpty inGraph then (False, [])
+    else 
+        let (_, _, treeNodeList, _) = splitVertexList inGraph
+            hasAllNetChildrenList = fmap (hasAllNetChildren inGraph) (fmap fst treeNodeList)
+            nodesWithAllNetChildren = fmap (fst . fst) $ filter ((== True) .snd) $ zip treeNodeList hasAllNetChildrenList
+        in
+        ((not . null) nodesWithAllNetChildren, nodesWithAllNetChildren)
+
+-- | hasAllNetChildren checks whether all (usually 2) childrenb ofa vertex are network nodes
+hasAllNetChildren :: Gr a b -> Node -> Bool
+hasAllNetChildren inGraph inNode =
+    let children = descendants inGraph inNode
+        childVertNodes = filter (== True) $ fmap (isNetworkNode inGraph) children
+    in
+    length children == length childVertNodes
+
+-- | removeTreeEdgeFromTreeNodeWithAllNetworkChildren takes a greaph and removes the first edge (head) 
+-- from each tree node with all netowork children, tehn contracts those edges and nodes, 
+-- then reindexes -- but doesn not rename graph nodes
+removeTreeEdgeFromTreeNodeWithAllNetworkChildren :: Gr a b -> Gr a b
+removeTreeEdgeFromTreeNodeWithAllNetworkChildren inGraph = 
+    let (toDo, nodesWithEdgesToDelete) = hasTreeNodeWithAllNetworkChildren inGraph
+        outEdgesToDeleteList = fmap toEdge $ fmap head $ fmap (out inGraph) nodesWithEdgesToDelete
+        newGraph = delEdges outEdgesToDeleteList inGraph
+        newGraph' = reindexGraph $ contractIn1Out1Edges newGraph
+    in
+    if not toDo then inGraph
+    else newGraph'
+
         
 -- | hasChainedNetworkNodes checks if a graph has network nodes with at least one parent that is also a network node
 hasChainedNetworkNodes :: Gr a b -> Bool
@@ -189,7 +223,7 @@ removeChainedNetworkNodes inGraph =
             chainedNodeList =  fmap fst $ filter ((== True) . snd) $ zip netVertexList parentNetNodeList
             fixableChainedEdgeList = concatMap (getTreeEdgeParent inGraph) (fmap fst chainedNodeList)
             newGraph = delEdges fixableChainedEdgeList inGraph
-            newGraph' = reindexGraph $ contractIn1Out1Edges $ newGraph
+            newGraph' = reindexGraph $ contractIn1Out1Edges newGraph
         in
         if null netVertexList then Just inGraph
         else if null chainedNodeList then Just inGraph
