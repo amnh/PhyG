@@ -166,18 +166,26 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
           -- ladderize, time consistent-ized
-          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
+          reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
+          noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
+          reconciledGraph = GO.contractIn1Out1EdgesRename $ fromJust noChainedGraph
+
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
                            else GO.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
           displayGraphs = fmap GO.convertGeneralGraphToPhylogeneticGraph displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
-      if returnGraph && not returnTrees then [reconciledGraph]
+      if returnGraph && not returnTrees then 
+        if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
+        else [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         reconciledGraph : displayGraphs
+         if isNothing noChainedGraph then 
+            trace ("Reconciled Graph generated chained network nodes that cannot be resolved. ONly retunring display trees")
+            displayGraphs
+         else reconciledGraph : displayGraphs
      -- )
 
 

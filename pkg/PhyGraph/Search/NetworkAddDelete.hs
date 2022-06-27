@@ -473,6 +473,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
          trace ("\t\t*Insert cyclic")
          emptyPhylogeneticGraph
       -}
+       --if LG.hasChainedNetworkNodes newSimple' then
+       --  trace ("Network edge insertion--chained edge") inPhyloGraph
        
        if (graphType inGS) == HardWired then newPhyloGraph
 
@@ -916,6 +918,7 @@ deleteEachNetEdge inGS inData leafGraph rSeed numToKeep doSteepest doRandomOrder
       in
       -- no network edges to delete
       if null networkEdgeList then trace ("\tNo network edges to delete") ([inPhyloGraph], currentCost)
+
       else
          -- single if steepest so no neeed to unique
          if doSteepest then (newGraphList, minCost)
@@ -970,7 +973,11 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
          -- error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph) ++ " skipping") 
          trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion") 
          (LG.empty, False)
-      
+
+      else if LG.hasChainedNetworkNodes newGraph'' then
+         trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)") 
+         (LG.empty, False)
+
       {-
       -- test for chaining of network edges --ladderize
       else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 

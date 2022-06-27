@@ -59,6 +59,7 @@ import qualified Data.Time                    as DT
 import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
 import           Debug.Trace
+import           Data.Maybe
 
 -- | main driver
 main :: IO ()
@@ -160,7 +161,8 @@ main = do
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained netowrk nodes should never be introduced later so only checked no
-    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph $ fmap LG.removeChainedNetworkNodes reconciledGraphs
+    let noChainNetNodesList = fmap fromJust $ filter (/=Nothing) $ fmap LG.removeChainedNetworkNodes reconciledGraphs
+    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph noChainNetNodesList
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
