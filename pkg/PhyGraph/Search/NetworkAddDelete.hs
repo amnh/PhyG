@@ -436,8 +436,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
    else
        let inSimple = fst6 inPhyloGraph
 
-           -- get children of u' to make sure no net children
-           u'ChildrenNetNodes = filter (== True) $ fmap (LG.isNetworkNode inSimple) $ LG.descendants inSimple u'
+           -- get children of u' to make sure no net children--moved to permissiable edges
+           --u'ChildrenNetNodes = filter (== True) $ fmap (LG.isNetworkNode inSimple) $ LG.descendants inSimple u'
            
            numNodes = length $ LG.nodes inSimple
            newNodeOne = (numNodes, TL.pack ("HTU" ++ (show numNodes)))
@@ -481,11 +481,14 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
        --  trace ("Network edge insertion--chained edge") inPhyloGraph
 
        -- check if new graph has node with 2 netowrk edge descendents
+         -- moved to permissible edhges
+       {-
        if (not . null) u'ChildrenNetNodes then 
          trace ("\t\t*Making sister network nodes")
          emptyPhylogeneticGraph
-       
-       else if (graphType inGS) == HardWired then newPhyloGraph
+       -}
+
+       if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here
@@ -728,6 +731,11 @@ deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRan
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
 -- of edges that can be joined by a network edge and meet all necessary conditions
+
+-- add in other conditions
+--   reproducable--ie not tree noide with two net node children--other stuff
+
+
 getPermissibleEdgePairs :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
 getPermissibleEdgePairs inGraph =
    if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
@@ -762,6 +770,8 @@ isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
        else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
        else if not (LG.meetsAllCoevalConstraints constraintList edge1 edge2) then False
        else if (isAncDescEdge inGraph edge1 edge2) then False
+       -- get children of u' to make sure no net children
+       else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
        else True
 
 
