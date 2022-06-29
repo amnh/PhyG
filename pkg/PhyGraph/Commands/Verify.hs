@@ -81,11 +81,11 @@ fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", 
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
-geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga"]
+geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga", "maxnetedges"]
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges"]
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]

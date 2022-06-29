@@ -678,5 +678,21 @@ preOrderTreeTraversal
 
 386) generalize new reroot code to trees as well
 
-387) Check swap tree versus softwired
-	Tree finds things softWired does not
+388) Idenitify cause ofdu edges
+	-- bad edge insert?
+	-- error in resolution cache?
+	-- bad resolution of display graph
+	
+389) Remove duplicate /cclic checking outside of creation of disolay trees and charcaters trees
+
+390) Converte to phylogenetic graph
+	check each net node and make sure child is not net node
+
+391) Net "move" not doing enyhting--not sure if bad graph state yeielding infiniites (probabaly) or 
+	not finding anyhting better via that mechanism
+
+392) Clean up old reroot code--migrate hardwired?
+
+393) add conditions for available netowrk add stuff 
+	like check for phylogenetic graph
+
