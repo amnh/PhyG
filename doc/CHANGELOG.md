@@ -11,6 +11,7 @@ The changelog is available [on GitHub][2].
 
   * Major codebase layout rearchitecting
   * Added continuous integration via GitHub Actions
+  * Added integration test-suite
 
 
 ## 0.1.0
