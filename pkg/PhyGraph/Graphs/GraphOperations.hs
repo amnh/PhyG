@@ -394,7 +394,7 @@ getEdgesToRemoveForTime inGraph inNodePairList =
     -- )
      
 
-
+{-
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
 -- for swapping etc
@@ -434,6 +434,7 @@ makeGraphTimeConsistent' inGraph =
     )
     where makeSimple (a,b,c) = (fst a, fmap LG.toEdge b, fmap LG.toEdge c)
 
+
 -- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
 -- if u is in the before list and v in the after list of a pir--then there is a time violation
 -- recursively counts and retunns the number of violations
@@ -469,6 +470,7 @@ numberTimeViolations inTripleList counter inEdge@(u,v,_) =
     -- does not violate pair
     -- else numberTimeViolations (tail inTripleList) counter inEdge
     -- )
+-}
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
