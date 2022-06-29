@@ -748,6 +748,20 @@ indexMatchNode :: LNode a -> LNode a -> Bool
 indexMatchNode (a, _) (b, _) = if a == b then True else False
 
 
+-- | coevalNodePairs generatres a list of pairs of nodes that must be potentially equal in
+-- age (ie parents of networkNode)
+coevalNodePairs :: (Eq a) => Gr a b -> [(LNode a, LNode a)]
+coevalNodePairs inGraph =
+    if G.isEmpty inGraph then []
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            pairListList = fmap (labParents inGraph) $ fmap fst netVertexList
+        in
+        fmap makePairs pairListList
+    where makePairs a = if length a /= 2 then error ("Not two parents for coevalNodePairs")
+                        else (head a, a !! 1)
+        
+
 -- | indexMatchEdge returns True if two labelled edges have same node indices
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
 indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
