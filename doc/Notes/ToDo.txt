@@ -692,3 +692,7 @@ preOrderTreeTraversal
 	not finding anyhting better via that mechanism
 
 392) Clean up old reroot code--migrate hardwired?
+
+393) add conditions for available netowrk add stuff 
+	like check for phylogenetic graph
+

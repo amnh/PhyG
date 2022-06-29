@@ -119,6 +119,7 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 --        those that violate the most  before/after splits of network edges
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
+-- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
 convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
 convertGeneralGraphToPhylogeneticGraph inGraph =
   if LG.isEmpty inGraph then LG.empty
@@ -140,6 +141,7 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         timeConsistentGraph = makeGraphTimeConsistent ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
+        -- but that looks at all nods not just vertex
         noParentChainGraph = removeParentsInChain timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
