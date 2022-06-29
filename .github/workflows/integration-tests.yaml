@@ -42,7 +42,7 @@ jobs:
     name: 'Test: Integration'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
 
     steps:
       - name: 'Clone Project'
