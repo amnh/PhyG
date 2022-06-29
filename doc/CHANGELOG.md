@@ -10,6 +10,7 @@ The changelog is available [on GitHub][2].
 ## Unreleased
 
   * Major codebase layout rearchitecting
+  * Added continuous integration via GitHub Actions
 
 
 ## 0.1.0
