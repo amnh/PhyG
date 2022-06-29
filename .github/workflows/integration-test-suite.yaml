@@ -19,7 +19,7 @@ on:
   # Build every pull request, to check for regressions.
   pull_request:
 
-  # Build when a PR is merged, to update the README's CI badge.
+  # Build on branch updates
   push:
     branches: [ github-ci, integration-test-development, main ]
 
