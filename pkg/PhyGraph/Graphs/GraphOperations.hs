@@ -315,6 +315,90 @@ mergeConcurrentNodeLists inListList currentListList =
     --   " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
     mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
 
+-- | makeGraphTimeConsistent takes laderized, transitive reduced graph and deletes
+-- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
+-- for swapping etc
+-- looks for violation of time between netork edges based on "before" and "after"
+-- tests of nodes that should be potentially same age
+-- removes second edge of second pair of two network edges in each case adn remakes graph
+makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent inGraph =
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let coevalNodeConstraintList = LG.coevalNodePairs inGraph
+        coevalNodeConstraintList' = fmap (addBeforeAfterToPair inGraph) coevalNodeConstraintList
+        coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
+        timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
+        newGraph = LG.delEdges timeOffendingEdgeList inGraph
+    in
+    -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
+    contractIn1Out1EdgesRename newGraph
+
+-- | addBeforeAfterToPair adds before and after node list to pari of nodes for later use
+-- in time contraint edge removal
+addBeforeAfterToPair :: (Show a,Eq a,Eq b) 
+                            => LG.Gr a b 
+                            -> (LG.LNode a, LG.LNode a) 
+                            -> (LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])
+addBeforeAfterToPair inGraph (a,b) = 
+  if LG.isEmpty inGraph then error "Empty graph in addBeforeAfterToPair"
+  else
+      let  (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
+           (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
+           (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
+           (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
+      in
+      (a,b, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter)
+
+
+-- | getEdgesToRemoveForTime recursive looks at each pair of nodes that should
+-- be potentially coeval based on network vertices. And see if it conflicts with
+-- other pairs that shoudl also be coeval.  
+-- two pairs of nodes (a,b) and (a',b'), one for each net node tio be compared
+-- if a "before" a'  then b must be before b'
+-- if a "after" a' then b must be after b'
+-- otherwise its a time violation
+-- returns net edge to delte in second pair
+getEdgesToRemoveForTime :: (Show a,Eq a,Eq b) 
+                        => LG.Gr a b 
+                        -> [((LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]),(LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]))] 
+                        -> [LG.Edge]
+getEdgesToRemoveForTime inGraph inNodePairList =
+  if LG.isEmpty inGraph then []
+  else if null inNodePairList then []
+  else
+    let ((_,_, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter),(a',b', _, _,_,_)) = head inNodePairList
+
+        {-
+        (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
+        -- (a'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a']
+        (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
+        -- (b'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b']
+
+        (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
+        -- (a'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a']
+        (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
+        -- (b'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b']
+        -}
+
+    in
+    -- trace ("GETRT: " ++ (show inNodePairList)) (
+    -- condition if a before a' then b before b' to be ok
+    if (a' `elem` aNodesAfter) && (b' `elem` bNodesBefore) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in
+      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (a' `elem` aNodesBefore) && (b' `elem` bNodesAfter) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in 
+      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    -- )
+     
+
+
 {-
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
 -- a form of time violation
@@ -334,67 +418,7 @@ checkParentsChain inGraph netNode parentNodeList =
     else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
     else []
     -- )
--}
 
--- | makeGraphTimeConsistent takes laderized, transitive reduced graph and deletes
--- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
--- for swapping etc
--- looks for violation of time between netork edges based on "before" and "after"
--- tests of nodes that should be potentially same age
--- removes second edge of second pair of two network edges in each case adn remakes graph
-makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
-makeGraphTimeConsistent inGraph =
-  if LG.isEmpty inGraph then LG.empty
-  else
-    let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-        coevalPairsToCompareList = getListPairs coevalNodeConstraintList
-        timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
-        newGraph = LG.delEdges timeOffendingEdgeList inGraph
-    in
-    -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
-    contractIn1Out1EdgesRename newGraph
-
--- | getEdgesToRemoveForTime recursiove looks at each pair of nodes that should
--- be potentially coeval based on network vertices (a,b) and (a',b')
--- if a "before" a'  then b must be before b'
--- if a "after" a' then b must be after b'
--- otherwise its a time violation
--- returns net edge to delte in second pair
-getEdgesToRemoveForTime :: (Show a,Eq a,Eq b) => LG.Gr a b -> [((LG.LNode a, LG.LNode a), (LG.LNode a, LG.LNode a))] -> [LG.Edge]
-getEdgesToRemoveForTime inGraph inNodePairList =
-  if LG.isEmpty inGraph then []
-  else if null inNodePairList then []
-  else
-    let ((a,b),(a',b')) = head inNodePairList
-
-        (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
-        -- (a'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a']
-        (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
-        -- (b'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b']
-
-        (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
-        -- (a'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a']
-        (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
-        -- (b'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b']
-
-    in
-    -- trace ("GETRT: " ++ (show inNodePairList)) (
-    -- condition if a before a' then b before b' to be ok
-    if (a' `elem` aNodesAfter) && (b' `elem` bNodesBefore) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in
-      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else if (a' `elem` aNodesBefore) && (b' `elem` bNodesAfter) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in 
-      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    -- )
-     
-
-{-
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
 -- for swapping etc

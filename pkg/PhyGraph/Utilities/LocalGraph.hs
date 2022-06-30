@@ -757,7 +757,8 @@ coevalNodePairs inGraph =
         let (_, _, _, netVertexList) = splitVertexList inGraph
             pairListList = fmap (labParents inGraph) $ fmap fst netVertexList
         in
-        fmap makePairs pairListList
+        if null netVertexList then []
+        else fmap makePairs pairListList
     where makePairs a = if length a /= 2 then error ("Not two parents for coevalNodePairs")
                         else (head a, a !! 1)
         
