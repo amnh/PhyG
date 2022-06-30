@@ -839,7 +839,18 @@ insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGr
 insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 -}
 
--- | heuristic add delta' based on new display tree and delta from exiusting costs by block--summing < 0
+-- | heuristic add delta' based on new display tree and delta from exiusting costs by block--assumming < 0
+-- original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from 
+-- subtree 1 to subtree 2 via 
+-- 1) Add node x and y, delete edges (u,v) amnd (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
+-- 2) real cost is the sum of block costs that are lower for new graph versus older  
+-- 3) heuristic is when new subtree is lower than existing block by block
+--    so calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
+--    d((union u,v), v') - d(u'.v') [New display tree cost estimate] over blocks
+--    so blockDelta = if d((union u,v), v') - d(u'.v') < d(u,v) + d(u',v') then d((union u,v), v') - d(u'.v')
+--                     else 0 [existing better]
+--    graphDelta = egdeAddDelta + sum [blockDelta]
+--    Compare to real delta to check behavior
 heuristicAddDelta' :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> VertexCost
 heuristicAddDelta' inGS inPhyloGraph ((u,v, _), (u',v', _)) = 
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
