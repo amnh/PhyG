@@ -274,6 +274,10 @@ labEdges = G.labEdges
 toEdge :: LEdge b -> Edge
 toEdge = G.toEdge
 
+-- | toNode returns fst of LNode a
+toNode :: LNode a -> Node
+toNode inNode = fst inNode
+
 -- | toLEdge adds a label to an edge
 toLEdge :: Edge -> b -> LEdge b
 toLEdge = G.toLEdge
@@ -1146,20 +1150,46 @@ getGraphCoevalConstraintsNodes inGraph =
             let (edgeBeforeList, edgeAfterList) = unzip (fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS)
             in zip3 networkNodeList edgeBeforeList edgeAfterList
 
-
-
--- | meetsAllCoevalConstraints checks constraint pair list and examines
--- whether one edge is fomr before and one after--if so fails False
+-- | meetsAllCoevalConstraintsNodes checks constraint pair list and examines
+-- whether one edge is from before and one after--if so fails False
 -- else True if all pass
-meetsAllCoevalConstraints :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
-meetsAllCoevalConstraints constraintList edge1 edge2 =
+-- new edghe that woudl be creatated in edge1 -> edge2
+-- checks if starting and ending vertices of edges to be linked are on same side of each 
+-- coeval contraint
+meetsAllCoevalConstraintsNodes :: (Eq b) => [(Node, Node, [Node], [Node], [Node], [Node])] -> LEdge b -> LEdge b -> Bool
+meetsAllCoevalConstraintsNodes constraintList edge1@(u,v,_) edge2@(u',v',_) =
+   if null constraintList then True
+   else
+       let (_, _, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter) = head constraintList
+       in
+       --checks if edge nodes would stradle existing coeveal nodes
+       if (u `elem` aNodesAfter) && (u' `elem` bNodesBefore) then False
+       else if (u' `elem` aNodesAfter) && (u `elem` bNodesBefore) then False
+       else if (v `elem` aNodesAfter) && (v' `elem` bNodesBefore) then False
+       else if (v' `elem` aNodesAfter) && (v `elem` bNodesBefore) then False
+
+       else if (u `elem` aNodesBefore) && (u' `elem` bNodesAfter) then False
+       else if (u' `elem` aNodesBefore) && (u `elem` bNodesAfter) then False
+       else if (v `elem` aNodesBefore) && (v' `elem` bNodesAfter) then False
+       else if (v' `elem` aNodesBefore) && (v `elem` bNodesAfter) then False
+
+
+       else meetsAllCoevalConstraintsNodes (tail constraintList) edge1 edge2
+
+
+-- | meetsAllCoevalConstraintsEdges checks constraint pair list and examines
+-- whether one edge is from before and one after--if so fails False
+-- else True if all pass
+    -- not correct I don't htink
+meetsAllCoevalConstraintsEdges :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
+meetsAllCoevalConstraintsEdges constraintList edge1 edge2 =
    if null constraintList then True
    else
        let (beforeList, afterList) = head constraintList
        in
        if edge1 `elem` beforeList && edge2 `elem` afterList then False
        else if edge2 `elem` beforeList && edge1 `elem` afterList then False
-       else meetsAllCoevalConstraints (tail constraintList) edge1 edge2
+       else meetsAllCoevalConstraintsEdges (tail constraintList) edge1 edge2
 
 -- | insertDeleteEdges takes a  graphs and list of nodes and edges to add and delete and creates new graph
 insertDeleteEdges :: (Show a, Show b) => Gr a b -> ([LEdge b], [Edge]) ->  Gr a b

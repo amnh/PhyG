@@ -70,6 +70,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , parentInChain
                                , selectGraphStochastic
                                , makeNewickList
+                               , addBeforeAfterToPair
                                ) where
 
 import           Bio.DynamicCharacter
@@ -326,7 +327,7 @@ makeGraphTimeConsistent inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-        coevalNodeConstraintList' = fmap (addBeforeAfterToPair inGraph) coevalNodeConstraintList
+        coevalNodeConstraintList' = fmap (addBeforeAfterToPair inGraph) coevalNodeConstraintList `using`  PU.myParListChunkRDS
         coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
         timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
         newGraph = LG.delEdges timeOffendingEdgeList inGraph
@@ -368,19 +369,6 @@ getEdgesToRemoveForTime inGraph inNodePairList =
   else if null inNodePairList then []
   else
     let ((_,_, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter),(a',b', _, _,_,_)) = head inNodePairList
-
-        {-
-        (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
-        -- (a'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a']
-        (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
-        -- (b'NodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b']
-
-        (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
-        -- (a'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a']
-        (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
-        -- (b'NodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b']
-        -}
-
     in
     -- trace ("GETRT: " ++ (show inNodePairList)) (
     -- condition if a before a' then b before b' to be ok
@@ -396,8 +384,6 @@ getEdgesToRemoveForTime inGraph inNodePairList =
       edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
     else getEdgesToRemoveForTime inGraph (tail inNodePairList)
     -- )
-     
-
 
 {-
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
