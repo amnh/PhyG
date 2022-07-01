@@ -469,10 +469,10 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-           -- heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
+           heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
 
 
-           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
+           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
        in
 
@@ -481,9 +481,12 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
        else 
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         {-
          if True then 
-            -- trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
+            trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
             newPhyloGraph
+         -}
+         if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
          else emptyPhylogeneticGraph
 
        {-
@@ -874,17 +877,18 @@ getCharacterDelta (u,v,u',v') inCharTree charInfo =
        u'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u'
        v'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v'
        unionUV = M.union2Single doIA filterGaps uData vData charInfo
-       (_, dUV) =  M.median2Single doIA uData vData charInfo
-       (_, dU'V') = M.median2Single doIA u'Data v'Data charInfo
+       (_,dUV) =  M.median2Single doIA uData vData charInfo
+       dUV = vertexCost $ fromJust $ LG.lab inCharTree u
+       dU'V' = vertexCost $ fromJust $ LG.lab inCharTree u'
        (_, dUnionUVV') = M.median2Single doIA unionUV v'Data charInfo
 
        (newX, dVV') = M.median2Single doIA vData v'Data charInfo
        (_, dAX) = M.median2Single doIA vData newX charInfo
    in
-   trace ("GCD: " ++ (show (dUV,dUnionUVV', dU'V', dUnionUVV' - dU'V'))) (
+   -- trace ("GCD: " ++ (show (dUV,dUnionUVV', dU'V', dUnionUVV' - dU'V'))) (
    if dUnionUVV' - dU'V' < dU'V' then dUnionUVV' - dU'V'
    else 0.0
-   )
+   -- )
    
 
 
