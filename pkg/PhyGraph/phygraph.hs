@@ -96,7 +96,9 @@ main = do
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
-    let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
+
+    -- sort added to sort input read commands for left right consistancy
+    let thingsToDo = (L.sort $ concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
     -- check commands and options for basic correctness

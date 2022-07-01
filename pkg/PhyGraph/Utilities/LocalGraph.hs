@@ -69,7 +69,7 @@ import           Debug.Trace
 
 
 -- | Gr local graph definition using FGL
-type Gr a b = P.Gr a b
+type Gr a b = P.Gr a b 
 type Node = G.Node
 type LNode a = G.LNode a
 type DotGraph = GV.DotGraph
