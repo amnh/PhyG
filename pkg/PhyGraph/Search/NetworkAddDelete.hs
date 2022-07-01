@@ -469,35 +469,22 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-           heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
+           -- heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
 
 
-           edgeAddDelta = trace ("INE: Getting edgeAddEDelta") deltaPenaltyAdjustment inGS inPhyloGraph "add"
+           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
        in
-       
-       -- Check for cycles in  convertGeneralGraphToPhylogeneticGraph
-       {-
-       if LG.cyclic newSimple then
-         trace ("\t\t*Insert cyclic")
-         emptyPhylogeneticGraph
-      -}
-       --if LG.hasChainedNetworkNodes newSimple' then
-       --  trace ("Network edge insertion--chained edge") inPhyloGraph
-
-       -- check if new graph has node with 2 netowrk edge descendents
-         -- moved to permissible edhges
-       {-
-       if (not . null) u'ChildrenNetNodes then 
-         trace ("\t\t*Making sister network nodes")
-         emptyPhylogeneticGraph
-       -}
 
        if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here
-         newPhyloGraph
+         -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         if True then 
+            -- trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
+            newPhyloGraph
+         else emptyPhylogeneticGraph
 
        {-
        -- preDelete cost changes criterion for edge move
@@ -844,22 +831,62 @@ insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGr
 insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 -}
 
--- | heuristic add delta' based on new display tree and delta from exiusting costs by block--assumming < 0
+-- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
 -- original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from 
 -- subtree 1 to subtree 2 via 
--- 1) Add node x and y, delete edges (u,v) amnd (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
+-- 1) Add node x and y, delete edges (u,v) and (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
 -- 2) real cost is the sum of block costs that are lower for new graph versus older  
 -- 3) heuristic is when new subtree is lower than existing block by block
 --    so calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
 --    d((union u,v), v') - d(u'.v') [New display tree cost estimate] over blocks
 --    so blockDelta = if d((union u,v), v') - d(u'.v') < d(u,v) + d(u',v') then d((union u,v), v') - d(u'.v')
 --                     else 0 [existing better]
---    graphDelta = egdeAddDelta + sum [blockDelta]
+--    graphDelta = egdeAddDelta (separately calcualated) + sum [blockDelta]
 --    Compare to real delta to check behavior
 heuristicAddDelta' :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> VertexCost
 heuristicAddDelta' inGS inPhyloGraph ((u,v, _), (u',v', _)) = 
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
-  else 0.0
+  else 
+      let blockDeltaV = V.zipWith (getBlockDelta (u,v,u',v')) (fft6 inPhyloGraph) (six6 inPhyloGraph) 
+      in
+      V.sum blockDeltaV
+
+-- | getBlockDelta determines the network add delta for each block (vector of characters)
+-- if existing is lower then zero, else (existing - new)
+getBlockDelta :: (LG.Node, LG.Node, LG.Node, LG.Node) -> V.Vector DecoratedGraph -> V.Vector CharInfo -> VertexCost
+getBlockDelta (u,v,u',v') inCharV charInfoV =
+   if V.null inCharV then error "Empty charcter tree vector in getBlockDelta"
+   else
+      let charDeltaV = V.zipWith (getCharacterDelta (u,v,u',v')) inCharV charInfoV
+      in
+      V.sum charDeltaV
+
+-- | getCharacterDelta determines the network add delta for each block (vector of characters)
+-- if existing is lower then zero, else (existing - new)
+--  calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
+--  d((union u,v), v') - d(u'.v')
+getCharacterDelta :: (LG.Node, LG.Node, LG.Node, LG.Node) -> DecoratedGraph -> CharInfo -> VertexCost
+getCharacterDelta (u,v,u',v') inCharTree charInfo =
+   let doIA = False
+       filterGaps = True
+       uData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u
+       vData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v
+       u'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u'
+       v'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v'
+       unionUV = M.union2Single doIA filterGaps uData vData charInfo
+       (_, dUV) =  M.median2Single doIA uData vData charInfo
+       (_, dU'V') = M.median2Single doIA u'Data v'Data charInfo
+       (_, dUnionUVV') = M.median2Single doIA unionUV v'Data charInfo
+
+       (newX, dVV') = M.median2Single doIA vData v'Data charInfo
+       (_, dAX) = M.median2Single doIA vData newX charInfo
+   in
+   trace ("GCD: " ++ (show (dUV,dUnionUVV', dU'V', dUnionUVV' - dU'V'))) (
+   if dUnionUVV' - dU'V' < dU'V' then dUnionUVV' - dU'V'
+   else 0.0
+   )
+   
+
 
 
 -- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
@@ -903,19 +930,21 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
 
 
       in
+      trace ("HAD: " ++ (show (uCostAfter, uCostBefore, uPrimeCostAfter, uPrimeCostBefore) ++ " -> " ++ (show $ uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore))) (
       if null (filter ((/= v') . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u', uPrimeLab)) || null (filter ((/= v) . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u, uLab)) then (infinity, dummyNode, dummyNode, dummyNode, dummyNode)
       -- this should not happen--should try to crete new edges from children of net edges
       else if (length $ LG.descendants (thd6 inPhyloGraph) u) < 2 ||  (length $ LG.descendants (thd6 inPhyloGraph) u') < 2 then error ("Outdegree 1 nodes in heuristicAddDelta")
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
+      )
 
 
 
 -- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
--- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calcualtion of penalty
+-- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calculation of penalty
 -- if PMDLGraph -- KMDL not yet implemented
 -- if NoNetworkPenalty then 0
--- modification "add" or subrtaxct to calculate delta
+-- modification "add" or subtrct to calculate delta
 -- always delta is positive--whether neg or pos is deltermined when used
 deltaPenaltyAdjustment :: GlobalSettings -> PhylogeneticGraph -> String -> VertexCost
 deltaPenaltyAdjustment inGS inGraph modification =
