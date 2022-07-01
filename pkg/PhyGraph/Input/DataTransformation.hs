@@ -234,6 +234,7 @@ joinSortFileData inFileLists =
             -- should still be label invariant
             --firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
             firstLeaf = ST.toString $ ST.concat $ fmap head inFileLists
+            --firstLeaf = show $ L.sort $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
 
