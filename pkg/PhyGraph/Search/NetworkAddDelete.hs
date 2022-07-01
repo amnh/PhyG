@@ -457,7 +457,12 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            startVertex = Nothing
 
            -- conversion as if input--see if affects length
+               -- removed check after checks moved to permissible edges
+               -- can add back if there are malformed graphs being generated
            newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
+               -- permissibale not catching timeconsistency issues with edges
+           -- newSimple' = GO.makeGraphTimeConsistent newSimple
+
 
            -- full two-pass optimization
            newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
@@ -1038,6 +1043,7 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
 
           -- conversion as if input--see if affects length
           newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
+          -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)

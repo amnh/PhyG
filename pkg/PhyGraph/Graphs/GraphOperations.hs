@@ -71,6 +71,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , selectGraphStochastic
                                , makeNewickList
                                , addBeforeAfterToPair
+                               , makeGraphTimeConsistent
                                ) where
 
 import           Bio.DynamicCharacter
@@ -375,12 +376,26 @@ getEdgesToRemoveForTime inGraph inNodePairList =
     if (a' `elem` aNodesAfter) && (b' `elem` bNodesBefore) then 
       let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
       in
+      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
       -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
       edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
     else if (a' `elem` aNodesBefore) && (b' `elem` bNodesAfter) then 
       let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
       in 
       -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (b' `elem` aNodesAfter) && (a' `elem` bNodesBefore) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in
+      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
+      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (b' `elem` aNodesBefore) && (a' `elem` bNodesAfter) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in 
+      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
       edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
     else getEdgesToRemoveForTime inGraph (tail inNodePairList)
     -- )
