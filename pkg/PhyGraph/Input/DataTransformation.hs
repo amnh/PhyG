@@ -233,7 +233,7 @@ joinSortFileData inFileLists =
         let -- changed sort order (now by data file input, more or less) to reduce time complexity
             -- should still be label invariant
             --firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
-            firstLeaf = ST.toString $ ST.concat $ L.sort $ fmap head inFileLists
+            firstLeaf = ST.toString $ ST.concat $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
 
