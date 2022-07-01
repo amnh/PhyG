@@ -459,9 +459,9 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            -- conversion as if input--see if affects length
                -- removed check after checks moved to permissible edges
                -- can add back if there are malformed graphs being generated
-           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
+           -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
-           -- newSimple' = GO.makeGraphTimeConsistent newSimple
+           newSimple' = GO.makeGraphTimeConsistent newSimple
 
 
            -- full two-pass optimization
@@ -1042,8 +1042,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
-          -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
+          -- newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
+          newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
@@ -1059,24 +1059,7 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
       else if LG.hasChainedNetworkNodes newGraph'' then
          trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)") 
          (LG.empty, False)
-
-      {-
-      -- test for chaining of network edges --ladderize
-      else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 
-         -- trace ("New graph would have chained network nodes--skipping")
-         let laderizedNewGraph = GO.ladderizeGraph newGraph
-             laderizedNewGraph' = GO.contractIn1Out1EdgesRename laderizedNewGraph
-         in
-         (laderizedNewGraph', False)
-      -}
       
-      -- check for cycles in convertGeneralGraphToPhylogeneticGraph
-      {-
-      else if LG.cyclic newGraph then 
-         trace ("\t\t*Delete edge cyclic")
-         (LG.empty, False)
-      -}
-
       else 
          {-trace ("DNE: Edge to delete " ++ (show inEdge) ++ " cnd " ++ (show childrenNodeToDelete) ++ " pnd " ++ (show parentsNodeToDelete) ++ " pntk " ++ (show parentNodeToKeep) 
             ++ " ne " ++ (show newEdge) ++ "\nInGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph) ++ "\nNewNewGraph: " 
