@@ -173,7 +173,7 @@ main = do
     -}
 
     -- Create unique bitvector names for leaf taxa.
-    let leafBitVectorNames = DT.createBVNames $ L.sort reconciledData
+    let leafBitVectorNames = DT.createBVNames reconciledData
 
     {-
     Data processing here-- there are multiple steps not cvomposed so that
