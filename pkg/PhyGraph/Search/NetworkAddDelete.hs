@@ -486,7 +486,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
             trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
             newPhyloGraph
          -}
-         if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         if True then newPhyloGraph
          else emptyPhylogeneticGraph
 
        {-
