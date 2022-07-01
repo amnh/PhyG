@@ -68,7 +68,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 
 import           Data.Bits
-import qualified Data.Hashable               as H
+-- import qualified Data.Hashable               as H
 import qualified Data.Text.Short             as ST
 import           Data.Word
 import           Debug.Trace
@@ -230,7 +230,10 @@ joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
     if null (head inFileLists) then []
     else
-        let firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
+        let -- changed sort order (now by data file input, more or less) to reduce time complexity
+            -- should still be label invariant
+            -- firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
+            firstLeaf = ST.toString $ ST.concat $ L.sort $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
 
