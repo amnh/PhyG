@@ -463,7 +463,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
                -- can add back if there are malformed graphs being generated
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
-           newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
+           -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
+           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
 
 
            -- full two-pass optimization
@@ -1135,8 +1136,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          -- newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
-          newGraph'' = GO.contractIn1Out1EdgesRename newGraph
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
+          -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
