@@ -693,3 +693,8 @@ preOrderTreeTraversal
 393) add conditions for available netowrk add stuff 
 	like check for phylogenetic graph
 
+394) Fix net move
+
+395) Remove cycle check from convertGeneralGraphToPhylogeneticGraph when ok
+
+

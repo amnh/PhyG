@@ -122,8 +122,8 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
 -- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
-convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
-convertGeneralGraphToPhylogeneticGraph inGraph =
+convertGeneralGraphToPhylogeneticGraph :: String -> SimpleGraph -> SimpleGraph
+convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let -- remove single "tail" edge from root with single child, replace child node with root
@@ -140,19 +140,25 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
-        timeConsistentGraph = makeGraphTimeConsistent "correct" ladderGraph
+        timeConsistentGraph = makeGraphTimeConsistent failCorrect ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
         -- but that looks at all nods not just vertex
-        noParentChainGraph = removeParentsInChain timeConsistentGraph
+        noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges noParentChainGraph
+        noSisterSisterGraph = removeSisterSisterEdges failCorrect noParentChainGraph
 
     in
+    if LG.isEmpty timeConsistentGraph then LG.empty
+
+    else if LG.isEmpty noParentChainGraph then LG.empty
+
+    else if LG.isEmpty noSisterSisterGraph then LG.empty
+
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
-    -- cycle check to make sure
-    if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
+    -- cycle check to make sure--can be removed when things working
+    -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
 
     -- this final need to ladderize or recontract?
     else  noSisterSisterGraph
@@ -178,8 +184,8 @@ parentInChain inGraph =
     else True
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
-removeParentsInChain :: SimpleGraph -> SimpleGraph
-removeParentsInChain inGraph =
+removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
+removeParentsInChain failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
       let (_, _, _, netVertexList) = LG.splitVertexList inGraph
@@ -203,18 +209,19 @@ removeParentsInChain inGraph =
       if null violatingConcurrentPairs then inGraph
       else if null netNodeViolateList then error ("Should be neNode that violate")
       else if null netEdgesThatViolate then error "Should be violating in edges"
+      else if failCorrect == "fail" then LG.empty
       else
         let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
             newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
         in
         -- trace ("PIC")
-        removeParentsInChain newGraph
+        removeParentsInChain failCorrect newGraph
     where pairToList (a,b) = [fst a, fst b]
 
 -- | removeSisterSisterEdges takes a graph and recursively removes a single edge fomr where two network
 -- edges have the same two parents
-removeSisterSisterEdges :: SimpleGraph -> SimpleGraph
-removeSisterSisterEdges inGraph =
+removeSisterSisterEdges :: String -> SimpleGraph -> SimpleGraph
+removeSisterSisterEdges failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let sisterSisterEdges = getSisterSisterEdgeList inGraph
@@ -223,7 +230,8 @@ removeSisterSisterEdges inGraph =
         newGraph' = contractIn1Out1EdgesRename newGraph
     in
     if null sisterSisterEdges then inGraph
-    else
+    else if failCorrect == "fail" then LG.empty
+    else 
       -- trace ("Sister")
       -- removeSisterSisterEdges  
       newGraph'

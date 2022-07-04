@@ -464,7 +464,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
            -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
-           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
+           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
 
 
            -- full two-pass optimization
@@ -1136,7 +1136,7 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newGraph
           -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
@@ -1153,6 +1153,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
       else if LG.hasChainedNetworkNodes newGraph'' then
          trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)") 
          (LG.empty, False)
+
+      else if LG.isEmpty newGraph'' then (LG.empty, False)
       
       else 
          {-trace ("DNE: Edge to delete " ++ (show inEdge) ++ " cnd " ++ (show childrenNodeToDelete) ++ " pnd " ++ (show parentsNodeToDelete) ++ " pntk " ++ (show parentNodeToKeep) 
