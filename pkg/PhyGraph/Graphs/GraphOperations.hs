@@ -140,7 +140,7 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
-        timeConsistentGraph = makeGraphTimeConsistent ladderGraph
+        timeConsistentGraph = makeGraphTimeConsistent "correct" ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
         -- but that looks at all nods not just vertex
@@ -323,8 +323,8 @@ mergeConcurrentNodeLists inListList currentListList =
 -- looks for violation of time between netork edges based on "before" and "after"
 -- tests of nodes that should be potentially same age
 -- removes second edge of second pair of two network edges in each case adn remakes graph
-makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
-makeGraphTimeConsistent inGraph =
+makeGraphTimeConsistent :: String -> SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent failOut inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let coevalNodeConstraintList = LG.coevalNodePairs inGraph
@@ -334,7 +334,8 @@ makeGraphTimeConsistent inGraph =
         newGraph = LG.delEdges timeOffendingEdgeList inGraph
     in
     -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
-    contractIn1Out1EdgesRename newGraph
+    if (failOut == "fail") && ((not . null) timeOffendingEdgeList) then LG.empty
+    else contractIn1Out1EdgesRename newGraph
 
 -- | addBeforeAfterToPair adds before and after node list to pari of nodes for later use
 -- in time contraint edge removal

@@ -463,7 +463,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
                -- can add back if there are malformed graphs being generated
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
-           newSimple' = GO.makeGraphTimeConsistent newSimple
+           newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
 
 
            -- full two-pass optimization
@@ -490,7 +490,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
             newPhyloGraph
          -}
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         if True then newPhyloGraph
+         if LG.isEmpty newSimple' then emptyPhylogeneticGraph
+         else if True then newPhyloGraph
          else emptyPhylogeneticGraph
 
        {-
@@ -682,7 +683,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
           newBestGraphs = filter ((== newMinimumCost) . snd6) $ concat $ fmap fst insertedGraphPairList
 
       in
-      trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
+      -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
       if null simpleGraphsToInsert then [emptyPhylogeneticGraph]
 
       else if newMinimumCost < inGraphCost then
@@ -691,7 +692,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
 
       else [inPhyloGraph]
 
-     ) )
+     ) -- )
 
 
 -- | insertEachNetEdgeRecursive is a wrapper arounf insertEachNet each for edge move heuristic and reutnrs better graph when found immediately

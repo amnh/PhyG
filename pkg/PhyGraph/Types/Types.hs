@@ -372,6 +372,9 @@ data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo
                                      , displayCost      :: VertexCost -- cost of that display subtree
                                      } deriving stock (Show, Eq)
 
+instance NFData ResolutionData where rnf x = seq x ()
+
+
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing
                              , bvLabel      :: NameBV -- For comparison of vertices subtrees, left/right

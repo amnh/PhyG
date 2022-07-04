@@ -1038,7 +1038,7 @@ createBlockResolutions
         -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
         childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
         validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
-        newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
+        newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs `using` PU.myParListChunkRDS
 
         --need to add in node and edge to left and right
         edgeLable = EdgeInfo { minLength = 0.0
