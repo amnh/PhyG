@@ -371,8 +371,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
 
           
       in
-
-      -- trace ("INER: " ++ (show $ snd6 newGraph) ++ " " ++ (show preDeleteCost)) (
+      traceNoLF ("*") (      -- trace ("INER: " ++ (show $ snd6 newGraph) ++ " " ++ (show preDeleteCost)) (
       if length netNodes >= maxNetEdges then
          trace ("Maximum number of network edges reached: " ++ (show $ length netNodes))
          [inPhyloGraph]
@@ -420,7 +419,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
 
          -- hit end of SA/Drift
          else [inPhyloGraph]
-      -- )
+      )
       -- )
 
 -- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
@@ -952,13 +951,14 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
    else 
       let childrenNodeToDelete = LG.descendants inGraph nodeToDelete
           parentsNodeToDelete = LG.parents inGraph nodeToDelete
-          parentNodeToKeep = head $ filter (/= p1) parentsNodeToDelete
-          newEdge = (parentNodeToKeep, head childrenNodeToDelete, 0.0)
-          newGraph = LG.insEdge newEdge $ LG.delNode nodeToDelete inGraph
-          newGraph' = GO.contractIn1Out1EdgesRename newGraph
+          --parentNodeToKeep = head $ filter (/= p1) parentsNodeToDelete
+          --newEdge = (parentNodeToKeep, head childrenNodeToDelete, 0.0)
+          -- newGraph = LG.insEdge newEdge $ LG.delNode nodeToDelete inGraph
+          newGraph = LG.delEdge inEdge inGraph
+          -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph'
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
@@ -966,7 +966,10 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
       else if length parentsNodeToDelete /= 2 then error ("Cannot delete non-network edge in deleteNetworkEdge (2): " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
 
       -- error if chained on input, skip if chained net edges in output
-      else if (LG.isNetworkNode inGraph p1) then error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+      else if (LG.isNetworkNode inGraph p1) then 
+         -- error ("Error: Chained network nodes in deleteNetworkEdge : " ++ (show inEdge) ++ "\n" ++ (LG.prettyIndices inGraph) ++ " skipping") 
+         trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion") 
+         (LG.empty, False)
       
       {-
       -- test for chaining of network edges --ladderize
