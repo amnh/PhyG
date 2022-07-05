@@ -5,6 +5,7 @@
 \usepackage{setspace}
 \usepackage{pdflscape}
 \usepackage{graphicx}
+\usepackage {float}
 %\usepackage{subfigure}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -17,6 +18,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
+\usepackage[T1]{fontenc}
 \usepackage{url}
   
 \usepackage[dvipsnames]{xcolor}
@@ -27,7 +29,7 @@
 
 \setlength\itemindent{1cm}
 
-\newcommand{\phyg}{\texttt{PhyG }}
+\newcommand{\phyg}{\texttt{PhyG} }
 \newenvironment{phygdescription}{\subsubsection{Description}}{}
 \newenvironment{example}{\subsubsection{Examples} \begin{itemize}}{\end{itemize}}
 \newenvironment{argument}{\subsection{Arguments}\begin{itemize}}{\end{itemize}}
@@ -103,34 +105,65 @@
 
 \chapter{What is PhyG?}
 	\section{Introduction}
-	PhylogeneticGraph (\phyg) is designed to produce phylogenetic graphs from input data and 
-	graphs via heuristic searching of general phylogenetic graph space. \texttt{PhyG} 
-	is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}}
+	PhylogeneticGraph (\phyg) is a multi-platform program designed to produce phylogenetic 
+	graphs from input data and graphs via heuristic searching of general phylogenetic graph 
+	space. \texttt{PhyG} is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}}
 	\citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015}, containing much of its 
-	functionality but extended to broader classes of input data and phylogenetic graphs. The 
-	phylogenetic graph inputs and outputs of \texttt{PhyG} include not only trees, but other 
-	forms including forests and both soft- and hard-wired networks.
+	functionality including the optimization of unaligned sequences, and the ability to implement 
+	search strategies such as random addition sequence, swapping, and tree fusing. As in {\textbf{POY}, 
+	\phyg can generate outputs in the form of implied alignments and graphical representations of 
+	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
+	analysis programs, is the extension to broader classes of input data and phylogenetic graphs. 
+	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as other forms 
+	including forests and both soft- and hard-wired networks.
 	%\phyg generates ...
 		
 	This is the initial version of documentation for the program.
 	
 	\section{Overview of program use}
-	At present, \phyg is operated solely via command-line in a terminal window. %and invoked in a script.
-	Commands are entered via a script file containing commands that specify input files, output files 
-	and formats, graph type and search parameters. This script can also include references to other 
-	script files.
-				
-		\begin{verbatim}
-			phyg_script.pg
-		\end{verbatim}
-		%what's this for?
+	At present, \phyg  is operated solely via command-line in a terminal window. Commands 
+	are entered via a script file containing commands that specify input files, output files and 
+	formats, graph type and search parameters. Running analyses using scripts allows for the 
+	entire analysis to proceed from the beginning to the end with one click of a button and 
+	may produce results faster as \phyg automatically optimizes the workflow of the analysis
+	by taking into account the functional relationships among various tasks and efficiently 
+	distributing the jobs and resources (such as memory and multiple processors). This script 
+	can also include references to other script files.
+
+%	%\begin{figure}
+%	\begin{center}
+%	\includegraphics[width=0.6\textwidth]{doc/Figures/First_script.jpg}
+%	\end{center}
+%	\caption{\phyg script}
+%	%\end{figure}
+	
+	\begin{figure}
+	\centering
+	\includegraphics[width=0.6\textwidth]{First_script.jpg}
+	\caption{A \phyg script. The header in the script is a comment, leading with -{}-, which is 
+	ignored by \phyg.}
+	\end{figure}
 	
 	\section{Quick Start}
 		\subsection{Requirements}
+		\phyg is an open-source program that can be compiled for Mac OSX and Linux. It 
+		runs on a variety of computers, including desktops, laptops and cluster computers.
+		There are no particular size requirements for disk space, although \hl{...}
+		
 		\subsection{Obtaining and Installing \phyg}
-		\phyg source code, precompiled binaries, test data, and documentation in pdf format are available 
-		from the \phyg \href{https://github.com/wardwheeler/PhyGraph}{GitHub site}.
-
+		\subsubsection{Installing from the binaries}
+		\phyg source code, precompiled binaries, test data, and documentation in pdf format 
+		are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub site}.
+		Download the \phyg binary to the desktop
+		
+		\subsubsection{Compiling from the source}
+		The \phyg binaries and source code can be downloaded from 
+		\hl{Q: } will we provide step-by-step instructions to guide the user through downloading 
+		and installing 
+		\phyg binaries for various platforms?
+		
+		How to install binaries from GitHub onto OSX
+	
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %FORMATS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -152,17 +185,20 @@
 		measurement, and prealigned molecular sequence data. \phyg does not parse all the
 		diversity of options that can be specified in \texttt{TNT} input files.\\
 		
-		[Notes to be fleshed out...]
-		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
-		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
+		\hl{[Notes to be fleshed out...]}
+		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.\\
+		Costs A$>$B A$/$B syntax no spaces. \\
+		Ambiguities not allowed.  \\
+		Must specify all transformations manually.
 		')' sets to non-additive, if want additive then need to reset to additive after\\
 		character state designations single characters\\
 		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} for continuous) are 
-		in squarebraskets with period as in [X.Y]\\
-		- ans ? are always missing/inapplicable.  If DNA are not coded ACGT- => 01234 but left as letters,
-		then to include gaps as a 5th state, just include another character, such the letter 'O' that is not an IUPAC 
+		in squarebrakets with period as in [X.Y]\\
+		- ans ? are always missing/inapplicable.  \\
+		If DNA are not coded ACGT- => 01234 but left as letters, then to include gaps as a 5th state, just 
+		include another character, such the letter 'O' that is not an IUPAC 
 		ambiguity code for DNA (or amino acids for that matter) as an additional state.  This can be used for 
-		matrix/Sankoff matrices as well.
+		matrix/Sankoff matrices as well.\\
 		Amino acid sequences would be processed in the same way.  Including gaps as information requires
 		an extra state (such as letter 'O').\\ 
 		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
@@ -174,9 +210,9 @@
 		The inherent ordering of DNA and amino acid codes is alphabetical (e.g. A, C, G, T and `-').
 	
 \section{Input Graph Formats}
-	Graphs may be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
+	Graphs can be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
 	interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
-	{here};), Enhanced Newick \cite{Cardonaetal2008}, and Forest Enhanced Newick (defined by 
+	{here}), Enhanced Newick \cite{Cardonaetal2008}, and Forest Enhanced Newick (defined by 
 	\citealp{WheelerPhyloSuperGraphs}) formats.
 	Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for 
 	forests of components, each of which is represented by an ENewick string.  The ENewick 
@@ -212,12 +248,12 @@
 	The program is invoked from the command-line as in:
 	
 		\begin{verbatim}
-			PhyGraph commandFile
+			phyg commandFile
 		\end{verbatim}	
 	
 \section{Creating and running \phyg scripts}
 	Optimize memory consumption--keep low number of graphs in initial searches, later keep a larger
-	number to get others (see email from WW 04-21-22)
+	number to get others \hl{(see email from WW 04-21-22)}
 %why not phyg commandFile? less to type	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -241,17 +277,19 @@
 \section{\phyg Command Structure}
 		
 	\subsection{Brief description}
-		\phyg interprets and executes scripts coming from an input file. Commands and arguments are case 
-		insensitive with the exception of filename specifications, which are always in double quotes (\texttt{"fileName"}).  
-		Commands are specified with mandatory parentheses \texttt{`()'}, which may be empty or contain 
-		command arguments. Arguments may be preceded or followed by options separated 
-		by a colon \texttt{`:'}.  Command arguments are not order dependent.
+		\phyg interprets and executes scripts coming from an input file. A script is a list of commands, 
+		separated by any number of whitespace characters (spaces, tabs, or newlines). Each command 
+		consists of a name followed by a list of arguments separated by commas and enclosed in 
+		parentheses. Commands and arguments are case insensitive with the exception of filename 
+		specifications, which are always in double quotes (\texttt{"fileName"}).  Arguments may be 
+		preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are 
+		not order dependent.
 
 			\begin{verbatim}
 				command(argument, option:argument, option[:optional Argument]...)
 			\end{verbatim}
-	
-		\subsection{Command order and processing}
+
+	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
 		the beginning of program execution, irrespective of where they appear in the command script.  
 		All other commands are executed in the order they are specified.
