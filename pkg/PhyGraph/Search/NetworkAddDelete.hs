@@ -112,8 +112,12 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
             -- trace ("\t MANE : Worse") 
             moveAllNetEdges' inGS inData maxNetEdges rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
          else if newGraphCost < currentCost then
-            trace ("\t-> " ++ (show newGraphCost))
-            moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            trace ("\t-> " ++ (show newGraphCost)) (
+            if doSteepest then
+               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams newGraphList
+            else 
+               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            )
 
          else
             -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
@@ -573,8 +577,12 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
 
          -- "steepest style descent" abandons existing list if better cost found
          else if newGraphCost < currentCost then
-            trace ("\t-> " ++ (show newGraphCost))
-            deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            trace ("\t-> " ++ (show newGraphCost)) (
+            if doSteepest then 
+               deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams newGraphList
+            else 
+               deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            )
 
          -- equal cost
          -- not sure if should add new graphs to queue to do edge deletion again
@@ -652,7 +660,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
    else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
    else
       -- trace ("DONAA-New: " ++ (show $ snd6 inPhyloGraph) ++ " Steepest:" ++ (show doSteepest)) (
-      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, curent best cost: " ++ (show $ snd6 inPhyloGraph)) (
+      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, current best cost: " ++ (show $ snd6 inPhyloGraph)) (
       -- start with initial graph cost
       let inGraphCost = snd6 inPhyloGraph
 
