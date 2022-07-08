@@ -64,6 +64,7 @@ module GraphOptimization.Medians  ( median2
                                   , getFinal3WaySlim
                                   , getFinal3WayWideHuge
                                   , generalSequenceDiff
+                                  , union2Single
                                   ) where
 
 import           Bio.DynamicCharacter

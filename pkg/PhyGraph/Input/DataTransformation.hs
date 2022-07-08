@@ -68,7 +68,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 
 import           Data.Bits
-import qualified Data.Hashable               as H
+-- import qualified Data.Hashable               as H
 import qualified Data.Text.Short             as ST
 import           Data.Word
 import           Debug.Trace
@@ -224,13 +224,17 @@ checkDuplicatedTerminals inData =
         if null dupList then (False, [])
         else (True, fmap head dupList)
 
--- | joinSortFileData takes list if list of short text and merges line by line to joing leaf states
+-- | joinSortFileData takes list of list of short text and merges line by line to join leaf states
 -- and sorts the result
 joinSortFileData :: [[ST.ShortText]] -> [String]
 joinSortFileData inFileLists =
     if null (head inFileLists) then []
     else
-        let firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
+        let -- changed sort order (now by data file input, more or less) to reduce time complexity
+            -- should still be label invariant
+            --firstLeaf = L.sort $ ST.toString $ ST.concat $ fmap head inFileLists
+            firstLeaf = ST.toString $ ST.concat $ fmap head inFileLists
+            --firstLeaf = show $ L.sort $ fmap head inFileLists
         in
         firstLeaf : joinSortFileData (fmap tail inFileLists)
 
@@ -248,7 +252,10 @@ createBVNames inDataList =
         fileLeafCharList = fmap (fmap snd) rawDataList
         fileLeafList =  fmap (fmap ST.concat) fileLeafCharList
         leafList = reverse $ joinSortFileData fileLeafList
-        leafHash = fmap H.hash leafList
+
+        -- hash not guaranteed to be stable over OS or library version
+        -- leafHash = fmap H.hash leafList
+        leafHash = leafList 
         leafHashPair = L.sortOn fst $ zip leafHash [0..(length textNameList - 1)] -- textNameList
         (_, leafReoderedList) = unzip leafHashPair
         -- leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]

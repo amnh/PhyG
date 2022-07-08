@@ -16,7 +16,7 @@ packages:
 --  * Compiler versions
 ---------------------------------------------------------------------------------
 
-executable-static: False
+executable-static: True
 with-compiler: ghc-9.2.3
 
 
@@ -33,7 +33,7 @@ with-compiler: ghc-9.2.3
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log
-install-method:   copy
+-- install-method:   copy
 overwrite-policy: always
 
 
@@ -52,6 +52,85 @@ haddock-hyperlink-source: True
 jobs:                     $ncpus
 keep-going:               True
 minimize-conflict-set:    True
+
+
+---------------------------------------------------------------------------------
+-- Package flags (useful defaults)
+--
+-- Instruct all transative dependencies to be built *with both* optimization and
+-- profiling enabled. This reduces rebuilds when debugging while not sacraficing
+-- undue execution speed from imported code.
+--
+-- Contrastingly, *disable both* optimization and profiling when building the
+-- current package's codebase. This improves the frequent recompilation speed
+-- during iterative development.
+--
+-- Finally, enable all warnings and then prune out the undesirable ones. Having
+-- the large litany of warnings enabled forces pre-emptive compatibility with
+-- future breaking changes as well as improving overall code quality.
+---------------------------------------------------------------------------------
+
+-- Applies to *all* packages, not just dependencies...
+package *
+    benchmarks:        False
+    documentation:     False
+    tests:             False
+    library-profiling: False
+    library-stripping: True
+    optimization: 2
+    ghc-options:
+        -- Optimization flags
+        -O2
+        -fexcess-precision
+        -fexpose-all-unfoldings
+        -flate-specialise
+        -fmax-simplifier-iterations=16
+        -foptimal-applicative-do
+        -fspec-constr-count=8
+        -fspec-constr-keen
+        -fspecialize-aggressively
+        -fstatic-argument-transformation        
+
+package PhyGraph
+    benchmarks:           False
+    documentation:        False
+    tests:                False
+    library-profiling:    False
+    library-stripping:    True
+    executable-stripping: True
+    optimization: 2
+    ghc-options:
+        -- Optimization flags
+        -O2
+        -fexcess-precision
+        -fexpose-all-unfoldings
+        -flate-specialise
+        -fmax-simplifier-iterations=16
+        -foptimal-applicative-do
+        -fspec-constr-count=8
+        -fspec-constr-keen
+        -fspecialize-aggressively
+        -fstatic-argument-transformation
+
+        -feager-blackholing
+        -threaded
+        -with-rtsopts="-A64m -AL8 -H1024m -maxN -n4m --nonmoving-gc -qa -qm"
+
+        -- Sanity check warnings:
+        --   1. Fail on a warning
+        --   2. Include all warnings by default
+        --   3. Exclude the undesirable warnings
+        -Werror
+        -Weverything
+        -- Exclusions:
+        -Wno-all-missed-specialisations
+        -Wno-implicit-prelude
+        -Wno-missing-import-lists
+        -Wno-missing-kind-signatures
+        -Wno-missing-safe-haskell-mode
+        -Wno-monomorphism-restriction
+        -Wno-type-defaults
+        -Wno-unsafe
 
 
 ---------------------------------------------------------------------------------

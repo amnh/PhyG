@@ -44,6 +44,7 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , preOrderTreeTraversal
                                             , getBlockCostPairsFinal
                                             , setFinalToPreliminaryStates
+                                            , setPreliminaryToFinalStates
                                             , zero2Gap
                                             ) where
 
@@ -1507,17 +1508,17 @@ setFinalToPreliminaryStates :: VertexBlockData -> VertexBlockData
 setFinalToPreliminaryStates inVertBlockData =
     if V.null inVertBlockData then mempty
     else
-        fmap setBlockPrelimToFinal inVertBlockData
+        fmap setBlockFinalToPrelim inVertBlockData
 
--- | setBlockPrelimToFinal sets characyters in a block preliminary data to final
-setBlockPrelimToFinal :: V.Vector CharacterData -> V.Vector CharacterData
-setBlockPrelimToFinal inCharVect =
+-- | setBlockFinalToPrelim sets characters in a block final values to Preliminary
+setBlockFinalToPrelim :: V.Vector CharacterData -> V.Vector CharacterData
+setBlockFinalToPrelim inCharVect =
     if V.null inCharVect then mempty
-    else fmap setPrelimToFinalCharacterData inCharVect
+    else fmap setFinalToPrelimCharacterData inCharVect
 
--- | setPrelimToFinalCharacterData takes a single chartcater and sets preliminary values to final
-setPrelimToFinalCharacterData :: CharacterData -> CharacterData
-setPrelimToFinalCharacterData inChar =
+-- | setFinalFinalToPrelimCharacterData takes a single chartcater and sets final values to Preliminary
+setFinalToPrelimCharacterData :: CharacterData -> CharacterData
+setFinalToPrelimCharacterData inChar =
     inChar {                 stateBVFinal       = snd3 $ stateBVPrelim inChar
                            , rangeFinal         = snd3 $ rangePrelim inChar
                            , matrixStatesFinal  = matrixStatesPrelim inChar
@@ -1538,4 +1539,42 @@ setPrelimToFinalCharacterData inChar =
                            , alignedHugeFinal  = snd3 $ alignedHugePrelim inChar
 
                            , packedNonAddFinal = snd3 $ packedNonAddPrelim inChar
+            }
+
+-- | setPreliminaryToFinalStates takes VertexBlockData and sets the Preliminary states to final values
+setPreliminaryToFinalStates :: VertexBlockData -> VertexBlockData
+setPreliminaryToFinalStates inVertBlockData =
+    if V.null inVertBlockData then mempty
+    else
+        fmap setBlockPrelimToFinal inVertBlockData
+
+-- | setBlockPrelimToFinal sets characters in a block preliminary data to final
+setBlockPrelimToFinal :: V.Vector CharacterData -> V.Vector CharacterData
+setBlockPrelimToFinal inCharVect =
+    if V.null inCharVect then mempty
+    else fmap setPrelimToFinalCharacterData inCharVect
+
+-- | setPrelimToFinalCharacterData takes a single chartcater and sets preliminary values to final
+setPrelimToFinalCharacterData :: CharacterData -> CharacterData
+setPrelimToFinalCharacterData inChar =
+    inChar {                 stateBVPrelim      = (stateBVFinal inChar, stateBVFinal inChar, stateBVFinal inChar)
+                           , rangePrelim        = (rangeFinal inChar, rangeFinal inChar, rangeFinal inChar)
+                           , matrixStatesPrelim  = matrixStatesFinal inChar
+                           -- , slimAlignment      = slimGapped inChar
+                           , slimGapped          = (slimFinal inChar, slimFinal inChar, slimFinal inChar)
+                           , slimIAPrelim        = (slimIAFinal inChar,slimIAFinal inChar, slimIAFinal inChar)
+
+                           -- , wideAlignment      = wideGapped inChar
+                           , wideGapped          = (wideFinal inChar, wideFinal inChar, wideFinal inChar)
+                           , wideIAPrelim        = (wideIAFinal inChar, wideIAFinal inChar, wideIAFinal inChar)
+
+                           -- , hugeAlignment      = hugeGapped inChar
+                           , hugeGapped          = (hugeFinal inChar, hugeFinal inChar, hugeFinal inChar)
+                           , hugeIAPrelim        = (hugeIAFinal inChar, hugeIAFinal inChar, hugeIAFinal inChar)
+
+                           , alignedSlimPrelim  = (alignedSlimFinal inChar, alignedSlimFinal inChar, alignedSlimFinal inChar)
+                           , alignedWidePrelim  = (alignedWideFinal inChar, alignedWideFinal inChar, alignedWideFinal inChar)
+                           , alignedHugePrelim  = (alignedHugeFinal inChar, alignedHugeFinal inChar, alignedHugeFinal inChar)
+
+                           , packedNonAddPrelim = (packedNonAddFinal inChar, packedNonAddFinal inChar, packedNonAddFinal inChar)
             }
