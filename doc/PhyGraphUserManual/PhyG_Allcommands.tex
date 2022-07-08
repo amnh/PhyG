@@ -3,113 +3,125 @@
 %---------------------------------------------
 \subsection{Build}
 	\subsubsection{Syntax}
-		\texttt{build(arg0, arg1:option, ...)}
+		\texttt{build(arg0, arg1:option, ...)}\\
+		\texttt{build([argument list])} \hl{is this a simpler way to write it?}
 	
 	\begin{phygdescription}
-		{Builds initial graphs. Most options (with the exception of the $O(n^3)$ distance based 
-		\texttt{rdWag} option) are $O(n^2)$. Builds may be based on \textit{distance} or \textit{character}
-		methods. Distance methods are considerably faster (lower constant factor), but approximate 
-		in terms of character-based methods. Refinement, in the form of branch swapping (otu, 
-		spr, tbr and none) can be specified within the command for distance builds. Refinement for 
-		character-based 
-		Wagner builds occurs after the \texttt{build} process through \texttt{swap} and other refinement 
-		commands. Given the large time burden, distance refinement is usually not time effective 
+		{Builds initial graphs. The arguments of \texttt{build} specify the number of graphs 
+		to be generated, and whether the build is based on \textit{distance} or \textit{character} 
+		methods. Most options (with the exception of \texttt{rdWag}, an $O(n^3)$ distance based 
+		option) are $O(n^2)$. Distance methods are considerably faster (lower constant 
+		factor), but approximate in terms of character-based methods. Refinement, in the form 
+		of branch swapping (otu, spr, tbr and none) can be specified within the command for 
+		distance builds. Refinement for 	character-based Wagner builds occurs after the 
+		\texttt{build} process through \texttt{swap} and other refinement commands. Given 
+		the large time burden, distance refinement is usually not time effective 
 		\citep{Wheeler2021}.}
+		\phyg does not replace trees previously stored in memory.
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
 
 	\begin{description}
-		\item [atRandom] When option \texttt{block} is specified, returns $n$ display trees specified by 
-		\texttt{displayTrees[:n]} where trees are produced by resolving network nodes uniformly at random. 
-		This is in opposition to the \texttt{first} option, which takes the ``first'' $n$ display trees resolved 
-		in arbitrary, but consistent, order.
 
-		\item [best:n] Applies only to rdWag. Specifies the number of trees retained after rdWag builds, 
-		selecting the best trees in terms of distance cost. The options can be used to reduce
-		the number of trees retained for refinement or returned for further analysis. 
+		\item[block] Performs independent builds for each ``block'' of data. Builds are performed 
+		according 	to the other options (e.g. \texttt{character, distance}). The resulting trees are 
+		reconciled using the \texttt{eun} or \texttt{cun} commands. The reconciled graph is resolved 
+		into display trees via the \texttt{displayTrees}, \texttt{first}, and \texttt{atRandom} options. 
+		This option is especially useful for soft-wired network search. \hl{need to mention 
+		\textbf{graph} here also}.
+		
+		\begin{description}
+			\item[atRandom] When the option \texttt{block} is specified, this variable returns $n$ 
+			display trees as specified by \texttt{displayTrees[:n]}, where trees are produced by 
+			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
+			which takes the ``first'' $n$ display trees resolved in arbitrary, but consistent, order.
 
-		\item[block] Performs independent builds for each ``block'' of data. Builds are performed according 
-		to the other options (e.g. \texttt{character, replicates:n}). The resulting trees are reconciled using the 
-		\texttt{eun} or \texttt{cun} commands. The reconciled graph is resolved into display trees via the 
-		\texttt{displayTrees}, \texttt{first}, and \texttt{atRandom} options. This option is especially useful 
-		for softwired network search. If the number of display trees is not specified, up to $2^{63}$ may be 
-		returned.
+			\item[cun] Reconciles \textbf {block} trees into a Cluster-Union-Network \citep{Baroni2005} 
+			before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} options.
+	
+			\item[displayTrees[:n]] When option \texttt{block} is specified, this varaible returns $n$ display 
+			trees specified by the optional argument. If the number of display trees is not specified, 
+			up to $2^{63}$ may be returned.
 
+			\item[eun] Reconciles block trees into a Edge-Union-Network \citep{MiyagiandWheeler2019, 
+			Wheeler2022} before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} 
+			options.
+
+			\item[first] When the option \texttt{block} is specified, this variable specifies to choose the
+			first returns $n$ $n$ display trees resolved in arbitrary, but consistent, order. Compare with 
+			\texttt{atRandom}.
+			
+			\item[graph] When the option \texttt{block} is specified, this variable returns the reconciled 
+			graph as specified by \texttt{eun} or \texttt{cun}. The graph may be altered to ensure that it 
+			is a ``phylogenetic'' graph 	sensu \cite{Moretetal2005}.
+		\end{description}			
+		
 		\item [character] Performs random addition sequence Wagner \citep{Farris1970} builds ($O(n^2)$) 
 		for tree construction. If the graphtype is softwired or hardwired the resulting trees are rediagnosed 
-		as softwired graphs.
+		as soft-wired graphs.
 		
-		\item [cun] Reconciles block trees into a Cluster-Union-Network \citep{Baroni2005} before resolution 
-		into display trees via the \texttt{displayTrees} or \texttt{atRandom} options.
-
-		\item [displayTrees[:n]] When option \texttt{block} is specified, returns $n$ display trees specified 
-		by the optional argument If the number of display trees is not specified, up to $2^{63}$ may be returned.
-
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used as a basis 
-		for distance tree construction.
-		
-	
-			\begin{description}
-			
-			\item [none] No refinement (OTU, SPR, TBR) is performed after distance builds.
-			
-			\item [otu] Specifies that OTU refinement \citep{Wheeler2021} is performed after distance builds.	
-			
-			\item [spr] Specifies that SPR refinement \citep{Dayhoff1969} is performed after distance builds.
+		for distance tree construction. Specifies how the builds are refined (\textbf{none, otu, spr, tbr}) as 
+		well as how the tree is constructed (\textbf{dWag, nj, rdWag, wpgma}).
 
-			\item [tbr] Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed after 
+		\begin{description}
+			\item[best:n] Applies only to rdWag. Specifies the number of trees retained after rdWag builds, 
+			selecting the best trees in terms of distance cost. The options can be used to reduce
+			the number of trees retained for refinement or returned for further analysis.
+			
+			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to 
+			add at each step, yielding a single tree. Time complexity of $O(n^3)$.
+
+			\item[nj] Performs Neighbor-Joining distance build \citep{Saitou1987}, yielding a single tree. 
+			Time complexity of $O(n^3)$.
+
+			\item[none] No refinement (OTU, SPR, TBR) is performed after distance builds.
+			
+			\item[otu] Specifies that OTU refinement \citep{Wheeler2021} is performed after distance builds.
+			
+			\item[rdWag] Performs randoms addition sequence distance Wagner builds, yielding a multiple 
+			trees determined by the argument \texttt{replicates:n}. Time complexity of $O(m \times n^2)$.
+
+			\item[spr] Specifies that SPR refinement \citep{Dayhoff1969} is performed after distance builds.
+
+			\item[tbr] Specifies that TBR refinement \citep{Farris1988, swofford1990a} is performed after 
 			distance builds.
-
-			\end{description}
-			
-		\item [dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the `best' taxon to 
-		add at each step, yielding a single tree. Time complexity of $O(n^3)$.
 		
-		\item [eun] Reconciles block trees into a Edge-Union-Network \citep{MiyagiandWheeler2019, 
-		Wheeler2022} before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} options.
-
-		\item [graph] When \texttt{block} option is specified, returns the reconciled graph as specified by 
-		\texttt{eun} or \texttt{cun}. The graph may be altered to ensure that it is a ``phylogenetic'' graph 
-		sensu \cite{Moretetal2005}.
-		
-		\item [nj] Performs Neighbor-Joining distance build \citep{Saitou1987}, yielding a single tree. 
-		Time complexity of $O(n^3)$.
+			\item[wpgma] Performs Weighted Pair Group Method with Arithmetic Mean distance build 
+			\citep{SokalandMichener1958}, yielding a single tree. Time complexity of $O(n^2)$.
+		\end{description}
 
 		\item [replicates:n] Applies to \texttt{rdWag} and \texttt{character}. Specifies the number of 
-		random addition sequences performed. 
-		
-		\item [rdWag] Performs randoms addition sequence distance Wagner builds, yielding a multiple 
-		trees determined by argument \texttt{replicates:m}. Time complexity of $O(m \times n^2)$.
-
-				
-		\item [wpgma] Performs Weighted Pair Group Method with Arithmetic Mean distance build 
-		\citep{SokalandMichener1958}, yielding a single tree. Time complexity of $O(n^2)$.
+		random addition sequences performed.
 	
 	\end{description}		
 
 	\subsubsection{Defaults}
 		\texttt{build(character, replicates:10)}
-
-
+		
 	\begin{example}
 	
 		\item{\texttt{build(distance, rdWag, nj, wpgma)} \\ 
-		Builds a single `best' addition sequence distance Wagner build, 
-		a Neighbor-Joining tree, and a WPGMA tree.}
+		Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, and 
+		a WPGMA tree.}
 		
-		\item{\texttt{build(distance, rdWag, replicates:1000, best:10)}\\
-		Builds 1000 random addition sequence distance Wagner builds and returns 
-		10 of lowest distance cost.}
+		\item{\texttt{build(distance, dWag, replicates:1000, best:10)}\\
+		Builds 1000 distance Wagner builds and returns 10 of lowest distance cost.}
 	
-		\item{\texttt{build(distance, rdWag, WPGMA, replicates:100, best:10, OTU)}\\
+		\item{\texttt{build(distance, rdwag, block, cun, displaytrees: 3)}\\
+		Builds 10 random addition sequence Wagner builds for each `block' of data}
+		
+		\item{\texttt{build(distance, rdWag, replicates:100, WPGMA, best:10, otu)}\\
 		Builds 100 random addition sequence distance Wagner builds, a WPGMA tree, 
 		performs OTU swapping on the WPGMA and 10 of the lowest cost random addition 
-		sequence Wagner trees. 
-		10 of lowest distance cost.}
+		sequence Wagner trees.}
 	
 		\item{\texttt{build(replicates:100)} \\
-		Builds 100 random addition sequence character Wagner builds.}
+		Builds 100 random addition sequence character Wagner builds, using all the data.}
+		
+		\item{\texttt{build(character, replicates:10, block, cun, displaytrees:10, atrandom, graph)}\\
+		Builds...}
 
 	\end{example}
 

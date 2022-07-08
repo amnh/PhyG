@@ -104,12 +104,13 @@
 	\tableofcontents
 
 \chapter{What is PhyG?}
+
 	\section{Introduction}
 	PhylogeneticGraph (\phyg) is a multi-platform program designed to produce phylogenetic 
 	graphs from input data and graphs via heuristic searching of general phylogenetic graph 
 	space. \texttt{PhyG} is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}}
 	\citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015}, containing much of its 
-	functionality including the optimization of unaligned sequences, and the ability to implement 
+	functionality, including the optimization of \textit{unaligned} sequences, and the ability to implement 
 	search strategies such as random addition sequence, swapping, and tree fusing. As in {\textbf{POY}, 
 	\phyg can generate outputs in the form of implied alignments and graphical representations of 
 	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
@@ -119,51 +120,114 @@
 	%\phyg generates ...
 		
 	This is the initial version of documentation for the program.
-	
-	\section{Overview of program use}
-	At present, \phyg  is operated solely via command-line in a terminal window. Commands 
-	are entered via a script file containing commands that specify input files, output files and 
-	formats, graph type and search parameters. Running analyses using scripts allows for the 
-	entire analysis to proceed from the beginning to the end with one click of a button and 
-	may produce results faster as \phyg automatically optimizes the workflow of the analysis
-	by taking into account the functional relationships among various tasks and efficiently 
-	distributing the jobs and resources (such as memory and multiple processors). This script 
-	can also include references to other script files.
 
-%	%\begin{figure}
-%	\begin{center}
-%	\includegraphics[width=0.6\textwidth]{doc/Figures/First_script.jpg}
-%	\end{center}
-%	\caption{\phyg script}
-%	%\end{figure}
-	
-	\begin{figure}
-	\centering
-	\includegraphics[width=0.6\textwidth]{First_script.jpg}
-	\caption{A \phyg script. The header in the script is a comment, leading with -{}-, which is 
-	ignored by \phyg.}
-	\end{figure}
-	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%QUICKSTART
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%		
 	\section{Quick Start}
-		\subsection{Requirements}
-		\phyg is an open-source program that can be compiled for Mac OSX and Linux. It 
-		runs on a variety of computers, including desktops, laptops and cluster computers.
-		There are no particular size requirements for disk space, although \hl{...}
+	
+		\subsection{Requirements: software and hardware}
+		\phyg is an open-source program that can be compiled for Mac OSX and Linux. Some 
+		utility programs (such as TextEdit for Mac, or Nano for Linux), can help in preparing 
+		\phyg scripts and formatting data files, while others (such as Adobe Acrobat and TreeView 
+		\citep{page1996} can facilitate viewing the outputted graphs and trees.
+		
+		\phyg runs on a variety of computers, including desktops, laptops and cluster computers.
+		There are no particular size requirements for disk space, although \hl{...}\\
+		\hl{Mention its ability to run jobs in parallel} By default \phyg is a multi-threaded application
 		
 		\subsection{Obtaining and Installing \phyg}
-		\subsubsection{Installing from the binaries}
 		\phyg source code, precompiled binaries, test data, and documentation in pdf format 
-		are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub site}.
-		Download the \phyg binary to the desktop
+		are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website.
+
+		\subsubsection{Installing from the binaries}
+		Download the \phyg binary from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} 
+		website. The user can go directly to the website and click on the link to the binary. On most 
+		systems this will download to either your Desktop or your Downloads folder. Alternatively, 
+		open a Terminal, and type the following:
+		
+		\begin {verbatim}
+		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/linux/phyg?raw
+		=true
+		\end{verbatim}
+		
+		\noindent or 
+		
+		\begin {verbatim}
+		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/OSX/phyg-Intel?
+		raw=true
+		\end{verbatim}		
+		
+		This binary should either be moved into  a location that contained executables, such as 
+		\texttt{/usr/local/bin} or \texttt{opt/bin} or
+		
 		
 		\subsubsection{Compiling from the source}
-		The \phyg binaries and source code can be downloaded from 
-		\hl{Q: } will we provide step-by-step instructions to guide the user through downloading 
-		and installing 
-		\phyg binaries for various platforms?
+		For the majority of users, downloading the binaries will suffice. Should you prefer to 
+		compile \phyg directly from the source code, the \phyg source code can be downloaded 
+		from  \hl{...}
 		
-		How to install binaries from GitHub onto OSX
+		
+		
+		
+		
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%OVERVIEW OF THE PROGRAM
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	 		
+	\section{Overview of program use}
 	
+		At present, \phyg  is operated solely via command-line in a terminal window. Commands 
+		are entered via a script file containing commands that specify input files, output files and 
+		formats, graph type and search parameters.
+		
+		\subsection{Executing Scripts}
+		The program is invoked from the command-line as in:
+		
+		\begin{verbatim}
+		phyg commandFile
+		\end{verbatim}
+		
+		\noindent For example, typing the following in a terminal window will invoke  \phyg 
+		to run the script \texttt{mol.pg} in the directory \texttt{/Users/username/phygfiles}. 
+		
+		\begin{verbatim}
+   		phyg /Users/username/phygfiles mol.pg
+		\end{verbatim}
+		
+		\noindent This is the equivalent of including
+		
+		\begin{verbatim}
+     		cd ("/Users/username/phygfiles")
+		\end{verbatim}
+			
+		\subsection{Creating and running \phyg scripts}
+		A script is a simple text file containing a list of commands to be performed.  Running 
+		analyses using scripts allows for the entire analysis to proceed from the beginning to 
+		the end with one click of a button and may produce faster results  as \phyg automatically 
+		optimizes the workflow of the analysis by taking into account the functional relationships 
+		among various tasks and efficiently distributing the jobs and resources (such as memory 
+		and multiple processors). This script 	can also include references to other script files 
+		(Figure \ref{firstscript}).
+		
+		Scripts can be created using any conventional text editor such as TextEdit, TextWrangler, 
+		BBEdit, or Nano. Comments that describe the contents of the file and provide other useful 
+		annotations can be included. Comments  are prepended with -{}- and can span multiple lines, 
+		provided each line begins with -{}-. 
+
+	\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{First_run.jpg}
+	\caption{\phyg scripts. The headers in the scripts are comments, leading with -{}-, which is 
+	ignored by \phyg. This first script "First\_script.pg"  includes a reference to the second script
+	"Chel\_files.txt", which includes a group of data files to be read by the program.}
+	\label{firstscript}
+	\end{figure}
+
+
+\hl{where should I discuss this?}Optimize memory consumption--keep low number of graphs in initial searches, later keep a larger
+	number to get others \hl{(see email from WW 04-21-22)}
+
+		
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %FORMATS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -192,7 +256,8 @@
 		Must specify all transformations manually.
 		')' sets to non-additive, if want additive then need to reset to additive after\\
 		character state designations single characters\\
-		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} for continuous) are 
+		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} 
+		for continuous) are 
 		in squarebrakets with period as in [X.Y]\\
 		- ans ? are always missing/inapplicable.  \\
 		If DNA are not coded ACGT- => 01234 but left as letters, then to include gaps as a 5th state, just 
@@ -243,52 +308,54 @@
 	For some reason on OSX the `pdf' option does not seem to work.  You can use `-Tps2' and that will generate 
 	a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
 	%what's -Tps2?	
+
 	
-\section{Program Use}
-	The program is invoked from the command-line as in:
-	
-		\begin{verbatim}
-			phyg commandFile
-		\end{verbatim}	
-	
-\section{Creating and running \phyg scripts}
-	Optimize memory consumption--keep low number of graphs in initial searches, later keep a larger
-	number to get others \hl{(see email from WW 04-21-22)}
-%why not phyg commandFile? less to type	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMANDS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
 \chapter{PhyG Commands}
-	There are only a few program options that require specification.  There are defaults for all but input
-	graphs.  Parameters are given with options in a range `a to b' (a-b) with any value in the interval, or
-	alternates `a or b' (a|b). File options require a valid filename.
-	%should this be a/b?
-	
-	For input graphs, wildcards are allowed (i.e. `*' and `?').  All commands are followed by a colon `:' 
-	before the option with no spaces.  
-	Capitalization (for commands, but not filenames) is ignored.  Commands can be in any order 
-	(or entered from a file as stdin `$<$' filename).
-	
-	The program requires at least one input graph file and at least two input graphs (they could be in the same file).
-	%need to explain why you would include two of the same file.
 
 \section{\phyg Command Structure}
 		
 	\subsection{Brief description}
-		\phyg interprets and executes scripts coming from an input file. A script is a list of commands, 
-		separated by any number of whitespace characters (spaces, tabs, or newlines). Each command 
-		consists of a name followed by a list of arguments separated by commas and enclosed in 
-		parentheses. Commands and arguments are case insensitive with the exception of filename 
-		specifications, which are always in double quotes (\texttt{"fileName"}).  Arguments may be 
-		preceded or followed by options separated by a colon \texttt{`:'}.  Command arguments are 
-		not order dependent.
-
-			\begin{verbatim}
-				command(argument, option:argument, option[:optional Argument]...)
-			\end{verbatim}
-
+		\phyg interprets and executes scripts coming from an input file. A script is a list of 
+		commands, separated by any number of whitespace characters (spaces, tabs, or 
+		newlines). Each command consists of a name followed by a list of arguments 
+		separated by commas and enclosed in parentheses. Commands and arguments 
+		are case insensitive with the exception of filename specifications, which are always 
+		in double quotes (\texttt{"fileName"}). File options require a valid filename \hl{what 
+		does this mean?} Arguments may be preceded or followed by 
+		options separated by a colon \texttt{`:'}, with no space before the option. Command 
+		arguments are order independent and can be entered from a file as stdin 
+		(\texttt{$<$ fileName}).\\
+		
+		\indent \texttt{command(argument, option:argument, option[:optional Argument]...)}\\
+		
+		
+		\noindent Most of the arguments are optional, and there are only a few \phyg options
+		 that require specification. 	There are defaults for all options except input graphs. 
+		 Parameters are given with options in a range `a to b' (a-b) with any value in the interval, 
+		 or alternates `a or b' (a|b). 
+		\hl{reword this, confusing}
+		
+		Commands are standard commands that can affect the behavior of another command 
+		when included in its list of arguments. Therefore, certain commands can function as 
+		arguments of other commands. For example, the command \texttt{swap} specifies 
+		the method of branch swapping. This command is used to conduct a local search on 
+		a set of trees. In addition, \texttt{swap} functions as an argument for \texttt{build}
+		specifying \hl{...}.
+		
+		For input graphs, wildcards are allowed (i.e. `*' and `?').
+	
+		The program requires at least one input graph file and at least two input graphs (they 
+		could be in the same file). 
+		\hl{when does it require an input graph? need to explain why you would include two of 
+		the same file.}\\
+	
+	\hl{Do you want a section on Notation within Command Structure?}
+	
 	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
 		the beginning of program execution, irrespective of where they appear in the command script.  
@@ -296,12 +363,12 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMAND REFERENCE
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	\section{Command Reference}
+\section{Command Reference}
 	\input{PhyG_allcommands.tex}
 	
-	\section{Example Script Files}
+\section{Example Script Files}
 	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), skips all 
 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the outgroup to the taxon 
 	named ``zero,'' specifies the graph type for the analysis is a soft-wired network, and 	reports a series of files 
@@ -328,7 +395,7 @@
 			report("net-display.tre", displaytrees, newick, overwrite)
 		\end{verbatim}
 		
-	\section{Execution in Parallel}
+\section{Execution in Parallel}
 	By default the program will execute using a single process core.  By specifying the options `+RTS -NX -RTS' 
 	where `X' is the number of processors offered to the program. These are specified after the program as in (for 
 	4 parallel threads):\\
@@ -338,8 +405,8 @@
 	An alternate is to specify `+RTS -N' ( after program options).  This spawns as many jobs as there are cores 
 	in the machine and can be more efficient.
 	
-	\section*{Acknowledgments}
-	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. 
+\section*{Acknowledgments}
+	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. 
 	Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum 
 	of Natural History for financial support.  
 	
