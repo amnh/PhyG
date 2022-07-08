@@ -165,19 +165,28 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
-          -- ladderize, time consistent-ized
-          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
+          -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
+          reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+          noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
+          noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
+          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
+
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
                            else GO.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
-          displayGraphs = fmap GO.convertGeneralGraphToPhylogeneticGraph displayGraphs'
+          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
-      if returnGraph && not returnTrees then [reconciledGraph]
+      if returnGraph && not returnTrees then 
+        if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
+        else [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         reconciledGraph : displayGraphs
+         if isNothing noChainedGraph then 
+            trace ("Reconciled Graph generated chained network nodes that cannot be resolved. ONly retunring display trees")
+            displayGraphs
+         else reconciledGraph : displayGraphs
      -- )
 
 

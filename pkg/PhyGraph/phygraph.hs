@@ -57,7 +57,9 @@ import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.Time                    as DT
 import qualified Data.CSV                     as CSV
+import qualified Utilities.LocalGraph        as LG
 import           Debug.Trace
+import           Data.Maybe
 
 -- | main driver
 main :: IO ()
@@ -94,7 +96,9 @@ main = do
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
-    let thingsToDo = (concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
+
+    -- sort added to sort input read commands for left right consistancy
+    let thingsToDo = (L.sort $ concat expandedReadCommands) ++ (filter ((/= Read) . fst) thingsToDo')
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
     -- check commands and options for basic correctness
@@ -158,7 +162,11 @@ main = do
     else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
-    let ladderizedGraphList = fmap GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphs
+    -- chained netowrk nodes should never be introduced later so only checked no
+    -- checks for children of tree node that are all netowork nodee (causes displayu problem)
+    let noChainNetNodesList = fmap fromJust $ filter (/=Nothing) $ fmap LG.removeChainedNetworkNodes reconciledGraphs
+    let noSisterNetworkNodes = fmap LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noChainNetNodesList
+    let ladderizedGraphList = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") noSisterNetworkNodes
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)

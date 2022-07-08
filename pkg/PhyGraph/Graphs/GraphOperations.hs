@@ -70,6 +70,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , parentInChain
                                , selectGraphStochastic
                                , makeNewickList
+                               , addBeforeAfterToPair
+                               , makeGraphTimeConsistent
                                ) where
 
 import           Bio.DynamicCharacter
@@ -119,8 +121,9 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 --        those that violate the most  before/after splits of network edges
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
-convertGeneralGraphToPhylogeneticGraph :: SimpleGraph -> SimpleGraph
-convertGeneralGraphToPhylogeneticGraph inGraph =
+-- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
+convertGeneralGraphToPhylogeneticGraph :: String -> SimpleGraph -> SimpleGraph
+convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let -- remove single "tail" edge from root with single child, replace child node with root
@@ -137,18 +140,25 @@ convertGeneralGraphToPhylogeneticGraph inGraph =
         ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
-        timeConsistentGraph = makeGraphTimeConsistent ladderGraph
+        timeConsistentGraph = makeGraphTimeConsistent failCorrect ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
-        noParentChainGraph = removeParentsInChain timeConsistentGraph
+        -- but that looks at all nods not just vertex
+        noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges noParentChainGraph
+        noSisterSisterGraph = removeSisterSisterEdges failCorrect noParentChainGraph
 
     in
+    if LG.isEmpty timeConsistentGraph then LG.empty
+
+    else if LG.isEmpty noParentChainGraph then LG.empty
+
+    else if LG.isEmpty noSisterSisterGraph then LG.empty
+
     -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
-    -- cycle check to make sure
-    if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
+    -- cycle check to make sure--can be removed when things working
+    -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
 
     -- this final need to ladderize or recontract?
     else  noSisterSisterGraph
@@ -174,8 +184,8 @@ parentInChain inGraph =
     else True
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
-removeParentsInChain :: SimpleGraph -> SimpleGraph
-removeParentsInChain inGraph =
+removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
+removeParentsInChain failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
       let (_, _, _, netVertexList) = LG.splitVertexList inGraph
@@ -199,18 +209,19 @@ removeParentsInChain inGraph =
       if null violatingConcurrentPairs then inGraph
       else if null netNodeViolateList then error ("Should be neNode that violate")
       else if null netEdgesThatViolate then error "Should be violating in edges"
+      else if failCorrect == "fail" then LG.empty
       else
         let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
             newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
         in
         -- trace ("PIC")
-        removeParentsInChain newGraph
+        removeParentsInChain failCorrect newGraph
     where pairToList (a,b) = [fst a, fst b]
 
 -- | removeSisterSisterEdges takes a graph and recursively removes a single edge fomr where two network
 -- edges have the same two parents
-removeSisterSisterEdges :: SimpleGraph -> SimpleGraph
-removeSisterSisterEdges inGraph =
+removeSisterSisterEdges :: String -> SimpleGraph -> SimpleGraph
+removeSisterSisterEdges failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let sisterSisterEdges = getSisterSisterEdgeList inGraph
@@ -219,7 +230,8 @@ removeSisterSisterEdges inGraph =
         newGraph' = contractIn1Out1EdgesRename newGraph
     in
     if null sisterSisterEdges then inGraph
-    else
+    else if failCorrect == "fail" then LG.empty
+    else 
       -- trace ("Sister")
       -- removeSisterSisterEdges  
       newGraph'
@@ -313,6 +325,90 @@ mergeConcurrentNodeLists inListList currentListList =
     --   " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
     mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
 
+-- | makeGraphTimeConsistent takes laderized, transitive reduced graph and deletes
+-- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
+-- for swapping etc
+-- looks for violation of time between netork edges based on "before" and "after"
+-- tests of nodes that should be potentially same age
+-- removes second edge of second pair of two network edges in each case adn remakes graph
+makeGraphTimeConsistent :: String -> SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent failOut inGraph =
+  if LG.isEmpty inGraph then LG.empty
+  else
+    let coevalNodeConstraintList = LG.coevalNodePairs inGraph
+        coevalNodeConstraintList' = fmap (addBeforeAfterToPair inGraph) coevalNodeConstraintList `using`  PU.myParListChunkRDS
+        coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
+        timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
+        newGraph = LG.delEdges timeOffendingEdgeList inGraph
+    in
+    -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
+    if (failOut == "fail") && ((not . null) timeOffendingEdgeList) then LG.empty
+    else contractIn1Out1EdgesRename newGraph
+
+-- | addBeforeAfterToPair adds before and after node list to pari of nodes for later use
+-- in time contraint edge removal
+addBeforeAfterToPair :: (Show a,Eq a,Eq b) 
+                            => LG.Gr a b 
+                            -> (LG.LNode a, LG.LNode a) 
+                            -> (LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])
+addBeforeAfterToPair inGraph (a,b) = 
+  if LG.isEmpty inGraph then error "Empty graph in addBeforeAfterToPair"
+  else
+      let  (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
+           (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
+           (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
+           (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
+      in
+      (a,b, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter)
+
+
+-- | getEdgesToRemoveForTime recursive looks at each pair of nodes that should
+-- be potentially coeval based on network vertices. And see if it conflicts with
+-- other pairs that shoudl also be coeval.  
+-- two pairs of nodes (a,b) and (a',b'), one for each net node tio be compared
+-- if a "before" a'  then b must be before b'
+-- if a "after" a' then b must be after b'
+-- otherwise its a time violation
+-- returns net edge to delte in second pair
+getEdgesToRemoveForTime :: (Show a,Eq a,Eq b) 
+                        => LG.Gr a b 
+                        -> [((LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]),(LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]))] 
+                        -> [LG.Edge]
+getEdgesToRemoveForTime inGraph inNodePairList =
+  if LG.isEmpty inGraph then []
+  else if null inNodePairList then []
+  else
+    let ((_,_, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter),(a',b', _, _,_,_)) = head inNodePairList
+    in
+    -- trace ("GETRT: " ++ (show inNodePairList)) (
+    -- condition if a before a' then b before b' to be ok
+    if (a' `elem` aNodesAfter) && (b' `elem` bNodesBefore) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in
+      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
+      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (a' `elem` aNodesBefore) && (b' `elem` bNodesAfter) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in 
+      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (b' `elem` aNodesAfter) && (a' `elem` bNodesBefore) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in
+      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
+      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else if (b' `elem` aNodesBefore) && (a' `elem` bNodesAfter) then 
+      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
+      in 
+      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
+      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
+      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    else getEdgesToRemoveForTime inGraph (tail inNodePairList)
+    -- )
+
 {-
 -- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
 -- a form of time violation
@@ -332,7 +428,6 @@ checkParentsChain inGraph netNode parentNodeList =
     else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
     else []
     -- )
--}
 
 -- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
@@ -341,8 +436,8 @@ checkParentsChain inGraph netNode parentNodeList =
 -- contracts and renames edges at each stage
 -- O (n *m) n nodes, m network nodes.  Probbably could be done more efficiently by retainliung beforeafter list and not
 -- remaking graph each time.
-makeGraphTimeConsistent :: SimpleGraph -> SimpleGraph
-makeGraphTimeConsistent inGraph =
+makeGraphTimeConsistent' :: SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent' inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let coevalNodeConstraintList = LG.getGraphCoevalConstraintsNodes inGraph
@@ -351,14 +446,16 @@ makeGraphTimeConsistent inGraph =
         maxViolations = maximum networkEdgeViolationList
         edgeMaxViolations = fst $ head $ filter ((== maxViolations) . snd) $ zip networkEdgeList networkEdgeViolationList
     in
+    trace ("MGTC constraintList" ++ (show $ fmap makeSimple coevalNodeConstraintList) ++ "\n" ++ (show $ fmap LG.toEdge networkEdgeList)) (
     -- is a tree
     if null coevalNodeConstraintList then
-      -- trace ("MTC Null:\n" ++ (LG.prettify inGraph))
+      --trace ("MTC Null:\n" ++ (LG.prettify inGraph))
       inGraph
 
     -- is time consistent
     else if maxViolations == 0 then
       -- trace ("MTC 0:\n" ++ (LG.prettify inGraph))
+      trace ("MGTC No violations")
       removeParentsInChain inGraph
 
     -- has time violations
@@ -366,31 +463,48 @@ makeGraphTimeConsistent inGraph =
       let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
           newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
       in
-      -- trace ("MTC V:" ++ (show maxViolations))
-      makeGraphTimeConsistent newGraph
+      trace ("MGTC V:" ++ (show maxViolations))
+      makeGraphTimeConsistent' newGraph
+    )
+    where makeSimple (a,b,c) = (fst a, fmap LG.toEdge b, fmap LG.toEdge c)
+
 
 -- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
 -- if u is in the before list and v in the after list of a pir--then there is a time violation
 -- recursively counts and retunns the number of violations
+-- to conservative killing many ok edges
 numberTimeViolations :: [(LG.LNode a, [LG.LEdge b], [LG.LEdge b])] -> Int -> LG.LEdge b -> Int
 numberTimeViolations inTripleList counter inEdge@(u,v,_) =
   if null inTripleList then counter
   else
     let ((tripleNode, _), beforeEdgeList, afterEdgeList) = head inTripleList
         uInBefore = u `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
+        uInAfter =  u `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
+        vInBefore = v `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
         vInAfter  = v `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
     in
     --trace ("NTV: " ++ (show (u,v)) ++ " node " ++ (show tripleNode) ++ "\nbefore: " ++ (show $ ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))) ++ "\nafter: " ++ (show $ ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList)))) (
 
-    -- skipping its own split
-    if v == tripleNode || u == tripleNode then numberTimeViolations (tail inTripleList) counter inEdge
+    -- if both "before" or both "after" ok
+    if uInBefore && vInBefore then numberTimeViolations (tail inTripleList) counter inEdge
+    else if uInAfter && vInAfter then numberTimeViolations (tail inTripleList) counter inEdge
+
+    -- if uninvolved in that part of graph--no before or after then ok
+    else if (not uInBefore) && (not vInBefore) && (not uInAfter) && (not vInAfter) then numberTimeViolations (tail inTripleList) counter inEdge
 
     -- violates this time pair
-    else if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
+    else numberTimeViolations (tail inTripleList) (counter + 1) inEdge
+    
+    -- skipping its own split
+    --if v == tripleNode || u == tripleNode then numberTimeViolations (tail inTripleList) counter inEdge
+
+    -- violates this time pair
+    -- else if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
 
     -- does not violate pair
-    else numberTimeViolations (tail inTripleList) counter inEdge
+    -- else numberTimeViolations (tail inTripleList) counter inEdge
     -- )
+-}
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses

@@ -98,7 +98,7 @@ type Argument = (String, String)
 
 --For rename format rename:(a,b,c,...,y,z) => a-y renamed to z
 data Instruction = NotACommand | Build | Fuse | Read | Reblock | Refine | Rename | Report | Run | Select | Set | Swap | Search | Support | Transform
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Ord)
 
 -- | Node variety
 data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
@@ -230,6 +230,8 @@ data CharInfo = CharInfo { name       :: NameText
                          } deriving stock (Show, Eq)
 
 instance NFData CharInfo where rnf x = seq x ()
+instance Ord CharInfo where x `compare`  y = (show x) `compare` (show y)
+
 
 -- | Types for vertex information
 type VertexCost = Double
@@ -369,6 +371,9 @@ data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo
                                      , resolutionCost   :: VertexCost -- cost of creating the resolution
                                      , displayCost      :: VertexCost -- cost of that display subtree
                                      } deriving stock (Show, Eq)
+
+instance NFData ResolutionData where rnf x = seq x ()
+
 
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo { index        :: Int  -- For accessing

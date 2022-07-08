@@ -683,12 +683,18 @@ preOrderTreeTraversal
 	-- error in resolution cache?
 	-- bad resolution of display graph
 	
-389) Remove duplicate /cclic checking outside of creation of disolay trees and charcaters trees
-
-390) Converte to phylogenetic graph
-	check each net node and make sure child is not net node
+389) Remove duplicate /cylic checking outside of creation of display trees and charcaters trees
 
 391) Net "move" not doing enyhting--not sure if bad graph state yeielding infiniites (probabaly) or 
 	not finding anyhting better via that mechanism
 
 392) Clean up old reroot code--migrate hardwired?
+
+393) add conditions for available netowrk add stuff 
+	like check for phylogenetic graph
+
+394) Fix net move
+
+395) Remove cycle check from convertGeneralGraphToPhylogeneticGraph when ok
+
+

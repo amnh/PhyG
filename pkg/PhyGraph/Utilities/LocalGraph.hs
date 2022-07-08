@@ -63,13 +63,13 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
 
 -- | Gr local graph definition using FGL
-type Gr a b = P.Gr a b
+type Gr a b = P.Gr a b 
 type Node = G.Node
 type LNode a = G.LNode a
 type DotGraph = GV.DotGraph
@@ -156,7 +156,93 @@ removeDuplicateEdges inGraph =
         in
         if null dupEdges then inGraph
         else delEdges dupEdges inGraph
+
+-- | hasTreeNodeWithAllNetworkChildren checks treenodes for all (should be 2) children that
+-- are netork nodes
+hasTreeNodeWithAllNetworkChildren :: Gr a b -> (Bool, [Node])
+hasTreeNodeWithAllNetworkChildren inGraph =
+    if isEmpty inGraph then (False, [])
+    else 
+        let (_, _, treeNodeList, _) = splitVertexList inGraph
+            hasAllNetChildrenList = fmap (hasAllNetChildren inGraph) (fmap fst treeNodeList)
+            nodesWithAllNetChildren = fmap (fst . fst) $ filter ((== True) .snd) $ zip treeNodeList hasAllNetChildrenList
+        in
+        ((not . null) nodesWithAllNetChildren, nodesWithAllNetChildren)
+
+-- | hasAllNetChildren checks whether all (usually 2) childrenb ofa vertex are network nodes
+hasAllNetChildren :: Gr a b -> Node -> Bool
+hasAllNetChildren inGraph inNode =
+    let children = descendants inGraph inNode
+        childVertNodes = filter (== True) $ fmap (isNetworkNode inGraph) children
+    in
+    length children == length childVertNodes
+
+-- | removeTreeEdgeFromTreeNodeWithAllNetworkChildren takes a greaph and removes the first edge (head) 
+-- from each tree node with all netowork children, tehn contracts those edges and nodes, 
+-- then reindexes -- but doesn not rename graph nodes
+removeTreeEdgeFromTreeNodeWithAllNetworkChildren :: Gr a b -> Gr a b
+removeTreeEdgeFromTreeNodeWithAllNetworkChildren inGraph = 
+    let (toDo, nodesWithEdgesToDelete) = hasTreeNodeWithAllNetworkChildren inGraph
+        outEdgesToDeleteList = fmap toEdge $ fmap head $ fmap (out inGraph) nodesWithEdgesToDelete
+        newGraph = delEdges outEdgesToDeleteList inGraph
+        newGraph' = reindexGraph $ contractIn1Out1Edges newGraph
+    in
+    if not toDo then inGraph
+    else newGraph'
+
         
+-- | hasChainedNetworkNodes checks if a graph has network nodes with at least one parent that is also a network node
+hasChainedNetworkNodes :: Gr a b -> Bool
+hasChainedNetworkNodes inGraph = 
+    if isEmpty inGraph then False
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            chainedNodeList = filter (== True) $ fmap (hasNetParent inGraph) $ fmap fst netVertexList
+        in
+        if null netVertexList then False
+        else (not . null) chainedNodeList
+
+-- | hasNetParent checks parent of node and retuens True if one or both are network nodes
+hasNetParent :: Gr a b -> Node -> Bool
+hasNetParent inGraph inNode =
+    let parentList = parents inGraph inNode
+        parentNetList = filter (== True) $ fmap (isNetworkNode inGraph) parentList
+    in
+    (not . null) parentNetList
+
+-- | removeChainedNetworkNodes detectes and fixes (if possible) chained networtk edges
+-- if 1 parent of network edge is tree node can be fixed by delete and contracting that node/edge 
+-- else if both parent are netowrks--cannot be fixed and errors out
+-- doens NOT rename nodes since need vertex info on that--but are reindexed
+removeChainedNetworkNodes :: (Show a, Show b) => Gr a b -> Maybe (Gr a b)
+removeChainedNetworkNodes inGraph = 
+    if isEmpty inGraph then Just inGraph
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            parentNetNodeList = fmap (hasNetParent inGraph) $ fmap fst netVertexList
+            chainedNodeList =  fmap fst $ filter ((== True) . snd) $ zip netVertexList parentNetNodeList
+            fixableChainedEdgeList = concatMap (getTreeEdgeParent inGraph) (fmap fst chainedNodeList)
+            newGraph = delEdges fixableChainedEdgeList inGraph
+            newGraph' = reindexGraph $ contractIn1Out1Edges newGraph
+        in
+        if null netVertexList then Just inGraph
+        else if null chainedNodeList then Just inGraph
+        else if null fixableChainedEdgeList then 
+            trace ("Warning: Unfixable chained network nodes (both parent and child nodes are indegree > 1). Deleting skipping graph")
+            Nothing
+        else 
+            trace ("Warning: Chained network nodes (both parent and child nodes are indegree > 1), removing edges to tree node parents (this may affect graph cost): " ++ (show fixableChainedEdgeList))--  ++ "\n" ++ (prettyIndices inGraph))
+            Just newGraph'
+
+-- | getTreeEdgeParent gets the tree edge (as list) into a network node as opposed to the edge from a network parent
+-- if both parents are netowrk nodes then returns []
+getTreeEdgeParent :: Gr a b -> Node -> [Edge]
+getTreeEdgeParent inGraph inNode =
+    let parentList = parents inGraph inNode
+        parentTreeList = fmap fst $ filter ((== False) . snd) $ zip parentList (fmap (isNetworkNode inGraph) parentList)
+    in
+    if null parentTreeList then []
+    else [(head parentTreeList, inNode)]
 
 -- Wrapper functions for fgl so could swap out later if want to
 
@@ -187,6 +273,10 @@ labEdges = G.labEdges
 -- | toEdge removes label from edge
 toEdge :: LEdge b -> Edge
 toEdge = G.toEdge
+
+-- | toNode returns fst of LNode a
+toNode :: LNode a -> Node
+toNode inNode = fst inNode
 
 -- | toLEdge adds a label to an edge
 toLEdge :: Edge -> b -> LEdge b
@@ -662,6 +752,21 @@ indexMatchNode :: LNode a -> LNode a -> Bool
 indexMatchNode (a, _) (b, _) = if a == b then True else False
 
 
+-- | coevalNodePairs generatres a list of pairs of nodes that must be potentially equal in
+-- age (ie parents of networkNode)
+coevalNodePairs :: (Eq a) => Gr a b -> [(LNode a, LNode a)]
+coevalNodePairs inGraph =
+    if G.isEmpty inGraph then []
+    else
+        let (_, _, _, netVertexList) = splitVertexList inGraph
+            pairListList = fmap (labParents inGraph) $ fmap fst netVertexList
+        in
+        if null netVertexList then []
+        else fmap makePairs pairListList
+    where makePairs a = if length a /= 2 then error ("Not two parents for coevalNodePairs")
+                        else (head a, a !! 1)
+        
+
 -- | indexMatchEdge returns True if two labelled edges have same node indices
 indexMatchEdge :: LEdge b -> LEdge b -> Bool
 indexMatchEdge (a,b,_) (c,d,_) = if a == c && b == d then True else False
@@ -1000,6 +1105,7 @@ testEdge fullGraph candidateEdge@(e,u,_) =
 -- | transitiveReduceGraph take list of nodes and edges, deletes each edge (e,u) in turn makes graph,
 -- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
 -- transitive reduction  Aho et al. 1972
+-- this not iterative with new graphs--shold it be?
 transitiveReduceGraph ::  (Eq b) => Gr a b -> Gr a b
 transitiveReduceGraph fullGraph =
   let requiredEdges = fmap (testEdge fullGraph) (labEdges fullGraph)
@@ -1044,20 +1150,46 @@ getGraphCoevalConstraintsNodes inGraph =
             let (edgeBeforeList, edgeAfterList) = unzip (fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS)
             in zip3 networkNodeList edgeBeforeList edgeAfterList
 
-
-
--- | meetsAllCoevalConstraints checks constraint pair list and examines
--- whether one edge is fomr before and one after--if so fails False
+-- | meetsAllCoevalConstraintsNodes checks constraint pair list and examines
+-- whether one edge is from before and one after--if so fails False
 -- else True if all pass
-meetsAllCoevalConstraints :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
-meetsAllCoevalConstraints constraintList edge1 edge2 =
+-- new edghe that woudl be creatated in edge1 -> edge2
+-- checks if starting and ending vertices of edges to be linked are on same side of each 
+-- coeval contraint
+meetsAllCoevalConstraintsNodes :: (Eq b) => [(Node, Node, [Node], [Node], [Node], [Node])] -> LEdge b -> LEdge b -> Bool
+meetsAllCoevalConstraintsNodes constraintList edge1@(u,v,_) edge2@(u',v',_) =
+   if null constraintList then True
+   else
+       let (_, _, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter) = head constraintList
+       in
+       --checks if edge nodes would stradle existing coeveal nodes
+       if (u `elem` aNodesAfter) && (u' `elem` bNodesBefore) then False
+       else if (u' `elem` aNodesAfter) && (u `elem` bNodesBefore) then False
+       else if (v `elem` aNodesAfter) && (v' `elem` bNodesBefore) then False
+       else if (v' `elem` aNodesAfter) && (v `elem` bNodesBefore) then False
+
+       else if (u `elem` aNodesBefore) && (u' `elem` bNodesAfter) then False
+       else if (u' `elem` aNodesBefore) && (u `elem` bNodesAfter) then False
+       else if (v `elem` aNodesBefore) && (v' `elem` bNodesAfter) then False
+       else if (v' `elem` aNodesBefore) && (v `elem` bNodesAfter) then False
+
+
+       else meetsAllCoevalConstraintsNodes (tail constraintList) edge1 edge2
+
+
+-- | meetsAllCoevalConstraintsEdges checks constraint pair list and examines
+-- whether one edge is from before and one after--if so fails False
+-- else True if all pass
+    -- not correct I don't htink
+meetsAllCoevalConstraintsEdges :: (Eq b) =>[([LEdge b],[LEdge b])] -> LEdge b -> LEdge b -> Bool
+meetsAllCoevalConstraintsEdges constraintList edge1 edge2 =
    if null constraintList then True
    else
        let (beforeList, afterList) = head constraintList
        in
        if edge1 `elem` beforeList && edge2 `elem` afterList then False
        else if edge2 `elem` beforeList && edge1 `elem` afterList then False
-       else meetsAllCoevalConstraints (tail constraintList) edge1 edge2
+       else meetsAllCoevalConstraintsEdges (tail constraintList) edge1 edge2
 
 -- | insertDeleteEdges takes a  graphs and list of nodes and edges to add and delete and creates new graph
 insertDeleteEdges :: (Show a, Show b) => Gr a b -> ([LEdge b], [Edge]) ->  Gr a b
@@ -1073,4 +1205,3 @@ notMatchEdgeIndices :: [Edge] -> LEdge b -> Bool
 notMatchEdgeIndices unlabeledEdegList labelledEdge =
     if toEdge labelledEdge `elem` unlabeledEdegList then False
     else True
-

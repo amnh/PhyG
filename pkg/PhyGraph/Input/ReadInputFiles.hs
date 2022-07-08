@@ -113,7 +113,7 @@ extractInputTuple :: [([RawData], [SimpleGraph], [NameText], [NameText], [(NameT
                   -> ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 extractInputTuple dataGraphList =
     let (inDataList, inGraphList, inTerminalsList, inExcludeList, inRenamePairs, inReBlockPairs) = L.unzip6 dataGraphList
-        rawData   = concat inDataList
+        rawData   = L.sort $ concat inDataList
         rawGraphs = concat inGraphList
         rawTerminals = concat inTerminalsList
         excludeTerminals = concat inExcludeList
