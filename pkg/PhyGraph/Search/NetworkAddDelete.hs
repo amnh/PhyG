@@ -485,6 +485,10 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
        if (graphType inGS) == HardWired then newPhyloGraph
 
+      else if LG.hasChainedNetworkNodes newSimple' then 
+         trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
+         emptyPhylogeneticGraph
+
        else 
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph

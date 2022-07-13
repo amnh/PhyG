@@ -111,17 +111,29 @@ executable phyg
   main-is:
     phygraph.hs
 
-  ghc-options:
-    -Wall
-    -Wincomplete-patterns
-    -threaded 
-    -feager-blackholing
-    -with-rtsopts=-N
-    -O2
-    -rtsopts
-    -static
-    -- problems getting llvm to function in OSX (can't find opt)
-    -- -fllvm
+  if !os(darwin) 
+    ghc-options:
+      -Wall
+      -Wincomplete-patterns
+      -threaded 
+      -feager-blackholing
+      -with-rtsopts=-N
+      -O2
+      -rtsopts
+      -static
+      -fllvm
+  else 
+      -Wall
+      -Wincomplete-patterns
+      -threaded 
+      -feager-blackholing
+      -with-rtsopts=-N
+      -O2
+      -rtsopts
+      -static
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+
 
   if !os(darwin) 
     cc-options: 
