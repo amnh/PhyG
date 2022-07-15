@@ -521,22 +521,22 @@
 		number, and $k_{max}$ is the maximum number of steps (set by the \texttt{steps:m}, default 10) 
 		option.
 		
-		\begin{description}
+			\begin{description}
 		
-		\item[generations:[n]] Specifies the number of generations (sequential iterations) for 
-		\texttt{geneticAlgorithm}. The default is $n=10$.
-
-		\item[popsize:[n]] Specifies the population size for \texttt{geneticAlgorithm}. The default is 
-		$n=20$.
+			\item[netadd] Adds network edges to existing input graphs at all possible positions until no 
+			better cost graph is found.
 			
-		\item[recombinations:[n]] Specifies the number of recombination (fusing) events for 
-		\texttt{geneticAlgorithm}. The default is $n=100$.
+			\item[netdel] Deletes network edges from input graphs one at a time until no better cost 
+			graph is found.
 			
-		\item[severity:[n]] Specifies the severity of selection against sub-optimal graph solutions 
-		events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. The 
-		default is $n=1.0$.
+			\item[netmove] Moves existing network edges in input graphs one at a time to new positions 
+			until no better cost graph 
+			is found.
+			
+			\item[steps:n] Specifies that $n$ (default 10) \hl{temperature} steps are performed during simulated 
+			annealing (as specified by the \texttt{annealing}) option.
 
-		\end{description}
+			\end{description}
 
 			
 		\item[drift[:n]] Specifies that $n$ (default 1) rounds of the ``drifting'' form of simulated annealing 
@@ -572,18 +572,6 @@
 		
 		\item[keep:n] Limits the number of returned graphs to $n$. 
 		
-		\item[netadd] Adds network edges to existing input graphs at all possible positions until no 
-		better cost graph is found.
-			
-		\item[netdel] Deletes network edges from input graphs one at a time until no better cost 
-		graph is found.
-			
-		\item[netmove] Moves existing network edges in input graphs one at a time to new positions 
-		until no better cost graph 
-		is found.
-			
-		\item[steps:n] Specifies that $n$ (default 10) \hl{temperature} steps are performed during simulated 
-		annealing (as specified by the \texttt{annealing}) option.
 		\end{description}
 	
 	%add defaults and examples	
@@ -711,15 +699,17 @@
 		\texttt{run("filename")}
 		
 	\begin{phygdescription}
-		{Used to execute a file containing commands. This can be useful to specify common actions 
-		such as file inputs and graph construction. }
+		{Used to execute a \phyg script file containing commands. The script filename must be 
+		included in quotes. 
+		Executing scripts using \texttt{run} can be useful to specify common actions such as file inputs 
+		and graph construction. }
 	\end{phygdescription}
 	
 	\subsubsection{Arguments}
 		The only argument is the filename containing commands to be executed.
 		
 	\subsubsection{Defaults}
-		There are no default \texttt{run} arguments. 
+		There are no default settings of \texttt{run}. 
 	
 	\begin{example}
 		\item{\texttt{run("readFiles.pg")}\\ Executes "readFiles.pg", which may contain multiple input 
@@ -737,15 +727,20 @@
 		\texttt{search(arg0:option, arg1:option, ...)}
 	
 	\begin{phygdescription}
-		{The command is used to reform a timed randomized series of graph optimization methods 
-		including building, recombination (fusing), swapping, simulated annealing and drifting, 
-		network edge addition/deletion/moving, and Genetic Algorithm. Parameters and order
-		randomized. The arguments specify the number of rounds of search (\texttt{instances}, 
-		default 1), and duration (\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
+		{This command implements a default search strategy, performing a timed randomized 
+		series of graph optimization methods including building, swapping, recombination (fusing), 
+		simulated annealing and drifting, network edge addition/deletion/moving, and Genetic 
+		Algorithm. The parameters and \hl{order} for this search are randomized. The arguments 
+		specify the number of rounds of search (\texttt{instances}, default 1), and duration 
+		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
 		default 30 seconds). Successive rounds of search (specified by \texttt{iterations}) gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
-		longer that the specified duration.}
+		longer that the specified duration. \hl{how is this executed in parallel?} 
+		
+		When performing a \texttt{search} it is important to set the amount of time, such that the 
+		program has a reasonable amount of time to perform a search. Therefore, it is important
+		to have some idea as to the length of time it would take to do a single round of searching.}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -756,15 +751,21 @@
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
+		\item[instances:n] \hl{Performs $n$ successive rounds of  search? How does instances
+		differ from iterations?}
+		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
 		\item[seconds:n] Adds $n$ seconds to search time.
 		
-		\item[iterations:n] Specifies number of (potentially parallel) search iterations.
+		\item[iterations:n] Specifies number of (potentially parallel) search iterations.\\
+		
+		\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
+		FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graphs.
+		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graphs \hl{30 seconds?}.
 		
 	\begin{example}
 		\item{\texttt{search(hours:10, iterations:2)}\\ Performs 2 search iterations (in parallel if the 
@@ -782,20 +783,21 @@
 		\texttt{set(arg0:option, arg1:option, ...)}
 	
 	\begin{phygdescription}
-		{The command is used to set the method and number of graphs to be saved at any point.
-		When multiple graphs are present, the \texttt{select} command will specify which of the 
-		graphs to keep for further analysis or reporting.}
+		{Specifies the method and number of graphs to be saved at any point. When multiple 
+		graphs are present, the \texttt{select} command will specify which of the graphs to keep 
+		for further analysis or reporting.}
 	\end{phygdescription}
 				
 	\subsubsection{Arguments}
 		\begin{description}
 			\item[all] Keeps all graphs.
 		
-			\item[best] Keeps graphs of best optimality value.
+			\item[best] Selects and keeps the graphs with the  best optimality value.
 			
-			\item[random] Keeps graphs chosen at random.
+			\item[random] Keeps graphs chosen at random. \hl{should this be atRandom?}
 			
-			\item[arg:n] Keeps up to \texttt{n} graphs determined by the argument.
+			\item[arg:n] Keeps up to \texttt{n} graphs determined by the argument \hl{what does this mean?} 
+			\hl{should this be unique?}.
 		\end{description}
 
 	\subsubsection{Defaults}
@@ -817,14 +819,15 @@
 	\begin{phygdescription}
 		{Changes the settings of \phyg. This command performs an array of functions
 		from specifying the seed of the random number generator, to selecting a terminal for
-		rooting output trees, to specifying  graph type, final assignment, and 
-		optimality criterion. All \texttt{set} commands are executed at the start of a run. 
-		The command \texttt{transform} is used to modify global settings during a run.}
+		rooting output trees, to specifying  graph type, final assignment, and 	optimality 
+		criterion. All \texttt{set} commands are executed at the start of a run, irrespective of
+		where they appear in the script. The command \texttt{transform} is used to modify 
+		global settings during a run (see \hl{link to Transform}}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
 		\begin{description}
-			\item[compressResolutions:True|False] Determines whether soft-wired graph 
+			\item[compressResolutions:True|False] \hl{change to BOOL} Determines whether soft-wired graph 
 			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
 			trees are equal.
 			
@@ -844,9 +847,12 @@
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
-			\item[outgroup:"Blah"] Makes the outgroup taxon ``Blah''. 
+			\item[modelcomplexoty] \hl{details}
 			
-			\item[partitioncharacter] Sets the character that is used to partition data.
+			\item[outgroup:STRING\hl{or LIDENT?}] Specifies the terminal to root the output trees. 
+			This name must appear in quotes. 
+			
+			\item[partitioncharacter] Sets the character that is used to partition data \hl{what does this mean?}.
 			
 			\item[rootCost:noRootCost|W15|PMDL] Sets the root cost for a graph. W15 sets a 
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
@@ -858,7 +864,8 @@
 		\end{description}
 					
 	\subsubsection{Defaults} 
-		There are no default \texttt{set} arguments. The default outgroup is the taxon whose name is 
+		There are no default \texttt{set} arguments. \hl{why say there are no defaults when all these defaults
+		follow?} The default outgroup is the taxon whose name is 
 		lexically first after renaming and taxon inclusion/exclusion. For this reason, it is best to specify 
 		an outgroup explicitly. The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} 
 		is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default 
@@ -883,7 +890,8 @@
 	\begin{phygdescription}
 		{Generates graphs supports via resampling \citep{Farrisetal1996} and Goodman-Bremer 
 		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing and Bootstrapping 
-		are the resampling methods that are implemented.}
+		are the resampling methods that are implemented. \hl{why mention Goodman-Bremer 
+		here if it's not supported? Should we just comment this out until such time that it is implemented?}.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -891,7 +899,9 @@
 			\item[buildonly] Performs very rapid, but not extensive graph searches for each 
 			resampling replicate.
 		
-			\item[bootstrap] Specifies that Bootstrap resampling is performed. When reported 
+			\item[bootstrap] Calculates Bootstrap support. \hl{does the user have to specify the 
+			number of iterations}
+			When reported 
 			(via \texttt{report(support)}) edges are labeled with the bootstrap frequencies.
 		
 			\item[goodmanbremer|gb[:spr|tbr]] Specifies that Goodman-Bremer support is 
@@ -917,8 +927,7 @@
 			delete 50\% jackknife resampling.}
 				
 			\item{\texttt{support(gb:SPR, gbSample:10000)}\\Produces Goodman-Bremer 
-			support based on $10,000$ samples of 
-						the SPR neighborhood.}
+			support based on $10,000$ samples of the SPR neighborhood.}
 		\end{example}
 
 %---------------------------------------------
@@ -929,36 +938,53 @@
 		\texttt{swap(arg0, arg1:option, ...)}
 			
 	\begin{phygdescription}
-		{Performs branch-swapping rearrangement on graphs. These include ``NNI'' \citep{CaminandSokal1965, 
-		Robinson1971}, ``SPR'' \citep{Dayhoff1969}, and ``TBR'' \citep{Farris1988, swofford1990a} refinement.}
+		{Performs branch-swapping rearrangement on graphs. This command implements a 
+		group of algorithms referred to as branch swapping, that proceed by clipping
+		parts of the given tree and attaching them in different positions. These algorithms 
+		include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR'' \citep{Dayhoff1969}, 
+		and ``TBR'' \citep{Farris1988, swofford1990a} refinement. \texttt[swap} is also used 
+		as an argument for \texttt{build} to specify \hl{XXX} (see Section include link here to build).
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
 		\begin{description}
-			\item[all] Specifies that refinement examines the entire rearrangement neighborhood 
-			of the current graph before retaining the best (lowest cost) solutions.
+			\item[all]  Turns off all preference strategies to make a join, simply trying all possible 
+			join positions for each pair of clades generated after a break, in a randomized order. 
+			The refinement examines the entire rearrangement neighborhood of the current graph 
+			before retaining the best (lowest cost) solutions.
 		
-			\item[annealing[:n]] Specifies that $n$ (default 1) rounds of simulated annealing \citep{Metropolisetal1953, 
-			Kirkpatricketal1983, Cerny1985} optimization are performed. The acceptance of candidate 
-			graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
+			\item[annealing[:n]] Specifies that $n$ rounds of simulated annealing \citep{Metropolisetal1953, 
+			Kirkpatricketal1983, Cerny1985} optimization are performed (default 1). The acceptance 
+			of candidate graphs is determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
 			where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, $k$ 
 			is the step number, and $k_{max}$ is the maximum number of steps (set by the \texttt{steps:m}, 
 			default 10) option.
 		
-			\item[drift[:n]] Specifies that $n$ (default 1) rounds of the ``drifting'' form of simulated annealing 
-			\citep{goloboff1999} optimization are performed. The acceptance of candidate graphs is determined 
-			by the probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ is 
-			the cost of the current best graph, and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:m}, 
-			default 1.0) option. Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} 
-			option. \texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify acceptance 
-			probabilities. The maximum number of graphs changes is set by \texttt{maxChanges}
+			\item[drift[:n]] Specifies that $n$ rounds of the ``drifting'' form of simulated annealing 
+			\citep{goloboff1999} optimization are performed (default 1) . The acceptance of candidate 
+			graphs is determined by the probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost 
+			of the candidate graph, $c_b$ is the cost of the current best graph, and $wf$ is the 
+			\texttt{acceptWorse} (set by the \texttt{acceptWorse:m}, default 1.0) option. Equal 
+			cost graphs are accepted with probability set by the \texttt{acceptEqual}  option. 
+			\texttt{drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
+			acceptance probabilities. The maximum number of graphs changes is set by 
+			\texttt{maxChanges}.
+			
+			\begin{description}
+			
+			\item[acceptEqual] 
+			
+			\item[acceptWorse] 
+			
+			\item[maxChanges:n] Specifies that drifting graph changes are limited to $n$ (default 15).
+			
+			\end{description}
 		
-			\item[ia] Specifies that Implied Alignment \citep{Wheeler2003} assignment are used for branch swapping 
-			as opposed to full Direct Optimization for dynamic charters when the graph type is \texttt{Tree}.
+			\item[ia] Specifies that Implied Alignment \citep{Wheeler2003} assignment are used for 
+			branch swapping as opposed to full Direct Optimization for dynamic charters when the 
+			graph type is \texttt{Tree}.
 		
 			\item[keep:n] Specifies that up to $n$ equally costly graphs are retained.
-		
-			\item[maxChanges:n] Specifies that drifting graph changes are limitied to $n$ (default 15).
 		
 			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
 		
@@ -988,11 +1014,12 @@
 			returning up to 10 best rearrangements found for each graph after examining all graphs in 
 			the rearrangement neighborhood.}
 		\end{example}
-		
+	
 %---------------------------------------------
 %transform
 %---------------------------------------------		
 \subsection{Transform}
+	\label{subsec:Transform}
 	\subsubsection{Syntax}
 		\texttt{transform(arg0, arg1,...)}
 			
