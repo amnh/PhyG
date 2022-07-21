@@ -123,6 +123,7 @@ executable phyg
       -static
       -fllvm
   else 
+    ghc-options:
       -Wall
       -Wincomplete-patterns
       -threaded 
