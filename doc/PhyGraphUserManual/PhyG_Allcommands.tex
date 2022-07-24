@@ -24,8 +24,8 @@
 
 	\begin{description}
 
-		\item[block] Performs independent builds for each ``block'' of data. \hl{If this option 
-		is not specified, the builds are performed using all the data.} Builds are performed 
+		\item[block] Performs independent builds for each ``block'' of data. If this option 
+		is not specified, the builds are performed combining all the data. Builds are performed 
 		according 	to the other options (e.g. \texttt{character, distance}). The resulting tree 
 		or \texttt{graph} is reconciled using the \texttt{eun} or \texttt{cun} commands. The 
 		reconciled graph is resolved into display trees via the \texttt{displayTrees}, \texttt{first}, 
@@ -61,8 +61,8 @@
 		\end{description}			
 		
 		\item [character] Performs random addition sequence Wagner \citep{Farris1970} builds 
-		($O(n^2)$) for tree construction. If the graphtype is softwired or hardwired the resulting 
-		trees are rediagnosed as soft-wired graphs. \hl{does this refer to an input tree?} This is 
+		($O(n^2)$) for tree construction. If the graphtype is specified as softwired or hardwired 
+		the resulting trees are rediagnosed as soft-wired graphs. This is 
 		the default method for tree construction.
 		
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used 
@@ -84,9 +84,8 @@
 			tree. This method has a time complexity of $O(n^3)$.
 
 			\item[none] No refinement (\texttt{otu}, \texttt{spr}, \texttt{tbr})) is performed after 
-			distance builds. \hl{are one of these refinement methods the default? If you don't 
-			specify none, what will it do?}
-			
+			distance builds. \texttt{none} is the default refinement method.
+						
 			\item[otu] Specifies that \texttt{otu} refinement \citep{Wheeler2021} is performed 
 			after distance 
 			builds.
@@ -133,10 +132,10 @@
 		\item{\texttt{build(distance, dWag, replicates:1000, best:10)}\\
 		Builds 1000 distance Wagner builds and returns 10 of the lowest cost distance trees.}
 	
-		\item{\texttt{build(distance, rdwag, eun, displaytrees: 3)}\\
+		\item{\texttt{build(distance, rdwag, block, eun, displaytrees:3)}\\
 		Builds 10 random addition sequence Wagner builds for each `block' of data. The graph 
 		is reconciled into a Edge-Union-Network, before resolution into the 3 display trees. 
-		The trees are produced by resolving the network nodes \hl{how will it do this if not specified?}}
+		The trees are produced by resolving the network nodes.}
 		
 		\item{\texttt{build(distance, block, rdWag, replicates:100, wpgma, best:10, otu)}\\
 		Builds 100 random addition sequence distance Wagner builds, a WPGMA tree, 
@@ -158,7 +157,7 @@
 		operates on a collection of graphs performing reciprocal graph recombination between 
 		pairs of graphs. Non-identical subgraphs with identical leaf sets are exchanged between 
 		graphs and the 	results evaluated. This process of exchange and evaluation continues 
-		until no new graphs are found \hl{correct?} 
+		until no new graphs are found.
 		This can be used in concert with other options to perform a Genetic Algorithm refinement
 		\citep{Holland1975}. The behavior of \texttt{fuse} can be modified by the use of options 
 		specifying SPR and TBR-like rearrangement of the combination process.}
@@ -166,27 +165,27 @@
 	
 	\subsubsection{Arguments}
 	\begin{description}
-		\item[all] \hl{details}
+		%\item[all] \hl{details}
 		
-		\item[atRandom] \hl{details}
+		%\item[atRandom] \hl{details}
 		
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
 		
 		\item [keep:n] Limits the number of returned graphs to $n$. 
 		
-		\item [nni] Causes the exchanged subgraphs to be \hl{tried} at their initial positions as well as the 
+		\item [nni] Causes the exchanged subgraphs to be tested at their initial positions as well as the 
 		two adjacent edges.
 		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
-		\item[pairs[:n]] \hl{details}
+		%\item[pairs[:n]] \hl{details}
 		
 		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
 		
-		\item[steepest] \hl{details}
+		%\item[steepest] \hl{details}
 		
 		\item [tbr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions) and with TBR-style rerooting of the exchanged 
@@ -239,7 +238,8 @@
 		\item [aminoacid:] Specifies that the file contents are parsed as IUPAC coded amino 
 		acid data in fasta \citep{PearsonandLipman1988} format.
 
-		\item [block:] Specifies that the file contains block \hl{ref?} information. Each line contains 
+		\item [block:] Specifies that the file contains block %\hl{ref?} 
+		information. Each line contains 
 		the new block name followed by names of input files to be assigned to that data block. 
 		Blocks are initially named as the input file name with ``:0'' appended. In the examples, 
 		data from files ``b'' and ``c'' will be assigned to block ``a''. There can be no spaces in 
@@ -266,11 +266,10 @@
 			
 		\item [fastc:] Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019}
 		format. This is used for multi-character sequences such as gene synteny, developmental, 
-		or linguistic data. \hl{should we explicitly say that Multi-character sequences are characters
-		with more than 64 states.}
+		or linguistic data.
 			
 		\item [fenewick:] Specifies that the file contains Forest Enhanced Newick format graph(s)  
-		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2021a}.
+		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
 			
 		\item [include:] Specifies the names of terminal taxa to be included in the analysis. 
 		Taxa appear in the form of a list, with a single taxon per line. It is possible to specify 
@@ -316,10 +315,7 @@
 					 
 		\item [tcm:] This refers to a file containing a custom-alphabet matrix that specifies varying 
 		costs among alphabet elements in a sequence. The elements in the alphabet can be letters, 
-		digits, or both, as long as one element is not a prefix of another (`prefix-free'). For example, 
-		the following pairs of custom-alphabet elements are \emph{not} valid because the first is a 
-		prefix of the second, 	which prevents the proper parsing of the input file): \texttt{NCC} and 
-		\texttt{NCC1701} or \texttt{TRX} and \texttt{TRX80}. \\
+		digits, or both. \\
 		
 		The \texttt{tcm} contains two parts: the first line of the file contains the alphabet elements 
 		separated by a space and the transformation cost matrix, which follows below. The dash 
@@ -338,6 +334,7 @@
 
 		\\
 		\begin{equation}
+		\nolabel
 		\begin{array}{lllll}
 		alpha & beta & gamma & delta &  \\
 		0 &   2 &  1 &   2 &   5 \\
@@ -367,9 +364,9 @@
 		on a 	new line. These character settings always terminate with a semi-colon (\texttt{;}). 
 		These settings include: activate (\texttt{[}) or deactivate (\texttt{]}); make additive/ordered 
 		(\texttt{+}) 	or non-additive/unordered (\texttt{-}); apply step-matrix costs (\texttt{(}) with 
-		scopes (e.g. \texttt{cc + 10 12;} and  \hl{\texttt{cc (.;} costs 0 = 0/1 1 0/2 2 0/3 3 0/4 4 1/2 1 
-		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes \hl{(\texttt{cc -.;}}). \hl{what 
-		about ) make additive or non-additive again?} There may 
+		scopes (e.g. \texttt{cc + 10 12;} and  \texttt{cc (.; costs 0 = 0/1 1 0/2 2 0/3 3 0/4 4 1/2 1 
+		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (\texttt{cc -.;}). %\hl{what about ) make additive or non-additive again?} 
+		There may 
 		be multiple character setting statements in a single line. Character settings must be 
 		followed by \texttt{proc/;} on its own line. \texttt{PhyG} will not process
 		any file contents that follow \texttt{proc/;}.
@@ -378,12 +375,9 @@
 		 for continuous characters are specified with a dash within square brackets (e.g. 
 		 \texttt{[1-2.1]}). Character state polymorphism are specified in square brackets without 
 		 spaces for single character states (e.g. \texttt{[03]}), and with spaces for multi-character 
-		 states (e.g. \hl{\texttt{[???}}).
+		 states. %(e.g. \hl{\texttt{[???}}).
 		  
-		 \hl{\textbf{NB--An important difference between \texttt{TNT} and \texttt{PhyG} is in the 
-		 treatment of dashes (\texttt{-}).} Single character dashes are treated as a state (as in 
-		 sequence or other ``gap'') whereas in TNT, by default they are missing data (`?'-- 
-		 unless DNA input is specified).} Dashes in multi-character states (e.g. \texttt{Blue-ish}) 
+		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) 
 		 are treated as part of the character state specification. If the user wishes that dashes 
 		 be treated as missing data (`?'), the file must be edited to reflect this by replacing the 
 		 dashes that are to be treated as missing data with question 
@@ -471,7 +465,7 @@
 		\texttt{rename("newName", "oldName1", "oldName2",...)}
 		
 	\begin{phygdescription}
-	{Replaces the name(s) of specified terminals \hl{is this available for characters also?}. 
+	{Replaces the name(s) of specified terminals. 
 	The command consists of a terminal identifier followed by a comma and then by either 
 	a string containing a pair (or pairs) of strings containing the names of items being renamed.
 	The first string (name) is assigned to taxa with the strings (names) that follow. This can be 
@@ -533,7 +527,8 @@
 			until no better cost graph 
 			is found.
 			
-			\item[steps:n] Specifies that $n$ (default 10) \hl{temperature} steps are performed during simulated 
+			\item[steps:n] Specifies that $n$ (default 10) temperature steps are performed during 
+			simulated 
 			annealing (as specified by the \texttt{annealing}) option.
 
 			\end{description}
@@ -605,8 +600,9 @@
 		inconsistencies in the spelling of taxon names in different data files. The reported file is 
 		in csv format.
 			
-		\item[data] Outputs a summary of the input data. More specifically, \phyg will report the 
-		\hl{"Index","Block","Name","Type","Activity","Weight","Prealigned","Alphabet","TCM"}
+		\item[data] Outputs a summary of the input data. More specifically, \phyg will report 
+		aspects of the input data. 
+		%\hl{"Index","Block","Name","Type","Activity","Weight","Prealigned","Alphabet","TCM"}
 	
 		\item[diagnosis] Outputs graph diagnosis information such as vertex and states and edge 
 		statistics in csv format. 
@@ -730,13 +726,13 @@
 		{This command implements a default search strategy, performing a timed randomized 
 		series of graph optimization methods including building, swapping, recombination (fusing), 
 		simulated annealing and drifting, network edge addition/deletion/moving, and Genetic 
-		Algorithm. The parameters and \hl{order} for this search are randomized. The arguments 
+		Algorithm. The parameters and order for this search are randomized. The arguments 
 		specify the number of rounds of search (\texttt{instances}, default 1), and duration 
 		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
 		default 30 seconds). Successive rounds of search (specified by \texttt{iterations}) gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
-		longer that the specified duration. \hl{how is this executed in parallel?} 
+		longer that the specified duration.
 		
 		When performing a \texttt{search} it is important to set the amount of time, such that the 
 		program has a reasonable amount of time to perform a search. Therefore, it is important
@@ -751,8 +747,8 @@
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
-		\item[instances:n] \hl{Performs $n$ successive rounds of  search? How does instances
-		differ from iterations?}
+		%\item[instances:n] \hl{Performs $n$ successive rounds of  search? How does instances
+		%differ from iterations?}
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
@@ -760,12 +756,12 @@
 		
 		\item[iterations:n] Specifies number of (potentially parallel) search iterations.\\
 		
-		\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
-		FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
+		%\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
+		%FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graphs \hl{30 seconds?}.
+		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graph}.
 		
 	\begin{example}
 		\item{\texttt{search(hours:10, iterations:2)}\\ Performs 2 search iterations (in parallel if the 
@@ -792,12 +788,12 @@
 		\begin{description}
 			\item[all] Keeps all graphs.
 		
-			\item[best] Selects and keeps the graphs with the  best optimality value.
+			\item[best:n] Selects and keeps the graphs with the  best optimality value.
 			
-			\item[random] Keeps graphs chosen at random. \hl{should this be atRandom?}
+			\item[atRandom] Keeps graphs chosen at random.
 			
-			\item[arg:n] Keeps up to \texttt{n} graphs determined by the argument \hl{what does this mean?} 
-			\hl{should this be unique?}.
+			\item[unique:n] Keeps up to \texttt{n} unique graphs, which may not necessarily be the 
+			best graphs.
 		\end{description}
 
 	\subsubsection{Defaults}
@@ -822,12 +818,13 @@
 		rooting output trees, to specifying  graph type, final assignment, and 	optimality 
 		criterion. All \texttt{set} commands are executed at the start of a run, irrespective of
 		where they appear in the script. The command \texttt{transform} is used to modify 
-		global settings during a run (see \hl{link to Transform}}
+		global settings during a run (see \texttt{transform} Section \ref{subsec:Transform}).
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
 		\begin{description}
-			\item[compressResolutions:True|False] \hl{change to BOOL} Determines whether soft-wired graph 
+			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+			Determines whether soft-wired graph 
 			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
 			trees are equal.
 			
@@ -847,12 +844,12 @@
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
-			\item[modelcomplexoty] \hl{details}
+			%\item[modelcomplexity] \hl{details}
 			
-			\item[outgroup:STRING\hl{or LIDENT?}] Specifies the terminal to root the output trees. 
+			\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 			This name must appear in quotes. 
 			
-			\item[partitioncharacter] Sets the character that is used to partition data \hl{what does this mean?}.
+			\item[partitioncharacter] Sets the character that is used to partition data. %\hl{The separator can be something else}
 			
 			\item[rootCost:noRootCost|W15|PMDL] Sets the root cost for a graph. W15 sets a 
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
@@ -864,8 +861,7 @@
 		\end{description}
 					
 	\subsubsection{Defaults} 
-		There are no default \texttt{set} arguments. \hl{why say there are no defaults when all these defaults
-		follow?} The default outgroup is the taxon whose name is 
+		The default outgroup is the taxon whose name is 
 		lexically first after renaming and taxon inclusion/exclusion. For this reason, it is best to specify 
 		an outgroup explicitly. The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} 
 		is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default 
@@ -890,8 +886,7 @@
 	\begin{phygdescription}
 		{Generates graphs supports via resampling \citep{Farrisetal1996} and Goodman-Bremer 
 		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing and Bootstrapping 
-		are the resampling methods that are implemented. \hl{why mention Goodman-Bremer 
-		here if it's not supported? Should we just comment this out until such time that it is implemented?}.}
+		are the resampling methods that are implemented.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -899,10 +894,9 @@
 			\item[buildonly] Performs very rapid, but not extensive graph searches for each 
 			resampling replicate.
 		
-			\item[bootstrap] Calculates Bootstrap support. \hl{does the user have to specify the 
-			number of iterations}
-			When reported 
-			(via \texttt{report(support)}) edges are labeled with the bootstrap frequencies.
+			\item[bootstrap] Calculates Bootstrap support. The user can specify the 
+			number of iterations, using \texttt{replicates:n} (see below).
+			When reported (via \texttt{report(support)}) edges are labeled with the bootstrap frequencies.
 		
 			\item[goodmanbremer|gb[:spr|tbr]] Specifies that Goodman-Bremer support is 
 			calculated for input graphs. The method traverses the SPR or TBR neighborhood 
@@ -916,7 +910,7 @@
 			edges are labeled with the jackknife frequencies.
 		
 			\item[replicates:n] Specifies that $n$ resampling replicates (default 100) are performed 
-			in resampling support.
+			in resampling support for Jackknife and bootstrap methods.
 		\end{description}	
 		\subsubsection{Defaults}
 			\texttt{support(goodmanBremer:TBR)}
@@ -942,8 +936,7 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR'' \citep{Dayhoff1969}, 
-		and ``TBR'' \citep{Farris1988, swofford1990a} refinement. \texttt[swap} is also used 
-		as an argument for \texttt{build} to specify \hl{XXX} (see Section include link here to build).
+		and ``TBR'' \citep{Farris1988, swofford1990a} refinement.
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}

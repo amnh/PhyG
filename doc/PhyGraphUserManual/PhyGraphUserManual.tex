@@ -116,7 +116,7 @@
 	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
 	analysis programs, is the extension to broader classes of input data and phylogenetic graphs. 
 	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as other forms 
-	including forests and both soft- and hard-wired networks. \phyg \hl{generates ...}
+	including forests and both soft- and hard-wired networks.
 		
 	This is the initial version of documentation for the program.
 
@@ -127,18 +127,17 @@
 	
 		\subsection{Requirements: software and hardware}
 		\phyg is an open-source program that can be compiled for Mac OSX and Linux. Some 
-		utility programs (such as TextEdit for Mac, or Nano for Linux), can help in preparing 
+		utility programs (such as TextEdit for Mac, or Nano for Linux) can help in preparing 
 		\phyg scripts and formatting data files, while others (such as Adobe Acrobat and TreeView 
 		\citep{page1996}) can facilitate viewing the outputted graphs and trees.
 		
 		\phyg runs on a variety of computers, including desktops, laptops and cluster computers.
-		There are no particular size requirements for disk space, although \hl{graphs and network
-		do require a lot of space}. 
 		By default, \phyg is a multi-threaded application and will use the available resources of 
 		the computer during the analysis (see Execution in Parallel \ref{subsec:parallel}). 
 		
 		\subsection{Obtaining and Installing \phyg}
-		\phyg source code, precompiled binaries, test data, and documentation in pdf format, %as well as tutorials
+		\phyg source code, precompiled binaries, test data, and documentation in pdf format, 
+		%as well as tutorials
 		are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website.
 
 		\subsubsection{Installing from the binaries}
@@ -166,17 +165,24 @@
 		raw=true
 		\end{quote}
 		
-		\noindent The binary should either be moved into your \$PATH or referred to at its 
-		current location when executing a script.
+		\noindent The binary should either be moved into your \$PATH or referred to its 
+		absolute when executing a script.
 				
 		\subsubsection{Compiling from the source}
-		For the majority of users, downloading the binaries will suffice. Should you prefer to 
-		compile \phyg directly from the source code, the \phyg source code can be downloaded 
-		from \hl{...}
+		For the majority of users, downloading the binaries will suffice. Should the user prefer to 
+		compile \phyg directly from the source, the source code can be downloaded 
+		from the \href{https://github.com/amnh/PhyGraph}{GitHub} website. \phyg is largely 
+		written in Haskell. In order to compile \phyg from the source, the user must install Cabal, 
+		a command-line program for downloading and building software written in Haskell (ghc).  
+		Information on its installation can be found  
+		\href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
+		To install an optimized version of \phyg, run the following in a \textit{Terminal}:
 		
 		\begin{quote}
 		cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
 		\end{quote}
+		
+		%\hl{Explain this a bit better?}
 		
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %OVERVIEW OF THE PROGRAM
@@ -194,19 +200,18 @@
 		phyg commandFile
 		\end{quote}
 		
-		\noindent For example, typing
+		\noindent For example, typing\\
 		
 		\begin{quote}
-  		phyg /Users/username/phygfiles/mol.pg
+  		phyg Users/Ward/Desktop/phygfiles/mol.pg
 		\end{quote}
 
-		\noindent in a \textit{Terminal} window will invoke \phyg to run the script \texttt{mol.pg} in 
-		the directory \texttt{/Users/username/phygfiles}. 
-		
-		\noindent This is the equivalent of including
+		\noindent in a \textit{Terminal} window will invoke \phyg to run the script \texttt{mol.pg}, 
+		which is located in the Desktop of the home directory \texttt{/Users/Ward/Desktop/phygfiles}. 
+		This is the equivalent of including\\
 		
 		\begin{quote}
-   		cd ("/Users/username/phygfiles")
+   		cd ("Users/Ward/Desktop/phygfiles")
 		\end{quote}
 			
 		\subsection{Creating and running \phyg scripts}
@@ -232,10 +237,10 @@
 		\label{firstscript}
 		\end{figure}
 
-		Optimize memory consumption--keep low number of graphs in initial searches, later keep a larger
-		number to get others 
-		\hl{(see email from WW 04-21-22)}
-		\hl{where should I discuss this?}
+%		Optimize memory consumption--keep low number of graphs in initial searches, later keep a larger
+%		number to get others 
+%		\hl{(see email from WW 04-21-22)}
+%		\hl{where should I discuss this?}
 	
 	\subsection{Execution in Parallel}
 		\label{subsec:parallel}
@@ -273,32 +278,32 @@
 		measurement, and prealigned molecular sequence data. \phyg does not parse all the
 		diversity of options that can be specified in \texttt{TNT} input files.\\
 		
-		\hl{[Notes to be fleshed out...]}
-		The majority of character scopes of TNT files are supported in \phyg. These include interleaved files,
-		 cc code and costs yes, but one set of commands per line.\\
-		Costs A$>$B A$/$B syntax no spaces. \\
-		Ambiguities not allowed. \\
-		Must specify all transformations manually.
-		')' sets to non-additive, if want additive then need to reset to additive after\\
-		character state designations single characters\\
-		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} 
-		for continuous) are 
-		in squarebrakets with period as in [X.Y]\\
-		- ans ? are always missing/inapplicable. \\
-		If DNA are not coded ACGT- => 01234 but left as letters, then to include gaps as a 5th state, just 
-		include another character, such the letter 'O' that is not an IUPAC 
-		ambiguity code for DNA (or amino acids for that matter) as an additional state. This can be used for 
-		matrix/Sankoff matrices as well.\\
-		Amino acid sequences would be processed in the same way. Including gaps as information requires
-		an extra state (such as letter 'O').\\ 
-		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
-		between them.\\
-		Continuous characters must be numbers only (float fine) and declared as ``additive'' by cccode 
-		command, otherwise the number will be treated as non-additive character states. \\
-		nonAdd polymorphisms are [X.Y]--unless additive '-' for range\\
-		can't have '.' in multichar state (or single for that matter)\\
-		The inherent ordering of DNA and amino acid codes is alphabetical (e.g. A, C, G, T and `-').
-	
+		%\hl{[Notes to be fleshed out...]}\\
+%		The majority of character scopes of TNT files are supported in \phyg. These include interleaved files,
+%		 cc code and costs yes, but one set of commands per line.\\
+%		Costs A$>$B A$/$B syntax no spaces. \\
+%		Ambiguities not allowed. \\
+%		Must specify all transformations manually.
+%		')' sets to non-additive, if want additive then need to reset to additive after\\
+%		character state designations single characters\\
+%		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} 
+%		for continuous) are 
+%		in squarebrakets with period as in [X.Y]\\
+%		- ans ? are always missing/inapplicable. \\
+%		If DNA are not coded ACGT- => 01234 but left as letters, then to include gaps as a 5th state, just 
+%		include another character, such the letter 'O' that is not an IUPAC 
+%		ambiguity code for DNA (or amino acids for that matter) as an additional state. This can be used for 
+%		matrix/Sankoff matrices as well.\\
+%		Amino acid sequences would be processed in the same way. Including gaps as information requires
+%		an extra state (such as letter 'O').\\ 
+%		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
+%		between them.\\
+%		Continuous characters must be numbers only (float fine) and declared as ``additive'' by cccode 
+%		command, otherwise the number will be treated as non-additive character states. \\
+%		nonAdd polymorphisms are [X.Y]--unless additive '-' for range\\
+%		can't have '.' in multichar state (or single for that matter)\\
+%		The inherent ordering of DNA and amino acid codes is alphabetical (e.g. A, C, G, T and `-').
+%	
 	\section{Input Graph Formats}
 	Graphs can be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
 	interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
@@ -350,8 +355,9 @@
 		newlines). Each command consists of a name followed by a list of arguments 
 		separated by commas and enclosed in parentheses. Commands and arguments 
 		are case insensitive with the exception of filename specifications, which are always 
-		in double quotes (\texttt{"fileName"}). File options require a valid filename \hl{what 
-		does this mean?} Arguments may be preceded or followed by 
+		in double quotes (\texttt{"fileName"}). File options require a valid filename %\hl{what 
+		does this mean?} 
+		Arguments may be preceded or followed by 
 		options separated by a colon \texttt{`:'}, with no space before the option. Command 
 		arguments are order independent and can be entered from a file as stdin 
 		(\texttt{$<$ fileName}).
@@ -364,23 +370,18 @@
 		 that require specification. 	There are defaults for all options except input graphs. 
 		 Parameters are given with options in a range `a to b' (a-b) with any value in the interval, 
 		 or alternates `a or b' (a|b). 
-		\hl{reword this, confusing}
+		%\hl{reword this, confusing}
 		
 		Commands are standard commands that can affect the behavior of another command 
 		when included in its list of arguments. Therefore, certain commands can function as 
 		arguments of other commands. For example, the command \texttt{swap} specifies 
 		the method of branch swapping. This command is used to conduct a local search on 
-		a set of trees. In addition, \texttt{swap} functions as an argument for \texttt{build}
-		specifying \hl{...}.
-	
-		The program requires at least one input graph file and at least two input graphs (they 
-		could be in the same file). 
-		\hl{when does it require an input graph? need to explain why you would include two of 
-		the same file.}
-				
+		a set of trees. %In addition, \texttt{swap} functions as an argument for \texttt{build}
+		%specifying \hl{...}.
+
 		For input graphs, wildcards are allowed (i.e. `*' and `?').\\
 	
-	\hl{Do you want a section on Notation within Command Structure?}
+	%\hl{Do you want a section on Notation within Command Structure?}
 	
 	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
@@ -395,10 +396,10 @@
 	\input{PhyG_allcommands.tex}
 	
 \section{Example Script Files}
-	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), skips all 
-	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the outgroup to the taxon 
-	named ``zero,'' specifies the graph type for the analysis is a soft-wired network, and 	reports a series of files 
-	with various information about the data and graphs.
+	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), 
+	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
+	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a soft-wired network, 
+	and 	reports a series of files with various information about the data and graphs.
 	
 		\begin{verbatim}
 			-- Example Script 1
