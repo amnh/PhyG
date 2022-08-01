@@ -701,4 +701,5 @@ preOrderTreeTraversal
 	missing.   Then really not dispositive except for  the parts where non-missing
 	
 
+397) Add options to bias in favor of data, graph, or trajectory parallelism
 
