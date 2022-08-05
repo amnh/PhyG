@@ -4,7 +4,7 @@ Version:       0.1.0
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
-  GHC == 9.2.2
+  GHC == 9.2.4
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     (c) 2015-2022 Ward Wheeler
