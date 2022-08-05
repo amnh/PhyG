@@ -294,6 +294,7 @@ rejoinGraph :: GlobalSettings
             -> Int
             -> Bool
             -> VertexCost
+            -> [PhylogeneticGraph]
             -> Bool
             -> VertexCost
             -> DecoratedGraph
@@ -316,9 +317,9 @@ rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGr
    else 
       -- famp over all edges in base graph
       if not steepest then 
-         let rejoinGraphList = fmap () edgesInBaseGraph `using` PU.myParListChunkRDS
+         let rejoinGraphList = fmap rejoinPlaceHolder edgesInBaseGraph `using` PU.myParListChunkRDS
              candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst candidateGraphList) `using` PU.myParListChunkRDS
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
              newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
          in
          if (snd6 . head) newGraphList'  <= curBestCost then newGraphList'
@@ -328,9 +329,9 @@ rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGr
       -- then recurse
       else 
          let rejoinEdgeList = take PU.getNumThreads edgesInBaseGraph
-             rejoinGraphList = fmap () rejoinEdgeList `using` PU.myParListChunkRDS
+             rejoinGraphList = fmap rejoinPlaceHolder rejoinEdgeList `using` PU.myParListChunkRDS
              candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst candidateGraphList) `using` PU.myParListChunkRDS
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
              newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
          in
          -- found better graph
@@ -344,7 +345,11 @@ rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGr
 
          -- found worse graphs only
          else 
-            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+
+-- | place holder function to make compile
+rejoinPlaceHolder :: LG.LEdge EdgeInfo -> PhylogeneticGraph
+rejoinPlaceHolder a = emptyPhylogeneticGraph
 
 
 -- | swapAll performs branch swapping on all 'break' edges and all readditions
