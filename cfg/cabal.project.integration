@@ -33,7 +33,7 @@ with-compiler: ghc-9.2.3
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log
-install-method:   copy
+-- install-method:   copy
 overwrite-policy: always
 
 
@@ -52,6 +52,47 @@ haddock-hyperlink-source: True
 jobs:                     $ncpus
 keep-going:               True
 minimize-conflict-set:    True
+
+
+---------------------------------------------------------------------------------
+-- Package flags (useful defaults)
+--
+-- Instruct all transative dependencies to be built *with both* optimization and
+-- profiling enabled. This reduces rebuilds when debugging while not sacraficing
+-- undue execution speed from imported code.
+--
+-- Contrastingly, *disable both* optimization and profiling when building the
+-- current package's codebase. This improves the frequent recompilation speed
+-- during iterative development.
+--
+-- Finally, enable all warnings and then prune out the undesirable ones. Having
+-- the large litany of warnings enabled forces pre-emptive compatibility with
+-- future breaking changes as well as improving overall code quality.
+---------------------------------------------------------------------------------
+
+-- Applies to *all* packages, not just dependencies...
+package *
+    benchmarks:        False
+    documentation:     False
+    tests:             False
+    optimization: 2
+
+
+-- Applies to *only* the specified package!
+package PHAGE-integration-tests
+    benchmarks:        False
+    documentation:     False
+    tests:             False
+    flags: +SingleThreaded
+
+
+-- Applies to *only* the specified package!
+package PhyGraph
+    benchmarks:        False
+    documentation:     False
+    tests:             False
+    flags: +SingleThreaded
+    optimization: 2
 
 
 ---------------------------------------------------------------------------------

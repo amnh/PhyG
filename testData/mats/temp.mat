@@ -1,0 +1,5 @@
+0 a b a c
+a 0 a b c
+b a 0 a c
+a b a 0 c
+c c c c 0

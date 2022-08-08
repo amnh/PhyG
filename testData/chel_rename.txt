@@ -1,0 +1,18 @@
+Americhernus_new Americhernus
+Chanbria_new Chanbria
+Gea_new Gea
+Hypochilus_new Hypochilus
+Thelichoris_new Thelichoris
+Amblypygid_new Amblypygid
+Mastigoproctus_new Mastigoproctus
+Rhiphicephalus_new Rhiphicephalus
+Vonones_new Vonones
+Centruoides_new Centruoides
+Hadrurus_new Hadrurus
+Pauroctonus_new Pauroctonus
+Limulus_new Limulus
+Aportus_new Aportus
+Alentus_new Alentus
+Artemia_new Artemia
+Thermobius_new Thermobius
+
