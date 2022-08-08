@@ -30,10 +30,11 @@ with-compiler: ghc-9.2.3
 -- datadir:          ./data
 -- docdir:           ./doc
 -- htmldir:          ./doc/html
+builddir:         ./doc
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log
--- install-method:   copy
+install-method:   copy
 overwrite-policy: always
 
 
