@@ -283,6 +283,7 @@ createBVNames inDataList =
 -- the list accumulator is to avoid Vector snoc/cons O(n)
 createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
 createNaiveData inDataList leafBitVectorNames curBlockData =
+    -- trace ("CND: ") (
     if null inDataList
     then --trace ("Naive data with " ++ (show $ length curBlockData) ++ " blocks and " ++ (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) ++ " characters")
         ( V.fromList $ fmap fst leafBitVectorNames
@@ -459,11 +460,12 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
 
 
 -- | recodeRawData takes the ShortText representation of character states/ranges etc
--- and recodes the apporpriate fields in CharacterData (from Types)
--- the list accumulator is to avoid Vectotr cons/snoc O(n)
+-- and recodes the appropriate fields in CharacterData (from Types)
+-- the list accumulator is to avoid Vector cons/snoc O(n)
 -- differentiates between seqeunce type and others with char info
 recodeRawData :: [NameText] -> [[ST.ShortText]] -> [CharInfo] -> Int -> [[CharacterData]] -> V.Vector (V.Vector CharacterData)
 recodeRawData inTaxNames inData inCharInfo maxCharLength curCharData =
+    -- trace ("RRD: ") (
     if null inTaxNames then V.fromList $ reverse $ fmap V.fromList curCharData
     else
         let firstData = head inData
@@ -473,6 +475,7 @@ recodeRawData inTaxNames inData inCharInfo maxCharLength curCharData =
         --trace ("Recoding " ++ (T.unpack $ head inTaxNames) ++ " as " ++ (show $ charType $ head inCharInfo) ++ "\n\t" ++ show firstDataRecoded)
         --trace ((show $ length inData) ++ " " ++ (show $ length firstData) ++ " " ++ (show $ length inCharInfo)
         recodeRawData (tail inTaxNames) (tail inData) inCharInfo maxCharLength (firstDataRecoded : curCharData)
+        -- )
 
 
 -- | missingNonAdditive is non-additive missing character value, all 1's based on alphabet size
@@ -632,25 +635,33 @@ getBVCode bvCodeVect inState =
     maybe (error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)) snd newCode
 
 
-getNucleotideSequenceChar :: [ST.ShortText] -> [CharacterData]
-getNucleotideSequenceChar stateList =
+getNucleotideSequenceChar :: Bool -> [ST.ShortText] -> [CharacterData]
+getNucleotideSequenceChar isPrealigned stateList =
     let sequenceVect
           | null stateList = mempty
           | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
-        newSequenceChar = emptyCharacter { slimPrelim         = sequenceVect
-                                         , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
-                                         }
+        newSequenceChar = if not isPrealigned then
+                                 emptyCharacter { slimPrelim         = sequenceVect
+                                                , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                                }
+                          else 
+                                 emptyCharacter { alignedSlimPrelim  = (sequenceVect, sequenceVect, sequenceVect)
+                                                }
     in [newSequenceChar]
 
 
-getAminoAcidSequenceChar :: [ST.ShortText] -> [CharacterData]
-getAminoAcidSequenceChar stateList =
+getAminoAcidSequenceChar :: Bool -> [ST.ShortText] -> [CharacterData]
+getAminoAcidSequenceChar isPrealigned stateList =
     let sequenceVect
           | null stateList = mempty
           | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
-        newSequenceChar = emptyCharacter { widePrelim         = sequenceVect
-                                         , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
-                                         }
+        newSequenceChar = if not isPrealigned then
+                                 emptyCharacter { widePrelim         = sequenceVect
+                                                , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
+                                                }
+                          else 
+                                 emptyCharacter { alignedWidePrelim  = (sequenceVect, sequenceVect, sequenceVect)
+                                                }
     in [newSequenceChar]
 
 
@@ -926,20 +937,31 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
   | null rawDataList =  -- missing data
         getMissingValue inCharInfoList maxCharLength
   | otherwise = let localCharType = charType $ head inCharInfoList
-                in if localCharType `elem` sequenceCharacterTypes then
-                --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
+                    localAlphabet = alphabet $ head inCharInfoList
+                    isNucleotideData = isAlphabetDna localAlphabet
+                    isAminoAcidData = isAlphabetAminoAcid localAlphabet
+                in 
+                -- trace ("CLC: " ++ (show localCharType)) (
+                if localCharType `elem` sequenceCharacterTypes then
+                    --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
                      case localCharType of
-                         NucSeq   -> getNucleotideSequenceChar rawDataList
-                         AminoSeq ->  getAminoAcidSequenceChar rawDataList
+                         NucSeq   -> getNucleotideSequenceChar False rawDataList
+                         AminoSeq ->  getAminoAcidSequenceChar False rawDataList
                          -- ambiguities different, and alphabet varies with character (potentially)
-                         AlignedSlim -> getGeneralSequenceChar (head inCharInfoList) rawDataList
-                         AlignedWide -> getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         AlignedSlim -> if isNucleotideData then 
+                                            getNucleotideSequenceChar True rawDataList
+                                        else getGeneralSequenceChar (head inCharInfoList) rawDataList
+                         AlignedWide -> if isAminoAcidData then 
+                                            getAminoAcidSequenceChar True rawDataList
+                                        else getGeneralSequenceChar (head inCharInfoList) rawDataList
                          AlignedHuge -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          SlimSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          WideSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          HugeSeq  -> getGeneralSequenceChar (head inCharInfoList) rawDataList
                          _        -> getQualitativeCharacters inCharInfoList rawDataList []
-                  else if length inCharInfoList /= length rawDataList then
+                else if length inCharInfoList /= length rawDataList then
                             error "Mismatch in number of characters and character info"
-                  else  getQualitativeCharacters inCharInfoList rawDataList []
+                else  getQualitativeCharacters inCharInfoList rawDataList []
+                -- )
+
 

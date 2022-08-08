@@ -370,7 +370,9 @@ getRawDataPairsFastA isPreligned inTextList =
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         -- trace ("FA " ++ (show firtDataSTList)) (
-        if isPreligned then (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
+        if isPreligned then 
+            -- trace ("GRDPF: " ++ (show isPreligned))
+            (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         -- )
 
@@ -471,7 +473,7 @@ getRestAmbiguityGroup fileName inList =
         if ']' `notElem` firstGroup then ST.cons ' ' (head inList) : getRestAmbiguityGroup fileName (tail inList)
         else [ST.cons ' ' $ head inList]
 
--- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+-- | getRawDataPairsFastC takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
 getRawDataPairsFastC :: Bool -> [T.Text] -> [TermData]
 getRawDataPairsFastC isPreligned inTextList =

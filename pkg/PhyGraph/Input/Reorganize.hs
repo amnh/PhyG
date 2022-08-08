@@ -88,8 +88,14 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) =
         inData''' = BP.packNonAdditiveData inGS inData''
 
     in
-    if U.getNumberPrealignedCharacters blockDataVect == 0 then inData
-    else inData'''
+    
+    if U.getNumberPrealignedCharacters blockDataVect == 0 then 
+        -- trace ("Not Bitpacking...") 
+        inData
+    else 
+        --trace ("Bitpacking...")
+        inData'''
+    
     
 
 -- | convertPrealignedToNonAdditive converts prealigned data to non-additive
@@ -116,6 +122,7 @@ convertTaxonPrealignedToNonAdd charInfoV codingTypeV charDataV =
 -- and transforms to non-additive if all tcms are 1's
 convertTaxonPrealignedToNonAddCharacter :: CharInfo -> String -> CharacterData -> (CharacterData, CharInfo)
 convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
+    -- trace ("CTP: " ++ (show $ charType charInfo) ++ " " ++ (show $ matrixType)) (
     if charType charInfo `notElem` prealignedCharacterTypes then (charData, charInfo)
     else if matrixType /= "nonAdd" then (charData, charInfo)
     else
@@ -137,7 +144,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in
         (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)})
-
+        -- )
 
 
 -- | convert2BVTriple takes CUInt or Word64 and converts to Triple Vector of bitvectors

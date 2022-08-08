@@ -213,11 +213,14 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
          (take numToKeep curBestGraphList, counter)
 
 
-      else if null newGraphList then (take numToKeep curBestGraphList, counter)
+      else if null newGraphList then 
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes))
+         (take numToKeep curBestGraphList, counter)
 
       -- regular insert keeping best
       else if inSimAnnealParams == Nothing then
          -- "steepest style descent" abandons existing list if better cost found
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes)) (
          if newGraphCost < currentCost then
             -- check if graph OK--done in insert function
             let --- isCyclicList = filter (== True) $ fmap LG.cyclic $ fmap thd6 newGraphList
@@ -250,13 +253,14 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
             in
             -- trace ("IANE: same " ++ (show $ length (tail inPhyloGraphList)))
             insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
-            
+            )
 
       -- simulated annealing
       else
             -- if steepest -- simAnneal/Drift stuff done during net add function so jusyt take results and move on
             -- create new
-            if doSteepest then
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes)) (
+         if doSteepest then
                let annealBestCost = min curBestGraphCost newGraphCost
                    newSAParams = Just $ (fromJust (U.incrementSimAnnealParams inSimAnnealParams)) {currentStep = 0, driftChanges = 0}
                in
@@ -290,7 +294,7 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                in
                --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
                (take numToKeep bestList, counter')
-               -- )
+               )
 
 
 -- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
@@ -484,6 +488,10 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
        in
 
        if (graphType inGS) == HardWired then newPhyloGraph
+
+      else if LG.hasChainedNetworkNodes newSimple' then 
+         trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
+         emptyPhylogeneticGraph
 
        else 
          -- need heuristics in here

@@ -697,4 +697,10 @@ preOrderTreeTraversal
 
 395) Remove cycle check from convertGeneralGraphToPhylogeneticGraph when ok
 
+396) For distance build-- when missing comparison for a block or character--add the average distance value among all non
+	missing.   Then really not dispositive except for  the parts where non-missing
+	
 
+397) Add options to bias in favor of data, graph, or trajectory parallelism
+
+399) Reverse/randomize order of move when repeating moves so not revisiting same edge move

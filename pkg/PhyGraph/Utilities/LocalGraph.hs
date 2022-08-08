@@ -169,7 +169,7 @@ hasTreeNodeWithAllNetworkChildren inGraph =
         in
         ((not . null) nodesWithAllNetChildren, nodesWithAllNetChildren)
 
--- | hasAllNetChildren checks whether all (usually 2) childrenb ofa vertex are network nodes
+-- | hasAllNetChildren checks whether all (usually 2) childrenb of a vertex are network nodes
 hasAllNetChildren :: Gr a b -> Node -> Bool
 hasAllNetChildren inGraph inNode =
     let children = descendants inGraph inNode
@@ -198,9 +198,10 @@ hasChainedNetworkNodes inGraph =
     else
         let (_, _, _, netVertexList) = splitVertexList inGraph
             chainedNodeList = filter (== True) $ fmap (hasNetParent inGraph) $ fmap fst netVertexList
+            netWithChildNetList = filter (== True) $ fmap (hasAllNetChildren inGraph) $ fmap fst netVertexList
         in
         if null netVertexList then False
-        else (not . null) chainedNodeList
+        else (not . null) (chainedNodeList ++ netWithChildNetList)
 
 -- | hasNetParent checks parent of node and retuens True if one or both are network nodes
 hasNetParent :: Gr a b -> Node -> Bool
