@@ -17,7 +17,7 @@ packages:
 ---------------------------------------------------------------------------------
 
 executable-static: False
-with-compiler: ghc-9.2.3
+with-compiler: ghc-9.2.4
 
 
 ---------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ with-compiler: ghc-9.2.3
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log
--- install-method:   copy
+install-method:   copy
 overwrite-policy: always
 
 
@@ -78,20 +78,17 @@ package *
     optimization: 2
 
 
--- Applies to *only* the specified package!
 package PHAGE-integration-tests
     benchmarks:        False
     documentation:     False
     tests:             False
-    flags: +SingleThreaded
 
 
--- Applies to *only* the specified package!
 package PhyGraph
     benchmarks:        False
     documentation:     False
     tests:             False
-    flags: +SingleThreaded
+    executable-static: False
     optimization: 2
 
 

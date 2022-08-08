@@ -11,6 +11,7 @@ defaults:
     shell: bash
 
 env:
+  PROJECTFILE: --project-file=cfg/cabal.project.integration
   THISTESTEXE: PHAGE-integration-tests:integration-tests
   THISMAINEXE: PhyGraph:phyg
 
@@ -56,9 +57,9 @@ jobs:
  
       - name: 'Cabal - Configure'
         run: |
-            cabal update
-            cabal clean
-            cabal freeze
+            cabal update ${PROJECTFILE}
+            cabal clean  ${PROJECTFILE}
+            cabal freeze ${PROJECTFILE}
 
       - name: 'Cabal - Cache'
         uses: actions/cache@v3
@@ -73,15 +74,11 @@ jobs:
 
       - name: 'Cabal - Build'
         run: |
-          cabal build ${THISMAINEXE} ${THISTESTEXE} --only-dependencies
-
-      - name: 'Cabal - Install'
-        run: |
-          cabal install ${THISMAINEXE} --only-dependencies
+          cabal build ${PROJECTFILE} ${THISMAINEXE} ${THISTESTEXE} --only-dependencies
 
       - name: 'Cabal - Integration Tests'
         run: |
-          cabal run ${THISTESTEXE}
+          cabal run ${PROJECTFILE} ${THISTESTEXE}
 
       - name: Send mail on failure
         if: ${{ failure() }}
