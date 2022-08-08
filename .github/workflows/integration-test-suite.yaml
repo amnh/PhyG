@@ -88,6 +88,7 @@ jobs:
         uses: dawidd6/action-send-mail@v3
         with:
             # Mail server settings
+            ignore_cert: true
             secure: true
             server_address: smtp.domain.com
             server_port: 465
@@ -102,3 +103,4 @@ jobs:
             from: PHAGE ρbit
             subject: "PHAGE CI Failure: Integration Test-suite - job ${{ github.job }}"
             body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHAGE ρbit"
+
