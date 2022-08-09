@@ -150,16 +150,16 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
 
 -- | swapAll' performs branch swapping on all 'break' edges and all readditions
 -- this not a "map" version to reduce memory footprint to a more mangeable level
--- "steepest" a passable option to short ircuit readdition action to return immediately 
+-- "steepest" a passable option to short circuit readdition action to return immediately 
 -- if better graph found
 -- 1) takes first graph
--- 2) if steepeast checks tomake sure <= current best cost
--- 3) gets list of "breakbale" edges
+-- 2) if steepeast checks to make sure <= current best cost
+-- 3) gets list of "break-able" edges
 --    all non-root edges if tree
 --    all non-root bridge edges if network
 -- 4) send list (and other info) to split-join function
 --    goes on if empty list returned or > current best
---    ad gsphs todo list if == current best cost
+--    add graphs todo list if == current best cost
 -- 5) returns all of minimum cost found
 swapAll'  :: String
          -> Bool
@@ -234,9 +234,9 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
 -- if steepest == True then returns on finding a better graph (lower cost)
 -- this will traverse entire SPR neighbohood if nothing better found (or steepest == False)
--- differnrt form swapALL in that it doesn't build up split list so lower memory footprint
--- breakEdgeList COmplete keeps original edge list so can creted readdition edge lists more easily
--- parallel map on rejoin if not steepest, if steepestr do number of parallel threads so can reurn if any one is better
+-- different from swapALL (original) in that it doesn't build up split list so lower memory footprint
+-- breakEdgeList Complete keeps original edge list so can creat readdition edge lists more easily
+-- parallel map on rejoin if not steepest, if steepest do number of parallel threads so can reurn if any one is better
 -- NB -- need to verify NNI/SPR/TBR rearrangement numbers
 splitJoinGraph :: GlobalSettings
                -> ProcessedData
