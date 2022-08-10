@@ -80,12 +80,6 @@ common language-specs
     DerivingStrategies
 
 
-flag SingleThreaded
-  Description: Disable multi-threading
-  Default:     False
-  Manual:      True
-
-
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
 -- Preamble of package description and reusable definitions from above has ended
@@ -117,20 +111,30 @@ executable phyg
   main-is:
     phygraph.hs
 
-  if !flag(SingleThreaded)
+  if !os(darwin) 
     ghc-options:
+      -Wall
+      -Wincomplete-patterns
       -threaded 
+      -feager-blackholing
       -with-rtsopts=-N
-  
-  ghc-options:
-    -feager-blackholing
-    -O2
-    -rtsopts
-    -static
-    -Wall
-    -Wincomplete-patterns
-    -- problems getting llvm to function in OSX (can't find opt)
-    -- -fllvm
+      -O2
+      -rtsopts
+      -static
+      -fllvm
+  else 
+    ghc-options:
+      -Wall
+      -Wincomplete-patterns
+      -threaded 
+      -feager-blackholing
+      -with-rtsopts=-N
+      -O2
+      -rtsopts
+      -static
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+
 
   if !os(darwin) 
     cc-options: 
@@ -143,6 +147,7 @@ executable phyg
       -static -pthread
   else 
     ld-options: 
+
 
   build-depends:  alphabet
                 , dynamic-character

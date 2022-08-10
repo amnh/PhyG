@@ -35,6 +35,7 @@ Portability :  portable (I hope)
 -}
 
 module Search.WagnerBuild  ( wagnerTreeBuild
+                           , wagnerTreeBuild'
                            , rasWagnerBuild
                      ) where
 
@@ -76,6 +77,13 @@ rasWagnerBuild inGS inData rSeed numReplicates =
       trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+      -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
+
+
+-- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallation--(zipWith not doing so well?)
+wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> PhylogeneticGraph
+wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars (additionSequence, replicateIndex) =
+   wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex 
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network

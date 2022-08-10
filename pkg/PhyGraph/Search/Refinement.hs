@@ -353,10 +353,12 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                  ("Simulated Annealing (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
                               else
                                  ("Drifting (Network edge moves) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
-                            else if doNetDelete || doAddDelete then
+                            else if doNetDelete  then
                               ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
-                            else if doNetAdd || doAddDelete then
+                            else if doNetAdd  then
                               ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                            else if doAddDelete then
+                              ("Network edge add/delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else if doMove then
                               ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else ""
@@ -365,19 +367,24 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             trace (bannerText) (
 
             let (newGraphList, counterAdd) = if doNetAdd || doAddDelete then
+                                               -- trace ("REFINE Add") (
                                                let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
-                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-
+                                                in 
+                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                -- )
                                              else (inGraphList, 0)
+                                             
 
                 (newGraphList', counterDelete) = if doNetDelete || doAddDelete then
-                                                let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) `using` PU.myParListChunkRDS
-                                                    (graphListList, counterList) = unzip graphPairList
-                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-
-                                               else (newGraphList, 0)
-
+                                                    -- trace ("REFINE Delete") (
+                                                    let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) `using` PU.myParListChunkRDS
+                                                        (graphListList, counterList) = unzip graphPairList
+                                                    in 
+                                                    (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                    -- )
+                                                 else (newGraphList, 0)
+                
 
                 (newGraphList'', counterMove) = if doMove then
                                                 let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) `using` PU.myParListChunkRDS

@@ -148,6 +148,208 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest hardwiredSPR 
          -- )
 
 
+-- | swapAll' performs branch swapping on all 'break' edges and all readditions
+-- this not a "map" version to reduce memory footprint to a more mangeable level
+-- "steepest" a passable option to short ircuit readdition action to return immediately 
+-- if better graph found
+-- 1) takes first graph
+-- 2) if steepeast checks tomake sure <= current best cost
+-- 3) gets list of "breakbale" edges
+--    all non-root edges if tree
+--    all non-root bridge edges if network
+-- 4) send list (and other info) to split-join function
+--    goes on if empty list returned or > current best
+--    ad gsphs todo list if == current best cost
+-- 5) returns all of minimum cost found
+swapAll'  :: String
+         -> Bool
+         -> GlobalSettings
+         -> ProcessedData
+         -> Int
+         -> Int
+         -> Bool
+         -> Int
+         -> VertexCost
+         -> [PhylogeneticGraph]
+         -> [PhylogeneticGraph]
+         -> Int
+         -> SimpleGraph
+         -> DecoratedGraph
+         -> DecoratedGraph
+         -> V.Vector (V.Vector CharInfo)
+         -> Bool
+         -> VertexCost
+         -> Maybe SAParams
+         -> ([PhylogeneticGraph], Int)
+swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams =
+   -- trace ("swapALL'") (
+   if null inGraphList then
+      (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] curSameBetterList, counter)
+   else
+      let firstGraph = head inGraphList
+          firstDecoratedGraph = thd6 firstGraph
+          (firstRootIndex, _) = head $ LG.getRoots firstDecoratedGraph
+
+          -- determine edges to break on--'bridge' edges only for network
+          -- filter out edges from root since no use--would just rejoin
+          -- sort longest edge to shortest--option to speeed up steepest nd conditions for all as well
+          breakEdgeList = if (graphType inGS) == Tree || LG.isTree firstDecoratedGraph then GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
+                          else GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
+
+          -- perform split and rejoin on each edge in first graph
+          newGraphList' = splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+
+          -- get best return graph list-can be empty if nothing better ort smame cost
+          newGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
+
+          newMinCost = if (not . null) newGraphList then minimum $ fmap snd6 newGraphList
+                       else infinity 
+
+      in    
+      -- found better cost graph
+      if newMinCost < curBestCost then
+         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) newMinCost newGraphList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+
+      -- found only worse graphs
+      else if newMinCost > curBestCost then
+         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+
+      -- found same cost graphs
+      else
+         -- check unique graphs of minimim cost
+         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
+         in
+
+         -- if have max number to keep return
+         if length newCurSameBetterList >= numToKeep then 
+             (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] newCurSameBetterList, counter)
+
+         -- not hit max to keep
+         else 
+            -- remaining to do tail of in graph list ++ new ones of minimum cost 
+            let graphsToDo = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (tail inGraphList) ++ newGraphList
+            in
+            swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+
+-- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
+-- if steepest == True then returns on finding a better graph (lower cost)
+-- this will traverse entire SPR neighbohood if nothing better found (or steepest == False)
+-- differnrt form swapALL in that it doesn't build up split list so lower memory footprint
+-- breakEdgeList COmplete keeps original edge list so can creted readdition edge lists more easily
+-- parallel map on rejoin if not steepest, if steepestr do number of parallel threads so can reurn if any one is better
+-- NB -- need to verify NNI/SPR/TBR rearrangement numbers
+splitJoinGraph :: GlobalSettings
+               -> ProcessedData
+               -> Int
+               -> Int
+               -> Bool
+               -> VertexCost
+               -> [PhylogeneticGraph]
+               -> Int
+               -> SimpleGraph
+               -> DecoratedGraph
+               -> DecoratedGraph
+               -> V.Vector (V.Vector CharInfo)
+               -> Bool
+               -> VertexCost
+               -> Maybe SAParams
+               -> PhylogeneticGraph
+               -> [LG.LEdge EdgeInfo]
+               -> [LG.LEdge EdgeInfo]
+               -> [PhylogeneticGraph]
+splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete breakEdgeList =
+   if null breakEdgeList then curSameBetterList
+   else 
+      -- split on first input edge
+      let edgeToBreakOn = head breakEdgeList 
+
+          -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
+          (splitGraph, graphRoot, prunedGraphRootIndex,  originalConnectionOfPruned) = GO.splitGraphOnEdge (thd6 firstGraph) edgeToBreakOn
+
+          -- reoptimize split graph for re-addition heuristics
+          (reoptimizedSplitGraph, splitCost) = reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
+
+          -- get root in base (for raddition) and edges in pruned section for rerooting during TBR readdition
+          (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
+          edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
+
+          -- rejoin graph to all possible edges in base graph
+          newGraphList = rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost [] doIA netPenaltyFactor reoptimizedSplitGraph splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned edgesInBaseGraph edgesInPrunedGraph
+
+          newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
+      in
+      -- nothing same or better cost
+      if null newGraphList' then []
+
+      -- found better or same
+      else newGraphList' 
+
+
+-- | rejoinGraph rejoins a split graph at all edges (if not steepest and found better)
+-- in "base" graph.
+-- if not steepest then do all as map, else recursive on base graph edge list 
+rejoinGraph :: GlobalSettings
+            -> ProcessedData
+            -> Int
+            -> Int
+            -> Bool
+            -> VertexCost
+            -> [PhylogeneticGraph]
+            -> Bool
+            -> VertexCost
+            -> DecoratedGraph
+            -> VertexCost
+            -> LG.Node
+            -> LG.Node
+            -> LG.Node
+            -> [LG.LEdge EdgeInfo]
+            -> [LG.LEdge EdgeInfo]
+            -> Maybe SAParams
+            -> [PhylogeneticGraph]
+rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned edgesInBaseGraph edgesInPrunedGraph inSimAnnealParams =
+
+   -- found no better--but return equal cost graphs
+   if null edgesInBaseGraph then curBestGraphs
+
+   -- check if split graph cost same as graph then return since graph can only get longer on readdition 
+   else if splitGraphCost >= curBestCost then []
+
+   else 
+      -- famp over all edges in base graph
+      if not steepest then 
+         let rejoinGraphList = fmap rejoinPlaceHolder edgesInBaseGraph `using` PU.myParListChunkRDS
+             candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
+             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
+         in
+         if (snd6 . head) newGraphList'  <= curBestCost then newGraphList'
+         else []
+
+      -- famp over number of threads edges in base graph
+      -- then recurse
+      else 
+         let rejoinEdgeList = take PU.getNumThreads edgesInBaseGraph
+             rejoinGraphList = fmap rejoinPlaceHolder rejoinEdgeList `using` PU.myParListChunkRDS
+             candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
+             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
+         in
+         -- found better graph
+         if (snd6 . head) newGraphList'  < curBestCost then newGraphList'
+
+         -- found equal cost graph 
+         else if (snd6 . head) newGraphList' == curBestCost then 
+            let newBestList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curBestGraphs ++ newGraphList') 
+            in
+            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+
+         -- found worse graphs only
+         else 
+            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+
+-- | place holder function to make compile
+rejoinPlaceHolder :: LG.LEdge EdgeInfo -> PhylogeneticGraph
+rejoinPlaceHolder a = emptyPhylogeneticGraph
 
 
 -- | swapAll performs branch swapping on all 'break' edges and all readditions

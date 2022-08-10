@@ -166,7 +166,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
           -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
-          reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph reconciledGraphInitial
+          reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
           noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
           noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
           reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
@@ -174,7 +174,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ GO.generateDisplayTrees reconciledGraph
                            else GO.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
-          displayGraphs = fmap GO.convertGeneralGraphToPhylogeneticGraph displayGraphs'
+          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
       if returnGraph && not returnTrees then 

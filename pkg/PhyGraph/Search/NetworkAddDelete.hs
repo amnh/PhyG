@@ -59,6 +59,7 @@ import qualified Utilities.LocalGraph                 as LG
 import qualified Utilities.Utilities                  as U
 import qualified Data.InfList                         as IL
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import qualified Data.List                            as L
 
 -- Need a "steepest" that takes first better netowrk for add and delete.
@@ -111,8 +112,12 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
             -- trace ("\t MANE : Worse") 
             moveAllNetEdges' inGS inData maxNetEdges rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
          else if newGraphCost < currentCost then
-            trace ("\t-> " ++ (show newGraphCost))
-            moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            trace ("\t-> " ++ (show newGraphCost)) (
+            if doSteepest then
+               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams newGraphList
+            else 
+               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            )
 
          else
             -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
@@ -208,11 +213,14 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
          (take numToKeep curBestGraphList, counter)
 
 
-      else if null newGraphList then (take numToKeep curBestGraphList, counter)
+      else if null newGraphList then 
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes))
+         (take numToKeep curBestGraphList, counter)
 
       -- regular insert keeping best
       else if inSimAnnealParams == Nothing then
          -- "steepest style descent" abandons existing list if better cost found
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes)) (
          if newGraphCost < currentCost then
             -- check if graph OK--done in insert function
             let --- isCyclicList = filter (== True) $ fmap LG.cyclic $ fmap thd6 newGraphList
@@ -245,13 +253,14 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
             in
             -- trace ("IANE: same " ++ (show $ length (tail inPhyloGraphList)))
             insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
-            
+            )
 
       -- simulated annealing
       else
             -- if steepest -- simAnneal/Drift stuff done during net add function so jusyt take results and move on
             -- create new
-            if doSteepest then
+         trace ("\t\tNumber of network edges: " ++ (show $ length netNodes)) (
+         if doSteepest then
                let annealBestCost = min curBestGraphCost newGraphCost
                    newSAParams = Just $ (fromJust (U.incrementSimAnnealParams inSimAnnealParams)) {currentStep = 0, driftChanges = 0}
                in
@@ -285,7 +294,7 @@ insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                in
                --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
                (take numToKeep bestList, counter')
-               -- )
+               )
 
 
 -- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
@@ -329,19 +338,20 @@ insertEachNetEdge inGS inData leafGraph  rSeed maxNetEdges numToKeep doSteepest 
       trace ("\tExamining at most " ++ (show $ length candidateNetworkEdgeList) ++ " candidate edge pairs") (
 
       -- no network edges to insert
+      -- trace ("IENE: " ++ (show minCost)) (
       if null candidateNetworkEdgeList then 
          -- trace ("IENE num cand edges:" ++ (show $ length candidateNetworkEdgeList)) 
          ([inPhyloGraph], currentCost)
       -- filter later
       -- single if steepest so no neeed to unique
       else if doSteepest then 
-         --  trace ("IENE: Steepest " ++ (show minCost))
+         -- trace ("IENE: Steepest " ++ (show minCost))
          (newGraphList, minCost)
 
       else 
          --  trace ("IENE: All " ++ (show minCost))
-         (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ newGraphList, minCost)
-      )
+         (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ newGraphList, minCost)
+      ) -- )
 
 -- | insertNetEdgeRecursive recursively inserts edges and returns new graph only if better
 insertNetEdgeRecursive :: GlobalSettings 
@@ -371,7 +381,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
 
           
       in
-      traceNoLF ("*") (      -- trace ("INER: " ++ (show $ snd6 newGraph) ++ " " ++ (show preDeleteCost)) (
+      traceNoLF ("*")  (      -- trace ("INER: " ++ (show $ snd6 newGraph) ++ " " ++ (show preDeleteCost)) (
       if length netNodes >= maxNetEdges then
          trace ("Maximum number of network edges reached: " ++ (show $ length netNodes))
          [inPhyloGraph]
@@ -457,42 +467,45 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            startVertex = Nothing
 
            -- conversion as if input--see if affects length
-           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
+               -- removed check after checks moved to permissible edges
+               -- can add back if there are malformed graphs being generated
+           -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
+               -- permissibale not catching timeconsistency issues with edges
+           -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
+           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
+
 
            -- full two-pass optimization
            newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-           heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
+           -- heuristicDelta = heuristicAddDelta' inGS inPhyloGraph edgePair
 
 
-           edgeAddDelta = trace ("INE: Getting edgeAddEDelta") deltaPenaltyAdjustment inGS inPhyloGraph "add"
+           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
        in
-       
-       -- Check for cycles in  convertGeneralGraphToPhylogeneticGraph
-       {-
-       if LG.cyclic newSimple then
-         trace ("\t\t*Insert cyclic")
-         emptyPhylogeneticGraph
-      -}
-       --if LG.hasChainedNetworkNodes newSimple' then
-       --  trace ("Network edge insertion--chained edge") inPhyloGraph
-
-       -- check if new graph has node with 2 netowrk edge descendents
-         -- moved to permissible edhges
-       {-
-       if (not . null) u'ChildrenNetNodes then 
-         trace ("\t\t*Making sister network nodes")
-         emptyPhylogeneticGraph
-       -}
 
        if (graphType inGS) == HardWired then newPhyloGraph
 
+      else if LG.hasChainedNetworkNodes newSimple' then 
+         trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
+         emptyPhylogeneticGraph
+
        else 
          -- need heuristics in here
-         newPhyloGraph
+         -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         
+         {-
+         if True then 
+            trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
+            newPhyloGraph
+         -}
+         -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
+         if LG.isEmpty newSimple' then emptyPhylogeneticGraph
+         else if True then newPhyloGraph
+         else emptyPhylogeneticGraph
 
        {-
        -- preDelete cost changes criterion for edge move
@@ -543,6 +556,7 @@ deleteAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated 
 -- call with ([], infinity) [single input graph]
 deleteAllNetEdges' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Int ->Int ->  Int -> Bool -> Bool -> Bool -> ([PhylogeneticGraph], VertexCost) -> [Int] -> Maybe SAParams -> [PhylogeneticGraph]-> ([PhylogeneticGraph], Int)
 deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList =
+   -- trace ("In deleteAllNetEdges " ++ (show $ length inPhyloGraphList)) ( 
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
    else
       let currentCost = min curBestGraphCost (snd6 $ head inPhyloGraphList)
@@ -554,6 +568,7 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                          else infinity
 
       in
+      -- trace ("DANE: " ++ (show (newGraphCost, length newGraphList))) (
       -- if graph is a tree no edges to delete
       if LG.isTree (fst6 $ head inPhyloGraphList) then
          let (a,b,c,d) = LG.splitVertexList (fst6 $ head inPhyloGraphList)
@@ -561,7 +576,7 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
          trace ("\tGraph in delete network edges is tree--skipping :" ++ (show $ (snd6 $ head inPhyloGraphList, length a, length b, length c, length d)))
          deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
 
-      else if null newGraphList then (take numToKeep curBestGraphList, counter)
+      else if null newGraphList then (take numToKeep curBestGraphList, counter + 1)
 
          -- regular delte wihtout simulated annealing
          -- worse graphs found--go on
@@ -570,8 +585,12 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
 
          -- "steepest style descent" abandons existing list if better cost found
          else if newGraphCost < currentCost then
-            trace ("\t-> " ++ (show newGraphCost))
-            deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            trace ("\t-> " ++ (show newGraphCost)) (
+            if doSteepest then 
+               deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams newGraphList
+            else 
+               deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams (newGraphList ++ (tail inPhyloGraphList))
+            )
 
          -- equal cost
          -- not sure if should add new graphs to queue to do edge deletion again
@@ -622,12 +641,13 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                in
                --trace ("BM: " ++ (show $ snd6 $ head  bestMoveList))
                (take numToKeep bestList, counter')
+            -- ) )
 
 
 -- | deleteOneNetAddAll new version deletes net edges in turn and readds-based on original cost
--- but his cost in gaph (really not correct) but allows logic of insert edge to function better
+-- but his cost in graph (really not correct) but allows logic of insert edge to function better
 -- seems like after delete--or insert--the graphs are i nimporpper condition and returnin infinite cost due to that
--- seems likely true foir deleteOneNetAddAll' as well
+-- seems likely true fir deleteOneNetAddAll' as well
 -- this has no SA in it
 deleteOneNetAddAll :: GlobalSettings 
                    -> ProcessedData 
@@ -648,7 +668,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
    else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
    else
       -- trace ("DONAA-New: " ++ (show $ snd6 inPhyloGraph) ++ " Steepest:" ++ (show doSteepest)) (
-      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges") (
+      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, current best cost: " ++ (show $ snd6 inPhyloGraph)) (
       -- start with initial graph cost
       let inGraphCost = snd6 inPhyloGraph
 
@@ -656,15 +676,24 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
           delGraphBoolPairList = fmap (flip deleteNetworkEdge (fst6 inPhyloGraph)) edgeToDeleteList
           (simpleGraphsToInsert, _) = unzip $ filter ((== True ) . snd) delGraphBoolPairList
 
-          -- check for cycles
-          simpleGraphsToInsert' = filter ((== False) . LG.cyclic) simpleGraphsToInsert
+          -- check for cycles -- already done
+          -- simpleGraphsToInsert' = filter ((== False) . LG.cyclic) simpleGraphsToInsert
 
           -- optimize deleted graph and update cost with input cost
-          graphsToInsert = fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert' -- `using` PU.myParListChunkRDS
+          graphsToInsert = fmap (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert -- `using` PU.myParListChunkRDS
+
+          -- keep same cost and just keep better--check if better than original later
           graphsToInsert' = fmap (flip T.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
 
 
-          insertedGraphPairList = fmap (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert' -- `using` PU.myParListChunkRDS
+          insertedGraphPairList = if not doSteepest then fmap (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert' -- `using` PU.myParListChunkRDS
+                                  else 
+                                       let -- potentially randomize order of list
+                                           graphsToInsert'' = if not doRandomOrder then graphsToInsert'
+                                                              else permuteList rSeed graphsToInsert'
+                                       in
+                                       [insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder (head $ randomIntList rSeed)inSimAnnealParams graphsToInsert'']
+
 
           newMinimumCost = minimum $ fmap snd insertedGraphPairList
 
@@ -672,15 +701,45 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
 
       in
       -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
-      if newMinimumCost < inGraphCost then 
-         take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] newBestGraphs
+      if null simpleGraphsToInsert then [emptyPhylogeneticGraph]
 
-      --else if newMinimumCost == inGraphCost then 
-      --   take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inPhyloGraph : newBestGraphs)
+      else if newMinimumCost < inGraphCost then
+         trace ("-> ")
+         newBestGraphs
 
       else [inPhyloGraph]
 
      ) -- )
+
+
+-- | insertEachNetEdgeRecursive is a wrapper arounf insertEachNet each for edge move heuristic and reutnrs better graph when found immediately
+insertEachNetEdgeRecursive  :: GlobalSettings 
+                            -> ProcessedData 
+                            -> DecoratedGraph 
+                            -> Int 
+                            -> Int 
+                            -> Bool 
+                            -> Bool 
+                            -> Int 
+                            -> Maybe SAParams 
+                            -> [PhylogeneticGraph] 
+                            -> ([PhylogeneticGraph], VertexCost)
+insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder rSeed inSimAnnealParams inPhyloGraphList =
+   if null inPhyloGraphList then ([],infinity)
+   else 
+         let firstGraph = head inPhyloGraphList
+             (newGraphList, newCost) = insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams firstGraph
+
+             minCost = if null newGraphList then infinity
+                       else newCost
+         in
+         -- return immediately 
+         if minCost < (snd6 firstGraph) then 
+            (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ newGraphList, minCost)
+         else 
+            insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder rSeed inSimAnnealParams  (tail inPhyloGraphList) 
+
+
 
 -- | deleteOneNetAddAll deletes the specified edge from a graph--creating a fully optimized new one--then re-adds
 -- and keeps best based on delta, reoptimizes those and compares to the oringal cost
@@ -719,10 +778,6 @@ deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRan
       -- if graph not modified just returns the original--does not insert new edges
       if not wasModified then trace ("DONAA: skipping") [emptyPhylogeneticGraph]
 
-      else if LG.cyclic deletedGraphSimple then  trace ("DONAA: cycle") [emptyPhylogeneticGraph]
-      -- if minNewCost <= currentCost then GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] insertedGraphList
-      -- else []
-      --return all unique-- filtered later
       else
          trace ("DONAA returning: " ++ (show $ fmap snd6 insertedGraphList))
          filter ((/= infinity) . snd6) $ take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] insertedGraphList
@@ -734,16 +789,35 @@ deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRan
 
 -- add in other conditions
 --   reproducable--ie not tree noide with two net node children--other stuff
-
-
 getPermissibleEdgePairs :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
 getPermissibleEdgePairs inGraph =
    if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
    else
        let edgeList = LG.labEdges inGraph
+
+           -- edges to potentially conenct
+           edgePairs = cartProd edgeList edgeList
+           
+           -- get coeval node pairs in existing grap
+           coevalNodeConstraintList = LG.coevalNodePairs inGraph
+           coevalNodeConstraintList' = fmap (GO.addBeforeAfterToPair inGraph) coevalNodeConstraintList `using`  PU.myParListChunkRDS
+           
+           edgeTestList = fmap (isEdgePairPermissible inGraph coevalNodeConstraintList') edgePairs `using`  PU.myParListChunkRDS
+           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
+       in
+       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
+       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+       pairList
+       -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
+
+getPermissibleEdgePairs' :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
+getPermissibleEdgePairs' inGraph =
+   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
+   else
+       let edgeList = LG.labEdges inGraph
            edgePairs = cartProd edgeList edgeList
            contraintList = LG.getGraphCoevalConstraints inGraph
-           edgeTestList = fmap (isEdgePairPermissible inGraph contraintList) edgePairs `using`  PU.myParListChunkRDS
+           edgeTestList = fmap (isEdgePairPermissible' inGraph contraintList) edgePairs `using`  PU.myParListChunkRDS
            pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
        in
        -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
@@ -758,7 +832,7 @@ getPermissibleEdgePairs inGraph =
 --    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
 -- the result should apply to a new edge in either direction
 -- new edge to be creted is edge1 -> ege2
-isEdgePairPermissible :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeInfo])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
+isEdgePairPermissible :: DecoratedGraph -> [(LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
 isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
    if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
    else
@@ -768,7 +842,32 @@ isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
        -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
        else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
        else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
-       else if not (LG.meetsAllCoevalConstraints constraintList edge1 edge2) then False
+       else if not (LG.meetsAllCoevalConstraintsNodes (fmap removeNodeLabels constraintList) edge1 edge2) then False
+       else if (isAncDescEdge inGraph edge1 edge2) then False
+       -- get children of u' to make sure no net children
+       else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
+       else True
+   where removeNodeLabels (a,b,c,d,e,f) = (LG.toNode a, LG.toNode b, fmap LG.toNode c, fmap LG.toNode d, fmap LG.toNode e, fmap LG.toNode f)
+
+
+-- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
+-- pair of edges can be linked by a new edge and satify three consitions:
+--    1) neither edge is a network edge
+--    2) one edge cannot be "before" while the other is "after" in any of the constraint pairs
+--    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
+-- the result should apply to a new edge in either direction
+-- new edge to be creted is edge1 -> ege2
+isEdgePairPermissible' :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeInfo])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
+isEdgePairPermissible' inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
+   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
+   else
+       if u == u' then False
+       else if v == v' then False
+       -- equality implied in above two
+       -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
+       else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
+       else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
+       else if not (LG.meetsAllCoevalConstraintsEdges constraintList edge1 edge2) then False
        else if (isAncDescEdge inGraph edge1 edge2) then False
        -- get children of u' to make sure no net children
        else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
@@ -795,12 +894,81 @@ insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> PhylogeneticGr
 insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
 -}
 
--- | heuristic add delta' based on new display tree and delta from exiusting costs by block--summing < 0
+{- These heuristics do not seem tom work well at all-}
+
+-- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
+-- original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from 
+-- subtree 1 to subtree 2 via 
+-- 1) Add node x and y, delete edges (u,v) and (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
+-- 2) real cost is the sum of block costs that are lower for new graph versus older  
+-- 3) heuristic is when new subtree is lower than existing block by block
+--    so calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
+--    d((union u,v), v') - d(u'.v') [New display tree cost estimate] over blocks
+--    so blockDelta = if d((union u,v), v') - d(u'.v') < d(u,v) + d(u',v') then d((union u,v), v') - d(u'.v')
+--                     else 0 [existing better]
+--    graphDelta = egdeAddDelta (separately calcualated) + sum [blockDelta]
+--    Compare to real delta to check behavior
+-- original subtrees u -> (a,v) and u' -> (v',b)
 heuristicAddDelta' :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdge b) -> VertexCost
 heuristicAddDelta' inGS inPhyloGraph ((u,v, _), (u',v', _)) = 
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
-  else 0.0
+  else 
+      let a = head $ filter (/= v) $ LG.descendants (fst6 inPhyloGraph) u 
+          b = head $ filter (/= v') $ LG.descendants (fst6 inPhyloGraph) u'
+          blockDeltaV = V.zipWith (getBlockDelta (u,v,u',v',a,b)) (fft6 inPhyloGraph) (six6 inPhyloGraph) 
+      in
+      V.sum blockDeltaV
 
+-- | getBlockDelta determines the network add delta for each block (vector of characters)
+-- if existing is lower then zero, else (existing - new)
+getBlockDelta :: (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) -> V.Vector DecoratedGraph -> V.Vector CharInfo -> VertexCost
+getBlockDelta (u,v,u',v',a,b) inCharV charInfoV =
+   if V.null inCharV then error "Empty charcter tree vector in getBlockDelta"
+   else
+      let (charNewV, charExistingV) = V.unzip $ V.zipWith (getCharacterDelta (u,v,u',v',a,b)) inCharV charInfoV
+          newCost = V.sum charNewV
+          existingCost = V.sum charExistingV
+      in
+      -- trace ("GBD: " ++ (show (newCost, existingCost))) (
+      if (newCost < existingCost) then newCost - existingCost
+      else 0.0
+      -- )
+
+-- | getCharacterDelta determines the network add delta for each block (vector of characters)
+-- if existing is lower then zero, else (existing - new)
+--  calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
+--  d((union u,v), v') - d(u'.v')
+-- need to use final assignemnts--so set prelim to final first
+getCharacterDelta :: (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) -> DecoratedGraph -> CharInfo -> (VertexCost, VertexCost)
+getCharacterDelta (u,v,u',v',a,b) inCharTree charInfo =
+   let doIA = False
+       filterGaps = True
+       uData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u
+       vData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v
+       vFinalData = V.head $ V.head $ PRE.setPreliminaryToFinalStates  $ vertData $ fromJust $ LG.lab inCharTree v
+       u'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u'
+       v'Data = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v'
+       v'FinalData = V.head $ V.head $ PRE.setPreliminaryToFinalStates  $ vertData $ fromJust $ LG.lab inCharTree v'
+       aData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree a
+       aFinalData = V.head $ V.head $ PRE.setPreliminaryToFinalStates  $ vertData $ fromJust $ LG.lab inCharTree a
+       bData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree b
+       
+       -- unionUV = M.union2Single doIA filterGaps uData vData charInfo
+       -- (_,dUV) =  M.median2Single doIA uData vData charInfo
+       -- dUV = vertexCost $ fromJust $ LG.lab inCharTree u
+       -- dU'V' = vertexCost $ fromJust $ LG.lab inCharTree u'
+       -- (_, dUnionUVV') = M.median2Single doIA unionUV v'Data charInfo
+
+       (newX, dVV') = M.median2Single doIA vFinalData v'FinalData charInfo
+       (_, dAX) = M.median2Single doIA aFinalData newX charInfo
+       (_, dAV) = M.median2Single doIA aData vData charInfo
+       (_, dV'B) = M.median2Single doIA v'Data bData charInfo
+   in
+   -- trace ("GCD: " ++ (show (dVV' + dAX, dAV + dV'B))) (
+   (dVV' + dAX, dAV + dV'B)
+   -- if dUnionUVV' - dU'V' < dU'V' then dUnionUVV' - dU'V'
+   -- else 0.0
+   -- )
 
 -- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
@@ -843,19 +1011,21 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
 
 
       in
+      trace ("HAD: " ++ (show (uCostAfter, uCostBefore, uPrimeCostAfter, uPrimeCostBefore) ++ " -> " ++ (show $ uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore))) (
       if null (filter ((/= v') . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u', uPrimeLab)) || null (filter ((/= v) . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u, uLab)) then (infinity, dummyNode, dummyNode, dummyNode, dummyNode)
       -- this should not happen--should try to crete new edges from children of net edges
       else if (length $ LG.descendants (thd6 inPhyloGraph) u) < 2 ||  (length $ LG.descendants (thd6 inPhyloGraph) u') < 2 then error ("Outdegree 1 nodes in heuristicAddDelta")
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
+      )
 
 
 
 -- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
--- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calcualtion of penalty
+-- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calculation of penalty
 -- if PMDLGraph -- KMDL not yet implemented
 -- if NoNetworkPenalty then 0
--- modification "add" or subrtaxct to calculate delta
+-- modification "add" or subtrct to calculate delta
 -- always delta is positive--whether neg or pos is deltermined when used
 deltaPenaltyAdjustment :: GlobalSettings -> PhylogeneticGraph -> String -> VertexCost
 deltaPenaltyAdjustment inGS inGraph modification =
@@ -982,7 +1152,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph newGraph
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newGraph
+          -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
@@ -999,23 +1170,8 @@ deleteNetworkEdge inEdge@(p1, nodeToDelete) inGraph =
          trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)") 
          (LG.empty, False)
 
-      {-
-      -- test for chaining of network edges --ladderize
-      else if (length (LG.out newGraph p1) < 2) && (length (LG.out newGraph (head childrenNodeToDelete)) < 2) then 
-         -- trace ("New graph would have chained network nodes--skipping")
-         let laderizedNewGraph = GO.ladderizeGraph newGraph
-             laderizedNewGraph' = GO.contractIn1Out1EdgesRename laderizedNewGraph
-         in
-         (laderizedNewGraph', False)
-      -}
+      else if LG.isEmpty newGraph'' then (LG.empty, False)
       
-      -- check for cycles in convertGeneralGraphToPhylogeneticGraph
-      {-
-      else if LG.cyclic newGraph then 
-         trace ("\t\t*Delete edge cyclic")
-         (LG.empty, False)
-      -}
-
       else 
          {-trace ("DNE: Edge to delete " ++ (show inEdge) ++ " cnd " ++ (show childrenNodeToDelete) ++ " pnd " ++ (show parentsNodeToDelete) ++ " pntk " ++ (show parentNodeToKeep) 
             ++ " ne " ++ (show newEdge) ++ "\nInGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph) ++ "\nNewNewGraph: " 
