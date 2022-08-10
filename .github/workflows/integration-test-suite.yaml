@@ -21,7 +21,7 @@ on:
 
   # Build when a PR is merged, to update the README's CI badge.
   push:
-    branches: [ github-ci, integration-test-development, main ]
+    branches: [ github-ci ]
 
 
 ################################################################################
