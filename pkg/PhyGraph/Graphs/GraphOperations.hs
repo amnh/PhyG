@@ -573,7 +573,7 @@ getEdgeSplitList inGraph =
        bridgeList'
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
--- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
+-- the roots of each component are returned with two graphs, with broken edge contracted, and 'naked'
 -- node returned.  The naked node is used for rejoining the two components during rearrangement
 -- (SplitGraph, root of component that has original root, root of component that was cut off, naked node left over)
 -- this function does not check whether edge is a 'bridge'
