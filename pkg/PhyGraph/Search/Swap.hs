@@ -44,6 +44,7 @@ import qualified Data.List                            as L
 import           Data.Maybe
 import qualified Data.Vector                          as V
 import           Debug.Trace
+import qualified Data.Text.Lazy                      as T
 import           GeneralUtilities
 import qualified GraphOptimization.Medians            as M
 import qualified GraphOptimization.PostOrderFunctions as POS
@@ -197,7 +198,7 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
                           else GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
 
           -- perform split and rejoin on each edge in first graph
-          newGraphList' = splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+          newGraphList' = splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
 
           -- get best return graph list-can be empty if nothing better ort smame cost
           newGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
@@ -238,7 +239,8 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
 -- breakEdgeList Complete keeps original edge list so can creat readdition edge lists more easily
 -- parallel map on rejoin if not steepest, if steepest do number of parallel threads so can reurn if any one is better
 -- NB -- need to verify NNI/SPR/TBR rearrangement numbers
-splitJoinGraph :: GlobalSettings
+splitJoinGraph :: String
+               -> GlobalSettings
                -> ProcessedData
                -> Int
                -> Int
@@ -257,7 +259,7 @@ splitJoinGraph :: GlobalSettings
                -> [LG.LEdge EdgeInfo]
                -> [LG.LEdge EdgeInfo]
                -> [PhylogeneticGraph]
-splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete breakEdgeList =
+splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete breakEdgeList =
    if null breakEdgeList then curSameBetterList
    else 
       -- split on first input edge
@@ -269,12 +271,16 @@ splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSam
           -- reoptimize split graph for re-addition heuristics
           (reoptimizedSplitGraph, splitCost) = reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
 
-          -- get root in base (for raddition) and edges in pruned section for rerooting during TBR readdition
+          -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
           (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
           edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
 
+          -- determine those edges within distance of original if limited (ie NNI etc)
+          rejoinEdges = if maxMoveEdgeDist == (maxBound :: Int) then edgesInBaseGraph
+                        else take maxMoveEdgeDist $ (GO.sortEdgeListByDistance splitGraph [originalConnectionOfPruned] [originalConnectionOfPruned]) 
+
           -- rejoin graph to all possible edges in base graph
-          newGraphList = rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost [] doIA netPenaltyFactor reoptimizedSplitGraph splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned edgesInBaseGraph edgesInPrunedGraph
+          newGraphList = rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost [] doIA netPenaltyFactor reoptimizedSplitGraph (GO.convertDecoratedToSimpleGraph splitGraph) splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams
 
           newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
       in
@@ -288,7 +294,8 @@ splitJoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSam
 -- | rejoinGraph rejoins a split graph at all edges (if not steepest and found better)
 -- in "base" graph.
 -- if not steepest then do all as map, else recursive on base graph edge list 
-rejoinGraph :: GlobalSettings
+rejoinGraph :: String
+            -> GlobalSettings
             -> ProcessedData
             -> Int
             -> Int
@@ -298,18 +305,20 @@ rejoinGraph :: GlobalSettings
             -> Bool
             -> VertexCost
             -> DecoratedGraph
+            -> SimpleGraph
             -> VertexCost
             -> LG.Node
             -> LG.Node
             -> LG.Node
             -> [LG.LEdge EdgeInfo]
             -> [LG.LEdge EdgeInfo]
+            -> V.Vector (V.Vector CharInfo)
             -> Maybe SAParams
             -> [PhylogeneticGraph]
-rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned edgesInBaseGraph edgesInPrunedGraph inSimAnnealParams =
+rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams =
 
    -- found no better--but return equal cost graphs
-   if null edgesInBaseGraph then curBestGraphs
+   if null rejoinEdges then curBestGraphs
 
    -- check if split graph cost same as graph then return since graph can only get longer on readdition 
    else if splitGraphCost >= curBestCost then []
@@ -317,21 +326,21 @@ rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGr
    else 
       -- famp over all edges in base graph
       if not steepest then 
-         let rejoinGraphList = fmap rejoinPlaceHolder edgesInBaseGraph `using` PU.myParListChunkRDS
-             candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
+         let rejoinGraphList = fmap (singleJoin swapType inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV ) rejoinEdges `using` PU.myParListChunkRDS
+             candidateGraphList = filter ((<= curBestCost) . snd) rejoinGraphList
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst candidateGraphList) `using` PU.myParListChunkRDS
              newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
          in
-         if (snd6 . head) newGraphList'  <= curBestCost then newGraphList'
+         if (snd6 . head) newGraphList' <= curBestCost then newGraphList'
          else []
 
       -- famp over number of threads edges in base graph
       -- then recurse
       else 
-         let rejoinEdgeList = take PU.getNumThreads edgesInBaseGraph
-             rejoinGraphList = fmap rejoinPlaceHolder rejoinEdgeList `using` PU.myParListChunkRDS
-             candidateGraphList = filter ((<= curBestCost) . snd6) rejoinGraphList
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 candidateGraphList) `using` PU.myParListChunkRDS
+         let rejoinEdgeList = take PU.getNumThreads rejoinEdges
+             rejoinGraphList = fmap (singleJoin swapType inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV ) rejoinEdgeList `using` PU.myParListChunkRDS
+             candidateGraphList = filter ((<= curBestCost) . snd) rejoinGraphList
+             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst candidateGraphList) `using` PU.myParListChunkRDS
              newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
          in
          -- found better graph
@@ -341,15 +350,49 @@ rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGr
          else if (snd6 . head) newGraphList' == curBestCost then 
             let newBestList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curBestGraphs ++ newGraphList') 
             in
-            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+            rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams 
 
          -- found worse graphs only
          else 
-            rejoinGraph inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads edgesInBaseGraph) edgesInPrunedGraph inSimAnnealParams 
+            rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop PU.getNumThreads rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams 
 
 -- | place holder function to make compile
-rejoinPlaceHolder :: LG.LEdge EdgeInfo -> PhylogeneticGraph
-rejoinPlaceHolder a = emptyPhylogeneticGraph
+rejoinPlaceHolder :: LG.LEdge EdgeInfo -> (SimpleGraph, VertexCost)
+rejoinPlaceHolder a = (LG.empty, 0.0)
+
+
+-- | singleJoin takes optimized split graph, split cost, target edge, swap type (ie TBR/SPR/NNI)
+-- and "rejoins" the split graph to a single graph--cretges joined graph and calculates a heuristic graph cost 
+-- based on the unbion assignment of the edge and its distance to the root vertex of the pruned graph
+-- if TBR checks all edges in pruned graph with readdition edge
+singleJoin :: String 
+           -> GlobalSettings
+           -> ProcessedData
+           -> DecoratedGraph
+           -> SimpleGraph
+           -> VertexCost 
+           -> Bool
+           -> LG.Node
+           -> LG.Node
+           -> V.Vector (V.Vector CharInfo)
+           -> LG.LEdge EdgeInfo 
+           -> (SimpleGraph, VertexCost)
+singleJoin swapType inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV targetEdge@(u,v, uvInfo) = 
+   let newVertex = originalConnectionOfPruned
+       newEdgeList = [(u, newVertex, 0.0),(newVertex, v, 0.0),(newVertex, prunedGraphRootIndex, 0.0)]
+       targetEdgeData = M.makeEdgeData doIA splitGraph charInfoVV targetEdge
+
+       --this for SPR/NNI only
+       prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
+
+       sprReJoinCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks prunedRootVertexData targetEdgeData charInfoVV []
+                       else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA prunedRootVertexData targetEdgeData charInfoVV []
+
+       sprNewGraph = LG.insEdges newEdgeList $ LG.insNode (newVertex, T.pack ("HTU" ++ (show newVertex))) $ LG.delEdge (u,v) splitGraphSimple
+
+   in
+   if swapType == "SPR" then (sprNewGraph, sprReJoinCost)
+   else error "Non-SPR not yet implemented" -- (LG.empty, 0.0)
 
 
 -- | swapAll performs branch swapping on all 'break' edges and all readditions
@@ -647,7 +690,7 @@ rejoinGraphKeepBest inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist  doI
       -- trace ("RGKB: " ++ (show $ fmap LG.toEdge edgesToInvade) ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph splitGraph)) (
       if minCandidateCost > curBestCost then []
       else
-         let bestEdits = filter ((<= (curBestCost * (dynamicEpsilon inGS))). fst3) candidateEditList -- not minimum cancidate cost--better if check all equal or better than curent best
+         let bestEdits = filter ((<= (curBestCost * (dynamicEpsilon inGS))). fst3) candidateEditList -- not minimum candidate cost--better if check all equal or better than curent best
              splitGraphSimple = GO.convertDecoratedToSimpleGraph splitGraph
              swapSimpleGraphList = fmap (applyGraphEdits splitGraphSimple) bestEdits
          in
@@ -830,7 +873,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
 
 -- | getSubGraphDeltaTBR calculated cost of adding a subgraph into and edge
 -- for SPR use the preliminary of subGraph to final of e and v nodes
--- can use median fruntions for postorder if set final-> prelim or e and f
+-- can use median functions for postorder if set final-> prelim or e and f
 getSubGraphDeltaTBR :: GlobalSettings
                     -> ProcessedData
                     -> VertexBlockData
@@ -904,7 +947,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
 
 
 -- | addSubTree "adds" a subtree back into an edge calculating the cost of the graph via the delta of the add and costs of the two components
--- does NOT reoptimize candidate trees--happens after return since tlooking at "all"
+-- does NOT reoptimize candidate trees--happens after return since looking at "all"
 addSubGraph :: GlobalSettings
             -> String
             -> Bool
