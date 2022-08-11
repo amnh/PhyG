@@ -708,3 +708,7 @@ preOrderTreeTraversal
 400) Make Sure Sim Aneal stuff in new swap
 
 401) IN swap--check that net penalty factor is correct for softwired and in differnt cost optimality criteria
+
+402) Check wagner v POY seems longer PhyG
+
+403) Clean up max distance thing --may set in types.h becasue of 2x distance
