@@ -104,19 +104,19 @@ swapMaster inArgs inGS inData rSeed inGraphList =
            trace (progressString) (
 
            let (newGraphList, counterNNI)  = if doNNI then
-                                               let graphPairList1 = fmap (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList1 = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList1
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then
-                                               let graphPairList2 = fmap (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) `using` PU.myParListChunkRDS
+                                               let graphPairList2 = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList2
                                                in
                                               (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then
-                                               let graphPairList3 =  fmap (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') `using` PU.myParListChunkRDS
+                                               let graphPairList3 =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList3
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)

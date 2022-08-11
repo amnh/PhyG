@@ -226,18 +226,24 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
          let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
          in
 
+         {-
          -- if have max number to keep return
          if length newCurSameBetterList >= numToKeep then 
              (take numToKeep newCurSameBetterList, counter)
+         -}
 
          -- not hit max to keep
-         else 
+         --else 
             -- remaining to do tail of in graph list ++ new ones of minimum cost 
-            let ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph curSameBetterList) newGraphList) newGraphList
-                graphsToDo = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (tail inGraphList) ++ newNovelGraphList
+            let -- ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
+                -- newNovelGraphList = newGraphList L.\\ curSameBetterList
+                -- graphsToDo = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (tail inGraphList) ++ newNovelGraphList
+                -- graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
+                --              else graphsToDo
+                graphsToDo' = (tail inGraphList)
             in
             -- trace ("Num to do: " ++ (show $ length graphsToDo))
-            swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+            swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
          -- )
 
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
@@ -343,7 +349,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
    else 
       -- famp over all edges in base graph
       if not steepest then 
-         let rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
+         let -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
+             rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges 
              
              {-Checking only min but seems to make slower
              newMinCost = if null rejoinGraphList then infinity
@@ -351,8 +358,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
              (minEstCostNewGraphList, _) = unzip $ filter ((== newMinCost) . snd) rejoinGraphList
              -}
              
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
+             -- newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
+             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rejoinGraphList -- newGraphList
          in
          -- will only return graph if <= curBest cost
          if null rejoinGraphList then []
@@ -364,9 +371,10 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
       else 
          -- trace ("In steepest: " ++ (show PU.getNumThreads) ++ " " ++ (show $ length $ take PU.getNumThreads rejoinEdges)) (
          let -- this could be made a little paralle--but if lots of threads basically can do all 
-             numGraphsToExamine = PU.getNumThreads
+             numGraphsToExamine = 1 -- PU.getNumThreads 
              rejoinEdgeList = take numGraphsToExamine rejoinEdges
-             rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
+             --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
+             rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList 
             
              {--Checking only min but seems to make slower
              newMinCost = if null rejoinGraphList then infinity
@@ -374,8 +382,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
              (minEstCostNewGraphList, _) = unzip $ filter ((== newMinCost) . snd) rejoinGraphList
              -}
             
-             newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
+             -- newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
+             newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rejoinGraphList -- newGraphList
          in
          -- found nothing better or equal 
          if null rejoinGraphList then 
@@ -416,7 +424,8 @@ singleJoin :: String
            -> VertexCost
            -> [LG.LEdge EdgeInfo]
            -> LG.LEdge EdgeInfo 
-           -> [(SimpleGraph, VertexCost)]
+           -> [PhylogeneticGraph]
+           -- -> [(SimpleGraph, VertexCost)]
 singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph targetEdge@(u,v, uvInfo) = 
    -- trace ("Rejoinging: " ++ (show $ LG.toEdge targetEdge)) (
    let newEdgeList = if LG.isLeaf splitGraph prunedGraphRootIndex then
@@ -439,8 +448,13 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
    in
    if originalConnectionOfPruned `elem` [u,v] then []
    else if (swapType == "spr") then 
-      -- trace ("New SPR graph: " ++ (show prunedGraphRootIndex) ++ " " ++ (show originalConnectionOfPruned) ++ " " ++ (show ((u,v), newEdgeList)) ++ " " ++ (show $ fmap LG.toEdge edgesInPrunedGraph) ++ " " ++ (show (sprReJoinCost + splitCost)) )( -- ++ "\n" ++ LG.prettyIndices sprNewGraph) (
-      if (sprReJoinCost + splitCost) <= curBestCost then [(sprNewGraph, sprReJoinCost + splitCost)]
+      if (sprReJoinCost + splitCost) <= curBestCost then 
+         -- [(sprNewGraph, sprReJoinCost + splitCost)]
+         let redignosedGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
+         in
+         if snd6 redignosedGraph <= curBestCost then [redignosedGraph]
+         else []
+         
       else []
       -- )
    else error "Non-SPR not yet implemented" -- (LG.empty, 0.0)

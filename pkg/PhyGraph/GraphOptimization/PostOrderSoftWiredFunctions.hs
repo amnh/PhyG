@@ -112,11 +112,20 @@ getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,
 
             -- reroot block character trees
             (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS) -- not sure if should be parallelized `using` PU.myParListChunkRDS
+            
+            -- This is slower than myParListChunkRDS
+            -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap rdeepseq (rerootBlockCharTrees' rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
+            
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
         -- trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap show $ fmap LG.getDuplicateEdges $ V.toList newBlockDisplayTreeVect))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
-        
+   
+
+-- | rerootBlockCharTrees' wrapper for fmap/seqparmap
+rerootBlockCharTrees' :: LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+rerootBlockCharTrees' rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect
+
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
 rerootBlockCharTrees ::LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
@@ -130,9 +139,17 @@ rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
             grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
 
             (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect) `using` PU.myParListChunkRDS)
+
+            -- this is a little slower thank myParListChunkRDS
+            -- (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap rdeepseq (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
+
             updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect)
         in
         (updateBlockDisplayTree, V.fromList rerootedCharTreeVect, sum rerootedCostVect)
+
+-- | getCharTreeBestRoot' wrapper for use with fmap/seqParMap 
+getCharTreeBestRoot' :: LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot' rootIndex nodesToRoot (inCharacterGraph, charInfo) = getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
@@ -1038,7 +1055,10 @@ createBlockResolutions
         -- need to keep these indices correct (hence reverse in checkLeafOverlap) for traceback and compress
         childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
         validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
+
+        -- either paralle seems about the same
         newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs `using` PU.myParListChunkRDS
+        -- newResolutionList = PU.seqParMap rdeepseq  (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs 
 
         --need to add in node and edge to left and right
         edgeLable = EdgeInfo { minLength = 0.0

@@ -94,7 +94,7 @@ import           Data.Maybe
 makeDynamicCharacterFromSingleVector :: (GV.Vector v a) => v a -> (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
--- | median2 takes the vectors of characters and applies media2 to each
+-- | median2 takes the vectors of characters and applies median2Single to each
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
 -- used for distances and post-order assignments
