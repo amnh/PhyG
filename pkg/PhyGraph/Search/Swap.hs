@@ -216,35 +216,25 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
 
       -- found only worse graphs
       else if newMinCost > curBestCost then
-         -- trace ("Worse " ++ (show newMinCost)) 
-         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost curSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         trace ("Worse " ++ (show newMinCost)) (
+         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
+         in
+         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         )
 
       -- found same cost graphs
       else
-         -- trace ("Equal " ++ (show newMinCost)) (
-         -- check unique graphs of minimim cost
-         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
-         in
-
-         {-
-         -- if have max number to keep return
-         if length newCurSameBetterList >= numToKeep then 
-             (take numToKeep newCurSameBetterList, counter)
-         -}
-
-         -- not hit max to keep
-         --else 
-            -- remaining to do tail of in graph list ++ new ones of minimum cost 
-            let -- ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
+         trace ("Equal " ++ (show newMinCost)) (
+         let ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
                 -- newNovelGraphList = newGraphList L.\\ curSameBetterList
-                -- graphsToDo = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ (tail inGraphList) ++ newNovelGraphList
+                graphsToDo = (tail inGraphList) ++ newNovelGraphList
                 -- graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
                 --              else graphsToDo
-                graphsToDo' = (tail inGraphList)
-            in
-            -- trace ("Num to do: " ++ (show $ length graphsToDo))
-            swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-         -- )
+               --graphsToDo' = (tail inGraphList)
+         in
+         -- trace ("Num to do: " ++ (show $ length graphsToDo))
+         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         )
 
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
 -- if steepest == True then returns on finding a better graph (lower cost)
