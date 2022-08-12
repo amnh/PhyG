@@ -125,11 +125,11 @@ swapMaster inArgs inGS inData rSeed inGraphList =
               --if nothing better or equal
               let finalGraphList = if null newGraphList'' then inGraphList
                                    else newGraphList''
-                  endString = if not doAnnealing then ("\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
+                  endString = if not doAnnealing then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
-                                ("\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs")
                               else
-                                ("\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs")
               in
               trace (endString)
               finalGraphList

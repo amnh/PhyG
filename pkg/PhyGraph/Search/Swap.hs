@@ -212,7 +212,7 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
       -- trace ("Curent min cost: "  ++ (show (newMinCost, curBestCost))) (
       -- found better cost graph
       if newMinCost < curBestCost then
-         trace ("\t->" ++ (show newMinCost)) 
+         traceNoLF ("\t->" ++ (show newMinCost)) 
          swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) newMinCost newGraphList (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
