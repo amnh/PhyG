@@ -548,8 +548,8 @@ renameSimpleGraphNodesString inGraph =
     -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
     where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then "HTU"  ++ show a
-                                    else b
-
+                                      else b
+                                      
 -- | getEdgeSplitList takes a graph and returns list of edges
 -- that split a graph increasing the number of components by 1
 -- this is quadratic

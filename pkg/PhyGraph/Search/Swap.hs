@@ -246,6 +246,7 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
 -- breakEdgeList Complete keeps original edge list so can creat readdition edge lists more easily
 -- parallel map on rejoin if not steepest, if steepest do number of parallel threads so can reurn if any one is better
 -- NB -- need to verify NNI/SPR/TBR rearrangement numbers
+-- assumes break and join edges are bridge edges
 splitJoinGraph :: String
                -> GlobalSettings
                -> ProcessedData
@@ -280,8 +281,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
 
           -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
           (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
-          -- (_, edgesInBaseGraph') = LG.nodesAndEdgesAfter splitGraph [(graphRoot, fromJust $ LG.lab splitGraph graphRoot)] 
-          -- edgesInBaseGraph = edgesInBaseGraph' L.\\ (edgeToBreakOn : edgesInPrunedGraph)
+          
           edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
           
           -- determine those edges within distance of original if limited (ie NNI etc)
@@ -364,7 +364,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
       else 
          -- trace ("In steepest: " ++ (show PU.getNumThreads) ++ " " ++ (show $ length $ take PU.getNumThreads rejoinEdges)) (
          let -- this could be made a little paralle--but if lots of threads basically can do all 
-             numGraphsToExamine = 1 -- PU.getNumThreads 
+             numGraphsToExamine = PU.getNumThreads
              rejoinEdgeList = take numGraphsToExamine rejoinEdges
              --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
              rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList 
@@ -403,6 +403,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
 -- and "rejoins" the split graph to a single graph--cretges joined graph and calculates a heuristic graph cost 
 -- based on the unbion assignment of the edge and its distance to the root vertex of the pruned graph
 -- if TBR checks all edges in pruned graph with readdition edge (shorcircuits if steepest  == True)
+-- always deletes connecting edge to pruned part and readds--this because sometimes there and sometimes not (depending on 
+-- if SPR for singleton etc) and can create parallel edges with different weioghts (0.0 or not) so just remove to be sure.
 singleJoin :: String 
            -> Bool
            -> GlobalSettings
@@ -418,40 +420,199 @@ singleJoin :: String
            -> [LG.LEdge EdgeInfo]
            -> LG.LEdge EdgeInfo 
            -> [PhylogeneticGraph]
-           -- -> [(SimpleGraph, VertexCost)]
 singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph targetEdge@(u,v, uvInfo) = 
    -- trace ("Rejoinging: " ++ (show $ LG.toEdge targetEdge)) (
-   let newEdgeList = if LG.isLeaf splitGraph prunedGraphRootIndex then
-                        [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
-                     else 
-                        [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
+   let newEdgeList = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
        targetEdgeData = M.makeEdgeData doIA splitGraph charInfoVV targetEdge
 
        --this for SPR/NNI only
        prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
 
-       sprReJoinCost = if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks prunedRootVertexData targetEdgeData charInfoVV []
-                       else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA prunedRootVertexData targetEdgeData charInfoVV []
+       sprReJoinCost = edgeJoinDelta doIA charInfoVV prunedRootVertexData targetEdgeData
 
-       sprNewGraph = LG.insEdges newEdgeList $ LG.insNode (originalConnectionOfPruned, T.pack ("HTU" ++ (show originalConnectionOfPruned))) $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
+       sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
 
-       -- this for TBR, reroots the pruned graph on its edges (non-root, covered by SPR) and re-adds
-       -- functionality of getPrunedEdgeData
+       -- here when needed
+       redignosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
+      
 
    in
    if originalConnectionOfPruned `elem` [u,v] then []
-   else if (swapType == "spr") then 
+
+   -- SPR or no TBR rearrangements
+   else if (swapType == "spr") || ((length edgesInPrunedGraph) < 4) then 
       if (sprReJoinCost + splitCost) <= curBestCost then 
-         -- [(sprNewGraph, sprReJoinCost + splitCost)]
-         let redignosedGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
-         in
-         if snd6 redignosedGraph <= curBestCost then [redignosedGraph]
+         if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
          else []
-         
       else []
-      -- )
-   else error "Non-SPR not yet implemented" -- (LG.empty, 0.0)
+
+   else -- TBR 
+      -- Filter for bridge edges
+      let edgesInPrunedGraph' = if (graphType inGS == Tree) || LG.isTree splitGraphSimple then edgesInPrunedGraph
+                                else fmap fst $ filter ((== True) . snd) $ zip edgesInPrunedGraph (fmap (LG.isBridge splitGraphSimple) (fmap LG.toEdge edgesInPrunedGraph))
+      in
+      -- check SPR first if steepest
+      if steepest && (sprReJoinCost + splitCost) <= curBestCost then 
+         if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
+         else 
+            -- do TBR stuff
+            tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' targetEdge
+      else
+         -- do TBR stuff adding SPR results if hweuristic better
+         let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
+                           if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
+                           else []
+                         else []
+         in
+         sprResult ++ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' targetEdge
    -- )
+
+-- | edgeJoinDelta calculates heuristic cost for jopineing pair edges
+edgeJoinDelta :: Bool -> V.Vector (V.Vector CharInfo) -> VertexBlockData -> VertexBlockData -> VertexCost
+edgeJoinDelta doIA charInfoVV edgeA edgeB =
+   if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks edgeA edgeB charInfoVV []
+   else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA edgeA edgeB charInfoVV []
+
+
+-- | tbrJoin performs TBR rearrangements on pruned graph component
+-- "reroots" pruned graph on each bridge edge and tries join to 
+-- target edge as in SPR
+-- each edge is tried in turn (except for original root edge covered by singleJoin SPR function)
+-- if heuristic edge join cost is below current best cost then the component is rerooted, joined to 
+-- target edge and graph fully diagnosed to verify cost
+-- "steepest" short circuits checking edges to return better verified cost graph immediately
+-- otherwise ("all") returns all graphs better than or equal to current better cost
+-- if nothing equal or better found returns empty list 
+-- tests if reroot edges are bridge edges
+-- uses dynamic epsilon--seems the delta estimate is high
+tbrJoin :: Bool
+        -> GlobalSettings
+        -> ProcessedData
+        -> DecoratedGraph
+        -> SimpleGraph
+        -> VertexCost 
+        -> Bool
+        -> LG.Node
+        -> LG.Node
+        -> V.Vector (V.Vector CharInfo)
+        -> VertexCost
+        -> [LG.LEdge EdgeInfo]
+        -> LG.LEdge EdgeInfo 
+        -> [PhylogeneticGraph]
+tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph targetEdge@(u,v, uvInfo) = 
+   if null edgesInPrunedGraph then []
+   else 
+      -- get target edge data
+      let targetEdgeData = M.makeEdgeData doIA splitGraph charInfoVV targetEdge
+      in  
+      
+      if not steepest then       
+         -- get heuristic delta joins for edges in pruned graph
+         let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
+             rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
+             rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
+                
+             -- check for possible better/equal graphs and verify
+             candidateEdgeList = fmap fst $ filter ((<= (curBestCost * (dynamicEpsilon inGS))) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
+             candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+             redignosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
+
+             -- for debugging
+             -- allRediagnosedList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph  splitGraphSimple  prunedGraphRootIndex originalConnectionOfPruned targetEdge) rerootEdgeList)
+                
+         in
+         {-
+         trace ("TBR All equal/better: " ++ (show curBestCost) ++ " " ++ (show rerootEdgeDeltaList) ++ " -> " 
+            ++ (show $ fmap snd6 allRediagnosedList) 
+            ++ " " ++ (show (length rerootEdgeList, length candidateEdgeList, length redignosedGraphList))) (
+         -}
+         if null candidateEdgeList then []
+         else if null redignosedGraphList then []
+         else redignosedGraphList
+         -- )
+      else 
+         -- trace ("TBR steepest") (
+         -- get steepest edges
+         let numEdgesToExamine = PU.getNumThreads
+             firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
+
+             -- get heuristic delta joins for steepest edge set
+             rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
+             rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
+             rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
+             
+             -- check for possible better/equal graphs and verify
+             candidateEdgeList = fmap fst $ filter ((<= (curBestCost * (dynamicEpsilon inGS))) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
+             candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+             redignosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList-- get 
+
+         in
+         if null candidateEdgeList then 
+            tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) targetEdge
+         else if null redignosedGraphList then 
+            tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) targetEdge
+         else redignosedGraphList    
+         -- )
+      
+
+-- | rerootPrunedAndMakeGraph reroots the pruned graph component on the rerootEdge and joins to base gaph at target edge
+rerootPrunedAndMakeGraph :: SimpleGraph -> LG.Node -> LG.Node -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo -> SimpleGraph
+rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u,v, _) rerootEdge =
+   -- get edges to delete and edges to add 
+   let (prunedEdgesToAdd, prunedEdgesToDelete) = getTBREdgeEditsSimple splitGraphSimple prunedGraphRootIndex rerootEdge
+       
+       -- edges to connect rerooted pruned component and base graph
+       connectingEdges = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
+       
+       tbrNewGraph = LG.insEdges (connectingEdges ++ prunedEdgesToAdd) $ LG.delEdges ([(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] ++ prunedEdgesToDelete) splitGraphSimple
+   in
+   tbrNewGraph
+
+-- | getTBREdgeEditsSimple takes and edge and returns the list of edit to pruned subgraph
+-- as a pair of edges to add and those to delete
+-- since reroot edge is directed (e,v), edges away from v will have correct
+-- orientation. Edges between 'e' and the root will have to be flipped
+-- original root edges and reroort edge are deleted and new root and edge spanning orginal root created
+-- delete original connection edge and creates a new one--like SPR 
+-- returns ([add], [delete])
+getTBREdgeEditsSimple :: (Show a) => SimpleGraph -> LG.Node -> LG.LEdge a -> ([LG.LEdge Double],[LG.Edge])
+getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
+   --trace ("Getting TBR Edits for " ++ (show rerootEdge)) (
+   let originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
+       originalRootEdges = LG.out inGraph prunedGraphRootIndex
+
+       -- get path from new root edge fst vertex to orginal root and flip those edges
+       -- since (u,v) is u -> v u "closer" to root
+       closerToPrunedRootEdgeNode = (fst3 rerootEdge, fromJust $ LG.lab inGraph $ fst3 rerootEdge)
+       (nodesInPath, edgesinPath) = LG.postOrderPathToNode inGraph closerToPrunedRootEdgeNode (prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)
+
+       -- don't want original root edges to be flipped since later deleted
+       edgesToFlip = edgesinPath L.\\ originalRootEdges
+       flippedEdges = fmap LG.flipLEdge edgesToFlip
+
+       -- new edges on new root position and spanning old root
+       -- add in closer vertex to root to make sure direction of edge is correct
+       newEdgeOnOldRoot = if (snd3 $ head originalRootEdges) `elem` ((fst3 rerootEdge) : (fmap fst nodesInPath)) then (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, 0.0)
+                          else (snd3 $ last originalRootEdges, snd3 $ head originalRootEdges, 0.0)
+       newRootEdges = [(prunedGraphRootIndex, fst3 rerootEdge, 0.0 ),(prunedGraphRootIndex, snd3 rerootEdge, 0.0)]
+       
+   in
+   -- assumes we are not checking original root
+   -- rerooted
+   -- delete orignal root edges and rerootEdge
+   -- add new root edges
+   -- and new edge on old root--but need orientation
+   -- flip edges from new root to old (delete and add list)
+   {-
+   trace ("\n\nIn Graph:\n"++ (LG.prettyIndices inGraph) ++ "\nTBR Edits: " ++ (show (LG.toEdge rerootEdge, prunedGraphRootIndex))
+        ++ " NewEdgeOldRoot: " ++ (show $ LG.toEdge newEdgeOnOldRoot)
+        ++ " New rootEdges: " ++ (show $ fmap LG.toEdge newRootEdges)
+        )
+   -}
+   --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
+   (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), LG.toEdge rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges)))
+   -- )
+
 
 
 -- | swapAll performs branch swapping on all 'break' edges and all readditions
