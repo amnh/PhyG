@@ -203,38 +203,41 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest co
                splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
 
           -- get best return graph list-can be empty if nothing better ort smame cost
-          newGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
+          newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
 
           newMinCost = if (not . null) newGraphList then minimum $ fmap snd6 newGraphList
                        else infinity 
 
       in    
+      -- trace ("Curent min cost: "  ++ (show (newMinCost, curBestCost))) (
       -- found better cost graph
       if newMinCost < curBestCost then
          trace ("\t->" ++ (show newMinCost)) 
          swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) newMinCost newGraphList (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
-      -- found only worse graphs
+      -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
       else if newMinCost > curBestCost then
-         trace ("Worse " ++ (show newMinCost)) (
-         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
+         -- trace ("Worse " ++ (show newMinCost)) (
+         let newCurSameBetterList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
          in
          swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-         )
+         -- )
 
       -- found same cost graphs
       else
-         trace ("Equal " ++ (show newMinCost)) (
-         let ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
+         -- trace ("Equal " ++ (show newMinCost)) (
+         let newCurSameBetterList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
+             ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
                 -- newNovelGraphList = newGraphList L.\\ curSameBetterList
-                graphsToDo = (tail inGraphList) ++ newNovelGraphList
+             graphsToDo = (tail inGraphList) ++ newNovelGraphList
                 -- graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
                 --              else graphsToDo
                --graphsToDo' = (tail inGraphList)
          in
-         -- trace ("Num to do: " ++ (show $ length graphsToDo))
-         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-         )
+         -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
+         swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest (counter + 1) curBestCost newCurSameBetterList graphsToDo numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         -- )
+         -- )
 
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
 -- if steepest == True then returns on finding a better graph (lower cost)

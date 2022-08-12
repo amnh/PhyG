@@ -1342,10 +1342,11 @@ isNovelGraph :: [PhylogeneticGraph] -> PhylogeneticGraph -> Bool
 isNovelGraph graphList testGraph = 
   if null graphList then True
   else 
-      let collapsedInGraph = U.collapseGraph testGraph
-          collapseGraphList = fmap U.collapseGraph graphList
+      let collapsedInGraph = (LG.prettyIndices . fst6 . U.collapseGraph) testGraph
+          collapseGraphList = fmap (LG.prettyIndices . fst6 . U.collapseGraph) graphList
           matchList = filter (== collapsedInGraph) collapseGraphList
       in
+      -- trace ("IsNovel: " ++ (show $ null matchList))
       null matchList
 
 -- | keeps and returns unique graphs based on Eq of Topological Simple Graph
