@@ -718,3 +718,5 @@ preOrderTreeTraversal
 406) Add paralleism for tree median calculations
 
 407) Add pre-order paralleism for tree and softwired/harwired
+
+408) add paralleize bitpacking-- with option to turn off for memory saving

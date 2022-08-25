@@ -134,29 +134,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
-               {-
-               (newGraphList''', counterAlternate) = if doAlternate then
-                                                       -- first do round of SPR
-                                                       let graphPairListSPR =  PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList'') -- `using` PU.myParListChunkRDS
-                                                           (graphListListSPR', counterListSPR) = unzip graphPairListSPR
-
-                                                           -- if no SPR better set to previous (input) list for alternate
-                                                           graphListListSPR = if null graphListListSPR' then newGraphList''
-                                                                              else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat graphListListSPR'
-
-                                                        -- then do TBR with alternate 
-                                                           graphPairListAlternate =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList graphListListSPR) -- `using` PU.myParListChunkRDS
-                                                           (graphListList, counterList) = unzip graphPairListAlternate
-
-                                                           graphListList2 = if null graphListList then graphListListSPR
-                                                                            else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList
-                                                       in
-                                                       trace ("Lists : " ++ " SPR' " ++ (show . null $ graphListListSPR') ++  " SPR " ++ (show . null $ graphListListSPR)  ++ " TBR' " ++ (show . null $ graphListList) ++ " TBR " ++ (show . null $ graphListList2)) (
-                                                       trace ("SPR cost " ++ (show $ minimum $ fmap snd6 graphListListSPR) ++ ("TBR cost " ++ (show $ minimum $ fmap snd6 graphListList2)))
-                                                       (graphListList2, (sum counterListSPR) + (sum counterList))
-                                                       )
-                                                     else (newGraphList'', 0)
-             -}
               in
               --if nothing better or equal
               let (counterSPR, counterTBR, counterAlternate) = if doAlternate then (0,0, counterSPR' + counterTBR')
