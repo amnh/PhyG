@@ -245,10 +245,15 @@ swapAll' swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepest al
 -- if steepest == True then returns on finding a better graph (lower cost)
 -- this will traverse entire SPR neighbohood if nothing better found (or steepest == False)
 -- different from swapALL (original) in that it doesn't build up split list so lower memory footprint
--- breakEdgeList Complete keeps original edge list so can creat readdition edge lists more easily
+-- breakEdgeList Complete keeps original edge list so can create readdition edge lists more easily
 -- parallel map on rejoin if not steepest, if steepest do number of parallel threads so can reurn if any one is better
 -- NB -- need to verify NNI/SPR/TBR rearrangement numbers
--- assumes break and join edges are bridge edges
+-- assumes break edges are bridge edges
+-- graph split into two peices "base" graph with original root and "pruned" graph that was split off.
+-- the edge connecting the two is (originalConnectionOfPruned -> prunedGraphRootIndex)
+-- the edges in pruned graph do not contaiun that edge since are enumerated via preorder pass from prunedGraphRootIndex
+-- this is the edge that is reconnected when graphs are joined, it is often delted and rejoined to update info and to deal with
+-- conditions where the pruned graph is a single terminal
 splitJoinGraph :: String
                -> GlobalSettings
                -> ProcessedData
@@ -402,11 +407,11 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
          -- ))
 
 -- | singleJoin takes optimized split graph, split cost, target edge, swap type (ie TBR/SPR/NNI)
--- and "rejoins" the split graph to a single graph--cretges joined graph and calculates a heuristic graph cost 
--- based on the unbion assignment of the edge and its distance to the root vertex of the pruned graph
--- if TBR checks all edges in pruned graph with readdition edge (shorcircuits if steepest  == True)
--- always deletes connecting edge to pruned part and readds--this because sometimes there and sometimes not (depending on 
--- if SPR for singleton etc) and can create parallel edges with different weioghts (0.0 or not) so just remove to be sure.
+-- and "rejoins" the split graph to a single graph--creates joined graph and calculates a heuristic graph cost 
+-- based on the union assignment of the edge and its distance to the root vertex of the pruned graph
+-- if TBR checks all edges in pruned graph with readdition edge (shortcircuits if steepest  == True)
+-- always deletes connecting edge to pruned part and readds--this because sometimes it is there and sometimes not (depending on 
+-- if SPR for terminal etc) and can create parallel edges with different weights (0.0 or not) so just remove to be sure.
 singleJoin :: String 
            -> Bool
            -> GlobalSettings
