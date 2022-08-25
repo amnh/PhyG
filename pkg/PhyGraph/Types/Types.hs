@@ -519,7 +519,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bc8 = (0.0,1.0)
                                      , bc64 = (0.0,1.0)
                                      , bcgt64 = (0.0,1.0)
-                                     , dynamicEpsilon = 1.0
+                                     , dynamicEpsilon = 1.02
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

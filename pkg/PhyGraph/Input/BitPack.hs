@@ -1372,7 +1372,8 @@ based on their number of states
 packNonAdditiveData :: GlobalSettings -> ProcessedData -> ProcessedData
 packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
-    let newBlockDataList = fmap (recodeNonAddCharacters inGS) (V.toList blockDataVect) -- `using` PU.myParListChunkRDS -- could be an option to save memory etc
+    let -- newBlockDataList = fmap (recodeNonAddCharacters inGS) (V.toList blockDataVect) -- parallel could be an option to save memory etc
+        newBlockDataList = PU.seqParMap rdeepseq   (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
     in
     (nameVect, bvNameVect, V.fromList newBlockDataList)
 
@@ -1413,18 +1414,24 @@ packNonAdd inGS inCharDataV charInfo =
             numNonAdd = (length . head) leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = fmap (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
+            stateNumDataPairList = PU.seqParMap rdeepseq  (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
             (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
 
             -- make new characters based on state size
-            (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter inGS charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
+            -- (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter inGS charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
+            (newStateCharListList, newCharInfoList) = unzip $ (PU.seqParMap rdeepseq (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
+
 
         in
         -- trace ("PNA out weights : " ++ (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
         (newStateCharListList, concat newCharInfoList)
         -- )
+
+-- | makeStateNCharacterTuple is a wrapper for makeStateNCharacter to allow for parMap use
+makeStateNCharacterTuple ::  GlobalSettings -> CharInfo -> (Int, [[BV.BitVector]]) -> ([CharacterData], [CharInfo])
+makeStateNCharacterTuple inGS charInfo (stateNumber, charDataLL) = makeStateNCharacter inGS charInfo stateNumber charDataLL
 
 -- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
 -- creates a new character of all characters for give taxon and packs (64/ state number) characters into a 64 bit Word64
@@ -1519,12 +1526,12 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
             taxCharBVLL = L.transpose charTaxBVLL
 
             -- get state index list for all characters (could be non sequential 0|2; A|T etc)
-            stateIndexLL = fmap getStateIndexList charTaxBVLL
+            stateIndexLL = PU.seqParMap rdeepseq getStateIndexList charTaxBVLL
 
             -- convert data each taxon into packedWord64
-            packedDataL = fmap (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
+            packedDataL = PU.seqParMap rdeepseq (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
-            -- get noCange and Change cost for char type
+            -- get noChange and Change cost for char type
             (lNoChangeCost, lChangeCost) = if stateNumber == 2 then bc2 inGS
                                            else if stateNumber == 4 then bc4 inGS
                                            else if stateNumber == 5 then bc5 inGS
@@ -1557,7 +1564,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
                    }
 
 
--- | makeWord64FromChunk takes a list (= chunk) of bitvectors and cretes bit subcharacter (Word64)
+-- | makeWord64FromChunk takes a list (= chunk) of bitvectors and creates bit subcharacter (Word64)
 -- with adjacent bits for each BV in chunk.  It then bit shifts the appropriate number of bits for each member
 -- of the chunk and finally ORs all (64/stateNumber) Word64s to  make the final packed representation
 makeWord64FromChunk ::  Int -> [[Int]] ->  [BV.BitVector] -> Word64
