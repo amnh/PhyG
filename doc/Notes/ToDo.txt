@@ -713,8 +713,6 @@ preOrderTreeTraversal
 
 403) Clean up max distance thing --may set in types.h becasue of 2x distance
 
-405) add option for steepest to take 1 or more at each round, bigger number more memory usage
-
 406) Add paralleism for tree median calculations
 
 407) Add pre-order paralleism for tree and softwired/harwired
