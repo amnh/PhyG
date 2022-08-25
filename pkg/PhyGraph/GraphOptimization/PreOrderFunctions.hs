@@ -379,7 +379,10 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ (show $ LG.getDuplicateEdges inGraph)) NetworkNode
+                            else
+                                -- not issue if hardwired I don't think
+                                if graphType inGS /= HardWired then trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ (show $ LG.getDuplicateEdges inGraph)) NetworkNode
+                                else NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one

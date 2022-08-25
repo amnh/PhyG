@@ -84,7 +84,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR', doNNI', maxMoveEdgeDist', False)
                                                                       else
                                                                         if doNNI' then (True, False, False, Just 1, True)
-                                                                        else if doSPR then (True, False, False, maxMoveEdgeDist', True)
+                                                                        else if doSPR' then (True, False, False, maxMoveEdgeDist', True)
                                                                         else (doTBR', doSPR', doNNI', maxMoveEdgeDist', False)
 
                -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
@@ -105,7 +105,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- create simulated annealing random lists uniquely for each fmap
                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
 
-               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
                              else
                                 if (method $ fromJust simAnnealParams) == SimAnneal then
                                     ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
@@ -115,7 +115,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
            in
 
            trace (progressString) (
-
            let (newGraphList, counterNNI)  = if doNNI then
                                                let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest False hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
@@ -125,6 +124,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
+                                               trace ("SM-About to SPR")
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
@@ -135,7 +135,6 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList', 0)
               in
-              --if nothing better or equal
               let (counterSPR, counterTBR, counterAlternate) = if doAlternate then (0,0, counterSPR' + counterTBR')
                                                                else (counterSPR', counterTBR', 0)
                   finalGraphList = if null newGraphList'' then inGraphList
@@ -145,10 +144,12 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                 ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs")
                               else
                                 ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                  
               in
               trace (endString)
               finalGraphList
-            )
+              )
+            
 
 -- | getSimumlatedAnnealingParams returns SA parameters
 getSimAnnealParams :: Bool -> Bool -> Maybe Int -> Maybe Int -> Maybe Int -> Maybe Double -> Maybe Double -> Maybe Int -> Int -> Maybe SAParams
