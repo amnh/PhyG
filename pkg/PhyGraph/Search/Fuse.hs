@@ -55,6 +55,18 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import qualified Data.InfList                as IL
 
+
+{-
+   For redo:
+
+   1) Key issue is reindexing exchanged components
+   2) move to new swap functions on rejoin
+      with reasonable defaults (steepest, spr)
+   3) check logic all through
+   4) randomized options to limit number of fuses
+
+-}
+
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
 -- keeps results according to options (best, unique, etc)
@@ -115,7 +127,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
 
-         newGraphList = concat (fmap (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist doNNI doSPR doTBR) graphPairList `using` PU.myParListChunkRDS)
+         newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist doNNI doSPR doTBR) graphPairList) -- `using` PU.myParListChunkRDS)
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -447,7 +459,7 @@ reIndexEdge indexMap (u,v,l) =
    let u' = MAP.lookup u indexMap
        v' = MAP.lookup v indexMap
    in
-   if u' == Nothing || v' == Nothing then error ("Eror in map lookup in reindexEdge: " ++ show (u,v))
+   if u' == Nothing || v' == Nothing then error ("Error in map lookup in reindexEdge: " ++ show (u,v))
    else (fromJust u', fromJust v', l)
 
 
