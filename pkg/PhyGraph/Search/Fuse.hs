@@ -371,6 +371,7 @@ getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph) =
    else 
       filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
 
+{-
 -- | recombineComponents' takes readdition arguments (swap, steepest etc) and wraps the swap-stype rejoining of components
 -- ignores doSteepeast for now--doesn't seem to have meaning in rejoining since not then taking that graph for fusion and shortcircuiting
 recombineComponents' :: GlobalSettings
@@ -430,7 +431,7 @@ recombineComponents' inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR
       else []
       -- )
       -- )
-
+-}
 
 
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph,
