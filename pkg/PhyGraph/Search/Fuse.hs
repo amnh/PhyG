@@ -167,9 +167,9 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
 
 
 -- | fusePair recombines a single pair of graphs
--- this is done by cooptinmg the split and readd functinos from the Swap.Swap functions and exchanging
--- pruned subgraphs with the same leaf complement (as recorded by the subbtree roiot node bit vector field)
--- spr-like and tbr-like readds can be perfomred as with options
+-- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
+-- pruned subgraphs with the same leaf complement (as recorded by the subtree root node bit vector field)
+-- spr-like and tbr-like readds can be performed as with options
 fusePair :: GlobalSettings
          -> ProcessedData
          -> Int
@@ -192,7 +192,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           (leftRootIndex, _) = head $ LG.getRoots leftDecoratedGraph
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
                               else filter ((/= leftRootIndex) . fst3) $ GO.getEdgeSplitList leftDecoratedGraph
-          leftSplitTupleList = fmap (GO.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList `using` PU.myParListChunkRDS
+          leftSplitTupleList = PU.seqParMap rdeepseq  (GO.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
@@ -203,7 +203,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           (rightRootIndex, _) = head $ LG.getRoots rightDecoratedGraph
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
                               else filter ((/= rightRootIndex) . fst3) $ GO.getEdgeSplitList rightDecoratedGraph
-          rightSplitTupleList = fmap (GO.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList `using` PU.myParListChunkRDS
+          rightSplitTupleList = PU.seqParMap rdeepseq (GO.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
@@ -226,14 +226,15 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
 
           -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
           -- retuns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
-          (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (fmap (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList) `using` PU.myParListChunkRDS)
-          (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (fmap (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList) `using` PU.myParListChunkRDS)
+          (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
+
+          (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
 
           -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
           -- False for doIA
-          leftRightOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) `using` PU.myParListChunkRDS
+          leftRightOptimizedSplitGraphCostList = PU.seqParMap rdeepseq (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) -- `using` PU.myParListChunkRDS
 
-          rightLeftOptimizedSplitGraphCostList = fmap (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) `using` PU.myParListChunkRDS
+          rightLeftOptimizedSplitGraphCostList = PU.seqParMap rdeepseq (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) -- `using` PU.myParListChunkRDS
 
           -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
           -- otherwise no point in recombination
@@ -308,7 +309,7 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
 
           -- do "all additions" --steepest really doens't have meaning here since will not pop out to recombine on new graph
           -- False for doSteepest
-          recombinedSimpleGraphCostPairList = concat (fmap (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist doIA charInfoVV) graphDataList `using` PU.myParListChunkRDS)
+          recombinedSimpleGraphCostPairList = concat (PU.seqParMap rdeepseq (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist doIA charInfoVV) graphDataList) -- `using` PU.myParListChunkRDS)
 
           -- this based on heuristic deltas
           bestFuseCost = minimum $ fmap snd recombinedSimpleGraphCostPairList
@@ -321,7 +322,7 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
       --trace ("Checking in fusing") (
       if null recombinedSimpleGraphCostPairList then []
       else if (bestFuseCost / (dynamicEpsilon inGS)) <= curBestCost then
-         let rediagnodedGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) bestFuseSimpleGraphs `using` PU.myParListChunkRDS
+         let rediagnodedGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) bestFuseSimpleGraphs -- `using` PU.myParListChunkRDS
              bestRediagnosedGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rediagnodedGraphList
          in
          if (snd6 $ head bestRediagnosedGraphList) <= curBestCost then bestRediagnosedGraphList

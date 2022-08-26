@@ -90,7 +90,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
                -- swap type if alternate will be "TBR"
                doAlternate = if (doTBR || doSPR || doNNI) then False
-                            else True
+                             else True
 
                
 

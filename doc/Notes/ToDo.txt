@@ -718,3 +718,14 @@ preOrderTreeTraversal
 407) Add pre-order paralleism for tree and softwired/harwired
 
 408) add paralleize bitpacking-- with option to turn off for memory saving
+
+409) redo fuse
+
+410) redo parallel add/delete/move
+
+411) figure out issue with net move
+
+412) Internal setting of dynamic epsilon
+	(also only for dynmaic/sequence characters)
+
+
