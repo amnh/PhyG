@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.Swap  ( swapSPRTBR
                     , reoptimizeSplitGraphFromVertexTuple
                     , rejoinGraphKeepBestTuple
+                    , rejoinGraphTuple
                     ) where
 
 import           Control.Parallel.Strategies
@@ -312,6 +313,23 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
       if (not . null) newGraphList then newGraphList' 
       else splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete (tail breakEdgeList)
 
+-- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping 
+rejoinGraphTuple :: String
+                 -> GlobalSettings
+                 -> ProcessedData
+                 -> Int
+                 -> Int
+                 -> Bool
+                 -> VertexCost
+                 -> [PhylogeneticGraph]
+                 -> Bool
+                 -> V.Vector (V.Vector CharInfo)
+                 -> Maybe SAParams
+                 -> (DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
+                 -> [PhylogeneticGraph]
+rejoinGraphTuple swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA charInfoVV inSimAnnealParams (reoptimizedSplitGraph, splitGraphSimple, splitGraphCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, rejoinEdges, edgesInPrunedGraph, netPenaltyFactor) = 
+   rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams 
+
 -- | rejoinGraph rejoins a split graph at all edges (if not steepest and found better)
 -- in "base" graph.
 -- if not steepest then do all as map, else recursive on base graph edge list 
@@ -440,7 +458,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
 
        -- here when needed
-       redignosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
+       rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
       
 
    in
@@ -449,7 +467,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
    -- SPR or no TBR rearrangements
    else if (swapType == "spr") || ((length edgesInPrunedGraph) < 4) then 
       if (sprReJoinCost + splitCost) <= curBestCost then 
-         if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
+         if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
          else []
       else []
 
@@ -460,14 +478,14 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
       in
       -- check SPR first if steepest
       if steepest && (sprReJoinCost + splitCost) <= (curBestCost * (dynamicEpsilon inGS)) then 
-         if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
+         if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
          else 
             -- do TBR stuff
             tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' targetEdge
       else
          -- do TBR stuff adding SPR results if hweuristic better
          let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
-                           if snd6 redignosedSPRGraph <= curBestCost then [redignosedSPRGraph]
+                           if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
                            else []
                          else []
          in

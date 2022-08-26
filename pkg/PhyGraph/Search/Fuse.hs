@@ -252,9 +252,14 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           -- re-add pruned component to base component left-right and right-left
           -- need cure best cost
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
-          
-          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList'
-          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList'
+
+          -- get network penalty factors to pass on
+          networkCostFactor = min (getNetworkPentaltyFactor inGS (snd6 leftGraph) leftGraph) (getNetworkPentaltyFactor inGS (snd6 rightGraph) rightGraph) 
+
+
+          -- left and right root indices shold be the same
+          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor
+          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor
 
 
           -- get "best" fused graphs from leftRight and rightLeft
@@ -286,8 +291,103 @@ recombineComponents :: GlobalSettings
                     -> [Int]
                     -> [Int]
                     -> [Int]
+                    -> LG.Node
+                    -> VertexCost
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList graphRoot networkCostFactor =
+   -- check and see if any reconnecting to do
+   --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
+   if null splitGraphCostPairList then []
+   else
+      -- top line to cover SPR HarWired bug
+      let swapType = if doTBR then "tbr"
+                     else if doSPR then "spr"
+                     else if doNNI then "nni"
+                     else "spr" -- will be set with 2 as maxMoveEdgeDist
+
+          doIA = False --- since splits not created together, IA won't be consistent between components
+          steepest = False -- should look at all better
+
+          -- network costs--using an input value that is minimum of inputs
+          netPenaltyFactorList = L.replicate (length splitGraphCostPairList) networkCostFactor
+
+          -- no simulated annealling functionality here
+          inSimAnnealParams = Nothing
+
+          -- get edges in pruned (to be exchanged) graphs
+          edgesInPrunedList = fmap LG.getEdgeListAfter $ zip (fmap fst splitGraphCostPairList) prunedParentRootIndexList
+
+          -- get edges in base (not to be exchanged) graphs
+          rejoinEdgesList = fmap (getBaseGraphEdges graphRoot) $ zip (fmap fst splitGraphCostPairList) edgesInPrunedList
+
+          --huge zip to fit arguments into revised join function
+          graphDataList = zip9 (fmap fst splitGraphCostPairList) 
+                               (fmap GO.convertDecoratedToSimpleGraph $ fmap fst splitGraphCostPairList) 
+                               (fmap snd splitGraphCostPairList)  
+                               (L.replicate (length splitGraphCostPairList) graphRoot)
+                               prunedRootIndexList
+                               prunedParentRootIndexList
+                               rejoinEdgesList
+                               edgesInPrunedList
+                               netPenaltyFactorList
+
+          -- do "all additions" -
+          recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams) graphDataList
+                                                              
+
+          -- this based on heuristic deltas
+          bestFuseCost = if null recombinedGraphList then infinity
+                         else minimum $ fmap snd6 recombinedGraphList
+
+      in
+      --trace ("Checking in fusing") (
+      if null recombinedGraphList then []
+      else if bestFuseCost <= curBestCost then
+         take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] recombinedGraphList
+      else []
+      -- )
+      -- )
+
+-- | getNetworkPentaltyFactor get scale network penalty for graph
+getNetworkPentaltyFactor :: GlobalSettings -> VertexCost -> PhylogeneticGraph -> VertexCost 
+getNetworkPentaltyFactor inGS graphCost inGraph =
+   if LG.isEmpty $ thd6 inGraph then 0.0
+   else
+        let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
+                                else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+                                else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
+                                else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+        in
+        inGraphNetPenalty / graphCost
+
+
+
+
+-- | getBaseGraphEdges gets teh edges in the base graph teh trhe exchanged sub graphs can be rejoined
+-- basically all edges except at root and those in the subgraph
+getBaseGraphEdges :: (Eq b) => LG.Node -> (LG.Gr a b, [LG.LEdge b]) -> [LG.LEdge b]
+getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph) =
+   if LG.isEmpty inGraph then []
+   else 
+      filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+
+-- | recombineComponents' takes readdition arguments (swap, steepest etc) and wraps the swap-stype rejoining of components
+-- ignores doSteepeast for now--doesn't seem to have meaning in rejoining since not then taking that graph for fusion and shortcircuiting
+recombineComponents' :: GlobalSettings
+                    -> ProcessedData
+                    -> Int
+                    -> Int
+                    -> Bool
+                    -> Bool
+                    -> Bool
+                    -> V.Vector (V.Vector CharInfo)
+                    -> VertexCost
+                    -> [(DecoratedGraph, VertexCost)]
+                    -> [Int]
+                    -> [Int]
+                    -> [Int]
+                    -> [PhylogeneticGraph]
+recombineComponents' inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
@@ -330,9 +430,6 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR'
       else []
       -- )
       -- )
-
-
-
 
 
 
