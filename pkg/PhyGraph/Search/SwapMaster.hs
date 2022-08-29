@@ -66,15 +66,15 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- randomized orders of split and join-- not implemented
                -- doRandomized = any ((=="randomized").fst) lcArgList
 
+               -- set implied alignment swapping
                doIA' = any ((=="ia").fst) lcArgList
                doIA = if (graphType inGS /= Tree) && doIA' then trace ("\tIgnoring 'IA' swap option for non-Tree") False
                       else doIA'
+
+               --- steepest/all options
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
                
-               -- doSPR'' = if (not doNNI' && not doSPR' && not doTBR') then True
-               --          else doSPR'
-
                -- steepest default
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
