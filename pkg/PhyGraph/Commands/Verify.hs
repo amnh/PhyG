@@ -134,7 +134,7 @@ swapArgList = ["spr","tbr", "alternate", "keep", "steepest", "all", "nni", "ia",
 
 -- | transform arguments
 transformArgList :: [String]
-transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees", "weight", "name", "type"]
+transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees", "weight", "name", "type", "dynamicepsilon"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands 
@@ -258,7 +258,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
 
                                    -- Transform 
                                    else if commandInstruction == Transform then 
-                                        (checkCommandArgs "swap" fstArgList transformArgList, [""], [""])
+                                        (checkCommandArgs "transform" fstArgList transformArgList, [""], [""])
                                          
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
 

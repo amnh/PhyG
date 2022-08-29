@@ -108,7 +108,9 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
          -- get net penalty estimate from optimal graph for delta recombine later
          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing curBestGraph
+                             else if (graphFactor inGS) == Wheeler2015Network then 
+                                 if (graphType inGS) == HardWired then 0.0
+                                 else T.getW15NetPenalty Nothing curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
