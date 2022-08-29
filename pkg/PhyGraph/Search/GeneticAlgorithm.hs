@@ -145,7 +145,6 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             numToKeep = 1
             maxMoveEdgeDist = 10
             steepest = True
-            hardwiredSPR = False
             doIA = False
             returnMutated = True
             inSimAnnealParams = saValues
@@ -159,12 +158,12 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
 
         -- only swap stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
-            head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
+            head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random
         else
             if editType == "swap" then
-                head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate hardwiredSPR doIA returnMutated (inSimAnnealParams, inGraph)
+                head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
             else
                 -- move only for Hardwired
                 if (graphType inGS) == HardWired then

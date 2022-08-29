@@ -58,10 +58,10 @@ swapMaster inArgs inGS inData rSeed inGraphList =
    else
 
            let -- process args for swap
-               (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList) = getSwapParams inArgs
-               doNNI' = any ((=="nni").fst) lcArgList
-               doSPR' = any ((=="spr").fst) lcArgList
-               doTBR' = any ((=="tbr").fst) lcArgList
+               (keepNum, maxMoveEdgeDist, steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList) = getSwapParams inArgs
+               doNNI = any ((=="nni").fst) lcArgList
+               doSPR = any ((=="spr").fst) lcArgList
+               doTBR = any ((=="tbr").fst) lcArgList
 
                -- randomized orders of split and join-- not implemented
                -- doRandomized = any ((=="randomized").fst) lcArgList
@@ -79,20 +79,10 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
 
-               -- Workaround for Hardwired SPR issue
-               -- remove if possible--very confusing
-               (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR', doNNI', maxMoveEdgeDist', False)
-                                                                      else
-                                                                        if doNNI' then (True, False, False, Just 1, True)
-                                                                        else if doSPR' then (True, False, False, maxMoveEdgeDist', True)
-                                                                        else (doTBR', doSPR', doNNI', maxMoveEdgeDist', False)
-
                -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
                -- swap type if alternate will be "TBR"
                doAlternate = if (doTBR || doSPR || doNNI) then False
                              else True
-
-               
 
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
@@ -116,19 +106,19 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
            trace (progressString) (
            let (newGraphList, counterNNI)  = if doNNI then
-                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest False hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated) (zip newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR')  = if (doSPR || doAlternate) then
-                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR') = if (doTBR || doAlternate) then
-                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate hardWiredSPR doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
+                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
