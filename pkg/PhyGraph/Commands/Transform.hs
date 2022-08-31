@@ -98,7 +98,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
             atRandom = any ((=="atrandom").fst) lcArgList
             chooseFirst = any ((=="first").fst) lcArgList
             reWeight =  any ((=="weight").fst) lcArgList
-
+            changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
+            
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
@@ -106,6 +107,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
+
+
+            changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
+            epsilonValue
+               | length changeEpsilonBlock > 1 =
+                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in tansform--can have only one: " ++ show inArgs)
+               | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
+               | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
+               | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
@@ -185,11 +195,18 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newData = reWeightData (fromJust weightValue) charTypeList nameList inData
                    newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
                in
-               trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
+               if isNothing weightValue then errorWithoutStackTrace ("Reweight value is not specified correcty. Must be a double (e.g. 1.2): " ++ (show  (snd $ head reweightBlock)))
+               else 
+                  trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
                   ++ "\n\tReoptimizing graphs") 
-               (inGS, newOrigData, newData, newPhylogeneticGraphList)
+                  (inGS, newOrigData, newData, newPhylogeneticGraphList)
 
-
+            -- changes dynamicEpsilon error check factor
+            else if changeEpsilon then
+               if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " ++ (show (snd $ head changeEpsilonBlock)))
+               else 
+                  trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
+                  (inGS {dynamicEpsilon = fromJust epsilonValue}, origData, inData, inGraphList)
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 

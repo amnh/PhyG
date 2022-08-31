@@ -30,6 +30,7 @@ with-compiler: ghc-9.2.4
 -- datadir:          ./data
 -- docdir:           ./doc
 -- htmldir:          ./doc/html
+builddir:         ./doc
 symlink-bindir:   ./bin
 installdir:       ./bin
 logs-dir:         ./log

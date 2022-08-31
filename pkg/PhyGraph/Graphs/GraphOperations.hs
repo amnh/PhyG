@@ -72,6 +72,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeNewickList
                                , addBeforeAfterToPair
                                , makeGraphTimeConsistent
+                               , isNovelGraph
                                ) where
 
 import           Bio.DynamicCharacter
@@ -547,8 +548,8 @@ renameSimpleGraphNodesString inGraph =
     -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
     where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then "HTU"  ++ show a
-                                    else b
-
+                                      else b
+                                      
 -- | getEdgeSplitList takes a graph and returns list of edges
 -- that split a graph increasing the number of components by 1
 -- this is quadratic
@@ -573,8 +574,9 @@ getEdgeSplitList inGraph =
        bridgeList'
 
 -- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
--- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
--- node returned.  The naked node is used for rejoining the two components during rearrangement
+-- the roots of each component are returned with two graphs, with broken edge contracted, and 'naked'
+-- node returned (this is teh original connection vertex on base graph connected to pruned graph).  
+-- The naked node is used for rejoining the two components during rearrangement
 -- (SplitGraph, root of component that has original root, root of component that was cut off, naked node left over)
 -- this function does not check whether edge is a 'bridge'
 splitGraphOnEdge :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
@@ -596,7 +598,7 @@ splitGraphOnEdge inGraph (e,v,l) =
           -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
           (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
 
--- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges creted and destroyed as well
+-- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges created and destroyed as well
 -- used in Goodman-Bermer and could make swap more efficient as well.
 splitGraphOnEdge' :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node, LG.LEdge b, [LG.Edge])
 splitGraphOnEdge' inGraph (e,v,l) =
@@ -1330,12 +1332,25 @@ getUniqueGraphs removeZeroEdges inGraphList =
 -- basically a nub
 -- need to add a collapse function for compare as well
 -- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
--- mke strings based on collapsed and returns not collpased
+-- make strings based on collapsed and returns not collpased
 getUniqueGraphs'' :: [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph] 
 getUniqueGraphs'' inList = nubGraph [] inList
 
+-- | isNovelGraph  checks if a graph is in list of existing graphs
+-- uses colapsed representation
+isNovelGraph :: [PhylogeneticGraph] -> PhylogeneticGraph -> Bool
+isNovelGraph graphList testGraph = 
+  if null graphList then True
+  else 
+      let collapsedInGraph = (LG.prettyIndices . fst6 . U.collapseGraph) testGraph
+          collapseGraphList = fmap (LG.prettyIndices . fst6 . U.collapseGraph) graphList
+          matchList = filter (== collapsedInGraph) collapseGraphList
+      in
+      -- trace ("IsNovel: " ++ (show $ null matchList))
+      null matchList
+
 -- | keeps and returns unique graphs based on Eq of Topological Simple Graph
--- String newick w/0 HTU names and branch lengths
+-- String prettyIndices w/0 HTU names and branch lengths
 -- arbitrarily rooted on 0 for oonsistency
 --reversed to keep original order in case sorted on length
 nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]

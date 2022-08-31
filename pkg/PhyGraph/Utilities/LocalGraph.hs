@@ -720,6 +720,12 @@ nodesAndEdgesBefore' inGraph curResults@(curNodes, curEdges) inNodeList
 nodesAndEdgesBefore :: (Eq a, Eq b, Show a) => Gr a b -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesBefore inGraph inNodeList = nodesAndEdgesBefore' inGraph ([],[]) inNodeList
 
+-- | getEdgeListAfter wrapper around nodesAndEdgesAfter to return only edges
+getEdgeListAfter :: (Eq a, Eq b,Show a) => (Gr a b, Node) -> [LEdge b]
+getEdgeListAfter (inGraph, inNode) =
+    snd $ nodesAndEdgesAfter inGraph [(inNode, fromJust $ lab inGraph inNode)]
+
+
 -- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node
 -- and all the way to any leaves is connects to.

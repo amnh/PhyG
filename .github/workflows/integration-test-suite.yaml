@@ -22,7 +22,7 @@ on:
 
   # Build on branch updates
   push:
-    branches: [ github-ci, integration-test-development, main ]
+    branches: [ github-ci ]
 
 
 ################################################################################

@@ -149,6 +149,38 @@ fft6 (_,_,_,_,e,_) = e
 six6 :: (a,b,c,d,e,f) -> f
 six6 (_,_,_,_,_,e) = e
 
+-- from https://gist.github.com/thealmarty/643c0509dc6e7e4ad6bcd05e7dbb0e44
+-- | The 'zipWith8' function takes a function which combines eight
+-- elements, as well as eight lists and returns a list of their point-wise
+-- combination, analogous to 'zipWith'.
+zipWith8                :: (a->b->c->d->e->f->g->h->i) ->
+                           [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]
+zipWith8 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs)
+                   =  z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
+zipWith8 _ _ _ _ _ _ _ _ _ = []
+
+-- | The 'zip8' function takes eight lists and returns a list of
+-- eight-tuples, analogous to 'zip'.
+zip8                    :: [a] -> [b] -> [c] -> [d] -> [e] -> [f] ->
+                              [g] -> [h] -> [(a,b,c,d,e,f,g,h)]
+zip8                    =  zipWith8 (,,,,,,,)
+
+-- | The 'zipWith9' function takes a function which combines nine
+-- elements, as well as eight lists and returns a list of their point-wise
+-- combination, analogous to 'zipWith'.
+zipWith9                :: (a->b->c->d->e->f->g->h->i->j) ->
+                           [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]
+zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (i:is)
+                   =  z a b c d e f g h i : zipWith9 z as bs cs ds es fs gs hs is
+zipWith9 _ _ _ _ _ _ _ _ _ _ = []
+
+-- | The 'zip9' function takes nine lists and returns a list of
+-- nine-tuples, analogous to 'zip'.
+zip9                    :: [a] -> [b] -> [c] -> [d] -> [e] -> [f] ->
+                              [g] -> [h] -> [i] ->[(a,b,c,d,e,f,g,h,i)]
+zip9                    =  zipWith9 (,,,,,,,,)
+
+
 
 -- | showBits cponverts Value to bits as Srting
 showBits :: Word64 -> String
