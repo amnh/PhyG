@@ -203,17 +203,23 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
 
      -- process args for fuse placement
            let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
+               
+               -- steepest off by default due to wanteing to check all addition points
+               doSteepest' = any ((=="steepest").fst) lcArgList
+               doAll = any ((=="all").fst) lcArgList
+               
+               doSteepest = if (not doSteepest' && not doAll) then False
+                            else doSteepest'
+
+               -- readdition options, specified as swap types
                doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
-               doSteepest' = any ((=="steepest").fst) lcArgList
-               doAll = any ((=="all").fst) lcArgList
-               doSteepest = if (not doSteepest' && not doAll) then True
-                            else doSteepest'
                doSPR = if doTBR then False
                        else doSPR'
                doNNI = if doSPR || doTBR then False
                        else doNNI'
+                       
                returnBest = any ((=="best").fst) lcArgList
                returnUnique = any ((=="unique").fst) lcArgList
                doSingleRound = any ((=="once").fst) lcArgList

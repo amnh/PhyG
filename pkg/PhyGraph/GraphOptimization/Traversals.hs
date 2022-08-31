@@ -81,8 +81,7 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
     if null networkVertexList then
         let leafGraph = makeLeafGraph inData
         in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
-    else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n"
-                                    ++ (LG.prettify inGraph))
+    else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: " ++ (show $ fmap fst networkVertexList) ++ "\n" ++ (LG.prettify inGraph))
   | graphType inGS == SoftWired =
     let leafGraph = POSW.makeLeafGraphSoftWired inData
     in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
