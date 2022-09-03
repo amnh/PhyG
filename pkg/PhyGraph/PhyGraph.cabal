@@ -22,14 +22,6 @@ Extra-Doc-Files:
 Extra-Source-Files:
   ffi/external-direct-optimization/*.h
   
-Source-Repository-Package head
-  type:     git
-  location: git@github.com:wardwheeler/PhyGraph.git
-  subdir:   pkg/PhyloLib
-
-Source-Repository-Package head
-  type:     git
-  location: git@github.com:recursion-ninja/bv-little.git
 
 -- Global deviations from Haskell98
 common ffi-build-info
@@ -120,8 +112,8 @@ executable phyg
       -with-rtsopts=-N
       -O2
       -rtsopts
-      -static
-      -fllvm
+--      -static
+--      -fllvm
   else 
     ghc-options:
       -Wall
@@ -131,62 +123,62 @@ executable phyg
       -with-rtsopts=-N
       -O2
       -rtsopts
-      -static
+--      -static
       -- problems getting llvm to function in OSX (can't find opt)
       -- -fllvm
 
 
-  if !os(darwin) 
-    cc-options: 
-      -static
-  else 
-    cc-options:
+--  if !os(darwin) 
+--    cc-options: 
+--      -static
+--  else 
+--    cc-options:
 
   if !os(darwin) 
     ld-options: 
-      -static -pthread
-  else 
-    ld-options: 
+--      -static
+      -pthread
+--  else 
+--    ld-options: 
 
 
-  build-depends:  alphabet
-                , dynamic-character
-                , PhyloLib
-                , tcm
-                , base >=4.10
-                , containers >=0.6
-                , graphviz   >=2999.20
-                , fgl
-                , text
-                , parallel
-                , deepseq
-                , bv
-                -- , exceptions
-                , array
-                , split
-                , text-short
-                , random
-                , hashable
-                , time
-                , vector
-                , sort
-                -- , unboxing-vector
-                , MissingH >= 1.4.3
-                , bv-little
-                -- , bits
-                -- , hashmap
-                , bimap
-                , logfloat
-                , random-shuffle
-                
-               -- currently doesn't compile but could be useful
-               -- lots of good functions
-               -- , Graphalyze
-               , async
-               , process
-               
-               , directory
-               , inflist
+  build-depends:
+    alphabet,
+    dynamic-character,
+    PhyloLib,
+    tcm,
+    base >=4.10,
+    containers >=0.6,
+    graphviz   >=2999.20,
+    fgl,
+    text,
+    parallel,
+    deepseq,
+    bv,
+    -- exceptions,
+    array,
+    split,
+    text-short,
+    random,
+    hashable,
+    time,
+    vector,
+    sort,
+    -- unboxing-vector,
+    MissingH >= 1.4.3,
+    bv-little,
+    -- bits,
+    -- hashmap,
+    bimap,
+    logfloat,
+    random-shuffle,
+    --    currently doesn't compile but could be useful,,
+    -- lots of good functions,
+    -- Graphalyze,
+    async,
+    process,
+    directory,
+    inflist,
                
  
                 
@@ -198,48 +190,49 @@ executable phyg
   -- this for local library files
   hs-source-dirs: .
   
-  other-modules:  Commands.ProcessCommands
-                  Commands.CommandExecution
-                  Commands.Verify
-                  Debug.Debug
-                  Graphs.GraphOperations
-                  GraphOptimization.Medians
-                  GraphOptimization.PostOrderFunctions
-                  GraphOptimization.PostOrderSoftWiredFunctions
-                  GraphOptimization.PreOrderFunctions
-                  GraphOptimization.Traversals
-                  Input.BitPack
-                  Input.DataTransformation
-                  Input.FastAC
-                  Input.ReadInputFiles
-                  Input.Reorganize
-                  Input.TNTUtilities
-                  Search.Build
-                  Search.DistanceMethods
-                  Search.DistanceWagner
-                  Search.Fuse
-                  Search.GeneticAlgorithm
-                  Search.NetworkAddDelete 
-                  Search.Refinement
-                  Search.Search
-                  Search.Swap
-                  Search.SwapMaster 
-                  Search.WagnerBuild
-                  Support.Support
-                  System.Timing
-                  Commands.Transform
-                  Types.DistanceTypes
-                  Types.Types
-                  Utilities.Distances
-                  Utilities.DistanceUtilities
-                  Utilities.LocalGraph
-                  Utilities.LocalSequence
-                  Utilities.TcmHash
-                  Utilities.ThreeWayFunctions
-                  Utilities.Utilities
-                  Reconciliation.Adams
-                  Reconciliation.Eun
-                  Reconciliation.ReconcileGraphs
+  other-modules:
+    Commands.ProcessCommands
+    Commands.CommandExecution
+    Commands.Verify
+    Debug.Debug
+    Graphs.GraphOperations
+    GraphOptimization.Medians
+    GraphOptimization.PostOrderFunctions
+    GraphOptimization.PostOrderSoftWiredFunctions
+    GraphOptimization.PreOrderFunctions
+    GraphOptimization.Traversals
+    Input.BitPack
+    Input.DataTransformation
+    Input.FastAC
+    Input.ReadInputFiles
+    Input.Reorganize
+    Input.TNTUtilities
+    Search.Build
+    Search.DistanceMethods
+    Search.DistanceWagner
+    Search.Fuse
+    Search.GeneticAlgorithm
+    Search.NetworkAddDelete 
+    Search.Refinement
+    Search.Search
+    Search.Swap
+    Search.SwapMaster 
+    Search.WagnerBuild
+    Support.Support
+    System.Timing
+    Commands.Transform
+    Types.DistanceTypes
+    Types.Types
+    Utilities.Distances
+    Utilities.DistanceUtilities
+    Utilities.LocalGraph
+    Utilities.LocalSequence
+    Utilities.TcmHash
+    Utilities.ThreeWayFunctions
+    Utilities.Utilities
+    Reconciliation.Adams
+    Reconciliation.Eun
+    Reconciliation.ReconcileGraphs
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --

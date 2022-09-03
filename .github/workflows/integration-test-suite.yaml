@@ -12,8 +12,8 @@ defaults:
 
 env:
   PROJECTFILE: --project-file=cfg/cabal.project.integration
-  THISTESTEXE: PHAGE-integration-tests:integration-tests
   THISMAINEXE: PhyGraph:phyg
+  THISTESTEXE: PHAGE-integration-tests:integration-tests
 
 on:
 
@@ -78,7 +78,7 @@ jobs:
 
       - name: 'Cabal - Integration Tests'
         run: |
-          cabal run ${PROJECTFILE} ${THISTESTEXE}
+          cabal test ${PROJECTFILE} ${THISTESTEXE}
 
       - name: Send mail on failure
         if: ${{ failure() }}

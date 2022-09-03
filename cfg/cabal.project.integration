@@ -9,14 +9,6 @@ packages:
     pkg/PhyloLib
     pkg/*/*.cabal
 
-
----------------------------------------------------------------------------------
--- Build decisions
---  * Static or dynamic binaries
---  * Compiler versions
----------------------------------------------------------------------------------
-
-executable-static: False
 with-compiler: ghc-9.2.4
 
 
@@ -81,7 +73,9 @@ package *
 package PHAGE-integration-tests
     benchmarks:        False
     documentation:     False
-    tests:             False
+    tests:             True
+    executable-static: False
+    optimization: 2
 
 
 package PhyGraph
@@ -90,6 +84,7 @@ package PhyGraph
     tests:             False
     executable-static: False
     optimization: 2
+    flags: +SingleThreaded
 
 
 ---------------------------------------------------------------------------------
@@ -113,8 +108,10 @@ allow-newer:
 preferences:
     aeson          >= 2.0.0,
     bytestring     >= 0.11.3,
+    filepath       >= 1.4.100.0,
+    mtl            >= 2.3,
     text           >= 2.0,
-
+    
 source-repository-package
   type: git
   location: https://github.com/recursion-ninja/bv-little

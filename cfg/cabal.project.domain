@@ -76,6 +76,8 @@ allow-newer:
 preferences:
     aeson          >= 2.0.0,
     bytestring     >= 0.11.3,
+    filepath       >= 1.4.100.0,
+    mtl            >= 2.3,
     text           >= 2.0,
 
 source-repository-package
