@@ -297,7 +297,7 @@ recombineComponents :: GlobalSettings
                     -> LG.Node
                     -> VertexCost
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList graphRoot networkCostFactor =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []

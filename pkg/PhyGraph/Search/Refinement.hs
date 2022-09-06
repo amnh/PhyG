@@ -72,7 +72,7 @@ swapMaster = SM.swapMaster
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then error ("No graphs input to refine")
+   if null inGraphList then errorWithoutStackTrace ("No graphs input to refine")
    else
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs

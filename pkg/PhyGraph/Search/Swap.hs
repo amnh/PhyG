@@ -43,8 +43,6 @@ import           Control.Parallel.Strategies
 import qualified Data.List                            as L
 import           Data.Maybe
 import qualified Data.Vector                          as V
-import           Debug.Trace
--- import qualified Data.Text.Lazy                      as T
 import           GeneralUtilities
 import qualified GraphOptimization.Medians            as M
 import qualified GraphOptimization.PostOrderFunctions as POS
@@ -56,6 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+--import           Debug.Trace
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
