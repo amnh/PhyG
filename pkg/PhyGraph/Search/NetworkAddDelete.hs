@@ -517,7 +517,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
          let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple
          in
-         trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (LG.prettyIndices inSimple) ++  "\nNew\n" ++ (LG.prettyIndices newSimple)) (
+         trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph, snd6 newPhyloGraph)) ++ "\nOrig\n" ++ (LG.prettyIndices inSimple) ++  "\nNew\n" ++ (LG.prettyIndices newSimple)) (
          {-
          if True then 
             trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
