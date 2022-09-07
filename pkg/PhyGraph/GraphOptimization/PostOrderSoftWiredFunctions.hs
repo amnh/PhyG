@@ -190,7 +190,7 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
 rerootAndDiagnoseTree :: LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
 rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
-    let reRootGraph = GO.rerootDisplayTree rootIndex newRerootIndex inGraph
+    let reRootGraph = LG.rerootDisplayTree rootIndex newRerootIndex inGraph
         (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
         reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
     in

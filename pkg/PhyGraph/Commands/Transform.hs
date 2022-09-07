@@ -142,8 +142,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newGS = inGS {graphType = Tree}
                   
                       -- generate and return display trees-- displayTreNUm / graph
-                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . GO.generateDisplayTrees) (fmap fst6 inGraphList)
-                                         else fmap (GO.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
+                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . LG.generateDisplayTrees) (fmap fst6 inGraphList)
+                                         else fmap (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
 
                       -- prob not required
                       displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)

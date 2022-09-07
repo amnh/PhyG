@@ -338,7 +338,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
   else
     let -- decorated graph Boolean to specify that non-exact characters need to be reoptimized if affected
         -- could just update with needges? from simple graph rerooting
-        (newDecGraph, touchedNodes)  = if (graphType inGS) == Tree then (GO.rerootTree rerootIndex inDecGraph, [])
+        (newDecGraph, touchedNodes)  = if (graphType inGS) == Tree then (LG.rerootTree rerootIndex inDecGraph, [])
                                        else if (graphType inGS) == SoftWired then rectifyGraphDecorated isNetworkNode originalRootIndex parentIsNetworkNode rerootIndex inDecGraph
                                        else if (graphType inGS) == HardWired then
                                          if (not . LG.cyclic) inSimple then

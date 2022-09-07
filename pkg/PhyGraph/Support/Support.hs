@@ -550,7 +550,7 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
             -- determine edges to break on--'bridge' edges only for network
             -- filter out edges from root since no use--would just rejoin
             breakEdgeList = if (graphType inGS) == Tree then filter ((/= firstRootIndex) . fst3) $ LG.labEdges inSimple
-                          else filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList inSimple
+                          else filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList inSimple
 
             -- get random integer lists for swap
             lRandomIntegerList = randomIntList rSeed
@@ -592,7 +592,7 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
 
     let
       -- split graph on breakEdge
-      (splitGraph, _, prunedGraphRootIndex,  _, _, edgeDeleteList) = GO.splitGraphOnEdge' inGraph breakEdge
+      (splitGraph, _, prunedGraphRootIndex,  _, _, edgeDeleteList) = LG.splitGraphOnEdge' inGraph breakEdge
 
       -- get edges in base graph to be invaded (ie not in pruned graph)
       prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
@@ -644,14 +644,14 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                     else True
       in
       if doGraph then
-         let newGraph = GO.joinGraphOnEdge splitGraph edgeToInvade eBreak
+         let newGraph = LG.joinGraphOnEdge splitGraph edgeToInvade eBreak
              pruneEdges = False
              warnPruneEdges = False
              startVertex = Nothing
              newPhylogeneticGraph = if (graphType inGS == Tree) || (LG.isTree newGraph) then
                                        T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
                                     else
-                                       if (not . LG.cyclic) newGraph && (not . GO.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                       if (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph then T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
                                        else emptyPhylogeneticGraph
          in
          -- return original

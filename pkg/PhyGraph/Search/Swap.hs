@@ -186,7 +186,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
           -- filter out edges from root since no use--would just rejoin
           -- sort longest edge to shortest--option to speeed up steepest nd conditions for all as well
           breakEdgeList = if (graphType inGS) == Tree || LG.isTree firstDecoratedGraph then GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
-                          else GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ GO.getEdgeSplitList firstDecoratedGraph
+                          else GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList firstDecoratedGraph
 
           -- perform split and rejoin on each edge in first graph
           newGraphList' = 
@@ -278,7 +278,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
       let edgeToBreakOn = head breakEdgeList 
 
           -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
-          (splitGraph, graphRoot, prunedGraphRootIndex,  originalConnectionOfPruned) = GO.splitGraphOnEdge (thd6 firstGraph) edgeToBreakOn
+          (splitGraph, graphRoot, prunedGraphRootIndex,  originalConnectionOfPruned) = LG.splitGraphOnEdge (thd6 firstGraph) edgeToBreakOn
 
           -- reoptimize split graph for re-addition heuristics
           (reoptimizedSplitGraph, splitCost) = reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
@@ -290,7 +290,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
           
           -- determine those edges within distance of original if limited (ie NNI etc)
           rejoinEdges = if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
-                        else take maxMoveEdgeDist $ (GO.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
+                        else take maxMoveEdgeDist $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
 
           -- rejoin graph to all possible edges in base graph
           newGraphList = 
@@ -360,7 +360,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
    else if splitGraphCost >= curBestCost then []
 
    else 
-      -- famp over all edges in base graph
+      -- fmap over all edges in base graph
       if not steepest then 
          let -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
              rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges 
@@ -463,7 +463,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
    -- SPR or no TBR rearrangements
    else if (swapType == "spr") || ((length edgesInPrunedGraph) < 4) then 
       if (sprReJoinCost + splitCost) <= curBestCost then 
-         if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
+         if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+         else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
          else []
       else []
 
@@ -474,14 +475,16 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
       in
       -- check SPR first if steepest
       if steepest && (sprReJoinCost + splitCost) <= (curBestCost * (dynamicEpsilon inGS)) then 
-         if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
+         if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+         else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
          else 
             -- do TBR stuff
             tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' targetEdge
       else
-         -- do TBR stuff adding SPR results if hweuristic better
+         -- do TBR stuff adding SPR results if heuristic better
          let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
-                           if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
+                           if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+                           else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
                            else []
                          else []
          in

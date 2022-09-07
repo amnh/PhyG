@@ -872,7 +872,7 @@ outputGraphStringSimple commandList lOutgroupIndex graphList costList
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
 makeDotList :: [VertexCost] -> Int -> [SimpleGraph] -> String
 makeDotList costList rootIndex graphList =
-    let graphStringList = fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList
+    let graphStringList = fmap fgl2DotString $ fmap (LG.rerootTree rootIndex) graphList
         costStringList = fmap ("\n//" ++) $ fmap show costList
     in
     L.intercalate "\n" (zipWith (++) graphStringList costStringList)
@@ -880,7 +880,7 @@ makeDotList costList rootIndex graphList =
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [SimpleGraph] -> String
 makeAsciiList rootIndex graphList =
-    concatMap LG.prettify (fmap (GO.rerootTree rootIndex) graphList)
+    concatMap LG.prettify (fmap (LG.rerootTree rootIndex) graphList)
 
 {- Older version wiht more data dependenncy
 -- | getDataListList returns a list of lists of Strings for data output as csv
