@@ -487,11 +487,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
            -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
-           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
+           -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
 
 
            -- full two-pass optimization
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -502,53 +502,32 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
        in
 
-       if (graphType inGS) == HardWired then newPhyloGraph
+       if ((not . LG.isGraphTimeConsistent) newSimple) then 
+         trace ("\tWarning: Time consistentcy error") 
+         emptyPhylogeneticGraph
 
-      else if LG.hasChainedNetworkNodes newSimple' then 
+       else if (graphType inGS) == HardWired then newPhyloGraph
+
+       else if LG.hasChainedNetworkNodes newSimple then 
          trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
          emptyPhylogeneticGraph
 
        else 
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         
+         --trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete)) ++ "\nOrig\n" ++ (LG.prettyIndices inSimple) ++  "\nNew\n" ++ (LG.prettyIndices newSimple)) (
          {-
          if True then 
             trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
             newPhyloGraph
          -}
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         if LG.isEmpty newSimple' then emptyPhylogeneticGraph
+         if LG.isEmpty newSimple then emptyPhylogeneticGraph
          else if True then newPhyloGraph
          else emptyPhylogeneticGraph
-
-       {-
-       -- preDelete cost changes criterion for edge move
-       else if isNothing preDeleteCost then
-         -- trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, (snd6 inPhyloGraph), (snd6 newPhyloGraph)))) ( 
-         if True then -- heuristicDelta + edgeAddDelta < 0 then 
-            if (snd6 newPhyloGraph) < (snd6 inPhyloGraph) then 
-               -- trace ("INE: Better")
-               newPhyloGraph
-            else 
-               -- trace ("INE: Worse")
-               emptyPhylogeneticGraph
-         else 
-            -- trace ("INE: Worse")
-            emptyPhylogeneticGraph
          -- )
 
-       else
-         -- trace ("INE: " ++ (show $ LG.isEmpty newSimple) ++ " " ++ (show $ LG.isEmpty $ thd6 newPhyloGraph) ++ " " ++ (show $ isNothing preDeleteCost) ++ " " ++ (show $ fromJust preDeleteCost) ++ " versus " ++ (show $ snd6 newPhyloGraph) ++ " incost " ++ (show $ snd6 inPhyloGraph)) ( --  ++ "\nNewGraph:" ++ (LG.prettyIndices $ thd6 inPhyloGraph)) (
-         -- no net add cost because the number of net nodes is unchanged in add/delete when preDelete cost /= Noting
-         --if heuristicDelta + (snd6 inPhyloGraph) <= fromJust preDeleteCost then newPhyloGraph
-         if (snd6 newPhyloGraph) < fromJust preDeleteCost then newPhyloGraph
-         else emptyPhylogeneticGraph
-         -- )
-       -- )
-       -}
-
-
+       
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 deleteAllNetEdges :: GlobalSettings -> ProcessedData -> Int -> Int -> Int -> Int -> Bool -> Bool -> Bool -> ([PhylogeneticGraph], VertexCost) -> (Maybe SAParams, [PhylogeneticGraph]) -> ([PhylogeneticGraph], Int)
 deleteAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =

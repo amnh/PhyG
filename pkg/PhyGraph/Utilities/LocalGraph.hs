@@ -114,7 +114,7 @@ prettyIndices inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else
         let nodeList = concat $ fmap (++ ",") $ fmap show $ nodes inGraph
-            edgeList = concat $ fmap (++ "\n") $ fmap show $ edges inGraph
+            edgeList = concat $ fmap (++ ",") $ fmap show $ edges inGraph
         in
         nodeList ++ "\n" ++ edgeList
 
