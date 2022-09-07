@@ -515,7 +515,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
        else 
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         --trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete)) ++ "\nOrig\n" ++ (LG.prettyIndices inSimple) ++  "\nNew\n" ++ (LG.prettyIndices newSimple)) (
+         trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete)) ++ "\nOrig\n" ++ (LG.prettyIndices inSimple) ++  "\nNew\n" ++ (LG.prettyIndices newSimple)) (
          {-
          if True then 
             trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
@@ -525,7 +525,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
          if LG.isEmpty newSimple then emptyPhylogeneticGraph
          else if True then newPhyloGraph
          else emptyPhylogeneticGraph
-         -- )
+         )
 
        
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
