@@ -118,6 +118,19 @@ prettyIndices inGraph =
         in
         nodeList ++ "\n" ++ edgeList
 
+-- | prettyDot prints generic graph to generic dot format
+prettyDot :: Gr a b -> String
+prettyDot inGraph =
+    if G.isEmpty inGraph then error ("Empty Graph")
+    else
+        let topPart = "digraph G {\n\trankdir = LR; node [ shape = rect];\n"
+            nodeList = concatMap ("\t" ++ ) $ fmap (++ ";\n") $ fmap show $ nodes inGraph
+            edgeList = concatMap ("\t" ++ ) $ fmap makeEdgeString $ edges inGraph
+            endPart = "}\n"
+        in
+        topPart ++ nodeList ++ edgeList ++ endPart
+    where makeEdgeString (a, b) = (show a) ++ " -> " ++ (show b) ++ ";\n"
+
 -- these duplicate edge functions should be O(n log n) based on sort--rest linear
 
 -- hasDuplicateEdge checked for duplicate edges based on indices (not label)
