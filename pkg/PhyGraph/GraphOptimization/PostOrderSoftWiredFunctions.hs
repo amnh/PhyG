@@ -712,6 +712,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- get the correct (via index) resolution data for each block
             -- complex for network node since keeps left right sort of array, but only first element maters--this hack keeps things ok for
             -- tree-like traceback assignment
+            -- not sure if first or last would be better--hopefully not matter, or arbitrary equal solutions
             resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then
                                         -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect, V.head parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
                                         -- V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
