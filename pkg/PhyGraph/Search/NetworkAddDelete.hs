@@ -502,22 +502,28 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
        in
 
-       if ((not . LG.isGraphTimeConsistent) newSimple) then 
-         trace ("\tWarning: Time consistentcy error") 
-         emptyPhylogeneticGraph
+       -- remove these checks when working
 
-       else if (graphType inGS) == HardWired then newPhyloGraph
+       {-
+       if ((not . LG.isGraphTimeConsistent) newSimple) then 
+         trace ("\tWarning: Time consistency error") 
+         emptyPhylogeneticGraph
 
        else if LG.hasChainedNetworkNodes newSimple then 
          trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
          emptyPhylogeneticGraph
 
        else 
+       -}
+
+       if (graphType inGS) == HardWired then newPhyloGraph
+
+       else 
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple
-         in
-         trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (LG.prettyDot inSimple) ++  "\nNew\n" ++ (LG.prettyDot newSimple)) (
+         -- let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple
+         -- in
+         -- trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (LG.prettyDot inSimple) ++  "\nNew\n" ++ (LG.prettyDot newSimple)) (
          {-
          if True then 
             trace ("INE: " ++ (show (heuristicDelta, edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), snd6 inPhyloGraph)))
@@ -525,9 +531,8 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
          -}
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
          if LG.isEmpty newSimple then emptyPhylogeneticGraph
-         else if True then newPhyloGraph
-         else emptyPhylogeneticGraph
-         )
+         else newPhyloGraph
+         -- )
 
        
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds

@@ -903,7 +903,7 @@ reindexEdges inNodeIndex curList edgeList =
         else reindexEdges inNodeIndex ((a', b', c) : curList) (tail edgeList)
 
 
--- | artPoint calls ap to get artoculation points of graph
+-- | artPoint calls ap to get articulation points of graph
 artPoint :: (Eq b) => Gr a b -> [Node]
 artPoint inGraph = AP.ap $ B.undir inGraph
 

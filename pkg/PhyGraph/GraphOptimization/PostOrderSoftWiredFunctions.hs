@@ -690,6 +690,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
     if nodeType nodeLabel == LeafNode then
         let leafVertData = fmap (displayData . V.head) (vertexResolutionData nodeLabel)
         in
+        -- trace ("GRDI: Leaf " ++ (show $ fmap V.length (vertexResolutionData nodeLabel)))
         (leafVertData, 0, 0, V.singleton (Just 0, Just 0))
 
     -- root node--take lowest cost
@@ -697,6 +698,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
         let rootBlockResolutionPair = getBestBlockResolution <$> vertexResolutionData nodeLabel
             (charDataVV, subGraphCostV, resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
         in
+        -- trace ("GRDI: Root " ++ (show $ fmap show parentResolutionIndexVect) ++ " " ++ (show $ fmap V.length (vertexResolutionData nodeLabel)))
         (charDataVV, V.sum subGraphCostV, V.sum resCostV, leftRightIndexVect)
 
     -- non-root node--return the index resolution information
@@ -711,8 +713,9 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- complex for network node since keeps left right sort of array, but only first element maters--this hack keeps things ok for
             -- tree-like traceback assignment
             resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then
-                                        -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
-                                        V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
+                                        -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect, V.head parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
+                                        -- V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
+                                        V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) 0)
                                   else 
                                     -- trace ("+" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
                                     V.zipWith (V.!) resolutionData parentIndexVect
