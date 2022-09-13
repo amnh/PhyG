@@ -538,7 +538,7 @@ setCommand argList globalSettings processedData inSeedList =
                   | (head optionList == "pmdl") = PMDLGraph
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'")
             in
-            trace ("GraphFactor set to " ++ head optionList)
+            trace ("GraphFactor set to " ++ (show localMethod))
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
 
         else if head commandList == "graphtype"  then

@@ -68,6 +68,8 @@ import qualified Data.Text.Lazy                       as T
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities                    as PU
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -295,7 +297,7 @@ getW15NetPenalty startVertex inGraph =
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
                         else fromJust startVertex
-            blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            blockPenaltyList = PU.seqParMap rdeepseq  (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
@@ -319,7 +321,7 @@ getW23NetPenalty startVertex inGraph =
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
                         else fromJust startVertex
-            blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            blockPenaltyList = PU.seqParMap rdeepseq (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
