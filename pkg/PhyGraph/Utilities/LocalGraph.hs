@@ -1155,7 +1155,7 @@ getGraphCoevalConstraints inGraph =
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
        if null networkNodeList then []
-       else fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS
+       else PU.seqParMap rdeepseq (getCoevalConstraintEdges inGraph) networkNodeList -- `using`  PU.myParListChunkRDS
 
 -- | getGraphCoevalConstraintsNodes takes a graph and returns coeval constraints based on network nodes
 -- and nodes as a triple
@@ -1167,7 +1167,7 @@ getGraphCoevalConstraintsNodes inGraph =
        in
        if null networkNodeList then []
        else
-            let (edgeBeforeList, edgeAfterList) = unzip (fmap (getCoevalConstraintEdges inGraph) networkNodeList `using`  PU.myParListChunkRDS)
+            let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap rdeepseq  (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
             in zip3 networkNodeList edgeBeforeList edgeAfterList
 
 -- | meetsAllCoevalConstraintsNodes checks constraint pair list and examines

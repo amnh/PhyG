@@ -374,7 +374,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
             let (newGraphList, counterAdd) = if doNetAdd || doAddDelete then
                                                -- trace ("REFINE Add") (
-                                               let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                 in 
                                                 (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -384,7 +384,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                 (newGraphList', counterDelete) = if doNetDelete || doAddDelete then
                                                     -- trace ("REFINE Delete") (
-                                                    let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) `using` PU.myParListChunkRDS
+                                                    let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in 
                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -393,7 +393,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                 
 
                 (newGraphList'', counterMove) = if doMove then
-                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) `using` PU.myParListChunkRDS
+                                                let graphPairList = PU.seqParMap rdeepseq  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
                                                     (graphListList, counterList) = unzip graphPairList
                                                 in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
 

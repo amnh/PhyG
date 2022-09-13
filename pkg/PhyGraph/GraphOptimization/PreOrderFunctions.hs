@@ -101,7 +101,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.fromList (zipWith (doBlockTraversal inGS finalMethod staticIA rootIndex) (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV) `using` PU.myParListChunkRDS)
+            preOrderBlockVect = V.fromList (PU.seqParMap rdeepseq  (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
@@ -296,6 +296,11 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
             preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
 
         -- )
+
+-- | doBlockTraversal' is a wrapper around doBlockTraversal fro seqParMap
+doBlockTraversal' :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
+doBlockTraversal' inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect) =
+    doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect
 
 -- | doBlockTraversal takes a block of postorder decorated character trees character info
 -- could be moved up preOrderTreeTraversal, but like this for legibility

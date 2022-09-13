@@ -121,17 +121,17 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True
                                 processedDataList = U.getProcessDataByBlock True inData
-                                distanceMatrixList = if buildDistance then fmap DD.getPairwiseDistances processedDataList `using` PU.myParListChunkRDS
+                                distanceMatrixList = if buildDistance then PU.seqParMap rdeepseq  DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
                                                      else replicate (length processedDataList) []
 
-                                blockTrees = concat (fmap (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList) `using` PU.myParListChunkRDS)
+                                blockTrees = concat (PU.seqParMap rdeepseq  (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) --  `using` PU.myParListChunkRDS)
                                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
 
                                 -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
                                 returnGraphs = reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
-                            fmap (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs `using` PU.myParListChunkRDS
+                            PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
            costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
                         else "\t\tBlock build returned 0 graphs"
@@ -146,7 +146,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
           -- )
        else
           trace ("\tRediagnosing as " ++ (show (graphType inGS)))
-          fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) `using` PU.myParListChunkRDS
+          PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
        -- )
 
 -- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
