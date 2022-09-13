@@ -661,6 +661,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 -- need to specify -O option for multiple graphs
                 let inputDisplayVVList = fmap fth6 curGraphs
                     costList = fmap snd6 curGraphs
+                    displayCostListList = fmap GO.getDisplayTreeCostList curGraphs
+                    displayInfoString = ("DisplayTree costs : " ++ (show (fmap sum $ fmap fst displayCostListList, displayCostListList))) 
                     treeIndexStringList = fmap ((++ "\n") . ("Canonical Tree " ++)) (fmap show [0..(length inputDisplayVVList - 1)])
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
                     blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
@@ -670,7 +672,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     trace ("No soft-wired graphs to report display trees")
                     ("No soft-wired graphs to report display trees", outfileName, writeMode)
                 else 
-                    (blockStringList, outfileName, writeMode)
+                    (displayInfoString ++ "\n" ++ blockStringList, outfileName, writeMode)
+                
 
             else if "graphs" `elem` commandList then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then

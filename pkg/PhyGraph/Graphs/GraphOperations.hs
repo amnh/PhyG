@@ -62,6 +62,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeGraphTimeConsistent
                                , isNovelGraph
                                , getNodeType
+                               , getDisplayTreeCostList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -814,3 +815,34 @@ selectGraphStochastic rSeed number factor inGraphList =
     take number $ returnGraphList ++ luckyList
 
     where getProb a b = exp ((-1) * b / a)
+
+-- | getDisplayTreeCostList returns a list of teh "block" costs of display trees
+-- in a piar with any graph 'penalty' cost
+getDisplayTreeCostList :: PhylogeneticGraph -> ([VertexCost], VertexCost)
+getDisplayTreeCostList inGraph =
+  if LG.isEmpty $ thd6 inGraph then ([], 0.0)
+  else
+    let rootIndex = fst $ head $ LG.getRoots $ fst6 inGraph
+        displayTreeCharVect = fft6 inGraph
+        displayTreeCostVect = fmap (getBlockCost rootIndex) displayTreeCharVect
+        nonGraphCost = V.sum  displayTreeCostVect
+    in
+    (V.toList displayTreeCostVect, (snd6 inGraph) - nonGraphCost)
+
+-- | getBlockCost returns the cost, summed over characters, of a character block
+getBlockCost :: LG.Node -> V.Vector DecoratedGraph -> VertexCost
+getBlockCost rootIndex charGraphVect = 
+  if V.null charGraphVect then 0.0
+  else 
+    V.sum $ fmap (getCharacterCost rootIndex) charGraphVect
+
+-- | getCharacterCost returns charcter cost as root of character tree
+getCharacterCost :: LG.Node -> DecoratedGraph -> VertexCost
+getCharacterCost rootIndex inGraph =
+  if LG.isEmpty inGraph then 0.0
+  else 
+    let rootLabel = LG.lab inGraph rootIndex
+    in
+    if isNothing rootLabel then error ("Root index without label: " ++ (show rootIndex))
+    else subGraphCost $ fromJust rootLabel
+
