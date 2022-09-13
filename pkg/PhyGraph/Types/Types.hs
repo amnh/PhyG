@@ -149,7 +149,7 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL | Likelihood
     deriving stock (Show, Eq)
 
-data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
+data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | PMDLGraph
     deriving stock (Show, Eq)
 
 data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot

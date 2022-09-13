@@ -87,6 +87,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
           inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
+                             else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
           inGraphNetPenaltyFactor = inGraphNetPenalty / (snd6 inGraph)
       in

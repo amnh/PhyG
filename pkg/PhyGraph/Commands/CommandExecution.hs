@@ -534,8 +534,9 @@ setCommand argList globalSettings processedData inSeedList =
             let localMethod
                   | (head optionList == "nopenalty") = NoNetworkPenalty
                   | (head optionList == "w15") = Wheeler2015Network
+                  | (head optionList == "w23") = Wheeler2023Network
                   | (head optionList == "pmdl") = PMDLGraph
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', or 'PMDL'")
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'")
             in
             trace ("GraphFactor set to " ++ head optionList)
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)

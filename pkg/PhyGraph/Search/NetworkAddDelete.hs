@@ -504,19 +504,16 @@ insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost edgePair@((u,v, _
 
        -- remove these checks when working
 
-       {-
        if ((not . LG.isGraphTimeConsistent) newSimple) then 
          trace ("\tWarning: Time consistency error") 
          emptyPhylogeneticGraph
 
+       {-
        else if LG.hasChainedNetworkNodes newSimple then 
          trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
          emptyPhylogeneticGraph
-
-       else 
        -}
-
-       if (graphType inGS) == HardWired then newPhyloGraph
+       else if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here

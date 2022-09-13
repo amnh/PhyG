@@ -111,6 +111,9 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
                              else if (graphFactor inGS) == Wheeler2015Network then 
                                  if (graphType inGS) == HardWired then 0.0
                                  else T.getW15NetPenalty Nothing curBestGraph
+                             else if (graphFactor inGS) == Wheeler2023Network then 
+                                 if (graphType inGS) == HardWired then 0.0
+                                 else T.getW23NetPenalty Nothing curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -359,6 +362,7 @@ getNetworkPentaltyFactor inGS graphCost inGraph =
         let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                                 else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
         in
         inGraphNetPenalty / graphCost
