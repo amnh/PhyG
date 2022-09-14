@@ -95,8 +95,14 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
       let firstPhyloGraph = head inPhyloGraphList
           leafGraph = LG.extractLeafGraph $ thd6 firstPhyloGraph
           currentCost = min curBestGraphCost (snd6 firstPhyloGraph)
-          netEdgeList = LG.labNetEdges (thd6 firstPhyloGraph)
-          -- newGraphList' = concat (zipWith3 (deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph) (randomIntList rSeed) (U.generateUniqueRandList (length netEdgeList) inSimAnnealParams) (fmap LG.toEdge netEdgeList) `using` PU.myParListChunkRDS)
+          
+          -- randomize order of edges to try moving
+          netEdgeList = if not doRandomOrder then 
+                           LG.labNetEdges (thd6 firstPhyloGraph)
+                        else 
+                           permuteList rSeed $ LG.labNetEdges (thd6 firstPhyloGraph)
+
+
           newGraphList' =  deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
           newGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
           newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
