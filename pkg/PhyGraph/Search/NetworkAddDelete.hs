@@ -656,12 +656,9 @@ deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMut
                (take numToKeep bestList, counter')
             -- ) )
 
-
--- | deleteOneNetAddAll new version deletes net edges in turn and readds-based on original cost
--- but his cost in graph (really not correct) but allows logic of insert edge to function better
--- seems like after delete--or insert--the graphs are i nimporpper condition and returnin infinite cost due to that
--- seems likely true fir deleteOneNetAddAll' as well
--- this has no SA in it
+-- | deleteOneNetAddAll version deletes net edges in turn and readds-based on original cost
+-- but this cost in graph (really not correct) but allows logic of insert edge to function better
+-- unlike deleteOneNetAddAll' only deals with single edge deletion at a time
 deleteOneNetAddAll :: GlobalSettings 
                    -> ProcessedData 
                    -> DecoratedGraph 
@@ -675,6 +672,74 @@ deleteOneNetAddAll :: GlobalSettings
                    -> Maybe SAParams 
                    -> [PhylogeneticGraph]
 deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList rSeed inSimAnnealParams =
+   if null edgeToDeleteList then 
+      -- trace ("\tGraph has no edges to move---skipping") 
+      [inPhyloGraph]
+   else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
+   else
+      -- trace ("DONAA-New: " ++ (show $ snd6 inPhyloGraph) ++ " Steepest:" ++ (show doSteepest)) (
+      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, current best cost: " ++ (show $ snd6 inPhyloGraph)) (
+      -- start with initial graph cost
+      let inGraphCost = snd6 inPhyloGraph
+
+          -- get deleted simple graphs and bool for changed
+          delGraphBoolPair = deleteNetworkEdge (fst6 inPhyloGraph) (head edgeToDeleteList)
+
+      in
+
+      -- no change in network structure
+      if snd delGraphBoolPair == False then 
+         deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
+
+      else
+          let simpleGraphToInsert = fst delGraphBoolPair
+
+              (_, _, _, curNetNodes) = LG.splitVertexList simpleGraphToInsert
+              curNumNetNodes = length curNetNodes
+
+              -- optimize deleted graph and update cost with input cost
+              graphToInsert = T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
+
+              -- keep same cost and just keep better--check if better than original later
+              graphToInsert' = T.updatePhylogeneticGraphCost graphToInsert inGraphCost
+
+
+              insertedGraphPairList = if not doSteepest then insertEachNetEdge inGS inData leafGraph rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'
+                                      else insertEachNetEdgeRecursive inGS inData leafGraph (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder (head $ randomIntList rSeed) inSimAnnealParams [graphToInsert']
+
+
+              newMinimumCost = snd insertedGraphPairList
+
+              newBestGraphs = filter ((== newMinimumCost) . snd6) $ fst insertedGraphPairList
+
+          in
+          -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
+          if newMinimumCost < inGraphCost then
+             trace ("-> ")
+             newBestGraphs
+
+          else deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
+
+          ) -- )
+
+-- | deleteOneNetAddAll' new version deletes net edges in turn and readds-based on original cost
+-- but his cost in graph (really not correct) but allows logic of insert edge to function better
+-- seems like after delete--or insert--the graphs are improper condition and returnin infinite cost due to that
+-- seems likely true for deleteOneNetAddAll' as well
+-- this has no SA in it
+deleteOneNetAddAll' :: GlobalSettings 
+                   -> ProcessedData 
+                   -> DecoratedGraph 
+                   -> Int 
+                   -> Int 
+                   -> Bool 
+                   -> Bool 
+                   -> PhylogeneticGraph 
+                   -> [LG.Edge] 
+                   -> Int 
+                   -> Maybe SAParams 
+                   -> [PhylogeneticGraph]
+deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList rSeed inSimAnnealParams =
    if null edgeToDeleteList then 
       -- trace ("\tGraph has no edges to move---skipping") 
       [inPhyloGraph]
@@ -705,7 +770,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
                                            graphsToInsert'' = if not doRandomOrder then graphsToInsert'
                                                               else permuteList rSeed graphsToInsert'
                                        in
-                                       [insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder (head $ randomIntList rSeed)inSimAnnealParams graphsToInsert'']
+                                       [insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder (head $ randomIntList rSeed) inSimAnnealParams graphsToInsert'']
 
 
           newMinimumCost = minimum $ fmap snd insertedGraphPairList
@@ -1346,46 +1411,3 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter))
 
-{-
--- | deleteOneNetAddAll' deletes the specified edge from a graph--creating a fully optimized new one--then re-adds
--- and keeps best based on delta, reoptimizes those and compares to the oringal cost
--- if better or ssame keeps as per usual
-deleteOneNetAddAll' :: GlobalSettings 
-                    -> ProcessedData 
-                    -> DecoratedGraph 
-                    -> Int 
-                    -> Int 
-                    -> Bool 
-                    -> Bool 
-                    -> PhylogeneticGraph 
-                    -> LG.Edge 
-                    -> Int 
-                    -> Maybe SAParams 
-                    -> [PhylogeneticGraph]
-deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDelete rSeed inSimAnnealParams  =
-   if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
-   else
-      trace ("DONAA: moving " ++ (show edgeToDelete) ++ " Steepest:" ++ (show doSteepest)) (
-      -- True to force reoptimization of delete
-      let inGraphCost = snd6 inPhyloGraph
-          
-          -- deletedEdgeGraph = deleteNetEdge inGS inData inPhyloGraph True edgeToDelete
-          
-          -- generate only simple graph--doni't need costs or anything
-          -- pass minimal phylogenetic graph
-          (deletedGraphSimple, wasModified)  = deleteNetworkEdge edgeToDelete $ fst6 inPhyloGraph
-          delPhyloGraph =  if (graphType inGS == SoftWired) then T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing deletedGraphSimple
-                           else if (graphType inGS == HardWired) then T.multiTraverseFullyLabelHardWired inGS inData leafGraph Nothing deletedGraphSimple
-                           else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"deletedGraphSimple
-
-          (insertedGraphList, _) = insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder (Just inGraphCost) inSimAnnealParams delPhyloGraph
-      in
-      -- this checks to see if input graph edge was deleted--it might not be due to phylogenetic graph constraints
-      -- if graph not modified just returns the original--does not insert new edges
-      if not wasModified then trace ("DONAA: skipping") [emptyPhylogeneticGraph]
-
-      else
-         trace ("DONAA returning: " ++ (show $ fmap snd6 insertedGraphList))
-         filter ((/= infinity) . snd6) $ take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] insertedGraphList
-      )
--}
