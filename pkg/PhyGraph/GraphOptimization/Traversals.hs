@@ -311,8 +311,8 @@ getW15NetPenalty startVertex inGraph =
 
 -- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost
--- but divisor is tree edges minus extra edges so increasing numbers of net edgs have increasing 
--- penalty
+-- penalty for each added edge (unlike W15 which was on a block by block basis)
+-- num extra edges/2 since actually add 2 new edges when one network edge
 getW23NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
 getW23NetPenalty startVertex inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
