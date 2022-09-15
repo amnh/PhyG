@@ -327,12 +327,14 @@ getW23NetPenalty startVertex inGraph =
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
             numLeaves = length leafList
             numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
-            numExtraEdges = (fromIntegral $ length bestTreesEdgeList) - numTreeEdges
+            numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
             divisor = numTreeEdges - numExtraEdges
         in
-        -- trace ("W23:" ++ (show ((sum $ blockPenaltyList) / divisor )) ++ " from " ++ (show (numTreeEdges, numExtraEdges, divisor, sum blockPenaltyList))) (
+        -- trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
         if divisor == 0.0 then infinity
-        else (sum $ blockPenaltyList) / divisor
+        -- else (sum blockPenaltyList) / divisor
+        -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
+        else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
         -- )
 
 
