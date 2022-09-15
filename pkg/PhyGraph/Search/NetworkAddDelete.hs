@@ -125,7 +125,7 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
             -- trace ("\t MANE : Worse") 
             moveAllNetEdges' inGS inData maxNetEdges rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
          else if newGraphCost < currentCost then
-            trace ("\t-> " ++ (show newGraphCost)) (
+            trace ("\tMANE-> " ++ (show newGraphCost)) (
             if doSteepest then
                moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams newGraphList
             else 
@@ -344,13 +344,12 @@ insertEachNetEdge inGS inData leafGraph  rSeed maxNetEdges numToKeep doSteepest 
 
           -- radomize pair list
           rSeedList = randomIntList rSeed
-          candidateNetworkEdgeList = if not doSteepest then candidateNetworkEdgeList'
-                                     else if doRandomOrder then permuteList (head rSeedList) candidateNetworkEdgeList'
+          candidateNetworkEdgeList = if doRandomOrder then permuteList (head rSeedList) candidateNetworkEdgeList'
                                      else candidateNetworkEdgeList'
 
           -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
           newGraphList = if not doSteepest then filter (/= emptyPhylogeneticGraph) (PU.seqParMap rdeepseq (insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost) candidateNetworkEdgeList) -- `using`  PU.myParListChunkRDS)
-                         else insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams candidateNetworkEdgeList
+                         else insertNetEdgeRecursive inGS inData leafGraph (tail rSeedList) maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost Nothing candidateNetworkEdgeList
 
           --minCostGraphList = GO.selectPhylogeneticGraph [("best", (show numToKeep))] 0 ["best"] newGraphList
           minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
@@ -721,7 +720,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
           in
           -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
           if newMinimumCost < inGraphCost then
-             trace ("-> ")
+             trace ("DONA-> ")
              newBestGraphs
 
           else deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
@@ -819,6 +818,7 @@ insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepes
          in
          -- return immediately 
          if minCost < (snd6 firstGraph) then 
+            trace ("IENER->" ++ (show minCost))
             (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ newGraphList, minCost)
          else 
             insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder rSeed inSimAnnealParams  (tail inPhyloGraphList) 
