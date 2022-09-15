@@ -99,6 +99,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             chooseFirst = any ((=="first").fst) lcArgList
             reWeight =  any ((=="weight").fst) lcArgList
             changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
+            reRoot = any ((=="outgroup").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -116,6 +117,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
+
+            reRootBlock = filter ((=="outgroup").fst) lcArgList
+            outgroupValue
+               | length reRootBlock > 1 =
+                  errorWithoutStackTrace ("Multiple outgroup specifications in tansform--can have only one: " ++ show inArgs)
+               | null reRootBlock = Just $ outGroupName inGS 
+               | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
+               | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
+
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
@@ -207,6 +217,18 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else 
                   trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
                   (inGS {dynamicEpsilon = fromJust epsilonValue}, origData, inData, inGraphList)
+
+            else if reRoot then 
+               if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))
+               else 
+                  let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
+                      newOutgroupIndex =  V.elemIndex newOutgroupName (fst3 origData)
+                  in
+                  if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " ++ (snd $ head reRootBlock))
+                  else 
+                     trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
+                     (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, inGraphList)
+
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 

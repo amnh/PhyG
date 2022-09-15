@@ -134,7 +134,7 @@ swapArgList = ["spr","tbr", "alternate", "keep", "steepest", "all", "nni", "ia",
 
 -- | transform arguments
 transformArgList :: [String]
-transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees", "weight", "name", "type", "dynamicepsilon"]
+transformArgList = ["totree", "tosoftwired", "tohardwired", "staticapprox", "dynamic", "atrandom", "first", "displaytrees", "weight", "name", "type", "dynamicepsilon", "outgroup"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands 
