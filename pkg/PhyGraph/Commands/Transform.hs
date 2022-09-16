@@ -223,11 +223,12 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else 
                   let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
                       newOutgroupIndex =  V.elemIndex newOutgroupName (fst3 origData)
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst6 inGraphList) 
                   in
                   if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " ++ (snd $ head reRootBlock))
                   else 
                      trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
-                     (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, inGraphList)
+                     (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
 
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))

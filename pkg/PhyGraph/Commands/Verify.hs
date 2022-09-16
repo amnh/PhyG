@@ -85,7 +85,7 @@ geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "rec
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges", "rounds"]
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
@@ -105,7 +105,7 @@ reconcileOptionsList = ["eun", "cun", "strict", "majority", "adams", "dot" ,"dot
 
 -- | refinement arguments
 refineArgList :: [String]
-refineArgList = ["netadd", "netdel", "netdelete", "netadddel", "netmove","geneticalgorithm", "ga"] ++ fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
+refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
