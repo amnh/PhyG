@@ -493,7 +493,7 @@ getNetEdgeParams inArgs =
              maxRounds
               | length maxRoundsList > 1 =
                 errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " ++ show inArgs)
-              | null maxRoundsList = Just 10
+              | null maxRoundsList = Just 1
               | otherwise = readMaybe (snd $ head maxRoundsList) :: Maybe Int
 
          in
