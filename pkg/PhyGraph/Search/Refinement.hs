@@ -384,7 +384,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
                 (newGraphList', counterDelete) = if doNetDelete then
                                                     -- trace ("REFINE Delete") (
-                                                    let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
+                                                    let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in 
                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)

@@ -184,4 +184,4 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
 
                     -- net delete
                     else
-                        head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
