@@ -141,7 +141,7 @@ makeDMatrix :: M.Matrix Double -> [Int] -> M.Matrix Double
 makeDMatrix inObsMatrix vertInList  =
   if M.null inObsMatrix then error "Null matrix in makeInitialDMatrix"
   else
-      let newMatrix = fmap (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] `using` PU.myParListChunkRDS
+      let newMatrix = PU.seqParMap rdeepseq  (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
       in
       LS.fromList newMatrix
 
@@ -201,7 +201,7 @@ pickNearestUpdateMatrixNJ littleDMatrix  vertInList
 
           -- get distances to existing vertices
           otherVertList = [0..(M.rows littleDMatrix - 1)]
-          newLittleDRow = fmap (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList `using` myParListChunkRDS
+          newLittleDRow = PU.seqParMap rdeepseq  (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
           newLittleDMatrix = M.addMatrixRow littleDMatrix (LS.fromList $ newLittleDRow ++ [0.0])
           -- recalculate whole D matrix since new row affects all the original ones  (except those merged)
           -- included vertex values set to infinity so won't be chosen later
@@ -322,7 +322,7 @@ pickUpdateMatrixWPGMA distMatrix  vertInList =
 
               -- get distances to existing vertices
               otherVertList = [0..(M.rows distMatrix - 1)]
-              newDistRow = fmap (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList `using` myParListChunkRDS
+              newDistRow = PU.seqParMap rdeepseq  (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
               newDistMatrix = M.addMatrixRow distMatrix (LS.fromList $ newDistRow ++ [0.0])
 
               -- create new edges

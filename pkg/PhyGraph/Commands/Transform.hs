@@ -98,7 +98,9 @@ transform inArgs inGS origData inData rSeed inGraphList =
             atRandom = any ((=="atrandom").fst) lcArgList
             chooseFirst = any ((=="first").fst) lcArgList
             reWeight =  any ((=="weight").fst) lcArgList
-
+            changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
+            reRoot = any ((=="outgroup").fst) lcArgList
+            
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
@@ -106,6 +108,24 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
+
+
+            changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
+            epsilonValue
+               | length changeEpsilonBlock > 1 =
+                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in tansform--can have only one: " ++ show inArgs)
+               | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
+               | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
+               | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
+
+            reRootBlock = filter ((=="outgroup").fst) lcArgList
+            outgroupValue
+               | length reRootBlock > 1 =
+                  errorWithoutStackTrace ("Multiple outgroup specifications in tansform--can have only one: " ++ show inArgs)
+               | null reRootBlock = Just $ outGroupName inGS 
+               | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
+               | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
+
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
@@ -132,14 +152,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newGS = inGS {graphType = Tree}
                   
                       -- generate and return display trees-- displayTreNUm / graph
-                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . GO.generateDisplayTrees) (fmap fst6 inGraphList)
-                                         else fmap (GO.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
+                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . LG.generateDisplayTrees) (fmap fst6 inGraphList)
+                                         else fmap (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
 
                       -- prob not required
                       displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
 
                       -- reoptimize as Trees
-                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs -- `using` PU.myParListChunkRDS
                   in
                   (newGS, origData, inData, newPhylogeneticGraphList)
             
@@ -148,7 +168,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                if (graphType inGS == SoftWired) then (inGS, origData, inData, inGraphList)
                else 
                   let newGS = inGS {graphType = SoftWired}
-                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
@@ -158,13 +178,13 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else 
                   let newGS = inGS {graphType = HardWired}
                       
-                      newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- roll back to dynamic data from static approx      
             else if toDynamic then 
-               let newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+               let newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                in
                trace ("Transforming data to dynamic: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, origData, origData, newPhylogeneticGraphList)
@@ -172,7 +192,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             -- transform to static approx--using first Tree
             else if toStaticApprox then
                let newData = makeStaticApprox inGS inData (head $ L.sortOn snd6 inGraphList) 
-                   newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                   newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
 
                in
                trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
@@ -183,12 +203,32 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if reWeight then
                let newOrigData = reWeightData (fromJust weightValue) charTypeList nameList origData
                    newData = reWeightData (fromJust weightValue) charTypeList nameList inData
-                   newPhylogeneticGraphList = fmap (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  `using` PU.myParListChunkRDS
+                   newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                in
-               trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
+               if isNothing weightValue then errorWithoutStackTrace ("Reweight value is not specified correcty. Must be a double (e.g. 1.2): " ++ (show  (snd $ head reweightBlock)))
+               else 
+                  trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
                   ++ "\n\tReoptimizing graphs") 
-               (inGS, newOrigData, newData, newPhylogeneticGraphList)
+                  (inGS, newOrigData, newData, newPhylogeneticGraphList)
 
+            -- changes dynamicEpsilon error check factor
+            else if changeEpsilon then
+               if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " ++ (show (snd $ head changeEpsilonBlock)))
+               else 
+                  trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
+                  (inGS {dynamicEpsilon = fromJust epsilonValue}, origData, inData, inGraphList)
+
+            else if reRoot then 
+               if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))
+               else 
+                  let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
+                      newOutgroupIndex =  V.elemIndex newOutgroupName (fst3 origData)
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst6 inGraphList) 
+                  in
+                  if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " ++ (snd $ head reRootBlock))
+                  else 
+                     trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
+                     (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
 
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
@@ -263,7 +303,7 @@ makeStaticApprox inGS inData inGraph =
           (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = fmap (pullGraphBlockDataAndTransform decGraph inData) [0..(length blockDataV - 1)] `using` PU.myParListChunkRDS
+          newBlockDataV = PU.seqParMap rdeepseq  (pullGraphBlockDataAndTransform decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
 
           -- convert prealigned to non-additive if all 1's tcm 
 

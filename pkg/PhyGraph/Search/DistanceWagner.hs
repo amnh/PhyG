@@ -253,7 +253,7 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
   else if head addSequence == 'r' then
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
-        let randomAddTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` myParListChunkRDS -- was rseq not sure whats better
+        let randomAddTrees = PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences -- `using` myParListChunkRDS -- was rseq not sure whats better
             -- randomAddTrees = parmap rseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
         in
         randomAddTrees
@@ -832,7 +832,7 @@ getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList 
   if null inTreeList then savedTrees
   else
       trace ("In "++ refineType ++ " Swap (steepest) with " ++ show (length inTreeList) ++ " trees with minimum length " ++ show (minimum $ fmap thd4 inTreeList)) (
-      let steepTreeList = fmap (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList `using` myParListChunkRDS
+      let steepTreeList = PU.seqParMap rdeepseq (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList -- `using` myParListChunkRDS
           steepCost = minimum $ fmap thd4 steepTreeList
       in
       --this to maintina the trajectories untill final swap--otherwise could converge down to single tree prematurely
@@ -854,8 +854,8 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
           overallBestCost = minimum $ fmap thd4 savedTrees
           (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
           -- parallelize here
-          splitTreeList = fmap (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  `using` myParListChunkRDS
-          firstTreeList = fmap (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  `using` myParListChunkRDS
+          splitTreeList = PU.seqParMap rdeepseq  (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  -- `using` myParListChunkRDS
+          firstTreeList = PU.seqParMap rdeepseq  (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  -- `using` myParListChunkRDS
           firstTreeList' = filterNewTreesOnCost overallBestCost  (curFullTree : concat firstTreeList) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
       in
       -- Work around for negative NT.infinity tree costs (could be dst matrix issue)

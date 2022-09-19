@@ -72,7 +72,7 @@ swapMaster = SM.swapMaster
 -- | driver for overall refinement
 refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then error ("No graphs input to refine")
+   if null inGraphList then errorWithoutStackTrace ("No graphs input to refine")
    else
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -203,17 +203,23 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
 
      -- process args for fuse placement
            let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
+               
+               -- steepest off by default due to wanteing to check all addition points
+               doSteepest' = any ((=="steepest").fst) lcArgList
+               doAll = any ((=="all").fst) lcArgList
+               
+               doSteepest = if (not doSteepest' && not doAll) then False
+                            else doSteepest'
+
+               -- readdition options, specified as swap types
                doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
-               doSteepest' = any ((=="steepest").fst) lcArgList
-               doAll = any ((=="all").fst) lcArgList
-               doSteepest = if (not doSteepest' && not doAll) then True
-                            else doSteepest'
                doSPR = if doTBR then False
                        else doSPR'
                doNNI = if doSPR || doTBR then False
                        else doNNI'
+                       
                returnBest = any ((=="best").fst) lcArgList
                returnUnique = any ((=="unique").fst) lcArgList
                doSingleRound = any ((=="once").fst) lcArgList
@@ -281,7 +287,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
    -- process args for netEdgeMaster
    else
-           let (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList) = getNetEdgeParams inArgs
+           let (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList, maxRounds) = getNetEdgeParams inArgs
                doNetAdd = any ((=="netadd").fst) lcArgList
                doNetDelete = (any ((=="netdel").fst) lcArgList) || (any ((=="netdelete").fst) lcArgList)
                doAddDelete = (any ((=="netadddel").fst) lcArgList) || (any ((=="netadddelete").fst) lcArgList)
@@ -356,9 +362,9 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             else if doNetDelete  then
                               ("Network edge delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else if doNetAdd  then
-                              ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                              ("Network edge add on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " and maximum " ++ (show $ fromJust maxRounds) ++ " rounds")
                             else if doAddDelete then
-                              ("Network edge add/delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
+                              ("Network edge add/delete on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)  ++ " and maximum " ++ (show $ fromJust maxRounds) ++ " rounds")
                             else if doMove then
                               ("Network edge move on " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList))
                             else ""
@@ -366,9 +372,9 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             in
             trace (bannerText) (
 
-            let (newGraphList, counterAdd) = if doNetAdd || doAddDelete then
+            let (newGraphList, counterAdd) = if doNetAdd then
                                                -- trace ("REFINE Add") (
-                                               let graphPairList = fmap (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                 in 
                                                 (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -376,9 +382,9 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                              else (inGraphList, 0)
                                              
 
-                (newGraphList', counterDelete) = if doNetDelete || doAddDelete then
+                (newGraphList', counterDelete) = if doNetDelete then
                                                     -- trace ("REFINE Delete") (
-                                                    let graphPairList = fmap (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges)  (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) `using` PU.myParListChunkRDS
+                                                    let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in 
                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -387,23 +393,35 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                 
 
                 (newGraphList'', counterMove) = if doMove then
-                                                let graphPairList = fmap (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) `using` PU.myParListChunkRDS
-                                                    (graphListList, counterList) = unzip graphPairList
-                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                    trace ("Network move option currently disabled--skipping.")
+                                                    (newGraphList', 0 :: Int)
+                                                    {-
+                                                    let graphPairList = PU.seqParMap rdeepseq  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
+                                                        (graphListList, counterList) = unzip graphPairList
+                                                    in 
+                                                    (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                    -}
+                                                else (newGraphList', 0)
 
-                                             else (newGraphList', 0)
+                (newGraphList''', counterAddDelete) = if doAddDelete then
+                                                        let graphPairList = PU.seqParMap rdeepseq  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
+                                                            (graphListList, counterList) = unzip graphPairList
+                                                        in 
+                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                
+                                                else (newGraphList'', 0)
 
             in
-            let resultGraphList = if null newGraphList'' then inGraphList
-                                  else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ newGraphList''
+            let resultGraphList = if null newGraphList''' then inGraphList
+                                  else take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ newGraphList'''
             in
             trace ("\tAfter network edge add/delete/move: " ++ (show $ length resultGraphList) ++ " resulting graphs at cost " ++ (show $ minimum $ fmap snd6 resultGraphList) ++ " with add/delete/move rounds (total): " ++ (show counterAdd) ++ " Add, "
-            ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move")
+            ++ (show counterDelete) ++ " Delete, " ++ (show counterMove) ++ " Move, " ++ (show counterAddDelete) ++ " AddDelete")
             resultGraphList
             )
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
-getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)])
+getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
 getNetEdgeParams inArgs =
      let fstArgList = fmap (fmap toLower . fst) inArgs
          sndArgList = fmap (fmap toLower . snd) inArgs
@@ -471,6 +489,13 @@ getNetEdgeParams inArgs =
               | null maxNetEdgesList = Just 10
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
+             maxRoundsList = filter ((=="rounds").fst) lcArgList
+             maxRounds
+              | length maxRoundsList > 1 =
+                errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " ++ show inArgs)
+              | null maxRoundsList = Just 1
+              | otherwise = readMaybe (snd $ head maxRoundsList) :: Maybe Int
+
          in
 
          -- check inputs
@@ -480,5 +505,7 @@ getNetEdgeParams inArgs =
          else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
          else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
 
+         else if isNothing maxRounds       then errorWithoutStackTrace ("Network edit 'rounds' specification not an integer (e.g. rounds:10): "  ++ show (snd $ head maxRoundsList))
+
          else
-            (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList)
+            (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList, maxRounds)

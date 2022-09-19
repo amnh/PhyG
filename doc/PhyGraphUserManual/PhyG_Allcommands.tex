@@ -316,7 +316,6 @@
 		\item [tcm:] This refers to a file containing a custom-alphabet matrix that specifies varying 
 		costs among alphabet elements in a sequence. The elements in the alphabet can be letters, 
 		digits, or both. \\
-		
 		The \texttt{tcm} contains two parts: the first line of the file contains the alphabet elements 
 		separated by a space and the transformation cost matrix, which follows below. The dash 
 		character representing an insertion/deletion or indel character is not specified on the first 
@@ -328,13 +327,11 @@
 		must be symmetrical, but not necessarily metric. Non-metric tcm's can yield unexpected 
 		results. Transformation costs must be integers. If real values are desired, a character can 
 		be weighted with a floating point value factor. \\
-		
 		For a sequence with four elements alpha, beta, gamma and delta and an indel cost of 4 
 		for all insertion deletion transformations, a valid custom alphabet file is provided below:
-
 		\\
-		\begin{equation}
-		\nolabel
+		\begin{equation*}
+		%\nolabel
 		\begin{array}{lllll}
 		alpha & beta & gamma & delta &  \\
 		0 &   2 &  1 &   2 &   5 \\
@@ -343,8 +340,8 @@
 		2 &   1 &  2 &   0 &   5 \\
 		5 &   5 &  5 &   5 &   0
 		\end{array}
-		\end{equation} 
-
+		\end{equation*} 
+		\\
 		In this example, the cost of transformation of \texttt{alpha} into \texttt{beta} is \texttt{2},
 		and cost of a deletion or insertion of any of the four elements costs \texttt{5}.
 
@@ -622,7 +619,7 @@
 		
 		\item[reconcile] Outputs a single ``reconciled'' graph from all graphs in memory. The 
 		methods include consensus, supertree, and other supergraph methods as described in 
-		\cite{Wheeler2012, Wheeler2021a}. When \texttt{reconcile} is specified as a command 
+		\cite{Wheeler2012, Wheeler2022}. When \texttt{reconcile} is specified as a command 
 		option a series of other options may be specified to tailor the desired outputs:
 			\begin{description}
 			\item {Method:eun$\mid$cun$\mid$majority$\mid$strict$\mid$Adams\\Default:eun\\
@@ -818,7 +815,7 @@
 		rooting output trees, to specifying  graph type, final assignment, and 	optimality 
 		criterion. All \texttt{set} commands are executed at the start of a run, irrespective of
 		where they appear in the script. The command \texttt{transform} is used to modify 
-		global settings during a run (see \texttt{transform} Section \ref{subsec:Transform}).
+		global settings during a run (see \texttt{transform} Section \ref{subsec:Transform}).}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -936,7 +933,7 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include ``NNI'' \citep{CaminandSokal1965, Robinson1971}, ``SPR'' \citep{Dayhoff1969}, 
-		and ``TBR'' \citep{Farris1988, swofford1990a} refinement.
+		and ``TBR'' \citep{Farris1988, swofford1990a} refinement.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}

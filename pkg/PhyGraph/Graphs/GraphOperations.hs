@@ -1,6 +1,7 @@
 {- |
 Module      :  GraphOperations.hs
-Description :  Module specifying general graph functions
+Description :  Module specifying general graph functions--with types specific to Types.hs
+               graph functions that a re general are in LocalGraph.hs
 Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -35,22 +36,12 @@ Portability :  portable (I hope)
 -}
 
 module Graphs.GraphOperations (  ladderizeGraph
-                               , rerootTree
-                               , rerootDisplayTree
-                               , generateDisplayTrees
-                               , getNodeType
                                , convertDecoratedToSimpleGraph
                                , convertToSimpleEdge
                                , graphCostFromNodes
-                               , switchRootTree
                                , dichotomizeRoot
                                , showDecGraphs
                                , sortEdgeListByLength
-                               , sortEdgeListByDistance
-                               , splitGraphOnEdge
-                               , joinGraphOnEdge
-                               , splitGraphOnEdge'
-                               , getEdgeSplitList
                                , selectPhylogeneticGraph
                                , getUniqueGraphs
                                , copyIAFinalToPrelim
@@ -64,14 +55,14 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , contractIn1Out1EdgesRename
                                , renameSimpleGraphNodes
                                , renameSimpleGraphNodesString
-                               , generateDisplayTreesRandom
                                , hasNetNodeAncestorViolation
                                , convertGeneralGraphToPhylogeneticGraph
-                               , parentInChain
                                , selectGraphStochastic
                                , makeNewickList
-                               , addBeforeAfterToPair
                                , makeGraphTimeConsistent
+                               , isNovelGraph
+                               , getNodeType
+                               , getDisplayTreeCostList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -106,7 +97,7 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
                             trace ("HTU labels are required for ENewick Output")
                             True
 
-        graphString = GFU.fglList2ForestEnhancedNewickString (fmap (rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
+        graphString = GFU.fglList2ForestEnhancedNewickString (fmap (LG.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
         costStringList  = fmap (('[' :) . (++ "];\n")) (fmap show costList)
         graphStringCost = concat $ zipWith (++) newickStringList costStringList
@@ -163,26 +154,6 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     -- this final need to ladderize or recontract?
     else  noSisterSisterGraph
 
--- | parentsInChain checks for parents in chain ie network edges
--- that implies a network event between nodes where one is the ancestor of the other
--- a time violation
-parentInChain :: (Show a, Eq a, Eq b) => LG.Gr a b -> Bool
-parentInChain inGraph =
-  if LG.isEmpty inGraph then error "Null graph in parentInChain"
-  else
-    let   (_, _, _, netVertexList) = LG.splitVertexList inGraph
-          parentNetVertList = fmap (LG.labParents inGraph) $ fmap fst netVertexList
-
-          -- get list of nodes that are transitively equal in age
-          concurrentList = mergeConcurrentNodeLists parentNetVertList []
-          concurrentPairList = concatMap getListPairs concurrentList
-
-          -- get pairs that violate concurrency
-          violatingConcurrentPairs = concatMap (concurrentViolatePair inGraph) concurrentPairList
-    in
-    if null violatingConcurrentPairs then False
-    else True
-
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
 removeParentsInChain failCorrect inGraph =
@@ -192,11 +163,11 @@ removeParentsInChain failCorrect inGraph =
           parentNetVertList = fmap (LG.labParents inGraph) $ fmap fst netVertexList
 
           -- get list of nodes that are transitively equal in age
-          concurrentList = mergeConcurrentNodeLists parentNetVertList []
+          concurrentList = LG.mergeConcurrentNodeLists parentNetVertList []
           concurrentPairList = concatMap getListPairs concurrentList
 
           -- get pairs that violate concurrency
-          violatingConcurrentPairs = concatMap (concurrentViolatePair inGraph) concurrentPairList
+          violatingConcurrentPairs = concatMap (LG.concurrentViolatePair inGraph) concurrentPairList
 
           -- get netowrk nodes with violations
           parentNodeViolateList = concatMap pairToList violatingConcurrentPairs
@@ -224,7 +195,7 @@ removeSisterSisterEdges :: String -> SimpleGraph -> SimpleGraph
 removeSisterSisterEdges failCorrect inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
-    let sisterSisterEdges = getSisterSisterEdgeList inGraph
+    let sisterSisterEdges = LG.getSisterSisterEdgeList inGraph
         -- newGraph = LG.delEdge (head sisterSisterEdges) inGraph
         newGraph = LG.delEdges sisterSisterEdges inGraph
         newGraph' = contractIn1Out1EdgesRename newGraph
@@ -236,95 +207,6 @@ removeSisterSisterEdges failCorrect inGraph =
       -- removeSisterSisterEdges  
       newGraph'
 
-
--- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
--- have the same two parents
-getSisterSisterEdgeList :: LG.Gr a b -> [LG.Edge]
-getSisterSisterEdgeList inGraph =
-  if LG.isEmpty inGraph then []
-  else
-      let (_, _, _, netVertexList) = LG.splitVertexList inGraph
-      in
-      if null netVertexList then []
-      else getSisterSisterEdgeByNetVertex inGraph netVertexList 
-
--- | getSisterSisterEdgeByNetVertex takes a list of vertices and recursively generate a list of edges to delete
-getSisterSisterEdgeByNetVertex ::  LG.Gr a b -> [LG.LNode a] -> [LG.Edge]
-getSisterSisterEdgeByNetVertex inGraph netNodeList =
-  if null netNodeList then []
-  else 
-    let firstNode = fst $ head netNodeList
-        parentsList = LG.parents inGraph firstNode
-        grandParentsList = fmap (LG.parents inGraph) parentsList
-        sameGrandParentList = L.foldl1' L.intersect grandParentsList
-    in
-    if null sameGrandParentList then getSisterSisterEdgeByNetVertex inGraph (tail netNodeList)
-    else
-      -- trace ("Found sister-sister")
-      (LG.toEdge $ head $ LG.inn inGraph firstNode) : getSisterSisterEdgeByNetVertex inGraph (tail netNodeList)
-       
-
-{-
--- | getSisterSisterEdgeList take a graph and returns list of edges where two network nodes
--- have the same two parents
-getSisterSisterEdgeList' :: LG.Gr a b -> [LG.Edge]
-getSisterSisterEdgeList' inGraph =
-  if LG.isEmpty inGraph then []
-  else
-      let (_, _, _, netVertexList) = LG.splitVertexList inGraph
-          netVertPairs = getListPairs $ fmap fst netVertexList
-
-          parentsList = fmap (LG.parents inGraph) (fmap fst netVertexList)
-          parentPairs = getListPairs $ parentsList
-
-          netAndParentPairs = zip netVertPairs parentPairs
-          sisterSisterPairs = filter sameParents netAndParentPairs
-          sisterSisterEdges = concatMap makeChildParentEdges sisterSisterPairs
-      in
-      if null sisterSisterPairs then []
-      else sisterSisterEdges
-      where sameParents (_, (b, c)) = if b == c then True else False
-            makeChildParentEdges ((a1,a2), (b, _)) = [(head b,a1), (last b,a1), (head b,a2), (last b,a2)]
--}
-
-
--- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair
--- as list otherwise null list
-concurrentViolatePair :: (Eq a, Show a, Eq b) => LG.Gr a b  -> (LG.LNode a, LG.LNode a) -> [(LG.LNode a, LG.LNode a)]
-concurrentViolatePair inGraph (node1, node2) =
-  if LG.isEmpty inGraph then error "Empty graph in concurrentViolatePair"
-  else
-    let (nodesBeforeFirst, _)  = LG.nodesAndEdgesBefore inGraph [node1]
-        (nodesBeforeSecond, _) = LG.nodesAndEdgesBefore inGraph [node2]
-    in
-    if node2 `elem` nodesBeforeFirst then [(node1, node2)]
-    else if node1 `elem` nodesBeforeSecond then [(node1, node2)]
-    else []
-
-
--- | mergeConcurrentNodeLists takes a list os lists  and returns a list os lists of merged lists
--- lists are merged if they share any elements
-mergeConcurrentNodeLists :: (Eq a) => [[LG.LNode a]] -> [[LG.LNode a]] -> [[LG.LNode a]]
-mergeConcurrentNodeLists inListList currentListList =
-  if null inListList then
-    -- trace ("MCNL:" ++ (show $ fmap (fmap fst) currentListList))
-    currentListList
-
-  -- first case
-  else if null currentListList then mergeConcurrentNodeLists (tail inListList) [head inListList]
-  else
-    let firstList = head inListList
-        (intersectList, _) = unzip $ filter ((== True) . snd) $ zip (currentListList) (fmap (not . null) $ fmap (L.intersect firstList) currentListList)
-
-        (noIntersectLists, _) = unzip $ filter ((== False) . snd) $ zip (currentListList) (fmap (not . null) $ fmap (L.intersect firstList) currentListList)
-
-        mergedList = if null intersectList then firstList
-                     else L.foldl' L.union firstList intersectList
-    in
-    -- trace ("MCL-F:" ++ (show $ fmap fst firstList) ++ " inter " ++ (show $ fmap (fmap fst) intersectList) ++
-    --   " noInter " ++ (show $ fmap (fmap fst) noIntersectLists) ++ " curList " ++ (show $ fmap (fmap fst) currentListList))
-    mergeConcurrentNodeLists (tail inListList) (mergedList : noIntersectLists)
-
 -- | makeGraphTimeConsistent takes laderized, transitive reduced graph and deletes
 -- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
 -- for swapping etc
@@ -334,177 +216,17 @@ mergeConcurrentNodeLists inListList currentListList =
 makeGraphTimeConsistent :: String -> SimpleGraph -> SimpleGraph
 makeGraphTimeConsistent failOut inGraph =
   if LG.isEmpty inGraph then LG.empty
+  else if LG.isTree inGraph then inGraph
   else
     let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-        coevalNodeConstraintList' = fmap (addBeforeAfterToPair inGraph) coevalNodeConstraintList `using`  PU.myParListChunkRDS
+        coevalNodeConstraintList' = PU.seqParMap rdeepseq  (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
         coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
-        timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
+        timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
         newGraph = LG.delEdges timeOffendingEdgeList inGraph
     in
     -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
     if (failOut == "fail") && ((not . null) timeOffendingEdgeList) then LG.empty
     else contractIn1Out1EdgesRename newGraph
-
--- | addBeforeAfterToPair adds before and after node list to pari of nodes for later use
--- in time contraint edge removal
-addBeforeAfterToPair :: (Show a,Eq a,Eq b) 
-                            => LG.Gr a b 
-                            -> (LG.LNode a, LG.LNode a) 
-                            -> (LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])
-addBeforeAfterToPair inGraph (a,b) = 
-  if LG.isEmpty inGraph then error "Empty graph in addBeforeAfterToPair"
-  else
-      let  (aNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [a]
-           (bNodesBefore, _) = LG.nodesAndEdgesBefore inGraph [b]
-           (aNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [a]
-           (bNodesAfter, _) = LG.nodesAndEdgesAfter inGraph [b]
-      in
-      (a,b, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter)
-
-
--- | getEdgesToRemoveForTime recursive looks at each pair of nodes that should
--- be potentially coeval based on network vertices. And see if it conflicts with
--- other pairs that shoudl also be coeval.  
--- two pairs of nodes (a,b) and (a',b'), one for each net node tio be compared
--- if a "before" a'  then b must be before b'
--- if a "after" a' then b must be after b'
--- otherwise its a time violation
--- returns net edge to delte in second pair
-getEdgesToRemoveForTime :: (Show a,Eq a,Eq b) 
-                        => LG.Gr a b 
-                        -> [((LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]),(LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a]))] 
-                        -> [LG.Edge]
-getEdgesToRemoveForTime inGraph inNodePairList =
-  if LG.isEmpty inGraph then []
-  else if null inNodePairList then []
-  else
-    let ((_,_, aNodesBefore, bNodesBefore, aNodesAfter, bNodesAfter),(a',b', _, _,_,_)) = head inNodePairList
-    in
-    -- trace ("GETRT: " ++ (show inNodePairList)) (
-    -- condition if a before a' then b before b' to be ok
-    if (a' `elem` aNodesAfter) && (b' `elem` bNodesBefore) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in
-      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
-      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else if (a' `elem` aNodesBefore) && (b' `elem` bNodesAfter) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in 
-      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else if (b' `elem` aNodesAfter) && (a' `elem` bNodesBefore) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in
-      trace ("\tRemoving network edge edge due to time consistancy: " ++ (show edgeToRemove))
-      -- trace ("GERT Edges0:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b') ++ " Net: " ++ (show $ fmap (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else if (b' `elem` aNodesBefore) && (a' `elem` bNodesAfter) then 
-      let edgeToRemove = (head $ filter (LG.isNetworkEdge inGraph) $ fmap LG.toEdge $ LG.out inGraph $ fst b') 
-      in 
-      -- trace ("GERT Edges1:" ++ (show edgeToRemove) ++ " " ++ (show $ fmap LG.toEdge $ LG.out inGraph $ fst b'))
-      trace ("\tRemoving network edge due to time consistancy : "++ (show edgeToRemove))
-      edgeToRemove : getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    else getEdgesToRemoveForTime inGraph (tail inNodePairList)
-    -- )
-
-{-
--- | checkParentsChain takes a graph vertexNode and its parents and checks if one parent is descnedent of the other
--- a form of time violation
-checkParentsChain :: (Show a, Eq a, Eq b) => LG.Gr a b -> LG.LNode a -> [LG.LNode a] -> [LG.Edge]
-checkParentsChain inGraph netNode parentNodeList =
-  if LG.isEmpty inGraph then error "Empty graph in checkParentsChain"
-  else if length parentNodeList /= 2 then error ("Need to have 2 parents for net node: " ++ (show (fst netNode)) ++ " <- " ++ (show $ fmap fst parentNodeList))
-  else
-    let firstParent = head parentNodeList
-        secondParent = last parentNodeList
-        (nodesBeforeFirst, _)  = LG.nodesAndEdgesBefore inGraph [firstParent]
-        (nodesBeforeSecond, _) = LG.nodesAndEdgesBefore inGraph [secondParent]
-    in
-    -- trace ("CPC:" ++ (show $ fst netNode) ++ " <- " ++ (show $ fmap fst parentNodeList) ++ "\nfirstParentBefore: "
-    --  ++ (show $ fmap fst nodesBeforeFirst) ++ "\nsecondParentBefore: " ++ (show $ fmap fst nodesBeforeSecond)) (
-    if secondParent `elem` nodesBeforeFirst then [(fst firstParent, fst netNode)]
-    else if firstParent `elem` nodesBeforeSecond then [(fst secondParent, fst netNode)]
-    else []
-    -- )
-
--- | makeGraphTimeConsistent takes laderized, trasitive reduced graph and deletes
--- network edges in an arbitrary but deterministic sequence to produce a phylogentic graphs suitable
--- for swapping etc
--- recursively removes the `most' inconsistent edge (breaks the highest number of time consistent conditions)
--- contracts and renames edges at each stage
--- O (n *m) n nodes, m network nodes.  Probbably could be done more efficiently by retainliung beforeafter list and not
--- remaking graph each time.
-makeGraphTimeConsistent' :: SimpleGraph -> SimpleGraph
-makeGraphTimeConsistent' inGraph =
-  if LG.isEmpty inGraph then LG.empty
-  else
-    let coevalNodeConstraintList = LG.getGraphCoevalConstraintsNodes inGraph
-        networkEdgeList = concatMap (LG.inn inGraph) $ fmap fst $ fmap fst3 coevalNodeConstraintList
-        networkEdgeViolationList = fmap (numberTimeViolations coevalNodeConstraintList 0) networkEdgeList
-        maxViolations = maximum networkEdgeViolationList
-        edgeMaxViolations = fst $ head $ filter ((== maxViolations) . snd) $ zip networkEdgeList networkEdgeViolationList
-    in
-    trace ("MGTC constraintList" ++ (show $ fmap makeSimple coevalNodeConstraintList) ++ "\n" ++ (show $ fmap LG.toEdge networkEdgeList)) (
-    -- is a tree
-    if null coevalNodeConstraintList then
-      --trace ("MTC Null:\n" ++ (LG.prettify inGraph))
-      inGraph
-
-    -- is time consistent
-    else if maxViolations == 0 then
-      -- trace ("MTC 0:\n" ++ (LG.prettify inGraph))
-      trace ("MGTC No violations")
-      removeParentsInChain inGraph
-
-    -- has time violations
-    else
-      let edgeDeletedGraph = LG.delLEdge edgeMaxViolations inGraph
-          newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
-      in
-      trace ("MGTC V:" ++ (show maxViolations))
-      makeGraphTimeConsistent' newGraph
-    )
-    where makeSimple (a,b,c) = (fst a, fmap LG.toEdge b, fmap LG.toEdge c)
-
-
--- | numberTimeViolations takes a directed edge (u,v) and pairs of before after edge lists
--- if u is in the before list and v in the after list of a pir--then there is a time violation
--- recursively counts and retunns the number of violations
--- to conservative killing many ok edges
-numberTimeViolations :: [(LG.LNode a, [LG.LEdge b], [LG.LEdge b])] -> Int -> LG.LEdge b -> Int
-numberTimeViolations inTripleList counter inEdge@(u,v,_) =
-  if null inTripleList then counter
-  else
-    let ((tripleNode, _), beforeEdgeList, afterEdgeList) = head inTripleList
-        uInBefore = u `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
-        uInAfter =  u `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
-        vInBefore = v `elem`  ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))
-        vInAfter  = v `elem`  ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList))
-    in
-    --trace ("NTV: " ++ (show (u,v)) ++ " node " ++ (show tripleNode) ++ "\nbefore: " ++ (show $ ((fmap fst3 beforeEdgeList) ++ (fmap snd3 beforeEdgeList))) ++ "\nafter: " ++ (show $ ((fmap fst3 afterEdgeList) ++ (fmap snd3 afterEdgeList)))) (
-
-    -- if both "before" or both "after" ok
-    if uInBefore && vInBefore then numberTimeViolations (tail inTripleList) counter inEdge
-    else if uInAfter && vInAfter then numberTimeViolations (tail inTripleList) counter inEdge
-
-    -- if uninvolved in that part of graph--no before or after then ok
-    else if (not uInBefore) && (not vInBefore) && (not uInAfter) && (not vInAfter) then numberTimeViolations (tail inTripleList) counter inEdge
-
-    -- violates this time pair
-    else numberTimeViolations (tail inTripleList) (counter + 1) inEdge
-    
-    -- skipping its own split
-    --if v == tripleNode || u == tripleNode then numberTimeViolations (tail inTripleList) counter inEdge
-
-    -- violates this time pair
-    -- else if uInBefore && vInAfter then numberTimeViolations (tail inTripleList) (counter + 1) inEdge
-
-    -- does not violate pair
-    -- else numberTimeViolations (tail inTripleList) counter inEdge
-    -- )
--}
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
@@ -547,119 +269,14 @@ renameSimpleGraphNodesString inGraph =
     -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
     where makeSimpleLabel g (a, b)  = if (not $ LG.isLeaf g a) then "HTU"  ++ show a
-                                    else b
-
--- | getEdgeSplitList takes a graph and returns list of edges
--- that split a graph increasing the number of components by 1
--- this is quadratic
--- should change to Tarjan's algorithm (linear)
--- everyhting else in there is O(n^2-3) so maybe doesn't matter
--- filters out edges with parent nodes that are out degree 1 and root edges
-getEdgeSplitList :: (Show a, Show b, Eq b) => LG.Gr a b -> [LG.LEdge b]
-getEdgeSplitList inGraph =
-  if LG.isEmpty inGraph then error ("Empty graph in getEdgeSplitList")
-  else
-      let origNumComponents = LG.noComponents inGraph
-          origEdgeList = LG.labEdges inGraph
-          edgeDeleteComponentNumberList = fmap LG.noComponents $ fmap (flip LG.delEdge inGraph) (fmap LG.toEdge origEdgeList)
-          bridgeList = fmap snd $ filter ((> origNumComponents) . fst) $ zip edgeDeleteComponentNumberList origEdgeList
-
-          -- filter out edges starting in an outdegree 1 node (network or in out 1) node
-          -- this would promote an HTU to a leaf later.  Its a bridge, but not what need
-          bridgeList' = filter ((not . LG.isRoot inGraph) .fst3 ) $ filter ((not. LG.isNetworkNode inGraph) . snd3)  $ filter  ((not . LG.isOutDeg1Node inGraph) . fst3) bridgeList
-      in
-
-       -- trace ("BridgeList" ++ (show $ fmap LG.toEdge bridgeList') ++ "\nGraph\n" ++ (LG.prettyIndices inGraph))
-       bridgeList'
-
--- | splitGraphOnEdge takes a graph and an edge and returns a single graph but with two components
--- the roots of each component are retuned with two graphs, with broken edge contraced, and 'naked'
--- node returned.  The naked node is used for rejoining the two components during rearrangement
--- (SplitGraph, root of component that has original root, root of component that was cut off, naked node left over)
--- this function does not check whether edge is a 'bridge'
-splitGraphOnEdge :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node)
-splitGraphOnEdge inGraph (e,v,l) =
-  if LG.isEmpty inGraph then error "Empty graph in splitGraphOnEdge"
-  else if (length $ LG.getRoots inGraph) /= 1 then error ("Incorrect number roots in splitGraphOnEdge--must be 1: " ++ (show $ fmap fst $ LG.getRoots inGraph))
-  else
-      let childrenENode = (LG.descendants inGraph e) L.\\ [v]
-          parentsENode = LG.parents inGraph e
-          newEdge = (head parentsENode, head childrenENode, l)
-          edgesToDelete = [(head parentsENode, e), (e, head childrenENode)] -- (e,v)
-
-          -- make new graph
-          splitGraph = LG.insEdge newEdge $ LG.delEdges edgesToDelete inGraph
-      in
-      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
-      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
-      else
-          -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
-          (splitGraph, fst $ head $ LG.getRoots inGraph, v, e)
-
--- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges creted and destroyed as well
--- used in Goodman-Bermer and could make swap more efficient as well.
-splitGraphOnEdge' :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node, LG.LEdge b, [LG.Edge])
-splitGraphOnEdge' inGraph (e,v,l) =
-  if LG.isEmpty inGraph then error "Empty graph in splitGraphOnEdge"
-  else if (length $ LG.getRoots inGraph) /= 1 then error ("Incorrect number roots in splitGraphOnEdge--must be 1: " ++ (show $ fmap fst $ LG.getRoots inGraph))
-  else
-      let childrenENode = (LG.descendants inGraph e) L.\\ [v]
-          parentsENode = LG.parents inGraph e
-          newEdge = (head parentsENode, head childrenENode, l)
-          edgesToDelete = [(head parentsENode, e), (e, head childrenENode)] -- (e,v)
-
-          -- make new graph
-          splitGraph = LG.insEdge newEdge $ LG.delEdges edgesToDelete inGraph
-      in
-      if length childrenENode /= 1 then error ("Incorrect number of children of edge to split--must be 1: " ++ (show ((e,v), childrenENode)))
-      else if length parentsENode /= 1 then error ("Incorrect number of parents of edge to split--must be 1: " ++ (show ((e,v), parentsENode)))
-      else
-          -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
-          (splitGraph, fst $ head $ LG.getRoots inGraph, v, e, newEdge, edgesToDelete)
-
--- | joinGraphOnEdge takes a graph and adds an edge reducing the component number
--- expected ot be two components to one in SPR/TBR
--- assumes that first node of edge (e,v,l) is 'naked' ie avaiable to make edges but is in graph
--- created from splitGraphOnEdge
-joinGraphOnEdge :: (Show a,Show b) => LG.Gr a b -> LG.LEdge b -> LG.Node ->LG.Gr a b
-joinGraphOnEdge inGraph (x,y,l) parentofPrunedSubGraph =
-  if LG.isEmpty inGraph then error ("Empty graph in joinGraphOnEdge")
-  else
-      let edgeToCreate0 = (x, parentofPrunedSubGraph, l)
-          edgeToCreate1 = (parentofPrunedSubGraph, y, l)
-          -- edgeToCreate2 = (parentofPrunedSubGraph, graphToJoinRoot, l)
-      in
-      -- make new graph
-      -- trace ("JGE:" ++ (show edgeToInvade) ++ " " ++ (show (parentofPrunedSubGraph, graphToJoinRoot))) --  ++ "\n" ++ (LG.prettify inGraph))
-      LG.insEdges [edgeToCreate0, edgeToCreate1] $ LG.delEdge (x,y) inGraph
-
+                                      else b
+                                      
 -- | sortEdgeListByLength sorts edge list by length (midRange), highest to lowest
 sortEdgeListByLength :: [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
 sortEdgeListByLength inEdgeList =
   if null inEdgeList then []
   else
     reverse $ L.sortOn (midRangeLength . thd3) inEdgeList
-
--- | sortEdgeListByDistance sorts edges by distance (in edges) from edge pair of vertices
--- cretes a list of edges into (but traveling away from) an initial eNOde and away from
--- an initial vNode adding new nodes to those lists as encountered by traversing edges.
--- the eidea is theat the nodes from a directed edge (eNode, vNode)
--- the list is creted at each round from the "in" and "out" edge lists
--- so they are in order of 1 edge 2 edges etc.
-sortEdgeListByDistance :: LG.Gr a b -> [LG.Node] -> [LG.Node] -> [LG.LEdge b]
-sortEdgeListByDistance inGraph eNodeList vNodeList =
-  if LG.isEmpty inGraph then error ("Empty graph in edgeListByDistance")
-  else if (null eNodeList && null vNodeList) then []
-  else
-        -- get edges 'in' to eNodeList
-    let inEdgeList = concatMap (LG.inn inGraph) eNodeList
-        newENodeList = fmap fst3 inEdgeList
-
-        -- get edges 'out' from vNodeList
-        outEdgeList = concatMap (LG.out inGraph) vNodeList
-        newVNodeList = fmap snd3 outEdgeList
-    in
-    inEdgeList ++ outEdgeList ++ (sortEdgeListByDistance inGraph newENodeList newVNodeList)
 
 -- | ladderizeGraph is a wrapper around ladderizeGraph' to allow for mapping with
 -- local nodelist
@@ -760,399 +377,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
 
 
       else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
-    --)
-
--- | rerootTree takes a graph and reroots based on a vertex index (usually leaf outgroup)
---   if input is a forest then only roots the component that contains the vertex wil be rerooted
---   unclear how will effect network edges--will need to verify that does not create cycles
---   multi-rooted components (as opposed to forests) are unaffected with trace warning thrown
---   after checking for existing root and multiroots, should be O(n) where 'n is the length
---   of the path between the old and new root
-rerootTree :: (Show a, Show b, Eq b) => Int -> LG.Gr a b -> LG.Gr a b
-rerootTree rerootIndex inGraph =
-  --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph then inGraph
-  else
-    let componentList = LG.components inGraph
-        parentNewRootList = LG.pre inGraph rerootIndex
-        newRootOrigEdge = head $ LG.inn inGraph rerootIndex
-        parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
-        outgroupInComponent = fmap (rerootIndex `elem`) componentList
-        componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
-        -- (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
-    in
-
-    -- rerooting on root so no indegree edges
-    -- this for wagner build reroots where can try to reroot on leaf not yet added
-    if null $ LG.inn inGraph rerootIndex then inGraph -- error ("Rerooting on indegree 0 node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
-
-
-    else if null componentWithOutgroup then inGraph  -- error ("Error rooting wierdness in rerootTree " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
-
-    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
-                                                              else (if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-    else
-        --trace ("RRT: " ++ (show (rerootIndex, inNewRoot, outNewRoot))) ( 
-        -- reroot component with new outtaxon
-        let componentWithNewOutgroup = snd $ head componentWithOutgroup
-            (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-            numRoots = length originalRootList
-            orginalRoot = head originalRootList
-            originalRootEdges = LG.out inGraph orginalRoot
-
-        in
-
-        if numRoots == 0 then error ("No root in rerootTree: Attempting to reroot on edge to node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) --LG.empty
-
-        -- check if outgroup in a multirooted component
-        -- if wagner build this is ok
-        else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
-        else
-          --reroot graph safely automatically will only affect the component with the outgroup
-          -- delete old root edge and create two new edges from oringal root node.
-          -- keep orignl root node and delte/crete new edges when they are encounterd
-          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
-
-              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
-                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
-                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
-
-              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
-
-              -- get edges that need reversing
-              newGraph' = preTraverseAndFlipEdges [leftChildEdge,rightChildEdge] newGraph
-
-          in
-          --trace ("=")
-          --trace ("Deleting " ++ (show (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show newRootEdges))
-          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-          newGraph')
-        -- ) -- )
-
--- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
--- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
-rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => LG.Node -> LG.Node -> LG.Gr a b -> LG.Gr a b
-rerootDisplayTree orginalRootIndex rerootIndex inGraph =
-  --trace ("In reroot Graph: " ++ show rerootIndex) (
-  if LG.isEmpty inGraph then inGraph
-  else
-    let -- componentList = LG.components inGraph'
-        
-        -- hack---remove when figured out
-        {-
-        inGraph = if inGraphType == SoftWired then inGraph' -- LG.removeDuplicateEdges inGraph'
-                  else inGraph'
-        -}
-
-        parentNewRootList = LG.pre inGraph rerootIndex
-        newRootOrigEdge = head $ LG.inn inGraph rerootIndex
-        parentRootList = fmap (LG.isRoot inGraph) parentNewRootList
-        -- outgroupInComponent = fmap (rerootIndex `elem`) componentList
-        -- componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
-        (_, inNewRoot, outNewRoot) = LG.getInOutDeg inGraph (LG.labelNode inGraph rerootIndex)
-
-        {- Checks for valid trees
-        cyclicString = if LG.cyclic inGraph then " Is cyclic "
-                          else  " Not cyclic "
-
-        parentInCharinString = if parentInChain inGraph then " Is Parent in Chain "
-                                  else " Not Parent in Chain "
-
-        duplicatedsEdgeString = if not (LG.hasDuplicateEdge inGraph)  then " No duplicate edges "
-                                else 
-                                  let dupEdgeList' = LG.getDuplicateEdges inGraph
-                                  in (" Has duplicate edges: " ++ (show dupEdgeList')) 
-        -}
-    in
-
-    -- trace ("RRT In: " ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString) (
-
-    -- check if cycle and exit if so
-    -- don't reroot on in=out=1 since same as it descendent edge 
-    if (inNewRoot == 1) && (outNewRoot == 1) then 
-      -- trace ("RRT: in 1 out 1") 
-      inGraph
-
-    -- else if LG.cyclic inGraph then LG.empty -- inGraph 
-
-    
-    -- rerooting on root so no indegree edges
-    -- this for wagner build reroots where can try to reroot on leaf not yet added
-    else if null $ LG.inn inGraph rerootIndex then inGraph -- error ("Rerooting on indegree 0 node " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
-
-
-    -- else if null componentWithOutgroup then inGraph  -- error ("Error rooting wierdness in rerootTree " ++ (show rerootIndex) ++ "\n" ++ LG.prettyIndices inGraph) -- LG.empty
-
-    -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
-    else if null parentNewRootList || (True `elem` parentRootList) then inGraph
-                                                              -- else if null componentWithOutgroup then error ("Outgroup index " ++ show rerootIndex ++ " not found in graph")
-    else
-        -- trace ("RRT: " ++ (show (rerootIndex, inNewRoot, outNewRoot))) ( 
-        --reroot component with new outtaxon
-        let -- componentWithNewOutgroup = snd $ head componentWithOutgroup
-            -- (_, originalRootList) =  unzip $ filter ((==True).fst) $ zip (fmap (LG.isRoot inGraph) componentWithNewOutgroup) componentWithNewOutgroup
-            -- numRoots = 1 -- length originalRootList
-            orginalRoot = orginalRootIndex -- head originalRootList
-            originalRootEdges = (LG.out inGraph orginalRoot)
-
-        in
-
-        {-
-        if numRoots == 0 then error ("No root in rerootDisplayTree: Attempting to reroot on edge to node " ++ (show (orginalRoot,rerootIndex)) ++ LG.prettyIndices inGraph) --LG.empty
-
-        -- check if outgroup in a multirooted component
-        -- if wagner build this is ok
-        -- else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
-        else
-        -}
-          --reroot graph safely automatically will only affect the component with the outgroup
-          -- delete old root edge and create two new edges from oringal root node.
-          -- keep orignl root node and delte/crete new edges when they are encounterd
-          --trace ("Moving root from " ++ (show orginalRoot) ++ " to " ++  (show rerootIndex)) (
-          let leftChildEdge = (orginalRoot, rerootIndex, LG.edgeLabel $ head originalRootEdges)
-              rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, LG.edgeLabel $ last originalRootEdges)
-
-              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
-                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (LG.prettyIndices inGraph))
-                                 else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
-
-              newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
-              newGraph = LG.insEdges newRootEdges $ LG.delLEdges (newRootOrigEdge : originalRootEdges) inGraph
-
-              -- get edges that need reversing
-              newGraph' = preTraverseAndFlipEdgesTree orginalRootIndex [leftChildEdge,rightChildEdge] newGraph
-
-
-              {- Check for valid tree
-              cyclicString' = if LG.cyclic newGraph' then " Is cyclic "
-                          else  " Not cyclic "
-
-              parentInCharinString'= if parentInChain newGraph' then " Is Parent in Chain "
-                                  else " Not Parent in Chain "
-
-              duplicatedsEdgeString' = if not (LG.hasDuplicateEdge newGraph') then " No duplicate edges "
-                                       else let dupEdgeList' = LG.getDuplicateEdges newGraph'
-                                            in
-                                            (" Has duplicate edges: " ++ (show dupEdgeList') ++ "\nDeleting " ++ (show $ fmap LG.toEdge $ (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge $ newRootEdges)) 
-              -}
-          in
-          --trace ("=")
-          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-
-          -- trace ("Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges) 
-          --   ++ "\nRRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString') (
-
-          -- if cyclicString' == " Is cyclic " then inGraph 
-          -- else if LG.hasDuplicateEdge newGraph' then LG.removeDuplicateEdges newGraph'
-          -- else 
-          {-Cycle check
-          if LG.cyclic newGraph' then 
-            trace ("Orignal root: " ++ (show orginalRootIndex) ++ "New root: " ++ (show rerootIndex) ++ " Deleting " ++ (show $ fmap LG.toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap LG.toEdge newRootEdges) 
-              ++ "\nOrigGraph: " ++ (LG.prettyIndices inGraph) ++ "\nNewGraph: " ++ (LG.prettyIndices newGraph)++ "\nNewGraph': " ++ (LG.prettyIndices newGraph'))
-            LG.empty
-          else newGraph'-}
-          newGraph'
-          -- )
-          -- ) -- )
-
-
--- | preTraverseAndFlipEdgesTree traverses a tree from starting edge flipping in-edges since they should
--- be out-edges 
--- when recursion its edges that don't need to be fliped then stops
--- assumes input edge is directed correctly
--- follows  traversal out "pre" order updating graph as edges flipped
-preTraverseAndFlipEdgesTree :: (Eq b) => LG.Node -> [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
-preTraverseAndFlipEdgesTree rootIndex inEdgeList inGraph  =
-  if null inEdgeList then inGraph
-  else
-    let -- first edge directled correctly
-        inEdge@(_,v,_) = head inEdgeList
-
-        -- edges "in" to child node of first edge--these should be out and need to be flipped
-        childEdges = filter ((/= rootIndex) . fst3) $ filter (/= inEdge) $ LG.inn inGraph v
-        
-        -- flip to "in" to "out" edges
-        flippedEdges = fmap LG.flipLEdge childEdges
-
-        -- -- modify graph accordingly
-        newGraph = LG.insEdges flippedEdges $ LG.delLEdges childEdges inGraph
-    in
-    --trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
-    -- edge terminates in leaf or edges in correct orientation
-    if null childEdges then preTraverseAndFlipEdgesTree rootIndex (tail inEdgeList) inGraph
-
-    -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdgesTree rootIndex (flippedEdges ++ (tail inEdgeList)) newGraph
     -- )
-
-
--- | preTraverseAndFlipEdges traverses graph from starting edge flipping edges as needed
--- when recursion its edges that don't need to be fliped then stops
--- assumes input edge is directed correctly
--- follows  traversal out "pre" order ish from edges
--- have to check edge orientatins--make sure thay haven't changed as graph was updated earlier
-preTraverseAndFlipEdges :: (Eq b) => [LG.LEdge b] ->  LG.Gr a b -> LG.Gr a b
-preTraverseAndFlipEdges inEdgelist inGraph  =
-  if null inEdgelist then inGraph
-  else
-    let inEdge@(_,v,_) = head inEdgelist
-        childEdges = (LG.out inGraph v) ++ (filter (/= inEdge) $ LG.inn inGraph v)
-
-        -- returns list of edges that had to be flipped
-        edgesToFlip = getToFlipEdges v childEdges 
-        flippedEdges = fmap LG.flipLEdge edgesToFlip
-        newGraph = LG.insEdges flippedEdges $ LG.delLEdges edgesToFlip inGraph
-    in
-    --trace ("PTFE: flipped " ++ (show $ fmap LG.toEdge flippedEdges)) (
-    -- edge terminates in leaf or edges in correct orientation
-    if null childEdges  || null edgesToFlip then preTraverseAndFlipEdges (tail inEdgelist) inGraph
-    -- edge needs to be reversed to follow through its children from a new graph
-    else preTraverseAndFlipEdges (flippedEdges ++ (tail inEdgelist)) newGraph
-    -- )
-
--- | getToFlipEdges takes an index and check edge list
--- and creates new list of edges that need to be flipped
-getToFlipEdges ::  LG.Node -> [LG.LEdge b] -> [LG.LEdge b]
-getToFlipEdges parentNodeIndex inEdgeList =
-  if null inEdgeList then []
-  else
-    let firstEdge@(u,_,_) = head inEdgeList
-    in
-    if parentNodeIndex /= u then firstEdge : getToFlipEdges parentNodeIndex (tail inEdgeList)
-    else getToFlipEdges parentNodeIndex (tail inEdgeList)
-
--- | Random generates display trees up to input number by choosing
--- to keep indegree nodes > 1 unifomaly at random
-generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> LG.Gr a b -> [LG.Gr a b]
-generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
-  if LG.isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
-  else
-    let atRandomList = take numDisplayTrees $ randomIntList rSeed
-        randDisplayTreeList = fmap (randomlyResolveGraphToTree inGraph) atRandomList `using` PU.myParListChunkRDS
-    in
-    randDisplayTreeList
-
--- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges
--- uniformly at random and deleting all others from graph
--- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
--- but not renamed--edges from root are left alone.
-randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => LG.Gr a b -> Int -> LG.Gr a b
-randomlyResolveGraphToTree inGraph randVal =
-  if LG.isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
-  else
-    let (_, leafList, _, _) = LG.splitVertexList inGraph
-        -- rootEdgeList = fmap (LG.out inGraph) $ fmap fst rootList
-        inEdgeListByVertex = (fmap (LG.inn inGraph) (LG.nodes inGraph)) -- L.\\ rootEdgeList
-        randList = fmap abs $ randomIntList randVal
-        edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap LG.toEdge) inEdgeListByVertex)
-        newTree = LG.delEdges edgesToDelete inGraph
-        newTree' = LG.removeNonLeafOut0Nodes leafList newTree
-        newTree'' = LG.contractIn1Out1Edges newTree'
-        reindexTree = LG.reindexGraph newTree''
-    in
-    -- trace ("RRGT\n" ++ (LG.prettify inGraph) ++ "\n to delete " ++ (show edgesToDelete) ++ "\nNew graph:\n" ++ (LG.prettify newTree)
-    --   ++ "\nnewTree'\n" ++ (LG.prettify newTree') ++ "\nnewTree''\n" ++ (LG.prettify newTree'') ++ "\reindex\n" ++ (LG.prettify reindexTree))
-    reindexTree
-
--- | chooseOneDumpRest takes random val and chooses to keep tht edge in list returniong list of edges to delete
-chooseOneDumpRest :: Int -> [LG.Edge] -> [LG.Edge]
-chooseOneDumpRest randVal inEdgeList =
-  if null inEdgeList then []
-  else if length inEdgeList == 1 then []
-  else
-    let numEdgesIn = length inEdgeList
-        (_, indexToKeep) = divMod randVal numEdgesIn
-    in
-    -- trace ("CODR: " ++ (show inEdgeList) ++ " keeping " ++ (show $ inEdgeList !! indexToKeep) ++ " deleting " ++ (show $ inEdgeList L.\\ [inEdgeList !! indexToKeep]) ++ "based on " ++ (show (randVal, indexToKeep)))
-    inEdgeList L.\\ [inEdgeList !! indexToKeep]
-
-
-
--- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface
-generateDisplayTrees :: (Eq a) => LG.Gr a b -> [LG.Gr a b]
-generateDisplayTrees inGraph =
-    let (_, leafList, _, _) = LG.splitVertexList inGraph
-    in
-    generateDisplayTrees' leafList [inGraph] []
-
--- | generateDisplayTrees' takes a graph list and recursively generates
--- a list of trees created by progresively resolving each network vertex into a tree vertex
--- in each input graph
--- creating up to 2**m (m network vertices) trees.
--- call -> generateDisplayTrees'  [startGraph] []
--- the second and third args contain graphs that need more work and graphs that are done (ie trees)
-generateDisplayTrees' :: (Eq a) => [LG.LNode a] -> [LG.Gr a b] -> [LG.Gr a b] -> [LG.Gr a b]
-generateDisplayTrees' leafList curGraphList treeList  =
-  if null curGraphList then
-      let treeList' = fmap (LG.removeNonLeafOut0Nodes leafList) treeList
-          treeList'' = fmap LG.contractIn1Out1Edges treeList'
-          reindexedTreeList = fmap LG.reindexGraph treeList''
-      in
-      reindexedTreeList
-
-  else
-    let firstGraph = head curGraphList
-    in
-      if LG.isEmpty firstGraph then []
-      else
-        let nodeList = LG.labNodes firstGraph
-            inNetEdgeList = filter ((>1).length) $ fmap (LG.inn firstGraph) $ fmap fst nodeList
-        in
-        if null inNetEdgeList then generateDisplayTrees' leafList (tail curGraphList) (firstGraph : treeList)
-        else
-          let newGraphList = splitGraphListFromNode inNetEdgeList [firstGraph]
-          in
-          generateDisplayTrees' leafList (newGraphList ++ (tail curGraphList)) treeList
-
--- | splitGraphListFromNode take a graph and a list of edges for indegree > 1 node
--- removes each in edge in turn to create a new graph and maintains any in 1 out 1 nodes
--- if these edges are to be contracted out  use 'contractOneOneEdges'
--- should be a single traversal 'splitting' graph each time. removing edges anmd recursing
--- to do it again untill all edges are indegree 1.
--- the edges in list for recurvise deleteion should always be in all graphs uuntil
--- the end
-splitGraphListFromNode :: [[LG.LEdge b]] -> [LG.Gr a b] -> [LG.Gr a b]
-splitGraphListFromNode inEdgeListList inGraphList =
-  if null inEdgeListList then inGraphList
-  else if null inGraphList then error "Empty graph lits in splitGraphListFromNode"
-  else
-    let firstNetEdgeList = head inEdgeListList
-        indexList = [0.. (length firstNetEdgeList - 1)]
-        repeatedEdgeList = replicate (length firstNetEdgeList) firstNetEdgeList
-        netEdgeIndexPairList = zip repeatedEdgeList indexList
-        newGraphList = concat $ fmap (deleteEdgesCreateGraphs netEdgeIndexPairList 0) inGraphList
-    in
-    splitGraphListFromNode (tail inEdgeListList) newGraphList
-
--- | deleteEdgesCreateGraphs takes a list of edges and an index list and a graph,
--- recursively keeps the index-th edge and deltes the others creating a new graph list
-deleteEdgesCreateGraphs :: [([LG.LEdge b], Int)] -> Int -> LG.Gr a b -> [LG.Gr a b]
-deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
-  if LG.isEmpty inGraph then error "Empty graph in  "deleteEdgesCreateGraphs
-  else if null netEdgeIndexPairList then []
-  else
-    let (edgeList, lIndex) = head netEdgeIndexPairList
-        --edgeToKeep = edgeList !! index
-        edgesToDelete = (take lIndex edgeList) ++ (drop (lIndex + 1) edgeList)
-        newGraph = LG.delLEdges edgesToDelete inGraph
-    in
-    newGraph : deleteEdgesCreateGraphs (tail netEdgeIndexPairList) (counter + 1) inGraph
-
--- | getNodeType returns node type for Node
-getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
-getNodeType inGraph inNode =
-    if not $ LG.gelem inNode inGraph then error ("Node " ++ (show inNode) ++ " not in graph\n" ++ (GFU.showGraph inGraph))
-    else if LG.isLeaf inGraph inNode then LeafNode
-    else if LG.isTreeNode inGraph inNode then TreeNode
-    else if LG.isNetworkNode inGraph inNode then NetworkNode
-    else if LG.isRoot inGraph inNode then RootNode
-    else error ("Node type " ++ (show inNode) ++ " not Leaf, Tree, Network, or Root in graph\n" ++ (GFU.showGraph inGraph))
 
 -- | convertDecoratedToSimpleGraph
 convertDecoratedToSimpleGraph :: DecoratedGraph -> SimpleGraph
@@ -1186,42 +411,6 @@ graphCostFromNodes inGraph =
   if LG.isEmpty inGraph then 0.0
   else
     sum $ fmap vertexCost $ fmap snd $ LG.labNodes inGraph
-
--- | switchRootTree takes a new root vertex index of a tree and switches the existing root (and all relevent edges)
--- to new index
-switchRootTree :: (Show a) => Int -> LG.Gr a b -> LG.Gr a b
-switchRootTree newRootIndex inGraph =
-  if LG.isEmpty inGraph then LG.empty
-  else
-    let rootList = LG.getRoots inGraph
-        (newRootCurInEdges, newRootCurOutEdges) = LG.getInOutEdges inGraph newRootIndex
-        oldRootEdges = LG.out inGraph $ fst $ head rootList
-
-    in
-    -- not a directed tree
-    if length rootList /= 1 then error ("Graph input to switchRootTree is not a tree--not single root:" ++ (show rootList))
-
-    -- same root
-    else if newRootIndex == (fst $ head rootList) then inGraph
-    else
-        -- create new edges and delete the old ones
-        let newEdgesToAdd = fmap (flipVertices (fst $ head rootList) newRootIndex) (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges)
-        in
-        LG.insEdges newEdgesToAdd $ LG.delLEdges (newRootCurInEdges ++ newRootCurOutEdges ++ oldRootEdges) inGraph
-
--- | flipVertices takes an old vertex index and a new vertex index and inserts one for the other
--- in a labelled edge
-flipVertices :: Int -> Int ->  LG.LEdge b -> LG.LEdge b
-flipVertices a b (u,v,l) =
-  let newU = if u == a then b
-             else if u == b then a
-             else u
-      newV = if v == a then b
-            else if v == b then a
-            else v
-  in
-  -- trace (show (u,v,l) ++ "->" ++ show (newU, newV, l))
-  (newU, newV, l)
 
 -- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
 dichotomizeRoot :: Int -> SimpleGraph -> SimpleGraph
@@ -1330,12 +519,25 @@ getUniqueGraphs removeZeroEdges inGraphList =
 -- basically a nub
 -- need to add a collapse function for compare as well
 -- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
--- mke strings based on collapsed and returns not collpased
+-- make strings based on collapsed and returns not collpased
 getUniqueGraphs'' :: [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph] 
 getUniqueGraphs'' inList = nubGraph [] inList
 
+-- | isNovelGraph  checks if a graph is in list of existing graphs
+-- uses colapsed representation
+isNovelGraph :: [PhylogeneticGraph] -> PhylogeneticGraph -> Bool
+isNovelGraph graphList testGraph = 
+  if null graphList then True
+  else 
+      let collapsedInGraph = (LG.prettyIndices . fst6 . U.collapseGraph) testGraph
+          collapseGraphList = fmap (LG.prettyIndices . fst6 . U.collapseGraph) graphList
+          matchList = filter (== collapsedInGraph) collapseGraphList
+      in
+      -- trace ("IsNovel: " ++ (show $ null matchList))
+      null matchList
+
 -- | keeps and returns unique graphs based on Eq of Topological Simple Graph
--- String newick w/0 HTU names and branch lengths
+-- String prettyIndices w/0 HTU names and branch lengths
 -- arbitrarily rooted on 0 for oonsistency
 --reversed to keep original order in case sorted on length
 nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]
@@ -1366,20 +568,15 @@ getUniqueGraphs' inGraphPairList currentUniquePairs =
             if null equalList then getUniqueGraphs' (tail inGraphPairList) (firstPair : currentUniquePairs)
             else getUniqueGraphs' (tail inGraphPairList) currentUniquePairs
 
-
-
-{-
--- getNonZeroEdges takes a DecortatedGraph and returns the sorted list of non-zero length (< epsilon) edges
-getNonZeroEdges :: PhylogeneticGraph -> ([LG.LEdge EdgeInfo], PhylogeneticGraph)
-getNonZeroEdges inGraph =
-    if LG.isEmpty $ thd6 inGraph then ([], (LG.empty,0.0, LG.empty, V.empty, V.empty, V.empty))
-    else
-        let edgeList = LG.labEdges (thd6 inGraph)
-            minCostEdgeList = fmap (minLength . thd3) edgeList
-            (_, nonZeroEdgeList) = unzip $ filter ((>epsilon) . fst) $ zip  minCostEdgeList edgeList
-        in
-        (L.sortOn fst3 nonZeroEdgeList, inGraph)
--}
+-- | getNodeType returns node type for Node
+getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
+getNodeType inGraph inNode =
+    if not $ LG.gelem inNode inGraph then error ("Node " ++ (show inNode) ++ " not in graph\n" ++ (GFU.showGraph inGraph))
+    else if LG.isLeaf inGraph inNode then LeafNode
+    else if LG.isTreeNode inGraph inNode then TreeNode
+    else if LG.isNetworkNode inGraph inNode then NetworkNode
+    else if LG.isRoot inGraph inNode then RootNode
+    else error ("Node type " ++ (show inNode) ++ " not Leaf, Tree, Network, or Root in graph\n" ++ (GFU.showGraph inGraph))
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies
 -- the IA final fields to preliminary IA states--this for IA only optimization
@@ -1484,22 +681,6 @@ topologicalEqual nonZeroEdges g1 g2 =
       in
       if nodesG1 == nodesG2 && edgesG1 == edgesG2 then True
       else False
-
-{-
--- | topologicalBVEqual takes two Decorated graphs and returns True if graphs have same nodes
--- by bitvector (sorted)
--- option to exclude nodes that are end of zero weight edges
-topologicalBVEqual :: Bool -> DecoratedGraph -> DecoratedGraph -> Bool
-topologicalBVEqual nonZeroEdges g1 g2 =
-  if LG.isEmpty g1 && LG.isEmpty g2 then True
-  else if  LG.isEmpty g1 || LG.isEmpty g2 then False
-  else
-      let bvNodesG1 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g1
-          bvNodesG2 = L.sort $ fmap bvLabel $ fmap snd $ LG.labNodes g2
-      in
-      if bvNodesG1 == bvNodesG2 then True
-      else False
--}
 
 -- | getEdgeMinLengthToNode takes a labelled node and returns the min length of
 -- the edge leading to the node
@@ -1634,3 +815,34 @@ selectGraphStochastic rSeed number factor inGraphList =
     take number $ returnGraphList ++ luckyList
 
     where getProb a b = exp ((-1) * b / a)
+
+-- | getDisplayTreeCostList returns a list of teh "block" costs of display trees
+-- in a piar with any graph 'penalty' cost
+getDisplayTreeCostList :: PhylogeneticGraph -> ([VertexCost], VertexCost)
+getDisplayTreeCostList inGraph =
+  if LG.isEmpty $ thd6 inGraph then ([], 0.0)
+  else
+    let rootIndex = fst $ head $ LG.getRoots $ fst6 inGraph
+        displayTreeCharVect = fft6 inGraph
+        displayTreeCostVect = fmap (getBlockCost rootIndex) displayTreeCharVect
+        nonGraphCost = V.sum  displayTreeCostVect
+    in
+    (V.toList displayTreeCostVect, (snd6 inGraph) - nonGraphCost)
+
+-- | getBlockCost returns the cost, summed over characters, of a character block
+getBlockCost :: LG.Node -> V.Vector DecoratedGraph -> VertexCost
+getBlockCost rootIndex charGraphVect = 
+  if V.null charGraphVect then 0.0
+  else 
+    V.sum $ fmap (getCharacterCost rootIndex) charGraphVect
+
+-- | getCharacterCost returns charcter cost as root of character tree
+getCharacterCost :: LG.Node -> DecoratedGraph -> VertexCost
+getCharacterCost rootIndex inGraph =
+  if LG.isEmpty inGraph then 0.0
+  else 
+    let rootLabel = LG.lab inGraph rootIndex
+    in
+    if isNothing rootLabel then error ("Root index without label: " ++ (show rootIndex))
+    else subGraphCost $ fromJust rootLabel
+

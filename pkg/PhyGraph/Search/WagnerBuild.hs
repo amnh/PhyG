@@ -75,8 +75,10 @@ rasWagnerBuild inGS inData rSeed numReplicates =
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
       in
       trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
+      -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-      zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+      -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+      PU.seqParMap rdeepseq (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
 
 
@@ -131,15 +133,18 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
       let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
           edgesToInvade = (LG.labEdges inDecGraph) L.\\ outgroupEdges
           leafToAdd = V.head additionSequence
-          candidateEditList = fmap (addTaxonWagner numVerts inGraph leafToAdd) edgesToInvade
+
+          -- since this is apporximate--can get a bit off
+          -- candidateEditList = fmap (addTaxonWagner numVerts inGraph leafToAdd) edgesToInvade
+          candidateEditList = PU.seqParMap rdeepseq (addTaxonWagner numVerts inGraph leafToAdd) edgesToInvade
           minDelta = minimum $ fmap fst4 candidateEditList
           (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 
           -- create new tree
           newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
 
-          newSimple' = if V.length additionSequence == 1 then GO.rerootTree (outgroupIndex inGS) newSimple
-                       else GO.rerootTree (outgroupIndex inGS) newSimple
+          newSimple' = if V.length additionSequence == 1 then LG.rerootTree (outgroupIndex inGS) newSimple
+                       else LG.rerootTree (outgroupIndex inGS) newSimple
                        -- else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type

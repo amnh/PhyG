@@ -149,7 +149,7 @@ data GraphType = Tree | HardWired | SoftWired
 data OptimalityCriterion = Parsimony | PMDL | Likelihood
     deriving stock (Show, Eq)
 
-data GraphFactor = NoNetworkPenalty | Wheeler2015Network | PMDLGraph
+data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | PMDLGraph
     deriving stock (Show, Eq)
 
 data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
@@ -519,10 +519,11 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bc8 = (0.0,1.0)
                                      , bc64 = (0.0,1.0)
                                      , bcgt64 = (0.0,1.0)
-                                     , dynamicEpsilon = 1.0
+                                     , dynamicEpsilon = 1.02
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
+-- important cost is infinity for filtering operations
 emptyPhylogeneticGraph :: PhylogeneticGraph
 emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
 
