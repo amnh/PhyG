@@ -115,7 +115,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
    -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n"
-   --   ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
+   --    ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
    wagnerTree
    )
 
@@ -129,6 +129,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
    if null additionSequence then inGraph
    else
+      trace ("RAEW-In: " ++ (show $ length additionSequence)) (
       -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
       let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
           edgesToInvade = (LG.labEdges inDecGraph) L.\\ outgroupEdges
@@ -168,8 +169,9 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       else 
       -}
+      trace ("RAEW-Out: " ++ (show $ length additionSequence))
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
-         -- )
+      )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
