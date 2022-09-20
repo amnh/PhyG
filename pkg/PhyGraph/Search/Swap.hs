@@ -197,7 +197,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
           -- get best return graph list-can be empty if nothing better ort smame cost
           newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
 
-          newMinCost = if (not . null) newGraphList then minimum $ fmap snd6 newGraphList
+          newMinCost = if (not . null) newGraphList' then minimum $ fmap snd6 newGraphList'
                        else infinity 
 
       in    

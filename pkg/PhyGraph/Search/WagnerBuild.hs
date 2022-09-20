@@ -40,7 +40,7 @@ module Search.WagnerBuild  ( wagnerTreeBuild
                      ) where
 
 import           Control.Parallel.Strategies
-import qualified Data.List                           as L
+-- import qualified Data.List                           as L
 import           Data.Maybe
 import qualified Data.Text.Lazy                      as TL
 import qualified Data.Vector                         as V
@@ -49,7 +49,7 @@ import           GeneralUtilities
 import qualified GraphOptimization.Medians           as M
 import qualified GraphOptimization.PreOrderFunctions as PRE
 import qualified GraphOptimization.Traversals        as T
-import qualified Graphs.GraphOperations              as GO
+-- import qualified Graphs.GraphOperations              as GO
 import qualified ParallelUtilities                   as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                as LG
@@ -129,10 +129,10 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
    if null additionSequence then inGraph
    else
-      trace ("RAEW-In: " ++ (show $ length additionSequence)) (
+      -- trace ("RAEW-In: " ++ (show $ length additionSequence)) (
       -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
-      let outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
-          edgesToInvade = (LG.labEdges inDecGraph) L.\\ outgroupEdges
+      let -- outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
+          edgesToInvade = (LG.labEdges inDecGraph) -- L.\\ outgroupEdges
           leafToAdd = V.head additionSequence
 
           -- since this is apporximate--can get a bit off
@@ -144,9 +144,8 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           -- create new tree
           newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
 
-          newSimple' = if V.length additionSequence == 1 then LG.rerootTree (outgroupIndex inGS) newSimple
-                       else LG.rerootTree (outgroupIndex inGS) newSimple
-                       -- else newSimple
+          -- this reroot since could add taxon sister to outgroup
+          newSimple' = LG.rerootTree (outgroupIndex inGS) newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
           -- False flag for static IA--can't do when adding in new leaves
@@ -169,9 +168,9 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       else 
       -}
-      trace ("RAEW-Out: " ++ (show $ length additionSequence))
+      -- trace ("RAEW-Out: " ++ (show $ length additionSequence))
       recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
-      )
+      -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)

@@ -144,45 +144,45 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 getSimAnnealParams :: Bool -> Bool -> Maybe Int -> Maybe Int -> Maybe Int -> Maybe Double -> Maybe Double -> Maybe Int -> Int -> Maybe SAParams
 getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed =
     if (not doAnnealing && not doDrift) then Nothing
-                                 else
-                                    let steps = max 3 (fromJust steps')
-                                        annealingRounds = if annealingRounds' == Nothing then 1
-                                                          else if fromJust annealingRounds' < 1 then 1
-                                                          else fromJust annealingRounds'
+    else
+       let steps = max 3 (fromJust steps')
+           annealingRounds = if annealingRounds' == Nothing then 1
+                             else if fromJust annealingRounds' < 1 then 1
+                             else fromJust annealingRounds'
 
-                                        driftRounds = if driftRounds' == Nothing then 1
-                                                          else if fromJust driftRounds' < 1 then 1
-                                                          else fromJust driftRounds'
+           driftRounds = if driftRounds' == Nothing then 1
+                         else if fromJust driftRounds' < 1 then 1
+                         else fromJust driftRounds'
 
-                                        saMethod = if doDrift && doAnnealing then
-                                                    trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.")
-                                                    Drift
-                                                 else if doDrift then Drift
-                                                 else SimAnneal
+           saMethod = if doDrift && doAnnealing then
+                        trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.")
+                        Drift
+                      else if doDrift then Drift
+                      else SimAnneal
 
-                                        equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
-                                                    else if fromJust acceptEqualProb > 1.0 then 1.0
-                                                    else fromJust acceptEqualProb
+           equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
+                       else if fromJust acceptEqualProb > 1.0 then 1.0
+                       else fromJust acceptEqualProb
 
 
-                                        worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
-                                                      else fromJust acceptWorseFactor
+           worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
+                         else fromJust acceptWorseFactor
 
-                                        changes = if fromJust maxChanges < 0 then 15
-                                                  else fromJust maxChanges
+           changes = if fromJust maxChanges < 0 then 15
+                     else fromJust maxChanges
 
-                                        saValues = SAParams { method = saMethod
-                                                            , numberSteps = steps
-                                                            , currentStep = 0
-                                                            , randomIntegerList = randomIntList rSeed
-                                                            , rounds      = max annealingRounds driftRounds
-                                                            , driftAcceptEqual  = equalProb
-                                                            , driftAcceptWorse  = worseFactor
-                                                            , driftMaxChanges   = changes
-                                                            , driftChanges      = 0
-                                                            }
-                                    in
-                                    Just saValues
+           saValues = SAParams { method = saMethod
+                               , numberSteps = steps
+                               , currentStep = 0
+                               , randomIntegerList = randomIntList rSeed
+                               , rounds      = max annealingRounds driftRounds
+                               , driftAcceptEqual  = equalProb
+                               , driftAcceptWorse  = worseFactor
+                               , driftMaxChanges   = changes
+                               , driftChanges      = 0
+                               }
+       in
+       Just saValues
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
 getSwapParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, [(String, String)])
