@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
---import           Debug.Trace
+import           Debug.Trace
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -74,7 +74,7 @@ swapSPRTBR  :: String
             -> (Maybe SAParams, PhylogeneticGraph)
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph) =
-   -- trace ("In swapSPRTBR:") (
+   trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else
       let numLeaves = V.length $ fst3 inData
@@ -94,15 +94,15 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       -- trace ("SSPRTBR:" ++ (show inGraphNetPenaltyFactor)) (
 
       if inSimAnnealParams == Nothing then
-       -- trace ("Non SA swap") (
-      -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
-      -- Nothing for SimAnneal Params
+        trace ("Non SA swap") (
+        -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+        -- Nothing for SimAnneal Params
          let (swappedGraphs, counter) = swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor inSimAnnealParams
          in
          -- trace ("SWAPSPRTBR: " ++ (show $ fmap snd6 swappedGraphs)) (
          if null swappedGraphs then ([inGraph], counter)
          else (swappedGraphs, counter)
-         -- )
+         )
 
          
       -- simulated annealing/drifting acceptance does a steepest with SA acceptance
@@ -110,31 +110,30 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       -- same at this level method (SA, Drift) choice occurs at lower level
       else
          -- annealed should only yield a single graph
-         --trace ("\tAnnealing/Drifting Swap") (
+         trace ("\tAnnealing/Drifting Swap: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams))) (
          let -- create list of params with unique list of random values for rounds of annealing
-             annealingRounds = rounds $ fromJust inSimAnnealParams
-             newSimAnnealParamList = U.generateUniqueRandList annealingRounds inSimAnnealParams
+             annealDriftRounds = rounds $ fromJust inSimAnnealParams
+             newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
 
              -- this to ensure current step set to 0
-             (annealedGraphs', anealedCounter) = unzip $ (PU.seqParMap rdeepseq (swapAll' swapType inGS inData 1 maxMoveEdgeDist True alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
+             (annealDriftGraphs', anealDriftCounter) = unzip $ (PU.seqParMap rdeepseq (swapAll' swapType inGS inData 1 maxMoveEdgeDist True alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
 
-             annealedGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] $ concat annealedGraphs'
+             -- annealed/Drifted 'mutated' graphs
+             annealDriftGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] $ concat annealDriftGraphs'
 
-             (swappedGraphs, counter) = swapAll' swapType inGS inData numToKeep maxMoveEdgeDist True alternate 0 (min (snd6 inGraph) (snd6 $ head annealedGraphs)) [] annealedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor Nothing
+             -- swap back "normally" if desired for sull drifting/annealing 
+             (swappedGraphs, counter) = swapAll' swapType inGS inData numToKeep maxMoveEdgeDist True alternate 0 (min (snd6 inGraph) (minimum $ fmap snd6 annealDriftGraphs)) [] annealDriftGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
-             -- swap "all" after steepest descent
-             (swappedGraphs', counter') = swapAll' swapType inGS inData numToKeep maxMoveEdgeDist True alternate counter (snd6 $ head swappedGraphs) [] swappedGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor Nothing
-
-             uniqueGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inGraph : swappedGraphs')
+             bestGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : swappedGraphs)
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          --trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs')) (
 
          -- this Bool for Genetic Algorithm mutation step
-         if not returnMutated then (uniqueGraphs, counter' + (sum anealedCounter))
-         else (annealedGraphs, counter' + (sum anealedCounter))
-         -- )
-         -- )
+         if not returnMutated then (bestGraphs, counter + (sum anealDriftCounter))
+         else (annealDriftGraphs, sum anealDriftCounter)
+         )
+         )
 
 
 -- | swapAll' performs branch swapping on all 'break' edges and all readditions
@@ -387,8 +386,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
          let -- this could be made a little paralle--but if lots of threads basically can do all 
              numGraphsToExamine = PU.getNumThreads
              rejoinEdgeList = take numGraphsToExamine rejoinEdges
-             --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
-             rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList 
+             rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
+             --rejoinGraphList = concat $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList 
             
              {--Checking only min but seems to make slower
              newMinCost = if null rejoinGraphList then infinity

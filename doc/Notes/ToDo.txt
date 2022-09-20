@@ -729,3 +729,13 @@ preOrderTreeTraversal
 	(also only for dynmaic/sequence characters)
 
 
+413) wierd error
+	phyg-xc: Prelude.undefined
+CallStack (from HasCallStack):
+  error, called at libraries/base/GHC/Err.hs:74:14 in base:GHC.Err
+  undefined, called at src/Data/HashTable/ST/Basic.hs:214:22 in hashtables-1.3-2dc341e694bb376cf992d1fe3184eb881bab0fb1c5765dec83fdf1c152b82a46:Data.HashTable.ST.Basic
+CallStack (from -prof):
+  Data.HashTable.ST.Basic.CAF (<entire-module>)
+
+  Looks like can be using seqParMap when too many options--changed in swap to chunking parallel
+  	but not as good atra parellel--maybe 1/2 efficiency
