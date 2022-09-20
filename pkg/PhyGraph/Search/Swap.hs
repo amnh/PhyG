@@ -110,7 +110,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       -- same at this level method (SA, Drift) choice occurs at lower level
       else
          -- annealed should only yield a single graph
-         trace ("\tAnnealing/Drifting Swap: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams))) (
+         trace ("\tAnnealing/Drifting Swap: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, currentStep $ fromJust inSimAnnealParams, head $ randomIntegerList $ fromJust inSimAnnealParams, rounds $ fromJust inSimAnnealParams, driftAcceptEqual $ fromJust inSimAnnealParams, driftAcceptWorse $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams))) (
          let -- create list of params with unique list of random values for rounds of annealing
              annealDriftRounds = rounds $ fromJust inSimAnnealParams
              newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
