@@ -211,8 +211,8 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
       else 
          postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost newGraphList
 
--- | postProcessAnnealDrift factors out the poat processing of swap results to allow for clearer code 
--- with "regualr" optimal swapping and simulated annealing/Drifting returns of potentially
+-- | postProcessAnnealDrift factors out the post processing of swap results to allow for clearer code 
+-- with simulated annealing/Drifting returns of potentially
 -- non optimal graphs
 postProcessAnnealDrift :: String
                -> GlobalSettings
@@ -272,9 +272,8 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
          swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
--- | postProcessSwap factors out the poat processing of swap results to allow for clearer code 
--- with "regualr" optimal swapping and simulated annealing/Drifting returns of potentially
--- non optimal graphs
+-- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
+-- with "regular" optimal swapping
 postProcessSwap :: String
                -> GlobalSettings
                -> ProcessedData
@@ -400,9 +399,11 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
 
           newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
       in
-      -- only returns graphs if same of better else empty 
-      if (not . null) newGraphList then newGraphList' 
-      else splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete (tail breakEdgeList)
+      
+      -- only returns graphs if same of better else empty
+      -- adds null o\r better graphs to reurn list 
+      if (not . null) newGraphList && steepest then newGraphList' 
+      else newGraphList' ++ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete (tail breakEdgeList)
 
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping 
 rejoinGraphTuple :: String
