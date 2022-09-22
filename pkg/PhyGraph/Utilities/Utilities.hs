@@ -554,7 +554,7 @@ generateUniqueRandList number inParams =
 
         where updateSAParams a b = a {randomIntegerList = b}
 
--- | driftAccept takes SAParams, currrent best cost, and cadidate cost
+-- | driftAccept takes SAParams, currrent best cost, and candidate cost
 -- and returns a Boolean and an incremented set of params
 driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 driftAccept simAnealVals curBestCost candCost  =
@@ -576,14 +576,15 @@ driftAccept simAnealVals curBestCost candCost  =
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
             -- not always incrementing becasue may not result in changes
+            nextSAParamsResetChanges = Just $ (fromJust simAnealVals) {driftChanges = 0, randomIntegerList = tail randIntList}
             nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
             nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
 
         in
-        -- only increment nnumberof changes for True values
+        -- only increment numberof changes for True values
         if candCost < curBestCost then
             -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
-            (True, nextSAParams)
+            (True, nextSAParamsResetChanges)
 
         else if intRandVal < intAccept then
             -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")

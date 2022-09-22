@@ -719,10 +719,6 @@ preOrderTreeTraversal
 
 408) add paralleize bitpacking-- with option to turn off for memory saving
 
-409) redo fuse
-
-410) redo parallel add/delete/move
-
 411) figure out issue with net move
 
 412) Internal setting of dynamic epsilon
@@ -737,5 +733,8 @@ CallStack (from HasCallStack):
 CallStack (from -prof):
   Data.HashTable.ST.Basic.CAF (<entire-module>)
 
-  Looks like can be using seqParMap when too many options--changed in swap to chunking parallel
-  	but not as good atra parellel--maybe 1/2 efficiency
+ 	I htink this omes form running multiple parallel jobs oni my desktop--not a "program" errro perhaps
+
+ 414) swap unions
+
+ 
