@@ -242,6 +242,7 @@ postProcessAnnealDrift :: String
                -> [PhylogeneticGraph]
                -> ([PhylogeneticGraph], Int, Maybe SAParams)
 postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost newGraphList =
+   trace ("PPA: " ++ (show (newMinCost, curBestCost)) ++ " counts " ++ (show ((currentStep $ fromJust inSimAnnealParams), (numberSteps $ fromJust inSimAnnealParams), (driftChanges $ fromJust inSimAnnealParams), (driftMaxChanges $ fromJust inSimAnnealParams)))) (
    -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost)) (
@@ -254,6 +255,7 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
 
       -- not better so check for drift changes or annealing steps and return if reached maximum number
       else if ((currentStep $ fromJust inSimAnnealParams) == (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) == (driftMaxChanges $ fromJust inSimAnnealParams)) then 
+         trace ("PPA return: " ++ (show (newMinCost, curBestCost))) 
          (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
@@ -262,6 +264,8 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
             swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
          else swapAll' "tbr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+
+      )
 
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
