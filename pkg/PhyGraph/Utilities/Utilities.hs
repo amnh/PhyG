@@ -456,7 +456,7 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- the candidate solution
 -- the basic method is
 --  1) accepts if current is better
---  2) Other wise prob accept = exp(-(e' -e)/T)
+--  2) Otherwise prob accept = exp(-(e' -e)/T)
 -- where T is a step from max to min
 -- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
 -- curStep == 0 random walk (always accept)
@@ -481,9 +481,16 @@ simAnnealAccept inParams curBestCost candCost  =
 
             candCost' = if curBestCost == candCost then candCost + 1
                         else candCost
-                    -- flipped order - (e' -e)
+
+            -- factors here for tweaking
+            energyFactor = 10.0 * (100 * (curBestCost - candCost') / curBestCost)
+            tempFactor' = 10.0 * (fromIntegral $ numSteps - curStep) / (fromIntegral $ numSteps)
+
+            -- flipped order - (e' -e)
             -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-            probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+            probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+
+            probAcceptance =  exp (energyFactor / tempFactor')
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
@@ -495,22 +502,22 @@ simAnnealAccept inParams curBestCost candCost  =
             nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = tail randIntList}
         in
         -- lowest cost-- greedy
-        -- trace ("RA " ++ (show intAccept)) (
+        -- but increment this if using heuristic costs
         if candCost < curBestCost then
-                --trace ("SAB: " ++ (show curStep) ++ " True")
+                -- trace ("SAB: " ++ (show curStep) ++ " Better ")
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " ++ (show curStep) ++ " False")
+                -- trace ("SAEnd: " ++ (show curStep) ++ " Hit limit ")
                 (False, nextSAParams)
 
         -- test for non-lowest temp conditions
         else if intRandVal < intAccept then
-                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True")
+                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) ++ " True")
                 (True, nextSAParams)
         else
-                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False")
+                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) ++ " False")
                 (False, nextSAParams)
         -- )
 
@@ -556,6 +563,7 @@ generateUniqueRandList number inParams =
 
 -- | driftAccept takes SAParams, currrent best cost, and candidate cost
 -- and returns a Boolean and an incremented set of params
+-- this based on a percentage of diffference in graph cost
 driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 driftAccept simAnealVals curBestCost candCost  =
     if simAnealVals == Nothing then error "Nothing value in driftAccept"
@@ -576,15 +584,15 @@ driftAccept simAnealVals curBestCost candCost  =
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
             -- not always incrementing becasue may not result in changes
-            nextSAParamsResetChanges = Just $ (fromJust simAnealVals) {driftChanges = driftMaxChanges $ fromJust simAnealVals, randomIntegerList = tail randIntList}
             nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
             nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
 
         in
         -- only increment numberof changes for True values
+        -- but increment this if using heuristic costs
         if candCost < curBestCost then
             -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
-            (True, nextSAParamsResetChanges)
+            (True, nextSAParams)
 
         else if intRandVal < intAccept then
             -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")

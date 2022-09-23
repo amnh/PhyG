@@ -262,7 +262,7 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
          -}
 
       -- not better so check for drift changes or annealing steps and return if reached maximum number
-      else if ((currentStep $ fromJust inSimAnnealParams) == (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) == (driftMaxChanges $ fromJust inSimAnnealParams)) then 
+      else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then 
          --trace ("PPA return: " ++ (show (newMinCost, curBestCost))) 
          (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
@@ -575,6 +575,10 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
       -- if better than current--pass up and on
       if newMinCost < curBestCost then ([newMinGraph], newMinGraphSAParams)
 
+      -- check if hit step limit--more for SA than drift
+      else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then 
+         (curBestGraphs, inSimAnnealParams)
+
       -- not better so go to SA results
       else 
          -- return first non-empty result
@@ -852,6 +856,11 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                in
                -- trace ("TBR SA Drift better: " ++ (show $ driftChanges $ fromJust newSAParams))
                ([newMinGraph], newSAParams)
+
+            -- check if hit step limit--more for SA than drift
+            else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then 
+                 ([], inSimAnnealParams)
+
             else
                let (acceptGraph, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost minDelta
                    -- banner = if newMinCost <  curBestCost then "TBR heur better"
