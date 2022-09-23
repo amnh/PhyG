@@ -74,7 +74,7 @@ swapSPRTBR  :: String
             -> (Maybe SAParams, PhylogeneticGraph)
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph) =
-   trace ("In swapSPRTBR:") (
+   -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else
       let numLeaves = V.length $ fst3 inData
@@ -94,7 +94,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       -- trace ("SSPRTBR:" ++ (show inGraphNetPenaltyFactor)) (
 
       if inSimAnnealParams == Nothing then
-        trace ("Non SA swap") (
+        -- trace ("Non SA swap") (
         -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
         -- Nothing for SimAnneal Params
          let (swappedGraphs, counter, _) = swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor inSimAnnealParams
@@ -102,7 +102,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
          -- trace ("SWAPSPRTBR: " ++ (show $ fmap snd6 swappedGraphs)) (
          if null swappedGraphs then ([inGraph], counter)
          else (swappedGraphs, counter)
-         )
+         -- )
 
          
       -- simulated annealing/drifting acceptance does a steepest with SA acceptance
@@ -110,7 +110,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       -- same at this level method (SA, Drift) choice occurs at lower level
       else
          -- annealed should only yield a single graph
-         trace ("\tAnnealing/Drifting Swap: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, currentStep $ fromJust inSimAnnealParams, head $ randomIntegerList $ fromJust inSimAnnealParams, rounds $ fromJust inSimAnnealParams, driftAcceptEqual $ fromJust inSimAnnealParams, driftAcceptWorse $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams))) (
+         -- trace ("\tAnnealing/Drifting Swap: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, currentStep $ fromJust inSimAnnealParams, head $ randomIntegerList $ fromJust inSimAnnealParams, rounds $ fromJust inSimAnnealParams, driftAcceptEqual $ fromJust inSimAnnealParams, driftAcceptWorse $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams))) (
          let -- create list of params with unique list of random values for rounds of annealing
              annealDriftRounds = rounds $ fromJust inSimAnnealParams
              newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
@@ -132,8 +132,8 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
          -- this Bool for Genetic Algorithm mutation step
          if not returnMutated then (bestGraphs, counter + (sum anealDriftCounter))
          else (annealDriftGraphs, sum anealDriftCounter)
-         )
-         )
+         -- )
+         -- )
 
 
 -- | swapAll' performs branch swapping on all 'break' edges and all readditions
@@ -199,7 +199,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
           newMinCost = if (not . null) newGraphList' then minimum $ fmap snd6 newGraphList'
                        else infinity 
 
-      in    
+      in  
       -- trace ("Curent min cost: "  ++ (show (newMinCost, curBestCost))) (
 
       -- logic for returning normal swap operations (better only)
@@ -209,7 +209,13 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
 
       -- simulated annealing/Drift post processing      
       else 
+         {-
+         trace ("\tAnnealing/Drifting SwapAll' Before: " ++ swapType ++ (show (method $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, currentStep $ fromJust inSimAnnealParams, head $ randomIntegerList $ fromJust inSimAnnealParams, rounds $ fromJust inSimAnnealParams, driftAcceptEqual $ fromJust inSimAnnealParams, driftAcceptWorse $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams))
+         ++ " \nAfter: " ++ (show (method $ fromJust newSAParams, numberSteps $ fromJust newSAParams, currentStep $ fromJust newSAParams, head $ randomIntegerList $ fromJust newSAParams, rounds $ fromJust newSAParams, driftAcceptEqual $ fromJust newSAParams, driftAcceptWorse $ fromJust newSAParams, driftMaxChanges $ fromJust newSAParams, driftChanges $ fromJust newSAParams))
+          ++ "\nCosts: " ++ (show (newMinCost, curBestCost))) (
+         -}
          postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newGraphList 
+      -- )
 
 -- | postProcessAnnealDrift factors out the post processing of swap results to allow for clearer code 
 -- with simulated annealing/Drifting returns of potentially
@@ -242,20 +248,22 @@ postProcessAnnealDrift :: String
                -> [PhylogeneticGraph]
                -> ([PhylogeneticGraph], Int, Maybe SAParams)
 postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost newGraphList =
-   trace ("PPA: " ++ (show (newMinCost, curBestCost)) ++ " counts " ++ (show ((currentStep $ fromJust inSimAnnealParams), (numberSteps $ fromJust inSimAnnealParams), (driftChanges $ fromJust inSimAnnealParams), (driftMaxChanges $ fromJust inSimAnnealParams)))) (
+   -- trace ("PPA: " ++ (show (newMinCost, curBestCost)) ++ " counts " ++ (show ((currentStep $ fromJust inSimAnnealParams), (numberSteps $ fromJust inSimAnnealParams), (driftChanges $ fromJust inSimAnnealParams), (driftMaxChanges $ fromJust inSimAnnealParams)))) (
    -- found better cost graph
       if newMinCost < curBestCost then
-         traceNoLF ("\t->" ++ (show newMinCost)) (
-         -- for alternarte do SPR first then TBR
+         traceNoLF ("\t->" ++ (show newMinCost)) 
+         (newGraphList, counter, inSimAnnealParams)
+         {-
+         -- for alternate do SPR first then TBR
          if not alternate then 
             swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
          else swapAll' "tbr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-         )
+         -}
 
       -- not better so check for drift changes or annealing steps and return if reached maximum number
       else if ((currentStep $ fromJust inSimAnnealParams) == (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) == (driftMaxChanges $ fromJust inSimAnnealParams)) then 
-         trace ("PPA return: " ++ (show (newMinCost, curBestCost))) 
+         --trace ("PPA return: " ++ (show (newMinCost, curBestCost))) 
          (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
@@ -265,7 +273,7 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
 
          else swapAll' "tbr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList)) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
 
-      )
+      -- )
 
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
@@ -546,7 +554,8 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
       let --based on "steepest"
           numGraphsToExamine = PU.getNumThreads
           rejoinEdgeList = take numGraphsToExamine rejoinEdges
-          rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList 
+          simAnnealParamList = U.generateUniqueRandList numGraphsToExamine inSimAnnealParams
+          rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin' swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
 
           -- mechanics to see if trhere is a better graph in return set
           -- only taking first of each list--so can keep sa params with them--really all should have length == 1 anyway
@@ -579,8 +588,24 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
 
          
                 
-
-      
+-- | singleJoin' is a wrapper arounds singleJoin to allow parMap with individual SAParams
+singleJoin' :: String 
+           -> Bool
+           -> GlobalSettings
+           -> ProcessedData
+           -> DecoratedGraph
+           -> SimpleGraph
+           -> VertexCost 
+           -> Bool
+           -> LG.Node
+           -> LG.Node
+           -> V.Vector (V.Vector CharInfo)
+           -> VertexCost
+           -> [LG.LEdge EdgeInfo]
+           -> (Maybe SAParams, LG.LEdge EdgeInfo)
+           -> ([PhylogeneticGraph], Maybe SAParams)
+singleJoin' swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph (inSimAnnealParams, targetEdge) =
+   singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge
 
 -- | singleJoin takes optimized split graph, split cost, target edge, swap type (ie TBR/SPR/NNI)
 -- and "rejoins" the split graph to a single graph--creates joined graph and calculates a heuristic graph cost 
@@ -665,14 +690,15 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
       -- check if spr better always return if so
       let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
                         if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
-                        else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
-                             else []
+                        else if snd6 rediagnosedSPRGraph < curBestCost then [rediagnosedSPRGraph]
                         else []
+                      else []
       in
       -- spr better than current
       if (not . null) sprResult then
          let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost (snd6 rediagnosedSPRGraph)
          in
+         -- trace ("SPR found better " ++ (show $ snd6 rediagnosedSPRGraph))
          (sprResult, newSAParams)
 
       -- do simAnneal/Drift for SPR and on to tbr if not accept
@@ -681,10 +707,22 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
          in
 
          -- if accepted (better or random) then return with updated annealing/Drift parameters
-         if acceptGraph then ([rediagnosedSPRGraph], newSAParams)
+         if acceptGraph then 
+            {-
+            let banner = if snd6 rediagnosedSPRGraph <  curBestCost then "SPR heur better"
+                         else "Accepted not better"
+            in 
+            trace banner
+            -}
+            ([rediagnosedSPRGraph], newSAParams)
 
          -- rejected--recurse with updated SA params
-         else
+         -- SPR or small prune
+         else if (swapType == "spr") || ((length edgesInPrunedGraph) < 4) then 
+            ([], newSAParams)
+
+         -- tbr
+         else 
             tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' newSAParams targetEdge
    -- )
 
@@ -722,6 +760,7 @@ tbrJoin :: Bool
         -> LG.LEdge EdgeInfo 
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge = 
+   -- trace ("In tbrJoin") (
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
    else 
       -- get target edge data
@@ -781,7 +820,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          -- simulated annealing/Drift stuff
          -- based on steepest type swapping
          else
-            trace ("TBR SA/Drift") (
+            -- trace ("TBR SA/Drift") (
             let numEdgesToExamine = PU.getNumThreads
                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
@@ -790,34 +829,45 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                 rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
 
-                minDelta = minimum $ rerootEdgeDeltaList
-                minEdgeList = fmap fst $ filter ((== minDelta) . snd)  (zip rerootEdgeList rerootEdgeDeltaList)
+                minDelta = if (not . null) rerootEdgeDeltaList then minimum $ rerootEdgeDeltaList
+                           else infinity
+                minEdgeList = if (not . null) rerootEdgeDeltaList then fmap fst $ filter ((== minDelta) . snd)  (zip rerootEdgeList rerootEdgeDeltaList)
+                              else []
                 
                 -- check for possible better/equal graphs and verify
                 candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) minEdgeList
                 rediagnosedGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
 
-                newMinCost = minimum $ fmap snd6 rediagnosedGraphList
+                newMinCost = if (not . null) minEdgeList then minimum $ fmap snd6 rediagnosedGraphList
+                             else infinity
 
                 -- only taking one for SA/Drift check
-                newMinGraph = head $ filter ((== newMinCost) . snd6) rediagnosedGraphList
+                newMinGraph = if newMinCost /= infinity then head $ filter ((== newMinCost) . snd6) rediagnosedGraphList
+                              else emptyPhylogeneticGraph
                 
             in
             -- if better always return it--hope this conditions short circuits so don't fully diagnose graph all the time
             if minDelta < curBestCost && newMinCost < curBestCost then
                let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost newMinCost
                in
+               -- trace ("TBR SA Drift better: " ++ (show $ driftChanges $ fromJust newSAParams))
                ([newMinGraph], newSAParams)
             else
                let (acceptGraph, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost minDelta
+                   -- banner = if newMinCost <  curBestCost then "TBR heur better"
+                   --         else "TBR Accepted not better"
                in
 
                -- if accepted (better or random) then return with updated annealing/Drift parameters
-               if acceptGraph then ([newMinGraph], newSAParams)
+               if acceptGraph then 
+                  -- trace (banner ++ (show $ driftChanges $ fromJust newSAParams))
+                  ([newMinGraph], newSAParams)
 
                -- rejected--recurse wirth updated params
-               else tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) newSAParams targetEdge
-            )
+               else 
+                  -- trace ("TBR SA Drift Reject: " ++ (show $ driftChanges $ fromJust newSAParams))
+                  tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) newSAParams targetEdge
+            -- )
 
 -- | rerootPrunedAndMakeGraph reroots the pruned graph component on the rerootEdge and joins to base gaph at target edge
 rerootPrunedAndMakeGraph :: SimpleGraph -> LG.Node -> LG.Node -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo -> SimpleGraph

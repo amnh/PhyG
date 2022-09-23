@@ -549,7 +549,7 @@ generateUniqueRandList number inParams =
             -- simAnnealParamList = replicate number inParams
             newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList
         in
-        -- trace (show $ fmap (take 1) randIntListList)
+        -- trace ("New random list fist elements: " ++ (show $ fmap (take 1) randIntListList))
         newSimAnnealParamList
 
         where updateSAParams a b = a {randomIntegerList = b}
@@ -566,7 +566,7 @@ driftAccept simAnealVals curBestCost candCost  =
             --- prob acceptance for better, same, and worse costs
             probAcceptance = if candCost < curBestCost then 1.0
                              else if candCost == curBestCost then driftAcceptEqual $ fromJust simAnealVals
-                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + candCost - curBestCost)
+                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + (100.0 * (candCost - curBestCost) / curBestCost))
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
@@ -576,22 +576,22 @@ driftAccept simAnealVals curBestCost candCost  =
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
             -- not always incrementing becasue may not result in changes
-            nextSAParamsResetChanges = Just $ (fromJust simAnealVals) {driftChanges = 0, randomIntegerList = tail randIntList}
+            nextSAParamsResetChanges = Just $ (fromJust simAnealVals) {driftChanges = driftMaxChanges $ fromJust simAnealVals, randomIntegerList = tail randIntList}
             nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
             nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
 
         in
         -- only increment numberof changes for True values
         if candCost < curBestCost then
-            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
             (True, nextSAParamsResetChanges)
 
         else if intRandVal < intAccept then
-            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")
             (True, nextSAParams)
 
         else
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False")
+            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " False")
             (False, nextSAPAramsNoChange)
             -- )
 
