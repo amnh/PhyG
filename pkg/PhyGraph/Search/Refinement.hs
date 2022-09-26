@@ -507,7 +507,7 @@ getNetEdgeParams inArgs =
          else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
          else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
          else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
-
+         else if isNothing maxNetEdges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxNetEdgesList))
          else if isNothing maxRounds       then errorWithoutStackTrace ("Network edit 'rounds' specification not an integer (e.g. rounds:10): "  ++ show (snd $ head maxRoundsList))
 
          else
