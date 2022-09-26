@@ -142,6 +142,10 @@ addDeleteNetEdges' inGS inData leafGraph rSeed maxNetEdges numToKeep maxRounds c
           randIntList = randomIntList rSeed
           (insertGraphList, _) = insertAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList 
 
+          -- this to update randlists in SAPArams for subsequent calls
+          updatedSAParamList = if isJust inSimAnnealParams then U.generateUniqueRandList 2 inSimAnnealParams
+                               else [Nothing, Nothing]
+
          -- if no better--take input for delte phase
           randIntList2 = randomIntList (randIntList !! 1)
           (insertGraphList', insertGraphCost, toDeleteList) = if null insertGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
@@ -151,7 +155,7 @@ addDeleteNetEdges' inGS inData leafGraph rSeed maxNetEdges numToKeep maxRounds c
                                                                   (newList, snd6 $ head newList, newList)
       
          -- delete edges 
-          (deleteGraphList, _) =  deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (insertGraphList', insertGraphCost) randIntList2 inSimAnnealParams toDeleteList 
+          (deleteGraphList, _) =  deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (insertGraphList', insertGraphCost) randIntList2 (head updatedSAParamList) toDeleteList 
 
          -- gather beter if any
           (newBestGraphList, newBestGraphCost, graphsToDoNext) = if null deleteGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
@@ -166,7 +170,7 @@ addDeleteNetEdges' inGS inData leafGraph rSeed maxNetEdges numToKeep maxRounds c
 
       -- if better (or nothing) keep going
       else 
-         addDeleteNetEdges' inGS inData leafGraph (randIntList !! 2) maxNetEdges numToKeep maxRounds (counter + 1) returnMutated doSteepest doRandomOrder (newBestGraphList, newBestGraphCost) inSimAnnealParams graphsToDoNext 
+         addDeleteNetEdges' inGS inData leafGraph (randIntList !! 2) maxNetEdges numToKeep maxRounds (counter + 1) returnMutated doSteepest doRandomOrder (newBestGraphList, newBestGraphCost) (last updatedSAParamList) graphsToDoNext 
       )
 
 -- | moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
