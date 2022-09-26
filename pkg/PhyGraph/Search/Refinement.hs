@@ -299,13 +299,16 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else if doSteepest' && doAll then True
                             else doSteepest'
-               doRandomOrder = any ((=="atrandom").fst) lcArgList
+               doRandomOrder' = any ((=="atrandom").fst) lcArgList
 
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                doAnnealing = any ((=="annealing").fst) lcArgList
 
                doDrift     = any ((=="drift").fst) lcArgList
+
+               --ensures random edge order for drift/annealing
+               doRandomOrder = doRandomOrder' || doDrift || doAnnealing 
 
                returnMutated = any ((=="returnmutated").fst) lcArgList
 

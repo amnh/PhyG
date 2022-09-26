@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -152,6 +152,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
 -- if Alternate then when found better do SPR first then TBR
    -- assumes SPR done before  "alternate" entering so can star with TBR and iff get better
    -- go back to SPR. NBest for "steepest" descent
+-- For drift and anneal need to randomize order of splits and rejoins
 swapAll'  :: String
          -> GlobalSettings
          -> ProcessedData
@@ -174,6 +175,7 @@ swapAll'  :: String
          -> ([PhylogeneticGraph], Int, Maybe SAParams)
 swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams =
    -- trace (" In cost " ++ (show curBestCost) ++ (" " ++ swapType)) (
+   -- don't beed to check for mutated here since checked above
    if null inGraphList then
       -- trace (" Out cost " ++ (show curBestCost) ++ (" " ++ swapType))
       (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] curSameBetterList, counter, inSimAnnealParams)
@@ -185,8 +187,13 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
           -- determine edges to break on--'bridge' edges only for network
           -- filter out edges from root since no use--would just rejoin
           -- sort longest edge to shortest--option to speeed up steepest nd conditions for all as well
-          breakEdgeList = if (graphType inGS) == Tree || LG.isTree firstDecoratedGraph then GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
+          breakEdgeList' = if (graphType inGS) == Tree || LG.isTree firstDecoratedGraph then GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.labEdges firstDecoratedGraph
                           else GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList firstDecoratedGraph
+
+          -- randomize edges list order for anneal and drift
+          breakEdgeList = if isJust inSimAnnealParams then 
+                           permuteList (head $ randomIntegerList $ fromJust inSimAnnealParams) breakEdgeList' 
+                          else breakEdgeList' 
 
           -- perform split and rejoin on each edge in first graph
           (newGraphList', newSAParams) = 
@@ -195,6 +202,9 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
 
           -- get best return graph list-can be empty if nothing better ort smame cost
           newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
+
+          -- get unique return graph list-can be empty if nothing better ort same cost
+          newGraphListUnique = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] newGraphList'
 
           newMinCost = if (not . null) newGraphList' then minimum $ fmap snd6 newGraphList'
                        else infinity 
@@ -214,7 +224,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
          ++ " \nAfter: " ++ (show (method $ fromJust newSAParams, numberSteps $ fromJust newSAParams, currentStep $ fromJust newSAParams, head $ randomIntegerList $ fromJust newSAParams, rounds $ fromJust newSAParams, driftAcceptEqual $ fromJust newSAParams, driftAcceptWorse $ fromJust newSAParams, driftMaxChanges $ fromJust newSAParams, driftChanges $ fromJust newSAParams))
           ++ "\nCosts: " ++ (show (newMinCost, curBestCost))) (
          -}
-         postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newGraphList 
+         postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newGraphListUnique 
       -- )
 
 -- | postProcessAnnealDrift factors out the post processing of swap results to allow for clearer code 
@@ -387,8 +397,13 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
           edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
           
           -- determine those edges within distance of original if limited (ie NNI etc)
-          rejoinEdges = if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
+          rejoinEdges' = if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
                         else take maxMoveEdgeDist $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
+
+          -- randomize edges list order for anneal and drift
+          rejoinEdges = if isJust inSimAnnealParams then 
+                           permuteList ((randomIntegerList $ fromJust inSimAnnealParams) !! 1) rejoinEdges' 
+                          else rejoinEdges' 
 
           -- rejoin graph to all possible edges in base graph
           (newGraphList, newSAParams) = 
@@ -1432,7 +1447,7 @@ rejoinGraphKeepBestSteepest inGS inData swapType hardwiredSPR curBestCost numToK
       if LG.isEmpty splitGraph || null candidateGraphList then ([], inSimAnnealVals)
 
       -- normal steepest--only return if better if equal does not return, but will return multiple
-      else if inSimAnnealVals == Nothing then
+      else if isNothing inSimAnnealVals then
         let candidateGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] candidateGraphList
         in
         if (snd6 $ head candidateGraphList') < curBestCost then
@@ -1471,7 +1486,7 @@ addSubGraphSteepest :: GlobalSettings
 addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRootNode splitCost curBestCost nakedNode onlySPR edgesInPrunedSubGraph charInfoVV inSimAnnealVals targetEdgeList =
    if null targetEdgeList then ([], inSimAnnealVals)
    -- this more for graph fusing checks
-   else if (splitCost > curBestCost) && (inSimAnnealVals == Nothing) then ([], Nothing)
+   else if (splitCost > curBestCost) && (isNothing inSimAnnealVals) then ([], Nothing)
    else
       let targetEdge@(eNode, vNode, _) = head targetEdgeList
           -- existingEdgeCost = minLength targetlabel
@@ -1510,7 +1525,7 @@ addSubGraphSteepest inGS inData swapType hardwiredSPR doIA inGraph prunedGraphRo
 
       -- SPR case
       -- regular non-SA case
-      else if inSimAnnealVals == Nothing then
+      else if isNothing inSimAnnealVals then
           -- better heursitic cost
           -- reoptimize to check  cost
           if (delta + splitCost <= (curBestCost * (dynamicEpsilon inGS))) then
@@ -1587,7 +1602,7 @@ getSubGraphDeltaTBR inGS inData evEdgeData edgeToAddInList edgeToDeleteIn doIA i
       in
 
       -- regular TBR case
-      if inSimAnnealVals == Nothing then
+      if isNothing inSimAnnealVals then
           if subGraphEdgeUnionCost + splitCost <= (curBestCost * (dynamicEpsilon inGS)) then
              -- reoptimize and check
              let splitGraphSimple = GO.convertDecoratedToSimpleGraph inGraph
@@ -1888,7 +1903,7 @@ swapSteepest swapType hardwiredSPR inGS inData numToKeep maxMoveEdgeDist steepes
       -- check that graphs were returned.  If nothing then return in Graph
       if bestSwapCost == infinity then (inGraphList, counter + 1)
 
-      else if inSimAnnealVals == Nothing then
+      else if isNothing inSimAnnealVals then
           if (bestSwapCost < curBestCost) then
              --trace ("Steepest better")
              trace ("\t->" ++ (show bestSwapCost))
