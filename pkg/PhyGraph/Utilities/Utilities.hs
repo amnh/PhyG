@@ -504,20 +504,20 @@ simAnnealAccept inParams curBestCost candCost  =
         -- lowest cost-- greedy
         -- but increment this if using heuristic costs
         if candCost < curBestCost then
-                -- trace ("SAB: " ++ (show curStep) ++ " Better ")
+                trace ("SAB: " ++ (show curStep) ++ " Better ")
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " ++ (show curStep) ++ " Hit limit ")
+                trace ("SAEnd: " ++ (show curStep) ++ " Hit limit ")
                 (False, nextSAParams)
 
         -- test for non-lowest temp conditions
         else if intRandVal < intAccept then
-                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) ++ " True")
+                trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) ++ " True")
                 (True, nextSAParams)
         else
-                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) ++ " False")
+                trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) ++ " False")
                 (False, nextSAParams)
         -- )
 
@@ -591,15 +591,15 @@ driftAccept simAnealVals curBestCost candCost  =
         -- only increment numberof changes for True values
         -- but increment this if using heuristic costs
         if candCost < curBestCost then
-            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
+            trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
             (True, nextSAParams)
 
         else if intRandVal < intAccept then
-            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")
+            trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")
             (True, nextSAParams)
 
         else
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " False")
+            trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " False")
             (False, nextSAPAramsNoChange)
             -- )
 
