@@ -95,12 +95,12 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- create simulated annealing random lists uniquely for each fmap
                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
 
-               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
+               progressString = if (not doAnnealing && not doDrift) then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
                                 else
                                     if (method $ fromJust simAnnealParams) == SimAnneal then
                                         ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
                                     else
-                                        ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                                        ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
 
            in
 
@@ -128,11 +128,11 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                                else (counterSPR', counterTBR', 0)
                   finalGraphList = if null newGraphList'' then inGraphList
                                    else newGraphList''
-                  endString = if not doAnnealing then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
+                  endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
-                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else
-                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                   
               in
               trace (endString)
@@ -225,7 +225,7 @@ getSwapParams inArgs =
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
              -- drift options
-             doDrift     = any ((=="drift").fst) lcArgList
+             doDrift   = any ((=="drift").fst) lcArgList
 
              driftList = filter ((=="drift").fst) lcArgList
              driftRounds'
@@ -245,7 +245,7 @@ getSwapParams inArgs =
              acceptWorseFactor
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptWorseList = Just 1.0
+              | null acceptWorseList = Just 2.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList
@@ -265,4 +265,5 @@ getSwapParams inArgs =
         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
 
         else
+            -- trace ("GSP: " ++ (show inArgs) ++ " " ++ (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
             (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList)
