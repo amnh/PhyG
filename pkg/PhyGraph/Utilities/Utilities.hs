@@ -1,7 +1,7 @@
 {- |
 Module      :  Utilities.hs
 Description :  Module specifying utility functions for use with PhyGraph
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2021-2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -476,8 +476,8 @@ simAnnealAccept inParams curBestCost candCost  =
             curStep  = currentStep simAnealVals
             randIntList = randomIntegerList simAnealVals
 
-            stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-            tempFactor = curBestCost  * stepFactor
+            -- stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+            -- tempFactor = curBestCost  * stepFactor
 
             candCost' = if curBestCost == candCost then candCost + 1
                         else candCost
@@ -488,7 +488,7 @@ simAnnealAccept inParams curBestCost candCost  =
 
             -- flipped order - (e' -e)
             -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-            probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+            -- probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
 
             probAcceptance =  exp (energyFactor / tempFactor')
 

@@ -135,7 +135,6 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
          -- )
          -- )
 
-
 -- | swapAll' performs branch swapping on all 'break' edges and all readditions
 -- this not a "map" version to reduce memory footprint to a more mangeable level
 -- "steepest" a passable option to short circuit readdition action to return immediately 
