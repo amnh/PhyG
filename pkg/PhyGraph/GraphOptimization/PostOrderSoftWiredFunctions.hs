@@ -34,12 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-
-ToDo:
-   Add parallel optimization overblocks and characters?
--}
-
-
 module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrderSoftWired
                                                       , postOrderSoftWiredTraversal
                                                       , postDecorateSoftWired'
@@ -57,6 +51,9 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getBestResolutionListPair
                                                       , getDisplayBasedRerootSoftWired
                                                       , divideDecoratedGraphByBlockAndCharacterTree
+                                                      -- included to quiet warnings
+                                                      , rerootBlockCharTrees'
+                                                      , getCharTreeBestRoot'
                                                       ) where
 
 import           Data.Bits
@@ -74,7 +71,7 @@ import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 -- import Debug.Debug
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | getDisplayBasedRerootSoftWired takes a graph and generates reroot costs for each character of each block

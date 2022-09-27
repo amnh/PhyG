@@ -51,7 +51,13 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , getW23NetPenalty
                                     , getW15RootCost
                                     , generalizedGraphPostOrderTraversal
+                                    -- added to quiet warnings
+                                    , setBetterGraphAssignment
+                                    , makeBetterBlock
+                                    , chooseBetterCharacter
+                                    , minimalReRootPhyloGraph
                                     ) where
+
 
 import qualified Data.List                            as L
 import qualified Data.Vector                          as V
@@ -319,9 +325,11 @@ getW23NetPenalty startVertex inGraph =
     else
         let (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
-            rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
-                        else fromJust startVertex
-            blockPenaltyList = PU.seqParMap rdeepseq (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            
+            -- rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
+            --            else fromJust startVertex
+            
+            -- blockPenaltyList = PU.seqParMap rdeepseq (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
