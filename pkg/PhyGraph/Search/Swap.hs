@@ -527,6 +527,13 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
          else 
             -- trace ("In steepest: " ++ (show PU.getNumThreads) ++ " " ++ (show $ length $ take PU.getNumThreads rejoinEdges)) (
             let -- this could be made a little paralle--but if lots of threads basically can do all 
+                -- to not overload paralle threads
+                {-  This niot so efficient is swapping in single graphs so leaving it be
+                saRounds = if isNothing inSimAnnealParams then 1
+                           else rounds $ fromJust inSimAnnealParams
+                     
+                (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+                -}
                 numGraphsToExamine = PU.getNumThreads
                 rejoinEdgeList = take numGraphsToExamine rejoinEdges
                 --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
@@ -567,6 +574,13 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
    -- otherwise move to next rejoin, changes in graphs counted at higher level
    else 
       let --based on "steepest"
+          -- to not overload paralle threads
+                {-  This niot so efficient is swapping in single graphs so leaving it be
+                saRounds = if isNothing inSimAnnealParams then 1
+                           else rounds $ fromJust inSimAnnealParams
+                     
+                (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+                -}
           numGraphsToExamine = PU.getNumThreads
           rejoinEdgeList = take numGraphsToExamine rejoinEdges
           simAnnealParamList = U.generateUniqueRandList numGraphsToExamine inSimAnnealParams
@@ -815,7 +829,14 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          else 
             -- trace ("TBR steepest") (
             -- get steepest edges
-            let numEdgesToExamine = PU.getNumThreads
+            let -- to not overload paralle threads
+                {-  This niot so efficient is swapping in single graphs so leaving it be
+                saRounds = if isNothing inSimAnnealParams then 1
+                           else rounds $ fromJust inSimAnnealParams
+                     
+                (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+                -}
+                numEdgesToExamine = PU.getNumThreads
                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                 -- get heuristic delta joins for steepest edge set
@@ -840,7 +861,14 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          -- based on steepest type swapping
          else
             -- trace ("TBR SA/Drift") (
-            let numEdgesToExamine = PU.getNumThreads
+            let -- to not overload paralle threads
+                {-  This niot so efficient is swapping in single graphs so leaving it be
+                saRounds = if isNothing inSimAnnealParams then 1
+                           else rounds $ fromJust inSimAnnealParams
+                     
+                (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+                -}
+                numEdgesToExamine = PU.getNumThreads
                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                 -- get heuristic delta joins for steepest edge set
