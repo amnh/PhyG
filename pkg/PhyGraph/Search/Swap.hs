@@ -528,7 +528,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
             -- trace ("In steepest: " ++ (show PU.getNumThreads) ++ " " ++ (show $ length $ take PU.getNumThreads rejoinEdges)) (
             let -- this could be made a little paralle--but if lots of threads basically can do all 
                 -- to not overload paralle threads
-                {-  This niot so efficient is swapping in single graphs so leaving it be
+                {-  This not so efficient is swapping in single graphs so leaving it be
                 saRounds = if isNothing inSimAnnealParams then 1
                            else rounds $ fromJust inSimAnnealParams
                      
@@ -575,7 +575,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
    else 
       let --based on "steepest"
           -- to not overload paralle threads
-                {-  This niot so efficient is swapping in single graphs so leaving it be
+                {-  This not so efficient is swapping in single graphs so leaving it be
                 saRounds = if isNothing inSimAnnealParams then 1
                            else rounds $ fromJust inSimAnnealParams
                      
@@ -830,7 +830,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
             -- trace ("TBR steepest") (
             -- get steepest edges
             let -- to not overload paralle threads
-                {-  This niot so efficient is swapping in single graphs so leaving it be
+                {-  This not so efficient is swapping in single graphs so leaving it be
                 saRounds = if isNothing inSimAnnealParams then 1
                            else rounds $ fromJust inSimAnnealParams
                      
@@ -862,7 +862,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          else
             -- trace ("TBR SA/Drift") (
             let -- to not overload paralle threads
-                {-  This niot so efficient is swapping in single graphs so leaving it be
+                {-  This not so efficient is swapping in single graphs so leaving it be
                 saRounds = if isNothing inSimAnnealParams then 1
                            else rounds $ fromJust inSimAnnealParams
                      
