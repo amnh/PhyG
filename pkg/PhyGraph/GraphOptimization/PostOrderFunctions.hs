@@ -50,7 +50,7 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              ) where
 
 import           Data.Bits
-import qualified Data.BitVector.LittleEndian as BV
+-- import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
@@ -61,8 +61,8 @@ import qualified Graphs.GraphOperations      as GO
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities           as PU
+-- import           Control.Parallel.Strategies
+-- import qualified ParallelUtilities           as PU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Debug.Trace
 

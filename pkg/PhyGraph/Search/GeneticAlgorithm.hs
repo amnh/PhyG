@@ -44,6 +44,7 @@ import qualified Search.NetworkAddDelete              as N
 import qualified Search.Swap                          as S
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
+import           Debug.Trace
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -63,6 +64,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
     if null inGraphList then ([], 0)
     else if generationCounter == generations then  (inGraphList, generationCounter)
     else
+        trace ("Genetic algorithm generation: " ++ (show generationCounter)) (
         let seedList = randomIntList rSeed
 
             -- get elite list of best solutions
@@ -112,12 +114,12 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
         if newCost < (snd6 $ head initialEliteList) then
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations selectedGraphs
 
-        -- if noew graphs not better then add in elites toi ensure monotonic decrease in cost
+        -- if new graphs not better then add in elites to ensure monotonic decrease in cost
         else
             let newGraphList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (initialEliteList ++ selectedGraphs)
             in
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations newGraphList
-        -- )
+        )
 
 -- | mutateGraph mutates a graph using drift functionality
 mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
@@ -125,17 +127,17 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else
         let randList = randomIntList rSeed
-            saValues = Just $ SAParams { method = Drift
-                                , numberSteps = 0
-                                , currentStep = 0
-                                , randomIntegerList = randomIntList rSeed
-                                , rounds      = 1
-                                , driftAcceptEqual  = 0.67
-                                , driftAcceptWorse  = 0.0
-                                -- this could be an important factor don't want too severe, but significant
-                                , driftMaxChanges   = getRandomElement (randList !! 1) [1,2,4] -- or something
-                                , driftChanges      = 0
-                                }
+            saValues = Just $ SAParams  { method = Drift
+                                        , numberSteps = 0
+                                        , currentStep = 0
+                                        , randomIntegerList = randomIntList rSeed
+                                        , rounds      = 1
+                                        , driftAcceptEqual  = 0.5
+                                        , driftAcceptWorse  = 2.0
+                                        -- this could be an important factor don't want too severe, but significant
+                                        , driftMaxChanges   = getRandomElement (randList !! 1) [1,2,4,8] -- or something
+                                        , driftChanges      = 0
+                                        }
         in
         let --randomize edit type
             editType = getRandomElement (randList !! 0) ["swap", "netEdge"]
@@ -143,7 +145,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             -- randomize Swap parameters
             alternate = True
             numToKeep = 1
-            maxMoveEdgeDist = 10
+            maxMoveEdgeDist = 10000
             steepest = True
             doIA = False
             returnMutated = True
@@ -151,7 +153,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             swapType = getRandomElement (randList !! 2) ["spr","tbr"]
 
             --randomize network edit parameters
-            netEditType = getRandomElement (randList !! 3) ["netAdd", "netDelete", "netMove", "netAddDelete"]
+            netEditType = getRandomElement (randList !! 3) ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
             doRandomOrder = True
             maxRounds = getRandomElement (randList !! 4) [1..5]
 

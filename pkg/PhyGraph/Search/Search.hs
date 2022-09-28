@@ -207,7 +207,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
       -- choose a method and paramteres at random
       else
          let operation = if (graphType inGS == Tree) then getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"]
-                         else getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift", "netAdd", "netDelete", "netMove"] -- add/del/move edges with and without drifting
+                         else getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift", "netAdd", "netDelete"] -- , "netMove"] -- add/del/move edges with and without drifting
 
              -- this so 1/2 time annealing
              saDrift = getRandomElement (randIntList !! 19) ["noSA", "noSA", "drift", "anneal"]
