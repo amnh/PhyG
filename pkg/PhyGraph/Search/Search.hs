@@ -96,10 +96,12 @@ searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inComment
    let remainingTime = allotedSeconds `timeDifference` elapsedSecondsThreadAdjusted
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
-                      , "Ellapsed \t" <> show elapsedSeconds
+                      , "Ellapsed \t" <> show elapsedSecondsThreadAdjusted
+                      -- , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if elapsedSeconds >= allotedSeconds
+   if elapsedSecondsThreadAdjusted >= allotedSeconds
+   -- if elapsedSeconds >= allotedSeconds
    then pure output
    else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
