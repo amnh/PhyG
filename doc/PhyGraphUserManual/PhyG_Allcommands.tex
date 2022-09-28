@@ -834,9 +834,10 @@
 			DO has an additional factor of potentially $O(n^2)$ in sequence length compared 
 			to the constant factor for IA due to additional graph traversals.
 			
-			\item[graphFactor:nopenalty|W15|PMDL] Sets the network penalty for a soft-wired network\\ 
-			(\texttt{|W15}) or \texttt{PMDL} (for criterion = PMDL). W15 employs the
-			parsimony network penalty of \cite{Wheeler2015}.
+			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a soft-wired network\\ 
+			(\texttt{W15}),  (\texttt{W23}), or \texttt{PMDL} (for criterion = PMDL). W15 employs the
+			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
+			W15, but with the penalty applied to all blocks (more severe).
 			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
@@ -1034,8 +1035,13 @@
 			graph optimization proceeds in the default manner with sequence characters treated 
 			in their non-aligned (``dynamic'') condition.
 			
+			\item[dynamicEpsilon] Sets the level at which heuristic graph costs are verified by full (and time consuming) traversal.  
+			Candidate graphs with costs within dynamicEpsilon of the current best graph are verified.
+			
 			\item[first] In concert with \texttt{displayTrees:n} specifies that the first $n$ displays tree 
-			resolutions are chosen for each input graph..
+			resolutions are chosen for each input graph.
+			
+			\item[outgroup:STRING]  Sets the outgroup to the taxon with the name STRING.
 			
 			\item[staticApprox] Converts non-aligned (``dynamic'') sequence characters to their Implied 
 			Alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
