@@ -475,6 +475,7 @@ simAnnealAccept inParams curBestCost candCost  =
             numSteps = numberSteps simAnealVals
             curStep  = currentStep simAnealVals
             randIntList = randomIntegerList simAnealVals
+            randIntListTail = tail randIntList
 
             -- stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
             -- tempFactor = curBestCost  * stepFactor
@@ -499,7 +500,7 @@ simAnnealAccept inParams curBestCost candCost  =
             -- use remainder for testing--passing infinite list and take head
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
-            nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = tail randIntList}
+            nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = randIntListTail}
         in
         -- lowest cost-- greedy
         -- but increment this if using heuristic costs
@@ -570,6 +571,7 @@ driftAccept simAnealVals curBestCost candCost  =
     else
         let curNumChanges = driftChanges $ fromJust simAnealVals
             randIntList = randomIntegerList $ fromJust simAnealVals
+            randIntListTail = tail randIntList
 
             --- prob acceptance for better, same, and worse costs
             probAcceptance = if candCost < curBestCost then 1.0
@@ -584,8 +586,8 @@ driftAccept simAnealVals curBestCost candCost  =
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
 
             -- not always incrementing becasue may not result in changes
-            nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
-            nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
+            nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = randIntListTail}
+            nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = randIntListTail}
 
         in
         -- only increment numberof changes for True values

@@ -316,7 +316,7 @@ makeStaticApprox inGS inData inGraph =
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       newProcessedData'
 
-   else error ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS))
+   else trace ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS) ++ " skipping") inData
 
 
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 

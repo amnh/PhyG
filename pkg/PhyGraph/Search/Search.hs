@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-module Search.Search  (search
+module Search.Search  ( search
                       ) where
 
 import qualified Commands.Transform           as TRANS
@@ -54,12 +54,13 @@ import qualified Search.Refinement            as R
 import           System.Timing
 import           Text.Read
 import           Types.Types
+import           Debug.Trace
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
 uncurry3' f (a, b, c) = force <$> f a b c
 
--- | search timed randomized search returns graph list and comment list with info String for each serch instance
+-- | search timed randomized search returns graph list and comment list with info String for each search instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
    let (searchTime, keepNum, instances) = getSearchParams inArgs
@@ -67,7 +68,10 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
        searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
-   in  do  --  threadCount <- (max 1) <$> getNumCapabilities
+   in 
+   trace ("Randomized seach for " ++ (show searchTime) ++ " seconds with " ++ (show instances) ++ " instances keeping at most " ++ (show keepNum) ++ " graphs") (
+            
+        do  --  threadCount <- (max 1) <$> getNumCapabilities
            let threadCount = instances -- <- (max 1) <$> getNumCapabilities
            let startGraphs = replicate threadCount (inGraphList, mempty)
            let threadInits = zip3 infoIndices seadStreams startGraphs
@@ -78,6 +82,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    filteredGraphList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] completeGraphList
                    selectedGraphList = take keepNum filteredGraphList
                in  (selectedGraphList, commentList)
+    )
 
 
 searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
@@ -178,8 +183,8 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
           ((inGS, _, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                (TRANS.transform [("staticapprox",[])] inGS inData' inData' 0 inGraphList', "StaticApprox ")
-                                                              else ((inGS', inData', inData', inGraphList'), "")
+                                                                    (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
+                                                                 else ((inGS', inData', inData', inGraphList'), "")
 
 
       in
