@@ -55,6 +55,7 @@ import           System.Timing
 import           Text.Read
 import           Types.Types
 import           Debug.Trace
+import qualified ParallelUtilities            as PU
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
@@ -84,19 +85,21 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                in  (selectedGraphList, commentList)
     )
 
-
+-- this CPUtime is total over all threads--not wall clock
 searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOp $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
-   let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
+   let elapsedSecondsThreadAdjusted = fromSeconds $ fromIntegral (fst $ divMod (read (show $ toSeconds elapsedSeconds) :: Int) (read (show PU.getNumThreads) :: Int)) 
+   -- let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
+   let remainingTime = allotedSeconds `timeDifference` elapsedSecondsThreadAdjusted
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if   elapsedSeconds >= allotedSeconds
+   if elapsedSeconds >= allotedSeconds
    then pure output
    else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
