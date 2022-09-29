@@ -47,7 +47,7 @@ import           Data.Foldable
 import qualified Data.List                    as L
 import           Data.Maybe
 import           GeneralUtilities
-import qualified GraphOptimization.Traversals as T
+-- import qualified GraphOptimization.Traversals as T
 import qualified Graphs.GraphOperations       as GO
 import qualified Search.Build                 as B
 import qualified Search.Refinement            as R
@@ -65,7 +65,7 @@ uncurry3' f (a, b, c) = force <$> f a b c
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
    let (searchTime, keepNum, instances) = getSearchParams inArgs
-       threshold   = fromSeconds . fromIntegral $ (9 * searchTime) `div` 10
+       threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
        searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
@@ -170,7 +170,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
           -- drift options
           maxChanges = getRandomElement (randIntList !! 15) ["5", "10", "15"]
           acceptEqual = getRandomElement (randIntList !! 16) ["0.1", "0.5", "0.75"]
-          acceptWorse = getRandomElement (randIntList !! 17) ["0.0", "2.0", "10.0"]
+          acceptWorse = getRandomElement (randIntList !! 17) ["10.0", "20.0", "40"]
 
           drfitArgs = [("drift", ""),("maxChanges", maxChanges), ("acceptEqual", acceptEqual), ("acceptWorse", acceptWorse)]
 
@@ -187,9 +187,9 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
 
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
-          ((inGS, _, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                    (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
-                                                                 else ((inGS', inData', inData', inGraphList'), "")
+          ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
+                                                                        else ((inGS', inData', inData', inGraphList'), "")
 
 
       in
@@ -222,56 +222,67 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
              -- this so 1/2 time annealing
              saDrift = getRandomElement (randIntList !! 19) ["noSA", "noSA", "drift", "anneal"]
 
+             {-
              -- for rediagnosis after static approx
              -- sequential rediagnosis since assuming that if in parallel teh search operations are running in parallel
              pruneEdges = False
              warnPruneEdges = False
              startVertex = Nothing
+             -}
          in
          if operation == "buildSwap" then
             let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
                 uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs) ++ transString
             in
             (uniqueGraphs, [searchString])
 
          else if operation == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs)
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
             in
             (uniqueGraphs, [searchString])
 
          else if operation == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs)
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
             in
             (uniqueGraphs, [searchString])
 
          else if operation == "swapDrift" then
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs)
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
             in
             (uniqueGraphs, [searchString])
 
          else if operation == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs)
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
             in
             (uniqueGraphs, [searchString])
 
@@ -281,9 +292,11 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
                                else netMoveArgs ++ simulatedAnnealArgs
                 netMoveGraphs = R.netEdgeMaster netMoveArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netMoveGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs')
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs') ++ transString
             in
             (uniqueGraphs, [searchString])
 
@@ -293,9 +306,11 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
                               else netAddArgs ++ simulatedAnnealArgs
                 netAddGraphs = R.netEdgeMaster netAddArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netAddGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs')
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs') ++ transString
             in
             (uniqueGraphs, [searchString])
 
@@ -305,9 +320,11 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
                               else netDelArgs ++ simulatedAnnealArgs
                 netDelGraphs = R.netEdgeMaster netDelArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netDelGraphs ++ inGraphList)
-                uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
-                               else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs')
+                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic ")
+                                              -- if not transformToStaticApproximation then uniqueGraphs'
+                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
+                searchString = staticApproxString ++ "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs') ++ transString
             in
             (uniqueGraphs, [searchString])
 
