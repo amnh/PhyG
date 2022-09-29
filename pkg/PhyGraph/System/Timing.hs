@@ -13,6 +13,7 @@ module System.Timing
   , toSeconds
   , timeDifference
   , timeOp
+  , timeOpUT
   ) where
 
 
@@ -21,6 +22,7 @@ import           Control.Monad.IO.Class
 import           Data.Foldable
 import           Numeric.Natural
 import           System.CPUTime
+import           Data.Time.Clock
 
 
 -- | CPU time with picosecond resolution
@@ -67,6 +69,15 @@ timeOp ioa = do
     t2 <- liftIO getCPUTime
     let t = CPUTime . fromIntegral $ t2 - t1
     pure (t, a)
+
+timeOpUT :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)
+timeOpUT ioa = do
+    t1 <- liftIO getCurrentTime
+    a  <- force <$> ioa
+    t2 <- liftIO getCurrentTime
+    let t = CPUTime . fromIntegral $ floor $ nominalDiffTimeToSeconds (diffUTCTime t2 t1)
+    pure (t, a)
+
 
 
 timeDifference :: CPUTime -> CPUTime -> CPUTime

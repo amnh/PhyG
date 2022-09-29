@@ -86,22 +86,21 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
     )
 
 -- this CPUtime is total over all threads--not wall clock
+-- so changed to crappier getCurrentTime in System.Timing to
+-- get wall clock-like ellapsed time
 searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
-   (elapsedSeconds, output) <- timeOp $
+   (elapsedSeconds, output) <- timeOpUT $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
-   let elapsedSecondsThreadAdjusted = fromSeconds $ fromIntegral (fst $ divMod (read (show $ toSeconds elapsedSeconds) :: Int) (read (show PU.getNumThreads) :: Int)) 
-   -- let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
-   let remainingTime = allotedSeconds `timeDifference` elapsedSecondsThreadAdjusted
+   let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
-                      , "Ellapsed \t" <> show elapsedSecondsThreadAdjusted
-                      -- , "Ellapsed \t" <> show elapsedSeconds
+                      -- , "Ellapsed \t" <> show elapsedSecondsThreadAdjusted
+                      , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if elapsedSecondsThreadAdjusted >= allotedSeconds
-   -- if elapsedSeconds >= allotedSeconds
+   if elapsedSeconds >= allotedSeconds
    then pure output
    else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
