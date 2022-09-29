@@ -55,7 +55,7 @@ import           System.Timing
 import           Text.Read
 import           Types.Types
 import           Debug.Trace
-import qualified ParallelUtilities            as PU
+
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
@@ -90,7 +90,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
 -- get wall clock-like ellapsed time
 searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
-   (elapsedSeconds, output) <- timeOpUT $
+   (elapsedSeconds, output) <- timeOpThread $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
