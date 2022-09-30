@@ -245,7 +245,7 @@ getSwapParams inArgs =
              acceptWorseFactor
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptWorseList = Just 2.0
+              | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList

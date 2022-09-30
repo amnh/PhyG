@@ -197,7 +197,8 @@ getGeneticAlgParams inArgs =
 -- the functions make heavy use of branch swapping functions in Search.Swap
 fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 fuseGraphs inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then trace ("No graphs to fuse") []
+   if null inGraphList then trace ("Fusing--skipped: No graphs to fuse") []
+   else if length inGraphList == 1 then trace ("Fusing--skipped: Need > 1 graphs to fuse") inGraphList
    else
      trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
 
@@ -480,7 +481,7 @@ getNetEdgeParams inArgs =
              acceptWorseFactor
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptWorseList = Just 2.0
+              | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList

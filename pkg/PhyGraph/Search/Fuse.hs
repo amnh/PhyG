@@ -80,6 +80,7 @@ fuseAllGraphs :: GlobalSettings
               -> ([PhylogeneticGraph], Int)
 fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs inGraphList =
    if null inGraphList then ([], 0)
+   else if length inGraphList == 1 then (inGraphList, 0)
    else
       let -- getting values to be passed for graph diagnosis later
          numLeaves = V.length $ fst3 inData

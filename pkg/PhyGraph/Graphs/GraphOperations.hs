@@ -320,8 +320,21 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     --trace ("Resolveing " ++ show (inNum, outNum)) (
     let numNodes = length $ LG.nodes inGraph
     in
-    -- isolated node -- throw error
-    if inNum == 0 && outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ show curNode ++ " in graph\n" ++ LG.prettify inGraph )
+    -- isolated node -- throw warning and delete
+    if inNum == 0 && outNum == 0 then 
+      trace ("Warning: ResolveNode deleting isolated vertex " ++ show curNode) ( --  ++ " in graph\n" ++ LG.prettify inGraph )
+      let newGraph = LG.delNode curNode inGraph
+      in
+      newGraph
+      )
+
+    -- check if indegree 0 is a leaf (ie index < root)
+    else if outNum == 0 then
+      -- get root index 
+      let rootIndex = fst $ head $ LG.getRoots inGraph
+      in
+      if curNode < rootIndex then inGraph
+      else LG.delNode curNode inGraph
 
     -- indegree 1 outdegree 1 node to contract
     else if inNum == 1 && outNum == 1 then

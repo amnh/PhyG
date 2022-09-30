@@ -13,6 +13,8 @@ module System.Timing
   , toSeconds
   , timeDifference
   , timeOp
+  , timeOpUT
+  , timeOpThread
   ) where
 
 
@@ -21,7 +23,8 @@ import           Control.Monad.IO.Class
 import           Data.Foldable
 import           Numeric.Natural
 import           System.CPUTime
-
+import           Data.Time.Clock
+import qualified ParallelUtilities            as PU
 
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural
@@ -68,6 +71,22 @@ timeOp ioa = do
     let t = CPUTime . fromIntegral $ t2 - t1
     pure (t, a)
 
+timeOpThread :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)
+timeOpThread ioa = do
+    t1 <- liftIO getCPUTime
+    a  <- force <$> ioa
+    t2 <- liftIO getCPUTime
+    let t = CPUTime . fromIntegral $ fst $ divMod (t2 - t1) (fromIntegral PU.getNumThreads)
+    pure (t, a)
+
+-- unit in pico second or something so not what I want in seconds
+timeOpUT :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)
+timeOpUT ioa = do
+    t1 <- liftIO getCurrentTime
+    a  <- force <$> ioa
+    t2 <- liftIO getCurrentTime
+    let t = CPUTime . fromIntegral $ 1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime t2 t1)))
+    pure (t, a)
 
 timeDifference :: CPUTime -> CPUTime -> CPUTime
 timeDifference (CPUTime a) (CPUTime b) = CPUTime $ max a b - min a b

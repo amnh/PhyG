@@ -145,7 +145,7 @@ makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
   if myVertex < nLeaves then [leafNodes V.! myVertex]
     else
       let myChildren = G.suc inGraph myVertex
-          myChildrenNodes = fmap (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
+          myChildrenNodes = PU.seqParMap rdeepseq (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
 
           rawBV = BV.or $ fmap (snd . head) myChildrenNodes
           myBV = if (length myChildren /= 1) then rawBV
@@ -169,7 +169,7 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
 
         -- recurse to children since assume only leaves can be labbeled with BV.BVs
         -- fmap becasue could be > 2 (as in at root)
-        rootChildNewNodes = fmap (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
+        rootChildNewNodes = PU.seqParMap rdeepseq (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
 
         -- check if outdegree = 1
         rawBV = BV.or $ fmap (snd . head) rootChildNewNodes
