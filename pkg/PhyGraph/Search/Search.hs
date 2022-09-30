@@ -103,7 +103,10 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor t
    (elapsedSeconds, output) <- timeOpUT $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample mFactor thetaList (head seedList) input
        in  pure result
-   let updatedThetaList = thetaList
+
+   -- update theta list based on performance    
+   let updatedThetaList = updateTheta mFactor counter (snd output) thetaList 
+
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
@@ -113,6 +116,14 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor t
    if elapsedSeconds >= allotedSeconds
    then pure output
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor updatedThetaList (counter + 1) remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
+
+-- | updateTheta updates the expected success parameters for the bandit search list
+updateTheta :: Int -> Int -> [String] -> [Double] -> [Double]
+updateTheta  mFactor counter performanceStringList inList =
+    if null inList then []
+    else 
+        inList
+
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
