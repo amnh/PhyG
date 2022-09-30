@@ -76,7 +76,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                        else []
        
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor flatThetaList threshold []
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor flatThetaList 0 threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
    in 
@@ -98,8 +98,8 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
-searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> Int -> [Double] -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor thetaList allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
+searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> Int -> [Double] -> Int ->  CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor thetaList counter allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOpUT $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample mFactor thetaList (head seedList) input
        in  pure result
@@ -112,7 +112,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor t
                       ]
    if elapsedSeconds >= allotedSeconds
    then pure output
-   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor updatedThetaList remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
+   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor updatedThetaList (counter + 1) remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
