@@ -64,9 +64,9 @@ uncurry3' f (a, b, c) = force <$> f a b c
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
-   let (searchTime, keepNum, instances) = getSearchParams inArgs
+   let (searchTime, keepNum, instances, thompsonSample, mFactor) = getSearchParams inArgs
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum threshold []
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
    in 
@@ -88,10 +88,10 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
-searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
+searchForDuration :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> Int -> CPUTime -> [String] -> Int -> [Int] -> ([PhylogeneticGraph], [String]) -> IO ([PhylogeneticGraph], [String])
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOpUT $
-       let result = force $ performSearch inGS inData pairwiseDistances keepNum (head seedList) input
+       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample mFactor (head seedList) input
        in  pure result
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
@@ -101,13 +101,13 @@ searchForDuration inGS inData pairwiseDistances keepNum allotedSeconds inComment
                       ]
    if elapsedSeconds >= allotedSeconds
    then pure output
-   else searchForDuration inGS inData pairwiseDistances keepNum remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
+   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 
 -- | perform search takes in put graphs and performs randomized build and search with time limit
 -- if run completres before 90% of time limit then will keep going
-performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
+performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> Int -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
+performSearch inGS' inData' pairwiseDistances keepNum thompsonSample mFactor rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let randIntList = randomIntList rSeed
           buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
@@ -331,7 +331,7 @@ performSearch inGS' inData' pairwiseDistances keepNum rSeed (inGraphList', _) =
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | getSearchParams takes arguments and returns search params
-getSearchParams :: [Argument] -> (Int, Int, Int)
+getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int)
 getSearchParams inArgs =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
@@ -383,6 +383,15 @@ getSearchParams inArgs =
             | null secondsList = Just 30
             | otherwise = readMaybe (snd $ head secondsList) :: Maybe Int
 
+          thompsonList = filter ((=="thompson").fst) lcArgList
+          mFactor
+            | length thompsonList > 1 =
+              errorWithoutStackTrace ("Multiple 'Thompson' number specifications in search command--can have only one: " ++ show inArgs)
+            | null thompsonList = Just 1
+            | otherwise = readMaybe (snd $ head thompsonList) :: Maybe Int
+
+          thompson = any ((=="thompson").fst) lcArgList
+
       in
       if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
       else if isNothing instances then errorWithoutStackTrace ("Instnaces specification not an integer in search: "  ++ show (head instancesList))
@@ -390,11 +399,12 @@ getSearchParams inArgs =
       else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
       else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
       else if isNothing seconds then errorWithoutStackTrace ("seconds factor specification not an integer in search: "  ++ show (head secondsList))
+      else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer in search: "  ++ show (head secondsList))
 
       else
          let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
                         else seconds
              searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
          in
-         (searchTime, fromJust keepNum, fromJust instances)
+         (searchTime, fromJust keepNum, fromJust instances, thompson, fromJust mFactor)
 
