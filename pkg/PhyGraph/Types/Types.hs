@@ -201,6 +201,7 @@ data  GlobalSettings
     , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
     , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
     , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
+    , fractionDynamic     :: Double -- estimated gfraction of charcater length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , dynamicEpsilon      :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
     } deriving stock (Show, Eq)
 
@@ -519,6 +520,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bc8 = (0.0,1.0)
                                      , bc64 = (0.0,1.0)
                                      , bcgt64 = (0.0,1.0)
+                                     , fractionDynamic = 1.0
                                      , dynamicEpsilon = 1.02
                                      }
 

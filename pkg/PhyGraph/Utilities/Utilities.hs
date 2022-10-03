@@ -306,8 +306,8 @@ getNumberPrealignedCharacters blockDataVect =
         in
         sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
 
--- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequen ce) characters
--- ised to special case datasets with limited non-exact characters
+-- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequence) characters
+-- utilised to special case datasets with limited non-exact characters
 getNumberSequenceCharacters :: V.Vector BlockData -> Int
 getNumberSequenceCharacters blockDataVect =
     if V.null blockDataVect then 0
@@ -317,6 +317,46 @@ getNumberSequenceCharacters blockDataVect =
             sequenceChars = length $ V.filter (== True) $ V.map (`elem` sequenceCharacterTypes) characterTypes
         in
         sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
+
+-- | getLengthSequenceCharacters takes processed data and returns the total length (maximum) of non-exact (= sequence) characters
+-- utilised to get rough estimate of fraction of non-exact characters for 
+-- dynamic epsilon adjustment to data types
+-- maximum since that ius th eminimum length of optimized HTU sequences
+getLengthSequenceCharacters :: V.Vector BlockData -> Int
+getLengthSequenceCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else
+        let -- get character info 
+            firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+
+            -- get sequences in block
+            firstBlockCharacters = GU.snd3 $ V.head blockDataVect
+            (sequenceCharVect, _) = V.unzip $ V.filter ((== True) . snd) $ (V.zip firstBlockCharacters (V.map (`elem` sequenceCharacterTypes) characterTypes))
+
+            -- get max length sequence data
+            sequenceCharsLength = V.sum $ fmap V.maximum $ fmap (fmap getMaxCharLength) sequenceCharVect
+
+        in
+        -- trace ("GLSC: " ++ (show (sequenceCharsLength, V.length firstBlockCharacters, fmap V.length firstBlockCharacters)))
+        sequenceCharsLength + getLengthSequenceCharacters (V.tail blockDataVect)
+
+-- | getMaxCharLength takes characterData and returns the length of the longest character field from preliminary
+getMaxCharLength :: CharacterData -> Int
+getMaxCharLength inChardata = 
+    let nonAdd = (V.length . fst3) $ stateBVPrelim inChardata
+        add = (V.length . fst3) $ rangePrelim inChardata
+        matrix = V.length  $ matrixStatesPrelim inChardata
+        slim  = (SV.length . fst3) $ slimGapped inChardata
+        wide = (UV.length . fst3) $ wideGapped inChardata
+        huge = (V.length . fst3) $ hugeGapped inChardata
+        aSlim = (SV.length . fst3) $ alignedSlimPrelim inChardata
+        aWide = (UV.length . fst3) $ alignedWidePrelim inChardata
+        aHuge = (V.length . fst3) $ alignedHugePrelim inChardata
+    in 
+    -- trace ("GMCL: " ++ (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
+    maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]
+
 
 -- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
 -- ised to special case datasets with limited non-exact characters
@@ -329,6 +369,15 @@ getNumberExactCharacters blockDataVect =
             exactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
         in
         exactChars + getNumberExactCharacters (V.tail blockDataVect)
+
+
+-- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
+getFractionDynamic :: ProcessedData -> Double
+getFractionDynamic inData =
+    let numStaticCharacters = getNumberExactCharacters $ thd3 inData
+        lengthDynamicCharacters = getLengthSequenceCharacters $ thd3 inData
+    in
+    (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)
 
 -- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact (Add, NonAdd, Matrix) and sequence characters
 -- (= nonExact) using accumulators

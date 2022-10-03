@@ -216,7 +216,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " ++ (show (snd $ head changeEpsilonBlock)))
                else 
                   trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
-                  (inGS {dynamicEpsilon = fromJust epsilonValue}, origData, inData, inGraphList)
+                  (inGS {dynamicEpsilon = 1.0 + ((fromJust epsilonValue) * (fractionDynamic inGS))}, origData, inData, inGraphList)
 
             else if reRoot then 
                if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))

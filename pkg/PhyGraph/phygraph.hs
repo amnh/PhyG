@@ -187,6 +187,11 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
+    -- get mix of static/dynamic characters to adjust dynmaicEpsilon
+    -- doing on naive data so no packing etc
+
+    let fractionDynamicData = U.getFractionDynamic naiveData
+
     -- Group Data--all nonadditives to single character, additives with 
     -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
@@ -219,11 +224,13 @@ main = do
     -- Set global vaues before search--should be integrated with executing commands
     -- only stuff that is data dependent here (and seed)
     let defaultGlobalSettings = emptyGlobalSettings { outgroupIndex = 0
-                                               , outGroupName = head dataLeafNames
-                                               , seed = timeD
-                                               , numDataLeaves = length leafBitVectorNames
-                                               }
-    --hPutStrLn stderr (show defaultGlobalSettings)
+                                                    , outGroupName = head dataLeafNames
+                                                    , seed = timeD
+                                                    , numDataLeaves = length leafBitVectorNames
+                                                    , fractionDynamic = fractionDynamicData
+                                                    , dynamicEpsilon = (dynamicEpsilon emptyGlobalSettings) * fractionDynamicData
+                                                    }
+    -- hPutStrLn stderr ("Fraction characters that are dynamic: " ++ (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
