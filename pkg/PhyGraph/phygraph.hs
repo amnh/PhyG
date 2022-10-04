@@ -189,7 +189,6 @@ main = do
 
     -- get mix of static/dynamic characters to adjust dynmaicEpsilon
     -- doing on naive data so no packing etc
-
     let fractionDynamicData = U.getFractionDynamic naiveData
 
     -- Group Data--all nonadditives to single character, additives with 
@@ -228,7 +227,7 @@ main = do
                                                     , seed = timeD
                                                     , numDataLeaves = length leafBitVectorNames
                                                     , fractionDynamic = fractionDynamicData
-                                                    , dynamicEpsilon = (dynamicEpsilon emptyGlobalSettings) * fractionDynamicData
+                                                    , dynamicEpsilon = 1.0 + (((dynamicEpsilon emptyGlobalSettings) - 1.0) * fractionDynamicData)
                                                     }
     -- hPutStrLn stderr ("Fraction characters that are dynamic: " ++ (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 

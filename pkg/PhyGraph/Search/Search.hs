@@ -69,7 +69,7 @@ uncurry3' f (a, b, c) = force <$> f a b c
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
-   let (searchTime, keepNum, instances, thompsonSample, mFactor) = getSearchParams inArgs
+   let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction) = getSearchParams inArgs
        
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        flatThetaList = if thompsonSample then L.replicate (length banditList) (1.0 / (fromIntegral $ length banditList))
@@ -357,7 +357,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample mFactor the
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | getSearchParams takes arguments and returns search params
-getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int)
+getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int, String)
 getSearchParams inArgs =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
@@ -417,6 +417,15 @@ getSearchParams inArgs =
             | otherwise = readMaybe (snd $ head thompsonList) :: Maybe Int
 
           thompson = any ((=="thompson").fst) lcArgList
+          mLinear = any ((=="linear").fst) lcArgList
+          mExponential = any ((=="exponential").fst) lcArgList
+
+          mFunction = if mLinear && mExponential then
+                            trace ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'")
+                            "linear"
+                      else if mLinear then "linear"
+                      else if mExponential then "exponential"
+                      else "linear"
 
       in
       if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
@@ -432,5 +441,5 @@ getSearchParams inArgs =
                         else seconds
              searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
          in
-         (searchTime, fromJust keepNum, fromJust instances, thompson, fromJust mFactor)
+         (searchTime, fromJust keepNum, fromJust instances, thompson, fromJust mFactor, mFunction)
 

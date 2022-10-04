@@ -144,8 +144,8 @@ executable phyg
 
   if !os(darwin) 
     ld-options: 
-      -- -static 
-      -- -pthread
+      -static 
+      -pthread
   else 
     ld-options: 
 
