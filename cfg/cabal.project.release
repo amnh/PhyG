@@ -12,11 +12,9 @@ packages:
 
 ---------------------------------------------------------------------------------
 -- Build decisions
---  * Static or dynamic binaries
 --  * Compiler versions
 ---------------------------------------------------------------------------------
 
-executable-static: True
 with-compiler: ghc-9.4.2
 
 
@@ -72,56 +70,37 @@ minimize-conflict-set:    True
 
 -- Applies to *all* packages, not just dependencies...
 package *
-    benchmarks:        False
-    documentation:     False
-    tests:             False
-    library-profiling: False
-    library-stripping: True
+    benchmarks:           False
+    documentation:        False
+    tests:                False
+
+    executable-profiling: False
+    executable-stripping: True
+    library-profiling:    False
+    library-stripping:    True
     optimization: 2
-    ghc-options:
-        -- Optimization flags
-        -O2
-        -fexcess-precision
-        -fexpose-all-unfoldings
-        -flate-specialise
-        -fmax-simplifier-iterations=16
-        -foptimal-applicative-do
-        -fspec-constr-count=8
-        -fspec-constr-keen
-        -fspecialize-aggressively
-        -fstatic-argument-transformation        
 
 package PhyGraph
     benchmarks:           False
     documentation:        False
     tests:                False
+
+    executable-profiling: False
+    executable-static:    True
+    executable-stripping: True
     library-profiling:    False
     library-stripping:    True
-    executable-stripping: True
+--    static:               True
+
     optimization: 2
     ghc-options:
-        -- Optimization flags
-        -O2
-        -fexcess-precision
-        -fexpose-all-unfoldings
-        -flate-specialise
-        -fmax-simplifier-iterations=16
-        -foptimal-applicative-do
-        -fspec-constr-count=8
-        -fspec-constr-keen
-        -fspecialize-aggressively
-        -fstatic-argument-transformation
-
-        -feager-blackholing
-        -threaded
-        -with-rtsopts="-A64m -AL8 -H1024m -maxN -n4m --nonmoving-gc -qa -qm"
-
         -- Sanity check warnings:
         --   1. Fail on a warning
         --   2. Include all warnings by default
         --   3. Exclude the undesirable warnings
         -Werror
-        -Weverything
+        -Wall
+--        -Weverything
         -- Exclusions:
         -Wno-all-missed-specialisations
         -Wno-implicit-prelude
@@ -131,6 +110,8 @@ package PhyGraph
         -Wno-monomorphism-restriction
         -Wno-type-defaults
         -Wno-unsafe
+
+        -Wno-prepositive-qualified-module
 
 
 ---------------------------------------------------------------------------------
@@ -148,6 +129,7 @@ package PhyGraph
 
 allow-newer:
     aeson,
+    base,
     bytestring,
     text,
 
@@ -165,4 +147,3 @@ source-repository-package
   type: git
   location: https://github.com/athas/fgl
   tag: abdbad85bf54306b98734ade2ecfc3f0fd587af8
-

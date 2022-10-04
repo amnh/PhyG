@@ -68,6 +68,7 @@ minimize-conflict-set:    True
 -- to use a version greater than or equal to the patch.
 ---------------------------------------------------------------------------------
 
+
 allow-newer:
     aeson,
     base,

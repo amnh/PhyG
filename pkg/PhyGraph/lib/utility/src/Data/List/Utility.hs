@@ -16,7 +16,25 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.List.Utility where
+module Data.List.Utility
+  ( catMaybes1
+  , chunksOf
+  , duplicates
+  , equalityOf
+  , foldZipWith
+  , foldZipWith3
+  , invariantTransformation
+  , isSingleton
+  , maximaBy
+  , minimaBy
+  , mostCommon
+  , occurrences
+  , pairwiseSequence
+  , prepend
+  , subsetOf
+  , transitivePropertyHolds
+  , transpose
+  ) where
 
 import           Control.Lens            (Lens', lens)
 import           Data.Foldable

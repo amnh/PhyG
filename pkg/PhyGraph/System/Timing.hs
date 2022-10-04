@@ -85,7 +85,8 @@ timeOpUT ioa = do
     t1 <- liftIO getCurrentTime
     a  <- force <$> ioa
     t2 <- liftIO getCurrentTime
-    let t = CPUTime . fromIntegral $ 1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime t2 t1)))
+    let picoMagnitude = 1000000000000 :: Integer
+    let t = CPUTime . fromIntegral $ picoMagnitude * (floor  (nominalDiffTimeToSeconds (diffUTCTime t2 t1)))
     pure (t, a)
 
 timeDifference :: CPUTime -> CPUTime -> CPUTime

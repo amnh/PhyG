@@ -24,6 +24,7 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TypeFamilies       #-}
+{-# LANGUAGE TypeOperators      #-}
 
 module Data.Alphabet.Internal
   ( Alphabet(..)
