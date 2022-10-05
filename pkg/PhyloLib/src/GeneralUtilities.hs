@@ -288,6 +288,7 @@ isSequentialSubsequence firstL secondL
     in
     foundNumber /= 0
 
+{-# NOINLINE shuffleIO #-}
 -- | shuffle Randomly shuffles a list
 --   /O(N)/
 -- from https://wiki.haskell.org/Random_shuffle
@@ -305,6 +306,7 @@ shuffleIO xs = do
     newArrayLocal :: Int -> [a] -> IO (IOArray Int a)
     newArrayLocal  nL xsL =  newListArray (1,nL) xsL
 
+{-# NOINLINE shuffleInt #-}
 -- | shuffleInt takes a seed, number of replicates and a list of Ints and 
 -- repeately shuffles the order 
 shuffleInt :: Int -> Int -> [Int] -> [[Int]]
@@ -317,7 +319,6 @@ shuffleInt seed numReplicates inIntList =
             (_, newList) = unzip pairList
         in
         newList : shuffleInt (seed + 1) (numReplicates - 1) inIntList
-
 
 {-# NOINLINE randomList #-}
 -- | randomList generates an infinite random list from a seed--no IO or ST monad 
@@ -340,7 +341,7 @@ permuteList rSeed inList =
     else 
         fst $ unzip $ L.sortOn snd $ zip inList (randomIntList rSeed)
 
--- | takeRandom premutes a list and takes a number b ased on sed aned number to take
+-- | takeRandom permutes a list and takes a number based on seed and number to take
 takeRandom :: Int -> Int -> [a] -> [a]
 takeRandom rSeed number inList =
     if null inList then []
@@ -363,6 +364,7 @@ takeNth number inList =
         in
         take number outList
 
+{-# NOINLINE getRandomElement #-}
 -- | getRandomElement returns the nth random element uniformly
 -- at random
 getRandomElement :: Int -> [a] -> a
@@ -373,6 +375,44 @@ getRandomElement rVal inList =
         let (_, idx) = divMod (abs rVal) (length inList)
         in
         inList !! idx
+
+{-# NOINLINE chooseElementAtRandomWithDistribution #-}
+-- | chooseElementAtRandomWithDistribution takes a seed, list of values, 
+-- and a list of Double frequencies as distrinbution returning
+-- a single element at random based on the distribution
+-- assumes ditribution values sum to 1
+chooseElementAtRandomWithDistribution :: (Show a) => Int -> [a] -> [Double] -> a
+chooseElementAtRandomWithDistribution rSeed elementList distributionList =
+    if length elementList /= length distributionList then 
+        error ("chooseElementAtRandomWithDistribution: Unequal element and distribution lists: " 
+            ++ (show (length elementList, elementList)) ++ " versus " ++ (show (length distributionList, distributionList)))
+
+    else if null elementList then 
+        error ("Null lists input to chooseElementAtRandomWithDistribution")
+
+    else
+        -- generate uniform random Int 
+        let (randVal, _) = random (mkStdGen rSeed) :: (Double, StdGen)
+            listElement = getElementInterval randVal 0.0 elementList distributionList 
+
+        in
+        listElement
+
+-- | getElementInterval recursively checks if teh double input is in the current interval if not recurses
+getElementInterval :: Double -> Double -> [a] -> [Double] -> a
+getElementInterval doubleVal minVal elementList doubleList =
+    if null elementList || null doubleList then 
+        error ("Null list in getElementInterval")
+    else 
+        let maxVal = minVal + (head doubleList)
+        in
+        if doubleVal >= minVal && doubleVal < maxVal then 
+            head elementList
+        else if length elementList == 1 then 
+            head elementList
+        else getElementInterval doubleVal maxVal (tail elementList) (tail doubleList)
+
+
 
 -- | selectListCostPairs is general to list of (a, Double)
 -- but here used for graph sorting and selecting)takes a pair of graph representation (such as String or fgl graph), and
