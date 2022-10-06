@@ -55,6 +55,7 @@ import           System.Timing
 import           Text.Read
 import           Types.Types
 import           Debug.Trace
+import           System.Random
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
@@ -82,8 +83,9 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        -- can also be used in search for non-Thomspon search
        flatThetaList = if graphType inGS == Tree then 
-                            L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList))
-                       else L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList))
+                            zip treeBanditList (L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList)))
+                       else 
+                            zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
        
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
        searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 0 threshold []
@@ -115,7 +117,7 @@ searchForDuration :: GlobalSettings
                   -> Bool 
                   -> Int 
                   -> String 
-                  -> [Double] 
+                  -> [(String, Double)] 
                   -> Int 
                   ->  CPUTime 
                   -> [String] 
@@ -125,7 +127,7 @@ searchForDuration :: GlobalSettings
                   -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOpUT $
-       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList (head seedList) input
+       let result = force $ performSearch' inGS inData pairwiseDistances keepNum thompsonSample thetaList (head seedList) input
        in  pure result
 
    -- update theta list based on performance    
@@ -142,47 +144,41 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
-updateTheta :: Int -> String -> Int -> [String] -> [Double] -> [Double]
-updateTheta  mFactor mFunction counter performanceStringList inList =
-    if null inList then []
+updateTheta :: Int -> String -> Int -> [String] -> [(String, Double)] -> [(String, Double)]
+updateTheta  mFactor mFunction counter infoStringList inPairList =
+    if null inPairList then []
     else 
-        inList
+        inPairList
 
 
 -- | performSearch' takes in put graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
-performSearch' :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> [Double] -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
+-- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
+performSearch' :: GlobalSettings 
+               -> ProcessedData 
+               -> [[VertexCost]] 
+               -> Int 
+               -> Bool 
+               -> [(String, Double)] 
+               -> Int 
+               -> ([PhylogeneticGraph], [String]) 
+               -> ([PhylogeneticGraph], [String])
 performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
-      let thompsonString = if not thompsonSample then ","
-                           else if graphType inGS == Tree then 
-                                "," ++ (show (zip treeBanditList thetaList)) 
-                           else 
-                                "," ++ (show (zip fullBanditList thetaList)) 
+      let -- set up log for sample
+          thompsonString = if not thompsonSample then ","
+                           else "," ++ (show thetaList) 
 
+          -- get infinite lists if integers and doubles
           randIntList = randomIntList rSeed
-          buildType = getRandomElement (randIntList !! 0) ["distance", "character"]
-          buildMethod = getRandomElement (randIntList !! 1) ["unitary", "block"]
+          randDoubleList = randoms (mkStdGen rSeed) :: [Double]
+          
+          -- choose search type from list with frequencies as input from searchForDuration
+          (searchBandit, rDL1) = chooseElementAtRandomPair randDoubleList thetaList
 
-          -- build options
-          numToCharBuild = keepNum
-          numToDistBuild = (100 :: Int)
-
-          -- build block options
-          reconciliationMethod = getRandomElement (randIntList !! 2) ["eun", "cun"]
-
-          distOptions = if buildType == "distance" then
-                           if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show (1 :: Int))]
-                           else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
-                        else
-                           if buildMethod == "block" then [("replicates", show numToCharBuild)]
-                           else [("replicates", show (1 :: Int))]
-
-          blockOptions = if buildMethod == "block" then [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
-                         else []
-
-          buildArgs = [(buildType, "")] ++ distOptions ++ blockOptions
-
+          -- dummy for now to compile
+          saDrift = "boogey"
+          
           -- swap options
           swapType = getRandomElement (randIntList !! 3) ["nni", "spr", "tbr"]
           swapKeep = keepNum
@@ -234,63 +230,61 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
           -- swap with simulated anneling options
           swapAnnealArgs = swapArgs ++ simulatedAnnealArgs
 
-          -- choose staticApproximation or not
-          transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
-          ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
-                                                                        else ((inGS', inData', inData', inGraphList'), "")
-
 
       in
 
-      -- no input graphs so must build and refine a bit to start
-      if null inGraphList then
+      -- no input graphs so must build to start-- or if build chosen as searchBandit 
+      if null inGraphList' || searchBandit `elem` ["buildCharacter", "buildDistance"] then
 
-         -- do build + Net add (if network) + swap to crete initial solutions
-         let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
+         let -- build options including block and distance
+             -- primes (') in data and graphlist since not reseat by potnatila statric apporx transformation
+             (buildMethod, rDL2)  = chooseElementAtRandomPair rDL1 [("unitary", 0.9), ("block", 0.1)]
+             buildType = if searchBandit == "buildCharacter" then "character"
+                         else if searchBandit == "buildDistance" then "distance"
+                         else 
+                            fst $ chooseElementAtRandomPair rDL2 [("distance", 0.5), ("character", 0.5)]
+                            
+             numToCharBuild = (10 :: Int)
+             numToDistBuild = (100 :: Int)
+
+             -- tail here in case both called to increment random value
+             (reconciliationMethod, rDL3) = chooseElementAtRandomPair (tail rDL2) [("eun", 0.5), ("cun", 0.5)]
+
+             wagnerOptions = if searchBandit == "buildDistance" then
+                                if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show (1 :: Int))]
+                                else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
+                             else if searchBandit == "buildCharacter" then
+                                 if buildMethod == "block" then [("replicates", show (1 :: Int))]
+                                 else [("replicates", show numToCharBuild)] 
+                             else []
+
+             blockOptions = if buildMethod == "block" then 
+                                [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
+                            else []
+
+             buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+
+
+             buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
              uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
 
-             netAddGraphs = if (graphType inGS == Tree) then uniqueBuildGraphs
-                            else R.netEdgeMaster netAddArgs inGS inData (randIntList !! 10) uniqueBuildGraphs
-
-             swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) netAddGraphs
-
-             uniqueSwapGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] swapGraphs
-             searchString = if (graphType inGS == Tree) then "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs)
-                            else "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Net Add " ++ (L.intercalate "," $ fmap showArg netAddArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg swapArgs)
-         in  (uniqueSwapGraphs, [searchString ++ thompsonString])
+             searchString = "Build " ++ (L.intercalate "," $ fmap showArg buildArgs)
+                            
+         in  (uniqueBuildGraphs, [searchString ++ thompsonString])
 
 
       -- already have some input graphs
-      -- choose a method and paramteres at random
+      -- choose a method and parameters at random
       else
-         let operation = if (graphType inGS == Tree) then getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift"]
-                         else getRandomElement (randIntList !! 7) ["buildSwap","fuse", "GeneticAlgorithm", "swapAnneal", "swapDrift", "netAdd", "netDelete"] -- , "netMove"] -- add/del/move edges with and without drifting
-
-             -- this so 1/2 time annealing
-             saDrift = getRandomElement (randIntList !! 19) ["noSA", "noSA", "drift", "anneal"]
-
-             {-
-             -- for rediagnosis after static approx
-             -- sequential rediagnosis since assuming that if in parallel teh search operations are running in parallel
-             pruneEdges = False
-             warnPruneEdges = False
-             startVertex = Nothing
-             -}
+         let -- choose staticApproximation or not
+             -- up top here because used by other non-build options
+             (transformToStaticApproximation, rDL2) = chooseElementAtRandomPair rDL1 [(True, 0.67), (False, 0.33)]
+             ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
+                                                                           else ((inGS', inData', inData', inGraphList'), "")
          in
-         if operation == "buildSwap" then
-            let buildGraphs = B.buildGraph buildArgs inGS inData pairwiseDistances (randIntList !! 4)
-                uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
-                swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
-                                              -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
-                searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs) ++ transString
-            in
-            (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "fuse" then
+         if searchBandit == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
@@ -301,7 +295,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "GeneticAlgorithm" then
+         else if searchBandit == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
@@ -312,7 +306,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "swapDrift" then
+         else if searchBandit == "swapDrift" then
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
@@ -323,7 +317,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "swapAnneal" then
+         else if searchBandit == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
@@ -334,7 +328,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "netMove" then
+         else if searchBandit == "netMove" then
             let netMoveArgs' = if saDrift == "noSA" then netMoveArgs
                                else if saDrift == "drift" then netMoveArgs ++ drfitArgs
                                else netMoveArgs ++ simulatedAnnealArgs
@@ -348,7 +342,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "netAdd" then
+         else if searchBandit == "netAdd" then
             let netAddArgs' = if saDrift == "noSA" then netAddArgs
                               else if saDrift == "drift" then netAddArgs ++ drfitArgs
                               else netAddArgs ++ simulatedAnnealArgs
@@ -362,7 +356,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
-         else if operation == "netDelete" then
+         else if searchBandit == "netDelete" then
             let netDelArgs' = if saDrift == "noSA" then netDelArgs
                               else if saDrift == "drift" then netDelArgs ++ drfitArgs
                               else netDelArgs ++ simulatedAnnealArgs
@@ -377,7 +371,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
             (uniqueGraphs, [searchString ++ thompsonString])
 
 
-         else error ("Unknown/unimplemented method in search: " ++ operation)
+         else error ("Unknown/unimplemented method in search: " ++ searchBandit)
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 

@@ -376,6 +376,42 @@ getRandomElement rVal inList =
         in
         inList !! idx
 
+-- | chooseElementAtRandomPair like chooseElementAtRandomWithDistribution
+-- with a list of element fraction pairs as opposed to two lists
+-- gets randValList on input and returns tail to avoid long number of 
+-- access of list later
+chooseElementAtRandomPair :: [Double] -> [(a, Double)] -> (a, [Double])
+chooseElementAtRandomPair randValList elemDistList =
+    if null elemDistList then 
+        error ("Null lists input to chooseElementAtRandomPair")
+
+    else
+        let listElement = getElementIntervalPair (head randValList) 0.0 elemDistList
+
+        in
+        (listElement, tail randValList)
+
+-- | getElementIntervalPair recursively checks if teh double input is in the current interval if not recurses
+getElementIntervalPair :: Double -> Double -> [(a ,Double)] -> a
+getElementIntervalPair doubleVal minVal elemDistList =
+    if null elemDistList then 
+        error ("Null list in getElementIntervalPair")
+    else 
+        let (fstElem, fstDouble) = head elemDistList
+            maxVal = minVal + fstDouble
+        in
+        
+        -- in interval
+        if doubleVal >= minVal && doubleVal < maxVal then 
+            fstElem
+        
+        -- case where == 1.0
+        else if length elemDistList == 1 then 
+            fstElem
+        
+        -- not in interval
+        else getElementIntervalPair doubleVal maxVal (tail elemDistList)
+
 {-# NOINLINE chooseElementAtRandomWithDistribution #-}
 -- | chooseElementAtRandomWithDistribution takes a seed, list of values, 
 -- and a list of Double frequencies as distrinbution returning
