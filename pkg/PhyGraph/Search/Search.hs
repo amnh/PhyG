@@ -153,8 +153,8 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
     else 
         -- update via results, previous history, memory \factor and type of memory "loss"
         let -- get search info for last search iteration
-            searchBandit = takeWhile (/= ',') (head infoStringList)
-            searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (head infoStringList)
+            searchBandit = takeWhile (/= ',') (last infoStringList)
+            searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (last infoStringList)
             searchDelta = read searchDeltaString :: Double
 
             -- get timing and benefit accounting for 0's
@@ -222,7 +222,7 @@ performSearch :: GlobalSettings
                -> Int 
                -> ([PhylogeneticGraph], [String]) 
                -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed (inGraphList', _) =
+performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed (inGraphList', inStringList) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
           thompsonString = if not thompsonSample then ","
@@ -320,7 +320,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
              searchString = buildString ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg buildArgs)
 
                             
-         in  (uniqueGraphs, [searchString ++ thompsonString])
+         in  (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
 
       -- already have some input graphs
@@ -356,7 +356,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
                             
          in
-         (uniqueGraphs, [searchString ++ thompsonString])
+         (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
 
          else if searchBandit == "swapAlternate" then 
@@ -380,7 +380,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
                             
          in
-         (uniqueGraphs, [searchString ++ thompsonString])
+         (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if searchBandit == "driftSPR" then
             let 
@@ -407,7 +407,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "driftAlternate" then
             let 
@@ -434,7 +434,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
             
          else if searchBandit == "annealSPR" then
@@ -462,7 +462,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "annealAlternate" then
             let 
@@ -489,7 +489,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
             
          else if searchBandit == "geneticAlgorithm" then
@@ -510,7 +510,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg gaArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if searchBandit == "fuse" then
             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
@@ -533,7 +533,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if searchBandit == "fuseSPR" then
             let -- fuse arguments
@@ -555,7 +555,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "fuseAlternate" then
             let -- fuse arguments
@@ -577,7 +577,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "networkAdd" then
             let -- network add args
@@ -599,7 +599,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "networkDelete" then
             let -- network delete args
@@ -621,7 +621,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          else if searchBandit == "networkAddDelete" then
             let -- network add/delete args
@@ -643,7 +643,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             
          {-Inactive till fix net move
          else if searchBandit == "networkMove" then
@@ -666,7 +666,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
             -}
             
          else if searchBandit == "driftNetwork" then
@@ -689,7 +689,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if searchBandit == "annealNetwork" then
             let -- network add/delete  + annealing  args
@@ -711,7 +711,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                 searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
                             
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else error ("Unknown/unimplemented method in search: " ++ searchBandit)
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
@@ -955,7 +955,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs) ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "fuse" then
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
@@ -966,7 +966,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "GeneticAlgorithm" then
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
@@ -977,7 +977,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "swapDrift" then
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
@@ -988,7 +988,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "swapAnneal" then
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
@@ -999,7 +999,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "netMove" then
             let netMoveArgs' = if saDrift == "noSA" then netMoveArgs
@@ -1013,7 +1013,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs') ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "netAdd" then
             let netAddArgs' = if saDrift == "noSA" then netAddArgs
@@ -1027,7 +1027,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs') ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
          else if operation == "netDelete" then
             let netDelArgs' = if saDrift == "noSA" then netDelArgs
@@ -1041,7 +1041,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs') ++ transString
             in
-            (uniqueGraphs, [searchString ++ thompsonString])
+            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
 
 
          else error ("Unknown/unimplemented method in search: " ++ operation)
