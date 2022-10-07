@@ -737,4 +737,4 @@ CallStack (from -prof):
 
  414) swap unions
 
- 
+ 415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?

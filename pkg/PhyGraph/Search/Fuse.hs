@@ -298,7 +298,7 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR ch
       let swapType = if doTBR then "tbr"
                      else if doSPR then "spr"
                      else if doNNI then "nni"
-                     else "spr" -- will be set with 2 as maxMoveEdgeDist
+                     else "alternate"
 
           doIA = False --- since splits not created together, IA won't be consistent between components
           steepest = False -- should look at all better

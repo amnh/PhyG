@@ -133,7 +133,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
        in  pure result
 
    -- update theta list based on performance    
-   let updatedThetaList = updateTheta mFactor mFunction counter (snd output) thetaList 
+   let updatedThetaList = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList 
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
@@ -146,10 +146,13 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
-updateTheta :: Int -> String -> Int -> [String] -> [(String, Double)] -> [(String, Double)]
-updateTheta  mFactor mFunction counter infoStringList inPairList =
+updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> [(String, Double)]
+updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList =
     if null inPairList then []
+    else if not thompsonSample then inPairList
     else 
+        -- update via results, previous history, memory \factor and type of memory "loss"
+        trace ("UT: " ++ (show infoStringList))
         inPairList
 
 
@@ -253,7 +256,11 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
              buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
              uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
 
-             searchString = "Build " ++ (L.intercalate "," $ fmap showArg buildArgs)
+             buildString = if searchBandit `elem` ["buildCharacter", "buildDistance"] then searchBandit
+                           else if buildType == "character" then "buildCharacter"
+                           else "buildDistance"
+
+             searchString = buildString ++ (L.intercalate "," $ fmap showArg buildArgs)
                             
          in  (uniqueBuildGraphs, [searchString ++ thompsonString])
 
@@ -267,7 +274,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
              -- if happens--need to rtansfomr back before returning
              transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.67), (False, 0.33)]
              ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox,")
                                                                            else ((inGS', inData', inData', inGraphList'), "")
          in
          if searchBandit == "swapSPR" then 
@@ -284,7 +291,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -303,7 +310,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
                 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -325,7 +332,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -347,7 +354,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -370,7 +377,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -392,7 +399,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -408,7 +415,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -426,7 +433,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
                 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -443,7 +450,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
                 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -460,7 +467,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
                 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -477,7 +484,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -494,7 +501,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -511,7 +518,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -529,7 +536,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             -}
@@ -547,7 +554,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -564,7 +571,7 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -661,7 +668,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
           ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox ")
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox,")
                                                                         else ((inGS', inData', inData', inGraphList'), "")
 
 
@@ -885,13 +892,13 @@ getSearchParams inArgs =
 
       in
       if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
-      else if isNothing instances then errorWithoutStackTrace ("Instnaces specification not an integer in search: "  ++ show (head instancesList))
+      else if isNothing instances then errorWithoutStackTrace ("Instances specification not an integer in search: "  ++ show (head instancesList))
       else if isNothing days then errorWithoutStackTrace ("Days specification not an integer in search: "  ++ show (head daysList))
       else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
       else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
-      else if isNothing seconds then errorWithoutStackTrace ("seconds factor specification not an integer in search: "  ++ show (head secondsList))
-      else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer in search: "  ++ show (head secondsList))
-      else if isNothing maxNetEdges then errorWithoutStackTrace ("Search 'maxNetEdges' specification not an integer (e.g. maxNetEdges:8): "  ++ show (snd $ head maxNetEdgesList))
+      else if isNothing seconds then errorWithoutStackTrace ("Seconds factor specification not an integer in search: "  ++ show (head secondsList))
+      else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer or not found in search (e.g. Thompson:1) "  ++ show (head thompsonList))
+      else if isNothing maxNetEdges then errorWithoutStackTrace ("Search 'maxNetEdges' specification not an integer or not found (e.g. maxNetEdges:8): "  ++ show (snd $ head maxNetEdgesList))
          
       else
          let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0

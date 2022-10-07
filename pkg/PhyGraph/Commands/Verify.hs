@@ -77,7 +77,7 @@ buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "chara
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs"]
+fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs", "alternate"]
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
