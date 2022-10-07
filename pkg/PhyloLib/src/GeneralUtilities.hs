@@ -380,16 +380,16 @@ getRandomElement rVal inList =
 -- with a list of element fraction pairs as opposed to two lists
 -- gets randValList on input and returns tail to avoid long number of 
 -- access of list later
-chooseElementAtRandomPair :: [Double] -> [(a, Double)] -> (a, [Double])
-chooseElementAtRandomPair randValList elemDistList =
+chooseElementAtRandomPair :: Double -> [(a, Double)] -> a
+chooseElementAtRandomPair randVal elemDistList =
     if null elemDistList then 
         error ("Null lists input to chooseElementAtRandomPair")
 
     else
-        let listElement = getElementIntervalPair (head randValList) 0.0 elemDistList
+        let listElement = getElementIntervalPair randVal 0.0 elemDistList
 
         in
-        (listElement, tail randValList)
+        listElement
 
 -- | getElementIntervalPair recursively checks if teh double input is in the current interval if not recurses
 getElementIntervalPair :: Double -> Double -> [(a ,Double)] -> a
