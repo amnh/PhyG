@@ -89,7 +89,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                             zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
        
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList maxNetEdges 0 threshold []
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList maxNetEdges 1 threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
    in 
@@ -129,11 +129,11 @@ searchForDuration :: GlobalSettings
                   -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
    (elapsedSeconds, output) <- timeOpUT $
-       let result = force $ performSearch' inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) input
+       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) input
        in  pure result
 
    -- update theta list based on performance    
-   let updatedThetaList = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList 
+   let updatedThetaList = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSeconds
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
@@ -146,20 +146,73 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
-updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> [(String, Double)]
-updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList =
+updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> CPUTime -> [(String, Double)]
+updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds =
     if null inPairList then []
     else if not thompsonSample then inPairList
     else 
         -- update via results, previous history, memory \factor and type of memory "loss"
-        trace ("UT: " ++ (show infoStringList))
-        inPairList
+        let -- get search info for last search iteration
+            searchBandit = takeWhile (/= ',') (head infoStringList)
+            searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (head infoStringList)
+            searchDelta = read searchDeltaString :: Double
+
+            -- get timing and benefit accounting for 0's
+            durationTime = if toSeconds elapsedSeconds == 0 then 1
+                           else toSeconds elapsedSeconds
+
+            benefit = if searchDelta == 0.0 then 0.0
+                      else searchDelta / (fromIntegral durationTime)
+
+            -- get bandit index and orignial theta value from pair list
+            indexBandit' = L.elemIndex searchBandit $ fmap fst inPairList
+            indexBandit = fromJust  indexBandit'
+
+            inThetaBandit = snd $ inPairList !! indexBandit
+        in
+        if mFunction == "simple" then
+            -- first Simple update based on 0 = no better. 1 == any better irrespective of magnitude or time, full memory
+            -- all thetas (second field) sum to one.
+            -- if didn't do anything but increment everyone else with 1/(num bandits - 1), then renormalize
+            -- dowenweights unsiucessful bandit
+            let previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
+            
+                -- see if bandit was sucessful and if so set increment
+                incrementBandit = if benefit == 0.0 then 0.0 else 1.0
+                newBanditVal = incrementBandit + ((fromIntegral counter) * inThetaBandit)
+
+                -- for nonBandit if not successful increment them (basically to downweight bandit), other wise not
+                incrementNonBanditVals = if benefit == 0.0 then 1.0 / ((fromIntegral $ length inPairList) - 1.0)
+                                         else 0.0
+                updatedSuccessList = fmap (+ incrementNonBanditVals) previousSuccessList
+
+                -- uopdate the bandit from list by splitting and rejoining
+                firstBanditPart = take indexBandit updatedSuccessList
+                thirdBanditPart = drop (indexBandit + 1) updatedSuccessList
+                newSuccessList = firstBanditPart ++ (newBanditVal : thirdBanditPart)
+                totalTheta = sum newSuccessList
+
+                newThetaList = fmap (/ totalTheta) newSuccessList
+            in
+            if isNothing indexBandit' then error ("Bandit index not found: " ++ searchBandit ++ " in " ++ (show inPairList))
+            else 
+                trace ("UT: " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds, benefit)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (show infoStringList))
+                zip (fmap fst inPairList) newThetaList
+
+        -- more complex options
+        -- need to bag out for incorrect ["linear","exponential"]
+        else if mFunction `elem` ["linear","exponential"] then
+            trace ("Not simple: " ++ mFunction) 
+            inPairList   
+
+        else errorWithoutStackTrace ("Thomspson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
+        
 
 
--- | performSearch' takes in put graphs and performs randomized build and search with time limit
+-- | performSearch takes in put graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
 -- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
-performSearch' :: GlobalSettings 
+performSearch :: GlobalSettings 
                -> ProcessedData 
                -> [[VertexCost]] 
                -> Int 
@@ -169,7 +222,7 @@ performSearch' :: GlobalSettings
                -> Int 
                -> ([PhylogeneticGraph], [String]) 
                -> ([PhylogeneticGraph], [String])
-performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed (inGraphList', _) =
+performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
           thompsonString = if not thompsonSample then ","
@@ -254,15 +307,20 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
 
 
              buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
-             uniqueBuildGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+             uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
 
              buildString = if searchBandit `elem` ["buildCharacter", "buildDistance"] then searchBandit
                            else if buildType == "character" then "buildCharacter"
                            else "buildDistance"
 
-             searchString = buildString ++ (L.intercalate "," $ fmap showArg buildArgs)
+             -- string of delta cost of graphs
+             deltaString = if null inGraphList' then "10.0,"
+                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+
+             searchString = buildString ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg buildArgs)
+
                             
-         in  (uniqueBuildGraphs, [searchString ++ thompsonString])
+         in  (uniqueGraphs, [searchString ++ thompsonString])
 
 
       -- already have some input graphs
@@ -272,9 +330,9 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
              -- if happens--need to rtansfomr back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.67), (False, 0.33)]
+             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.33), (False, 0.67)]
              ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox,")
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                            else ((inGS', inData', inData', inGraphList'), "")
          in
          if searchBandit == "swapSPR" then 
@@ -288,12 +346,17 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
-            in
-            (uniqueGraphs, [searchString ++ thompsonString])
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+                            
+         in
+         (uniqueGraphs, [searchString ++ thompsonString])
 
 
          else if searchBandit == "swapAlternate" then 
@@ -307,12 +370,17 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                 
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg swapArgs) ++ transString
-            in
-            (uniqueGraphs, [searchString ++ thompsonString])
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+                            
+         in
+         (uniqueGraphs, [searchString ++ thompsonString])
 
          else if searchBandit == "driftSPR" then
             let 
@@ -329,10 +397,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -351,10 +424,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -374,10 +452,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -396,10 +479,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -412,10 +500,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg gaArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -430,10 +523,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                 
+                --- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -447,10 +545,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                 
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -464,10 +567,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                 
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -481,10 +589,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -498,10 +611,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -515,10 +633,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             
@@ -533,10 +656,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
             -}
@@ -551,10 +679,15 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
@@ -568,22 +701,124 @@ performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList 
                 -- process
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+
+                -- string of delta cost of graphs
+                deltaString = if null inGraphList' then "10.0,"
+                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
                 -- create string for search stats
-                searchString = staticApproxString ++ searchBandit ++ "," ++ (L.intercalate "," $ fmap showArg  netEditArgs) ++ transString
+                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
+                            
             in
             (uniqueGraphs, [searchString ++ thompsonString])
 
          else error ("Unknown/unimplemented method in search: " ++ searchBandit)
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
+-- | getSearchParams takes arguments and returns search params
+getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int, String, Int)
+getSearchParams inArgs =
+   let fstArgList = fmap (fmap toLower . fst) inArgs
+       sndArgList = fmap (fmap toLower . snd) inArgs
+       lcArgList = zip fstArgList sndArgList
+       checkCommandList = checkCommandArgs "search" fstArgList VER.searchArgList
+   in
+   -- check for valid command options
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)
+   else
+      let instancesList = filter ((=="instances").fst) lcArgList
+          instances
+            | length instancesList > 1 =
+              errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
+            | null instancesList = Just 1
+            | otherwise = readMaybe (snd $ head instancesList) :: Maybe Int
+
+          keepList = filter ((=="keep").fst) lcArgList
+          keepNum
+            | length keepList > 1 =
+              errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
+            | null keepList = Just 10
+            | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
+
+          daysList = filter ((=="days").fst) lcArgList
+          days
+            | length daysList > 1 =
+              errorWithoutStackTrace ("Multiple 'days' number specifications in search command--can have only one: " ++ show inArgs)
+            | null daysList = Just 0
+            | otherwise = readMaybe (snd $ head daysList) :: Maybe Int
+
+          hoursList = filter ((=="hours").fst) lcArgList
+          hours
+            | length hoursList > 1 =
+              errorWithoutStackTrace ("Multiple 'hours' number specifications in search command--can have only one: " ++ show inArgs)
+            | null hoursList = Just 0
+            | otherwise = readMaybe (snd $ head hoursList) :: Maybe Int
+
+          minutesList = filter ((=="minutes").fst) lcArgList
+          minutes
+            | length minutesList > 1 =
+              errorWithoutStackTrace ("Multiple 'minutes' number specifications in search command--can have only one: " ++ show inArgs)
+            | null minutesList = Just 0
+            | otherwise = readMaybe (snd $ head minutesList) :: Maybe Int
+
+          secondsList = filter ((=="seconds").fst) lcArgList
+          seconds
+            | length secondsList > 1 =
+              errorWithoutStackTrace ("Multiple 'seconds' number specifications in search command--can have only one: " ++ show inArgs)
+            | null secondsList = Just 30
+            | otherwise = readMaybe (snd $ head secondsList) :: Maybe Int
+
+          maxNetEdgesList = filter ((=="maxnetedges").fst) lcArgList
+          maxNetEdges
+              | length maxNetEdgesList > 1 =
+                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " ++ show inArgs)
+              | null maxNetEdgesList = Just 10
+              | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
+
+          thompsonList = filter ((=="thompson").fst) lcArgList
+          mFactor
+            | length thompsonList > 1 =
+              errorWithoutStackTrace ("Multiple 'Thompson' number specifications in search command--can have only one: " ++ show inArgs)
+            | null thompsonList = Just 1
+            | otherwise = readMaybe (snd $ head thompsonList) :: Maybe Int
+
+          thompson = any ((=="thompson").fst) lcArgList
+          mLinear = any ((=="linear").fst) lcArgList
+          mExponential = any ((=="exponential").fst) lcArgList
+          mSimple = any ((=="simple").fst) lcArgList
+
+          mFunction = if mLinear && mExponential then
+                            trace ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'")
+                            "linear"
+                      else if mLinear then "linear"
+                      else if mExponential then "exponential"
+                      else if mSimple then "simple"
+                      else "linear"
+
+      in
+      if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
+      else if isNothing instances then errorWithoutStackTrace ("Instances specification not an integer in search: "  ++ show (head instancesList))
+      else if isNothing days then errorWithoutStackTrace ("Days specification not an integer in search: "  ++ show (head daysList))
+      else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
+      else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
+      else if isNothing seconds then errorWithoutStackTrace ("Seconds factor specification not an integer in search: "  ++ show (head secondsList))
+      else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer or not found in search (e.g. Thompson:1) "  ++ show (head thompsonList))
+      else if isNothing maxNetEdges then errorWithoutStackTrace ("Search 'maxNetEdges' specification not an integer or not found (e.g. maxNetEdges:8): "  ++ show (snd $ head maxNetEdgesList))
+         
+      else
+         let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
+                        else seconds
+             searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
+         in
+         (searchTime, fromJust keepNum, fromJust instances, thompson, fromJust mFactor, mFunction, fromJust maxNetEdges)
 
 
--- | perform search takes in put graphs and performs randomized build and search with time limit
+{- Original search version--no Thompson
+-- | performSearch' takes in put graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
-performSearch :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> [Double] -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList rSeed (inGraphList', _) =
+performSearch' :: GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> Bool -> [Double] -> Int -> ([PhylogeneticGraph], [String]) -> ([PhylogeneticGraph], [String])
+performSearch' inGS' inData' pairwiseDistances keepNum thompsonSample thetaList rSeed (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let thompsonString = if not thompsonSample then ","
                            else if graphType inGS == Tree then 
@@ -668,7 +903,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
           -- choose staticApproximation or not
           transformToStaticApproximation = (not . null) inGraphList' && getRandomElement (randIntList !! 19) [True, False, False]
           ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', "StaticApprox,")
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                         else ((inGS', inData', inData', inGraphList'), "")
 
 
@@ -716,7 +951,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
                 swapGraphs = R.swapMaster swapArgs inGS inData (randIntList !! 5) uniqueBuildGraphs
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Build " ++ (L.intercalate "," $ fmap showArg buildArgs) ++ " Swap " ++ (L.intercalate "," $ fmap showArg  swapArgs) ++ transString
             in
@@ -726,7 +961,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
             let fuseGraphs = R.fuseGraphs fuseArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (fuseGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- uniqueGraphs = if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Fuse " ++ (L.intercalate "," $ fmap showArg  fuseArgs) ++ transString
@@ -737,7 +972,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
             let gaGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (gaGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "Genetic Algorithm " ++ (L.intercalate "," $ fmap showArg  gaArgs) ++ transString
@@ -748,7 +983,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
             let swapDriftGraphs = R.swapMaster swapDriftArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapDriftGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapDrift " ++ (L.intercalate "," $ fmap showArg  swapDriftArgs) ++ transString
@@ -759,7 +994,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
             let swapAnnealGraphs = R.swapMaster swapAnnealArgs inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (swapAnnealGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "SwapAnneal " ++ (L.intercalate "," $ fmap showArg  swapAnnealArgs) ++ transString
@@ -773,7 +1008,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
                 netMoveGraphs = R.netEdgeMaster netMoveArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netMoveGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetMove " ++ (L.intercalate "," $ fmap showArg  netMoveArgs') ++ transString
@@ -787,7 +1022,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
                 netAddGraphs = R.netEdgeMaster netAddArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netAddGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "NetAdd " ++ (L.intercalate "," $ fmap showArg  netAddArgs') ++ transString
@@ -801,7 +1036,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
                 netDelGraphs = R.netEdgeMaster netDelArgs' inGS inData (randIntList !! 10) inGraphList
                 uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (netDelGraphs ++ inGraphList)
                 (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', " Dynamic, ")
+                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
                                               -- if not transformToStaticApproximation then uniqueGraphs'
                                               -- else fmap (T.multiTraverseFullyLabelGraph inGS' inData' pruneEdges warnPruneEdges startVertex) (fmap fst6 uniqueGraphs')
                 searchString = staticApproxString ++ "netDelete " ++ (L.intercalate "," $ fmap showArg  netDelArgs') ++ transString
@@ -811,99 +1046,5 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList r
 
          else error ("Unknown/unimplemented method in search: " ++ operation)
       where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
-
--- | getSearchParams takes arguments and returns search params
-getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int, String, Int)
-getSearchParams inArgs =
-   let fstArgList = fmap (fmap toLower . fst) inArgs
-       sndArgList = fmap (fmap toLower . snd) inArgs
-       lcArgList = zip fstArgList sndArgList
-       checkCommandList = checkCommandArgs "search" fstArgList VER.searchArgList
-   in
-   -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'search': " ++ show inArgs)
-   else
-      let instancesList = filter ((=="instances").fst) lcArgList
-          instances
-            | length instancesList > 1 =
-              errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
-            | null instancesList = Just 1
-            | otherwise = readMaybe (snd $ head instancesList) :: Maybe Int
-
-          keepList = filter ((=="keep").fst) lcArgList
-          keepNum
-            | length keepList > 1 =
-              errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " ++ show inArgs)
-            | null keepList = Just 10
-            | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
-
-          daysList = filter ((=="days").fst) lcArgList
-          days
-            | length daysList > 1 =
-              errorWithoutStackTrace ("Multiple 'days' number specifications in search command--can have only one: " ++ show inArgs)
-            | null daysList = Just 0
-            | otherwise = readMaybe (snd $ head daysList) :: Maybe Int
-
-          hoursList = filter ((=="hours").fst) lcArgList
-          hours
-            | length hoursList > 1 =
-              errorWithoutStackTrace ("Multiple 'hours' number specifications in search command--can have only one: " ++ show inArgs)
-            | null hoursList = Just 0
-            | otherwise = readMaybe (snd $ head hoursList) :: Maybe Int
-
-          minutesList = filter ((=="minutes").fst) lcArgList
-          minutes
-            | length minutesList > 1 =
-              errorWithoutStackTrace ("Multiple 'minutes' number specifications in search command--can have only one: " ++ show inArgs)
-            | null minutesList = Just 0
-            | otherwise = readMaybe (snd $ head minutesList) :: Maybe Int
-
-          secondsList = filter ((=="seconds").fst) lcArgList
-          seconds
-            | length secondsList > 1 =
-              errorWithoutStackTrace ("Multiple 'seconds' number specifications in search command--can have only one: " ++ show inArgs)
-            | null secondsList = Just 30
-            | otherwise = readMaybe (snd $ head secondsList) :: Maybe Int
-
-          maxNetEdgesList = filter ((=="maxnetedges").fst) lcArgList
-          maxNetEdges
-              | length maxNetEdgesList > 1 =
-                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " ++ show inArgs)
-              | null maxNetEdgesList = Just 10
-              | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
-
-          thompsonList = filter ((=="thompson").fst) lcArgList
-          mFactor
-            | length thompsonList > 1 =
-              errorWithoutStackTrace ("Multiple 'Thompson' number specifications in search command--can have only one: " ++ show inArgs)
-            | null thompsonList = Just 1
-            | otherwise = readMaybe (snd $ head thompsonList) :: Maybe Int
-
-          thompson = any ((=="thompson").fst) lcArgList
-          mLinear = any ((=="linear").fst) lcArgList
-          mExponential = any ((=="exponential").fst) lcArgList
-
-          mFunction = if mLinear && mExponential then
-                            trace ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'")
-                            "linear"
-                      else if mLinear then "linear"
-                      else if mExponential then "exponential"
-                      else "linear"
-
-      in
-      if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in search: "  ++ show (head keepList))
-      else if isNothing instances then errorWithoutStackTrace ("Instances specification not an integer in search: "  ++ show (head instancesList))
-      else if isNothing days then errorWithoutStackTrace ("Days specification not an integer in search: "  ++ show (head daysList))
-      else if isNothing hours then errorWithoutStackTrace ("Hours specification not an integer in search: "  ++ show (head hoursList))
-      else if isNothing minutes then errorWithoutStackTrace ("Minutes specification not an integer in search: "  ++ show (head minutesList))
-      else if isNothing seconds then errorWithoutStackTrace ("Seconds factor specification not an integer in search: "  ++ show (head secondsList))
-      else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer or not found in search (e.g. Thompson:1) "  ++ show (head thompsonList))
-      else if isNothing maxNetEdges then errorWithoutStackTrace ("Search 'maxNetEdges' specification not an integer or not found (e.g. maxNetEdges:8): "  ++ show (snd $ head maxNetEdgesList))
-         
-      else
-         let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
-                        else seconds
-             searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
-         in
-         (searchTime, fromJust keepNum, fromJust instances, thompson, fromJust mFactor, mFunction, fromJust maxNetEdges)
+-}
 

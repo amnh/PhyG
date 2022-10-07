@@ -35,7 +35,7 @@ set(dynamicEpsilon:0.0)
 --set(criterion:ml)
 
 -- set(seed:1)
-build(replicates:10)
+--build(replicates:10)
 --build(distance, dwag)
 --build(nj, wpgma, dwag, distance, rdwag, replicates:10, best:10)
 --build(distance, rdwag, replicates:10, best:10)
@@ -65,7 +65,7 @@ select(unique)
 
 --transform(weight:0.1, name:"chel.fas#0*")
 
-search(minutes:5, instances:4, Thompson:1)
+search(minutes:5, instances:1, Thompson:1, simple)
 
 -- transform(dynamic)
 select(best)
