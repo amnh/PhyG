@@ -89,9 +89,11 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                             zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
        
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList maxNetEdges 1 threshold []
+       initialSeconds = fromSeconds . fromIntegral $ (0 :: Int)
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 1 maxNetEdges initialSeconds threshold []
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
+   
    in 
    trace ("Randomized seach for " ++ (show searchTime) ++ " seconds with " ++ (show instances) ++ " instances keeping at most " ++ (show keepNum) ++ " graphs") (
             
@@ -122,18 +124,24 @@ searchForDuration :: GlobalSettings
                   -> Int
                   -> Int 
                   -> CPUTime 
+                  -> CPUTime 
                   -> [String] 
                   -> Int 
                   -> [Int] 
                   -> ([PhylogeneticGraph], [String]) 
                   -> IO ([PhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
-   (elapsedSeconds, output) <- timeOpUT $
-       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) input
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
+   -- (elapsedSeconds, output) <- timeOpUT $
+   (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
+       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds input
        in  pure result
 
    -- update theta list based on performance    
-   let updatedThetaList = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSeconds
+   let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
+   let finalTimeString = ",SearchTime,,," ++ (show $ toSeconds outTotalSeconds)
+
+   -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
+   let updatedThetaList = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds 
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
@@ -142,26 +150,34 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Remaining\t" <> show remainingTime
                       ]
    if elapsedSeconds >= allotedSeconds
-   then pure output
-   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges remainingTime (inCommentList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
+   then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString]) -- output with strings correctly added together
+   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime (infoStringList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
-updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> CPUTime -> [(String, Double)]
-updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds =
+updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> CPUTime -> CPUTime -> [(String, Double)]
+updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds totalSeconds =
     if null inPairList then []
     else if not thompsonSample then inPairList
     else 
+        -- trace ("UT1: " ++ (show infoStringList)) (
         -- update via results, previous history, memory \factor and type of memory "loss"
         let -- get search info for last search iteration
-            searchBandit = takeWhile (/= ',') (last infoStringList)
-            searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (last infoStringList)
+            -- thjis tail/head stuff due to leading ',' in comment field
+            searchBandit = takeWhile (/= ',') (tail $ head infoStringList)
+            searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (tail $ head infoStringList)
             searchDelta = read searchDeltaString :: Double
 
             -- get timing and benefit accounting for 0's
+            -- average time for benefit adjustment
+            averageTime = (fromIntegral $ toSeconds totalSeconds) / (fromIntegral counter) :: Double
+            timeFactor = if counter == 1 then 1.0 
+                         else if toSeconds elapsedSeconds == 0 then 0.1
+                         else (fromIntegral $ toSeconds elapsedSeconds) / averageTime
+            
             durationTime = if toSeconds elapsedSeconds == 0 then 1
                            else toSeconds elapsedSeconds
 
-            benefit = if searchDelta == 0.0 then 0.0
+            benefit = if searchDelta <= 0.0 then 0.0
                       else searchDelta / (fromIntegral durationTime)
 
             -- get bandit index and orignial theta value from pair list
@@ -170,7 +186,10 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 
             inThetaBandit = snd $ inPairList !! indexBandit
         in
-        if mFunction == "simple" then
+        -- check error
+        if isNothing indexBandit' then error ("Bandit index not found: " ++ searchBandit ++ " in " ++ (show inPairList))
+
+        else if mFunction == "simple" then
             -- first Simple update based on 0 = no better. 1 == any better irrespective of magnitude or time, full memory
             -- all thetas (second field) sum to one.
             -- if didn't do anything but increment everyone else with 1/(num bandits - 1), then renormalize
@@ -194,19 +213,42 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 
                 newThetaList = fmap (/ totalTheta) newSuccessList
             in
-            if isNothing indexBandit' then error ("Bandit index not found: " ++ searchBandit ++ " in " ++ (show inPairList))
-            else 
-                trace ("UT: " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds, benefit)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (show infoStringList))
-                zip (fmap fst inPairList) newThetaList
+            trace ("UT2: " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds, benefit)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList))
+            zip (fmap fst inPairList) newThetaList
 
         -- more complex options
         -- need to bag out for incorrect ["linear","exponential"]
+        -- testng for now
         else if mFunction `elem` ["linear","exponential"] then
-            trace ("Not simple: " ++ mFunction) 
-            inPairList   
+            let searchBenefit = if searchDelta <= 0.0 then 0.0
+                                else 1.0 / timeFactor
 
-        else errorWithoutStackTrace ("Thomspson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
-        
+                previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
+            
+                -- averager of new (m==1) for testting
+                newBanditVal = if searchBenefit > inThetaBandit then (searchBenefit + inThetaBandit) / 2.0
+                               else searchBenefit + inThetaBandit
+
+                -- for nonBandit if not successful increment them (basically to downweight bandit), other wise not
+                incrementNonBanditVals = if benefit == 0.0 then 1.0 / ((fromIntegral $ length inPairList) - 1.0)
+                                         else 0.0
+                updatedSuccessList = fmap (+ incrementNonBanditVals) previousSuccessList
+
+                -- uopdate the bandit from list by splitting and rejoining
+                firstBanditPart = take indexBandit updatedSuccessList
+                thirdBanditPart = drop (indexBandit + 1) updatedSuccessList
+                newSuccessList = firstBanditPart ++ (newBanditVal : thirdBanditPart)
+                totalTheta = sum newSuccessList
+
+                newThetaList = fmap (/ totalTheta) newSuccessList
+
+            in
+            trace ("Not simple: " ++ mFunction ++ " search benefit " ++ (show searchBenefit) ++ " " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList))
+            zip (fmap fst inPairList) newThetaList   
+            
+
+        else errorWithoutStackTrace ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
+        -- )
 
 
 -- | performSearch takes in put graphs and performs randomized build and search with time limit
@@ -220,13 +262,14 @@ performSearch :: GlobalSettings
                -> [(String, Double)] 
                -> Int
                -> Int 
+               -> CPUTime
                -> ([PhylogeneticGraph], [String]) 
                -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed (inGraphList', inStringList) =
+performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
-          thompsonString = if not thompsonSample then ","
-                           else "," ++ (show thetaList) 
+          thompsonString = "" -- if not thompsonSample then ","
+                              -- else "," ++ (show thetaList) 
 
           -- get infinite lists if integers and doubles
           randIntList = randomIntList rSeed
@@ -314,13 +357,15 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                            else "buildDistance"
 
              -- string of delta cost of graphs
-             deltaString = if null inGraphList' then "10.0,"
-                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+             deltaString = if null inGraphList' then "10.0"
+                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) 
 
-             searchString = buildString ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg buildArgs)
+             currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
+
+             searchString = "," ++ buildString ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg buildArgs)
 
                             
-         in  (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
+         in  (uniqueGraphs, [searchString ++ thompsonString])
 
 
       -- already have some input graphs
@@ -489,16 +534,18 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
              (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
 
-             -- string of delta cost of graphs
+             -- string of delta and cost of graphs
              deltaString = if null inGraphList' then "10.0,"
-                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) -- ++ ","
+
+             currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
 
              -- create string for search stats
-             searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg searchArgs) ++ staticApproxString ++ transString
+             searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ staticApproxString ++ transString
                             
          in
-         (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-         where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
+         (uniqueGraphs, [searchString ++ thompsonString])
+         where showArg a = (fst a) ++ ":" ++ (snd a)
 
 
 -- | getSearchParams takes arguments and returns search params

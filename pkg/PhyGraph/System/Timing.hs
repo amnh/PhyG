@@ -15,6 +15,8 @@ module System.Timing
   , timeOp
   , timeOpUT
   , timeOpThread
+  , timeOpCPUWall
+  , timeSum
   ) where
 
 
@@ -88,9 +90,23 @@ timeOpUT ioa = do
     let t = CPUTime . fromIntegral $ 1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime t2 t1)))
     pure (t, a)
 
+-- reports both CPUTime (ie total over parallel)  and wall clock duration
+timeOpCPUWall :: (MonadIO m, NFData a) => m a -> m (CPUTime, CPUTime, a)
+timeOpCPUWall ioa = do
+    wt1 <- liftIO getCurrentTime
+    ct1 <- liftIO getCPUTime
+    a   <- force <$> ioa
+    ct2 <- liftIO getCPUTime
+    wt2 <- liftIO getCurrentTime
+    let wt = CPUTime . fromIntegral $ 1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1)))
+    let ct = CPUTime . fromIntegral $ ct2 - ct1
+    pure (wt, ct, a)
+
 timeDifference :: CPUTime -> CPUTime -> CPUTime
 timeDifference (CPUTime a) (CPUTime b) = CPUTime $ max a b - min a b
 
+timeSum :: CPUTime -> CPUTime -> CPUTime
+timeSum (CPUTime a) (CPUTime b) = CPUTime $ a + b
 
 fromPicoseconds :: Natural -> CPUTime
 fromPicoseconds = CPUTime
