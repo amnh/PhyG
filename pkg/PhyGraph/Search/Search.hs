@@ -335,386 +335,171 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                            else ((inGS', inData', inData', inGraphList'), "")
          in
-         if searchBandit == "swapSPR" then 
-            let -- swap options
-                swapType = "spr"
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- search
-                searchGraphs = R.swapMaster swapArgs inGS inData (head randIntList)inGraphList
+         -- bandit list with search arguments set
+         let (searchGraphs, searchArgs) = if searchBandit == "swapSPR" then 
+                                            let -- swap options
+                                                swapType = "spr"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                            in
+                                            -- search
+                                            (R.swapMaster swapArgs inGS inData (head randIntList)inGraphList, swapArgs)
 
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
+                                          else if searchBandit == "swapAlternate" then 
+                                            let -- swap options
+                                                swapType = "alternate" --default anyway
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                            in    
+                                            -- search
+                                            (R.swapMaster swapArgs inGS inData (head randIntList)inGraphList, swapArgs)
+
+                                          else if searchBandit == "driftSPR" then
+                                            let -- swap args
+                                                swapType = "spr"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                
+                                                -- swap with drift (common) arguments
+                                                swapDriftArgs = swapArgs ++ driftArgs
+                                            in
+                                            -- perform search
+                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList, swapArgs)
+
+                                          else if searchBandit == "driftAlternate" then
+                                            let -- swap args
+                                                swapType = "alternate"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                
+                                                -- swap with drift (common) arguments
+                                                swapDriftArgs = swapArgs ++ driftArgs
+                                            in
+                                            -- perform search
+                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList, swapDriftArgs)
+
+                                          else if searchBandit == "annealSPR" then
+                                            let -- swap args
+                                                swapType = "spr"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                
+                                                -- swap with anneal (common) arguments
+                                                swapAnnealArgs = swapArgs ++ annealArgs
+                                            in
+                                            -- perform search
+                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList, swapAnnealArgs)
+
+                                          else if searchBandit == "annealAlternate" then
+                                            let -- swap args
+                                                swapType = "alternate"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                
+                                                -- swap with anneal (common) arguments
+                                                swapAnnealArgs = swapArgs ++ annealArgs
+                                            in
+                                            -- perform search
+                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList, swapAnnealArgs)
+
+                                          else if searchBandit == "geneticAlgorithm" then
+                                            -- args from above
+                                            -- perform search
+                                            (R.geneticAlgorithmMaster gaArgs inGS inData (head randIntList)inGraphList, gaArgs)
+
+                                          else if searchBandit == "fuse" then
+                                            -- should more graphs be added if only one?  Would downweight fuse perhpas too much
+                                            let -- fuse arguments
+                                                fuseArgs = [("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                            in
+                                            -- perform search
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+
+                                          else if searchBandit == "fuseSPR" then
+                                            let -- fuse arguments
+                                                fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                            in
+                                            -- perform search
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+
+                                          else if searchBandit == "fuseAlternate" then
+                                            let -- fuse arguments
+                                                fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                            in
+                                            -- perform search
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+
+                                          else if searchBandit == "fuseAlternate" then
+                                            let -- fuse arguments
+                                                fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                            in
+                                            -- perform search
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+                
+                                          else if searchBandit == "networkAdd" then
+                                            let -- network add args
+                                                netEditArgs = netAddArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+                                          else if searchBandit == "networkDelete" then
+                                            let -- network delete args
+                                                netEditArgs = netDelArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+                                          else if searchBandit == "networkAddDelete" then
+                                            let -- network add/delete args
+                                                netEditArgs = netAddDelArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+                                          else if searchBandit == "networkAddDelete" then
+                                            let -- network add/delete args
+                                                netEditArgs = netAddDelArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+                                          {-Inactive till fix net move
+                                          else if searchBandit == "networkMove" then
+                                            let -- network move args
+                                                netEditArgs = netMoveArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                          -}
+
+                                          else if searchBandit == "driftNetwork" then
+                                            let -- network add/delete  + drift args
+                                                netEditArgs = netAddDelArgs ++ driftArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+                                          else if searchBandit == "annealNetwork" then
+                                            let -- network add/delete  + annealing  args
+                                                netEditArgs = netAddDelArgs ++ annealArgs
+                                            in
+                                            -- perform search
+                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+
+
+                                          else error ("Unknown/unimplemented method in search: " ++ searchBandit)
+      
+             -- process
+             uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
+             (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
                                               else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
 
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
+             -- string of delta cost of graphs
+             deltaString = if null inGraphList' then "10.0,"
+                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
 
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
+             -- create string for search stats
+             searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg searchArgs) ++ staticApproxString ++ transString
                             
          in
          (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
+         where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
-
-         else if searchBandit == "swapAlternate" then 
-            let -- swap options
-                swapType = "alternate" --default anyway
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- search
-                searchGraphs = R.swapMaster swapArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
-                            
-         in
-         (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-         else if searchBandit == "driftSPR" then
-            let 
-                -- swap args
-                swapType = "spr"
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- swap with drift (common) arguments
-                swapDriftArgs = swapArgs ++ driftArgs
-
-                -- perform search
-                searchGraphs = R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
-            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "driftAlternate" then
-            let 
-                -- swap args
-                swapType = "alternate"
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- swap with drift (common) arguments
-                swapDriftArgs = swapArgs ++ driftArgs
-
-                -- perform search
-                searchGraphs = R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-            
-         else if searchBandit == "annealSPR" then
-            let 
-                -- swap args
-                swapType = "spr"
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- swap with anneal (common) arguments
-                swapAnnealArgs = swapArgs ++ annealArgs
-
-                -- perform search
-                searchGraphs = R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "annealAlternate" then
-            let 
-                -- swap args
-                swapType = "alternate"
-                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
-                
-                -- swap with anneal (common) arguments
-                swapAnnealArgs = swapArgs ++ annealArgs
-
-                -- perform search
-                searchGraphs = R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg swapArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-            
-         else if searchBandit == "geneticAlgorithm" then
-            let -- args from above
-                -- perform search
-                searchGraphs = R.geneticAlgorithmMaster gaArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg gaArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-         else if searchBandit == "fuse" then
-            -- should more graphs be added if only one?  Would downweight fuse perhpas too much
-            let -- fuse arguments
-                fuseArgs = [("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
-
-                -- perform search
-                searchGraphs = R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                
-                --- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-         else if searchBandit == "fuseSPR" then
-            let -- fuse arguments
-                fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
-
-                -- perform search
-                searchGraphs = R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "fuseAlternate" then
-            let -- fuse arguments
-                fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
-
-                -- perform search
-                searchGraphs = R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList
-                
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg fuseArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "networkAdd" then
-            let -- network add args
-                netEditArgs = netAddArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "networkDelete" then
-            let -- network delete args
-                netEditArgs = netDelArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         else if searchBandit == "networkAddDelete" then
-            let -- network add/delete args
-                netEditArgs = netAddDelArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            
-         {-Inactive till fix net move
-         else if searchBandit == "networkMove" then
-            let -- network move args
-                netEditArgs = netMoveArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-            -}
-            
-         else if searchBandit == "driftNetwork" then
-            let -- network add/delete  + drift args
-                netEditArgs = netAddDelArgs ++ driftArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-         else if searchBandit == "annealNetwork" then
-            let -- network add/delete  + annealing  args
-                netEditArgs = netAddDelArgs ++ annealArgs
-
-                -- perform search
-                searchGraphs = R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList
-
-                -- process
-                uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-                (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-
-                -- string of delta cost of graphs
-                deltaString = if null inGraphList' then "10.0,"
-                              else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) ++ ","
-
-                -- create string for search stats
-                searchString = searchBandit ++ "," ++ deltaString ++ (L.intercalate "," $ fmap showArg netEditArgs) ++ staticApproxString ++ transString
-                            
-            in
-            (uniqueGraphs, inStringList ++ [searchString ++ thompsonString])
-
-         else error ("Unknown/unimplemented method in search: " ++ searchBandit)
-      where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
 
 -- | getSearchParams takes arguments and returns search params
 getSearchParams :: [Argument] -> (Int, Int, Int, Bool, Int, String, Int)
