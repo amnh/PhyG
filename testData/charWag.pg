@@ -67,7 +67,7 @@ select(unique)
 
 search(minutes:2, instances:1, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
---search(minutes:5, instances:1)
+--search(minutes:5, instances:1, stop:50)
 
 -- transform(dynamic)
 select(best)

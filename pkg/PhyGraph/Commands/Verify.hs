@@ -113,7 +113,7 @@ reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot"
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances", "thompson", "mfactor", "simple", "linear", "exponential", "maxnetadges"]
+searchArgList = ["days", "hours", "minutes", "seconds", "instances", "thompson", "mfactor", "simple", "linear", "exponential", "maxnetadges", "stop"]
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
