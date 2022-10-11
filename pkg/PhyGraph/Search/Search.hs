@@ -231,10 +231,10 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 
                 newThetaList = fmap (/ totalTheta) newSuccessList
             in
-            trace ("UT2: " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds, benefit)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList)) (
+            -- trace ("UT2: " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds, benefit)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList)) (
             trace  stopString
             (zip (fmap fst inPairList) newThetaList, newStopCount)
-            )
+            -- )
 
         -- more complex options
         -- need to bag out for incorrect ["linear","exponential"]
@@ -274,10 +274,10 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                 newThetaList = fmap (/ totalTheta) newSuccessList
 
             in
-            trace ("Not simple: " ++ mFunction ++ " search benefit " ++ (show searchBenefit) ++ " " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList)) (
+            -- trace ("Not simple: " ++ mFunction ++ " search benefit " ++ (show searchBenefit) ++ " " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList)) (
             trace  stopString
             (zip (fmap fst inPairList) newThetaList, newStopCount)   
-            )
+            -- )
             
 
         else errorWithoutStackTrace ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
