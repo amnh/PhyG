@@ -80,7 +80,7 @@ import Data.Bits
 import qualified Commands.Verify             as VER
 import qualified Input.Reorganize            as IR
 import qualified Data.InfList                as IL
-
+import qualified Data.List.Split             as LS
 
 
 
@@ -624,7 +624,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
     else
         let checkCommandList = checkCommandArgs "report" commandList VER.reportArgList
             outfileName = if null outFileNameList then "stderr"
-                          else tail $ init $ head outFileNameList
+                          else tail $ L.init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
                         else "append"
 
@@ -715,7 +715,9 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     (reconcileString, outfileName, writeMode)
 
             else if "search" `elem` commandList then
-                let dataString = fmap showSearchFields $ reverse $ searchData globalSettings
+                let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
+                    -- reformat the "search" command fields a bit 
+                    dataString = processSearchFields dataString'
                     baseData = ("SearchData\n")
                     charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "CPU time (secs)", "Comment"]
                 in
@@ -753,6 +755,80 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
+-- | processSearchFields takes a [String] and reformats the String associated with the
+-- "search" commands and especially Thompson sampling data,
+-- otherwise leaves the list unchanged
+processSearchFields :: [[String]] -> [[String]]
+processSearchFields inStringListList =
+    if null inStringListList then []
+    else 
+        let firstList = head inStringListList
+        in
+        if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
+        else 
+            let newHeader = ["","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
+                tempList = getSearchIterations firstList
+                iterationList = L.init tempList
+                searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
+                preArgStringList = fmap getPreArgString iterationList
+                searchArgStringList = fmap getSearchArgString iterationList
+                searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
+                processedSearchList = L.zipWith3 concat3 preArgStringList  searchBanditProbsList searchArgStringList
+            in
+            trace ("GSI: " ++ (concat iterationList) ++ "\n" ++ (show searchBanditList) ++ "\n" ++ (show preArgStringList) ++ "\n" ++ (show searchArgStringList) ++ "\n" ++ (show searchBanditProbsList))
+            [L.init firstList] ++ [newHeader ++ searchBanditList ++ ["Arguments"]] ++ processedSearchList ++ [LS.splitOn "," $ L.last tempList] ++ processSearchFields (tail inStringListList)
+            where concat3 a b c = a ++ b ++ c
+
+-- | getBanditProbs parses bandit prob line for probablilities 
+getBanditProbs :: String -> [String]
+getBanditProbs  inString =
+    if null inString then []
+    else 
+        let stuff = dropWhile (/= ',') inString
+            stuff2 = tail $ takeWhile (/=  ')') stuff
+            remainder = tail $ dropWhile (/=  ')') stuff
+            remainder' = if length remainder > 2 then drop 2 remainder
+                        else [] 
+        in
+        stuff2 : getBanditProbs remainder' 
+
+
+-- | getSearchArgString get seach iteration arguments and concats, removing ','
+getSearchArgString :: String -> [String]
+getSearchArgString inString =
+    if null inString then []
+    else 
+      drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString
+
+-- getPreArgString gets search srtategy fields (type, delta, min cost, CPUtime)
+-- befroe arguments fields 
+getPreArgString :: String -> [String]
+getPreArgString inString =
+    if null inString then []
+    else 
+        [" "] ++ (take 4 $ tail $ LS.splitOn "," inString)
+
+-- | getBanditNames extracts the names of search bandits from comment list
+-- already first part filtered out so only pairs in "(,)"
+getBanditNames :: String -> [String]
+getBanditNames  inString =
+    if null inString then []
+    else 
+        let firstBanditName = takeWhile (/= ',') $ tail inString
+            remainder = dropWhile (/= '(') $ tail inString
+        in
+         firstBanditName : getBanditNames remainder
+
+-- | getSearchIterations breaks up comment feild into individual iteration lines
+getSearchIterations :: [String] -> [String]
+getSearchIterations inList =
+    if null inList then []
+    else 
+        let commentField = filter (/= '"') $ L.last inList
+            commentLines = LS.splitOn "]" commentField
+        in
+        commentLines
+
 
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.

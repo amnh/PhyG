@@ -139,10 +139,10 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
 
    -- update theta list based on performance    
    let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
-   let finalTimeString = ",SearchTime,,," ++ (show $ toSeconds outTotalSeconds)
-
+   let finalTimeString = ",,Final Values,," ++ (show $ toSeconds outTotalSeconds)
    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
+   let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
    putStrLn $ unlines [ "Thread   \t" <> show refIndex
@@ -151,7 +151,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Remaining\t" <> show remainingTime
                       ]
    if elapsedSeconds >= allotedSeconds || newStopCount >= stopNum
-   then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString]) -- output with strings correctly added together
+   then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
@@ -298,11 +298,10 @@ performSearch :: GlobalSettings
                -> CPUTime
                -> ([PhylogeneticGraph], [String]) 
                -> ([PhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed inTime (inGraphList', _) =
+performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
-          thompsonString = if not thompsonSample then ","
-                           else "," ++ (show thetaList) 
+          thompsonString = "," ++ (show thetaList) 
 
           -- get infinite lists if integers and doubles
           randIntList = randomIntList rSeed
@@ -355,7 +354,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
 
          let -- build options including block and distance
              -- primes (') in data and graphlist since not reseat by potnatila statric apporx transformation
-             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.9), ("block", 0.1)]
+             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.95), ("block", 0.05)]
              buildType = if searchBandit == "buildCharacter" then "character"
                          else if searchBandit == "buildDistance" then "distance"
                          else 
@@ -368,7 +367,7 @@ performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList m
              reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
 
              wagnerOptions = if buildType == "distance" then
-                                if buildMethod == "block" then [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show (1 :: Int))]
+                                if buildMethod == "block" then [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
                                 else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
                              else if buildType == "character" then
                                  if buildMethod == "block" then [("replicates", show (1 :: Int))]
