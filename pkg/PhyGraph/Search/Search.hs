@@ -90,7 +90,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
        
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
        initialSeconds = fromSeconds . fromIntegral $ (0 :: Int)
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 1 maxNetEdges initialSeconds threshold 0 stopNum []
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 1 maxNetEdges initialSeconds threshold 0 stopNum 
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
    
@@ -127,12 +127,11 @@ searchForDuration :: GlobalSettings
                   -> CPUTime 
                   -> Int 
                   -> Int
-                  -> [String] 
                   -> Int 
                   -> [Int] 
                   -> ([PhylogeneticGraph], [String]) 
                   -> IO ([PhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum  inCommentList refIndex seedList input@(inGraphList, infoStringList) = do
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList input@(inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
    (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
        let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds input
@@ -153,7 +152,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       ]
    if elapsedSeconds >= allotedSeconds || newStopCount >= stopNum
    then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString]) -- output with strings correctly added together
-   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum (infoStringList ++ (snd output)) refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
+   else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
 updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> CPUTime -> CPUTime -> Int -> Int -> ([(String, Double)], Int)
@@ -180,17 +179,14 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             searchDelta = read searchDeltaString :: Double
 
             -- get timing and benefit accounting for 0's
-            -- average time for benefit adjustment
-            averageTime = (fromIntegral $ toSeconds totalSeconds) / (fromIntegral counter) :: Double
+            -- average time ratio in time factor for benefit adjustment
+            totalTime = (fromIntegral $ toSeconds totalSeconds) / (fromIntegral counter) :: Double
             timeFactor = if counter == 1 then 1.0 
                          else if toSeconds elapsedSeconds == 0 then 0.1
-                         else (fromIntegral $ toSeconds elapsedSeconds) / averageTime
+                         else (fromIntegral $ toSeconds elapsedSeconds) / totalTime
             
             durationTime = if toSeconds elapsedSeconds == 0 then 1
                            else toSeconds elapsedSeconds
-
-            benefit = if searchDelta <= 0.0 then 0.0
-                      else searchDelta / (fromIntegral durationTime)
 
             -- get bandit index and orignial theta value from pair list
             indexBandit' = L.elemIndex searchBandit $ fmap fst inPairList
@@ -207,6 +203,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
         -- check error
         if isNothing indexBandit' then error ("Bandit index not found: " ++ searchBandit ++ " in " ++ (show inPairList))
 
+        -- "simple" for testing, sucess=1, no time factor, full average overall interations
         else if mFunction == "simple" then
             -- first Simple update based on 0 = no better. 1 == any better irrespective of magnitude or time, full memory
             -- all thetas (second field) sum to one.
@@ -214,6 +211,9 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             -- dowenweights unsiucessful bandit
             let previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
+                benefit = if searchDelta <= 0.0 then 0.0
+                          else searchDelta / (fromIntegral durationTime)
+
                 -- see if bandit was sucessful and if so set increment
                 incrementBandit = if benefit == 0.0 then 0.0 else 1.0
                 newBanditVal = incrementBandit + ((fromIntegral counter) * inThetaBandit)
@@ -240,17 +240,28 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
         -- need to bag out for incorrect ["linear","exponential"]
         -- testng for now
         else if mFunction `elem` ["linear","exponential"] then
-            let searchBenefit = if searchDelta <= 0.0 then 0.0
+            let -- weight factors for previous theta (wN-1)
+                mFactor' = fromIntegral mFactor :: Double
+                (wN_1, wN) = if mFunction == "linear" then
+                                    (mFactor' / (mFactor' + 1), 1.0 / (mFactor' + 1))
+                             else if mFunction == "exponential" then 
+                                    (1.0 - (1.0 / (2.0 ** mFactor')), (1.0 / (2.0 ** mFactor')))
+                             else error ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
+
+                -- simple "success-based" benefit, scaled to averge time of search iteration
+                searchBenefit = if searchDelta <= 0.0 then 0.0
                                 else 1.0 / timeFactor
 
                 previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
-                -- averager of new (m==1) for testting
-                newBanditVal = if searchBenefit > inThetaBandit then (searchBenefit + inThetaBandit) / 2.0
-                               else searchBenefit + inThetaBandit
+                -- average of new if m=1, no memory if m=0, longer memory with larger m
+                newBanditVal = if searchBenefit > inThetaBandit then 
+                                    (wN * searchBenefit) + (wN_1 * inThetaBandit)
+                               else 
+                                    (wN_1 * inThetaBandit) + (wN * (inThetaBandit + searchBenefit))
 
                 -- for nonBandit if not successful increment them (basically to downweight bandit), other wise not
-                incrementNonBanditVals = if benefit == 0.0 then 1.0 / ((fromIntegral $ length inPairList) - 1.0)
+                incrementNonBanditVals = if searchDelta <= 0.0 then 1.0 / ((fromIntegral $ length inPairList) - 1.0)
                                          else 0.0
                 updatedSuccessList = fmap (+ incrementNonBanditVals) previousSuccessList
 
@@ -290,8 +301,8 @@ performSearch :: GlobalSettings
 performSearch inGS' inData' pairwiseDistances keepNum thompsonSample thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
-          thompsonString = "" -- if not thompsonSample then ","
-                              -- else "," ++ (show thetaList) 
+          thompsonString = if not thompsonSample then ","
+                           else "," ++ (show thetaList) 
 
           -- get infinite lists if integers and doubles
           randIntList = randomIntList rSeed
