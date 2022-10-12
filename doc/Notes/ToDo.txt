@@ -737,4 +737,10 @@ CallStack (from -prof):
 
  414) swap unions
 
- 
+ 415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
+
+416) Search terminate after so many zero imporvements? (or time)
+
+417) Static approx costs when not 1:1 (add chars)
+
+418) greaph number control in search/GA

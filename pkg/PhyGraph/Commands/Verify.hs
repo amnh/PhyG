@@ -77,7 +77,7 @@ buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "chara
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs"]
+fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs", "alternate"]
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
@@ -113,7 +113,7 @@ reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot"
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances"]
+searchArgList = ["days", "hours", "minutes", "seconds", "instances", "thompson", "mfactor", "simple", "linear", "exponential", "maxnetadges", "stop"]
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]

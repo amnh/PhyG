@@ -58,7 +58,7 @@ library
     --   1. Fail on a warning
     --   2. Include all warnings by default
     --   3. Exclude the undesirable warnings
-    -Werror
+    -- -Werror
     -Weverything
     -- Exclusions:
     -Wno-all-missed-specialisations

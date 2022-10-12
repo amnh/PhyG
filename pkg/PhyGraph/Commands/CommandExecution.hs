@@ -80,7 +80,7 @@ import Data.Bits
 import qualified Commands.Verify             as VER
 import qualified Input.Reorganize            as IR
 import qualified Data.InfList                as IL
-
+import qualified Data.List.Split             as LS
 
 
 
@@ -512,8 +512,8 @@ setCommand argList globalSettings processedData inSeedList =
             if localValue == Nothing then error ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
             else if (fromJust localValue) < 0.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
             else 
-                trace ("Dynammic Epsilon factor set to " ++ head optionList)
-                (globalSettings {dynamicEpsilon = 1.0 + (fromJust localValue)}, processedData, inSeedList)
+                trace ("Dynamic Epsilon factor set to " ++ head optionList)
+                (globalSettings {dynamicEpsilon = 1.0 + ((fromJust localValue) * (fractionDynamic globalSettings))}, processedData, inSeedList)
 
         else if head commandList == "finalassignment"  then
             let localMethod
@@ -624,7 +624,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
     else
         let checkCommandList = checkCommandArgs "report" commandList VER.reportArgList
             outfileName = if null outFileNameList then "stderr"
-                          else tail $ init $ head outFileNameList
+                          else tail $ L.init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
                         else "append"
 
@@ -715,9 +715,11 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     (reconcileString, outfileName, writeMode)
 
             else if "search" `elem` commandList then
-                let dataString = fmap showSearchFields $ reverse $ searchData globalSettings
+                let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
+                    -- reformat the "search" command fields a bit 
+                    dataString = processSearchFields dataString'
                     baseData = ("SearchData\n")
-                    charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "Duration (secs)", "Comment"]
+                    charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "CPU time (secs)", "Comment"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
 
@@ -753,6 +755,91 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
+-- | processSearchFields takes a [String] and reformats the String associated with the
+-- "search" commands and especially Thompson sampling data,
+-- otherwise leaves the list unchanged
+processSearchFields :: [[String]] -> [[String]]
+processSearchFields inStringListList =
+    if null inStringListList then []
+    else 
+        let firstList = head inStringListList
+        in
+        if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
+        else 
+            let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
+                instanceSplitList = LS.splitOn "*" (L.last firstList)
+                (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
+            in
+            -- trace ("GSI: " ++ (show firstList))
+            [L.init firstList] ++ [newHeader ++ (head searchBanditListList) ++ ["Arguments"]] ++ (concat instanceStringListList) ++ processSearchFields (tail inStringListList)
+
+-- processSearchInstance takes the String of instance information and 
+-- returns appropriate [[String]] for pretty csv output
+processSearchInstance :: String -> ([[String]], [String])
+processSearchInstance inString =
+    if null inString then ([], [])
+    else 
+        let tempList = getSearchIterations inString
+            iterationList = L.init tempList
+            iterationCounterList = fmap (:[]) $ fmap show [0..(length iterationList - 1)]
+            searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
+            preArgStringList = fmap getPreArgString iterationList
+            searchArgStringList = fmap getSearchArgString iterationList
+            searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
+            processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
+            instanceStringList = processedSearchList ++ [LS.splitOn "," $ L.last tempList]
+        in
+        (instanceStringList, searchBanditList)
+        where concat4 a b c d = a ++ b ++ c ++ d
+
+-- | getBanditProbs parses bandit prob line for probabilities 
+getBanditProbs :: String -> [String]
+getBanditProbs  inString =
+    if null inString then []
+    else 
+        let stuff = dropWhile (/= ',') inString
+            stuff2 = tail $ takeWhile (/=  ')') stuff
+            remainder = tail $ dropWhile (/=  ')') stuff
+            remainder' = if length remainder > 2 then drop 2 remainder
+                        else [] 
+        in
+        stuff2 : getBanditProbs remainder' 
+
+-- | getSearchArgString get seach iteration arguments and concats, removing ','
+getSearchArgString :: String -> [String]
+getSearchArgString inString =
+    if null inString then []
+    else 
+      [L.intercalate " " $ drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString]
+
+-- getPreArgString gets search srtategy fields (type, delta, min cost, CPUtime)
+-- befroe arguments fields 
+getPreArgString :: String -> [String]
+getPreArgString inString =
+    if null inString then []
+    else 
+        (take 4 $ tail $ LS.splitOn "," inString)
+
+-- | getBanditNames extracts the names of search bandits from comment list
+-- already first part filtered out so only pairs in "(,)"
+getBanditNames :: String -> [String]
+getBanditNames  inString =
+    if null inString then []
+    else 
+        let firstBanditName = takeWhile (/= ',') $ tail inString
+            remainder = dropWhile (/= '(') $ tail inString
+        in
+         firstBanditName : getBanditNames remainder
+
+-- | getSearchIterations breaks up comment feild into individual iteration lines
+getSearchIterations :: String -> [String]
+getSearchIterations inList =
+    if null inList then []
+    else 
+        let commentField = filter (/= '"') inList
+            commentLines = LS.splitOn "]" commentField
+        in
+        commentLines
 
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.
@@ -813,9 +900,9 @@ printGraphVizDot graphDotString dotFile =
 -- | showSearchFields cretes a String list for SearchData Fields
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
-    [show $ instruction sD, concat $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
+    [show $ instruction sD, L.intercalate " " $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
     show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD]
-    where showArg a = "(" ++ (fst a) ++ "," ++ (snd a) ++ ")"
+    where showArg a = (fst a) ++ ":" ++ (snd a) 
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
 -- graph type, optimality criterion etc.

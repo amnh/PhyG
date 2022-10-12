@@ -215,11 +215,15 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                -- readdition options, specified as swap types
                doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
-               doTBR = any ((=="tbr").fst) lcArgList
-               doSPR = if doTBR then False
-                       else doSPR'
-               doNNI = if doSPR || doTBR then False
-                       else doNNI'
+               doTBR' = any ((=="tbr").fst) lcArgList
+               doAlternate = any ((=="alternate").fst) lcArgList
+
+               (doNNI, doSPR, doTBR) = if doAlternate then (False, False, False)
+                                       else if (not doNNI') && (not doSPR') && (not doTBR') then (False, False, False)
+                                       else if doNNI' then (True, False, False)
+                                       else if doSPR' then (False, True, False)
+                                       else (False, False, True)
+
                        
                returnBest = any ((=="best").fst) lcArgList
                returnUnique = any ((=="unique").fst) lcArgList
