@@ -65,7 +65,7 @@ select(unique)
 
 --transform(weight:0.1, name:"chel.fas#0*")
 
-search(seconds:30, instances:2, Thompson:1, linear)
+search(minutes:2, instances:2, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 

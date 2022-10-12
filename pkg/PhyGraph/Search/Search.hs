@@ -151,7 +151,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Remaining\t" <> show remainingTime
                       ]
    if elapsedSeconds >= allotedSeconds || newStopCount >= stopNum
-   then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString]) -- output with strings correctly added together
+   then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString ++ "," ++ "*"]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
 -- | updateTheta updates the expected success parameters for the bandit search list
@@ -354,7 +354,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
          let -- build options including block and distance
              -- primes (') in data and graphlist since not reseat by potnatila statric apporx transformation
-             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.95), ("block", 0.05)]
+             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.99), ("block", 0.01)]
              buildType = if searchBandit == "buildCharacter" then "character"
                          else if searchBandit == "buildDistance" then "distance"
                          else 
@@ -367,8 +367,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
 
              wagnerOptions = if buildType == "distance" then
-                                if buildMethod == "block" then [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
-                                else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
+                                if buildMethod == "block" then [("dwag", "")] -- [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
+                                else  [("replicates", show numToDistBuild), ("rdwag", ""), ("dwag", ""), ("best", show numToCharBuild)]
                              else if buildType == "character" then
                                  if buildMethod == "block" then [("replicates", show (1 :: Int))]
                                  else [("replicates", show numToCharBuild)] 

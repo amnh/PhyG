@@ -766,20 +766,42 @@ processSearchFields inStringListList =
         in
         if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
         else 
-            let newHeader = ["","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
-                tempList = getSearchIterations firstList
+            let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
+                (processedSearchList, searchBanditList, tempList) = processSearchInstance (L.last firstList)
+                {-
+                tempList = getSearchIterations $ L.last firstList
                 iterationList = L.init tempList
+                iterationCounterList = fmap (:[]) $ fmap show [0..(length iterationList - 1)]
                 searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
                 preArgStringList = fmap getPreArgString iterationList
                 searchArgStringList = fmap getSearchArgString iterationList
                 searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
-                processedSearchList = L.zipWith3 concat3 preArgStringList  searchBanditProbsList searchArgStringList
+                processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
+                -}
             in
-            trace ("GSI: " ++ (concat iterationList) ++ "\n" ++ (show searchBanditList) ++ "\n" ++ (show preArgStringList) ++ "\n" ++ (show searchArgStringList) ++ "\n" ++ (show searchBanditProbsList))
+            trace ("GSI: " ++ (show firstList))
             [L.init firstList] ++ [newHeader ++ searchBanditList ++ ["Arguments"]] ++ processedSearchList ++ [LS.splitOn "," $ L.last tempList] ++ processSearchFields (tail inStringListList)
-            where concat3 a b c = a ++ b ++ c
+            where concat4 a b c d = a ++ b ++ c ++ d
 
--- | getBanditProbs parses bandit prob line for probablilities 
+-- processSearchInstance takes the String of instance information and 
+-- returns appropriate [[String]] for pretty csv output
+processSearchInstance :: String -> ([[String]], [String], [String])
+processSearchInstance inString =
+    if null inString then ([], [], [])
+    else 
+        let tempList = getSearchIterations inString
+            iterationList = L.init tempList
+            iterationCounterList = fmap (:[]) $ fmap show [0..(length iterationList - 1)]
+            searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
+            preArgStringList = fmap getPreArgString iterationList
+            searchArgStringList = fmap getSearchArgString iterationList
+            searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
+            processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
+        in
+        (processedSearchList, searchBanditList, tempList)
+        where concat4 a b c d = a ++ b ++ c ++ d
+
+-- | getBanditProbs parses bandit prob line for probabilities 
 getBanditProbs :: String -> [String]
 getBanditProbs  inString =
     if null inString then []
@@ -792,13 +814,12 @@ getBanditProbs  inString =
         in
         stuff2 : getBanditProbs remainder' 
 
-
 -- | getSearchArgString get seach iteration arguments and concats, removing ','
 getSearchArgString :: String -> [String]
 getSearchArgString inString =
     if null inString then []
     else 
-      drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString
+      [L.intercalate " " $ drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString]
 
 -- getPreArgString gets search srtategy fields (type, delta, min cost, CPUtime)
 -- befroe arguments fields 
@@ -806,7 +827,7 @@ getPreArgString :: String -> [String]
 getPreArgString inString =
     if null inString then []
     else 
-        [" "] ++ (take 4 $ tail $ LS.splitOn "," inString)
+        (take 4 $ tail $ LS.splitOn "," inString)
 
 -- | getBanditNames extracts the names of search bandits from comment list
 -- already first part filtered out so only pairs in "(,)"
@@ -820,15 +841,14 @@ getBanditNames  inString =
          firstBanditName : getBanditNames remainder
 
 -- | getSearchIterations breaks up comment feild into individual iteration lines
-getSearchIterations :: [String] -> [String]
+getSearchIterations :: String -> [String]
 getSearchIterations inList =
     if null inList then []
     else 
-        let commentField = filter (/= '"') $ L.last inList
+        let commentField = filter (/= '"') inList
             commentLines = LS.splitOn "]" commentField
         in
         commentLines
-
 
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.
@@ -889,7 +909,7 @@ printGraphVizDot graphDotString dotFile =
 -- | showSearchFields cretes a String list for SearchData Fields
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
-    [show $ instruction sD, concat $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
+    [show $ instruction sD, L.intercalate " " $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
     show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD]
     where showArg a = (fst a) ++ ":" ++ (snd a) 
 
