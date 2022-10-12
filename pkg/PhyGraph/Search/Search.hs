@@ -139,7 +139,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
 
    -- update theta list based on performance    
    let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
-   let finalTimeString = ",,Final Values,," ++ (show $ toSeconds outTotalSeconds)
+   let finalTimeString = ",Final Values,,," ++ (show $ toSeconds outTotalSeconds)
    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
    let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
