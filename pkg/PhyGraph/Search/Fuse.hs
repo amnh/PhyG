@@ -111,6 +111,9 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
                              else if (graphFactor inGS) == Wheeler2015Network then 
                                  if (graphType inGS) == HardWired then 0.0
                                  else T.getW15NetPenalty Nothing curBestGraph
+                             else if (graphFactor inGS) == Wheeler2023Network then 
+                                 if (graphType inGS) == HardWired then 0.0
+                                 else T.getW23NetPenalty Nothing curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -193,8 +196,8 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           leftDecoratedGraph = thd6 leftGraph
           (leftRootIndex, _) = head $ LG.getRoots leftDecoratedGraph
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
-                              else filter ((/= leftRootIndex) . fst3) $ GO.getEdgeSplitList leftDecoratedGraph
-          leftSplitTupleList = PU.seqParMap rdeepseq  (GO.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
+                              else filter ((/= leftRootIndex) . fst3) $ LG.getEdgeSplitList leftDecoratedGraph
+          leftSplitTupleList = PU.seqParMap rdeepseq  (LG.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
@@ -204,8 +207,8 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           rightDecoratedGraph = thd6 rightGraph
           (rightRootIndex, _) = head $ LG.getRoots rightDecoratedGraph
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
-                              else filter ((/= rightRootIndex) . fst3) $ GO.getEdgeSplitList rightDecoratedGraph
-          rightSplitTupleList = PU.seqParMap rdeepseq (GO.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
+                              else filter ((/= rightRootIndex) . fst3) $ LG.getEdgeSplitList rightDecoratedGraph
+          rightSplitTupleList = PU.seqParMap rdeepseq (LG.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
@@ -297,7 +300,7 @@ recombineComponents :: GlobalSettings
                     -> LG.Node
                     -> VertexCost
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList graphRoot networkCostFactor =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
@@ -359,6 +362,7 @@ getNetworkPentaltyFactor inGS graphCost inGraph =
         let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                                 else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
         in
         inGraphNetPenalty / graphCost

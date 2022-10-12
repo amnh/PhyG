@@ -534,10 +534,11 @@ setCommand argList globalSettings processedData inSeedList =
             let localMethod
                   | (head optionList == "nopenalty") = NoNetworkPenalty
                   | (head optionList == "w15") = Wheeler2015Network
+                  | (head optionList == "w23") = Wheeler2023Network
                   | (head optionList == "pmdl") = PMDLGraph
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', or 'PMDL'")
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. GraphFactor  '" ++ (head optionList) ++ "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'")
             in
-            trace ("GraphFactor set to " ++ head optionList)
+            trace ("GraphFactor set to " ++ (show localMethod))
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
 
         else if head commandList == "graphtype"  then
@@ -660,6 +661,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 -- need to specify -O option for multiple graphs
                 let inputDisplayVVList = fmap fth6 curGraphs
                     costList = fmap snd6 curGraphs
+                    displayCostListList = fmap GO.getDisplayTreeCostList curGraphs
+                    displayInfoString = ("DisplayTree costs : " ++ (show (fmap sum $ fmap fst displayCostListList, displayCostListList))) 
                     treeIndexStringList = fmap ((++ "\n") . ("Canonical Tree " ++)) (fmap show [0..(length inputDisplayVVList - 1)])
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
                     blockStringList = concatMap (++ "\n") (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
@@ -669,7 +672,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     trace ("No soft-wired graphs to report display trees")
                     ("No soft-wired graphs to report display trees", outfileName, writeMode)
                 else 
-                    (blockStringList, outfileName, writeMode)
+                    (displayInfoString ++ "\n" ++ blockStringList, outfileName, writeMode)
+                
 
             else if "graphs" `elem` commandList then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
@@ -872,7 +876,7 @@ outputGraphStringSimple commandList lOutgroupIndex graphList costList
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
 makeDotList :: [VertexCost] -> Int -> [SimpleGraph] -> String
 makeDotList costList rootIndex graphList =
-    let graphStringList = fmap fgl2DotString $ fmap (GO.rerootTree rootIndex) graphList
+    let graphStringList = fmap fgl2DotString $ fmap (LG.rerootTree rootIndex) graphList
         costStringList = fmap ("\n//" ++) $ fmap show costList
     in
     L.intercalate "\n" (zipWith (++) graphStringList costStringList)
@@ -880,7 +884,7 @@ makeDotList costList rootIndex graphList =
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [SimpleGraph] -> String
 makeAsciiList rootIndex graphList =
-    concatMap LG.prettify (fmap (GO.rerootTree rootIndex) graphList)
+    concatMap LG.prettify (fmap (LG.rerootTree rootIndex) graphList)
 
 {- Older version wiht more data dependenncy
 -- | getDataListList returns a list of lists of Strings for data output as csv

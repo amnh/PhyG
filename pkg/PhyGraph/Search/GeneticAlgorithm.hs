@@ -150,9 +150,10 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             inSimAnnealParams = saValues
             swapType = getRandomElement (randList !! 2) ["spr","tbr"]
 
-            --radnomize network edit parameters
-            netEditType = getRandomElement (randList !! 3) ["netAdd", "netDelete", "netMove"]
+            --randomize network edit parameters
+            netEditType = getRandomElement (randList !! 3) ["netAdd", "netDelete", "netMove", "netAddDelete"]
             doRandomOrder = True
+            maxRounds = getRandomElement (randList !! 4) [1..5]
 
         in
 
@@ -175,8 +176,11 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
                     if netEditType == "netMove" then
                         head $ fst $ N.moveAllNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
-                    else if netEditType == "netadd" then
-                        head $ fst $ N.insertAllNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                    else if netEditType == "netAdd" then
+                        head $ fst $ N.insertAllNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+
+                    else if netEditType == "netAddDelete" then
+                        head $ fst $ N.addDeleteNetEdges inGS inData (randList !! 4) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
                     -- net delete
                     else

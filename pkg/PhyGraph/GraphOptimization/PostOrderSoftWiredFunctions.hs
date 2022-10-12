@@ -140,7 +140,7 @@ rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
 
             (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect) `using` PU.myParListChunkRDS)
 
-            -- this is a little slower thank myParListChunkRDS
+            -- this is a little slower than myParListChunkRDS
             -- (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap rdeepseq (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
 
             updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect)
@@ -190,7 +190,7 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
 rerootAndDiagnoseTree :: LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
 rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
-    let reRootGraph = GO.rerootDisplayTree rootIndex newRerootIndex inGraph
+    let reRootGraph = LG.rerootDisplayTree rootIndex newRerootIndex inGraph
         (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
         reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
     in
@@ -690,6 +690,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
     if nodeType nodeLabel == LeafNode then
         let leafVertData = fmap (displayData . V.head) (vertexResolutionData nodeLabel)
         in
+        -- trace ("GRDI: Leaf " ++ (show $ fmap V.length (vertexResolutionData nodeLabel)))
         (leafVertData, 0, 0, V.singleton (Just 0, Just 0))
 
     -- root node--take lowest cost
@@ -697,6 +698,7 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
         let rootBlockResolutionPair = getBestBlockResolution <$> vertexResolutionData nodeLabel
             (charDataVV, subGraphCostV, resCostV, leftRightIndexVect) = V.unzip4 rootBlockResolutionPair
         in
+        -- trace ("GRDI: Root " ++ (show $ fmap show parentResolutionIndexVect) ++ " " ++ (show $ fmap V.length (vertexResolutionData nodeLabel)))
         (charDataVV, V.sum subGraphCostV, V.sum resCostV, leftRightIndexVect)
 
     -- non-root node--return the index resolution information
@@ -710,9 +712,11 @@ getResolutionDataAndIndices nodeLabel parentResolutionIndexVect =
             -- get the correct (via index) resolution data for each block
             -- complex for network node since keeps left right sort of array, but only first element maters--this hack keeps things ok for
             -- tree-like traceback assignment
+            -- not sure if first or last would be better--hopefully not matter, or arbitrary equal solutions
             resolutionsByBlockV = if nodeType nodeLabel == NetworkNode then
-                                        -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
-                                        V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
+                                        -- trace ("-" ++ (show (V.length resolutionData, V.length parentIndexVect, V.head parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
+                                        -- V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) (V.head parentIndexVect))
+                                        V.zipWith (V.!) resolutionData (V.replicate (V.length parentIndexVect) 0)
                                   else 
                                     -- trace ("+" ++ (show (V.length resolutionData, V.length parentIndexVect)) ++ " " ++ (show $ parentIndexVect))
                                     V.zipWith (V.!) resolutionData parentIndexVect
@@ -1056,9 +1060,9 @@ createBlockResolutions
         childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
         validPairs = checkLeafOverlap (zip childResolutionPairs childResolutionIndices) []
 
-        -- either paralle seems about the same
-        newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs `using` PU.myParListChunkRDS
-        -- newResolutionList = PU.seqParMap rdeepseq  (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs 
+        -- either parallel seems about the same
+        -- newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs `using` PU.myParListChunkRDS
+        newResolutionList = PU.seqParMap rdeepseq  (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs 
 
         --need to add in node and edge to left and right
         edgeLable = EdgeInfo { minLength = 0.0

@@ -143,8 +143,8 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           -- create new tree
           newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
 
-          newSimple' = if V.length additionSequence == 1 then GO.rerootTree (outgroupIndex inGS) newSimple
-                       else GO.rerootTree (outgroupIndex inGS) newSimple
+          newSimple' = if V.length additionSequence == 1 then LG.rerootTree (outgroupIndex inGS) newSimple
+                       else LG.rerootTree (outgroupIndex inGS) newSimple
                        -- else newSimple
 
           -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type

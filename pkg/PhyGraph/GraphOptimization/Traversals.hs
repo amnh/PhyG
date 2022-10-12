@@ -48,6 +48,7 @@ module GraphOptimization.Traversals ( postOrderTreeTraversal
                                     , updatePhylogeneticGraphCost
                                     , updateGraphCostsComplexities
                                     , getW15NetPenalty
+                                    , getW23NetPenalty
                                     , getW15RootCost
                                     , generalizedGraphPostOrderTraversal
                                     ) where
@@ -67,6 +68,8 @@ import qualified Data.Text.Lazy                       as T
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities                    as PU
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -209,6 +212,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex outgroupRooted
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
@@ -226,6 +230,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2023Network then fmap (getW23NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
@@ -242,6 +247,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
@@ -281,7 +287,8 @@ getW15RootCost inGS inGraph =
         (fromIntegral numRoots) * (rootComplexity inGS)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
--- modified to take theg union of all edges of trees of minimal length
+-- modified to take the union of all edges of trees of minimal length
+-- currently modified -- not exactlty W15
 getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
 getW15NetPenalty startVertex inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
@@ -290,15 +297,45 @@ getW15NetPenalty startVertex inGraph =
             bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
                         else fromJust startVertex
-            blockPenaltyList = fmap (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            blockPenaltyList = PU.seqParMap rdeepseq  (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
             numLeaves = length leafList
-            divisor = 4.0 * (fromIntegral numLeaves) - 4.0
+            numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
+            divisor = numTreeEdges
         in
-        -- trace ("W15:" ++ (show (numLeaves, divisor, blockPenaltyList)))
+        -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )) ++ " from " ++ (show (numTreeEdges, numExtraEdges, divisor, sum blockPenaltyList))) (
         (sum $ blockPenaltyList) / divisor
+        -- )
+
+-- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
+-- basic idea is new edge improvement must be better than average existing edge cost
+-- penalty for each added edge (unlike W15 which was on a block by block basis)
+-- num extra edges/2 since actually add 2 new edges when one network edge
+getW23NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
+getW23NetPenalty startVertex inGraph =
+    if LG.isEmpty $ thd6 inGraph then 0.0
+    else
+        let (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
+            bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
+            rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
+                        else fromJust startVertex
+            blockPenaltyList = PU.seqParMap rdeepseq (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+
+            -- leaf list for normalization
+            (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
+            numLeaves = length leafList
+            numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
+            numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
+            divisor = numTreeEdges - numExtraEdges
+        in
+        -- trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+        if divisor == 0.0 then infinity
+        -- else (sum blockPenaltyList) / divisor
+        -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
+        else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
+        -- )
 
 
 -- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual
@@ -316,9 +353,9 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
 
 -- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has
 -- "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is
--- not present in any of the block display trees (that are heursticlly optimal)
--- the optrions specify if the cost returned is Infinity (really max boun Double)
--- with no pruning of edges or th ecost is left unchanged and unused edges are
+-- not present in any of the block display trees (that are heurstically optimal)
+-- the options specify if the cost returned is Infinity (really max bound Double)
+-- with no pruning of edges or the cost is left unchanged and unused edges are
 -- pruned from the canonical graph
 -- this is unDirected due to rerooting heuristic in post/preorder optimization
 -- inifinity defined in Types.hs
@@ -332,7 +369,9 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
     if null unusedEdges then inGraph
 
     -- unused edges--do not prune return "infinite cost"
-    else if not pruneEdges then (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
+    else if not pruneEdges then 
+        -- trace ("Unused edge->Infinity") 
+        (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
 
     -- unused but pruned--need to prune nodes and reoptimize to get final assignments correct
     else
