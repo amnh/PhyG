@@ -767,27 +767,17 @@ processSearchFields inStringListList =
         if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
         else 
             let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
-                (processedSearchList, searchBanditList, tempList) = processSearchInstance (L.last firstList)
-                {-
-                tempList = getSearchIterations $ L.last firstList
-                iterationList = L.init tempList
-                iterationCounterList = fmap (:[]) $ fmap show [0..(length iterationList - 1)]
-                searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
-                preArgStringList = fmap getPreArgString iterationList
-                searchArgStringList = fmap getSearchArgString iterationList
-                searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
-                processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
-                -}
+                instanceSplitList = LS.splitOn "*" (L.last firstList)
+                (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
             in
             trace ("GSI: " ++ (show firstList))
-            [L.init firstList] ++ [newHeader ++ searchBanditList ++ ["Arguments"]] ++ processedSearchList ++ [LS.splitOn "," $ L.last tempList] ++ processSearchFields (tail inStringListList)
-            where concat4 a b c d = a ++ b ++ c ++ d
+            [L.init firstList] ++ [newHeader ++ (head searchBanditListList) ++ ["Arguments"]] ++ (concat instanceStringListList) ++ processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and 
 -- returns appropriate [[String]] for pretty csv output
-processSearchInstance :: String -> ([[String]], [String], [String])
+processSearchInstance :: String -> ([[String]], [String])
 processSearchInstance inString =
-    if null inString then ([], [], [])
+    if null inString then ([], [])
     else 
         let tempList = getSearchIterations inString
             iterationList = L.init tempList
@@ -797,8 +787,9 @@ processSearchInstance inString =
             searchArgStringList = fmap getSearchArgString iterationList
             searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
             processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
+            instanceStringList = processedSearchList ++ [LS.splitOn "," $ L.last tempList]
         in
-        (processedSearchList, searchBanditList, tempList)
+        (instanceStringList, searchBanditList)
         where concat4 a b c d = a ++ b ++ c ++ d
 
 -- | getBanditProbs parses bandit prob line for probabilities 
