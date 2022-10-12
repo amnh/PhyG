@@ -1,4 +1,4 @@
-Cabal-Version: 3.8
+Cabal-Version: 3.6 
 Name:          PhyGraph
 Version:       0.1.0
 Stability:     Alpha
@@ -114,8 +114,8 @@ Common static-build-flags
 --      -staticlib
       -optc-pthread
       -optc-static
-      -optl-static
-      -optl-pthread
+--      -optl-static
+--      -optl-pthread
 --      -optl-lglibc
 --      -optl-static-libgcc
 

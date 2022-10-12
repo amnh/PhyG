@@ -99,7 +99,7 @@ timeOpCPUWall ioa = do
     a   <- force <$> ioa
     ct2 <- liftIO getCPUTime
     wt2 <- liftIO getCurrentTime
-    let wt = CPUTime . fromIntegral $ 1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1)))
+    let wt = (CPUTime . fromIntegral) (1000000000000 * (floor  (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1))) :: Integer)
     let ct = CPUTime . fromIntegral $ ct2 - ct1
     pure (wt, ct, a)
 
