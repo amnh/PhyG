@@ -354,7 +354,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
          let -- build options including block and distance
              -- primes (') in data and graphlist since not reseat by potnatila statric apporx transformation
-             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.99), ("block", 0.01)]
+             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.9), ("block", 0.1)]
              buildType = if searchBandit == "buildCharacter" then "character"
                          else if searchBandit == "buildDistance" then "distance"
                          else 
