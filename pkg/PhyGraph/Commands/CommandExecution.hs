@@ -770,7 +770,7 @@ processSearchFields inStringListList =
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
             in
-            trace ("GSI: " ++ (show firstList))
+            -- trace ("GSI: " ++ (show firstList))
             [L.init firstList] ++ [newHeader ++ (head searchBanditListList) ++ ["Arguments"]] ++ (concat instanceStringListList) ++ processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and 
