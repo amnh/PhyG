@@ -743,4 +743,6 @@ CallStack (from -prof):
 
 417) Static approx costs when not 1:1 (add chars)
 
-418) greaph number control in search/GA
+418) graph number control in search/GA
+	swappinglarge numbers of graphs somtimes
+	
