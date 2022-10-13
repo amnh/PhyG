@@ -138,7 +138,9 @@ searchForDuration :: GlobalSettings
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList input@(inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
    (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
-       let result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds input
+       let  -- this line to keep control of graph number
+            inGraphList' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] inGraphList
+            result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
        in  pure result
 
    -- update theta list based on performance    
@@ -319,7 +321,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           searchBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
 
           -- common build arguments including block and distance
-          buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.9), ("block", 0.1)]
+          buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.8), ("block", 0.2)]
           buildType = if searchBandit == "buildCharacter" then "character"
                       else if searchBandit == "buildDistance" then "distance"
                       else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
