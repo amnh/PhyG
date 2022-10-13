@@ -724,12 +724,14 @@
 		series of graph optimization methods including building, swapping, recombination (fusing), 
 		simulated annealing and drifting, network edge addition/deletion/moving, and Genetic 
 		Algorithm. The parameters and order for this search are randomized. The arguments 
-		specify the number of rounds of search (\texttt{instances}, default 1), and duration 
+		specify the number independent instances of search (\texttt{instances}, default 1), and duration 
 		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
-		default 30 seconds). Successive rounds of search (specified by \texttt{iterations}) gather 
+		default 30 seconds). Successive rounds of search gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
-		longer that the specified duration.
+		longer that the specified duration.  By default, search strategies are chosen uniformly at random, 
+		if \texttt{Thompson} is specified, Thompson sampling \cite{Thompson1933,WheelerThompson} is used to modify 
+		the probabilities of search strategies over the search duration.
 		
 		When performing a \texttt{search} it is important to set the amount of time, such that the 
 		program has a reasonable amount of time to perform a search. Therefore, it is important
@@ -744,27 +746,41 @@
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
-		%\item[instances:n] \hl{Performs $n$ successive rounds of  search? How does instances
-		%differ from iterations?}
+		\item[maxNetEdges:n] Limits maximum number of network edges to $n$.
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
 		\item[seconds:n] Adds $n$ seconds to search time.
 		
-		\item[iterations:n] Specifies number of (potentially parallel) search iterations.\\
+		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
+		
+		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without improving the best graph cost.
+		
+		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner Build, SPR, Genetic Algorithm) 
+		employs Thompson sampling.
+		
+		\item[mFactor:n] Species the memory factor $n$ for Thompson sampling.
+		
+		\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, $m$.  Updating of search type, 
+		$\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success
+		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
+		
+		\item[exponential] Specifies that the Thompson memory is an exponential function of \texttt{mFactor}, $m$.  Updating of search type, 
+		$\theta^k$, probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  Thompson success
+		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
 		
 		%\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
 		%FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graph}.
+		\texttt{search()} Performs 1 instance of 30 seconds keeping up to 10 graph}.
 		
 	\begin{example}
-		\item{\texttt{search(hours:10, iterations:2)}\\ Performs 2 search iterations (in parallel if the 
+		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 search instance (in parallel if the 
 		program is executed in parallel) for 10 hours each.}
 				
-		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search iteration for 10 
+		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance for 10 
 		hours and 30 minutes.}
 	\end{example}
 	
