@@ -135,7 +135,7 @@ searchForDuration :: GlobalSettings
                   -> [Int] 
                   -> ([PhylogeneticGraph], [String]) 
                   -> IO ([PhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList input@(inGraphList, infoStringList) = do
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
    (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
        let  -- this line to keep control of graph number
