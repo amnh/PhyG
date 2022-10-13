@@ -182,10 +182,10 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
-      -with-rtsopts="-N -A64m -AL8 -H1024m -n4m --nonmoving-gc -qa -qm"
+      "-with-rtsopts=-N -A64m -AL8 -H1024m -n4m --nonmoving-gc -qa -qm"
   Else
     GHC-Options:
-      -with-rtsopts="-N"
+      "-with-rtsopts=-N"
 
 
 --  If os(darwin)

@@ -60,9 +60,13 @@ import qualified Data.Vector                  as V
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
-treeBanditList = ["buildCharacter", "buildDistance", "swapSPR", "swapAlternate", "driftSPR", 
-                 "driftAlternate", "annealSPR", "annealAlternate", "geneticAlgorithm", 
-                 "fuse", "fuseSPR", "fuseAlternate"] 
+treeBanditList = [
+                 "buildCharacter", "buildDistance", "buildSPR", "buildAlternate", 
+                 "swapSPR", "swapAlternate", 
+                 "fuse", "fuseSPR", "fuseAlternate",
+                 "driftSPR", "driftAlternate", "annealSPR", "annealAlternate", 
+                 "geneticAlgorithm" 
+                 ] 
 
 -- | netWorkBanditList is list of search types unique to graphType network
 netWorkBanditList :: [String]
@@ -314,6 +318,30 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           -- choose search type from list with frequencies as input from searchForDuration
           searchBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
 
+          -- common build arguments including block and distance
+          buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.9), ("block", 0.1)]
+          buildType = if searchBandit == "buildCharacter" then "character"
+                      else if searchBandit == "buildDistance" then "distance"
+                      else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
+                            
+          numToCharBuild = (10 :: Int)
+          numToDistBuild = (100 :: Int)
+
+          -- to resolve block build graphs
+          reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
+
+          wagnerOptions = if buildType == "distance" then
+                            if buildMethod == "block" then [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
+                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
+                          else if buildType == "character" then
+                             if buildMethod == "block" then [("replicates", show (1 :: Int))]
+                             else [("replicates", show numToCharBuild)] 
+                          else []
+
+          blockOptions = if buildMethod == "block" then 
+                            [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
+                         else []
+
           -- common swap arguments
           swapKeep = keepNum
 
@@ -349,36 +377,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
          
       in
 
-      -- no input graphs so must build to start--or if buildX chosen as searchBandit 
-      if null inGraphList' || searchBandit `elem` ["buildCharacter", "buildDistance"] then
+      -- no input graphs so must build to start
+      if null inGraphList' then
 
-         let -- build options including block and distance
-             -- primes (') in data and graphlist since not reseat by potnatila statric apporx transformation
-             buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.9), ("block", 0.1)]
-             buildType = if searchBandit == "buildCharacter" then "character"
-                         else if searchBandit == "buildDistance" then "distance"
-                         else 
-                            chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
-                            
-             numToCharBuild = (10 :: Int)
-             numToDistBuild = (100 :: Int)
-
-             -- tail here in case both called to increment random value
-             reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
-
-             wagnerOptions = if buildType == "distance" then
-                                if buildMethod == "block" then [("dwag", "")] -- [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
-                                else  [("replicates", show numToDistBuild), ("rdwag", ""), ("dwag", ""), ("best", show numToCharBuild)]
-                             else if buildType == "character" then
-                                 if buildMethod == "block" then [("replicates", show (1 :: Int))]
-                                 else [("replicates", show numToCharBuild)] 
-                             else []
-
-             blockOptions = if buildMethod == "block" then 
-                                [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
-                            else []
-
-             buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+         let buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
 
 
              buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
@@ -413,13 +415,54 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                                            else ((inGS', inData', inData', inGraphList'), "")
          in
          -- bandit list with search arguments set
-         let (searchGraphs, searchArgs) = if searchBandit == "swapSPR" then 
+         -- primes (') for build to start with untransformed data
+         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then 
+                                            let -- build options
+                                                buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+                                            in
+                                            -- search
+                                            (B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0), buildArgs)
+
+                                          else if searchBandit == "buildDistance" then 
+                                            let -- build options
+                                                buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+                                            in
+                                            -- search
+                                            (B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0), buildArgs)
+
+                                          else if searchBandit == "buildSPR" then 
+                                            let -- build part
+                                                buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+                                                buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                                                buildGraphs' = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+
+                                                -- swap options
+                                                swapType = "spr"
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                            in
+                                            -- search
+                                            (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
+
+                                          else if searchBandit == "buildAlternate" then 
+                                            let -- build part
+                                                buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
+                                                buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                                                buildGraphs' = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+
+                                                -- swap options
+                                                swapType = "alternate" --default anyway
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                            in    
+                                            -- search
+                                            (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
+
+                                          else if searchBandit == "swapSPR" then 
                                             let -- swap options
                                                 swapType = "spr"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
                                             in
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList)inGraphList, swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
 
                                           else if searchBandit == "swapAlternate" then 
                                             let -- swap options
@@ -427,7 +470,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
                                             in    
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList)inGraphList, swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
 
                                           else if searchBandit == "driftSPR" then
                                             let -- swap args
@@ -438,7 +481,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList, swapArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList) inGraphList, swapArgs)
 
                                           else if searchBandit == "driftAlternate" then
                                             let -- swap args
@@ -449,7 +492,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList)inGraphList, swapDriftArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList) inGraphList, swapDriftArgs)
 
                                           else if searchBandit == "annealSPR" then
                                             let -- swap args
@@ -460,7 +503,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList) inGraphList, swapAnnealArgs)
 
                                           else if searchBandit == "annealAlternate" then
                                             let -- swap args
@@ -471,12 +514,12 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList)inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList) inGraphList, swapAnnealArgs)
 
                                           else if searchBandit == "geneticAlgorithm" then
                                             -- args from above
                                             -- perform search
-                                            (R.geneticAlgorithmMaster gaArgs inGS inData (head randIntList)inGraphList, gaArgs)
+                                            (R.geneticAlgorithmMaster gaArgs inGS inData (head randIntList) inGraphList, gaArgs)
 
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
@@ -484,28 +527,28 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 fuseArgs = [("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
                                                 fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseAlternate" then
                                             let -- fuse arguments
                                                 fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseAlternate" then
                                             let -- fuse arguments
                                                 fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList)inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
                 
                                           else if searchBandit == "networkAdd" then
                                             let -- network add args
