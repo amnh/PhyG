@@ -228,8 +228,8 @@ hasNetParent inGraph inNode =
 -- if 1 parent of network edge is tree node can be fixed by delete and contracting that node/edge 
 -- else if both parent are netowrks--cannot be fixed and errors out
 -- doens NOT rename nodes since need vertex info on that--but are reindexed
-removeChainedNetworkNodes :: (Show a, Show b) => Gr a b -> Maybe (Gr a b)
-removeChainedNetworkNodes inGraph = 
+removeChainedNetworkNodes :: (Show a, Show b) => Bool -> Gr a b -> Maybe (Gr a b)
+removeChainedNetworkNodes showWarning inGraph = 
     if isEmpty inGraph then Just inGraph
     else
         let (_, _, _, netVertexList) = splitVertexList inGraph
@@ -242,10 +242,14 @@ removeChainedNetworkNodes inGraph =
         if null netVertexList then Just inGraph
         else if null chainedNodeList then Just inGraph
         else if null fixableChainedEdgeList then 
-            trace ("Warning: Unfixable chained network nodes (both parent and child nodes are indegree > 1). Deleting skipping graph")
+            trace ("Warning: Unfixable chained network nodes (both parent and child nodes are indegree > 1). Skipping graph")
             Nothing
         else 
-            trace ("Warning: Chained network nodes (both parent and child nodes are indegree > 1), removing edges to tree node parents (this may affect graph cost): " ++ (show fixableChainedEdgeList))--  ++ "\n" ++ (prettyIndices inGraph))
+            let warningString = if showWarning then "Warning: Chained network nodes (both parent and child nodes are indegree > 1), removing edges to tree node parents (this may affect graph cost)\n"
+                            else ""
+            in
+            traceNoLF warningString
+             -- : " ++ (show fixableChainedEdgeList))--  ++ "\n" ++ (prettyIndices inGraph))
             Just newGraph'
 
 -- | getTreeEdgeParent gets the tree edge (as list) into a network node as opposed to the edge from a network parent

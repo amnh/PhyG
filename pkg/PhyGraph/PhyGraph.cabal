@@ -182,6 +182,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
+      -fllvm
       "-with-rtsopts=-N -A64m -AL8 -H1024m -n4m --nonmoving-gc -qa -qm"
   Else
     GHC-Options:
@@ -194,7 +195,7 @@ Executable phyg
 --      -- -fllvm
 --  else
 --    GHC-Options:
---      -- -fllvm
+--         -fllvm
 
   Build-Depends:
     PhyGraph:alphabet,

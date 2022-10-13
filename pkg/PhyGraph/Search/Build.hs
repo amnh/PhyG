@@ -154,7 +154,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 -- all outputs are re-optimzed and ready to go
 reconcileBlockTrees ::  Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> [SimpleGraph]
 reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN =
-    --trace ("Reconcile producing " ++ (show numDisplayTrees)) (
+      -- trace ("Reconcile producing " ++ (show numDisplayTrees)) (
       let -- numLeaves = V.length $ fst3 inData
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst6 blockTrees
@@ -167,7 +167,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
 
           -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
-          noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
+          noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
           noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
           reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
 
@@ -177,6 +177,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
+      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraphInitial) ++ "\n" ++ (LG.prettyIndices reconciledGraph')) (
       if returnGraph && not returnTrees then 
         if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
         else [reconciledGraph]
@@ -187,7 +188,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
             trace ("Reconciled Graph generated chained network nodes that cannot be resolved. ONly retunring display trees")
             displayGraphs
          else reconciledGraph : displayGraphs
-     -- )
+     -- ))
 
 
 -- | buildTree' wraps build tree and changes order of arguments for mapping

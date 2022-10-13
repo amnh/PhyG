@@ -64,7 +64,8 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
       in
-      -- trace ("MRG :" ++ (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) ++ "\n" ++ reconcileString)
+      --trace ("MRG :" ++ (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) ++ "\n" ++ reconcileString
+      --  ++ "\n" ++ (LG.prettyIndices reconcileSimpleGraph))
       (reconcileString, reconcileSimpleGraph)
       where mergePair (a,b) = if a /= [] && b /= [] then a ++ (':' : b)
                               else a ++ b
