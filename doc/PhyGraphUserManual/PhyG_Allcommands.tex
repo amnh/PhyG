@@ -38,6 +38,10 @@
 			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
 			which takes the ``first'' $n$ display trees resolved in arbitrary, but consistent, order.
 
+			\item[block] Performs independent builds for each ``block'' of data.  These builds are combined
+			into a single graph via \texttt{EUN} or \texttt{CUN} and returned as a graph (\texttt{graph}) and/or
+			resolved display trees (\texttt{displaytrees})
+			
 			\item[cun] Reconciles \textbf {block} trees into a Cluster-Union-Network \citep{Baroni2005} 
 			before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} 
 			options.
@@ -165,9 +169,13 @@
 	
 	\subsubsection{Arguments}
 	\begin{description}
-		%\item[all] \hl{details}
+		% \item [all] Fuse all pairwise combinations of graphs.
 		
-		%\item[atRandom] \hl{details}
+		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
+		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
+		$n$ edges aware from their initial positions).
+		
+		\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is specified. 
 		
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
@@ -180,12 +188,13 @@
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
-		%\item[pairs[:n]] \hl{details}
+		\item [pairs[:n]] Limits the number of graphs to be fused to $n$ pairs (as oppose to $\binom{m}{2}$ for $m$ graphs).
 		
 		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
 		
-		%\item[steepest] \hl{details}
+		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping shifts greedily to
+		that graph. 
 		
 		\item [tbr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions) and with TBR-style rerooting of the exchanged 
@@ -284,6 +293,10 @@
 		\item [nucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
 		in fasta \citep{PearsonandLipman1988} format.
 			
+		\item [preaminoacid:] Specifies that the file contents are parsed as IUPAC coded amino 
+		acid data in  prealigned fasta \citep{PearsonandLipman1988} format, leaving 
+		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
+		
 		\item [prefasta:] Specifies that the sequences are prealigned in a fasta format, leaving 
 		gap characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
@@ -293,6 +306,10 @@
 		characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
 		Prealigned fastc files \textbf{must} be of the same length.			
+		
+		\item [prenucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
+		in fasta \citep{PearsonandLipman1988} format, leaving 
+		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
 		
 		\item [rename:] Replaces the name(s) of specified terminals in the file. This command allows 
 		for substituting taxon names and can help merge multiple datasets without modifying the 

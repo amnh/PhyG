@@ -187,6 +187,7 @@ Executable phyg
   Else
     GHC-Options:
       "-with-rtsopts=-N"
+      -fllvm
 
 
 --  If os(darwin)
@@ -237,6 +238,7 @@ Executable phyg
 
   Other-Modules:
     Commands.CommandExecution
+    Commands.CommandUtilities
     Commands.ProcessCommands
     Commands.Transform
     Commands.Verify

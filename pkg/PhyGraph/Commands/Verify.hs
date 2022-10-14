@@ -73,11 +73,12 @@ validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
-buildArgList = ["replicates", "nj", "wpgma", "dwag", "rdwag", "distance", "character", "best","none","otu","spr","tbr", "block","cun", "eun", "atrandom", "first", "displaytrees", "graph"]
+buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees", "distance", "dwag", "eun", "first", "graph", "none","nj", 
+                "otu", "rdwag", "replicates", "spr","tbr", "wpgma"]
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["spr","tbr", "keep", "steepest", "all", "nni", "best", "unique", "once", "atrandom", "pairs", "alternate"]
+fuseArgList = ["all", "alternate", "atrandom", "best", "keep", "once", "pairs", "nni", "spr",  "steepest", "tbr", "unique"]
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
@@ -85,13 +86,13 @@ geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "rec
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges", "rounds"]
+netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", 
+    "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges", "rounds"]
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["tcm", "nucleotide", "aminoacid", "fasta", "fastc", "tnt", "csv",
-    "dot", "newick" , "enewick", "fenewick", "include", "exclude", "rename", "block", "prefasta", 
-    "prefastc", "preaminoacid", "prenucleotide"] -- "prealigned", 
+readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "include", "newick" , "nucleotide", 
+                "preaminoacid", "prefasta", "prefastc", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv", 
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands

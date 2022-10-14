@@ -42,22 +42,16 @@ module Commands.CommandExecution
   , getDataListList
   ) where
 
-import Data.Foldable
 import qualified Data.CSV               as CSV
 import qualified Data.List              as L
 import           Data.Maybe
 import           Text.Read
 import qualified Data.Text.Lazy         as T
-import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
-import qualified Data.Vector.Storable   as SV
-import qualified Data.Vector.Unboxed    as UV
 import           Debug.Trace
 import           GeneralUtilities
-import           GraphFormatUtilities
 import           System.IO
 import           Types.Types
-import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char              as C
 import qualified Search.Build           as B
@@ -65,22 +59,14 @@ import qualified Reconciliation.ReconcileGraphs as R
 import qualified Search.Refinement as REF
 import qualified Search.Search as S
 import qualified Commands.Transform as TRANS
-import System.Timing
+import           System.Timing
 import qualified Support.Support as SUP
 import           Data.Char
-import qualified Data.List.Split as SL 
 import Graphs.GraphOperations as GO
 import qualified GraphOptimization.Traversals as TRAV
-import System.Info
-import System.Process
-import System.Directory
-import qualified SymMatrix                   as S
-import           Data.Alphabet
-import Data.Bits
 import qualified Commands.Verify             as VER
-import qualified Input.Reorganize            as IR
 import qualified Data.InfList                as IL
-import qualified Data.List.Split             as LS
+import           Commands.CommandUtilities
 
 
 
@@ -755,6 +741,8 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     trace ("Reporting " ++ (show $ length curGraphs) ++ " graph(s) at minimum cost " ++ (show $ minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
+
+{-               
 -- | processSearchFields takes a [String] and reformats the String associated with the
 -- "search" commands and especially Thompson sampling data,
 -- otherwise leaves the list unchanged
@@ -1597,3 +1585,4 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
         else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta includeMissing inCharInfo (tail nameDataPairList))
         
 
+-}

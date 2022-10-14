@@ -202,7 +202,7 @@ getSwapParams inArgs =
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
-             moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["spr", "tbr", "nni"]).fst) lcArgList
+             moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["alternate", "spr", "tbr", "nni"]).fst) lcArgList
              maxMoveEdgeDist'
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
