@@ -168,8 +168,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
           noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
-          noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
-          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
+          noTreeNodesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
+          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
 
 
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees reconciledGraph

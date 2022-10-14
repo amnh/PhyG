@@ -174,7 +174,7 @@ Executable phyg
   If flag(super-optimization)
     GHC-Options:
       -fexcess-precision
-      -fexpose-all-unfoldings
+--      -fexpose-all-unfoldings
       -flate-specialise
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do
@@ -183,11 +183,13 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
-      "-with-rtsopts=-N -A64m -AL8 -H1024m -n4m --nonmoving-gc -qa -qm"
+      "-with-rtsopts=-N -A64m -AL128m -H1024m -n4m --nonmoving-gc -qa -qm"
   Else
     GHC-Options:
-      "-with-rtsopts=-N"
-      -fllvm
+--    "-with-rtsopts=-N"
+--    rts -AL8 was rejected  should be >= A
+      "-with-rtsopts=-N -A64m -AL128m -H1024m -n4m --nonmoving-gc -qa -qm"
+      
 
 
 --  If os(darwin)

@@ -13,7 +13,7 @@ read(fasta:"chel.fas", tcm:"sg2t1.mat")
 --read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 
---set(seed:1665432098)
+--set(seed:1665774425)
 
 --set(partitionCharacter:%)
 set(finalassignment:ia)

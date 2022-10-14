@@ -944,6 +944,22 @@ undir inGraph = B.undir inGraph
 bcc ::  Gr a b -> [Gr a b]
 bcc inGraph = BCC.bcc inGraph
 
+-- | removeNonLeafOut0NodesAfterRoot removed nodes (and edges attached) that are ourtdegree = zero
+-- but have index > root
+removeNonLeafOut0NodesAfterRoot :: (Eq a) => Gr a b -> Gr a b
+removeNonLeafOut0NodesAfterRoot  inGraph =
+    if isEmpty inGraph then empty
+    else
+        let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
+            rootIndex = (fst . head)  rootNodeList
+            zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList
+        in
+        if null zeroOutNodeList then inGraph
+        else
+            let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
+            in
+            removeNonLeafOut0NodesAfterRoot $ reindexGraph newGraph
+
 
 -- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
 -- but not in the leaf node list

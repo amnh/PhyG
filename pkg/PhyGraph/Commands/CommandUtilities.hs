@@ -40,10 +40,8 @@ module Commands.CommandUtilities where
 
 
 import Data.Foldable
-import qualified Data.CSV               as CSV
 import qualified Data.List              as L
 import           Data.Maybe
-import           Text.Read
 import qualified Data.Text.Lazy         as T
 import qualified Data.Text.Short        as ST
 import qualified Data.Vector            as V
@@ -57,14 +55,6 @@ import           Types.Types
 import qualified Utilities.LocalGraph   as LG
 import qualified Utilities.Utilities    as U
 import qualified Data.Char              as C
-import qualified Search.Build           as B
-import qualified Reconciliation.ReconcileGraphs as R
-import qualified Search.Refinement as REF
-import qualified Search.Search as S
-import qualified Commands.Transform as TRANS
-import System.Timing
-import qualified Support.Support as SUP
-import           Data.Char
 import qualified Data.List.Split as SL 
 import Graphs.GraphOperations as GO
 import qualified GraphOptimization.Traversals as TRAV
@@ -74,9 +64,7 @@ import System.Directory
 import qualified SymMatrix                   as S
 import           Data.Alphabet
 import Data.Bits
-import qualified Commands.Verify             as VER
 import qualified Input.Reorganize            as IR
-import qualified Data.InfList                as IL
 import qualified Data.List.Split             as LS
 
 

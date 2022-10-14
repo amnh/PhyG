@@ -120,8 +120,11 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     let -- remove single "tail" edge from root with single child, replace child node with root
         noTailGraph = LG.contractRootOut1Edge inGraph
 
+        -- remove non-leaf nodes (index > root) with outdegree 0
+        nonNonLeafOut0 = LG.removeNonLeafOut0NodesAfterRoot noTailGraph
+
         -- remove indeg 1 out deg 1 edges
-        noIn1Out1Graph = contractIn1Out1EdgesRename noTailGraph
+        noIn1Out1Graph = contractIn1Out1EdgesRename nonNonLeafOut0 --noTailGraph
 
         -- transitive reduction
         -- only wanted to EUN and CUN--but they do it
