@@ -82,7 +82,7 @@ fuseArgList = ["all", "alternate", "atrandom", "best", "keep", "once", "pairs", 
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
-geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga", "maxnetedges"]
+geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga", "maxnetedges", "stop"]
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]

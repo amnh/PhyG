@@ -118,15 +118,15 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
       trace ("Genetic Algorithm operating on population of " ++ (show $ length inGraphList) ++ " input graph(s) with cost range ("++ (show $ minimum $ fmap snd6 inGraphList) ++ "," ++ (show $ maximum $ fmap snd6 inGraphList) ++ ")") (
 
       -- process args
-      let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges) = getGeneticAlgParams inArgs
-          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) inGraphList
+      let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
+          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
       in
       trace ("\tGenetic Algorithm: " ++ (show $ length newGraphList) ++ " resulting graphs with cost range (" ++ (show $ minimum $ fmap snd6 newGraphList) ++ "," ++ (show $ maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ (show generationCounter) ++ " generation(s)")
       newGraphList
       )
 
 -- | getGeneticAlgParams returns paramlist from arglist
-getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int)
+getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int, Int)
 getGeneticAlgParams inArgs =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -178,6 +178,13 @@ getGeneticAlgParams inArgs =
               | null maxNetEdgesList = Just 10
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
+             stopList = filter ((=="stop").fst) lcArgList
+             stopNum
+                | length stopList > 1 =
+                  errorWithoutStackTrace ("Multiple 'stop' number specifications in search command--can have only one: " ++ show inArgs)
+                | null stopList = Just (maxBound :: Int)
+                | otherwise = readMaybe (snd $ head stopList) :: Maybe Int
+
              -- in case want to make it an option
              -- doElitist' = any ((=="nni").fst) lcArgList
              doElitist = True
@@ -189,9 +196,9 @@ getGeneticAlgParams inArgs =
          else if isNothing generations then errorWithoutStackTrace ("Generations specification not an integer in Genetic Algorithm: "  ++ show (head generationsList))
          else if isNothing severity then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head severityList))
          else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head recombinationsList))
-
+         else if isNothing stopNum then errorWithoutStackTrace ("Stop specification not an integer or not found in Genetic Algorithm (e.g. stop:10) "  ++ show (head stopList))
          else
-            (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges)
+            (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, fromJust stopNum)
 
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap

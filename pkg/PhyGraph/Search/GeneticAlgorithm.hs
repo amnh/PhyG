@@ -59,10 +59,11 @@ import           Debug.Trace
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Int -> Int -> Double -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
-geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations inGraphList =
+geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Int -> Int -> Double -> Int -> Int -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
     if null inGraphList then ([], 0)
     else if generationCounter == generations then  (inGraphList, generationCounter)
+    else if stopCount >= stopNum then (inGraphList, generationCounter)
     else
         trace ("Genetic algorithm generation: " ++ (show generationCounter)) (
         let seedList = randomIntList rSeed
@@ -112,13 +113,13 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
         -}
         -- if new graphs better cost then take those
         if newCost < (snd6 $ head initialEliteList) then
-            geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations selectedGraphs
+            geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations 0 stopNum selectedGraphs
 
         -- if new graphs not better then add in elites to ensure monotonic decrease in cost
         else
             let newGraphList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (initialEliteList ++ selectedGraphs)
             in
-            geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations newGraphList
+            geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations (stopCount + 1) stopNum newGraphList
         )
 
 -- | mutateGraph mutates a graph using drift functionality
