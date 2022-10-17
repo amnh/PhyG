@@ -145,6 +145,7 @@ executable phyg
   build-depends:
     alphabet,
     dynamic-character,
+    PHAGE-timing,
     PhyloLib,
     tcm,
     base >=4.10,
@@ -219,7 +220,6 @@ executable phyg
     Search.SwapMaster 
     Search.WagnerBuild
     Support.Support
-    System.Timing
     Commands.Transform
     Types.DistanceTypes
     Types.Types

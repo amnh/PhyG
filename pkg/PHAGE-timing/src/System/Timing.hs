@@ -1,5 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE Strict       #-}
+{-# Language BangPatterns #-}
+{-# Language DerivingStrategies #-}
+{-# Language Safe #-}
+{-# Language Strict #-}
 
 module System.Timing
   ( CPUTime()
@@ -16,16 +18,16 @@ module System.Timing
   ) where
 
 
-import           Control.DeepSeq
-import           Control.Monad.IO.Class
-import           Data.Foldable
-import           Numeric.Natural
-import           System.CPUTime
+import Control.DeepSeq (NFData(rnf), force)
+import Control.Monad.IO.Class (MonadIO(liftIO))
+import Data.Foldable (fold)
+import Numeric.Natural (Natural)
+import System.CPUTime (getCPUTime)
 
 
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural
-    deriving (Eq, Ord)
+    deriving stock (Eq, Ord)
 
 
 instance NFData CPUTime where
@@ -45,6 +47,7 @@ instance Show CPUTime where
       | x <     day = let (q,r) = x `quotRem`    hour in fold [show q, "h", zeroPad 2 (r `div`  minute ), "min"]
       | otherwise   = let (q,r) = x `quotRem`     day in fold [show q, "d", zeroPad 2 (r `div`    hour ), "hrs"]
       where
+        nSecond :: Natural
         nSecond = 1000
         μSecond = 1000 * nSecond
         mSecond = 1000 * μSecond
@@ -62,9 +65,9 @@ zeroPad k i = replicate (k - length shown) '0' <> shown
 
 timeOp :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)
 timeOp ioa = do
-    t1 <- liftIO getCPUTime
-    a  <- force <$> ioa
-    t2 <- liftIO getCPUTime
+    !t1 <- liftIO getCPUTime
+    !a  <- force <$> ioa
+    !t2 <- liftIO getCPUTime
     let t = CPUTime . fromIntegral $ t2 - t1
     pure (t, a)
 
@@ -78,15 +81,15 @@ fromPicoseconds = CPUTime
 
 
 fromMicroseconds :: Natural -> CPUTime
-fromMicroseconds = CPUTime . (*1000000)
+fromMicroseconds = CPUTime . (* 1000000)
 
 
 fromMilliseconds :: Natural -> CPUTime
-fromMilliseconds = CPUTime . (*1000000000)
+fromMilliseconds = CPUTime . (* 1000000000)
 
 
 fromSeconds :: Natural -> CPUTime
-fromSeconds = CPUTime . (*1000000000000)
+fromSeconds = CPUTime . (* 1000000000000)
 
 
 toPicoseconds :: CPUTime -> Natural

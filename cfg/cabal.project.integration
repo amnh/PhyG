@@ -76,6 +76,7 @@ package PHAGE-integration-tests
     tests:             True
     executable-static: False
     optimization: 2
+    flags: -SingleThreaded
 
 
 package PhyGraph
@@ -84,7 +85,7 @@ package PhyGraph
     tests:             False
     executable-static: False
     optimization: 2
-    flags: +SingleThreaded
+    flags: -SingleThreaded
 
 
 ---------------------------------------------------------------------------------

@@ -12,6 +12,8 @@ defaults:
 
 env:
   PROJECTFILE: --project-file=cfg/cabal.project.integration
+  TESTDETAILS: --test-show-details=streaming
+  TESTOPTIONS: --test-options="--timeout=30s"
   THISMAINEXE: PhyGraph:phyg
   THISTESTEXE: PHAGE-integration-tests:integration-tests
 
@@ -74,11 +76,11 @@ jobs:
 
       - name: 'Cabal - Build'
         run: |
-          cabal build ${PROJECTFILE} ${THISMAINEXE} ${THISTESTEXE} --only-dependencies
+          cabal build ${THISMAINEXE} ${THISTESTEXE} ${PROJECTFILE} --only-dependencies
 
       - name: 'Cabal - Integration Tests'
         run: |
-          cabal test ${PROJECTFILE} ${THISTESTEXE}
+          cabal test  ${THISTESTEXE} ${PROJECTFILE} ${TESTDETAILS} ${TESTOPTIONS}
 
       - name: Send mail on failure
         if: ${{ failure() }}

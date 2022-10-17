@@ -12,6 +12,7 @@ The changelog is available [on GitHub][2].
   * Major codebase layout rearchitecting
   * Added continuous integration via GitHub Actions
   * Added integration test-suite
+  * Added `PHAGE-timing` library for timing IO operations
 
 
 ## 0.1.0

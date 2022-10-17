@@ -1,0 +1,47 @@
+Cabal-Version: 3.0
+Name:          PHAGE-timing
+Version:       0.2.0
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.4
+
+Author:        Ward Wheeler <wheeler@amnh.org>
+Copyright:     (c) 2015-2022 Ward Wheeler
+License:       BSD-3-Clause
+License-File:  LICENSE
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
+Extra-Doc-Files:
+  CHANGELOG.md
+  README.md
+                     
+
+Library
+
+  Build-Depends:
+    base    >= 4.11 && < 5.0,
+    deepseq >= 1.4  && < 2.0,
+    
+  Default-Language:
+    Haskell2010
+
+  Exposed-Modules:
+    System.Timing
+
+  Ghc-Options:
+    -O2
+    -- Sanity check warnings:
+    --   1. Fail on a warning
+    --   2. Include all warnings by default
+    --   3. Exclude the undesirable warnings
+    -Werror
+    -Weverything
+    -- Exclusions:
+    -Wno-implicit-prelude
+    -Wno-missing-kind-signatures
+
+  HS-Source-dirs:
+    src
