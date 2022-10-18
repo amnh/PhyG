@@ -62,6 +62,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doNNI = any ((=="nni").fst) lcArgList
                doSPR = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
+               doAlternate' = any ((=="alternate").fst) lcArgList
 
                -- randomized orders of split and join-- not implemented
                -- doRandomized = any ((=="randomized").fst) lcArgList
@@ -81,7 +82,8 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
                -- swap type if alternate will be "TBR"
-               doAlternate = if (doTBR || doSPR || doNNI) then False
+               doAlternate = if doAlternate' then True
+                             else if (doTBR || doSPR || doNNI) then False
                              else True
 
                -- simulated annealing parameters

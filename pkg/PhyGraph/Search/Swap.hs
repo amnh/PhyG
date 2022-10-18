@@ -333,17 +333,18 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
 
       -- found same cost graphs
       else
-         -- trace ("Equal " ++ (show newMinCost)) (
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
              ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
                 -- newNovelGraphList = newGraphList L.\\ curSameBetterList
-             graphsToDo = (tail inGraphList) ++ newNovelGraphList
-                -- graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
-                --              else graphsToDo
+             graphsToDo  = (tail inGraphList) ++ newNovelGraphList
+             graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
+                           else graphsToDo
                --graphsToDo' = (tail inGraphList)
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
-         swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         traceNoLF ("\tRemaining to Swap " ++ (show $ length graphsToDo')) 
+         swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         
 
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
 -- if steepest == True then returns on finding a better graph (lower cost)

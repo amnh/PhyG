@@ -154,7 +154,7 @@ getGeneticAlgParams inArgs =
              generations
               | length generationsList > 1 =
                 errorWithoutStackTrace ("Multiple 'generations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
-              | null generationsList = Just 10
+              | null generationsList = Just 5
               | otherwise = readMaybe (snd $ head generationsList) :: Maybe Int
 
              severityList = filter ((=="severity").fst) lcArgList
