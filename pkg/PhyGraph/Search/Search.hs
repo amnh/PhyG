@@ -108,11 +108,14 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
            resultList <- mapConcurrently searchTimed threadInits
            pure $
                let (newGraphList, commentList) = unzip resultList
+                   newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
+                   iterationHitString = ("Hit minimum cost in " ++ (show $ length $ head newCostList) ++ " of " ++ (show $ length newGraphList) ++ " iterations")
                    completeGraphList = inGraphList <> fold newGraphList
                    filteredGraphList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] completeGraphList
                    selectedGraphList = take keepNum filteredGraphList
-               in  (selectedGraphList, commentList)
+               in  (selectedGraphList, commentList ++ [[iterationHitString]])
     )
+    where getMinGraphListCost a = minimum $ fmap snd6 a 
 
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
