@@ -333,6 +333,8 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
 
       -- found same cost graphs
       else
+         -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
+         -- can be a cause of infinite running issues.
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (curSameBetterList ++ newGraphList)
              ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
                 -- newNovelGraphList = newGraphList L.\\ curSameBetterList
