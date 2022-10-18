@@ -87,7 +87,7 @@ Common static-build-flags
 --    cc-options:
 
     GHC-Options:
-      -static
+--      -static
 
 --    ld-options:
 
@@ -112,8 +112,8 @@ Common static-build-flags
     GHC-Options:
       -static
 --      -staticlib
-      -optc-pthread
-      -optc-static
+--      -optc-pthread
+--      -optc-static
 --      -optl-static
 --      -optl-pthread
 --      -optl-lglibc

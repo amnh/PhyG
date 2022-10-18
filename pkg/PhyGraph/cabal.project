@@ -90,7 +90,7 @@ source-repository-package
     location: https://github.com/athas/fgl
     tag: abdbad85bf54306b98734ade2ecfc3f0fd587af8
 
-source-repository-package head
+source-repository-package -- head
     type:     git
     location: git@github.com:wardwheeler/PhyGraph.git
     subdir:   pkg/PhyloLib
