@@ -183,12 +183,13 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
-      "-with-rtsopts=-N -A64m -n4m --nonmoving-gc -qa -qm"
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
   Else
     GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
-      "-with-rtsopts=-N -A64m -n4m --nonmoving-gc -qa -qm"
+--    rts --nonmoving-gc causes large memory blow-ups
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
       
 
 
