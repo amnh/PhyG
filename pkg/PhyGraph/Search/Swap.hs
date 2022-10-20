@@ -348,8 +348,10 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
                --graphsToDo' = (tail inGraphList)
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
-         traceNoLF ("\tRemaining to Swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) 
-         swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         traceNoLF ("\tRemaining to Swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
+         if null graphsToDo' then  (newCurSameBetterList, counter, inSimAnnealParams)
+         else swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         )
          
 
 -- | splitJoinGraph splits a graph on a single input edge (recursively though edge list) and rejoins to all possible other edges
