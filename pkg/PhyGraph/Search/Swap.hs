@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -349,8 +349,9 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
          traceNoLF ("\tRemaining to Swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
-         if null graphsToDo' then  (newCurSameBetterList, counter, inSimAnnealParams)
-         else swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         -- if null graphsToDo' then  (newCurSameBetterList, counter, inSimAnnealParams)
+         -- else 
+         swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
          )
          
 
