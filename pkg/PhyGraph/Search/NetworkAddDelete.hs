@@ -1637,12 +1637,13 @@ deleteNetEdgeRecursive :: GlobalSettings
 deleteNetEdgeRecursive inGS inData leafGraph inPhyloGraph force inSimAnnealParams inEdgeToDeleteList =
    if null inEdgeToDeleteList then ([], inSimAnnealParams)
    else
-       let saRounds = if isNothing inSimAnnealParams then 1
+       let {- Unclear if should adjust to number of rounds if already limiting to graphsSteepest value
+            saRounds = if isNothing inSimAnnealParams then 1
                       else rounds $ fromJust inSimAnnealParams
                      
-           (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
-          
-          -- numGraphsToExamine = PU.getNumThreads
+            (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+           -}
+           numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
            -- edgeToDelete = head inEdgeToDeleteList
            edgeToDeleteList = take numGraphsToExamine inEdgeToDeleteList
 

@@ -75,7 +75,7 @@ epsilon = 0.0001
 infinity :: Double
 infinity = (read "Infinity") :: Double
 
--- |maxAddStatesToRecode maximum size of addditive charcater to recode into
+-- | maxAddStatesToRecode maximum size of addditive charcater to recode into
 --non-additive charcaters 65 can fit in 4 Word64 since nstates - 1 binaries
 -- prob could be bigger based on cost of optimizing additive versus but this 
 -- seems a reasonale number (prob should be timed to verify)
@@ -176,7 +176,11 @@ data SearchData
     , commentString   :: String
     , duration        :: Int
     } deriving stock (Show, Eq)
-
+-- | maxSimultaneousGraphsSteepest is the maximum number of graphs that are evaluated
+-- at a step in "steepest" algorithms of swap and fuse. Set becasue can increase 
+-- run time of these procedurs by delaying finding "better" solutins to move to.
+maxSimultaneousGraphsSteepest :: Int
+maxSimultaneousGraphsSteepest = 10
 
 data  GlobalSettings
     = GlobalSettings
@@ -203,6 +207,9 @@ data  GlobalSettings
     , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
     , fractionDynamic     :: Double -- estimated gfraction of charcater length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , dynamicEpsilon      :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , graphsSteepest      :: Int -- he maximum number of graphs that are evaluated
+                                 -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
+                                 -- run time of these procedurs by delaying finding "better" solutins to move to.
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -522,6 +529,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bcgt64 = (0.0,1.0)
                                      , fractionDynamic = 1.0
                                      , dynamicEpsilon = 1.02
+                                     , graphsSteepest = 10
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

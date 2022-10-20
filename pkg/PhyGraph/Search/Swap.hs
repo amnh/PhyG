@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
--- import           Debug.Trace
+import           Debug.Trace
 
 
 -- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
@@ -542,7 +542,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                      
                 (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
                 -}
-                numGraphsToExamine = PU.getNumThreads
+                numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
                 rejoinEdgeList = take numGraphsToExamine rejoinEdges
                 --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
                 rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList 
@@ -589,7 +589,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                      
                 (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
                 -}
-          numGraphsToExamine = PU.getNumThreads
+          numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
           rejoinEdgeList = take numGraphsToExamine rejoinEdges
           simAnnealParamList = U.generateUniqueRandList numGraphsToExamine inSimAnnealParams
           rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin' swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
@@ -707,24 +707,16 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
 
       else -- TBR 
          
-         -- check SPR first if steepest
-         if steepest && (sprReJoinCost + splitCost) <= (curBestCost * (dynamicEpsilon inGS)) then 
-            if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then ([], inSimAnnealParams)
-            else if snd6 rediagnosedSPRGraph <= curBestCost then ([rediagnosedSPRGraph], inSimAnnealParams)
-            else 
-               -- do TBR stuff
-               tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
-         else
-            -- do TBR stuff adding SPR results if heuristic better
-            let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
-                              if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
-                              else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
-                              else []
-                            else []
-            in
-            let (tbrResult, newSAParams) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
-            in
-            (sprResult ++ tbrResult, newSAParams)
+         -- do TBR stuff returning SPR results if heuristic better
+         let sprResult = if (sprReJoinCost + splitCost) <= (curBestCost * (dynamicEpsilon inGS)) then 
+                           if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+                           else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
+                           else []
+                         else []
+             (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
+         in
+         if (not . null) sprResult then (sprResult, inSimAnnealParams)
+         else (tbrResult, inSimAnnealParams)
 
    -- simulated annealing/Drift swap
    else 
@@ -801,7 +793,7 @@ tbrJoin :: Bool
         -> LG.LEdge EdgeInfo 
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge = 
-   -- trace ("In tbrJoin") (
+   -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
    else 
       -- get target edge data
@@ -844,7 +836,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                      
                 (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
                 -}
-                numEdgesToExamine = PU.getNumThreads
+                numEdgesToExamine = min (graphsSteepest inGS) PU.getNumThreads
                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                 -- get heuristic delta joins for steepest edge set
@@ -858,11 +850,14 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                 rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList-- get 
 
             in
+            -- trace ("TBR steepest: " ++ (show $ length rerootEdgeList) ++ " edges to go " ++ (show $ length $ (drop numEdgesToExamine edgesInPrunedGraph))) (
             if null candidateEdgeList then 
                tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
             else if null rediagnosedGraphList then 
                tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
-            else (rediagnosedGraphList, Nothing)    
+            else 
+               -- trace ("TBR: " ++ (show $ minimum $ fmap snd6 rediagnosedGraphList))
+               (rediagnosedGraphList, Nothing)    
             -- )
 
          -- simulated annealing/Drift stuff
@@ -876,7 +871,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                      
                 (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
                 -}
-                numEdgesToExamine = PU.getNumThreads
+                numEdgesToExamine = min (graphsSteepest inGS) PU.getNumThreads
                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                 -- get heuristic delta joins for steepest edge set
