@@ -875,6 +875,10 @@
 			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
 			W15, but with the penalty applied to all blocks (more severe).
 			
+			\item[graphsSteepest:n] Sets the maximum number of graphs to be evaluated simultaneously during ``steepest'' descent 
+			in swapping and network add/delete operations. The number is the minimum of the number of parallel threads and $n$
+			(default 10).
+			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
@@ -883,7 +887,7 @@
 			\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 			This name must appear in quotes. 
 			
-			\item[partitioncharacter] Sets the character that is used to partition data. %\hl{The separator can be something else}
+			\item[partitioncharacter:CHAR] Sets the character that is used to partition data. %\hl{The separator can be something else}
 			
 			\item[rootCost:noRootCost|W15|PMDL] Sets the root cost for a graph. W15 sets a 
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
