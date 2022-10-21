@@ -100,6 +100,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             reWeight =  any ((=="weight").fst) lcArgList
             changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
             reRoot = any ((=="outgroup").fst) lcArgList
+            changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -117,6 +118,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
+
+            changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
+            newGraphsSteepest
+               | length changeGraphsSteepestBlock > 1 =
+                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in tansform--can have only one: " ++ show inArgs)
+               | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS 
+               | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS 
+               | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
 
             reRootBlock = filter ((=="outgroup").fst) lcArgList
             outgroupValue
@@ -217,6 +226,13 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else 
                   trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
                   (inGS {dynamicEpsilon = 1.0 + ((fromJust epsilonValue) * (fractionDynamic inGS))}, origData, inData, inGraphList)
+
+            -- changes graphsSteepest -- maximum number of graphs evaluated in paralell at each "steepest" phse in swpa dn netadd/delete
+            else if changeGraphsSteepest then 
+               if isNothing newGraphsSteepest then errorWithoutStackTrace ("GraphsSteepest value is not specified correcty. Must be an Integer (e.g. 5): " ++ (show (snd $ head changeGraphsSteepestBlock)))
+               else 
+                  trace ("Changing GraphsSteepest factor to " ++ (show $ fromJust newGraphsSteepest))
+                  (inGS {graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
 
             else if reRoot then 
                if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))

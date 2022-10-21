@@ -527,6 +527,14 @@ setCommand argList globalSettings processedData inSeedList =
             trace ("GraphFactor set to " ++ (show localMethod))
             (globalSettings {graphFactor = localMethod}, processedData, inSeedList)
 
+        else if head commandList == "graphssteepest"  then
+            let localValue = readMaybe (head optionList) :: Maybe Int
+            in
+            if localValue == Nothing then error ("Set option 'graphsSteepest' must be set to an integer value (e.g. graphsSteepest:5): " ++ (head optionList))
+            else 
+                trace ("GraphsStreepest set to " ++ head optionList)
+                (globalSettings {graphsSteepest = (fromJust localValue)}, processedData, inSeedList)
+
         else if head commandList == "graphtype"  then
             let localGraphType
                   | (head optionList == "tree") = Tree
