@@ -194,10 +194,15 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
                            permuteList (head $ randomIntegerList $ fromJust inSimAnnealParams) breakEdgeList' 
                           else breakEdgeList' 
 
-          -- perform split and rejoin on each edge in first graph
-          (newGraphList', newSAParams) = 
-               -- trace ("List of edges to break:" ++ (show $ fmap LG.toEdge breakEdgeList)) 
-               splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+          -- perform intiial split and rejoin on each edge in first graph
+          -- need to check if alternate type to do both
+          (newGraphList', newSAParams) = if swapType `elem` ["nni", "spr", "tbr"] then
+                                             splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+                                         else 
+                                             let (sprGraphList, sprSAPArams) = splitJoinGraph "spr" inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+                                             in
+                                             if (not . null) sprGraphList then (sprGraphList, sprSAPArams)
+                                             else splitJoinGraph "tbr" inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
 
           -- get best return graph list-can be empty if nothing better ort smame cost
           newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
@@ -209,7 +214,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
                        else infinity 
 
       in  
-      -- trace ("Curent min cost: "  ++ (show (newMinCost, curBestCost))) (
+      -- trace ("Current min cost: "  ++ (show (newMinCost, curBestCost))) (
 
       -- logic for returning normal swap operations (better only)
       -- versus simulated annealin/Drifing returning potentially sub-optimal
@@ -276,6 +281,7 @@ postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest a
          (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
+      -- tbr only for alternate here
       else 
          if not alternate then 
             swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
@@ -314,15 +320,16 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost)) (
          -- for alternarte do SPR first then TBR
-         let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (newGraphList ++ (tail inGraphList))
+         let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList -- (newGraphList ++ (tail inGraphList))
          in
-         if alternate then 
+         if alternate || swapType == "alternate" then 
             let (sprList, _, _) = swapAll' "spr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
                 sprMinCost = min curBestCost ((snd6 . head) sprList)
-                graphsToTBRSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (sprList ++ (tail inGraphList))
+                graphsToTBRSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] sprList -- (sprList ++ (tail inGraphList))
 
             in
             swapAll' "tbr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 2) sprMinCost sprList graphsToTBRSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+            
          else swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
          )
 
@@ -331,7 +338,7 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          -- trace ("Worse " ++ (show newMinCost)) (
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
          in
-         traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to swap") 
+         traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap") 
          swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
          -- )
 
@@ -340,18 +347,18 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
          -- can be a cause of infinite running issues.
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
-             ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
+             -- ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
                 -- newNovelGraphList = newGraphList L.\\ curSameBetterList
-             graphsToDo  = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newNovelGraphList
+             graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newGraphList) L.\\ curSameBetterList
+             -- graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newNovelGraphList) L.\\ curSameBetterList
              graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
                            else graphsToDo
                --graphsToDo' = (tail inGraphList)
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
-         traceNoLF ("\tRemaining to Swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
-         -- if null graphsToDo' then  (newCurSameBetterList, counter, inSimAnnealParams)
-         -- else 
-         swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
+         traceNoLF ("\tRemaining to " ++ swapType ++ " swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
+         if null graphsToDo' then  (newCurSameBetterList, counter, inSimAnnealParams)
+         else swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
          )
          
 

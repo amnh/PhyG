@@ -131,6 +131,7 @@ Flag super-optimization
    Default:     False
    Manual:      True
 
+-- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --

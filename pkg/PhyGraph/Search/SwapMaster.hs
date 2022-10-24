@@ -112,24 +112,29 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
-               (newGraphList', counterSPR')  = if (doSPR || doAlternate) then
+               (newGraphList', counterSPR)  = if doSPR then
                                                let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
-               (newGraphList'', counterTBR') = if (doTBR || doAlternate) then
+               (newGraphList'', counterTBR) = if doTBR then
                                                let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (newGraphList', 0)
+                                              else (newGraphList', 0)
+
+               (newGraphList''', counterAlternate) = if doAlternate then
+                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
+                                                           (graphListList, counterList) = unzip graphPairList
+                                                       in
+                                                       (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                     else (newGraphList'', 0)
               in
-              let (counterSPR, counterTBR, counterAlternate) = if doAlternate then (0,0, counterSPR' + counterTBR')
-                                                               else (counterSPR', counterTBR', 0)
-                  finalGraphList = if null newGraphList'' then inGraphList
-                                   else newGraphList''
+              let finalGraphList = if null newGraphList'' then inGraphList
+                                   else newGraphList'''
                   endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
                                 ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")

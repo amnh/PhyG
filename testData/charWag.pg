@@ -13,7 +13,7 @@ read(fasta:"chel.fas", tcm:"sg2t1.mat")
 --read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 
---set(seed:1665774425)
+--set(seed:1666632300)
 
 --set(partitionCharacter:%)
 set(finalassignment:ia)
@@ -37,7 +37,7 @@ set(dynamicEpsilon:0.0)
 -- set(seed:1)
 --build(replicates:10)
 --build(distance, dwag)
---build(nj, wpgma, dwag, distance, rdwag, replicates:10, best:10)
+build(nj, wpgma, dwag, distance, rdwag, replicates:10, best:10)
 
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
 --build(replicates:10, block, displayTrees:10, cun)
@@ -62,13 +62,16 @@ select(unique)
 --select(best)
 --support(gb:tbr, gbsample:1000)
 -- transform(staticApprox)
---swap(tbr, steepest)
+
+select(best)
+swap()
+
 --select(unique)
 --swap(keep:10)
 
 --transform(weight:0.1, name:"chel.fas#0*")
 
-search(minutes:2, instances:2, Thompson:1, linear)
+--search(minutes:2, instances:2, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
