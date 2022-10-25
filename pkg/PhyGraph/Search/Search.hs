@@ -330,14 +330,15 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                       else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
                             
           numToCharBuild = (10 :: Int)
-          numToDistBuild = (100 :: Int)
+          numToDistBuild = (1000 :: Int)
+          numDistToKeep = (100 :: Int)
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
 
           wagnerOptions = if buildType == "distance" then
                             if buildMethod == "block" then [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
-                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numToCharBuild)]
+                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numDistToKeep)]
                           else if buildType == "character" then
                              if buildMethod == "block" then [("replicates", show (1 :: Int))]
                              else [("replicates", show numToCharBuild)] 
@@ -433,8 +434,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- build options
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                             in
-                                            -- search
-                                            (B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0), buildArgs)
+                                            -- search for dist builds 1000, keeps 100 best distance then selects 10 best after rediagnosis
+                                            let graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                                            in
+                                            (take numToCharBuild $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] graphList, buildArgs)
 
                                           else if searchBandit == "buildSPR" then 
                                             let -- build part
