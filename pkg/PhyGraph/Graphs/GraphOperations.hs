@@ -63,6 +63,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , isNovelGraph
                                , getNodeType
                                , getDisplayTreeCostList
+                               , phylogeneticGraphListMinus
                                ) where
 
 import           Bio.DynamicCharacter
@@ -85,6 +86,23 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
 
+-- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
+-- if an element is multiple times in firt list each will be removed
+-- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
+-- does not take cost into account--or edge weight--only topology.
+-- result like (minuendList - subtrahendList)
+phylogeneticGraphListMinus :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+phylogeneticGraphListMinus minuendList subtrahendList =
+  if null minuendList then []
+  else if null subtrahendList then minuendList
+  else 
+      let minuendSimpleStringList = fmap (LG.prettyIndices . fst6) minuendList
+          subtrahendSinpleStringList = fmap (LG.prettyIndices . fst6) subtrahendList
+          inSubtrahendList = fmap (`elem` subtrahendSinpleStringList) minuendSimpleStringList
+          differenceList = fmap fst $ filter ((== False) . snd) $ zip minuendList inSubtrahendList
+      in
+      differenceList
+ 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
 makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
 makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =

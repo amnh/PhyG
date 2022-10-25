@@ -348,9 +348,9 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          -- can be a cause of infinite running issues.
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
              -- ( _, newNovelGraphList) = unzip $ filter ((== True) .fst) $ zip (fmap (GO.isNovelGraph (curSameBetterList ++ (tail inGraphList))) newGraphList) newGraphList
-                -- newNovelGraphList = newGraphList L.\\ curSameBetterList
-             graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newGraphList) L.\\ curSameBetterList
-             -- graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newNovelGraphList) L.\\ curSameBetterList
+                -- newNovelGraphList = newGraphList GO.phylogeneticGraphListMinus curSameBetterList
+             graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
+             -- graphsToDo  = (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ (tail inGraphList) ++ newNovelGraphList) GO.phylogeneticGraphListMinus curSameBetterList
              graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
                            else graphsToDo
                --graphsToDo' = (tail inGraphList)

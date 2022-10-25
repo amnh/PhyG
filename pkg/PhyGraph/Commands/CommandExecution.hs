@@ -712,7 +712,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
                     -- reformat the "search" command fields a bit 
                     dataString = processSearchFields dataString'
-                    baseData = ("SearchData\n")
+                    baseData = ("SearchData\nRandom seed " ++ (show $ seed globalSettings))
                     charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "CPU time (secs)", "Comment"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
