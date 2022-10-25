@@ -331,7 +331,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                             
           numToCharBuild = (10 :: Int)
           numToDistBuild = (1000 :: Int)
-          numDistToKeep = (100 :: Int)
+          numDistToKeep = (10 :: Int)
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
@@ -434,7 +434,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- build options
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                             in
-                                            -- search for dist builds 1000, keeps 100 best distance then selects 10 best after rediagnosis
+                                            -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
+                                            -- this line in here to allow for returning lots of rediagnosed distance trees, then
+                                            -- reducing to unique best cost trees--but is a memory pig
                                             let graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             in
                                             (take numToCharBuild $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] graphList, buildArgs)
