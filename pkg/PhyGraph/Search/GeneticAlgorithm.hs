@@ -86,10 +86,8 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             uniqueMutatedGraphList = GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] (mutatedGraphList ++ inGraphList)
 
             -- recombine elite with mutated and mutated with mutated
-            recombineSwap = getRandomElement (seedList !! 4) ["nni", "spr", "tbr"]
-            (doNNI, doSPR, doTBR) = if recombineSwap == "nni" then (True, False, False)
-                                   else if recombineSwap == "spr" then (False, True, False)
-                                   else (False, False, True)
+            recombineSwap = getRandomElement (seedList !! 4) ["none" , "nni", "spr"] --  these take too long, "tbr", "alternate"]
+            
             doSteepest = True
             doAll = False
             returnBest = False
@@ -98,7 +96,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             fusePairs = Just recombinations
             randomPairs = True
 
-            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0  doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueMutatedGraphList
+            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueMutatedGraphList
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
