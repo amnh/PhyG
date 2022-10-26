@@ -118,8 +118,9 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
                          else if randomPairs then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
-
-         newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
+         -- ParMap created too large a memory footprint. Pafrallleism at lower levels
+         -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
+         newGraphList = fusePairRecursive inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -160,6 +161,25 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
             else (allBestList, counter + 1)
       )
 
+-- | fusePairRecursive wraps around fusePair recursively traversing through fuse pairs as oppose
+-- to parMapping at once creating a large memory footprint
+fusePairRecursive :: GlobalSettings
+         -> ProcessedData
+         -> Int
+         -> V.Vector (V.Vector CharInfo)
+         -> VertexCost
+         -> Int
+         -> Int
+         -> String
+         -> [PhylogeneticGraph]
+         -> [(PhylogeneticGraph, PhylogeneticGraph)]
+         -> [PhylogeneticGraph]
+fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swapType resultList leftRightList =
+   if null leftRightList then resultList
+   else 
+      let fusePairResult = fusePair  inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swapType (head leftRightList)
+      in
+      fusePairResult ++ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swapType resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
@@ -361,7 +381,8 @@ getBaseGraphEdges :: (Eq b) => LG.Node -> (LG.Gr a b, [LG.LEdge b], LG.LEdge b) 
 getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge) =
    if LG.isEmpty inGraph then []
    else 
-      origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
+      -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
+      filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
 
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph,
 -- the bitVector equality list of pruned roots, the bitvector of the root of the pruned graph on left
