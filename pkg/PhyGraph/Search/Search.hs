@@ -331,14 +331,14 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                             
           numToCharBuild = (10 :: Int)
           numToDistBuild = (1000 :: Int)
-          numDistToKeep = (10 :: Int)
+          numDistToKeep = (100 :: Int)
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
 
           wagnerOptions = if buildType == "distance" then
                             if buildMethod == "block" then [("replicates", show numToCharBuild), ("rdwag", ""), ("best", show (1 :: Int))]
-                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numDistToKeep)]
+                            else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numDistToKeep), ("return", show numToCharBuild)]
                           else if buildType == "character" then
                              if buildMethod == "block" then [("replicates", show (1 :: Int))]
                              else [("replicates", show numToCharBuild)] 

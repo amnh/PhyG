@@ -74,7 +74,7 @@ validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
 buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees", "distance", "dwag", "eun", "first", "graph", "none","nj", 
-                "otu", "rdwag", "replicates", "spr","tbr", "wpgma"]
+                "otu", "rdwag", "replicates", "spr","tbr", "wpgma","return"]
 
 -- | fuseArgList arguments
 fuseArgList :: [String]

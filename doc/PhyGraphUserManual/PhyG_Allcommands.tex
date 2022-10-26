@@ -77,8 +77,9 @@
 		\begin{description}
 			\item[best:n] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
 			after 	\texttt{rdWag} builds, selecting the best trees in terms of distance cost. The 
-			options can be used to reduce the number of trees retained for refinement or returned 
-			for further analysis.
+			options can be used to reduce the number of trees retained.  
+			This number, $n$, of distance trees are rediagnosed as character trees
+			and returned (limited by \texttt{return:m} below) for further analysis.
 			
 			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the 
 			`best' taxon to 
@@ -97,6 +98,11 @@
 			\item[rdWag] Performs randoms addition sequence distance Wagner builds, 
 			yielding multiple trees determined by the argument \texttt{replicates:n}. This 
 			method has a time complexity of $O(m \times n^2)$.
+			
+			\item[return:n] Limits the number of Wagner trees returned for further analysis.  By default
+			all trees that are built (or limited by \texttt{best:m} in distance analysis) are returned.
+			Limiting the number of returned trees (as opposed to simply generating that number) can result in
+			a larger memory footprint.
 
 			\item[spr] Specifies that \texttt{spr} refinement \citep{Dayhoff1969} is performed 
 			after distance builds.
