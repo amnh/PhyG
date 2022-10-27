@@ -78,4 +78,12 @@ library
     -fspec-constr-keen
     -fspecialize-aggressively
     -fstatic-argument-transformation
-    -fllvm
+--    -fllvm
+
+  If os(darwin)
+    GHC-Options:
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+  else
+    GHC-Options:
+      -fllvm
