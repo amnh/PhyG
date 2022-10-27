@@ -78,7 +78,7 @@ buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees",
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["all", "atrandom", "best", "keep", "once", "pairs", "nni", "none", "spr",  "steepest", "tbr", "unique"]
+fuseArgList = ["all", "atrandom", "best", "keep", "once", "pairs", "none", "spr",  "steepest", "tbr", "unique"]
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]

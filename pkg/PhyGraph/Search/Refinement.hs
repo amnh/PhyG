@@ -220,15 +220,13 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                             else doSteepest'
 
                -- readdition options, specified as swap types
-               doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR' = any ((=="tbr").fst) lcArgList
                
-               -- no alternate for fuse--not really meaningful
+               -- no alternate or nni for fuse--not really meaningful
 
                swapType = if doTBR' then "tbr"
                           else if doSPR' then "spr"
-                          else if doNNI' then "nni"
                           else "none"
 
                        

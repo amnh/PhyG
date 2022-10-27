@@ -63,7 +63,7 @@ treeBanditList :: [String]
 treeBanditList = [
                  "buildCharacter", "buildDistance", "buildSPR", "buildAlternate", 
                  "swapSPR", "swapAlternate", 
-                 "fuse", "fuseSPR", "fuseAlternate",
+                 "fuse", "fuseSPR", "fuseTBR",
                  "driftSPR", "driftAlternate", "annealSPR", "annealAlternate", 
                  "geneticAlgorithm" 
                  ] 
@@ -535,32 +535,25 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                                             let -- fuse arguments
-                                                fuseArgs = [("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
-                                          else if searchBandit == "fuseAlternate" then
+                                          else if searchBandit == "fuseTBR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
-                                          else if searchBandit == "fuseAlternate" then
-                                            let -- fuse arguments
-                                                fuseArgs = [("alternate", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
-                                            in
-                                            -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
-                
                                           else if searchBandit == "networkAdd" then
                                             let -- network add args
                                                 netEditArgs = netAddArgs
