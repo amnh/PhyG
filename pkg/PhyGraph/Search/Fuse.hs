@@ -200,7 +200,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swa
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
       -- split graphs at all bridge edges (all edges for Tree)
-      let -- left graph splits
+      let -- left graph splits on all edges
           leftDecoratedGraph = thd6 leftGraph
           (leftRootIndex, _) = head $ LG.getRoots leftDecoratedGraph
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
@@ -211,7 +211,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swa
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
 
-          -- right graph splits
+          -- right graph splits on all edges
           rightDecoratedGraph = thd6 rightGraph
           (rightRootIndex, _) = head $ LG.getRoots rightDecoratedGraph
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
@@ -222,7 +222,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swa
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
 
-          -- need to get all pairs of split graphs
+          -- get all pairs of split graphs
           (leftSplitTupleList', rightSplitTupleList') =  unzip $ cartProd (fmap first4of6 leftSplitTupleList) (fmap first4of6 rightSplitTupleList)
           (leftPrunedGraphBVList', rightPrunedGraphBVList') = unzip $ cartProd leftPrunedGraphBVList rightPrunedGraphBVList
           -- (leftBaseBVList, rightBaseBVList) = unzip $ cartProd leftBaseGraphBVList rightBaseGraphBVList
@@ -231,14 +231,14 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swa
           -- get compatible split pairs via checking bv of root index of pruned subgraphs
           leftRightMatchList = zipWith (==) leftPrunedGraphBVList' rightPrunedGraphBVList'
 
-          -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nmothing (if identical)
-            -- oalso checks that prune and splits don't match between the grap[hs to be recombined]
+          -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nothing (if identical)
+          -- also checks that prune and splits don't match between the graphs to be recombined--ie exchanging the same sub-graph
           recombinablePairList = L.zipWith (getCompatibleNonIdenticalSplits numLeaves) leftRightMatchList leftPrunedGraphBVList'
           (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
 
 
           -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
-          -- retuns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
+          -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
           (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
 
           (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
@@ -263,7 +263,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist swa
           (_, rightLeftOptimizedSplitGraphCostList', _, rightLeftPrunedRootIndexList', rightLeftPrunedParentRootIndexList', rightLeftOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList rightLeftOptimizedSplitGraphCostList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList rightLeftPrunedParentRootIndexList rightLeftOriginalConnectionOfPrunedList
 
           -- re-add pruned component to base component left-right and right-left
-          -- need cure best cost
+          -- need curent best cost
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
 
           -- get network penalty factors to pass on
@@ -341,7 +341,8 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist swapType charInfoVV 
                                netPenaltyFactorList
 
           -- do "all additions" -
-          recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams) graphDataList
+          -- recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
+          recombinedGraphList = rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost doIA charInfoVV inSimAnnealParams graphDataList
                                                               
 
           -- this based on heuristic deltas
@@ -356,6 +357,30 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist swapType charInfoVV 
       else []
       -- )
       -- )
+
+-- | rejoinGraphTupleRecursive is a wrapper for S.rejoinGraphTuple that recursively goes through list as opposd to parMapping
+-- this to save on memory footprint since there wold be many calls generated 
+-- the rejoin operation is parallelized itself
+rejoinGraphTupleRecursive :: String
+                          -> GlobalSettings
+                          -> ProcessedData
+                          -> Int
+                          -> Int
+                          -> Bool
+                          -> VertexCost
+                          -> Bool
+                          -> V.Vector (V.Vector CharInfo)
+                          -> Maybe SAParams
+                          -> [(DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)]
+                          -> [PhylogeneticGraph]
+rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost doIA charInfoVV inSimAnnealParams graphDataList =
+   if null graphDataList then []
+   else 
+      let firstGraphData = head graphDataList
+          firstRejoinResult = S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams firstGraphData
+      in
+      firstRejoinResult ++ rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost doIA charInfoVV inSimAnnealParams (tail graphDataList)
+
 
 -- | getNetworkPentaltyFactor get scale network penalty for graph
 getNetworkPentaltyFactor :: GlobalSettings -> VertexCost -> PhylogeneticGraph -> VertexCost 
@@ -375,14 +400,27 @@ getNetworkPentaltyFactor inGS graphCost inGraph =
 
 -- | getBaseGraphEdges gets teh edges in the base graph teh trhe exchanged sub graphs can be rejoined
 -- basically all edges except at root and those in the subgraph
--- adds original edge connection at front (for use in "none" swap later), removing if there to 
+-- adds original edge connection edges (those with nodes in original edge) at front (for use in "none" swap later), removing if there to 
 -- prevent redundancy if swap not "none" 
 getBaseGraphEdges :: (Eq b) => LG.Node -> (LG.Gr a b, [LG.LEdge b], LG.LEdge b) -> [LG.LEdge b]
 getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge) =
    if LG.isEmpty inGraph then []
    else 
-      -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
-      filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+      let baseGraphEdges = filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+          baseMatchList = filter (edgeMatch origSiteEdge) baseGraphEdges
+          
+          -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
+      in
+      -- trace ("GBGE: " ++ (show $ length baseMatchList))
+      -- trace ("GBGE sub: " ++ (show $ origEdge `elem` (fmap LG.toEdge edgesInSubGraph)) ++ " base: " ++ (show $ origEdge `elem` (fmap LG.toEdge baseGraphEdges)) ++ " total: " ++ (show $ origEdge `elem` (fmap LG.toEdge $ LG.labEdges inGraph)) ++ "\n" ++ (show origEdge) ++ " sub " ++ (show $ fmap LG.toEdge edgesInSubGraph) ++ " base " ++ (show $ fmap LG.toEdge baseGraphEdges) ++ "\nTotal " ++ (show $ fmap LG.toEdge $ LG.labEdges inGraph))
+
+      baseMatchList ++ (baseGraphEdges L.\\ baseMatchList)
+      
+      where edgeMatch (a, b, _) (e, v, _) = if e == a then True
+                                            else if e == b then True
+                                            else if v == a then True
+                                            else if v == b then True
+                                            else False
 
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph,
 -- the bitVector equality list of pruned roots, the bitvector of the root of the pruned graph on left

@@ -510,7 +510,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
 
    else
       -- this is for no  swapping option in fuse and genetic algorithm-fuse
-      let rejoinEdges = if swapType == "none" then [head rejoinEdges']
+      let rejoinEdges = if swapType == "none" then take 6 rejoinEdges'
                         else rejoinEdges'
       in
       -- regular swapping

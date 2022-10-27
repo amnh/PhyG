@@ -223,10 +223,10 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                doNNI' = any ((=="nni").fst) lcArgList
                doSPR' = any ((=="spr").fst) lcArgList
                doTBR' = any ((=="tbr").fst) lcArgList
-               doAlternate = any ((=="alternate").fst) lcArgList
+               
+               -- no alternate for fuse--not really meaningful
 
-               swapType = if doAlternate then "alternate"
-                          else if doTBR' then "tbr"
+               swapType = if doTBR' then "tbr"
                           else if doSPR' then "spr"
                           else if doNNI' then "nni"
                           else "none"
