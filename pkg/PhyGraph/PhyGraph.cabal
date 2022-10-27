@@ -172,6 +172,14 @@ Executable phyg
     -threaded
     -Wall
 
+  If os(darwin)
+    GHC-Options:
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+  else
+    GHC-Options:
+      -fllvm
+
   If flag(super-optimization)
     GHC-Options:
       -fexcess-precision
@@ -183,7 +191,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
-      -fllvm
+-- -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
   Else
     GHC-Options:
@@ -191,16 +199,6 @@ Executable phyg
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
-      
-
-
---  If os(darwin)
---    GHC-Options:
---      -- problems getting llvm to function in OSX (can't find opt)
---      -- -fllvm
---  else
---    GHC-Options:
---         -fllvm
 
   Build-Depends:
     PhyGraph:alphabet,
