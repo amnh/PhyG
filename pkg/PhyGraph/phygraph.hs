@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
 
 module Main (main) where
 

@@ -238,7 +238,11 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                             else fusePairs
 
                -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
-               reciprocal = any ((=="reciprocal").fst) lcArgList
+               reciprocal' = any ((=="reciprocal").fst) lcArgList
+               notReciprocal = any ((=="notreciprocal").fst) lcArgList
+               reciprocal = if not reciprocal' then False
+                            else if notReciprocal then False
+                            else True
 
                seedList = randomIntList rSeed
            in

@@ -191,13 +191,16 @@
 		\item [nni] Causes the exchanged subgraphs to be tested at their initial positions as well as the 
 		two adjacent edges.
 		
+		\item [notReciprocal] Turns off \texttt{reciprocal}.
+		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
 		\item [pairs[:n]] Limits the number of graphs to be fused to $n$ pairs (as oppose to $\binom{m}{2}$ for $m$ graphs).
 		
 		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the corresponding subgraph 
-		in the other.  Reciprocal causes exchange and evaluation or graphs in both directions.
+		in the other.  Reciprocal causes exchange and evaluation or graphs in both directions--roughly doubling time and 
+		memory footprint.
 		
 		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
