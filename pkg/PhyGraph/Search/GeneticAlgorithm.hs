@@ -95,8 +95,9 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             singleRound = False
             fusePairs = Just recombinations
             randomPairs = True
+            reciprocal = False
 
-            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueMutatedGraphList
+            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost

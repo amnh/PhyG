@@ -237,10 +237,13 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
                             else fusePairs
 
+               -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
+               reciprocal = any ((=="reciprocal").fst) lcArgList
+
                seedList = randomIntList rSeed
            in
            -- perform graph fuse operations
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 swapType doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs inGraphList
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 swapType doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
            trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))

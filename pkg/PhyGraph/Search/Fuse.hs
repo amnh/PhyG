@@ -74,9 +74,10 @@ fuseAllGraphs :: GlobalSettings
               -> Bool
               -> Maybe Int
               -> Bool
+              -> Bool
               -> [PhylogeneticGraph]
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs inGraphList =
+fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
    if null inGraphList then ([], 0)
    else if length inGraphList == 1 then (inGraphList, 0)
    else
@@ -138,7 +139,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
          if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
                trace ("\n")
-               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueList
+               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
          else (uniqueList, counter + 1)
 
       else -- return best
@@ -157,7 +158,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
             else if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
                trace ("\n")
-               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs allBestList
+               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
             -- equal cost just return--could keep finding equal
             else (allBestList, counter + 1)
@@ -286,7 +287,10 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist cur
 
 
           -- get "best" fused graphs from leftRight and rightLeft
-          bestFusedGraphs = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+          bestFusedGraphs = if reciprocal then
+                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+                            else 
+                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] leftRightFusedGraphList
 
           -- | get fuse graphs via swap function
       in

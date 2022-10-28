@@ -175,7 +175,7 @@
 	
 	\subsubsection{Arguments}
 	\begin{description}
-		% \item [all] Fuse all pairwise combinations of graphs.
+		\item [all]  During branch swapping-type operations, all rearrangement are tried before choosing a new graph. 
 		
 		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
 		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
@@ -195,6 +195,9 @@
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
 		\item [pairs[:n]] Limits the number of graphs to be fused to $n$ pairs (as oppose to $\binom{m}{2}$ for $m$ graphs).
+		
+		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the corresponding subgraph 
+		in the other.  Reciprocal causes exchange and evaluation or graphs in both directions.
 		
 		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
