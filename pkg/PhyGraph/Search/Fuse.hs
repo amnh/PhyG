@@ -121,7 +121,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
 
          -- ParMap created too large a memory footprint. Pafrallleism at lower levels
          -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
-         newGraphList = fusePairRecursive inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType [] graphPairList
+         newGraphList = fusePairRecursive inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -175,13 +175,14 @@ fusePairRecursive :: GlobalSettings
          -> Int
          -> VertexCost
          -> String
+         -> Bool
          -> [PhylogeneticGraph]
          -> [(PhylogeneticGraph, PhylogeneticGraph)]
          -> [PhylogeneticGraph]
-fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType resultList leftRightList =
+fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal resultList leftRightList =
    if null leftRightList then resultList
    else 
-      let fusePairResult = fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType (head leftRightList)
+      let fusePairResult = fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (head leftRightList)
           
           pairScore = if (not . null) fusePairResult then 
                         minimum $ fmap snd6 fusePairResult
@@ -189,7 +190,7 @@ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdg
 
           newCurBestScore = min curBestScore pairScore
       in
-      fusePairResult ++ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist newCurBestScore swapType resultList (tail leftRightList)
+      fusePairResult ++ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist newCurBestScore swapType reciprocal resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
@@ -204,9 +205,10 @@ fusePair :: GlobalSettings
          -> Int
          -> VertexCost
          -> String
+         -> Bool
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType (leftGraph, rightGraph) =
+fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else

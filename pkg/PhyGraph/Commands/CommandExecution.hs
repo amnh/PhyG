@@ -67,6 +67,10 @@ import qualified GraphOptimization.Traversals as TRAV
 import qualified Commands.Verify             as VER
 import qualified Data.InfList                as IL
 import           Commands.CommandUtilities
+import qualified System.Info              as SI
+import qualified Data.Version             as DV
+import qualified System.CPU               as SC
+import qualified System.IO.Unsafe         as SIOU
 
 
 
@@ -712,7 +716,11 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
                     -- reformat the "search" command fields a bit 
                     dataString = processSearchFields dataString'
-                    baseData = ("SearchData\nRandom seed, " ++ (show $ seed globalSettings) ++ "\n")
+                    sysInfoData = "System Info\nOS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ (DV.showVersion SI.compilerVersion)
+                    cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
+                    cpuInfoString = if isNothing cpuInfoM then "Couldn't parse CPU Info"
+                                    else ("CPU Info, Physical Processors: " ++ (show $ SC.physicalProcessors (fromJust cpuInfoM)) ++ ", Physical Cores: " ++ (show $ SC.physicalCores (fromJust cpuInfoM)) ++ ", Logical Cores: " ++ (show $ SC.logicalCores (fromJust cpuInfoM)))
+                    baseData = (sysInfoData ++ "\n" ++ cpuInfoString ++ "\nSearchData\nRandom seed, " ++ (show $ seed globalSettings) ++ "\n")
                     charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "CPU time (secs)", "Comment"]
                 in
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
