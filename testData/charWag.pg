@@ -64,9 +64,10 @@ select(unique)
 -- transform(staticApprox)
 
 --select(best)
---swap()
 
-fuse(spr,all)
+swap(alternate)
+
+-- fuse(spr,all)
 
 --select(unique)
 --swap(keep:10)

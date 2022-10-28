@@ -35,6 +35,8 @@ Portability :  portable (I hope)
 -}
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+
 
 module Commands.CommandExecution
   ( executeCommands
@@ -716,7 +718,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
                     -- reformat the "search" command fields a bit 
                     dataString = processSearchFields dataString'
-                    sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ (DV.showVersion SI.compilerVersion) 
+                    sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ (DV.showVersion SI.compilerVersion) ++ ", Compile Date: " ++ (__DATE__ )
                     cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
                     cpuInfoString = if isNothing cpuInfoM then "Couldn't parse CPU Info"
                                     else "CPU Info, Physical Processors: " ++ (show $ SC.physicalProcessors (fromJust cpuInfoM)) ++ ", Physical Cores: " ++ (show $ SC.physicalCores (fromJust cpuInfoM)) ++ ", Logical Cores: " ++ (show $ SC.logicalCores (fromJust cpuInfoM))
