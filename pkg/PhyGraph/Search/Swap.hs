@@ -787,6 +787,13 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
              (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
          in
          if (not . null) sprResult then (sprResult, inSimAnnealParams)
+
+         -- unions implementation here
+         -- 1.17 from Varon and Wheeler 2013
+         else if sprReJoinCost > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealParams)
+
+         -- else if ((snd6 rediagnosedSPRGraph) - curBestCost) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealParams)
+         
          else (tbrResult, inSimAnnealParams)
 
    -- simulated annealing/Drift swap
