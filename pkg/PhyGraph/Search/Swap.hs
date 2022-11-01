@@ -264,15 +264,18 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
                               permuteList (head $ randomIntegerList $ fromJust inSimAnnealParams) breakEdgeList' 
                             else breakEdgeList' 
 
-          -- move first "breakEdgeNumber" edges in split list to end
+          -- move first "breakEdgeFactor" edges in split list to end
+          -- since breakEdgeFactor can get incremented past number of edges the integer remainder is determined
+          -- to move to end
           -- this to reduces the revisiting of stable edges (by moving them to the end of the list)
           -- yet still insures that all edges will be visited in final (or ay time needed) split.
           -- used in POY v 1-3
-          breakEdgeList =  (drop breakEdgeNumber breakEdgeList'') ++ (take breakEdgeNumber breakEdgeList'')
+          breakEdgeFactor = snd $ divMod breakEdgeNumber (length breakEdgeList'')
+          breakEdgeList =  (drop breakEdgeFactor breakEdgeList'') ++ (take breakEdgeFactor breakEdgeList'')
 
 
           -- perform intial split and rejoin on each edge in first graph
-          (newGraphList', newSAParams, newBreakEdgeNumber) = splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeList breakEdgeList
+          (newGraphList', newSAParams, newBreakEdgeNumber) = splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeList breakEdgeList
 
           -- get best return graph list-can be empty if nothing better ort smame cost
           newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
@@ -285,7 +288,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
 
       in  
       -- trace ("Current min cost: "  ++ (show (newMinCost, curBestCost))) (
-
+      traceNoLF ("\tBEF:" ++ (show breakEdgeFactor)) (
       -- logic for returning normal swap operations (better only)
       -- versus simulated annealin/Drifing returning potentially sub-optimal
       if isNothing inSimAnnealParams then
@@ -294,7 +297,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
       -- simulated annealing/Drift post processing      
       else 
          postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newBreakEdgeNumber newGraphListUnique
-      -- )
+      )
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
 -- with "regular" optimal swapping
@@ -468,10 +471,11 @@ splitJoinGraph :: String
                -> VertexCost
                -> Maybe SAParams
                -> PhylogeneticGraph
+               -> Int 
                -> [LG.LEdge EdgeInfo]
                -> [LG.LEdge EdgeInfo]
                -> ([PhylogeneticGraph], Maybe SAParams, Int)
-splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete breakEdgeList =
+splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
    if null breakEdgeList then (curSameBetterList, inSimAnnealParams, 0)
    else 
       -- split on first input edge
@@ -479,7 +483,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
 
           -- this so breaking edges can contnue where current left off 
           -- since "rotates" edges all will be done.
-          breakEdgeNumber = (length breakEdgeListComplete) - (length breakEdgeList)
+          breakEdgeNumber = breakEdgeNumber' + 1
 
           -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
           (splitGraph, graphRoot, prunedGraphRootIndex,  originalConnectionOfPruned) = LG.splitGraphOnEdge (thd6 firstGraph) edgeToBreakOn
@@ -521,7 +525,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
          -- adds null o\r better graphs to reurn list 
          if (not . null) newGraphList && steepest then (newGraphList', inSimAnnealParams, breakEdgeNumber)
          else 
-            let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeListComplete (tail breakEdgeList)
+            let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
             in
             (newGraphList' ++ recurseGraphList, inSimAnnealParams, newEdgeBreakNumber) 
 
@@ -541,7 +545,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
 
          -- keep going if nothing
          else
-            splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams firstGraph breakEdgeListComplete (tail breakEdgeList)
+            splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
 
 
 
