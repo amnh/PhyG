@@ -1,11 +1,11 @@
 --read(fasta:"metazoa-aa-1.fas")
 read(fasta:"chel.fas")
---read(fasta:"chel-16.fas")
+read(fasta:"chel-16.fas")
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
---read(prefasta:"chel-prealigned.fas", tcm:(2,1))
---read(prefasta:"chel-prealigned.fas", tcm:"sg2t2.mat")
+read(prefasta:"chel-prealigned.fas", tcm:(2,1))
+read(prefasta:"chel-prealigned.fas", tcm:"sg2t2.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
@@ -13,7 +13,7 @@ read(fasta:"chel.fas")
 --read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 
---set(seed:1666899539)
+set(seed:1666899539)
 
 --set(partitionCharacter:%)
 --set(finalassignment:ia)
@@ -35,7 +35,7 @@ set(dynamicEpsilon:0.0)
 --set(criterion:ml)
 
 -- set(seed:1)
-build(replicates:100)
+build(replicates:10)
 --build(distance, dwag)
 --build(distance, rdwag, replicates:20, best:20)
 
@@ -65,6 +65,7 @@ select(unique)
 
 --select(best)
 
+swap(alternate)
 swap(alternate)
 
 -- fuse(spr,all)
