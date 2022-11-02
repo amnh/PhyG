@@ -353,7 +353,7 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          -- trace ("Worse " ++ (show newMinCost)) (
          let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
          in
-         traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap") 
+         -- traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap") 
 
          -- breakEdgeNUmber set to zero for new graph to look at
          swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor 0 inSimAnnealParams
