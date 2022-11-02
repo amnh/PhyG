@@ -288,7 +288,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
 
       in  
       -- trace ("Current min cost: "  ++ (show (newMinCost, curBestCost))) (
-      traceNoLF ("\tBEF:" ++ (show breakEdgeFactor)) (
+      -- traceNoLF ("\tBEF:" ++ (show breakEdgeFactor)) (
       -- logic for returning normal swap operations (better only)
       -- versus simulated annealin/Drifing returning potentially sub-optimal
       if isNothing inSimAnnealParams then
@@ -297,7 +297,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
       -- simulated annealing/Drift post processing      
       else 
          postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newBreakEdgeNumber newGraphListUnique
-      )
+      -- )
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
 -- with "regular" optimal swapping
@@ -327,7 +327,7 @@ postProcessSwap :: String
 postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
    -- found better cost graph
       if newMinCost < curBestCost then
-         traceNoLF ("\t->" ++ (show newMinCost) ++ swapType) (
+         traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
          -- for alternarte do SPR first then TBR
          let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList -- (newGraphList ++ (tail inGraphList))
          in

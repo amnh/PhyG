@@ -61,6 +61,8 @@ import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
 import           Debug.Trace
 import           Data.Maybe
+import           System.CPUTime
+import           Data.Time.Clock
 
 -- | main driver
 main :: IO ()
@@ -80,6 +82,7 @@ main = do
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
+    timeCD <- getCurrentTime
     hPutStrLn stderr ("Initial random seed set to " ++ (show timeD))
 
     -- hPutStrLn stderr ("Current time is " ++ show timeD)
@@ -254,9 +257,22 @@ main = do
     hPutStrLn stderr ("\tUpdating final graph costs") 
     let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
 
-    -- Final Stderr report
-    timeDN <- getSystemTimeSeconds
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) ++ " in "++ show (timeDN - timeD) ++ " second(s)")
+    
+    -- Final Stderr report
+    timeCPUEnd <- getCPUTime
+    timeCDEnd <- getCurrentTime
+
+    --hPutStrLn stderr ("CPU Time " ++ (show timeCPUEnd))
+    let wallClockDuration = (floor (1000000000000 * (nominalDiffTimeToSeconds (diffUTCTime timeCDEnd timeCD)))) :: Integer
+    --hPutStrLn stderr ("Current time " ++  (show wallClockDuration))
+    let cpuUsage = (fromIntegral timeCPUEnd) / (fromIntegral wallClockDuration) :: Double
+    --hPutStrLn stderr ("CPU % " ++ (show cpuUsage))
+
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) 
+        ++ "\n\tWall-Clock time " ++ (show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0)) ++ " second(s)"
+        ++ "\n\tCPU time " ++ (show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0)) ++ " second(s)"
+        ++ "\n\tCPU usage " ++ (show (floor (100.0 * cpuUsage) :: Integer)) ++ "%"
+        )
 
