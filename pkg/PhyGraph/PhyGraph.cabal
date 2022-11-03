@@ -211,6 +211,7 @@ Executable phyg
     bimap,
     bv,
     bv-little,
+    clock,
     containers >=0.6,
     cpuinfo,
     deepseq,
