@@ -719,7 +719,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     -- reformat the "search" command fields a bit 
                     dataString = processSearchFields dataString'
                     sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ (DV.showVersion SI.compilerVersion) ++ ", Compile Date: " ++ (__DATE__ )
-                    cpuInfoString = if SI.os == "darwin" then "CPU Info, No /proc/cpuinfo on darwin"
+                    cpuInfoString = if SI.os /= "linux" then "CPU Info, No /proc/cpuinfo on darwin"
                                     else 
                                         let cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
                                         in
