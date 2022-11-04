@@ -719,9 +719,12 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     -- reformat the "search" command fields a bit 
                     dataString = processSearchFields dataString'
                     sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ (DV.showVersion SI.compilerVersion) ++ ", Compile Date: " ++ (__DATE__ )
-                    cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
-                    cpuInfoString = if isNothing cpuInfoM then "Couldn't parse CPU Info"
-                                    else "CPU Info, Physical Processors: " ++ (show $ SC.physicalProcessors (fromJust cpuInfoM)) ++ ", Physical Cores: " ++ (show $ SC.physicalCores (fromJust cpuInfoM)) ++ ", Logical Cores: " ++ (show $ SC.logicalCores (fromJust cpuInfoM))
+                    cpuInfoString = if SI.os == "darwin" then "CPU Info, No /proc/cpuinfo on darwin"
+                                    else 
+                                        let cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
+                                        in
+                                        if isNothing cpuInfoM then "Couldn't parse CPU Info"
+                                        else "CPU Info, Physical Processors: " ++ (show $ SC.physicalProcessors (fromJust cpuInfoM)) ++ ", Physical Cores: " ++ (show $ SC.physicalCores (fromJust cpuInfoM)) ++ ", Logical Cores: " ++ (show $ SC.logicalCores (fromJust cpuInfoM))
                     baseData = sysInfoData ++ "\n" ++ cpuInfoString ++ "\nSearchData\nRandom seed, " ++ (show $ seed globalSettings) ++ "\n"
                     charInfoFields = ["Command", "Arguments", "Min cost in", "Max cost in", "Num graphs in", "Min cost out", "Max cost out", "Num graphs out", "CPU time (secs)", "Comment"]
                 in
