@@ -70,7 +70,7 @@ library
     -Wno-type-defaults
     -Wno-unsafe
     -fexcess-precision
---      -fexpose-all-unfoldings
+    -fexpose-all-unfoldings
     -flate-specialise
     -fmax-simplifier-iterations=16
     -foptimal-applicative-do
