@@ -182,7 +182,7 @@ main = do
     let leafBitVectorNames = DT.createBVNames reconciledData
 
     {-
-    Data processing here-- there are multiple steps not cvomposed so that
+    Data processing here-- there are multiple steps not composed so that
     large data files can be precessed and intermediate data goes out
     of scope and can be freed back to system
     -}
@@ -216,7 +216,7 @@ main = do
     let thingsToDoAfterReblock = filter ((/= Reblock) .fst) $ filter ((/= Rename) .fst) thingsToDoAfterReadRename
 
     -- Combines data of exact types into single vectors in each block
-    -- thids is final data processing step
+    -- this is final data processing step
     let optimizedData = if (not . null) newBlockPairList then 
                             trace ("Reorganizing Block data") 
                             R.combineDataByType partitionCharOptimalityGlobalSettings reBlockedNaiveData
@@ -224,7 +224,7 @@ main = do
                         
     
 
-    -- Set global vaues before search--should be integrated with executing commands
+    -- Set global values before search--should be integrated with executing commands
     -- only stuff that is data dependent here (and seed)
     let defaultGlobalSettings = emptyGlobalSettings { outgroupIndex = 0
                                                     , outGroupName = head dataLeafNames
@@ -240,6 +240,8 @@ main = do
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData [] [] seedList [] initialSetCommands
+    
+    -- Diagnose any input graphs
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
 

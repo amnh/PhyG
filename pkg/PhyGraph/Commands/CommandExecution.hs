@@ -78,7 +78,17 @@ import qualified System.IO.Unsafe         as SIOU
 
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
-executeCommands :: GlobalSettings -> Int -> String -> ProcessedData -> ProcessedData -> [PhylogeneticGraph] -> [[VertexCost]] -> [Int] -> [PhylogeneticGraph] -> [Command] -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
+executeCommands :: GlobalSettings 
+                -> Int 
+                -> String 
+                -> ProcessedData 
+                -> ProcessedData 
+                -> [PhylogeneticGraph] 
+                -> [[VertexCost]] 
+                -> [Int] 
+                -> [PhylogeneticGraph] 
+                -> [Command] 
+                -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
 executeCommands globalSettings numInputFiles crossReferenceString origProcessedData processedData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
