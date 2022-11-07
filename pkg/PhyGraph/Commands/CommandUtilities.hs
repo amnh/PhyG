@@ -211,10 +211,17 @@ printGraphVizDot graphDotString dotFile =
 
 
 -- | showSearchFields cretes a String list for SearchData Fields
+-- special processing for notACommand that contains info for initial data and graph processing
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
-    [show $ instruction sD, L.intercalate " " $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
-    show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD]
+    let inInstruction = instruction sD
+        (instructionString, durationString, commentString') = if inInstruction /= NotACommand then 
+                                                (show $ instruction sD, show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD)
+                                              else (commentString sD, show $ ((fromIntegral $ duration sD) / 1000000000000 :: Double), "No Comment")
+    
+    in
+    [instructionString, L.intercalate " " $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
+        durationString, commentString']
     where showArg a = (fst a) ++ ":" ++ (snd a) 
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
