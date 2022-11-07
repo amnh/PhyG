@@ -241,8 +241,19 @@ main = do
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData [] [] seedList [] initialSetCommands
     
+    -- Get CPUTime so far ()data input and processing
+    dataCPUTime <- getCPUTime
+    
     -- Diagnose any input graphs
     let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+
+    -- Get CPUTime for input graphs
+    afterGraphDiagnoseTCPUTime <- getCPUTime
+    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = if null inputGraphList then (0, 0, infinity, infinity)
+                                                                else ((fromIntegral afterGraphDiagnoseTCPUTime) - (fromIntegral dataCPUTime), length inputGraphList, minimum $ fmap snd6 inputGraphList, maximum $ fmap snd6 inputGraphList)
+
+    let inputProcessingData   = emptySearchData {commentString = "Input and data processing", duration = fromIntegral dataCPUTime} 
+    let inputGraphProcessing  = emptySearchData {minGraphCostOut = minOutCost, maxGraphCostOut = maxOutCost, numGraphsOut = inGraphNumber, commentString = "Input graph processing", duration = inputGraphTime} 
 
 
     -- Create lazy pairwise distances if needed later for build or report
@@ -250,7 +261,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands initialGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputProcessingData, inputGraphProcessing]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

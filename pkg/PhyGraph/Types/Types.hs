@@ -504,6 +504,21 @@ instance NFData SAParams where rnf x = seq x ()
 
 -- | empty structures for convenient use
 
+-- | emptySearchData for use in getting basic procesin input data
+emptySearchData :: SearchData
+emptySearchData  = SearchData
+        { instruction     = NotACommand 
+        , arguments       = []
+        , minGraphCostIn  = infinity
+        , maxGraphCostIn  = infinity
+        , numGraphsIn     = 0
+        , minGraphCostOut = infinity
+        , maxGraphCostOut = infinity
+        , numGraphsOut    = 0
+        , commentString   = []
+        , duration        = 0
+        } 
+
 -- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
 emptyGlobalSettings :: GlobalSettings
 emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
