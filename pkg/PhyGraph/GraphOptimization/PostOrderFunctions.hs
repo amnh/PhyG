@@ -47,6 +47,9 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , createVertexDataOverBlocks
                                              , createVertexDataOverBlocksStaticIA
                                              , updateDisplayTreesAndCost
+                                             , postOrderTreeTraversal
+                                             , postDecorateTree
+                                             , postDecorateTree'
                                              ) where
 
 import           Data.Bits
@@ -58,6 +61,7 @@ import qualified Data.Vector                 as V
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
+import qualified GraphFormatUtilities        as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
@@ -65,6 +69,150 @@ import qualified Utilities.Utilities         as U
 -- import qualified ParallelUtilities           as PU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Debug.Trace
+
+-- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
+-- vi post-order traversal, yields cost as well
+-- for a binary tree only
+-- depending on optimality criterion--will calculate root cost
+postOrderTreeTraversal :: GlobalSettings ->  ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex inGraph  =
+    if LG.isEmpty inGraph then emptyPhylogeneticGraph
+    else
+        -- Assumes root is Number of Leaves
+        let rootIndex = if startVertex == Nothing then  fst $ head $ LG.getRoots inGraph
+                        else fromJust startVertex
+            blockCharInfo = V.map thd3 blockDataVect
+            newTree = postDecorateTree staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+        in
+        -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
+        if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
+            let localRootList = fst <$> LG.getRoots inGraph
+                localRootEdges = concatMap (LG.out inGraph) localRootList
+                currentRootEdges = LG.out inGraph rootIndex
+            in
+            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inGraph)
+        else newTree
+        --)
+
+-- | postDecorateTree' is wrapper for postDecorateTree to alow for mapping
+postDecorateTree' :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
+postDecorateTree' staticIA curDecGraph blockCharInfo rootIndex curNode simpleGraph = postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode
+
+-- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
+-- labelling vertices and edges as it goes back to root
+-- this for a tree so single root
+postDecorateTree :: Bool -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
+postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+    -- if node in there (leaf) nothing to do and return
+    if LG.gelem curNode curDecGraph then
+        let nodeLabel = LG.lab curDecGraph curNode
+        in
+        if isNothing nodeLabel then error ("Null label for node " ++ show curNode)
+        else
+            -- checks for node already in graph--either leaf or pre-optimized node in Hardwired
+            -- trace ("In graph :" ++ (show curNode) ++ " " ++ (show nodeLabel))
+            (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
+
+    -- Need to make node
+    else
+
+        -- check if children in graph
+        let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
+            leftChild = head nodeChildren
+            rightChild = last nodeChildren
+            leftChildTree = postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                                 else leftChildTree
+            newSubTree = thd6 rightLeftChildTree
+            (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
+
+        in
+
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
+        else if null nodeChildren then error ("Leaf not in graph in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
+
+        -- out-degree 1 should not happen with Tree but will with HardWired graph
+        else if length nodeChildren == 1 then
+            -- make node from single child and single new edge to child
+            -- takes characters in blocks--but for tree really all same block
+            let childVertexData = vertData leftChildLabel
+                newVertex = VertexInfo {  index = curNode
+                                        -- same as child--could and perhaps should prepend 1 to make distinct
+                                        , bvLabel = bvLabel leftChildLabel
+                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                        , children = V.fromList nodeChildren
+                                        , nodeType = GO.getNodeType simpleGraph curNode
+                                        , vertName = T.pack $ "HTU" ++ show curNode
+                                        , vertData = childVertexData
+                                        -- this not used for Hardwired or Tree
+                                        , vertexResolutionData = mempty
+                                        , vertexCost = 0.0
+                                        , subGraphCost = subGraphCost leftChildLabel
+                                        }
+                newEdgesLabel = EdgeInfo {    minLength = 0.0
+                                            , maxLength = 0.0
+                                            , midRangeLength = 0.0
+                                            , edgeType = TreeEdge
+                                         }
+                newEdges = LG.toEdge <$> LG.out simpleGraph curNode
+                newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
+
+                (newDisplayVect, newCharTreeVV) = POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph
+
+            in
+            -- th curnode == roiot index for pruned subtrees
+            -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
+
+            --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+            else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+
+        -- make node from 2 children
+        else
+            -- make node from children and new edges to children
+            -- takes characters in blocks--but for tree really all same block
+            let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                -- larger bitvector is Right, smaller or equal Left
+
+                newCharData = if staticIA then createVertexDataOverBlocksStaticIA  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                              else createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                newCost =  V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
+                newVertex = VertexInfo {  index = curNode
+                                        , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
+                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                        , children = V.fromList nodeChildren
+                                        , nodeType = GO.getNodeType simpleGraph curNode
+                                        , vertName = T.pack $ "HTU" ++ show curNode
+                                        , vertData = V.map (V.map fst) newCharData
+                                        , vertexResolutionData = mempty
+                                        , vertexCost = newCost
+                                        , subGraphCost = subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
+                                        }
+                newEdgesLabel = EdgeInfo {    minLength = newCost / 2.0
+                                            , maxLength = newCost / 2.0
+                                            , midRangeLength = newCost / 2.0
+                                            , edgeType = TreeEdge
+                                         }
+                newEdges = LG.toEdge <$> LG.out simpleGraph curNode
+                newLEdges =  fmap (LG.toLEdge' newEdgesLabel) newEdges
+                newGraph =  LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
+
+                (newDisplayVect, newCharTreeVV) = POSW.divideDecoratedGraphByBlockAndCharacterTree newGraph
+
+            in
+            -- th curnode == roiot index for pruned subtrees
+            -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
+            -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
+
+            --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
+            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+            else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+
+            -- ) -- )
+
+
 
 -- | updateDisplayTreesAndCost takes a softwired graph and updates
 -- display trees and graph cost based on resolutions at root

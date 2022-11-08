@@ -54,6 +54,7 @@ import qualified ParallelUtilities                   as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                as LG
 import           Utilities.Utilities                 as U
+import qualified GraphOptimization.PostOrderFunctions as PO
 
 
 -- import qualified ParallelUtilities as PU --need instance for VerexInfo
@@ -110,7 +111,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ PO.postDecorateTree False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
@@ -151,7 +152,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           -- False flag for static IA--can't do when adding in new leaves
           calculateBranchLengths = False -- must be True for delata using existing edge
           newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
-                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ T.postDecorateTree False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ PO.postDecorateTree False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
       in

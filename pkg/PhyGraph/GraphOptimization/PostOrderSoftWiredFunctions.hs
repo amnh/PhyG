@@ -74,7 +74,103 @@ import qualified ParallelUtilities           as PU
 -- import           Debug.Trace
 
 
--- | getDisplayBasedRerootSoftWired takes a graph and generates reroot costs for each character of each block
+-- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
+-- a naive algorithm where all display trees are generated and diagnosed, keeping the best results
+-- to return a phylogenetic graph
+-- does not do any multi-traversing
+-- any network penalty is not applied as in postOrderSoftWiredTraversal
+naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
+        -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
+    let displayTreeList = LG.generateDisplayTrees inSimpleGraph
+        
+        -- get the best traversals of the best display trees for each block
+        (graphCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph startVertex [] displayTreeList
+        
+        -- extract specific information to create the phylogenetic graph
+        graphCost = sum graphCostList
+        displayTreeVect = V.fromList bestDisplayTreeList
+        charTreeVectVect = V.fromList charTreeVectList
+
+        -- propagate node character assignments back to canoncail graph
+        (decoratedCanonicalGraph, decoratedDisplayTreeVect) = assignCanonicalNodes inSimpleGraph displayTreeVect charTreeVectVect
+    in
+    (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+
+
+-- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better
+-- returning triple of block cost, display tree, char vect from better tree
+getBestDisplayCharBlockList :: GlobalSettings 
+                            -> ProcessedData 
+                            -> DecoratedGraph 
+                            -> Maybe Int 
+                            -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
+                            -> [SimpleGraph] 
+                            -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
+getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displayTreeList =
+    if null displayTreeList then []
+    else 
+        -- take first graph
+        let firstGraph = head displayTreeList
+            -- diagnose post order as Tree
+
+            -- reroot as Tree
+
+            -- choose better vs currentBest
+            currentBetter = currentBest
+        in
+        getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
+
+-- | assignCanonicalNodes assigns charVect node assignment to canonical and display block graphs
+assignCanonicalNodes ::SimpleGraph -> V.Vector SimpleGraph -> V.Vector (V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector [DecoratedGraph])
+assignCanonicalNodes inSimple displayTreeVect charVectVect = 
+    (LG.empty, V.empty)
+
+-- | naiveGetDisplayBasedRerootSoftWired is the naive (based on all resolution display trees)
+-- the work of getDisplayBasedRerootSoftWired' is already done (rerooting and all) in naivePostOrderSoftWiredTraversal
+naiveGetDisplayBasedRerootSoftWired ::  GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+naiveGetDisplayBasedRerootSoftWired _ _ _ inPhyloGraph  =
+    inPhyloGraph
+
+-- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
+postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
+    if softWiredMethod inGS == ResolutionCache then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph 
+    else naivePostOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
+
+-- | postOrderSoftWiredTraversal' performs postorder traversal on Soft-wired graph
+-- staticIA is ignored--but kept for functional polymorphism
+-- ur-root = ntaxa is an invariant
+postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
+    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    else
+         -- Assumes root is Number of Leaves
+        let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
+                        else fromJust startVertex
+            blockCharInfo = V.map thd3 blockDataVect
+            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+        in
+        --trace ("It Begins at " ++ show rootIndex) (
+        -- trace ("POSWT:\n" ++ (LG.prettify inSimpleGraph) ++ "\nVertices:\n" ++ (show $ LG.labNodes $ thd6 newSoftWired)) (
+        if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
+            let localRootList = fst <$> LG.getRoots inSimpleGraph
+                localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
+                currentRootEdges = LG.out inSimpleGraph rootIndex
+            in
+            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
+        else
+            -- trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
+            newSoftWired
+        -- )
+
+-- | getDisplayBasedRerootSoftWired is a wrapper to allow correct function choice for alternate softwired algorithms
+getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph = 
+    if softWiredMethod inGS == ResolutionCache then getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph
+    else naiveGetDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph
+
+-- | getDisplayBasedRerootSoftWired' takes a graph and generates reroot costs for each character of each block
 -- based on rerooting the display tree for that block.
 -- Written for soft-wired, but could be modified for tree (data split on vertdata not resolution data)
 -- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
@@ -87,11 +183,11 @@ import qualified ParallelUtilities           as PU
 -- this can be modified for Tree data structres--basically by starting with vertdata initialiiy without 
 -- resolutoin data trace back--shouls be more efficeinet in many was than existing code
 
--- Input didpay trees are for reproting only and do not contain actual character data so must be "pulled"
--- from concinical Decorated graph (thd field)
--- the list :[] stuff due to potential list of diaplsy trees not uemployed here
-getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph@(a,b,decGraph,_,_,f)  = 
+-- Input display trees are for reporting only and do not contain actual character data so must be "pulled"
+-- from cononical Decorated graph (thd field)
+-- the list :[] stuff due to potential list of diplay trees not employed here
+getDisplayBasedRerootSoftWired' :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph,_,_,f)  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data
@@ -102,7 +198,7 @@ getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph@(a,b,decG
                                                                                                 (a, b, decGraph, displayTrees, charTrees, f)
                                                                                             else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             
-            -- purge double edges from display and charcater graphs
+            -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
             (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
@@ -404,7 +500,7 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
         finalPreOrderGraph
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
--- continaing a list of decorated trees that are the display trees for that block
+-- containing a list of decorated trees that are the display trees for that block
 -- with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
 -- over blocks and characters with the block diplay graph, but only a single block and character for each graph
@@ -420,32 +516,6 @@ divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
     characterGraphList
-
--- | postOrderSoftWiredTraversal performs postorder traversal on Soft-wired graph
--- staticIA is ignored--but kept for functional polymorphism
--- ur-root = ntaxa is an invariant
-postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph _ startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
-    else
-         -- Assumes root is Number of Leaves
-        let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
-                        else fromJust startVertex
-            blockCharInfo = V.map thd3 blockDataVect
-            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-        in
-        --trace ("It Begins at " ++ show rootIndex) (
-        -- trace ("POSWT:\n" ++ (LG.prettify inSimpleGraph) ++ "\nVertices:\n" ++ (show $ LG.labNodes $ thd6 newSoftWired)) (
-        if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
-            let localRootList = fst <$> LG.getRoots inSimpleGraph
-                localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
-                currentRootEdges = LG.out inSimpleGraph rootIndex
-            in
-            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
-        else
-            -- trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
-            newSoftWired
-        -- )
 
 -- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
 postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph

@@ -735,6 +735,7 @@ CallStack (from -prof):
 
  	I htink this omes form running multiple parallel jobs oni my desktop--not a "program" errro perhaps
 
+
  414) swap unions
 
  415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
@@ -749,3 +750,4 @@ CallStack (from -prof):
 419) Add Naice and rsolkution cachec options to docs?  Or not and keep 
 	for experimental use
 	
+420) Check new moptimization and RTS flags
