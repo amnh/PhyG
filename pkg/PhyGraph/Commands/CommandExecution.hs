@@ -615,6 +615,17 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("Random Seed set to " ++ head optionList)
                 (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
 
+         else if head commandList == "softwiredmethod"  then
+            let localMethod
+                  | (head optionList == "naive") = Naive
+                  | (head optionList == "resoluitioncache") = ResolutionCache
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. SofwiredMethod  '" ++ (head optionList) ++ "' is not 'Naive' or 'ResolutionCache'")
+            in
+            trace ("SoftwiredMethod " ++ (show localMethod))
+            (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
+
+        
+
         else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 

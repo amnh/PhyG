@@ -155,6 +155,9 @@ data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | 
 data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
     deriving stock (Show, Eq)
 
+data SoftWiredAlgorithm = Naive | ResolutionCache
+    deriving stock (Show, Eq)
+
 -- | Method for makeing final seqeujnce charcatert states assignment
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
@@ -210,6 +213,7 @@ data  GlobalSettings
     , graphsSteepest      :: Int -- he maximum number of graphs that are evaluated
                                  -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
                                  -- run time of these procedurs by delaying finding "better" solutins to move to.
+    , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -545,6 +549,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , fractionDynamic = 1.0
                                      , dynamicEpsilon = 1.02
                                      , graphsSteepest = 10
+                                     , softWiredMethod = ResolutionCache
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

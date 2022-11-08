@@ -158,7 +158,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                          else if (graphType inGS) == HardWired then postOrderTreeTraversal
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
-        -- first traversal on outgroup roo
+        -- first traversal on outgroup root
         outgroupRooted = postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
 
         -- start at start vertex--for components or ur-root for full graph
@@ -179,10 +179,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- hardwired reroot cause much pain
         -- the head startvertex list for reoptimizing spit trees ni swapping
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
-                              else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired SoftWired (head startVertexList) outgroupRooted]
+                              else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted]
                              -- need to test which is better
                               -- else if (graphType inGS == SoftWired) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
-                              else if (graphType inGS == Tree) then [POSW.getDisplayBasedRerootSoftWired Tree (head startVertexList) outgroupRooted]
+                              else if (graphType inGS == Tree) then [POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted]
                               --else if (graphType inGS == Tree) then outgroupRooted : minimalReRootPhyloGraph inGS outgroupRooted (head startVertexList) grandChildrenOfRoot
                               else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
@@ -214,11 +214,15 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     -- only static characters
     if sequenceChars == 0 then
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
+
                              --it is its own penalty due to counting all changes in in2 out 1 nodes
                              else if (graphType inGS == HardWired) then 0.0
+
+                             -- softwired versions
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
                              else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex outgroupRooted
+
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted

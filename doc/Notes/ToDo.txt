@@ -745,4 +745,7 @@ CallStack (from -prof):
 
 418) graph number control in search/GA
 	swappinglarge numbers of graphs somtimes
+
+419) Add Naice and rsolkution cachec options to docs?  Or not and keep 
+	for experimental use
 	

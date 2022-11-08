@@ -90,8 +90,8 @@ import qualified ParallelUtilities           as PU
 -- Input didpay trees are for reproting only and do not contain actual character data so must be "pulled"
 -- from concinical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diaplsy trees not uemployed here
-getDisplayBasedRerootSoftWired :: GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
-getDisplayBasedRerootSoftWired inGraphType rootIndex inPhyloGraph@(a,b,decGraph,_,_,f)  = 
+getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph@(a,b,decGraph,_,_,f)  = 
     if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
     else 
         let -- update with pass to retrieve vert data from resolution data

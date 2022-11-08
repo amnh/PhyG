@@ -122,7 +122,7 @@ selectArgList = ["best", "all", "unique", "atrandom"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest",          "graphtype", "modelcomplexity", "outgroup", "partitioncharacter", "rootcost", "seed"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest",          "graphtype", "modelcomplexity", "outgroup", "partitioncharacter", "rootcost", "seed", "softwiredmethod"]
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -135,7 +135,7 @@ swapArgList = ["spr","tbr", "alternate", "keep", "steepest", "all", "nni", "ia",
 -- | transform arguments
 transformArgList :: [String]
 transformArgList = ["atrandom", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphssteepest", "name", "outgroup", "staticapprox", "tohardwired", 
-                    "tosoftwired", "totree", "type", "weight"]
+                    "tosoftwired", "totree", "type", "weight", "softwiredmethod"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands 

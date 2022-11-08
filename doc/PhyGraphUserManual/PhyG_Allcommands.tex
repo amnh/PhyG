@@ -908,6 +908,11 @@
 			 
 			 \item[seed:INTEGER] Sets the seed for the random number generator using the integer
 			 value. If unspecified, \phyg uses the system time as the seed.
+			 
+			 \item[softwiredMethod:Naive|ResolutionCache] Sets the algorithm for softwired graphs 
+			 to the ``naive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
+			 the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}
+			 
 		\end{description}
 					
 	\subsubsection{Defaults} 
@@ -1030,6 +1035,10 @@
 			\item[keep:n] Specifies that up to $n$ equally costly graphs are retained.
 		
 			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
+			
+			\item[softwiredMethod:Naive|ResolutionCache] Specifies that the algorithm for softwired graphs 
+			is set to the ``naive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
+			the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}
 		
 			\item[spr:[n]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If the optional 
 			argument $n$ is specified, readdition of pruned graphs will be within $2 * N$ edges of its original 

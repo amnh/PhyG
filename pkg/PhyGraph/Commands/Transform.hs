@@ -67,9 +67,6 @@ import qualified Commands.Verify             as VER
 import qualified Data.Text.Lazy              as TL
 import qualified Data.Char as C
 
-
-
-
 -- | transform changes aspects of data sande settings during execution
 -- as opposed to Set with all happens at begginign of program execution
 transform :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, ProcessedData, [PhylogeneticGraph])
@@ -85,7 +82,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
         let displayBlock = filter ((=="displaytrees").fst) lcArgList
             numDisplayTrees
                | length displayBlock > 1 =
-                  errorWithoutStackTrace ("Multiple displayTree number specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in transform--can have only one: " ++ show inArgs)
                | null displayBlock = Just 10
                | null (snd $ head displayBlock) = Just 10
                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -101,11 +98,12 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
             reRoot = any ((=="outgroup").fst) lcArgList
             changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
+            changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
-                  errorWithoutStackTrace ("Multiple weight specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple weight specifications in transform--can have only one: " ++ show inArgs)
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
@@ -114,7 +112,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
             epsilonValue
                | length changeEpsilonBlock > 1 =
-                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in transform--can have only one: " ++ show inArgs)
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
@@ -122,15 +120,23 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
             newGraphsSteepest
                | length changeGraphsSteepestBlock > 1 =
-                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in transform--can have only one: " ++ show inArgs)
                | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS 
                | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS 
                | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
 
+            changeSoftwiredMethodBlock = filter ((=="softwiredmethod").fst) lcArgList
+            newSoftwiredMethod
+               | length changeSoftwiredMethodBlock > 1 =
+                  errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " ++ show inArgs)
+               | null changeSoftwiredMethodBlock = Just $ TL.toLower $ TL.pack $ show $ softWiredMethod inGS 
+               | null (snd $ head changeSoftwiredMethodBlock) = Just $ TL.toLower $ TL.pack $ show $ softWiredMethod inGS 
+               | otherwise = readMaybe (snd $ head changeSoftwiredMethodBlock) :: Maybe TL.Text
+
             reRootBlock = filter ((=="outgroup").fst) lcArgList
             outgroupValue
                | length reRootBlock > 1 =
-                  errorWithoutStackTrace ("Multiple outgroup specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " ++ show inArgs)
                | null reRootBlock = Just $ outGroupName inGS 
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
@@ -234,6 +240,18 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   trace ("Changing GraphsSteepest factor to " ++ (show $ fromJust newGraphsSteepest))
                   (inGS {graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
 
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeSoftwiredMethod then 
+               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+               else 
+                  let newMethod = if fromJust newSoftwiredMethod == TL.pack "naive" then Naive
+                                  else if fromJust newSoftwiredMethod == TL.pack "resolutioncache" then ResolutionCache
+                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                  in
+                  trace ("Changing softwired optimizatin method to " ++ (show newMethod))
+                  (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
+
+            -- changes outgroup
             else if reRoot then 
                if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))
                else 
