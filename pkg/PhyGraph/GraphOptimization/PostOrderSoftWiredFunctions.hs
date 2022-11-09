@@ -115,7 +115,7 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> [SimpleGraph] 
                             -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
 getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displayTreeList =
-    if null displayTreeList then []
+    if null displayTreeList then currentBest
     else 
         -- take first graph
         let firstGraph = head displayTreeList
