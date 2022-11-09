@@ -131,16 +131,17 @@ getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displa
             multiTraverseTree = getDisplayBasedRerootSoftWired' Tree rootIndex diagnosedTree
 
             -- choose better vs currentBest
-            currentBetter = chooseBetterTriple currentBest multiTraverseTree
+            currentBetter = chooseBetterTriple rootIndex currentBest multiTraverseTree
         in
         getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
 
 -- | chooseBetterTriple takes the current best triplet of graph data and compares to Phylogenetic graph
 -- and creates a new triple of better block cost, displayGraph for blocks, and character graphs
-chooseBetterTriple :: [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
+chooseBetterTriple :: LG.Node
+                   -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
                    -> PhylogeneticGraph 
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-chooseBetterTriple inTripleList newGraph =
+chooseBetterTriple rootIndex inTripleList newGraph =
     if null inTripleList then 
         []
     else 
