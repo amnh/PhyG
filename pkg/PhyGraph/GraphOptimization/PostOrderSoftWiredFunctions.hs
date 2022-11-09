@@ -119,9 +119,16 @@ getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displa
     else 
         -- take first graph
         let firstGraph = head displayTreeList
+            
             -- diagnose post order as Tree
+            staticIA = False
+            diagnosedTree = postOrderTreeTraversal inGS inData leafGraph staticIA startVertex firstGraph
 
             -- reroot as Tree
+            rootIndex = if isJust startVertex  then fromJust startVertex
+                        else fst $ head $ LG.getRoots $ thd6 diagnosedTree
+
+            multiTraverseTree = getDisplayBasedRerootSoftWired' Tree rootIndex diagnosedTree
 
             -- choose better vs currentBest
             currentBetter = currentBest
