@@ -167,7 +167,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newGS = inGS {graphType = Tree}
                   
                       -- generate and return display trees-- displayTreNUm / graph
-                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . LG.generateDisplayTrees) (fmap fst6 inGraphList)
+                      contractIn1Out1Nodes = True
+                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst6 inGraphList)
                                          else fmap (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
 
                       -- prob not required

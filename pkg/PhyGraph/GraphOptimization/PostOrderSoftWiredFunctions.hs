@@ -57,6 +57,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , createVertexDataOverBlocks
                                                       , createVertexDataOverBlocksStaticIA
                                                       , createVertexDataOverBlocksNonExact
+                                                      , getBlockCost
                                                       -- included to quiet warnings
                                                       , rerootBlockCharTrees'
                                                       , getCharTreeBestRoot'
@@ -86,23 +87,35 @@ import qualified GraphFormatUtilities        as GFU
 -- to return a phylogenetic graph
 -- does not do any multi-traversing
 -- any network penalty is not applied as in postOrderSoftWiredTraversal
+-- not contracting in=1 out =1 nodes so that indexing will be consistent
 naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
 naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
-    let displayTreeList = LG.generateDisplayTrees inSimpleGraph
+    let contractIn1Out1Nodes = False
+        displayTreeList = LG.generateDisplayTrees contractIn1Out1Nodes inSimpleGraph
         
         -- get the best traversals of the best display trees for each block
-        (graphCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph startVertex [] displayTreeList
+        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph startVertex [] displayTreeList
         
         -- extract specific information to create the phylogenetic graph
-        graphCost = sum graphCostList
+        graphCost = sum blockCostList
         displayTreeVect = V.fromList bestDisplayTreeList
         charTreeVectVect = V.fromList charTreeVectList
 
         -- propagate node character assignments back to canoncail graph
         (decoratedCanonicalGraph, decoratedDisplayTreeVect) = assignCanonicalNodes inSimpleGraph displayTreeVect charTreeVectVect
+
+        -- do preorder pass  
+        preOrderPhyloGraph = PRE.assignPreorderStatesAndEdges
     in
-    (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+    preOrderPhyloGraph
+    -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+
+-- | assignCanonicalNodes assigns charVect node assignment to canonical and display block graphs
+-- in essence, the funciton converts a SimpleGraph into  DecoratedGraph by assignment of node information
+assignCanonicalNodes ::SimpleGraph -> V.Vector SimpleGraph -> V.Vector (V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector [DecoratedGraph])
+assignCanonicalNodes inSimple displayTreeVect charVectVect = 
+    (LG.empty, V.empty)
 
 
 -- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better
@@ -141,19 +154,32 @@ chooseBetterTriple :: LG.Node
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
                    -> PhylogeneticGraph 
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-chooseBetterTriple rootIndex inTripleList newGraph =
-    -- if no previous set with current 
-    if null inTripleList then 
-        []
+chooseBetterTriple rootIndex inTripleList (inSimpleTree, _, _, _, charTreeVV, _) =
 
+        -- get block costs from input graph
+    let blockCostList = V.toList $ fmap (getBlockCost rootIndex) charTreeVV
+        newTripleList = zip3 blockCostList (L.replicate (length blockCostList) inSimpleTree)  (V.toList charTreeVV)
+    in
+
+    -- if no previous set with current 
+    if null inTripleList then newTripleList
+       
     -- compare current to previous, take better of two
     else 
-        []
+        zipWith chooseBetterBlock inTripleList newTripleList
+    where chooseBetterBlock (a,b,c) (a',b',c') = if a' > a then (a,b,c) else (a', b',c')
 
--- | assignCanonicalNodes assigns charVect node assignment to canonical and display block graphs
-assignCanonicalNodes ::SimpleGraph -> V.Vector SimpleGraph -> V.Vector (V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector [DecoratedGraph])
-assignCanonicalNodes inSimple displayTreeVect charVectVect = 
-    (LG.empty, V.empty)
+-- | getBlockCost takes a block and returns sum of root character tree costs
+getBlockCost :: LG.Node -> V.Vector DecoratedGraph -> VertexCost
+getBlockCost rootIndex characterTreeVect = 
+    if V.null characterTreeVect then error "Empty character block vector in getBlockCost"
+    else V.sum $ fmap (getCharacterTreeCost rootIndex) characterTreeVect
+
+-- | getCharacterTreeCost takes a character Tree and returns costs
+getCharacterTreeCost :: LG.Node -> DecoratedGraph -> VertexCost
+getCharacterTreeCost rootIndex characterTree =
+    if LG.isEmpty characterTree then error "Empty charcter tree in getCharacterTreeCost"
+    else (subGraphCost . snd) $ LG.labelNode characterTree rootIndex
 
 -- | naiveGetDisplayBasedRerootSoftWired is the naive (based on all resolution display trees)
 -- the work of getDisplayBasedRerootSoftWired' is already done (rerooting and all) in naivePostOrderSoftWiredTraversal
@@ -202,7 +228,7 @@ getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
 -- | getDisplayBasedRerootSoftWired' takes a graph and generates reroot costs for each character of each block
 -- based on rerooting the display tree for that block.
 -- Written for soft-wired, but could be modified for tree (data split on vertdata not resolution data)
--- this is a differnt approach from that of "tree" wher the decorated, canonical tree is rerooted and each character and block 
+-- this is a differnt approach from that of "tree" where the decorated, canonical tree is rerooted and each character and block 
 -- cost determined from that single rerooting
 -- this should help avoid the issue of rerooting complex, reticulate graphs and maintaining
 -- all the condition (cycles, time consistency etc) that occur.
@@ -233,8 +259,8 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
             -- reroot block character trees
-            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS) -- not sure if should be parallelized `using` PU.myParListChunkRDS
-            
+            -- not sure if should be parallelized `using` PU.myParListChunkRDS
+            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS) 
             -- This is slower than myParListChunkRDS
             -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap rdeepseq (rerootBlockCharTrees' rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
             

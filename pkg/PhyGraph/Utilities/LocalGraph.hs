@@ -1371,7 +1371,7 @@ splitGraphOnEdge inGraph (e,v,l) =
           -- trace ("SGE:" ++ (show (childrenENode, parentsENode, newEdge, edgesToDelete)))
           (splitGraph, fst $ head $ getRoots inGraph, v, e)
 
--- | splitGraphOnEdge' like splitGrpahOnEdge above but returns edges created and destroyed as well
+-- | splitGraphOnEdge' like splitGraphOnEdge above but returns edges created and destroyed as well
 -- used in Goodman-Bermer and could make swap more efficient as well.
 splitGraphOnEdge' :: (Show b) => Gr a b -> LEdge b -> (Gr a b, Node, Node, Node, LEdge b, [Edge])
 splitGraphOnEdge' inGraph (e,v,l) =
@@ -1860,11 +1860,11 @@ chooseOneDumpRest randVal inEdgeList =
 
 
 -- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface
-generateDisplayTrees :: (Eq a) => Gr a b -> [Gr a b]
-generateDisplayTrees inGraph =
+generateDisplayTrees :: (Eq a) => Bool -> Gr a b -> [Gr a b]
+generateDisplayTrees contractEdges inGraph =
     let (_, leafList, _, _) = splitVertexList inGraph
     in
-    generateDisplayTrees' leafList [inGraph] []
+    generateDisplayTrees' contractEdges leafList [inGraph] []
 
 -- | generateDisplayTrees' takes a graph list and recursively generates
 -- a list of trees created by progresively resolving each network vertex into a tree vertex
@@ -1872,11 +1872,12 @@ generateDisplayTrees inGraph =
 -- creating up to 2**m (m network vertices) trees.
 -- call -> generateDisplayTrees'  [startGraph] []
 -- the second and third args contain graphs that need more work and graphs that are done (ie trees)
-generateDisplayTrees' :: (Eq a) => [LNode a] -> [Gr a b] -> [Gr a b] -> [Gr a b]
-generateDisplayTrees' leafList curGraphList treeList  =
+generateDisplayTrees' :: (Eq a) => Bool -> [LNode a] -> [Gr a b] -> [Gr a b] -> [Gr a b]
+generateDisplayTrees' contractEdges leafList curGraphList treeList  =
   if null curGraphList then
       let treeList' = fmap (removeNonLeafOut0Nodes leafList) treeList
-          treeList'' = fmap contractIn1Out1Edges treeList'
+          treeList'' = if contractEdges then fmap contractIn1Out1Edges treeList'
+                       else treeList'
           reindexedTreeList = fmap reindexGraph treeList''
       in
       reindexedTreeList
@@ -1889,11 +1890,11 @@ generateDisplayTrees' leafList curGraphList treeList  =
         let nodeList = labNodes firstGraph
             inNetEdgeList = filter ((>1).length) $ fmap (inn firstGraph) $ fmap fst nodeList
         in
-        if null inNetEdgeList then generateDisplayTrees' leafList (tail curGraphList) (firstGraph : treeList)
+        if null inNetEdgeList then generateDisplayTrees' contractEdges leafList (tail curGraphList) (firstGraph : treeList)
         else
           let newGraphList = splitGraphListFromNode inNetEdgeList [firstGraph]
           in
-          generateDisplayTrees' leafList (newGraphList ++ (tail curGraphList)) treeList
+          generateDisplayTrees' contractEdges leafList (newGraphList ++ (tail curGraphList)) treeList
 
 -- | splitGraphListFromNode take a graph and a list of edges for indegree > 1 node
 -- removes each in edge in turn to create a new graph and maintains any in 1 out 1 nodes

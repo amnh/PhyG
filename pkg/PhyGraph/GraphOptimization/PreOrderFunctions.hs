@@ -70,7 +70,7 @@ import qualified ParallelUtilities                    as PU
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labels with 'final' assignments based on character decorated graphs
 -- created postorder (5th of 6 fields).
--- the preorder states are creted by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
+-- the preorder states are created by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
 -- these are by block and character,  Exact charcaters are vectors of standard characters and each seqeunce (non-exact)
 -- has its own traversal graph. These should be treees here (could be forests later) and should all have same root (number taxa)
 -- but worth checking to make sure.
@@ -90,7 +90,7 @@ preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> B
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
-    if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
+    if LG.isEmpty inDecorated then error "Empty tree in preOrderTreeTraversal"
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
@@ -585,7 +585,7 @@ updateEdgeInfoSoftWired finalMethod inCharInfoVV blockTreePairVV rootIndex (uNod
         (uNode, vNode, newEdgeLabel)
 
 
--- | getEdgeBlockWeightSoftWired takes a block of charcter trees and maps character distances if edge exists in block tree
+-- | getEdgeBlockWeightSoftWired takes a block of character trees and maps character distances if edge exists in block tree
 getEdgeBlockWeightSoftWired :: AssignmentMethod
                             -> Int
                             -> Int

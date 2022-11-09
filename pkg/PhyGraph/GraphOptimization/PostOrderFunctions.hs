@@ -54,9 +54,9 @@ import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
 import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
+-- import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
-import qualified GraphFormatUtilities        as GFU
+-- import qualified GraphFormatUtilities        as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
