@@ -142,8 +142,11 @@ chooseBetterTriple :: LG.Node
                    -> PhylogeneticGraph 
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
 chooseBetterTriple rootIndex inTripleList newGraph =
+    -- if no previous set with current 
     if null inTripleList then 
         []
+
+    -- compare current to previous, take better of two
     else 
         []
 
