@@ -147,9 +147,9 @@ generalizedGraphPostOrderTraversal :: GlobalSettings -> Int -> ProcessedData -> 
 generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph =
 
     -- select postOrder function based on graph type
-    let postOrderFunction = if (graphType inGS) == Tree then PO.postOrderTreeTraversal
+    let postOrderFunction = if (graphType inGS) == Tree then POSW.postOrderTreeTraversal
                          else if (graphType inGS) == SoftWired then POSW.postOrderSoftWiredTraversal
-                         else if (graphType inGS) == HardWired then PO.postOrderTreeTraversal
+                         else if (graphType inGS) == HardWired then POSW.postOrderTreeTraversal
                          else error ("Graph type not implemented: " ++ (show $ graphType inGS))
 
         -- first traversal on outgroup root

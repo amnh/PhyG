@@ -60,7 +60,6 @@ import qualified Data.Vector                          as V
 import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphOptimization.Medians            as M
-import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
 import qualified ParallelUtilities                    as PU
@@ -1429,7 +1428,7 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
   else if graphType inGS == HardWired then
       let uvVertData = M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u, v, dummyEdge)
           uvPrimeData =  M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u', v', dummyEdge)
-          hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks uvVertData uvPrimeData (six6 inPhyloGraph) []
+          hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks uvVertData uvPrimeData (six6 inPhyloGraph) []
       in
       (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
 

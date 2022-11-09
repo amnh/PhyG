@@ -45,7 +45,6 @@ import           Data.Maybe
 import qualified Data.Vector                          as V
 import           GeneralUtilities
 import qualified GraphOptimization.Medians            as M
-import qualified GraphOptimization.PostOrderFunctions as POS
 import qualified GraphOptimization.PreOrderFunctions  as PRE
 import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
@@ -867,8 +866,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
 -- | edgeJoinDelta calculates heuristic cost for jopineing pair edges
 edgeJoinDelta :: Bool -> V.Vector (V.Vector CharInfo) -> VertexBlockData -> VertexBlockData -> VertexCost
 edgeJoinDelta doIA charInfoVV edgeA edgeB =
-   if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocks edgeA edgeB charInfoVV []
-   else V.sum $ fmap V.sum $ fmap (fmap snd) $ POS.createVertexDataOverBlocksStaticIA edgeA edgeB charInfoVV []
+   if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks edgeA edgeB charInfoVV []
+   else V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocksStaticIA edgeA edgeB charInfoVV []
 
 
 -- | tbrJoin performs TBR rearrangements on pruned graph component
@@ -1218,7 +1217,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             --Create base graph
             -- create postorder assignment--but only from single traversal
             -- True flag fior staticIA
-            postOrderBaseGraph = POS.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just startVertex) splitGraphSimple
+            postOrderBaseGraph = POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just startVertex) splitGraphSimple
             baseGraphCost = snd6 postOrderBaseGraph
 
             -- True flag fior staticIA
@@ -1241,7 +1240,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
 
             -- True flag fior staticIA
-            postOrderPrunedGraph =  POS.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
+            postOrderPrunedGraph =  POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty}) inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
             prunedGraphCost = snd6 postOrderPrunedGraph
 
             -- True flag fior staticIA
