@@ -47,13 +47,13 @@ import qualified Data.Text.Lazy                       as TL
 import qualified Data.Vector                          as V
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
 import qualified ParallelUtilities                    as PU
 import qualified Search.Swap                          as S
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import qualified Data.InfList                as IL
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
@@ -98,10 +98,10 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then 
                                  if (graphType inGS) == HardWired then 0.0
-                                 else T.getW15NetPenalty Nothing curBestGraph
+                                 else POSW.getW15NetPenalty Nothing curBestGraph
                              else if (graphFactor inGS) == Wheeler2023Network then 
                                  if (graphType inGS) == HardWired then 0.0
-                                 else T.getW23NetPenalty Nothing curBestGraph
+                                 else POSW.getW23NetPenalty Nothing curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -417,8 +417,8 @@ getNetworkPentaltyFactor inGS graphCost inGraph =
    else
         let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                                else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
-                                else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty Nothing inGraph
                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
         in
         inGraphNetPenalty / graphCost

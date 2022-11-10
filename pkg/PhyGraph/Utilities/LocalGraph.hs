@@ -1929,3 +1929,21 @@ deleteEdgesCreateGraphs netEdgeIndexPairList counter inGraph =
         newGraph = delLEdges edgesToDelete inGraph
     in
     newGraph : deleteEdgesCreateGraphs (tail netEdgeIndexPairList) (counter + 1) inGraph
+
+-- | undirectedEdgeEquality checks edgse for equality irrespective of direction
+undirectedEdgeEquality :: Edge -> Edge -> Bool
+undirectedEdgeEquality (a,b) (c,d) = if a == c && b == d then True
+                                               else if a == d && b == c then True
+                                               else False
+
+-- | undirectedEdgeMinus subtracts edges in the second list from those in the first using
+-- undirected matching
+undirectedEdgeMinus :: [Edge] -> [Edge] -> [Edge]
+undirectedEdgeMinus firstList secondList =
+    if null firstList then []
+    else
+        let firstEdge@(a,b) = head firstList
+        in
+        if firstEdge `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
+        else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
+        else firstEdge : undirectedEdgeMinus (tail firstList) secondList

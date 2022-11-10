@@ -1150,7 +1150,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
               graphToInsert = T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
 
               -- keep same cost and just keep better--check if better than original later
-              graphToInsert' = T.updatePhylogeneticGraphCost graphToInsert inGraphCost
+              graphToInsert' = POSW.updatePhylogeneticGraphCost graphToInsert inGraphCost
 
 
               insertedGraphTripleList = insertEachNetEdge inGS inData leafGraph rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'
@@ -1208,7 +1208,7 @@ deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRan
           graphsToInsert = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert -- `using` PU.myParListChunkRDS
 
           -- keep same cost and just keep better--check if better than original later
-          graphsToInsert' = PU.seqParMap rdeepseq (flip T.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
+          graphsToInsert' = PU.seqParMap rdeepseq (flip POSW.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
 
           -- potentially randomize order of list
           graphsToInsert'' = if not doRandomOrder then graphsToInsert'

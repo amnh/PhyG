@@ -87,7 +87,7 @@ import qualified ParallelUtilities                    as PU
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
     if LG.isEmpty inDecorated then error "Empty tree in preOrderTreeTraversal"
@@ -1580,3 +1580,4 @@ setPrelimToFinalCharacterData inChar =
 
                            , packedNonAddPrelim = (packedNonAddFinal inChar, packedNonAddFinal inChar, packedNonAddFinal inChar)
             }
+

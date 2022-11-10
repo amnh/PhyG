@@ -85,8 +85,8 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
 
           inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
-                             else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty Nothing inGraph
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty Nothing inGraph
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
           inGraphNetPenaltyFactor = inGraphNetPenalty / (snd6 inGraph)
       in
@@ -1225,7 +1225,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
             {-
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
-                              else if (rootCost inGS) == Wheeler2015Root then T.getW15RootCost inGS postOrderBaseGraph
+                              else if (rootCost inGS) == Wheeler2015Root then POSW.getW15RootCost inGS postOrderBaseGraph
                               else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
             -}
 

@@ -42,17 +42,7 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , checkUnusedEdgesPruneInfty
                                     , makeLeafGraph
                                     , makeSimpleLeafGraph
-                                    , updatePhylogeneticGraphCost
-                                    , updateGraphCostsComplexities
-                                    , getW15NetPenalty
-                                    , getW23NetPenalty
-                                    , getW15RootCost
                                     , generalizedGraphPostOrderTraversal
-                                    -- added to quiet warnings
-                                    , setBetterGraphAssignment
-                                    , makeBetterBlock
-                                    , chooseBetterCharacter
-                                    , minimalReRootPhyloGraph
                                     ) where
 
 
@@ -119,7 +109,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
         in
         --trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
-        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
+        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ POSW.updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters
@@ -214,32 +204,32 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
                              -- softwired versions
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex outgroupRooted
-                             else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty startVertex outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty startVertex outgroupRooted
 
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
             -- staticOnlyGraph = head recursiveRerootList'
-            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
-                               else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+            staticOnlyGraph' = if startVertex == Nothing then POSW.updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+                               else POSW.updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
         (staticOnlyGraph', head startVertexList)
 
-    -- single seuquence (prealigned, dynamic) only (ie no static)
+    -- single sequence (prealigned, dynamic) only (ie no static)
     else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then fmap (getW15NetPenalty startVertex) finalizedPostOrderGraphList
-                                 else if (graphFactor inGS) == Wheeler2023Network then fmap (getW23NetPenalty startVertex) finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2015Network then fmap (POSW.getW15NetPenalty startVertex) finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2023Network then fmap (POSW.getW23NetPenalty startVertex) finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
 
-            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith POSW.updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
         -- trace ("GPOT-1: " ++ (show (snd6 finalizedPostOrderGraph)))
         (finalizedPostOrderGraph, head startVertexList)
@@ -250,112 +240,17 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex graphWithBestAssignments
-                             else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty startVertex graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty startVertex graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+            graphWithBestAssignments' = POSW.updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', head startVertexList)
 
     -- )
 
--- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
-updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
-updateGraphCostsComplexities inGS inGraph = 
-    if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS == Likelihood then
-        -- trace ("\tFinalizing graph cost with root priors")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
-    else if optimalityCriterion inGS == PMDL then
-        -- trace ("\tFinalizing graph cost with model and root complexities")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
-    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
-
--- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
--- and returns Phylogenetic graph
-updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
-updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
-
--- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
--- leaf taxa
-getW15RootCost :: GlobalSettings -> PhylogeneticGraph -> VertexCost
-getW15RootCost inGS inGraph =
-    if LG.isEmpty $ thd6 inGraph then 0.0
-    else
-        let (rootList, _, _, _) = LG.splitVertexList $ fst6 inGraph
-            numRoots = length rootList
-            
-        in
-        (fromIntegral numRoots) * (rootComplexity inGS)
-
--- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
--- modified to take the union of all edges of trees of minimal length
--- currently modified -- not exactlty W15
-getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
-getW15NetPenalty startVertex inGraph =
-    if LG.isEmpty $ thd6 inGraph then 0.0
-    else
-        let (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
-            bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
-            rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
-                        else fromJust startVertex
-            blockPenaltyList = PU.seqParMap rdeepseq  (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
-
-            -- leaf list for normalization
-            (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
-            numLeaves = length leafList
-            numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
-            divisor = numTreeEdges
-        in
-        -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )) ++ " from " ++ (show (numTreeEdges, numExtraEdges, divisor, sum blockPenaltyList))) (
-        (sum $ blockPenaltyList) / divisor
-        -- )
-
--- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
--- basic idea is new edge improvement must be better than average existing edge cost
--- penalty for each added edge (unlike W15 which was on a block by block basis)
--- num extra edges/2 since actually add 2 new edges when one network edge
-getW23NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
-getW23NetPenalty startVertex inGraph =
-    if LG.isEmpty $ thd6 inGraph then 0.0
-    else
-        let (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
-            bestTreesEdgeList = L.nubBy undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
-            
-            -- rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
-            --            else fromJust startVertex
-            
-            -- blockPenaltyList = PU.seqParMap rdeepseq (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
-
-            -- leaf list for normalization
-            (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
-            numLeaves = length leafList
-            numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
-            numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
-            divisor = numTreeEdges - numExtraEdges
-        in
-        -- trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
-        if divisor == 0.0 then infinity
-        -- else (sum blockPenaltyList) / divisor
-        -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
-        else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
-        -- )
-
-
--- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual
--- penalty cost of that block
-getBlockW2015 :: [LG.Edge] -> Int -> [DecoratedGraph] -> VertexCost
-getBlockW2015 treeEdgeList rootIndex blockTreeList =
-    if null treeEdgeList || null blockTreeList then 0.0
-    else
-        let blockTreeEdgeList = L.nubBy undirectedEdgeEquality $ concatMap LG.edges blockTreeList
-            numExtraEdges = length $ undirectedEdgeMinus blockTreeEdgeList treeEdgeList
-            blockCost = subGraphCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
-        in
-        -- trace ("GBW: " ++ (show (numExtraEdges, blockCost, blockTreeEdgeList)) ++ "\n" ++ (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList)))
-        blockCost * (fromIntegral numExtraEdges)
 
 -- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has
 -- "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is
@@ -368,8 +263,8 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
 checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph-> PhylogeneticGraph -> PhylogeneticGraph
 checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGraph@(inSimple, _, inCanonical, blockTreeV, charTreeVV, charInfoVV) =
     let simpleEdgeList = LG.edges inSimple
-        displayEdgeSet =  L.nubBy undirectedEdgeEquality $ concat $ concat $ fmap (fmap LG.edges) blockTreeV
-        unusedEdges = undirectedEdgeMinus simpleEdgeList displayEdgeSet
+        displayEdgeSet =  L.nubBy LG.undirectedEdgeEquality $ concat $ concat $ fmap (fmap LG.edges) blockTreeV
+        unusedEdges = LG.undirectedEdgeMinus simpleEdgeList displayEdgeSet
     in
     -- no unused edges all OK
     if null unusedEdges then inGraph
@@ -389,129 +284,6 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
-
--- | undirectedEdgeEquality checks edgse for equality irrespective of direction
-undirectedEdgeEquality :: LG.Edge -> LG.Edge -> Bool
-undirectedEdgeEquality (a,b) (c,d) = if a == c && b == d then True
-                                               else if a == d && b == c then True
-                                               else False
-
--- | undirectedEdgeMinus subtracts edges in the second list from those in the first using
--- undirected matching
-undirectedEdgeMinus :: [LG.Edge] -> [LG.Edge] -> [LG.Edge]
-undirectedEdgeMinus firstList secondList =
-    if null firstList then []
-    else
-        let firstEdge@(a,b) = head firstList
-        in
-        if firstEdge `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
-        else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
-        else firstEdge : undirectedEdgeMinus (tail firstList) secondList
-
--- | extractLowestCostDisplayTree takes a phylogenetic graph and takes all valid (complete) resolutions
--- (display trees) and their costs
--- and determines the total cost (over all blocks) of each display tree
--- the lowest cost display tree(s) as list are returned with cost
--- this is used in Wheeler (2015) network penalty
-extractLowestCostDisplayTree :: Maybe Int -> PhylogeneticGraph -> ([DecoratedGraph], VertexCost)
-extractLowestCostDisplayTree startVertex inGraph =
- if LG.isEmpty $ thd6 inGraph then error "Empty graph in extractLowestCostDisplayTree"
- else
-    let -- get componen t or global root label
-        rootLabel = if startVertex == Nothing then snd $ head $ LG.getRoots (thd6 inGraph)
-                    else fromJust $ LG.lab (thd6 inGraph) (fromJust startVertex)
-
-        -- get resolution data for start/rpoot vertex
-        blockResolutionLL = V.toList $ fmap POSW.getAllResolutionList (vertexResolutionData rootLabel)
-        --blockResolutionLL = V.toList $ fmap (PO.getBestResolutionListPair startVertex False) (vertexResolutionData rootLabel)
-        displayTreeBlockList = L.transpose blockResolutionLL
-        displayTreePairList = L.foldl1' sumTreeCostLists displayTreeBlockList
-        minimumCost = minimum $ fmap snd displayTreePairList
-        (bestDisplayTreeList, _) = unzip $ filter ((== minimumCost) . snd) displayTreePairList
-    in
-    -- trace ("FC: " ++ (show $ fmap snd displayTreePairList))
-    (bestDisplayTreeList, minimumCost)
-
--- | sumTreeCostLists takes two lists of (Graph, Cost) pairs and sums the costs and keeps the trees the same
--- does not check that graphs are the same after debug
-sumTreeCostLists :: (Eq a, Eq b) => [(LG.Gr a b, VertexCost)] ->  [(LG.Gr a b, VertexCost)] ->  [(LG.Gr a b, VertexCost)]
-sumTreeCostLists firstList secondList =
-    if null firstList || null secondList then error "Empty list in sumTreeCostLists"
-    else
-        let (firstGraphList, firstCostList) = unzip firstList
-            (secondGraphList, secondCostList) =  unzip secondList
-            newCostList = zipWith (+)  firstCostList secondCostList
-
-            -- remove once working
-            checkList = filter (== False) $ zipWith LG.equal firstGraphList secondGraphList
-        in
-        if null checkList then error ("Graph lists not same : " ++ (show checkList))
-        else
-            -- trace ("Graphs match ")
-            zip firstGraphList newCostList
-
--- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
--- with traversal focus etc to get best overall graph
--- since this is meant to work with graphs that have or do not have reoptimized exact (=static-Add/NonAdd/MAtrix) characters
--- the criterion is lower cost character is taken, unless the cost is zero, then non-zero is taken
--- this function is expected to be used in a fold over a list of graphs
--- the basic comparison is over the costs of the root(s) cost for each  of the character decorated (traversal) graphs
-
--- May change
--- assumes that a single decorated graph comes in for each Phylogenetic graph from the fully and reroot optimize (V.singleton (V.singleton DecGraph))
--- and goes through the block-character-cost data and reassigns based on that creating a unique (although there could be more than one) decorated
--- graph for each character in each block.
--- postorder assignments in traversal set of block character trees are NOT propagated back to first decorated graph.
--- the third field of phylogenetic Graph is set to the 3rd fieled of the first of two inputs--so if startiong fold with outgroup
--- rooted graph--that is what stays which can be used as a preorder graph for incremental optimization
--- when perfoming that sort of operation
--- The traversal graphs
--- are used for the pre-order final assignments which will be propagated back to set those of the 3rd field decorated graph
-
--- this will have to be modified for solf-wired since incoming blocks will not all be the same underlying gaph
--- unclear how hardwired will be affected
-setBetterGraphAssignment :: PhylogeneticGraph -> PhylogeneticGraph -> PhylogeneticGraph
-setBetterGraphAssignment firstGraph@(fSimple, _, fDecGraph, fBlockDisplay, fTraversal, fCharInfo) secondGraph@(_, _, sDecGraph, _, sTraversal, _) =
-    -- trace ("SBGA:" ++  (show $ (length  fTraversal, length sTraversal))) (
-    if LG.isEmpty fDecGraph then secondGraph
-    else if LG.isEmpty sDecGraph then firstGraph
-    else
-        -- trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ")"  ++ " CharInfo blocks:" ++ (show $ length fCharInfo) ++ " characters: " ++ (show $ fmap length fCharInfo) ++ " "
-        --     ++ (show $ fmap (fmap name) fCharInfo)) (
-        let (mergedBlockVect, costVector) = V.unzip $ V.zipWith makeBetterBlock fTraversal sTraversal
-        in
-         --trace ("setBetter (" ++ (show fCost) ++ "," ++ (show sCost) ++ ") ->" ++ (show $ V.sum costVector) ++ " nt:" ++ (show $ length fTraversal)
-         --   ++ "length blocks " ++ (show $ fmap length fTraversal))
-        (fSimple, V.sum costVector, fDecGraph, fBlockDisplay, mergedBlockVect, fCharInfo)
-        -- )
-
--- | makeBetterBlocktakes two verctors of traversals. Each vector contains a decorated graph (=traversla graph) for each
--- character.  This can be a single sequence or series of exact characters
--- the function applies a character cost comparison to get the better
-makeBetterBlock :: V.Vector DecoratedGraph -> V.Vector DecoratedGraph -> (V.Vector DecoratedGraph, VertexCost)
-makeBetterBlock firstBlockGraphVect secondBlockGraphVect =
-    let (mergedCharacterVect, costVector) = V.unzip $ V.zipWith chooseBetterCharacter firstBlockGraphVect secondBlockGraphVect
-    in
-    -- trace ("MBB: " ++ (show $ (length  firstBlockGraphVect, length firstBlockGraphVect)))
-    (mergedCharacterVect, V.sum costVector)
-
--- | chooseBetterCharacter takes a pair of character decorated graphs and chooses teh "better" one as in lower cost, or non-zero cost
---  if one is zer (for exact characters) and returns the better character and cost
---  graph can have multiple roots
-chooseBetterCharacter :: DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
-chooseBetterCharacter firstGraph secondGraph
-  | LG.isEmpty firstGraph = error "Empty first graph in chooseBetterCharacter"
-  | LG.isEmpty secondGraph = error "Empty second graph in chooseBetterCharacter"
-  | otherwise =
-    let firstGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots firstGraph)
-        secondGraphCost = sum $ fmap (subGraphCost . snd) (LG.getRoots secondGraph)
-    in
-    -- trace ("Costs " ++ show (firstGraphCost, secondGraphCost)) (
-    if firstGraphCost == 0 then (secondGraph, secondGraphCost)
-    else if secondGraphCost == 0 then (firstGraph, firstGraphCost)
-    else if secondGraphCost < firstGraphCost then (secondGraph, secondGraphCost)
-    else (firstGraph, firstGraphCost)
-    -- )
 
 -- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
 -- and "intelligently" reroots by traversing through adjacent edges, hopefully

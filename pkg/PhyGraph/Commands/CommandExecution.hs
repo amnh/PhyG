@@ -73,6 +73,7 @@ import qualified System.Info              as SI
 import qualified Data.Version             as DV
 import qualified System.CPU               as SC
 import qualified System.IO.Unsafe         as SIOU
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 
 
@@ -143,7 +144,7 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
             -- reporting collapsed 
             -- reverse sorting graphs by cost
-            let graphsWithUpdatedCosts = reverse (L.sortOn snd6 $ fmap (TRAV.updateGraphCostsComplexities globalSettings) curGraphs')
+            let graphsWithUpdatedCosts = reverse (L.sortOn snd6 $ fmap (POSW.updateGraphCostsComplexities globalSettings) curGraphs')
                 reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs numInputFiles crossReferenceString  processedData graphsWithUpdatedCosts supportGraphList pairwiseDist
             
             if null reportString then do

@@ -59,6 +59,7 @@ import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Debug.Trace
 import           Data.Maybe
 import           System.CPUTime
@@ -268,7 +269,7 @@ main = do
 
     -- Add in model and root cost if optimality criterion needs it
     hPutStrLn stderr ("\tUpdating final graph costs") 
-    let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
+    let finalGraphList' = fmap (POSW.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'

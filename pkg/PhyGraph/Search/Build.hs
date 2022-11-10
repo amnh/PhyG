@@ -199,8 +199,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           noTreeNodesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
           reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
 
-          contractIn1Out1Edges = True
-          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Edges reconciledGraph
+          contractIn1Out1Nodes = True
+          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
