@@ -78,6 +78,7 @@ import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
+import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import Debug.Debug
 -- import           Debug.Trace
 
@@ -103,19 +104,29 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         charTreeVectVect = V.fromList charTreeVectList
 
         -- propagate node character assignments back to canoncail graph
-        (decoratedCanonicalGraph, decoratedDisplayTreeVect) = assignCanonicalNodes inSimpleGraph displayTreeVect charTreeVectVect
+        -- (decoratedCanonicalGraph, decoratedDisplayTreeVect) = assignCanonicalNodes inSimpleGraph displayTreeVect charTreeVectVect
 
-        -- do preorder pass  
-        preOrderPhyloGraph = PRE.assignPreorderStatesAndEdges
+        -- create postorder Phylgenetic graph
+        postOrderPhyloGraph = (inSimpleGraph, graphCost, GO.convertSimpleToDecoratedGraph inSimpleGraph, fmap (:[]) $ fmap GO.convertSimpleToDecoratedGraph displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+
+        -- perform preorder pass
+        staticIA = False
+        calculateBranchLengths = True
+        useMap = False
+        rootIndex = if isJust startVertex  then fromJust startVertex
+                    else fst $ head $ LG.getRoots inSimpleGraph
+        hasNonExact = (U.getNumberSequenceCharacters blockDataVect > 0)
+        preOrderPhyloGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) staticIA calculateBranchLengths hasNonExact rootIndex useMap postOrderPhyloGraph
+    
     in
     preOrderPhyloGraph
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
 -- | assignCanonicalNodes assigns charVect node assignment to canonical and display block graphs
 -- in essence, the funciton converts a SimpleGraph into  DecoratedGraph by assignment of node information
-assignCanonicalNodes ::SimpleGraph -> V.Vector SimpleGraph -> V.Vector (V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector [DecoratedGraph])
-assignCanonicalNodes inSimple displayTreeVect charVectVect = 
-    (LG.empty, V.empty)
+-- assignCanonicalNodes ::SimpleGraph -> V.Vector SimpleGraph -> V.Vector (V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector [DecoratedGraph])
+-- assignCanonicalNodes inSimple displayTreeVect charVectVect = 
+--    (LG.empty, V.empty)
 
 
 -- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better

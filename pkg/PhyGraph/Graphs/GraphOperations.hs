@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 
 module Graphs.GraphOperations (  ladderizeGraph
                                , convertDecoratedToSimpleGraph
+                               , convertSimpleToDecoratedGraph
                                , convertToSimpleEdge
                                , graphCostFromNodes
                                , dichotomizeRoot
@@ -413,7 +414,29 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     -- )
 
--- | convertDecoratedToSimpleGraph
+
+-- | convertSimpleToDecoratedGraph takes a sinple graph and creates a Decorated graph
+-- but with dummy info--basically just with the correct type and structures
+convertSimpleToDecoratedGraph :: SimpleGraph -> DecoratedGraph
+convertSimpleToDecoratedGraph inSimple =
+  if LG.isEmpty inSimple then LG.empty
+  else 
+    let simpleNodeList = LG.labNodes inSimple
+        simpleEdgeList = LG.labEdges inSimple
+        decNodeList = fmap simpleNodeToDecorated simpleNodeList
+        decEdgeList = fmap simpleEdgeToDecorated simpleEdgeList
+    in
+    LG.mkGraph decNodeList decEdgeList
+
+-- | simpleNodeToDecorated takes a simple node and cretes a decoraetd node with info available
+simpleNodeToDecorated :: LG.LNode T.Text -> LG.LNode VertexInfo
+simpleNodeToDecorated (indexNode, nameNode) = (indexNode, emptyVertexInfo {index = indexNode, vertName = nameNode})
+
+-- | simpleEdgeToDecorated takes a Double edge label and returns EdgInfo
+simpleEdgeToDecorated :: LG.LEdge Double -> LG.LEdge EdgeInfo
+simpleEdgeToDecorated (a,b, weightDouble) = (a,b, dummyEdge {minLength = weightDouble, maxLength = weightDouble, midRangeLength = weightDouble})
+
+-- | convertDecoratedToSimpleGraph takes a decorated graph and returns the simple graph equivalent
 convertDecoratedToSimpleGraph :: DecoratedGraph -> SimpleGraph
 convertDecoratedToSimpleGraph inDec =
   if LG.isEmpty inDec then LG.empty
@@ -421,14 +444,6 @@ convertDecoratedToSimpleGraph inDec =
     let decNodeList = LG.labNodes inDec
         newNodeLabels = fmap vertName $ fmap snd decNodeList
         simpleNodes = zip (fmap fst decNodeList) newNodeLabels
-
-        {-
-        decEdgeList = LG.labEdges inDec
-        sourceList = fmap fst3 decEdgeList
-        sinkList = fmap snd3 decEdgeList
-        newEdgeLables = replicate (length sourceList) 0.0  -- fmap midRangeLength $ fmap thd3 decEdgeList
-        simpleEdgeList = zip3 sourceList sinkList newEdgeLables
-        -}
         simpleEdgeList = fmap convertToSimpleEdge $ LG.labEdges inDec
     in
     LG.mkGraph simpleNodes simpleEdgeList
