@@ -43,6 +43,8 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , makeLeafGraph
                                     , makeSimpleLeafGraph
                                     , generalizedGraphPostOrderTraversal
+                                    -- to silbce warning
+                                    , minimalReRootPhyloGraph
                                     ) where
 
 
@@ -58,8 +60,8 @@ import           Data.Maybe
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities                    as PU
+-- import           Control.Parallel.Strategies
+-- import qualified ParallelUtilities                    as PU
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph

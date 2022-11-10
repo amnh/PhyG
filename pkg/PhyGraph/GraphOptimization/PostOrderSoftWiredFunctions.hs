@@ -85,7 +85,7 @@ import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import Debug.Debug
--- import           Debug.Trace
+import           Debug.Trace
 
 
 -- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
@@ -135,6 +135,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
         preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
     in
+    trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
     preOrderPhyloGraph' 
     
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
@@ -158,24 +159,27 @@ getBestDisplayCharBlockList :: GlobalSettings
 getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displayTreeList =
     if null displayTreeList then currentBest
     else 
+        trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
         -- take first graph
         let firstGraph = head displayTreeList
             
             -- diagnose post order as Tree
             staticIA = False
-            diagnosedTree = postOrderTreeTraversal inGS inData leafGraph staticIA startVertex firstGraph
+            outgrouDiagnosedTree = postOrderTreeTraversal inGS inData leafGraph staticIA startVertex firstGraph
 
             -- reroot as Tree
             rootIndex = if isJust startVertex  then fromJust startVertex
-                        else fst $ head $ LG.getRoots $ thd6 diagnosedTree
+                        else fst $ head $ LG.getRoots firstGraph
 
-            multiTraverseTree = getDisplayBasedRerootSoftWired' Tree rootIndex diagnosedTree
+            multiTraverseTree = getDisplayBasedRerootSoftWired' Tree rootIndex outgrouDiagnosedTree
 
             -- choose better vs currentBest
             -- this can be folded for a list > 2
             currentBetter = chooseBetterTriple rootIndex currentBest multiTraverseTree
         in
+        trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)))
         getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
+        )
 
 -- | chooseBetterTriple takes the current best triplet of graph data and compares to Phylogenetic graph
 -- and creates a new triple of better block cost, displayGraph for blocks, and character graphs
