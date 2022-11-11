@@ -165,7 +165,7 @@ getBestDisplayCharBlockList :: GlobalSettings
 getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displayTreeList =
     if null displayTreeList then currentBest
     else 
-        trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
+        -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
         -- take first graph
         let firstGraph = head displayTreeList
             
@@ -183,9 +183,9 @@ getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displa
             -- this can be folded for a list > 2
             currentBetter = chooseBetterTriple rootIndex currentBest multiTraverseTree
         in
-        trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
+        -- trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
         getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
-        )
+        -- )
 
 -- | chooseBetterTriple takes the current best triplet of graph data and compares to Phylogenetic graph
 -- and creates a new triple of better block cost, displayGraph for blocks, and character graphs
