@@ -126,16 +126,22 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
 
         -- add in netowrk penalty if any
-        penaltyFactor  = if (graphType inGS == Tree) then 0.0
+        penaltyFactor  = 0.0
+                         {- Currently these calcualtions rely on resolution cache structures so skipping
+                         
+                         if (graphType inGS == Tree) then 0.0
                          else if (graphType inGS == HardWired) then 0.0
                          else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                          else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenalty startVertex preOrderPhyloGraph
                          else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex preOrderPhyloGraph
                          else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                         
+                         -}
 
         preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
     in
-    trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
+    -- trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
+    trace ("Warning: Net penalty setting ignored--no penalty added (currently)")
     preOrderPhyloGraph' 
     
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
@@ -177,7 +183,7 @@ getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displa
             -- this can be folded for a list > 2
             currentBetter = chooseBetterTriple rootIndex currentBest multiTraverseTree
         in
-        trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)))
+        trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
         getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
         )
 
@@ -1615,7 +1621,7 @@ postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex in
             in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inGraph)
         else newTree
-        --)
+        -- )
 
 -- | postDecorateTree' is wrapper for postDecorateTree to alow for mapping
 postDecorateTree' :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
@@ -1684,7 +1690,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
                 (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
 
             in
-            -- th curnode == roiot index for pruned subtrees
+            -- th curnode == root index for pruned subtrees
             -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
