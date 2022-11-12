@@ -129,9 +129,9 @@ transform inArgs inGS origData inData rSeed inGraphList =
             newSoftwiredMethod
                | length changeSoftwiredMethodBlock > 1 =
                   errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " ++ show inArgs)
-               | null changeSoftwiredMethodBlock = Just $ TL.toLower $ TL.pack $ show $ softWiredMethod inGS 
-               | null (snd $ head changeSoftwiredMethodBlock) = Just $ TL.toLower $ TL.pack $ show $ softWiredMethod inGS 
-               | otherwise = readMaybe (snd $ head changeSoftwiredMethodBlock) :: Maybe TL.Text
+               | null changeSoftwiredMethodBlock = Just $ fmap toLower $ show $ softWiredMethod inGS 
+               | null (snd $ head changeSoftwiredMethodBlock) = Just $ fmap toLower $ show $ softWiredMethod inGS 
+               | otherwise = readMaybe (show $ snd $ head changeSoftwiredMethodBlock) :: Maybe String
 
             reRootBlock = filter ((=="outgroup").fst) lcArgList
             outgroupValue
@@ -243,14 +243,17 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
             -- changes the softwired optimization algorithm--this really for experimental use 
             else if changeSoftwiredMethod then 
-               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
                else 
-                  let newMethod = if fromJust newSoftwiredMethod == TL.pack "naive" then Naive
-                                  else if fromJust newSoftwiredMethod == TL.pack "resolutioncache" then ResolutionCache
-                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                  let newMethod = if fromJust newSoftwiredMethod == "naive" then Naive
+                                  else if fromJust newSoftwiredMethod == "resolutioncache" then ResolutionCache
+                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                   in
-                  trace ("Changing softwired optimizatin method to " ++ (show newMethod))
-                  (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
+                  if newMethod /=  softWiredMethod inGS then
+                     trace ("Changing softwired optimization method to " ++ (show newMethod))
+                     (inGS {softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
 
             -- changes outgroup
             else if reRoot then 
@@ -264,7 +267,6 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   else 
                      trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
                      (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
-
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 

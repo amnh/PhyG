@@ -262,7 +262,7 @@ main = do
 
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] ((Transform, [("softwiredmethod","ResolutionCache")]) : commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

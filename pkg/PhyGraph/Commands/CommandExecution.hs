@@ -619,8 +619,8 @@ setCommand argList globalSettings processedData inSeedList =
          else if head commandList == "softwiredmethod"  then
             let localMethod
                   | (head optionList == "naive") = Naive
-                  | (head optionList == "resoluitioncache") = ResolutionCache
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. SofwiredMethod  '" ++ (head optionList) ++ "' is not 'Naive' or 'ResolutionCache'")
+                  | (head optionList == "resolutioncache") = ResolutionCache
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. SoftwiredMethod  '" ++ (head optionList) ++ "' is not 'Naive' or 'ResolutionCache'")
             in
             trace ("SoftwiredMethod " ++ (show localMethod))
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
