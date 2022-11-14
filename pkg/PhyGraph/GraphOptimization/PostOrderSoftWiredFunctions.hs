@@ -101,8 +101,12 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
     let contractIn1Out1Nodes = False
         displayTreeList = LG.generateDisplayTrees contractIn1Out1Nodes inSimpleGraph
         
+        -- gwet root index
+        rootIndex = if isJust startVertex  then fromJust startVertex
+                    else fst $ head $ LG.getRoots inSimpleGraph
+        
         -- get the best traversals of the best display trees for each block
-        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph startVertex [] displayTreeList
+        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph rootIndex [] displayTreeList
         
         -- extract specific information to create the phylogenetic graph
         graphCost = sum blockCostList
@@ -119,9 +123,8 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         staticIA = False
         calculateBranchLengths = True
         useMap = False
-        rootIndex = if isJust startVertex  then fromJust startVertex
-                    else fst $ head $ LG.getRoots inSimpleGraph
         hasNonExact = (U.getNumberSequenceCharacters blockDataVect > 0)
+            
         preOrderPhyloGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) staticIA calculateBranchLengths hasNonExact rootIndex useMap postOrderPhyloGraph
 
 
@@ -158,49 +161,56 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 getBestDisplayCharBlockList :: GlobalSettings 
                             -> ProcessedData 
                             -> DecoratedGraph 
-                            -> Maybe Int 
+                            -> Int 
                             -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
                             -> [SimpleGraph] 
                             -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBest displayTreeList =
+getBestDisplayCharBlockList inGS inData leafGraph rootIndex currentBest displayTreeList =
     if null displayTreeList then currentBest
     else 
         -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
         -- take first graph
-        let firstGraph = head displayTreeList
+        let -- get number of threads for parallel evaluation of display trees
+            -- can set +RTS -N1 if CPUTime is off
+            numDisplayTreesToEvaluate = PU.getNumThreads
+        
+            firstGraphList = take numDisplayTreesToEvaluate displayTreeList
             
             -- diagnose post order as Tree
             staticIA = False
-            outgrouDiagnosedTree = postOrderTreeTraversal inGS inData leafGraph staticIA startVertex firstGraph
+            outgrouDiagnosedTreeList = PU.seqParMap rdeepseq (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
 
-            -- reroot as Tree
-            rootIndex = if isJust startVertex  then fromJust startVertex
-                        else fst $ head $ LG.getRoots firstGraph
+            multiTraverseTreeList = PU.seqParMap rdeepseq (getDisplayBasedRerootSoftWired' Tree rootIndex) outgrouDiagnosedTreeList
 
-            multiTraverseTree = getDisplayBasedRerootSoftWired' Tree rootIndex outgrouDiagnosedTree
+            -- extract triple (relevent info)
+            multiTraverseTripleList = PU.seqParMap rdeepseq (getTreeTriple rootIndex) multiTraverseTreeList
 
             -- choose better vs currentBest
             -- this can be folded for a list > 2
-            currentBetter = chooseBetterTriple rootIndex currentBest multiTraverseTree
+            newBest = L.foldl' chooseBetterTriple currentBest multiTraverseTripleList -- multiTraverseTree
         in
         -- trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
-        getBestDisplayCharBlockList inGS inData leafGraph startVertex currentBetter (tail displayTreeList)
+        getBestDisplayCharBlockList inGS inData leafGraph rootIndex newBest (drop numDisplayTreesToEvaluate displayTreeList)
         -- )
+
+-- | getTreeTriple takes a phylogenetic gaph and returns the triple list of block cost, display tree, and character graphs
+getTreeTriple :: LG.Node -> PhylogeneticGraph -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)]
+getTreeTriple rootIndex inGraph =
+    if LG.isEmpty (fst6 inGraph) then []
+    else 
+        let blockCostList = V.toList $ fmap (getBlockCost rootIndex) (fft6 inGraph)
+            graphTriple = zip3 blockCostList (L.replicate (length blockCostList) (fst6 inGraph))  ((V.toList . fft6) inGraph)
+        in
+        graphTriple
+
 
 -- | chooseBetterTriple takes the current best triplet of graph data and compares to Phylogenetic graph
 -- and creates a new triple of better block cost, displayGraph for blocks, and character graphs
-chooseBetterTriple :: LG.Node
+chooseBetterTriple :: [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-                   -> PhylogeneticGraph 
                    -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-chooseBetterTriple rootIndex inTripleList (inSimpleTree, _, _, _, charTreeVV, _) =
+chooseBetterTriple inTripleList newTripleList =
 
-        -- get block costs from input graph
-    let blockCostList = V.toList $ fmap (getBlockCost rootIndex) charTreeVV
-        newTripleList = zip3 blockCostList (L.replicate (length blockCostList) inSimpleTree)  (V.toList charTreeVV)
-    in
-
-    -- if no previous set with current 
     if null inTripleList then newTripleList
        
     -- compare current to previous, take better of two
