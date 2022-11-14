@@ -248,7 +248,7 @@ main = do
     dataCPUTime <- getCPUTime
     
     -- Diagnose any input graphs
-    let inputGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    inputGraphList <- pure $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime <- getCPUTime

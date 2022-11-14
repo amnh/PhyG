@@ -825,7 +825,7 @@ nodeAncViolation inGraph inNode =
     in
     (not . null) isAncInNode
 
--- | selectGraphStochastic takes a list of graphs and retuns a list of graphs chosen at Random
+-- | selectGraphStochastic takes a list of graphs and returns a list of graphs chosen at Random
 -- using an exponential distribution based on graph cost difference divided by an input factor
 -- if factor is 0 then stringth graphs cost
 -- mprob acceptance = -exp [(cost - minCost)/ factor]
@@ -859,7 +859,7 @@ selectGraphStochastic rSeed number factor inGraphList =
 
 
     in
-    trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList))
+    -- trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList))
     -- so no more than specified
     take number $ returnGraphList ++ luckyList
 

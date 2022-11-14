@@ -144,7 +144,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
         preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
     in
-    trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList))) ++ " display trees") (
+    trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList) :: Integer)) ++ " display trees") (
     -- trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
     trace ("Warning: Net penalty setting ignored--no penalty added (currently)")
     preOrderPhyloGraph' 
@@ -290,8 +290,8 @@ getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
 -- done correcly this should be able to be used for trees (all display trees same = cononical graph) as
 -- well as softwired, but not for hardwired where reticulations are maintained.
 
--- this can be modified for Tree data structres--basically by starting with vertdata initialiiy without 
--- resolutoin data trace back--shouls be more efficeinet in many was than existing code
+-- this can be modified for Tree data structres--basically by starting with vertdata initially without 
+-- resolutoin data trace back--should be more efficient in many was than existing code
 
 -- Input display trees are for reporting only and do not contain actual character data so must be "pulled"
 -- from cononical Decorated graph (thd field)
@@ -644,7 +644,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
         else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
     else
-        -- get postodre assignmens of children
+        -- get postorder assignment of children
         -- checks for single child of node
         -- result is single graph afer left and right child traversals
         -- trace ("PDSW making node " ++ show curNode ++ " in\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph curDecGraph)) (
