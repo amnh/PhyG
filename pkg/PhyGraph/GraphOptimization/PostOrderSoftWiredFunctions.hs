@@ -99,6 +99,7 @@ naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> Decorated
 naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
     let contractIn1Out1Nodes = False
+        (_, _, _, netVertexList) = LG.splitVertexList inSimpleGraph
         displayTreeList = LG.generateDisplayTrees contractIn1Out1Nodes inSimpleGraph
         
         -- gwet root index
@@ -106,7 +107,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
                     else fst $ head $ LG.getRoots inSimpleGraph
         
         -- get the best traversals of the best display trees for each block
-        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph rootIndex [] displayTreeList
+        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 $ getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] displayTreeList
         
         -- extract specific information to create the phylogenetic graph
         graphCost = sum blockCostList
@@ -143,9 +144,11 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
         preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
     in
+    trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList))) ++ " display trees") (
     -- trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
     trace ("Warning: Net penalty setting ignored--no penalty added (currently)")
     preOrderPhyloGraph' 
+    )
     
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
@@ -162,11 +165,14 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> ProcessedData 
                             -> DecoratedGraph 
                             -> Int 
+                            -> Int
                             -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
                             -> [SimpleGraph] 
                             -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-getBestDisplayCharBlockList inGS inData leafGraph rootIndex currentBest displayTreeList =
-    if null displayTreeList then currentBest
+getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBest displayTreeList =
+    if null displayTreeList then 
+        trace ("\tExamined " ++ (show treeCounter) ++ " display trees")
+        currentBest
     else 
         -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
         -- take first graph
@@ -190,7 +196,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex currentBest displayT
             newBest = L.foldl' chooseBetterTriple currentBest multiTraverseTripleList -- multiTraverseTree
         in
         -- trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
-        getBestDisplayCharBlockList inGS inData leafGraph rootIndex newBest (drop numDisplayTreesToEvaluate displayTreeList)
+        getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBest (drop numDisplayTreesToEvaluate displayTreeList)
         -- )
 
 -- | getTreeTriple takes a phylogenetic gaph and returns the triple list of block cost, display tree, and character graphs

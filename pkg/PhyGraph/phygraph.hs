@@ -60,6 +60,8 @@ import qualified Input.BitPack                as BP
 import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities           as PU
 import           Debug.Trace
 import           Data.Maybe
 import           System.CPUTime
@@ -246,7 +248,7 @@ main = do
     dataCPUTime <- getCPUTime
     
     -- Diagnose any input graphs
-    let inputGraphList = map (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime <- getCPUTime
