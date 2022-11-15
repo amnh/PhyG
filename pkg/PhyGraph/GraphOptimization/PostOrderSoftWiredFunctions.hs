@@ -84,9 +84,9 @@ import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
-import qualified GraphOptimization.PreOrderFunctions as PRE
+-- import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import Debug.Debug
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
@@ -100,7 +100,7 @@ naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> Decorated
 naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
     let contractIn1Out1Nodes = False
-        (_, _, _, netVertexList) = LG.splitVertexList inSimpleGraph
+        -- (_, _, _, netVertexList) = LG.splitVertexList inSimpleGraph
         displayTreeList = LG.generateDisplayTrees contractIn1Out1Nodes inSimpleGraph
         
         -- gwet root index
