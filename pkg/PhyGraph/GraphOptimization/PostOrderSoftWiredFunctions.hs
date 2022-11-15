@@ -122,7 +122,8 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- create postorder Phylgenetic graph
         postOrderPhyloGraph = (inSimpleGraph, graphCost, GO.convertSimpleToDecoratedGraph inSimpleGraph, fmap (:[]) $ fmap GO.convertSimpleToDecoratedGraph displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
-        -- perform preorder pass
+        {-
+        -- perform preorder pass-=-nneded during debug process
         staticIA = False
         calculateBranchLengths = True
         useMap = False
@@ -130,7 +131,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
             
         -- this works here
         preOrderPhyloGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) staticIA calculateBranchLengths hasNonExact rootIndex useMap postOrderPhyloGraph
-
+        -}
 
         {-THis is traversal like reconcitation cache
         -- add in netowrk penalty if any-- different versions so don't use resolutoin cache
