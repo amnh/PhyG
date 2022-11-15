@@ -1121,7 +1121,8 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
       -- these required for full optimization
       let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
           origGraph = inSplitGraph -- thd6 origPhyloGraph
-          leafGraph = GO.makeLeafGraph inData -- LG.extractLeafGraph origGraph
+          leafGraph = if graphType inGS == SoftWired then POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+                      else LG.extractLeafGraph origGraph
           calcBranchLengths = False
 
           -- create simple graph version of split for post order pass
@@ -1211,7 +1212,9 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             origGraph = inSplitGraph -- thd6 origPhyloGraph
 
             -- create leaf graphs--but copy IA final to prelim
-            leafGraph = GO.copyIAFinalToPrelim $ GO.makeLeafGraph inData  -- LG.extractLeafGraph origGraph
+            leafGraph = if graphType inGS == SoftWired then 
+                              GO.copyIAFinalToPrelim  $ POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+                         else GO.copyIAFinalToPrelim  $ LG.extractLeafGraph origGraph
             calcBranchLengths = False
 
             -- create simple graph version of split for post order pass
