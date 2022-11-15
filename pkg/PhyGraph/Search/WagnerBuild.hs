@@ -49,7 +49,7 @@ import           GeneralUtilities
 import qualified GraphOptimization.Medians           as M
 import qualified GraphOptimization.PreOrderFunctions as PRE
 import qualified GraphOptimization.Traversals        as T
--- import qualified Graphs.GraphOperations              as GO
+import qualified Graphs.GraphOperations              as GO
 import qualified ParallelUtilities                   as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                as LG
@@ -70,8 +70,8 @@ rasWagnerBuild inGS inData rSeed numReplicates =
           randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..numLeaves - 1]
 
           -- "graph" of leaf nodes without any edges
-          leafGraph = T.makeSimpleLeafGraph inData
-          leafDecGraph = T.makeLeafGraph inData
+          leafGraph = GO.makeSimpleLeafGraph inData
+          leafDecGraph = GO.makeLeafGraph inData
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
       in

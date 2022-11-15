@@ -40,16 +40,14 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelSoftWired
                                     , multiTraverseFullyLabelHardWired
                                     , checkUnusedEdgesPruneInfty
-                                    , makeLeafGraph
-                                    , makeSimpleLeafGraph
                                     , generalizedGraphPostOrderTraversal
-                                    -- to silbce warning
+                                    -- to silence warning
                                     , minimalReRootPhyloGraph
                                     ) where
 
 
 import qualified Data.List                            as L
-import qualified Data.Vector                          as V
+-- import qualified Data.Vector                          as V
 import           GeneralUtilities
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
@@ -74,15 +72,15 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
     let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
     in
     if null networkVertexList then
-        let leafGraph = makeLeafGraph inData
+        let leafGraph = GO.makeLeafGraph inData
         in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
     else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: " ++ (show $ fmap fst networkVertexList) ++ "\n" ++ (LG.prettify inGraph))
   | graphType inGS == SoftWired =
     let leafGraph = if softWiredMethod inGS == ResolutionCache then  POSW.makeLeafGraphSoftWired inData
-                    else makeLeafGraph inData
+                    else GO.makeLeafGraph inData
     in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
   | graphType inGS == HardWired =
-    let leafGraph = makeLeafGraph inData
+    let leafGraph = GO.makeLeafGraph inData
     in multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
   | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
 
@@ -311,53 +309,5 @@ minimalReRootPhyloGraph inGS inGraph originalRoot nodesToRoot =
         if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS inGraph originalRoot nextReroots
         else newGraph : minimalReRootPhyloGraph inGS newGraph originalRoot nextReroots
         -- ) )
-
-
--- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
--- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
--- to avoid remaking of leaf vertices
-makeLeafGraph :: ProcessedData -> DecoratedGraph
-makeLeafGraph (nameVect, bvNameVect, blocDataVect) =
-    if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
-    else
-        let leafVertexList = V.toList $ V.map (makeLeafVertex nameVect bvNameVect blocDataVect) (V.fromList [0.. V.length nameVect - 1])
-        in
-        LG.mkGraph leafVertexList []
-
-
--- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
--- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
--- to avoid remaking of leaf vertices
-makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
-makeSimpleLeafGraph (nameVect, _, _) =
-    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
-    else
-        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
-        in
-        LG.mkGraph leafVertexList []
-        where makeSimpleLeafVertex a b = (b, a V.! b)
-
-
--- | makeLeafVertex makes a single unconnected vertex for a leaf
-makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
-makeLeafVertex nameVect bvNameVect inData localIndex =
-    -- trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
-    let centralData = V.map snd3 inData
-        thisData = V.map (V.! localIndex) centralData
-        newVertex = VertexInfo  { index = localIndex
-                                , bvLabel = bvNameVect V.! localIndex
-                                , parents = V.empty
-                                , children = V.empty
-                                , nodeType = LeafNode
-                                , vertName =  nameVect V.! localIndex
-                                , vertData = thisData
-                                , vertexResolutionData = mempty
-                                , vertexCost = 0.0
-                                , subGraphCost = 0.0
-                                }
-        in
-        -- trace (show (length thisData) ++ (show $ fmap length thisData))
-        (localIndex, newVertex)
-        -- )
 
 

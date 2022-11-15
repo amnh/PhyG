@@ -65,6 +65,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , getNodeType
                                , getDisplayTreeCostList
                                , phylogeneticGraphListMinus
+                               , makeLeafGraph
+                               , makeSimpleLeafGraph     
                                ) where
 
 import           Bio.DynamicCharacter
@@ -894,4 +896,52 @@ getCharacterCost rootIndex inGraph =
     in
     if isNothing rootLabel then error ("Root index without label: " ++ (show rootIndex))
     else subGraphCost $ fromJust rootLabel
+
+-- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeLeafGraph :: ProcessedData -> DecoratedGraph
+makeLeafGraph (nameVect, bvNameVect, blocDataVect) =
+    if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeLeafVertex nameVect bvNameVect blocDataVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+
+
+-- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
+makeSimpleLeafGraph (nameVect, _, _) =
+    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+        where makeSimpleLeafVertex a b = (b, a V.! b)
+
+
+-- | makeLeafVertex makes a single unconnected vertex for a leaf
+makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
+makeLeafVertex nameVect bvNameVect inData localIndex =
+    -- trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    let centralData = V.map snd3 inData
+        thisData = V.map (V.! localIndex) centralData
+        newVertex = VertexInfo  { index = localIndex
+                                , bvLabel = bvNameVect V.! localIndex
+                                , parents = V.empty
+                                , children = V.empty
+                                , nodeType = LeafNode
+                                , vertName =  nameVect V.! localIndex
+                                , vertData = thisData
+                                , vertexResolutionData = mempty
+                                , vertexCost = 0.0
+                                , subGraphCost = 0.0
+                                }
+        in
+        -- trace (show (length thisData) ++ (show $ fmap length thisData))
+        (localIndex, newVertex)
+        -- )
+
 

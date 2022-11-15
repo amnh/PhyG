@@ -262,18 +262,8 @@ main = do
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
 
-    -- Add transformation to Resolution cache if other search options are specified
-    let transformString = if softWiredMethod initialGlobalSettings == ResolutionCache then []
-                          else 
-                            let refineCommands = filter ((`elem` [Build, Fuse, Refine, Swap, Search, Support]) .fst) commandsAfterInitialDiagnose
-                            in
-                            if (not . null) refineCommands then 
-                                [(Transform, [("softwiredmethod","ResolutionCache")])]
-                            else []
-
-
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] (transformString ++ commandsAfterInitialDiagnose)
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose 
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

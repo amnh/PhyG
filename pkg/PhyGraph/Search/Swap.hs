@@ -77,8 +77,8 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else
       let numLeaves = V.length $ fst3 inData
-          leafGraph = T.makeSimpleLeafGraph inData
-          leafDecGraph = T.makeLeafGraph inData
+          leafGraph = GO.makeSimpleLeafGraph inData
+          leafDecGraph = GO.makeLeafGraph inData
           leafGraphSoftWired = POSW.makeLeafGraphSoftWired inData
           charInfoVV = six6 inGraph
 
