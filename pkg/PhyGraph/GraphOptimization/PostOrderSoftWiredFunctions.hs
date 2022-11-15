@@ -61,6 +61,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , updatePhylogeneticGraphCost
                                                       , updateGraphCostsComplexities
                                                       , getW15NetPenalty
+                                                      , getW15NetPenaltyFull
                                                       , getW23NetPenalty
                                                       , getW15RootCost
                                                       -- included to quiet warnings
@@ -96,7 +97,7 @@ import           Debug.Trace
 -- does not create resolution cache data structures
 -- really only for diagnosis and time complexity comparison with resolution cache algorithm
 naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-naivePostOrderSoftWiredTraversal inGS inData@(nameVect, _, blockDataVect) leafGraph startVertex inSimpleGraph =
+naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
     let contractIn1Out1Nodes = False
         (_, _, _, netVertexList) = LG.splitVertexList inSimpleGraph
@@ -107,7 +108,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(nameVect, _, blockDataVect) leafGr
                     else fst $ head $ LG.getRoots inSimpleGraph
         
         -- get the best traversals of the best display trees for each block
-        (bestTripleInfo, lowestCostDisplayTreeList) = getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] [] displayTreeList
+        (bestTripleInfo, _) = getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] [] displayTreeList
         (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 bestTripleInfo
 
         -- extract specific information to create the phylogenetic graph
@@ -127,25 +128,31 @@ naivePostOrderSoftWiredTraversal inGS inData@(nameVect, _, blockDataVect) leafGr
         useMap = False
         hasNonExact = (U.getNumberSequenceCharacters blockDataVect > 0)
             
+        -- this works here
         preOrderPhyloGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) staticIA calculateBranchLengths hasNonExact rootIndex useMap postOrderPhyloGraph
 
 
+        {-THis is traversal like reconcitation cache
         -- add in netowrk penalty if any-- different versions so don't use resolutoin cache
         penaltyFactor  = if (graphType inGS == Tree) then 0.0
                          else if (graphType inGS == HardWired) then 0.0
                          else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                         else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyNaive (Just (blockCostList, bestDisplayTreeList, head lowestCostDisplayTreeList, (V.length nameVect))) inGS inData startVertex preOrderPhyloGraph
-                         else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenaltyNaive startVertex preOrderPhyloGraph
+                         else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyFull (Just (blockCostList, bestDisplayTreeList, head lowestCostDisplayTreeList, (V.length nameVect))) inGS inData startVertex preOrderPhyloGraph
+                         else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex preOrderPhyloGraph
                          else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
         preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
+        -}
     in
-    trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList) :: Integer)) ++ " display trees") (
+    -- trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList) :: Integer)) ++ " display trees") -- (
     -- trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
     -- trace ("Warning: Net penalty setting ignored--no penalty added (currently)")
-    trace ("\t at Cost " ++ (show $ snd6 preOrderPhyloGraph'))
-    preOrderPhyloGraph' 
-    )
+    -- trace ("\t at Cost " ++ (show $ snd6 preOrderPhyloGraph'))
+
+    -- preOrderPhyloGraph 
+
+    postOrderPhyloGraph
+    -- )
     
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
@@ -169,7 +176,7 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> ([(VertexCost, SimpleGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph]) 
 getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBestTriple currentBerstTreeList displayTreeList =
     if null displayTreeList then 
-        trace ("\tExamined " ++ (show treeCounter) ++ " display trees")
+        -- trace ("\tExamined " ++ (show treeCounter) ++ " display trees")
         (currentBestTriple, currentBerstTreeList)
     else 
         -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
@@ -971,9 +978,10 @@ getBestBlockResolution inResBlockData =
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
 -- includes leave resolution data
-makeLeafGraphSoftWired :: ProcessedData -> DecoratedGraph
-makeLeafGraphSoftWired (nameVect, bvNameVect, blocDataVect) =
+makeLeafGraphSoftWired :: GlobalSettings -> ProcessedData -> DecoratedGraph
+makeLeafGraphSoftWired inGS inData@(nameVect, bvNameVect, blocDataVect) =
     if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
+    else if softWiredMethod inGS == Naive then GO.makeLeafGraph inData
     else
         let leafVertexList = V.toList $ V.map (makeLeafVertexSoftWired nameVect bvNameVect blocDataVect) (V.fromList [0.. V.length nameVect - 1])
         in
@@ -1841,13 +1849,12 @@ getW15RootCost inGS inGraph =
         in
         (fromIntegral numRoots) * (rootComplexity inGS)
 
--- | getW15NetPenaltyNaive takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
--- modified to take the union of all edges of trees of minimal length
--- does not use resoliution cache's so can be used with Naive or Resolutoin cache SoftWired
+-- | getW15NetPenaltyFull takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
+-- does not use resoliution cache's so can be used with Naive or Resolution cache SoftWired
 -- has to be a single display tree--or could have no penalty for network since edges would be in one or other 
 -- display tree
-getW15NetPenaltyNaive :: Maybe ([VertexCost], [SimpleGraph], PhylogeneticGraph, Int) -> GlobalSettings -> ProcessedData -> Maybe Int -> PhylogeneticGraph -> VertexCost
-getW15NetPenaltyNaive blockInfo inGS inData@(nameVect, _, _) startVertex inGraph =
+getW15NetPenaltyFull :: Maybe ([VertexCost], [SimpleGraph], PhylogeneticGraph, Int) -> GlobalSettings -> ProcessedData -> Maybe Int -> PhylogeneticGraph -> VertexCost
+getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph =
     if LG.isEmpty $ fst6 inGraph then 0.0
     else if LG.isTree $ fst6 inGraph then 0.0
     else 
@@ -1886,23 +1893,13 @@ getW15NetPenaltyNaive blockInfo inGS inData@(nameVect, _, _) startVertex inGraph
             -- trace ("GW15N: " ++ (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0)))) 
             blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0)
     
-
--- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
--- basic idea is new edge improvement must be better than average existing edge cost
--- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additinal tree diagnoses)
--- num extra edges/2 since actually add 2 new edges when one network edge
--- like getW15NetPenaltyNaive does not require resolution cache info
-getW23NetPenaltyNaive :: Maybe Int -> PhylogeneticGraph -> VertexCost
-getW23NetPenaltyNaive startVertex inGraph =
-    if LG.isEmpty $ fst6 inGraph then 0.0
-    else getW23NetPenalty startVertex inGraph
-
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take the union of all edges of trees of minimal length
 -- currently modified -- not exactlty W15
 getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
 getW15NetPenalty startVertex inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
+    else if LG.isTree $ fst6 inGraph then 0.0
     else
         let -- (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
             bestTreeList =  V.toList $ fmap head $ fth6 inGraph
@@ -1917,17 +1914,19 @@ getW15NetPenalty startVertex inGraph =
             numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
             divisor = numTreeEdges
         in
-        -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )) ++ " from " ++ (show (numTreeEdges, numExtraEdges, divisor, sum blockPenaltyList))) (
+        -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )))
         (sum $ blockPenaltyList) / divisor
-        -- )
+        
 
 -- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost
 -- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
 -- num extra edges/2 since actually add 2 new edges when one network edge
-getW23NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
-getW23NetPenalty startVertex inGraph =
+-- requires resolution cache data structures
+getW23NetPenalty ::PhylogeneticGraph -> VertexCost
+getW23NetPenalty inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
+    else if LG.isTree $ fst6 inGraph then 0.0
     else
         let -- (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
             bestTreeList =  V.toList $ fmap head $ fth6 inGraph
@@ -1940,12 +1939,12 @@ getW23NetPenalty startVertex inGraph =
             numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
             divisor = numTreeEdges - numExtraEdges
         in
-        trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+       --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
         if divisor == 0.0 then infinity
         -- else (sum blockPenaltyList) / divisor
         -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
         else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
-        )
+        -- )
 
 
 -- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual
@@ -1961,6 +1960,7 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
         -- trace ("GBW: " ++ (show (numExtraEdges, blockCost, blockTreeEdgeList)) ++ "\n" ++ (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList)))
         blockCost * (fromIntegral numExtraEdges)
 
+{- 
 -- | extractLowestCostDisplayTree takes a phylogenetic graph and takes all valid (complete) resolutions
 -- (display trees) and their costs
 -- and determines the total cost (over all blocks) of each display tree
@@ -2002,8 +2002,6 @@ sumTreeCostLists firstList secondList =
         else
             -- trace ("Graphs match ")
             zip firstGraphList newCostList
-
-{- Unused but could be with naive comparisons
 
 -- | setBetterGraphAssignment takes two phylogenetic graphs and returns the lower cost optimization of each character,
 -- with traversal focus etc to get best overall graph

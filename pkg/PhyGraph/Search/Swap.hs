@@ -79,14 +79,14 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
       let numLeaves = V.length $ fst3 inData
           leafGraph = GO.makeSimpleLeafGraph inData
           leafDecGraph = GO.makeLeafGraph inData
-          leafGraphSoftWired = POSW.makeLeafGraphSoftWired inData
+          leafGraphSoftWired = POSW.makeLeafGraphSoftWired inGS inData
           charInfoVV = six6 inGraph
 
 
           inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty Nothing inGraph
-                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty Nothing inGraph
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData  Nothing inGraph
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty inGraph
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
           inGraphNetPenaltyFactor = inGraphNetPenalty / (snd6 inGraph)
       in
@@ -593,7 +593,7 @@ rejoinGraph :: String
 rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges' edgesInPrunedGraph charInfoVV inSimAnnealParams =
 
    -- found no better--but return equal cost graphs
-   -- trace ("In rejoinGraph with num rejoining edges: " ++ (show $ length rejoinEdges)) (
+   -- trace ("In rejoinGraph with num rejoining edges: " ++ (show $ length rejoinEdges')) (
    if null rejoinEdges' then (curBestGraphs, inSimAnnealParams)
 
    else
@@ -672,7 +672,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                else 
                   -- trace ("In steepest worse (after recalculation): " ++ (show $ length (drop PU.getNumThreads rejoinEdges))) 
                   rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams
-               -- ))
+               -- ) -- )
 
       -- Drifting/Simulated annealing 
       -- basically if it accepted a graph (better or probabalistically) then pass up
@@ -724,7 +724,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                in
                rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV newSAParams
 
-         
+         -- )
                 
 -- | singleJoin' is a wrapper arounds singleJoin to allow parMap with individual SAParams
 singleJoin' :: String 
@@ -1112,6 +1112,7 @@ reoptimizeSplitGraphFromVertex :: GlobalSettings
                           -> Int
                           -> (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
+   -- trace ("RSGFV: " ++ (show startVertex)) (
    if doIA then
       -- only reoptimize the IA states for dynamic characters
       reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
@@ -1120,7 +1121,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
       -- these required for full optimization
       let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
           origGraph = inSplitGraph -- thd6 origPhyloGraph
-          leafGraph = LG.extractLeafGraph origGraph
+          leafGraph = GO.makeLeafGraph inData -- LG.extractLeafGraph origGraph
           calcBranchLengths = False
 
           -- create simple graph version of split for post order pass
@@ -1177,8 +1178,10 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
          ++ "\nSplit Graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph fullSplitGraph)
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
       -}
-      --trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
+      -- trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
       (fullSplitGraph, splitGraphCost)
+      
+      -- )
 
 -- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
 reoptimizeSplitGraphFromVertexTuple :: GlobalSettings
@@ -1208,7 +1211,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             origGraph = inSplitGraph -- thd6 origPhyloGraph
 
             -- create leaf graphs--but copy IA final to prelim
-            leafGraph = GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph
+            leafGraph = GO.copyIAFinalToPrelim $ GO.makeLeafGraph inData  -- LG.extractLeafGraph origGraph
             calcBranchLengths = False
 
             -- create simple graph version of split for post order pass

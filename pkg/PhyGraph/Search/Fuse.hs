@@ -98,10 +98,10 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then 
                                  if (graphType inGS) == HardWired then 0.0
-                                 else POSW.getW15NetPenalty Nothing curBestGraph
+                                 else POSW.getW15NetPenaltyFull Nothing inGS inData Nothing curBestGraph
                              else if (graphFactor inGS) == Wheeler2023Network then 
                                  if (graphType inGS) == HardWired then 0.0
-                                 else POSW.getW23NetPenalty Nothing curBestGraph
+                                 else POSW.getW23NetPenalty curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -280,7 +280,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist cur
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
 
           -- get network penalty factors to pass on
-          networkCostFactor = min (getNetworkPentaltyFactor inGS (snd6 leftGraph) leftGraph) (getNetworkPentaltyFactor inGS (snd6 rightGraph) rightGraph) 
+          networkCostFactor = min (getNetworkPentaltyFactor inGS inData (snd6 leftGraph) leftGraph) (getNetworkPentaltyFactor inGS inData (snd6 rightGraph) rightGraph) 
 
 
           -- left and right root indices should be the same
@@ -411,14 +411,14 @@ rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steep
 
 
 -- | getNetworkPentaltyFactor get scale network penalty for graph
-getNetworkPentaltyFactor :: GlobalSettings -> VertexCost -> PhylogeneticGraph -> VertexCost 
-getNetworkPentaltyFactor inGS graphCost inGraph =
+getNetworkPentaltyFactor :: GlobalSettings -> ProcessedData -> VertexCost -> PhylogeneticGraph -> VertexCost 
+getNetworkPentaltyFactor inGS inData graphCost inGraph =
    if LG.isEmpty $ thd6 inGraph then 0.0
    else
         let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                                else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty Nothing inGraph
-                                else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty inGraph
                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
         in
         inGraphNetPenalty / graphCost

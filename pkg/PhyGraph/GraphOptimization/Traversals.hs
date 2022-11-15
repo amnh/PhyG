@@ -76,8 +76,7 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
         in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
     else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: " ++ (show $ fmap fst networkVertexList) ++ "\n" ++ (LG.prettify inGraph))
   | graphType inGS == SoftWired =
-    let leafGraph = if softWiredMethod inGS == ResolutionCache then  POSW.makeLeafGraphSoftWired inData
-                    else GO.makeLeafGraph inData
+    let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
     in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
   | graphType inGS == HardWired =
     let leafGraph = GO.makeLeafGraph inData
@@ -205,8 +204,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
                              -- softwired versions
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty startVertex outgroupRooted
-                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty startVertex outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData startVertex outgroupRooted
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty outgroupRooted
 
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
@@ -224,8 +223,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
-                                 else if (graphFactor inGS) == Wheeler2015Network then fmap (POSW.getW15NetPenalty startVertex) finalizedPostOrderGraphList
-                                 else if (graphFactor inGS) == Wheeler2023Network then fmap (POSW.getW23NetPenalty startVertex) finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2015Network then fmap (POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex) finalizedPostOrderGraphList
+                                 else if (graphFactor inGS) == Wheeler2023Network then fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
                                  else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
@@ -241,8 +240,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
                              else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenalty startVertex graphWithBestAssignments
-                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty startVertex graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex graphWithBestAssignments
+                             else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
             graphWithBestAssignments' = POSW.updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
