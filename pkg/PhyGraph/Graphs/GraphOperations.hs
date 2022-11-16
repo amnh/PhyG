@@ -432,7 +432,11 @@ convertSimpleToDecoratedGraph inSimple =
 
 -- | simpleNodeToDecorated takes a simple node and cretes a decoraetd node with info available
 simpleNodeToDecorated :: LG.LNode T.Text -> LG.LNode VertexInfo
-simpleNodeToDecorated (indexNode, nameNode) = (indexNode, emptyVertexInfo {index = indexNode, vertName = nameNode})
+simpleNodeToDecorated (indexNode, nameNode) = 
+  -- probbaly need to add other info--but cn;t get all of it (e..g. BV and costs)
+  (indexNode, emptyVertexInfo {index = indexNode
+            , vertName = nameNode}
+            )
 
 -- | simpleEdgeToDecorated takes a Double edge label and returns EdgInfo
 simpleEdgeToDecorated :: LG.LEdge Double -> LG.LEdge EdgeInfo

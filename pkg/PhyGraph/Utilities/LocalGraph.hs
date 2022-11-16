@@ -1818,6 +1818,7 @@ getToFlipEdges parentNodeIndex inEdgeList =
 generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> Gr a b -> [Gr a b]
 generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
   if isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
+  else if isTree inGraph then [inGraph]
   else
     let atRandomList = take numDisplayTrees $ randomIntList rSeed
         randDisplayTreeList = PU.seqParMap rdeepseq (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
@@ -1862,9 +1863,11 @@ chooseOneDumpRest randVal inEdgeList =
 -- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface
 generateDisplayTrees :: (Eq a) => Bool -> Gr a b -> [Gr a b]
 generateDisplayTrees contractEdges inGraph =
-    let (_, leafList, _, _) = splitVertexList inGraph
-    in
-    generateDisplayTrees' contractEdges leafList [inGraph] []
+    if isTree inGraph then [inGraph]
+    else 
+        let (_, leafList, _, _) = splitVertexList inGraph
+        in
+        generateDisplayTrees' contractEdges leafList [inGraph] []
 
 -- | generateDisplayTrees' takes a graph list and recursively generates
 -- a list of trees created by progresively resolving each network vertex into a tree vertex

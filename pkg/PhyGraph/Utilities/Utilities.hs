@@ -416,7 +416,7 @@ safeVectorHead inVect =
     if V.null inVect then error "Empty vector in safeVectorHead"
     else V.head inVect
 
--- | get leftRightChilLabelBV takes a pair of vertex labels and returns left and right
+-- | get leftRightChildLabelBV takes a pair of vertex labels and returns left and right
 -- based on their bitvector representation.  This ensures left/right consistancey in
 -- pre and postoder passes, and with bitvectors of leaves determined by data hash,
 -- ensures label invariance with repect to leaves

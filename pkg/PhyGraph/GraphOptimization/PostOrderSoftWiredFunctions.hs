@@ -116,44 +116,19 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         displayTreeVect = V.fromList bestDisplayTreeList
         charTreeVectVect = V.fromList charTreeVectList
 
-        -- propagate node character assignments back to canoncail graph
-        -- (decoratedCanonicalGraph, decoratedDisplayTreeVect) = assignCanonicalNodes inSimpleGraph displayTreeVect charTreeVectVect
+        -- these actions are not quite correct--nomber of nodes is off even for a tree
+        -- propagate character node assignments back to display Trees
+        newDisplayTreeVect = V.zipWith backPortCharTreeNodesToBlockTree (fmap GO.convertSimpleToDecoratedGraph displayTreeVect) charTreeVectVect
+
+        -- propagate display node assignment to canonical graph
+        newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
 
         -- create postorder Phylgenetic graph
-        postOrderPhyloGraph = (inSimpleGraph, graphCost, GO.convertSimpleToDecoratedGraph inSimpleGraph, fmap (:[]) $ fmap GO.convertSimpleToDecoratedGraph displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
-
-        {-
-        -- perform preorder pass-=-nneded during debug process
-        staticIA = False
-        calculateBranchLengths = True
-        useMap = False
-        hasNonExact = (U.getNumberSequenceCharacters blockDataVect > 0)
-            
-        -- this works here
-        preOrderPhyloGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) staticIA calculateBranchLengths hasNonExact rootIndex useMap postOrderPhyloGraph
-        -}
-
-        {-THis is traversal like reconcitation cache
-        -- add in netowrk penalty if any-- different versions so don't use resolutoin cache
-        penaltyFactor  = if (graphType inGS == Tree) then 0.0
-                         else if (graphType inGS == HardWired) then 0.0
-                         else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                         else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyFull (Just (blockCostList, bestDisplayTreeList, head lowestCostDisplayTreeList, (V.length nameVect))) inGS inData startVertex preOrderPhyloGraph
-                         else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty startVertex preOrderPhyloGraph
-                         else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
-
-        preOrderPhyloGraph' = updatePhylogeneticGraphCost preOrderPhyloGraph (penaltyFactor + (snd6 preOrderPhyloGraph))
-        -}
+        postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) newDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
     in
-    -- trace ("\tThere are " ++ (show $ length netVertexList) ++ " network vertices in input graph, hence up to " ++ (show (2^(length netVertexList) :: Integer)) ++ " display trees") -- (
-    -- trace ("NPOST: " ++ (show (graphCost, V.length displayTreeVect)) ++ " " ++ (show $ V.length charTreeVectVect) ++ " -> " ++ (show $ fmap V.length charTreeVectVect))
-    -- trace ("Warning: Net penalty setting ignored--no penalty added (currently)")
-    -- trace ("\t at Cost " ++ (show $ snd6 preOrderPhyloGraph'))
-
-    -- preOrderPhyloGraph 
-
+    
     postOrderPhyloGraph
-    -- )
+    
     
     -- (inSimpleGraph, graphCost, decoratedCanonicalGraph, decoratedDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
@@ -264,14 +239,12 @@ postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGrap
 postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
     else
-         -- Assumes root is Number of Leaves
+         -- Assumes root is Number of Leaves--should be invariant everywhere
         let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
             newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
         in
-        --trace ("It Begins at " ++ show rootIndex) (
-        -- trace ("POSWT:\n" ++ (LG.prettify inSimpleGraph) ++ "\nVertices:\n" ++ (show $ LG.labNodes $ thd6 newSoftWired)) (
         if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
             let localRootList = fst <$> LG.getRoots inSimpleGraph
                 localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
@@ -279,9 +252,8 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVe
             in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
         else
-            -- trace ("POSW:" ++ (show $ fmap V.length $ fft6 newSoftWired))
             newSoftWired
-        -- )
+        
 
 -- | getDisplayBasedRerootSoftWired is a wrapper to allow correct function choice for alternate softwired algorithms
 getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
@@ -315,7 +287,7 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
                                                                                                 let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
                                                                                                 in
                                                                                                 (a, b, decGraph, displayTrees, charTrees, f)
-                                                                                            else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+                                                                                              else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
             
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
@@ -474,8 +446,8 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
          reOptimizeCharacterNodes charInfo newGraph (tail oldNodeList)
 
 
--- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block doisplay Tree
--- updates vertData, vertexCost, and subGraphCost for each .  Subgraph cost queationable since relieds on rooting
+-- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block display Tree
+-- updates vertData, vertexCost, and subGraphCost for each.  Subgraph cost questionable since relies on rooting
 backPortCharTreeNodesToBlockTree :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
 backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect =
     let blockDisplayNodes = LG.labNodes blockDisplayTree
@@ -485,6 +457,7 @@ backPortCharTreeNodesToBlockTree blockDisplayTree rerootedCharTreeVect =
         charTreeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes rerootedCharTreeVect
 
         -- for each node index extract (head head) vertdata, vertexCost and subgraphcost
+        -- (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVect charTreeLabelsVV) (V.fromList [0..(length blockDisplayNodes - 1)])
         (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVect charTreeLabelsVV) (V.fromList [0..(length blockDisplayNodes - 1)])
 
         -- update labels for block data nodes 
@@ -516,7 +489,7 @@ updateNodes (inIndex, inLabel) charDataV vertexCostV subGraphCostV =
 
 -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph
--- very similar to backPortCharTreeNodesToBlockTree but character vector is no singleton
+-- very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
 backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
 backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
     let canonicalDisplayNodes = LG.labNodes inCanonicalGraph
@@ -645,21 +618,23 @@ postDecorateSoftWired' inGS curDecGraph blockCharInfo rootIndex curNode simpleGr
 -- this for a single root
 postDecorateSoftWired :: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
 postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode =
-    -- if node in current decortated graph then nothing to do and return
+    -- if node in current decorated graph then nothing to do and return it
+    --   this because will hit node twice if network node
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
         in
         if isNothing nodeLabel then error ("Null label for node " ++ show curNode)
         else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
+    -- node is not in decorated graph--ie has not been creted/optimized    
     else
         -- get postorder assignment of children
         -- checks for single child of node
-        -- result is single graph afer left and right child traversals
+        -- result is single graph after left and right child traversals
         -- trace ("PDSW making node " ++ show curNode ++ " in\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph curDecGraph)) (
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
-            rightChild = last nodeChildren
+            rightChild = last nodeChildren -- will be same is first for out 1 (network) node
             leftChildTree = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
             rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                                  else leftChildTree
@@ -668,23 +643,21 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
         if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
         else if null nodeChildren then error ("Leaf not in graph in postDecorateSoftWired node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
 
+        -- after recursing to any children can optimize current node
         else
             -- make node from child block resolutions
             -- child resolutin made ealeri in post roder pass
             let newSubTree = thd6 rightLeftChildTree
             in
 
-            -- single child of node (can certinly happen with soft-wired networks
+            -- single child of node--network node
             if length nodeChildren == 1 then
                 -- trace ("Outdegree 1: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Child: " ++ (show nodeChildren)) (
                 let (newGraph, _, _, _, _) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                 in
                 (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
 
-            -- check for error condition
-            else if length nodeChildren > 2 then error ("Node has >2 children: " ++ (show nodeChildren))
-    
-            -- 2 children
+            -- 2 children--tree node
             else
                 -- trace ("Outdegree 2: " ++ (show curNode) ++ " " ++ (show $ GO.getNodeType simpleGraph curNode) ++ " Children: " ++ (show nodeChildren)) (
                 -- need to create new resolutions and add to existing sets
@@ -703,7 +676,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                                                 , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                                 , children = V.fromList nodeChildren
-                                                , nodeType = GO.getNodeType simpleGraph curNode
+                                                , nodeType = TreeNode
                                                 , vertName = T.pack $ "HTU" ++ show curNode
                                                 , vertData = mempty --empty because of resolution data
                                                 , vertexResolutionData = resolutionBlockVL
@@ -1056,7 +1029,7 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
         in
         modifyDisplayData resolutionTemplate (tail characterDataVList) ((resolutionTemplate {displayData = curBlockData}) : curResolutionList)
 
--- | getOutDegree1VertexAndGraph makes parent node fomr single child for soft-wired resolutions
+-- | getOutDegree1VertexAndGraph makes parent node from single child for soft-wired resolutions
 getOutDegree1VertexAndGraph :: (Show a, Show b)
                             => LG.Node
                             -> VertexInfo
@@ -1092,7 +1065,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
                                 , bvLabel = bvLabel childLabel
                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                 , children = V.fromList nodeChildren
-                                , nodeType = GO.getNodeType simpleGraph curNode
+                                , nodeType = NetworkNode
                                 , vertName = T.pack $ "HTU" ++ show curNode
                                 , vertData = mempty
                                 , vertexResolutionData = curNodeResolutionData
@@ -1105,8 +1078,11 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         newDisplayNode = (curNode, newMinVertex)
         newGraph =  LG.insEdge newLEdge $ LG.insNode newLNode subTree
 
-        (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then extractDisplayTrees Nothing True (vertexResolutionData childLabel)
-                                        else (mempty, 0.0)
+        -- Root node should be out degree 2 so this should happen in general--but could during some 
+        -- graph rearangemnts in fusing and swapping
+        (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then 
+                                            extractDisplayTrees Nothing True (vertexResolutionData childLabel)
+                                         else (mempty, 0.0)
 
 
     in
