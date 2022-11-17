@@ -547,7 +547,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bc64 = (0.0,1.0)
                                      , bcgt64 = (0.0,1.0)
                                      , fractionDynamic = 1.0
-                                     , dynamicEpsilon = 1.02
+                                     , dynamicEpsilon = 1.00
                                      , graphsSteepest = 10
                                      , softWiredMethod = ResolutionCache
                                      }

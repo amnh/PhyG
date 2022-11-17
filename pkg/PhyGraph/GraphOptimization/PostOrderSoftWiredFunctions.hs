@@ -123,6 +123,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
         -- propagate display node assignment to canonical graph
         -- does not have correct VertInfo--just character assignments
+        -- to fox would need to propagate (and update other vertinfo like BV) via postorder pass
         newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
 
         -- create postorder Phylgenetic graph
