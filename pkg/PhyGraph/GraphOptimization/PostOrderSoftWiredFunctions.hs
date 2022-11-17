@@ -116,11 +116,13 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         displayTreeVect = V.fromList bestDisplayTreeList
         charTreeVectVect = V.fromList charTreeVectList
 
-        -- these actions are not quite correct--nomber of nodes is off even for a tree
+        -- this could be due to in 1 out 1 or something but fails fora tree
+
         -- propagate character node assignments back to display Trees
-        newDisplayTreeVect = V.zipWith backPortCharTreeNodesToBlockTree (fmap GO.convertSimpleToDecoratedGraph displayTreeVect) charTreeVectVect
+        newDisplayTreeVect = V.zipWith backPortCharTreeNodesToBlockTree displayTreeVect charTreeVectVect
 
         -- propagate display node assignment to canonical graph
+        -- does not have correct VertInfo--just character assignments
         newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
 
         -- create postorder Phylgenetic graph
@@ -146,14 +148,14 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> DecoratedGraph 
                             -> Int 
                             -> Int
-                            -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
+                            -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)] 
                             -> [PhylogeneticGraph]
                             -> [SimpleGraph] 
-                            -> ([(VertexCost, SimpleGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph]) 
-getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBestTriple currentBerstTreeList displayTreeList =
+                            -> ([(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph]) 
+getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBestTriple currentBestTreeList displayTreeList =
     if null displayTreeList then 
         -- trace ("\tExamined " ++ (show treeCounter) ++ " display trees")
-        (currentBestTriple, currentBerstTreeList)
+        (currentBestTriple, currentBestTreeList)
     else 
         -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
         -- take first graph
@@ -177,28 +179,28 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (multiTraverseTreeList ++ currentBerstTreeList)
+            newBestTreeList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (multiTraverseTreeList ++ currentBestTreeList)
         in
         -- trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
         -- )
 
 -- | getTreeTriple takes a phylogenetic gaph and returns the triple list of block cost, display tree, and character graphs
-getTreeTriple :: LG.Node -> PhylogeneticGraph -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)]
+getTreeTriple :: LG.Node -> PhylogeneticGraph -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)]
 getTreeTriple rootIndex inGraph =
     if LG.isEmpty (fst6 inGraph) then []
     else 
         let blockCostList = V.toList $ fmap (getBlockCost rootIndex) (fft6 inGraph)
-            graphTriple = zip3 blockCostList (L.replicate (length blockCostList) (fst6 inGraph))  ((V.toList . fft6) inGraph)
+            graphTriple = zip3 blockCostList (L.replicate (length blockCostList) (thd6 inGraph))  ((V.toList . fft6) inGraph)
         in
         graphTriple
 
 
 -- | chooseBetterTriple takes the current best triplet of graph data and compares to Phylogenetic graph
 -- and creates a new triple of better block cost, displayGraph for blocks, and character graphs
-chooseBetterTriple :: [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-                   -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
-                   -> [(VertexCost, SimpleGraph, V.Vector DecoratedGraph)] 
+chooseBetterTriple :: [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)] 
+                   -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)] 
+                   -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)] 
 chooseBetterTriple inTripleList newTripleList =
 
     if null inTripleList then newTripleList
