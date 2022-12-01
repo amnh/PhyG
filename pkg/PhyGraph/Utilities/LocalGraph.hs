@@ -474,7 +474,6 @@ delNodes = G.delNodes
 mkGraph :: [LNode a] -> [LEdge b] -> Gr a b
 mkGraph = G.mkGraph
 
-
 -- | mkGraphPair creates a graph from pair of list of nodes and list of edges
 mkGraphPair ::  ([LNode a], [LEdge b]) -> Gr a b
 mkGraphPair (nodeList, edgeList) = G.mkGraph nodeList edgeList

@@ -669,8 +669,8 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                     ((leftChild', leftChildLabel), (rightChild', rightChildLabel)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab newSubTree leftChild), (rightChild, fromJust $ LG.lab newSubTree rightChild))
 
                     -- create resolution caches for blocks
-                    leftChildNodeType  = nodeType leftChildLabel
-                    rightChildNodeType = nodeType rightChildLabel
+                    leftChildNodeType  = GO.getNodeType simpleGraph leftChild' -- nodeType leftChildLabel
+                    rightChildNodeType = GO.getNodeType simpleGraph rightChild' -- nodeType rightChildLabel
                     resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
 
                     -- create canonical Decorated Graph vertex
@@ -1162,8 +1162,8 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
         ((leftChild', leftChildLabel'), (rightChild', rightChildLabel')) = U.leftRightChildLabelBVNode (leftChild, rightChild)
 
         -- create resolution caches for blocks
-        leftChildNodeType  = nodeType leftChildLabel'
-        rightChildNodeType = nodeType rightChildLabel'
+        leftChildNodeType  = GO.getNodeType inGraph leftChild'  -- nodeType leftChildLabel'
+        rightChildNodeType = GO.getNodeType inGraph rightChild' -- nodeType rightChildLabel'
         resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
 
         -- create canonical Decorated Graph vertex
