@@ -70,7 +70,7 @@ treeBanditList = [
 
 -- | netWorkBanditList is list of search types unique to graphType network
 netWorkBanditList :: [String]
-netWorkBanditList = ["networkAdd", "networkDelete", "networkAddDelete", "driftNetwork", "annealNetwork"] -- "networkMove"
+netWorkBanditList = ["networkAdd", "networkDelete", "networkAddDelete", "driftNetwork", "annealNetwork", "networkMove"]
 
 -- | fullBanditList is list of search types to be chosen from if Network
 fullBanditList :: [String]
@@ -365,9 +365,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("20", 0.45), ("40", 0.45), ("100", 0.1)]
           fuseKeep = 2 * keepNum
 
-          -- network edit options 'move' disabled for now
+          -- network edit options 
           netGeneralArgs = [("keep", show keepNum), ("steepest", ""), ("atRandom", ""), ("maxnetedges", show maxNetEdges)]
-          -- netMoveArgs = ("netMove", "") : netGeneralArgs until fix network move
+          netMoveArgs = ("netMove", "") : netGeneralArgs 
           netAddArgs = ("netAdd", "") : netGeneralArgs
           netDelArgs = ("netDel", "") : netGeneralArgs
           netAddDelArgs = ("netadddel", "") : netGeneralArgs
@@ -582,14 +582,12 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
 
-                                          {-Inactive till fix net move
                                           else if searchBandit == "networkMove" then
                                             let -- network move args
                                                 netEditArgs = netMoveArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
-                                          -}
 
                                           else if searchBandit == "driftNetwork" then
                                             let -- network add/delete  + drift args

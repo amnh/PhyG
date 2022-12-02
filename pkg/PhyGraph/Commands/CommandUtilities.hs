@@ -394,7 +394,7 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
         in
         [topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeHeaderList ++ edgeInfoList
 
--- | getVertexCharInfo returns a list of list of Strings of vertex infomation
+-- | getVertexCharInfo returns a list of list of Strings of vertex information
 -- one list for each character at the vertex
 getVertexCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
 getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =

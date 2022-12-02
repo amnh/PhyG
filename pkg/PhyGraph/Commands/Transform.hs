@@ -99,6 +99,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             reRoot = any ((=="outgroup").fst) lcArgList
             changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
             changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
+            changeGraphFactor = any ((=="graphfactor").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -108,7 +109,6 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
 
-
             changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
             epsilonValue
                | length changeEpsilonBlock > 1 =
@@ -116,6 +116,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
+
+            changeGraphFactorBlock = filter ((=="graphfactor").fst) lcArgList
+            newGraphFactor
+               | length changeGraphFactorBlock > 1 =
+                  errorWithoutStackTrace ("Multiple graphFactor specifications in transform--can have only one: " ++ show inArgs)
+               | null changeGraphFactorBlock = Just $ fmap toLower $ show $ graphFactor inGS 
+               | null (snd $ head changeGraphFactorBlock) = Just $ fmap toLower $ show $ graphFactor inGS 
+               | otherwise = readMaybe (show $ snd $ head changeGraphFactorBlock) :: Maybe String
 
             changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
             newGraphsSteepest
@@ -233,6 +241,22 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else 
                   trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
                   (inGS {dynamicEpsilon = 1.0 + ((fromJust epsilonValue) * (fractionDynamic inGS))}, origData, inData, inGraphList)
+
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeGraphFactor then 
+               if isNothing newGraphFactor then errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+               else 
+                  let newMethod = if fromJust newGraphFactor == "nopenalty" then NoNetworkPenalty
+                                  else if fromJust newGraphFactor == "w15" then Wheeler2015Network
+                                  else if fromJust newGraphFactor == "w23" then Wheeler2023Network
+                                  else if fromJust newGraphFactor == "pmdl" then PMDLGraph
+                                  else errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  graphFactor inGS then
+                     trace ("Changing graphFactor method to " ++ (show newMethod))
+                     (inGS {graphFactor = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {graphFactor = newMethod}, origData, inData, inGraphList)
 
             -- changes graphsSteepest -- maximum number of graphs evaluated in paralell at each "steepest" phse in swpa dn netadd/delete
             else if changeGraphsSteepest then 

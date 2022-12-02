@@ -716,7 +716,7 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
           --check for max net edges
           (_, _, _, netNodes) = LG.splitVertexList (thd6 inPhyloGraph)
 
-          -- need to check disapaly/charcter trees not conical graph
+          -- need to check display/character trees not conical graph
           -- newGraph = insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost firstEdgePair
           -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
           newGraphList'' = PU.seqParMap rdeepseq (insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost) edgePairList

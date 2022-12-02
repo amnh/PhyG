@@ -418,14 +418,14 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                 
 
                 (newGraphList'', counterMove) = if doMove then
-                                                    trace ("Network move option currently disabled--skipping.")
-                                                    (newGraphList', 0 :: Int)
-                                                    {-
+                                                    -- trace ("Network move option currently disabled--skipping.")
+                                                    -- (newGraphList', 0 :: Int)
+                                                    
                                                     let graphPairList = PU.seqParMap rdeepseq  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in 
                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                    -}
+                                                    
                                                 else (newGraphList', 0)
 
                 (newGraphList''', counterAddDelete) = if doAddDelete then

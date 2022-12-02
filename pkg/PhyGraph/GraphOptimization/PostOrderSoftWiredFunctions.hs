@@ -433,7 +433,7 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
                                          , bvLabel = newBVLabel
                                          , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                          , children = V.fromList nodeChildren
-                                         , nodeType = nodeType curNodeLabel
+                                         , nodeType = GO.getNodeType inGraph curNodeIndex -- nodeType curNodeLabel
                                          , vertName = vertName curNodeLabel
                                          , vertexResolutionData = mempty
                                          , vertData = newVertData
@@ -679,7 +679,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                                                 , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                                 , children = V.fromList nodeChildren
-                                                , nodeType = TreeNode
+                                                , nodeType = GO.getNodeType simpleGraph curNode --TreeNode
                                                 , vertName = T.pack $ "HTU" ++ show curNode
                                                 , vertData = mempty --empty because of resolution data
                                                 , vertexResolutionData = resolutionBlockVL
@@ -1068,7 +1068,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
                                 , bvLabel = bvLabel childLabel
                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                 , children = V.fromList nodeChildren
-                                , nodeType = NetworkNode
+                                , nodeType = GO.getNodeType simpleGraph curNode -- NetworkNode
                                 , vertName = T.pack $ "HTU" ++ show curNode
                                 , vertData = mempty
                                 , vertexResolutionData = curNodeResolutionData
@@ -1117,7 +1117,7 @@ getOutDegree1VertexSoftWired curNode childLabel simpleGraph nodeChildren =
                                     , bvLabel = bvLabel childLabel
                                     , parents = V.fromList $ LG.parents simpleGraph curNode
                                     , children = V.fromList nodeChildren
-                                    , nodeType = NetworkNode
+                                    , nodeType = GO.getNodeType simpleGraph curNode -- NetworkNode
                                     , vertName = T.pack $ "HTU" ++ show curNode
                                     , vertData = mempty
                                     , vertexResolutionData = mempty
@@ -1135,7 +1135,7 @@ getOutDegree1VertexSoftWired curNode childLabel simpleGraph nodeChildren =
                                 , bvLabel = bvLabel childLabel
                                 , parents = V.fromList $ LG.parents simpleGraph curNode
                                 , children = V.fromList nodeChildren
-                                , nodeType = NetworkNode
+                                , nodeType = GO.getNodeType simpleGraph curNode -- NetworkNode
                                 , vertName = T.pack $ "HTU" ++ show curNode
                                 , vertData = mempty
                                 , vertexResolutionData = curNodeResolutionData
@@ -1172,7 +1172,7 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
                                     , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
                                     , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                     , children = V.fromList [leftChildIndex, rightChildIndex]
-                                    , nodeType = TreeNode
+                                    , nodeType = GO.getNodeType inGraph curNodeIndex -- TreeNode
                                     , vertName = T.pack $ "HTU" ++ show curNodeIndex
                                     , vertData = mempty --empty because of resolution data
                                     , vertexResolutionData = resolutionBlockVL
@@ -1281,7 +1281,14 @@ createBlockResolutions
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
 -- need to watch let/right (based on BV) for preorder stuff
-createNewResolution :: LG.Node -> Int -> Int -> NodeType -> NodeType -> V.Vector CharInfo -> ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
+createNewResolution :: LG.Node 
+                    -> Int 
+                    -> Int 
+                    -> NodeType 
+                    -> NodeType 
+                    -> V.Vector CharInfo 
+                    -> ((ResolutionData, ResolutionData),(Int, Int)) 
+                    -> ResolutionData
 createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) =
     let -- make  bvLabel for resolution
         resBV = displayBVLabel leftRes .|. displayBVLabel rightRes
@@ -1307,7 +1314,7 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
         leftChildTree = displaySubGraph leftRes
         rightChildTree = displaySubGraph rightRes
 
-        -- Data fields empty for display tree data--not needed and muptiple copies of everything
+        -- Data fields empty for display tree data--not needed and multiple copies of everything
         newNodeLabel = VertexInfo { index = curNode
                                   , bvLabel = resBV
                                   , parents = V.empty

@@ -138,7 +138,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                                                         else bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                             , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                             , children = V.fromList nodeChildren
-                                            , nodeType = nodeType curNodeLabel
+                                            , nodeType = GO.getNodeType inGraph curNodeIndex -- nodeType curNodeLabel
                                             , vertName = vertName curNodeLabel
                                             , vertexResolutionData = mempty
                                             , vertData = if length nodeChildren < 2 then vertData leftChildLabel
@@ -176,8 +176,8 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                     ((leftChild', leftChildLabel'), (rightChild', rightChildLabel')) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab inGraph leftChild), (rightChild, fromJust $ LG.lab inGraph rightChild))
 
                     -- create resolution caches for blocks
-                    leftChildNodeType  = nodeType leftChildLabel'
-                    rightChildNodeType = nodeType rightChildLabel'
+                    leftChildNodeType  = GO.getNodeType inGraph leftChild' -- nodeType leftChildLabel'
+                    rightChildNodeType = GO.getNodeType inGraph rightChild' -- nodeType rightChildLabel'
                     resolutionBlockVL = V.zipWith3 (POSW.createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
 
                     -- create canonical Decorated Graph vertex
@@ -186,7 +186,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                                                 , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
                                                 , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                                 , children = V.fromList nodeChildren
-                                                , nodeType = nodeType curNodeLabel
+                                                , nodeType = GO.getNodeType inGraph curNodeIndex -- nodeType curNodeLabel
                                                 , vertName = T.pack $ "HTU" ++ show curNodeIndex
                                                 , vertData = mempty --empty because of resolution data
                                                 , vertexResolutionData = resolutionBlockVL
