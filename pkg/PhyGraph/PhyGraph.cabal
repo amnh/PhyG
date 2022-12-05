@@ -250,6 +250,7 @@ Executable phyg
     GraphOptimization.Medians
     GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
+    GraphOptimization.PostOrderSoftWiredFunctionsNew
     GraphOptimization.PreOrderFunctions
     GraphOptimization.Traversals
     Graphs.GraphOperations

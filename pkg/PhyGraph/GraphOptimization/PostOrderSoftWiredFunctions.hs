@@ -86,7 +86,7 @@ import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 -- import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import Debug.Debug
--- import           Debug.Trace
+import           Debug.Trace
 
 
 -- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
@@ -182,7 +182,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             -- save best overall dysplay trees for later use in penalty phase
             newBestTreeList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (multiTraverseTreeList ++ currentBestTreeList)
         in
-        -- trace ("GBDCBL: " ++ (show (snd6 outgrouDiagnosedTree, snd6 multiTraverseTree)) ++ "\n" ++ (LG.prettyIndices firstGraph))
+        -- trace ("GBDCBL: " ++ (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
         -- )
 
@@ -305,7 +305,7 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
             
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
-        -- trace ("GDBRS:" ++ "Dec graph:" ++ (LG.prettyIndices decGraph) ++ "\n" ++ (concatMap (++ "\nNew: ") $ fmap show $ fmap LG.getDuplicateEdges $ V.toList newBlockDisplayTreeVect))
+        trace ("GDBRS:" ++ (show (b, sum blockCostV)))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
    
 
@@ -319,8 +319,8 @@ rerootBlockCharTrees ::LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V
 rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
     if V.null charTreeVect then error "Empty tree vector in rerootBlockCharTrees"
     else 
-        let -- next edges (to vertex in list) to perform rerroting
-            -- progresses recursivey over adjacent edges to minimize node reoptimization
+        let -- next edges (to vertex in list) to perform rerooting
+            -- progresses recursively over adjacent edges to minimize node reoptimization
             -- since initially all same graph can get initial reroot nodes from display tree
             childrenOfRoot = LG.descendants blockDisplayTree rootIndex
             grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
@@ -372,6 +372,7 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
         -- if LG.isEmpty newGraph then rerootCharacterTree' rootIndex (tail nodesToRoot) charInfo bestCost bestGraph inGraph 
         -- trace ("RRCT:" ++ (show (rootIndex, firstRerootIndex, bestCost, newGraphCost))) 
         --else 
+        trace ("RRCT: " ++ (show (newGraphCost, bestCost)))
         rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph   
     
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes

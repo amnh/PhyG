@@ -327,6 +327,17 @@ getInOutDeg inGraph inLNode =
         in
         (inLNode, inDeg, outDeg)
 
+-- | getInOutDegNoLabel takes a node and a graph and returns
+-- a pair (indegree, outDegree)
+getInOutDegNoLabel :: Gr a b -> Node -> (Int, Int)
+getInOutDegNoLabel inGraph inNode =
+    if isEmpty inGraph then error "Empty graph in getInOut"
+    else
+        let inDeg = length $ inn inGraph inNode
+            outDeg = length $ out inGraph inNode
+        in
+        (inDeg, outDeg)
+
 -- | in-bound edge list to node, maps to inn
 inn :: Gr a b -> Node -> [LEdge b]
 inn = G.inn
@@ -624,7 +635,6 @@ isTree inGraph =
         let (_, _, _, netNodes) = splitVertexList inGraph
         in
         null netNodes
-
 
  -- | splitVertexList splits the vertices of a graph into ([root], [leaf], [tree], [network])
 splitVertexList ::  Gr a b -> ([LNode a], [LNode a], [LNode a], [LNode a])
