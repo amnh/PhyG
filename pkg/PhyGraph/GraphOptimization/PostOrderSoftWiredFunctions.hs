@@ -84,9 +84,11 @@ import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
+import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 -- import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import Debug.Debug
 import           Debug.Trace
+
 
 
 -- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
@@ -235,7 +237,8 @@ postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
     if softWiredMethod inGS == ResolutionCache then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph 
     else naivePostOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
 
--- | postOrderSoftWiredTraversal' performs postorder traversal on Soft-wired graph
+-- | postOrderSoftWiredTraversal' sets up and calls postorder traversal on Soft-wired graph
+-- at root
 -- staticIA is ignored--but kept for functional polymorphism
 -- ur-root = ntaxa is an invariant
 postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
@@ -246,7 +249,8 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVe
         let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
-            newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+            -- newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+            newSoftWired = NEW.postDecorateSoftWiredNew inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
         in
         if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
             let localRootList = fst <$> LG.getRoots inSimpleGraph
@@ -578,12 +582,12 @@ updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> 
 updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
     if LG.isEmpty $ thd6 inGraph then inGraph
     else
-        let -- this step is important--not repetetive since pull out teh resolution data for each block
-            outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
-            (displayGraphVL, lDisplayCost) = extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
+        let outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
+            (displayGraphVL, lDisplayCost) = (fth6 inGraph, snd6 inGraph) -- extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
             
             -- traceback on resolutions
-            newGraph = softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
+            -- newGraph = NEW.softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
+            newGraph = thd6 $ NEW.softWiredPostOrderTraceBackNew rootIndex inGraph
 
             -- propagate updated post-order assignments to display trees, which updates display tree and cost ealier
             displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph) )) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
@@ -613,7 +617,7 @@ divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
     in
     characterGraphList
 
--- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in differnt order for mapping
+-- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in different order for mapping
 postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
 postDecorateSoftWired' inGS curDecGraph blockCharInfo rootIndex curNode simpleGraph = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode
 
@@ -996,7 +1000,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
                                 , subGraphCost = 0.0
                                 }
         in
-        --trace ("RD" ++ show $ thisResolutionData)
+        -- trace ("MVSW" ++ (show (localIndex, vertexResolutionData newVertex)))
         (localIndex, newVertex)
         -- )
 
@@ -1012,6 +1016,7 @@ makeLeafResolutionBlockData inBV inSubGraph inVertData =
                                                 , displayBVLabel = inBV
                                                 , displayData = mempty
                                                 , childResolutions = [(Just 0, Just 0)]
+                                                , childResolutionIndices = (Just 0, Just 0)
                                                 , resolutionCost = 0.0
                                                 , displayCost = 0.0
                                                 }
@@ -1403,9 +1408,6 @@ checkLeafOverlap inPairList curPairList =
         in
         if BV.isZeroVector (leftBV .&. rightBV) then checkLeafOverlap (tail inPairList) (inPair : curPairList)
         else checkLeafOverlap (tail inPairList) curPairList
-
-
-
 
 -- | addNodeAndEdgeToResolutionData adds new node and edge to resolution data in outdegree = 1 nodes
 -- striaght copy would not add this node or edge to subtree in resolutions
