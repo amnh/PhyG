@@ -751,3 +751,5 @@ CallStack (from -prof):
 	for experimental use
 	
 420) Check new moptimization and RTS flags
+
+421) delete parents and children from VertInfo ? rely on graph info for this

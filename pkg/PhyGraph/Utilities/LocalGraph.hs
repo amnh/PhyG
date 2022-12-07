@@ -354,6 +354,18 @@ out = G.out
 hasEdge :: Gr a b -> Edge -> Bool
 hasEdge = G.hasEdge
 
+-- | updateNodeLabel updated teh label infomatino on a  node
+-- this is done by deleting that nmode and addingl back in to graph
+-- when a node is deleted all edges inceident on it are also deleted
+-- so they must be saved and added back
+updateNodeLabel :: Gr a b -> Node  -> a -> Gr a b
+updateNodeLabel inGraph inNodeIndex newLabel =
+    if isEmpty inGraph then error "Empty graph in sisterLabNodes"
+    else
+        let incidentEdges = (inn inGraph inNodeIndex) ++ (out inGraph inNodeIndex)
+        in
+        insEdges incidentEdges $ insNode (inNodeIndex, newLabel) $ delNode inNodeIndex inGraph
+
 -- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
 -- as input node
 sisterLabNodes :: (Eq a) => Gr a b -> LNode a -> [LNode a]

@@ -515,55 +515,165 @@ updateRootCostNew  newRootCost inGraph =
 -- using the indices of left and right (if present) of resolutions
 -- first gets root assignment form resolution data and then each block is traversed given its block display tree
 softWiredPostOrderTraceBackNew  :: Int -> PhylogeneticGraph -> PhylogeneticGraph
-softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, blockCharTreeVV, f)  =
-    if LG.isEmpty (thd6 inGraph) then emptyPhylogeneticGraph
+softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f)  =
+    if LG.isEmpty canonicalGraph then emptyPhylogeneticGraph
     else
       let -- extract display trees and bloxck char trees from PhylogeneticGraph
+          -- block character trees do not exist yet
           displayTreeV = fmap head $ fth6 inGraph
-          blockCharTreeVV = fft6 inGraph
-
+          
           -- get root node resolution data from canonical Graph created in postorder
-          rootLabel = fromJust $ LG.lab (thd6 inGraph) rootIndex
+          rootLabel = fromJust $ LG.lab canonicalGraph rootIndex
           rootResData = vertexResolutionData rootLabel
-          [leftChild, rightChild] = take 2 $ LG.descendants canonicalGraph rootIndex
-
-          -- extract (first) best resolution for each block
+          
+          -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
+          -- traceback, preliminary and final assignment etc--part of the heuristic
           (_, _, rootDisplayBlockCharResolutionV) = V.unzip3 $ PU.seqParMap rdeepseq (getBestResolutionListNew Nothing True) rootResData
           firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
-          
-          
+
           -- get preliminary character data for blocks
           -- rootPreliminaryDataVV = fmap displayData firstOfEachRootRes
           (leftIndexList, rightIndexList) = V.unzip $ fmap childResolutionIndices firstOfEachRootRes
 
           -- update root vertex info for display and character trees for each block
           -- this includes preliminary data and other fields
-          (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq updateRootBlockTrees (V.zip3  firstOfEachRootRes displayTreeV blockCharTreeVV)
+          (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (updateRootBlockTrees rootIndex) (V.zip  firstOfEachRootRes displayTreeV)
 
           -- traceback for each block based on its display tree, updating trees as it goes, left descendent then right 
-          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ fmap (traceBackBlock leftChild) (V.zip3 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList)
-          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ fmap (traceBackBlock rightChild) (V.zip3 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList)
+          -- at this stage all character trees will have same root descendents sionce all rooted from outgropu postorder traversal
+          -- later (after reroot pass) this will not be the case since each charcater may have a unique traversal root/edge
+          [leftChild, rightChild] = take 2 $ LG.descendants canonicalGraph rootIndex
+          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ fmap (traceBackBlock canonicalGraph leftChild) (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ fmap (traceBackBlock canonicalGraph rightChild) (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       in
-      if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root has imporper number of chaildren: " ++ (show $ LG.descendants canonicalGraph rootIndex))
+      if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root has improper number of children: " ++ (show $ LG.descendants canonicalGraph rootIndex))
       else 
          -- trace ("SWTN: " ++ (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV )) 
          -- ++ "\n" ++ (show rootBlockChildIndicesV))
+         --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
+         trace ("SWTN: " ++ (show $ V.length displayTreeV) ++ " " ++ (show $ V.length rootUpdatedDisplayTreeV) ++ " " ++ (show $ V.length rootUpdatedCharTreeVV)
+            ++ " " ++ (show $ fmap V.length rootUpdatedCharTreeVV))
          (a, b, canonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
--- | updateRootBlockTrees takes root resolution data and sets verious fields in block display and character trees
-updateRootBlockTrees :: (ResolutionData, DecoratedGraph, V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector DecoratedGraph)
-updateRootBlockTrees (rootRes, displayTree, charTreeV) =
-   if (LG.isEmpty displayTree) || V.null charTreeV then error "Null data in updateRootBlockTrees"
-   else 
-      (displayTree, charTreeV)
-
--- | traceBackBlock performs softwired traceback on a block data returns updated display and character trees
-traceBackBlock :: LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, Maybe Int) -> (DecoratedGraph, V.Vector DecoratedGraph)
-traceBackBlock nodeIndex (displayTree, charTreeV, resolutionIndex) =
+-- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
+-- the block index specifies which resolution listy from the caninical tree at node nodeIndex
+-- the resoliution index is teh resolution element that was used to create the parent's state
+-- need to account for out degree 2 and 1 in recursive calls
+traceBackBlock :: DecoratedGraph -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, Maybe Int, Int) -> (DecoratedGraph, V.Vector DecoratedGraph)
+traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex, blockIndex) =
    if (LG.isEmpty displayTree) || V.null charTreeV then error "Null data in traceBackBlock"
    else 
-      (displayTree, charTreeV)
+      let -- get block resolution data from canonical graph
+          nodeCanonicalLabel = fromJust $ LG.lab canonicalGraph nodeIndex
+          nodeResolutionData = vertexResolutionData nodeCanonicalLabel
+          blockResolutionData = (nodeResolutionData V.! blockIndex) V.! (fromJust resolutionIndex)
+
+          -- update display tree and character tree nodes
+          (newDisplayTree, newCharTreeV) = updateNodeBlockTrees nodeIndex (blockResolutionData, displayTree, charTreeV)
+
+          -- get left and right display resolution indices
+          (leftResIndex, rightResIndex) = childResolutionIndices blockResolutionData
+
+          -- get left and right node children, won't recurse if leaf so no issue there
+          childList = LG.descendants displayTree nodeIndex
+
+      in
+      trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show resolutionIndex)) (
+      if isNothing resolutionIndex then error "Nothing resolution in traceBackBlock"
+      else if length childList > 2 then error ("Node " ++ (show nodeIndex) ++ " with > 2 children: " ++ (show childList))
+      else 
+         if null childList then 
+            -- its a leaf 
+            (newDisplayTree, newCharTreeV)
+         else if length childList == 1 then
+            -- recurse to left of in 1 out 1 node
+            traceBackBlock canonicalGraph (head childList) (newDisplayTree, newCharTreeV, leftResIndex, blockIndex)
+         else 
+            -- two children to recurse to
+            let [leftChild, rightChild] = take 2 childList
+                (leftDisplayTree, leftCharTreeV) = traceBackBlock canonicalGraph leftChild (newDisplayTree, newCharTreeV, leftResIndex, blockIndex)
+                (rightDisplayTree, rightCharTreeV) = traceBackBlock canonicalGraph rightChild (newDisplayTree, newCharTreeV, rightResIndex, blockIndex)
+            in
+            (rightDisplayTree, rightCharTreeV)
+
+         )
+
+-- | updateNodeBlockTrees takes root resolution data and sets various fields in block display 
+-- and creates character trees from block display tree
+updateNodeBlockTrees :: LG.Node -> (ResolutionData, DecoratedGraph, V.Vector DecoratedGraph) -> (DecoratedGraph, V.Vector DecoratedGraph)
+updateNodeBlockTrees nodeIndex (nodeRes, displayTree, charTreeV) =
+   if LG.isEmpty displayTree then error "Null data in updateNodeBlockTrees"
+   else 
+      -- update Display tree vertex info
+      -- data are a singleton vector since only one "block" (with characters) per block
+      -- same, but double for characters V.singleton of V.singleton of CharacterData
+      let origNodeLabel = fromJust $ LG.lab displayTree nodeIndex
+          newNodeLabel = origNodeLabel { vertData     = V.singleton $ displayData nodeRes
+                                       , vertexResolutionData = mempty
+                                       , vertexCost   = resolutionCost nodeRes
+                                       , subGraphCost = displayCost nodeRes
+                                       }
+          newDisplayTree = LG.updateNodeLabel displayTree nodeIndex newNodeLabel
+          newCharTreeV = V.zipWith (updateNodeCharacterTree nodeIndex (displayData nodeRes)) charTreeV (V.fromList [0..((V.length (displayData nodeRes)) - 1)])
+      in
+      -- trace ("URBT: " ++ (show $ LG.prettyIndices displayTree) ++ "\n" ++ (show $ LG.prettyIndices newDisplayTree))
+      (newDisplayTree, newCharTreeV)
+
+-- | updateNodeCharacterTree updates an individual character tree with node info from a display tree
+updateNodeCharacterTree :: LG.Node -> V.Vector CharacterData -> DecoratedGraph -> Int -> DecoratedGraph
+updateNodeCharacterTree nodeIndex nodeBlockCharData charTree charIndex =
+   if LG.isEmpty charTree then error "Empty tree in updateNodeCharacterTree"
+   else
+      let charData = nodeBlockCharData V.! charIndex
+          origNodeLabel = fromJust $ LG.lab charTree nodeIndex
+          newNodeLabel = origNodeLabel { vertData     = V.singleton (V.singleton charData)
+                                       , vertexResolutionData = mempty
+                                       , vertexCost   = localCost charData
+                                       , subGraphCost = globalCost charData
+                                       }
+          newCharTree = LG.updateNodeLabel charTree nodeIndex newNodeLabel
+      in
+      -- trace ("URCT: " ++ (show charData))
+      newCharTree
+
+-- | updateRootBlockTrees takes root resolution data and sets various fields in block display 
+-- and creates character trees from block display tree
+updateRootBlockTrees :: LG.Node -> (ResolutionData, DecoratedGraph) -> (DecoratedGraph, V.Vector DecoratedGraph)
+updateRootBlockTrees nodeIndex (nodeRes, displayTree) =
+   if LG.isEmpty displayTree then error "Null data in updateNodeBlockTrees"
+   else 
+      -- update Display tree vertex info
+      -- data are a singleton vector since only one "block" (with characters) per block
+      -- same, but double for characters V.singleton of V.singleton of CharacterData
+      let origNodeLabel = fromJust $ LG.lab displayTree nodeIndex
+          newNodeLabel = origNodeLabel { vertData     = V.singleton $ displayData nodeRes
+                                       , vertexResolutionData = mempty
+                                       , vertexCost   = resolutionCost nodeRes
+                                       , subGraphCost = displayCost nodeRes
+                                       }
+          newDisplayTree = LG.updateNodeLabel displayTree nodeIndex newNodeLabel
+          newCharTreeV = fmap (createNodeCharacterTree nodeIndex (displayData nodeRes) newDisplayTree) (V.fromList [0..((V.length (displayData nodeRes)) - 1)])
+      in
+      -- trace ("URBT: " ++ (show $ LG.prettyIndices displayTree) ++ "\n" ++ (show $ LG.prettyIndices newDisplayTree))
+      (newDisplayTree, newCharTreeV)
+
+-- | createNodeCharacterTree creates an individual character tree with node info from a display tree
+createNodeCharacterTree :: LG.Node -> V.Vector CharacterData -> DecoratedGraph -> Int -> DecoratedGraph
+createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
+   if LG.isEmpty displayTree then error "Empty tree in updateNodeCharacterTree"
+   else
+      let charData = nodeBlockCharData V.! charIndex
+          origNodeLabel = fromJust $ LG.lab displayTree nodeIndex
+          newNodeLabel = origNodeLabel { vertData     = V.singleton (V.singleton charData)
+                                       , vertexResolutionData = mempty
+                                       , vertexCost   = localCost charData
+                                       , subGraphCost = globalCost charData
+                                       }
+          newCharTree = LG.updateNodeLabel displayTree nodeIndex newNodeLabel
+      in
+      -- trace ("URCT: " ++ (show charData))
+      newCharTree
 
 
 -- | softWiredPostOrderTraceBackNew'  takes resolution data and assigns correct resolution median to preliminary
