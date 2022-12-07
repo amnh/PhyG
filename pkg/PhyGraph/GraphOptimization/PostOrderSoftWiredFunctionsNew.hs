@@ -553,8 +553,8 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
          -- trace ("SWTN: " ++ (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV )) 
          -- ++ "\n" ++ (show rootBlockChildIndicesV))
          --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
-         trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
-            ++ " " ++ (show $ fmap length traceBackCharTreeVV))
+         -- trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
+         --    ++ " " ++ (show $ fmap length traceBackCharTreeVV))
          (a, b, canonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
@@ -563,7 +563,7 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
 -- need to account for out degree 2 and 1 in recursive calls
 traceBackBlock :: DecoratedGraph -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, Maybe Int, Int) -> (DecoratedGraph, V.Vector DecoratedGraph)
 traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex, blockIndex) =
-   trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show (resolutionIndex, LG.descendants displayTree nodeIndex))) ( 
+   -- trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show (resolutionIndex, LG.descendants displayTree nodeIndex))) ( 
    if (LG.isEmpty displayTree) || V.null charTreeV then error "Null data in traceBackBlock"
    else 
       let -- get block resolution data from canonical graph
@@ -594,12 +594,15 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
          else 
             -- two children to recurse to
             let [leftChild, rightChild] = take 2 childList
-                (leftDisplayTree, leftCharTreeV) = traceBackBlock canonicalGraph leftChild (newDisplayTree, newCharTreeV, leftResIndex, blockIndex)
-                (rightDisplayTree, rightCharTreeV) = traceBackBlock canonicalGraph rightChild (newDisplayTree, newCharTreeV, rightResIndex, blockIndex)
+                -- get left right from BV as in postorder
+                ((leftChild', _), (rightChild', _)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab canonicalGraph leftChild), (rightChild, fromJust $ LG.lab canonicalGraph rightChild))
+
+                (leftDisplayTree, leftCharTreeV) = traceBackBlock canonicalGraph leftChild' (newDisplayTree, newCharTreeV, leftResIndex, blockIndex)
+                (rightDisplayTree, rightCharTreeV) = traceBackBlock canonicalGraph rightChild' (leftDisplayTree, leftCharTreeV, rightResIndex, blockIndex)
             in
             (rightDisplayTree, rightCharTreeV)
 
-         )
+        -- )
 
 -- | updateNodeBlockTrees takes root resolution data and sets various fields in block display 
 -- and creates character trees from block display tree

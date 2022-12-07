@@ -309,7 +309,7 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
             
             newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
-        trace ("GDBRS:" ++ (show (b, sum blockCostV)))
+        -- trace ("GDBRS:" ++ (show (b, sum blockCostV)))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
    
 
