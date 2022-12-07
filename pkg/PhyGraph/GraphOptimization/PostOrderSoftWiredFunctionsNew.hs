@@ -238,7 +238,9 @@ addNodeEdgeToResolutionBlockNew newNode newEdge isIn1Out1Node inResBlockData  =
    V.zipWith (addNodeEdgeToResolutionListNew newNode newEdge isIn1Out1Node) inResBlockData (V.fromList [0..(V.length inResBlockData) - 1])
 
 -- | addNodeEdgeToResolutionListNew adds new node and edge to single subGraph in ResolutionData
--- adds resolutoin pairs to be equal to the child straight one-for-one correpondance
+-- adds resolution pairs to be equal to the child straight one-for-one correpondance
+-- although only a single child-both indieces are set to resolution index since singels can be added to
+--paired resolitions if one or other is a network node
 addNodeEdgeToResolutionListNew :: LG.LNode VertexInfo -> LG.LEdge EdgeInfo -> Bool -> ResolutionData -> Int -> ResolutionData
 addNodeEdgeToResolutionListNew newNode newEdge isIn1Out1Node inResData resolutionIndex =
     let (inNodeList, inEdgeList) = displaySubGraph inResData
@@ -250,10 +252,9 @@ addNodeEdgeToResolutionListNew newNode newEdge isIn1Out1Node inResData resolutio
         newEdgeList = if (newEdge `notElem` inEdgeList) then newEdge : inEdgeList
                       else trace ("Should not happen: Extra edge in addNodeEdgeToResolutionListNew") inEdgeList
         newFirstData = inResData { displaySubGraph  = (newNodeList, newEdgeList)
-                                   -- this pair in case of left/right issues later
-                                   , childResolutions = if not isIn1Out1Node then [(Just resolutionIndex, Just resolutionIndex)]
-                                                        else  [(Just resolutionIndex, Nothing)]
-                                   , childResolutionIndices = (Just resolutionIndex, Nothing)
+                                   -- both set because can be a display node left right added to 2 child resolutoins
+                                   , childResolutions = [(Just resolutionIndex, Just resolutionIndex)]
+                                   , childResolutionIndices = (Just resolutionIndex, Just resolutionIndex)
                                    }
     in
     newFirstData 
@@ -543,8 +544,8 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
           -- at this stage all character trees will have same root descendents sionce all rooted from outgropu postorder traversal
           -- later (after reroot pass) this will not be the case since each charcater may have a unique traversal root/edge
           [leftChild, rightChild] = take 2 $ LG.descendants canonicalGraph rootIndex
-          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ fmap (traceBackBlock canonicalGraph leftChild) (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
-          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ fmap (traceBackBlock canonicalGraph rightChild) (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph leftChild) (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph rightChild) (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       in
       if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root has improper number of children: " ++ (show $ LG.descendants canonicalGraph rootIndex))
@@ -553,7 +554,7 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
          -- ++ "\n" ++ (show rootBlockChildIndicesV))
          --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
          trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
-            ++ " " ++ (show $ length traceBackCharTreeVV))
+            ++ " " ++ (show $ fmap length traceBackCharTreeVV))
          (a, b, canonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
@@ -562,6 +563,7 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
 -- need to account for out degree 2 and 1 in recursive calls
 traceBackBlock :: DecoratedGraph -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, Maybe Int, Int) -> (DecoratedGraph, V.Vector DecoratedGraph)
 traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex, blockIndex) =
+   trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show (resolutionIndex, LG.descendants displayTree nodeIndex))) ( 
    if (LG.isEmpty displayTree) || V.null charTreeV then error "Null data in traceBackBlock"
    else 
       let -- get block resolution data from canonical graph
@@ -579,8 +581,8 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
           childList = LG.descendants displayTree nodeIndex
 
       in
-      trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show resolutionIndex)) (
-      if isNothing resolutionIndex then error "Nothing resolution in traceBackBlock"
+      if isNothing resolutionIndex then error ("Nothing resolution in traceBackBlock of node " ++ (show nodeIndex) ++ " with children " ++ (show childList)
+         ++ (LG.prettyIndices displayTree))
       else if length childList > 2 then error ("Node " ++ (show nodeIndex) ++ " with > 2 children: " ++ (show childList))
       else 
          if null childList then 

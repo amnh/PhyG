@@ -587,7 +587,8 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
             
             -- traceback on resolutions
             -- newGraph = NEW.softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
-            newGraph = thd6 $ NEW.softWiredPostOrderTraceBackNew rootIndex inGraph
+            newPhyloGraph = NEW.softWiredPostOrderTraceBackNew rootIndex inGraph
+            newGraph = thd6 newPhyloGraph
 
             -- propagate updated post-order assignments to display trees, which updates display tree and cost ealier
             displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph) )) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
@@ -597,7 +598,8 @@ updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
         in
         -- trace ("UAFPS: after extraction: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL) ++ " after assignment: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL'))
         -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
-        finalPreOrderGraph
+        newPhyloGraph
+        --finalPreOrderGraph
 
 -- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
 -- containing a list of decorated trees that are the display trees for that block
