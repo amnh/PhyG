@@ -552,8 +552,8 @@ softWiredPostOrderTraceBackNew  rootIndex inGraph@(a, b, canonicalGraph, _, _, f
          -- trace ("SWTN: " ++ (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV )) 
          -- ++ "\n" ++ (show rootBlockChildIndicesV))
          --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
-         trace ("SWTN: " ++ (show $ V.length displayTreeV) ++ " " ++ (show $ V.length rootUpdatedDisplayTreeV) ++ " " ++ (show $ V.length rootUpdatedCharTreeVV)
-            ++ " " ++ (show $ fmap V.length rootUpdatedCharTreeVV))
+         trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
+            ++ " " ++ (show $ length traceBackCharTreeVV))
          (a, b, canonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
