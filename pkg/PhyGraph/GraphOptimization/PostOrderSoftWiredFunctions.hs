@@ -36,15 +36,11 @@ Portability :  portable (I hope)
 
 module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrderSoftWired
                                                       , postOrderSoftWiredTraversal
-                                                      , postDecorateSoftWired'
                                                       , makeLeafGraphSoftWired
-                                                      , getOutDegree1VertexSoftWired
-                                                      , makeCharacterGraph
                                                       , getDisplayBasedRerootSoftWired
                                                       , divideDecoratedGraphByBlockAndCharacterTree
                                                       , postOrderTreeTraversal
                                                       , postDecorateTree
-                                                      , postDecorateTree'
                                                       , createVertexDataOverBlocks
                                                       , createVertexDataOverBlocksStaticIA
                                                       , createVertexDataOverBlocksNonExact
@@ -557,10 +553,6 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
 updateAndFinalizePostOrderSoftWired _ rootIndex inGraph = NEW.softWiredPostOrderTraceBack rootIndex inGraph
         
--- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in different order for mapping
-postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
-postDecorateSoftWired' inGS curDecGraph blockCharInfo rootIndex curNode simpleGraph = NEW.postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode
-
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
 -- to avoid remaking of leaf vertices
@@ -642,59 +634,6 @@ modifyDisplayData resolutionTemplate characterDataVList curResolutionList =
         in
         modifyDisplayData resolutionTemplate (tail characterDataVList) ((resolutionTemplate {displayData = curBlockData}) : curResolutionList)
 
-
--- | getOutDegree1VertexSoftWired returns new vertex only from single child for soft-wired resolutions
-getOutDegree1VertexSoftWired :: (Show a, Show b)
-                    => LG.Node
-                    -> VertexInfo
-                    -> LG.Gr a b
-                    -> [LG.Node]
-                    -> VertexInfo
-getOutDegree1VertexSoftWired curNode childLabel simpleGraph nodeChildren =
-
-    -- trace ("In out=1: " ++ (show curNode)) (
-    let childResolutionData = vertexResolutionData childLabel
-
-
-        newEdgeLabel = EdgeInfo { minLength = 0.0
-                                 , maxLength = 0.0
-                                 , midRangeLength = 0.0
-                                 , edgeType = TreeEdge
-                                 }
-        newMinVertex = VertexInfo  { index = curNode
-                                    , bvLabel = bvLabel childLabel
-                                    , parents = V.fromList $ LG.parents simpleGraph curNode
-                                    , children = V.fromList nodeChildren
-                                    , nodeType = GO.getNodeType simpleGraph curNode -- NetworkNode
-                                    , vertName = T.pack $ "HTU" ++ show curNode
-                                    , vertData = mempty
-                                    , vertexResolutionData = mempty
-                                    , vertexCost = 0.0
-                                    , subGraphCost = 0.0
-                                    }
-
-        newDisplayNode = (curNode, newMinVertex)
-        newLEdge = (curNode, index childLabel, newEdgeLabel)
-
-        curNodeResolutionData = NEW.addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
-
-
-        newVertexLabel  = VertexInfo { index = curNode
-                                , bvLabel = bvLabel childLabel
-                                , parents = V.fromList $ LG.parents simpleGraph curNode
-                                , children = V.fromList nodeChildren
-                                , nodeType = GO.getNodeType simpleGraph curNode -- NetworkNode
-                                , vertName = T.pack $ "HTU" ++ show curNode
-                                , vertData = mempty
-                                , vertexResolutionData = curNodeResolutionData
-                                , vertexCost = 0.0
-                                , subGraphCost = subGraphCost childLabel
-                                }
-
-
-    in
-    newVertexLabel
-
 -- | makeCharacterGraph takes a blockGraph and creates a vector of character graphs
 -- each with a single block and single character
 -- updating costs
@@ -772,10 +711,6 @@ postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex in
             error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inGraph)
         else newTree
         -- )
-
--- | postDecorateTree' is wrapper for postDecorateTree to alow for mapping
-postDecorateTree' :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
-postDecorateTree' staticIA curDecGraph blockCharInfo rootIndex curNode simpleGraph = postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
