@@ -550,10 +550,84 @@ makeBlockNodeLabels blockIndex inVertexInfo =
                , subGraphCost = newsubGraphCost
                }
 
+
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired _ rootIndex inGraph = NEW.softWiredPostOrderTraceBack rootIndex inGraph
+updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph = NEW.softWiredPostOrderTraceBack (fromJust startVertex) inGraph
+
+{-
+-- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
+-- ports the post order assignments to the display trees, and creates the character trees from the block trees
+updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph =
+    if LG.isEmpty $ thd6 inGraph then inGraph
+    else
+        let -- this step is important--not repetetive since pull out teh resolution data for each block
+            outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
+            (displayGraphVL, lDisplayCost) = NEW.extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
+            
+            -- traceback on resolutions
+            -- newGraph = softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
+            newGraph = thd6 $ NEW.softWiredPostOrderTraceBack (fromJust startVertex) inGraph
+
+            -- propagate updated post-order assignments to display trees, which updates display tree and cost ealier
+            displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph) )) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
+
+            -- create new, fully  updated post-order graph
+            finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
+        in
+        -- trace ("UAFPS: after extraction: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL) ++ " after assignment: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL'))
+        -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
+        finalPreOrderGraph
+
+-- | divideDecoratedGraphByBlockAndCharacterSoftWired takes a Vector of a list of DecoratedGraph
+-- containing a list of decorated trees that are the display trees for that block
+-- with (potentially) multiple blocks
+-- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs
+-- over blocks and characters with the block diplay graph, but only a single block and character for each graph
+-- this to be used to create the "best" cost over alternate graph traversals
+-- vertexCost and subGraphCost will be taken from characterData localcost/localcostVect and globalCost
+-- for this assignment purpose for pre-order a single (head) member of list is used to create the
+-- character graphs
+divideDecoratedGraphByBlockAndCharacterSoftWired :: V.Vector [DecoratedGraph] -> V.Vector (V.Vector DecoratedGraph)
+divideDecoratedGraphByBlockAndCharacterSoftWired inGraphVL =
+  if V.null inGraphVL then mempty
+  else
+    let blockGraphList = fmap head inGraphVL
+        characterGraphList = fmap makeCharacterGraph blockGraphList
+    in
+    characterGraphList
+
+-- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
+-- to Block display graphs (through list of more than one for a block)
+-- input is canonical Decorated Graph and a pair containing the display tree and its Block index
+-- this could be integrated into preorder traceback to remove the extra pass
+-- do this here is a bit simpler
+assignPostOrderToDisplayTree :: [VertexBlockData] -> [DecoratedGraph] -> Int -> [DecoratedGraph]
+assignPostOrderToDisplayTree canonicalVertexBlockData displayTreeList displayTreeIndex =
+    if null canonicalVertexBlockData then []
+    else
+        let
+            updatedDispayTreeList = fmap (assignVertexBlockData canonicalVertexBlockData displayTreeIndex) displayTreeList
+        in
+        -- trace ("Index: " ++ (show displayTreeIndex) ++ " Blocks : " ++ (show $ V.length $ head canonicalVertexBlockData) ++ " Nodes: "  ++ (show $ length canonicalVertexBlockData))
+        updatedDispayTreeList
+
+-- | assignVertexBlockData assigns the block data of input index and assigns to all nodes of a tree
+assignVertexBlockData :: [VertexBlockData] -> Int -> DecoratedGraph -> DecoratedGraph
+assignVertexBlockData nodeDataList blockIndex inGraph =
+    if null nodeDataList || LG.isEmpty inGraph then LG.empty
+    else
+        -- trace ("In Index: " ++ (show blockIndex) ++ " BL: " ++ (show $ V.length $ head nodeDataList) ++ " lengths " ++ (show $ fmap V.length nodeDataList)) (
+        let blockIndexDataList = fmap (V.! blockIndex) nodeDataList
+            (displayNodeIndexList, displayNodeLabelList) = L.unzip $ LG.labNodes inGraph
+            updatedNodeLabelList = zipWith updateVertData displayNodeLabelList blockIndexDataList
+        in
+        LG.mkGraph (zip displayNodeIndexList updatedNodeLabelList) (LG.labEdges inGraph)
+        -- )
+        where updateVertData inVertexInfo newVertData = inVertexInfo {vertData = V.singleton newVertData}
+-}
         
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction

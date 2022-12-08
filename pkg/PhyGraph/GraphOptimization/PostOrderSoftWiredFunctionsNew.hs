@@ -59,7 +59,6 @@ import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
--- import qualified GraphOptimization.PreOrderFunctions as PRE
 import           Debug.Trace
 
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
@@ -771,6 +770,15 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
       -- trace ("URCT: " ++ (show charData))
       newCharTree
 
+-- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
+updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
+updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
+    let newVertCost = V.sum vertexCostV
+        newSubGraphCost = V.sum subGraphCostV
+        newLabel = inLabel {vertData = charDataVV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+    in
+    (inIndex, newLabel)
+
 -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph
 -- very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
@@ -790,15 +798,6 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
 
     in
     LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges
-
--- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
-updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
-updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
-    let newVertCost = V.sum vertexCostV
-        newSubGraphCost = V.sum subGraphCostV
-        newLabel = inLabel {vertData = charDataVV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
-    in
-    (inIndex, newLabel)
 
 -- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
 -- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
