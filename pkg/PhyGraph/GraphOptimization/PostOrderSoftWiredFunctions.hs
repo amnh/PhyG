@@ -37,18 +37,9 @@ Portability :  portable (I hope)
 module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrderSoftWired
                                                       , postOrderSoftWiredTraversal
                                                       , postDecorateSoftWired'
-                                                      -- , postDecorateSoftWired
-                                                      , assignPostOrderToDisplayTree
-                                                      -- , softWiredPostOrderTraceBack
                                                       , makeLeafGraphSoftWired
-                                                      -- , getOutDegree1VertexAndGraph
                                                       , getOutDegree1VertexSoftWired
-                                                      -- , getOutDegree2VertexSoftWired
-                                                      -- , extractDisplayTrees
-                                                      -- , createBlockResolutions
                                                       , makeCharacterGraph
-                                                      , getAllResolutionList
-                                                      , getBestResolutionListPair
                                                       , getDisplayBasedRerootSoftWired
                                                       , divideDecoratedGraphByBlockAndCharacterTree
                                                       , postOrderTreeTraversal
@@ -64,13 +55,9 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
                                                       , getW15RootCost
-                                                      -- included to quiet warnings
-                                                      , rerootBlockCharTrees'
-                                                      , getCharTreeBestRoot'
                                                       ) where
 
 import           Data.Bits
-import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
@@ -85,8 +72,6 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
--- import qualified GraphOptimization.PreOrderFunctions as PRE
--- import Debug.Debug
 -- import           Debug.Trace
 
 
@@ -311,11 +296,6 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
         in
         -- trace ("GDBRS:" ++ (show (b, sum blockCostV)))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
-   
-
--- | rerootBlockCharTrees' wrapper for fmap/seqparmap
-rerootBlockCharTrees' :: LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
-rerootBlockCharTrees' rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect
 
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
@@ -337,10 +317,6 @@ rerootBlockCharTrees rootIndex blockDisplayTree charTreeVect charInfoVect =
             updateBlockDisplayTree = backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect)
         in
         (updateBlockDisplayTree, V.fromList rerootedCharTreeVect, sum rerootedCostVect)
-
--- | getCharTreeBestRoot' wrapper for use with fmap/seqParMap 
-getCharTreeBestRoot' :: LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot' rootIndex nodesToRoot (inCharacterGraph, charInfo) = getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
@@ -579,61 +555,11 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired _ rootIndex inGraph =
-    if LG.isEmpty $ thd6 inGraph then inGraph
-    else
-        let -- outgroupRootLabel =  fromJust $ LG.lab (thd6 inGraph) rootIndex
-            -- (displayGraphVL, lDisplayCost) = (fth6 inGraph, snd6 inGraph) -- extractDisplayTrees startVertex True (vertexResolutionData outgroupRootLabel)
-            
-            -- traceback on resolutions
-            -- newGraph = NEW.softWiredPostOrderTraceBack rootIndex (thd6 inGraph)
-            newPhyloGraph = NEW.softWiredPostOrderTraceBack rootIndex inGraph
-            -- newGraph = thd6 newPhyloGraph
-
-            -- propagate updated post-order assignments to display trees, which updates display tree and cost ealier
-            -- displayGraphVL' = V.zipWith (assignPostOrderToDisplayTree (fmap (vertData . snd) (LG.labNodes newGraph) )) displayGraphVL (V.fromList [0..(V.length displayGraphVL - 1)])
-
-            -- create new, fully  updated post-order graph
-            -- finalPreOrderGraph = (fst6 inGraph, lDisplayCost, newGraph, displayGraphVL', divideDecoratedGraphByBlockAndCharacterSoftWired displayGraphVL', six6 inGraph)
-        in
-        -- trace ("UAFPS: after extraction: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL) ++ " after assignment: " ++ (show $ fmap LG.getDuplicateEdges $ fmap head $ V.toList displayGraphVL'))
-        -- trace ("UFPOSW: " ++ (show $ fmap length displayGraphVL) ++ " " ++ (show $ fmap length displayGraphVL') ++ " " ++ (show $ fmap V.length $ fft6 finalPreOrderGraph))
-        newPhyloGraph
-        --finalPreOrderGraph
-
+updateAndFinalizePostOrderSoftWired _ rootIndex inGraph = NEW.softWiredPostOrderTraceBack rootIndex inGraph
+        
 -- | postDecorateSoftWired' wrapper for postDecorateSoftWired with args in different order for mapping
 postDecorateSoftWired' :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> SimpleGraph -> PhylogeneticGraph
 postDecorateSoftWired' inGS curDecGraph blockCharInfo rootIndex curNode simpleGraph = NEW.postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode
-
-
--- | assignPostOrderToDisplayTree takes the post-order (preliminary) block data from canonical Decorated graph
--- to Block display graphs (through list of more than one for a block)
--- input is canonical Decorated Graph and a pair containing the display tree and its Block index
--- this could be integrated into preorder traceback to remove the extra pass
--- do this here is a bit simpler
-assignPostOrderToDisplayTree :: [VertexBlockData] -> [DecoratedGraph] -> Int -> [DecoratedGraph]
-assignPostOrderToDisplayTree canonicalVertexBlockData displayTreeList displayTreeIndex =
-    if null canonicalVertexBlockData then []
-    else
-        let
-            updatedDispayTreeList = fmap (assignVertexBlockData canonicalVertexBlockData displayTreeIndex) displayTreeList
-        in
-        -- trace ("Index: " ++ (show displayTreeIndex) ++ " Blocks : " ++ (show $ V.length $ head canonicalVertexBlockData) ++ " Nodes: "  ++ (show $ length canonicalVertexBlockData))
-        updatedDispayTreeList
-
--- | assignVertexBlockData assigns the block data of input index and assigns to all nodes of a tree
-assignVertexBlockData :: [VertexBlockData] -> Int -> DecoratedGraph -> DecoratedGraph
-assignVertexBlockData nodeDataList blockIndex inGraph =
-    if null nodeDataList || LG.isEmpty inGraph then LG.empty
-    else
-        -- trace ("In Index: " ++ (show blockIndex) ++ " BL: " ++ (show $ V.length $ head nodeDataList) ++ " lengths " ++ (show $ fmap V.length nodeDataList)) (
-        let blockIndexDataList = fmap (V.! blockIndex) nodeDataList
-            (displayNodeIndexList, displayNodeLabelList) = L.unzip $ LG.labNodes inGraph
-            updatedNodeLabelList = zipWith updateVertData displayNodeLabelList blockIndexDataList
-        in
-        LG.mkGraph (zip displayNodeIndexList updatedNodeLabelList) (LG.labEdges inGraph)
-        -- )
-        where updateVertData inVertexInfo newVertData = inVertexInfo {vertData = V.singleton newVertData}
 
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
@@ -768,71 +694,6 @@ getOutDegree1VertexSoftWired curNode childLabel simpleGraph nodeChildren =
 
     in
     newVertexLabel
-
--- | getAllResolutionList takes ResolutionBlockData and retuns a list of the all valid (ie all leaves in subtree) display trees
--- for that block- and costs
-getAllResolutionList :: ResolutionBlockData -> [(DecoratedGraph, VertexCost)]
-getAllResolutionList  inRDList =
-    --trace ("GBRL: " ++ (show inRDList)) (
-    if null inRDList then error "Null resolution list"
-    else
-        let displayTreeList = fmap displaySubGraph inRDList
-            displayCostList = fmap displayCost inRDList
-            displayPopList = fmap (complement . displayBVLabel) inRDList
-        in
-            let displayBVList = V.zip3 displayTreeList displayCostList displayPopList
-                validDisplayList = V.filter (BV.isZeroVector . thd3) displayBVList
-                (displayList, costList, _) = V.unzip3 validDisplayList
-            in
-            --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if V.null validDisplayList then error ("Null validDisplayList in getAllResolutionList" ++ show inRDList)
-            else
-                let lDisplayTreeList = fmap LG.mkGraphPair (V.toList displayList)
-                    -- displayTreeList' = fmap (updateRootCost validMinCost) displayTreeList
-                in
-                zip lDisplayTreeList (V.toList costList)
-
-
--- | getBestResolutionListPair takes ResolutionBlockData and retuns a list of the best valid (ie all leaves in subtree) display trees
--- for that block-- if checkPopCount is True--otherwise all display trees of any cost and contitution
--- startVertex for a component-- to allow for not every leaf being in componnet but still getting softwired cost
--- returns list of pairs
-getBestResolutionListPair :: Maybe Int -> Bool -> ResolutionBlockData -> [(DecoratedGraph, VertexCost)]
-getBestResolutionListPair startVertex checkPopCount inRDList =
-    --trace ("GBRL: " ++ (show inRDList)) (
-    if null inRDList then error "Null resolution list"
-    else
-        let displayTreeList = fmap displaySubGraph inRDList
-            displayCostList = fmap displayCost inRDList
-            displayPopList = fmap (complement . displayBVLabel) inRDList
-        in
-        if not checkPopCount then
-            let minCost = minimum displayCostList
-                displayCostPairList = V.zip displayTreeList displayCostList
-                (bestDisplayList, minCostList) = V.unzip $ V.filter ((== minCost) . snd) displayCostPairList
-            in
-            zip (fmap LG.mkGraphPair (V.toList bestDisplayList)) (V.toList minCostList)
-        else
-            let minPopCount = minimum $ fmap popCount displayPopList  --max since complemented above
-                displayBVList = V.zip3 displayTreeList displayCostList displayPopList
-
-                -- must have all leaves if startvzertex == Nothing, component maximum otherwise
-                -- this for getting cost of component of a softwired network
-                validDisplayList = if startVertex == Nothing then V.filter (BV.isZeroVector . thd3) displayBVList
-                                   else V.filter ((== minPopCount) . (popCount . thd3)) displayBVList
-                validMinCost = V.minimum $ fmap snd3 validDisplayList
-                (bestDisplayList, minCostList, _) = V.unzip3 $ V.filter ((== validMinCost) . snd3) validDisplayList
-            in
-            --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionListPair" ++ (show (startVertex,inRDList)) ++ " This can be caused if the graphType not set correctly.")
-            else
-                let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
-
-                    -- update root cost of display trees for use later (e.g. net penalties, outputting display forrests)
-                    lDisplayTreeList' = fmap (NEW.updateRootCost validMinCost) lDisplayTreeList
-                in
-                zip lDisplayTreeList' (V.toList minCostList)
-            -- )
 
 -- | makeCharacterGraph takes a blockGraph and creates a vector of character graphs
 -- each with a single block and single character
