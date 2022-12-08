@@ -63,6 +63,7 @@ import qualified Utilities.Utilities         as U
 -- import           Control.Parallel.Strategies
 -- import qualified ParallelUtilities           as PU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 import           Debug.Trace
 
 
@@ -74,7 +75,7 @@ updateDisplayTreesAndCost inGraph =
     else
         -- True for check popCount at root fort valid resolution (all leaves in graph)
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
-            (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees Nothing True (vertexResolutionData outgroupRootLabel)
+            (displayGraphVL, lDisplayCost) = NEW.extractDisplayTrees Nothing True (vertexResolutionData outgroupRootLabel)
         in
         --trace ("UDTC: " ++ show lDisplayCost)
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
@@ -159,7 +160,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then
                 --trace ("Out=1\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
-                let (_,_, newVertexLabel, _, _) = POSW.getOutDegree1VertexAndGraph curNodeIndex leftChildLabel inGraph nodeChildren inGraph
+                let (_,_, newVertexLabel, _, _) = NEW.getOutDegree1VertexAndGraph curNodeIndex leftChildLabel inGraph nodeChildren inGraph
 
                     -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
                     replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
@@ -178,7 +179,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                     -- create resolution caches for blocks
                     leftChildNodeType  = GO.getNodeType inGraph leftChild' -- nodeType leftChildLabel'
                     rightChildNodeType = GO.getNodeType inGraph rightChild' -- nodeType rightChildLabel'
-                    resolutionBlockVL = V.zipWith3 (POSW.createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
+                    resolutionBlockVL = V.zipWith3 (NEW.createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -335,7 +336,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
           if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, (snd $ POSW.divideDecoratedGraphByBlockAndCharacterTree newDecGraph'), charInfoVectVect)
           else
             -- get root resolutions and cost
-            let (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
+            let (displayGraphVL, lDisplayCost) = NEW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
             -- )

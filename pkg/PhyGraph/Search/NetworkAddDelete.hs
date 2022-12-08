@@ -42,8 +42,8 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , deleteOneNetAddAll
                                 , addDeleteNetEdges
                                 -- these are not used but to quiet warnings
-                                , heuristicDeleteDelta
-                                , heuristicAddDelta
+                                -- , heuristicDeleteDelta
+                                -- , heuristicAddDelta
                                 , getCharacterDelta
                                 , getBlockDelta
                                 , heuristicAddDelta'
@@ -68,6 +68,7 @@ import qualified Utilities.LocalGraph                 as LG
 import qualified Utilities.Utilities                  as U
 import qualified Data.InfList                         as IL
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+-- mport qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import qualified Data.List                            as L
 
@@ -1416,6 +1417,7 @@ getCharacterDelta (_,v,_,v',a,b) inCharTree charInfo =
    -- else 0.0
    -- )
 
+{-
 -- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
 -- previous and new node resolution caches
@@ -1448,10 +1450,10 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
           uLabAfter      = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd6 inPhyloGraph)
 
           -- cost of resolutions
-          (_, uCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-          (_, uPrimeCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-          (_, uCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-          (_, uPrimeCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+          (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+          (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+          (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+          (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
           addNetDelta = uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore
 
@@ -1464,6 +1466,7 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
       )
+-}
 
 -- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
 -- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calculation of penalty
@@ -1828,6 +1831,7 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
             ++ (LG.prettyIndices newGraph')) -}
          (newGraph'', True)
 
+{-
 -- | heuristicDeleteDelta takes the existing graph, edge to delete,
 -- reoptimizes starting nodes of two created edges.  Returns cost delta based on
 -- previous and new node resolution caches
@@ -1859,10 +1863,10 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
           uPrimeLabAfter = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
 
           -- cost of resolutions
-          (_, uCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-          (_, uPrimeCostBefore) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-          (_, uCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-          (_, uPrimeCostAfter) = POSW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+          (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+          (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+          (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+          (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
           addNetDelta = uCostAfter - uCostBefore +  uPrimeCostAfter - uPrimeCostBefore
 
@@ -1874,7 +1878,7 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
       else if (length (LG.parents inGraph n1) /= 1) || (length (LG.parents inGraph n2) /= 2) || (length (LG.descendants inGraph n2) /= 1) || (length (LG.descendants inGraph n1) /= 2) then error ("Graph malformation in numbers of parents and children in heuristicDeleteDelta")
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter))
-
+-}
 
 {-
 -- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations
