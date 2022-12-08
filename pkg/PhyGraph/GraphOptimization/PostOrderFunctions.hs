@@ -34,12 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-
-ToDo:
-   Add parallel optimization overblocks and characters?
--}
-
-
 module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticGraph'
                                              , rerootPhylogeneticNetwork
@@ -48,20 +42,15 @@ module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              ) where
 
 import           Data.Bits
--- import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
 import           GeneralUtilities
--- import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
--- import qualified GraphFormatUtilities        as GFU
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
--- import           Control.Parallel.Strategies
--- import qualified ParallelUtilities           as PU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 import           Debug.Trace

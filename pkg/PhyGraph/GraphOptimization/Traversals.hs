@@ -47,7 +47,6 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
 
 
 import qualified Data.List                            as L
--- import qualified Data.Vector                          as V
 import           GeneralUtilities
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
@@ -58,8 +57,6 @@ import           Data.Maybe
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
--- import           Control.Parallel.Strategies
--- import qualified ParallelUtilities                    as PU
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph

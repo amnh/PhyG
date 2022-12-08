@@ -41,15 +41,15 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , deleteNetEdge
                                 , deleteOneNetAddAll
                                 , addDeleteNetEdges
-                                -- these are not used but to quiet warnings
-                                -- , heuristicDeleteDelta
-                                -- , heuristicAddDelta
                                 , getCharacterDelta
                                 , getBlockDelta
                                 , heuristicAddDelta'
                                 , isEdgePairPermissible'
                                 , getPermissibleEdgePairs'
                                 , deleteOneNetAddAll'
+                                -- these are not used but to quiet warnings
+                                , heuristicDeleteDelta
+                                , heuristicAddDelta
                                 ) where
 
 import           Control.Parallel.Strategies
@@ -68,7 +68,7 @@ import qualified Utilities.LocalGraph                 as LG
 import qualified Utilities.Utilities                  as U
 import qualified Data.InfList                         as IL
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
--- mport qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
+import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 import qualified GraphOptimization.PreOrderFunctions as PRE
 -- import qualified Data.List                            as L
 
@@ -1417,7 +1417,7 @@ getCharacterDelta (_,v,_,v',a,b) inCharTree charInfo =
    -- else 0.0
    -- )
 
-{-
+
 -- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
 -- the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
 -- previous and new node resolution caches
@@ -1444,10 +1444,10 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
           uOtherChild      = head $ filter ((/= v) . fst) $ LG.labDescendants (thd6 inPhyloGraph) (u, uLab)
 
           -- direction first edge to second so n2 is outdegree 1 to v'
-          n2Lab          = POSW.getOutDegree1VertexSoftWired n2 vPrimeLab (thd6 inPhyloGraph) [n2]
-          uPrimeLabAfter = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd6 inPhyloGraph)
-          n1Lab          = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd6 inPhyloGraph)
-          uLabAfter      = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd6 inPhyloGraph)
+          n2Lab          = NEW.getOutDegree1VertexSoftWired n2 vPrimeLab (thd6 inPhyloGraph) [n2]
+          uPrimeLabAfter = NEW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd6 inPhyloGraph)
+          n1Lab          = NEW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd6 inPhyloGraph)
+          uLabAfter      = NEW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd6 inPhyloGraph)
 
           -- cost of resolutions
           (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
@@ -1466,7 +1466,7 @@ heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
       )
--}
+
 
 -- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
 -- if Wheeler2015Network, this is based on a all changes affecting a single block (most permissive)  and Wheeler 2015 calculation of penalty
@@ -1779,9 +1779,6 @@ deleteNetEdge inGS inData leafGraph inPhyloGraph force edgeToDelete =
             inPhyloGraph
       -- )
 
-
-
-
 -- | deleteNetworkEdge deletes a network edges from a simple graph
 -- retuns newGraph if can be modified or input graph with Boolean to tell if modified
 -- and contracts, reindexes/names internaledges/veritices around deletion 
@@ -1831,7 +1828,7 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
             ++ (LG.prettyIndices newGraph')) -}
          (newGraph'', True)
 
-{-
+
 -- | heuristicDeleteDelta takes the existing graph, edge to delete,
 -- reoptimizes starting nodes of two created edges.  Returns cost delta based on
 -- previous and new node resolution caches
@@ -1859,8 +1856,8 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
           uPrimeOtherChild = head $ filter ((/= n2) . fst) $ LG.labDescendants inGraph (u', uPrimeLab)
 
           -- skip over netnodes
-          uLabAfter      = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u (v, vLab) uOtherChild inGraph
-          uPrimeLabAfter = POSW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
+          uLabAfter      = NEW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u (v, vLab) uOtherChild inGraph
+          uPrimeLabAfter = NEW.getOutDegree2VertexSoftWired inGS (six6 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
 
           -- cost of resolutions
           (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
@@ -1878,7 +1875,6 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
       else if (length (LG.parents inGraph n1) /= 1) || (length (LG.parents inGraph n2) /= 2) || (length (LG.descendants inGraph n2) /= 1) || (length (LG.descendants inGraph n1) /= 2) then error ("Graph malformation in numbers of parents and children in heuristicDeleteDelta")
       else
          (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter))
--}
 
 {-
 -- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations

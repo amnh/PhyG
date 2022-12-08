@@ -107,7 +107,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- propagate display node assignment to canonical graph
         -- does not have correct VertInfo--just character assignments
         -- to fox would need to propagate (and update other vertinfo like BV) via postorder pass
-        newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
+        newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
 
         -- create postorder Phylgenetic graph
         postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) newDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
@@ -288,7 +288,7 @@ getDisplayBasedRerootSoftWired' inGraphType rootIndex inPhyloGraph@(a,b,decGraph
             -- This is slower than myParListChunkRDS
             -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap rdeepseq (rerootBlockCharTrees' rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
             
-            newCononicalGraph = backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
+            newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
         -- trace ("GDBRS:" ++ (show (b, sum blockCostV)))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
@@ -467,6 +467,7 @@ updateNodes (inIndex, inLabel) charDataV vertexCostV subGraphCostV =
     in
     (inIndex, newLabel)
 
+{-
 -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph
 -- very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
@@ -506,6 +507,7 @@ extractTripleVectBlock inLabelVV charIndex =
         subGraphCostV = fmap subGraphCost nodeLabelV
     in
     (fmap V.head vertDataV, vertCostV, subGraphCostV)
+-}
 
 -- | divideDecoratedGraphByBlockAndCharacterTree takes a DecoratedGraph with (potentially) multiple blocks
 -- and (potentially) multiple character per block and creates a Vector of Vector of Decorated Graphs

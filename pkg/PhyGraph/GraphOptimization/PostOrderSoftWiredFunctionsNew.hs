@@ -40,7 +40,10 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew  ( postDecorateSoftWired
                                                          , addNodeAndEdgeToResolutionData
                                                          , updateRootCost
                                                          , getOutDegree1VertexAndGraph
+                                                         , getOutDegree1VertexSoftWired
+                                                         , getOutDegree2VertexSoftWired
                                                          , extractDisplayTrees
+                                                         , backPortBlockTreeNodesToCanonicalGraph
                                                          ) where
 
 import           Data.Bits
@@ -219,7 +222,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
         -- Root node should be out degree 2 so this should not happen in general--but could during some 
         -- graph rearangemnts in fusing and swapping
         (displayGraphVL, lDisplayCost) = if nodeType newVertex == RootNode then 
-                                            extractDisplayTrees  Nothing True (vertexResolutionData childLabel)
+                                            extractDisplayTrees  (Just curNode) True (vertexResolutionData childLabel)
                                          else (mempty, 0.0)
 
 
@@ -229,6 +232,94 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
     (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
     -- (newGraph, False, newVertex, 0.0, mempty)
     -- )
+
+-- | getOutDegree1VertexSoftWired returns new vertex only from single child for soft-wired resolutions
+getOutDegree1VertexSoftWired :: (Show a, Show b)
+                    => LG.Node
+                    -> VertexInfo
+                    -> LG.Gr a b
+                    -> [LG.Node]
+                    -> VertexInfo
+getOutDegree1VertexSoftWired curNode childLabel simpleGraph nodeChildren =
+
+    -- trace ("In out=1: " ++ (show curNode)) (
+    let childResolutionData = vertexResolutionData childLabel
+
+
+        newEdgeLabel = EdgeInfo { minLength = 0.0
+                                 , maxLength = 0.0
+                                 , midRangeLength = 0.0
+                                 , edgeType = TreeEdge
+                                 }
+        newMinVertex = VertexInfo  { index = curNode
+                                    , bvLabel = bvLabel childLabel
+                                    , parents = V.fromList $ LG.parents simpleGraph curNode
+                                    , children = V.fromList nodeChildren
+                                    , nodeType = NetworkNode
+                                    , vertName = T.pack $ "HTU" ++ show curNode
+                                    , vertData = mempty
+                                    , vertexResolutionData = mempty
+                                    , vertexCost = 0.0
+                                    , subGraphCost = 0.0
+                                    }
+
+        newDisplayNode = (curNode, newMinVertex)
+        newLEdge = (curNode, index childLabel, newEdgeLabel)
+
+        curNodeResolutionData = addNodeAndEdgeToResolutionData newDisplayNode newLEdge childResolutionData
+
+
+        newVertexLabel  = VertexInfo { index = curNode
+                                , bvLabel = bvLabel childLabel
+                                , parents = V.fromList $ LG.parents simpleGraph curNode
+                                , children = V.fromList nodeChildren
+                                , nodeType = NetworkNode
+                                , vertName = T.pack $ "HTU" ++ show curNode
+                                , vertData = mempty
+                                , vertexResolutionData = curNodeResolutionData
+                                , vertexCost = 0.0
+                                , subGraphCost = subGraphCost childLabel
+                                }
+
+
+    in
+    newVertexLabel
+
+-- | getOutDegree2VertexSoftWired returns new vertex only from two child nodes for soft-wired resolutions
+-- used in Net Add Delete heuristics
+getOutDegree2VertexSoftWired :: GlobalSettings
+                             -> V.Vector (V.Vector CharInfo)
+                             -> LG.Node
+                             -> LG.LNode VertexInfo
+                             -> LG.LNode VertexInfo
+                             -> DecoratedGraph
+                             -> VertexInfo
+getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftChildIndex, _) rightChild@(rightChildIndex, _) inGraph =
+
+    let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+        -- larger bitvector is Right, smaller or equal Left
+        ((leftChild', leftChildLabel'), (rightChild', rightChildLabel')) = U.leftRightChildLabelBVNode (leftChild, rightChild)
+
+        -- create resolution caches for blocks
+        leftChildNodeType  = nodeType leftChildLabel'
+        rightChildNodeType = nodeType rightChildLabel'
+        resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
+
+        -- create canonical Decorated Graph vertex
+        -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
+        newVertexLabel = VertexInfo {  index = curNodeIndex
+                                    , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
+                                    , parents = V.fromList $ LG.parents inGraph curNodeIndex
+                                    , children = V.fromList [leftChildIndex, rightChildIndex]
+                                    , nodeType = TreeNode
+                                    , vertName = T.pack $ "HTU" ++ show curNodeIndex
+                                    , vertData = mempty --empty because of resolution data
+                                    , vertexResolutionData = resolutionBlockVL
+                                    , vertexCost = 0.0 --newCost
+                                    , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                    }
+        in
+        newVertexLabel
 
 -- | addNodeAndEdgeToResolutionData adds  node and edge to resolution data in outdegree = 1 nodes
 -- straight copy would not add this node or edge to subtree in resolutions
@@ -477,7 +568,7 @@ getBestResolutionList  startVertex checkPopCount inRDList =
                 (bestDisplayList, _, _, bestResList) = V.unzip4 $ V.filter ((== validMinCost) . snd4) validDisplayList
             in
             --trace ("Valid display list number:" ++ (show $ length validDisplayList)) (
-            if (startVertex == Nothing) && (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionList " ++ (show (startVertex,inRDList)) ++ " This can be caused if the graphType not set correctly.")
+            if (V.null validDisplayList) then error ("Null root validDisplayList in getBestResolutionList " ++ (show (startVertex,inRDList)) ++ " This can be caused if the graphType not set correctly.")
             else
                 let lDisplayTreeList = fmap LG.mkGraphPair (V.toList bestDisplayList)
 
@@ -512,7 +603,7 @@ updateRootCost  newRootCost inGraph =
 -- using the indices of left and right (if present) of resolutions
 -- first gets root assignment form resolution data and then each block is traversed given its block display tree
 softWiredPostOrderTraceBack  :: Int -> PhylogeneticGraph -> PhylogeneticGraph
-softWiredPostOrderTraceBack  rootIndex inGraph@(a, b, canonicalGraph, _, _, f)  =
+softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph, _, _, f)  =
     if LG.isEmpty canonicalGraph then emptyPhylogeneticGraph
     else
       let -- extract display trees and bloxck char trees from PhylogeneticGraph
@@ -525,7 +616,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(a, b, canonicalGraph, _, _, f)  
           
           -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
           -- traceback, preliminary and final assignment etc--part of the heuristic
-          (_, _, rootDisplayBlockCharResolutionV) = V.unzip3 $ PU.seqParMap rdeepseq (getBestResolutionList Nothing True) rootResData
+          (_, _, rootDisplayBlockCharResolutionV) = V.unzip3 $ PU.seqParMap rdeepseq (getBestResolutionList (Just rootIndex) True) rootResData
           firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
 
           -- get preliminary character data for blocks
@@ -545,14 +636,16 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(a, b, canonicalGraph, _, _, f)  
           (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph rightChild) (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       in
-      if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root has improper number of children: " ++ (show $ LG.descendants canonicalGraph rootIndex))
+      if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " ++ (show $ LG.descendants canonicalGraph rootIndex))
       else 
          -- trace ("SWTN: " ++ (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV )) 
          -- ++ "\n" ++ (show rootBlockChildIndicesV))
          --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
          -- trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
          --    ++ " " ++ (show $ fmap length traceBackCharTreeVV))
-         (a, b, canonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
+         let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) traceBackDisplayTreeV
+         in
+         (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
 -- the block index specifies which resolution listy from the caninical tree at node nodeIndex
@@ -677,3 +770,43 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
       in
       -- trace ("URCT: " ++ (show charData))
       newCharTree
+
+-- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
+-- labels to the cononical Graph
+-- very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
+backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
+backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
+    let canonicalDisplayNodes = LG.labNodes inCanonicalGraph
+        canonicalDisplayEdges = LG.labEdges inCanonicalGraph
+
+        -- vector (characters) of vector (nodes) of labels
+        blockTreeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
+
+        -- for each node index extract (head head) vertdata, vertexCost and subgraphcost
+        (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVectBlock blockTreeLabelsVV) (V.fromList [0..(length canonicalDisplayNodes - 1)])
+
+        -- update labels for canonical data nodes 
+        updatedCanonicalNodes = V.zipWith4 updateNodesBlock (V.fromList canonicalDisplayNodes) vertDataVV vertCostVV subGraphCostVV
+
+    in
+    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges
+
+-- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
+updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
+updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
+    let newVertCost = V.sum vertexCostV
+        newSubGraphCost = V.sum subGraphCostV
+        newLabel = inLabel {vertData = charDataVV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+    in
+    (inIndex, newLabel)
+
+-- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
+-- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
+extractTripleVectBlock :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector (V.Vector CharacterData), V.Vector VertexCost, V.Vector VertexCost)
+extractTripleVectBlock inLabelVV charIndex =
+    let nodeLabelV = fmap (V.! charIndex) inLabelVV
+        vertDataV = fmap vertData nodeLabelV
+        vertCostV = fmap vertexCost nodeLabelV
+        subGraphCostV = fmap subGraphCost nodeLabelV
+    in
+    (fmap V.head vertDataV, vertCostV, subGraphCostV)

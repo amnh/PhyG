@@ -376,10 +376,6 @@ type ResolutionBlockData = V.Vector ResolutionData
 data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
                                      , displayBVLabel   :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
                                      , displayData      :: V.Vector CharacterData -- data for characters in block
-                                     -- list of left, right resolution indices to create current index, used in traceback to get prelminary states
-                                     -- and in compressing reolutions to keep only those that result in differnet preliminary states
-                                     -- but allowing traceback of resoliutions to get preliminary states
-                                     -- , childResolutions :: [(Maybe Int, Maybe Int)]
                                      -- left and right indices of child resolution Data for traceback and preliminary state assignment
                                      , childResolutionIndices :: (Maybe Int, Maybe Int)
                                      , resolutionCost   :: VertexCost -- cost of creating the resolution

@@ -183,7 +183,7 @@ Executable phyg
   If flag(super-optimization)
     GHC-Options:
       -fexcess-precision
-  --    -fexpose-all-unfoldings
+      -fexpose-all-unfoldings
       -flate-specialise
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do
