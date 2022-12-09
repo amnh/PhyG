@@ -367,7 +367,7 @@ rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
 -- simple recursive since each node depends on children
 -- check for out-degree 1 since can be resolved form diplay trees 
 reOptimizeCharacterNodes :: CharInfo -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
-reOptimizeCharacterNodes charInfo inGraph oldNodeList =
+reOptimizeCharacterNodes charInfo inGraph oldNodeList = 
   -- trace ("RON:" ++ (show $ fmap fst oldNodeList)) (
   if null oldNodeList then inGraph
   else

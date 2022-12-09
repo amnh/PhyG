@@ -644,6 +644,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
          --    ++ " " ++ (show $ fmap length traceBackCharTreeVV))
          let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) traceBackDisplayTreeV
          in
+         -- trace ("SPOT: " ++ (show rootIndex))
          (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
@@ -770,6 +771,49 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
       -- trace ("URCT: " ++ (show charData))
       newCharTree
 
+-- | -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
+-- labels to the cononical Graph--very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
+-- back poprt it based on indices of block characters that may have fewer nodes than canonical in a 
+-- split graph/ sub graph situation like in swap and fuse
+-- hence not all canonical nodes may be updated--left unchanged
+backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
+backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
+   let  canonicalNodes = LG.labNodes inCanonicalGraph
+        canonicalEdges = LG.labEdges inCanonicalGraph
+
+        -- vector (characters) of vector (nodes) of labels
+        blockTreeNodeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
+        blockTreeNodeIndicesV = V.fromList $ V.head $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
+
+        updatedCanonicalNodes = fmap (updateCanonicalNodes inCanonicalGraph (V.fromList canonicalNodes) blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(length blockTreeNodeIndicesV - 1)]))
+
+    in
+    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalEdges    
+
+
+-- | updateCanonicalNodes takes a pair of block node index and vector of labels and
+-- assigns data to canonical node of same index
+updateCanonicalNodes :: DecoratedGraph -> V.Vector (LG.LNode VertexInfo) -> V.Vector (V.Vector VertexInfo) -> (LG.Node, Int) -> LG.LNode VertexInfo
+updateCanonicalNodes canonicalGraph canonicalNodeV blockNodeLabelVV (blockNodeIndex, vectIndex) = 
+   let -- canonicalNode = canonicalNodeV V.! vectIndex
+       -- canonicalLabel = snd canonicalNode
+       canonicalLabel = fromJust $ LG.lab canonicalGraph blockNodeIndex
+       blockNodeLabelV = fmap (V.! vectIndex) blockNodeLabelVV
+       vertDataV = V.concatMap vertData blockNodeLabelV
+       vertCostV = fmap vertexCost blockNodeLabelV
+       subGraphCostV = fmap subGraphCost blockNodeLabelV 
+
+       -- update Info 
+       newVertCost = V.sum vertCostV
+       newSubGraphCost = V.sum subGraphCostV
+       newLabel = canonicalLabel {vertData = vertDataV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+
+   in
+   -- trace ("UCN:" ++ (show (blockNodeIndex, fmap fst canonicalNodeV)) ++ "\n" ++ (show (blockNodeIndex, vectIndex, length canonicalNodeV, length blockNodeLabelVV, fmap length blockNodeLabelVV)))
+   (blockNodeIndex, newLabel)
+
+
+
 -- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
 updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
 updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
@@ -779,16 +823,18 @@ updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
     in
     (inIndex, newLabel)
 
--- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
+-- | backPortBlockTreeNodesToCanonicalGraph' takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph
 -- very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
-backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
-backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
+-- tries to back port from indedices of canonical graph--but may not all be here if split graph in swap or fuse
+backPortBlockTreeNodesToCanonicalGraph' :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
+backPortBlockTreeNodesToCanonicalGraph' inCanonicalGraph blockTreeVect = 
     let canonicalDisplayNodes = LG.labNodes inCanonicalGraph
         canonicalDisplayEdges = LG.labEdges inCanonicalGraph
 
         -- vector (characters) of vector (nodes) of labels
         blockTreeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
+        blockTreeIndicesVV = fmap V.fromList $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
 
         -- for each node index extract (head head) vertdata, vertexCost and subgraphcost
         (vertDataVV, vertCostVV, subGraphCostVV) = V.unzip3 $ fmap (extractTripleVectBlock blockTreeLabelsVV) (V.fromList [0..(length canonicalDisplayNodes - 1)])
@@ -797,15 +843,19 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
         updatedCanonicalNodes = V.zipWith4 updateNodesBlock (V.fromList canonicalDisplayNodes) vertDataVV vertCostVV subGraphCostVV
 
     in
+    -- trace ("BPTCG: " ++ (show (length canonicalDisplayNodes, length blockTreeLabelsVV, fmap length blockTreeLabelsVV)) ++ "\n" ++ (show blockTreeIndicesVV) 
+    --  ++ "\n" ++ (show $ fmap fst canonicalDisplayNodes))
+
     LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges
 
 -- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
 -- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
 extractTripleVectBlock :: V.Vector (V.Vector VertexInfo) -> Int -> (V.Vector (V.Vector CharacterData), V.Vector VertexCost, V.Vector VertexCost)
-extractTripleVectBlock inLabelVV charIndex =
-    let nodeLabelV = fmap (V.! charIndex) inLabelVV
+extractTripleVectBlock inLabelVV nodeIndex =
+    let nodeLabelV = fmap (V.! nodeIndex) inLabelVV
         vertDataV = fmap vertData nodeLabelV
         vertCostV = fmap vertexCost nodeLabelV
         subGraphCostV = fmap subGraphCost nodeLabelV
     in
+    trace ("ETVB:" ++ (show (nodeIndex, fmap length inLabelVV)))
     (fmap V.head vertDataV, vertCostV, subGraphCostV)
