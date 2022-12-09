@@ -778,11 +778,14 @@ nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
     let fromEdgeList = filter (`notElem` curEdges) $ out inGraph (fst $ head inNodeList)
         fromNodeList = filter (`notElem` (fmap fst curNodes)) $ fmap snd3 fromEdgeList
         labelMaybeList = fmap (lab inGraph) fromNodeList
-        labelList = fmap fromJust labelMaybeList
-        fromLabNodeList = zip fromNodeList labelList
+        
     in
-    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show fromLabNodeList)
-    else nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
+    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show (zip fromNodeList labelMaybeList))
+    else 
+        let labelList = fmap fromJust labelMaybeList
+            fromLabNodeList = zip fromNodeList labelList
+        in
+        nodesAndEdgesAfter' inGraph (fromLabNodeList ++ curNodes, fromEdgeList ++ curEdges) (fromLabNodeList ++ tail inNodeList)
 
 -- | nodesAndEdgesAfter takes a graph and list of nodes to get list of nodes
 -- and edges 'after' in the sense of leading from-ie between (not including)) that node

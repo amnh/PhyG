@@ -68,7 +68,7 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
@@ -86,7 +86,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- (_, _, _, netVertexList) = LG.splitVertexList inSimpleGraph
         displayTreeList = LG.generateDisplayTrees contractIn1Out1Nodes inSimpleGraph
         
-        -- gwet root index
+        -- get root index
         rootIndex = if isJust startVertex  then fromJust startVertex
                     else fst $ head $ LG.getRoots inSimpleGraph
         
@@ -102,17 +102,23 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- this could be due to in 1 out 1 or something but fails fora tree
 
         -- propagate character node assignments back to display Trees
-        newDisplayTreeVect = V.zipWith backPortCharTreeNodesToBlockTree displayTreeVect charTreeVectVect
+        -- already done?
+        -- newDisplayTreeVect = V.zipWith backPortCharTreeNodesToBlockTree displayTreeVect charTreeVectVect
 
         -- propagate display node assignment to canonical graph
         -- does not have correct VertInfo--just character assignments
         -- to fox would need to propagate (and update other vertinfo like BV) via postorder pass
-        newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) newDisplayTreeVect
+        newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) displayTreeVect
 
         -- create postorder Phylgenetic graph
-        postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) newDisplayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+        postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+
+        coninicalNodes =  LG.labNodes newCononicalGraph
+        nodeLabels = fmap (LG.lab newCononicalGraph) (fmap fst coninicalNodes)
+        unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
+
     in
-    
+    trace ("NPOSW: " ++ (show $ fmap fst unlabelledNodes))
     postOrderPhyloGraph
     
     
@@ -867,7 +873,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
                 -- larger bitvector is Right, smaller or equal Left
 
                 newCharData = if staticIA then createVertexDataOverBlocksStaticIA  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
-                              else createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                              else createVertexDataOverBlocks  (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
                 newCost =  V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
