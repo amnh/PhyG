@@ -1170,8 +1170,15 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                        else snd6 fullPrunedGraph
           splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost))
 
-      in
+          {-
+          -- check fo unlabbeld nodes
+          coninicalNodes =  LG.labNodes fullSplitGraph
+          nodeLabels = fmap (LG.lab fullSplitGraph) (fmap fst coninicalNodes)
+          unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
+          -}
 
+      in
+      -- trace ("RSGV: " ++ (show $ fmap fst unlabelledNodes))
       {-
       trace ("Orig graph cost " ++ (show $ subGraphCost $ fromJust $ LG.lab origGraph startVertex) ++ " Base graph cost " ++ (show $ snd6 fullBaseGraph) ++ " pruned subgraph cost " ++ (show prunedCost) ++ " at node " ++ (show prunedSubGraphRootVertex) ++ " parent " ++ (show $ fst startPrunedParentNode)
 

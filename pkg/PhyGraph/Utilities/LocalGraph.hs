@@ -109,7 +109,7 @@ prettify inGraph =
     else G.prettify inGraph
 
 -- | prettyIndices prints graph to String only using indices
-prettyIndices :: (Show a, Show b) => Gr a b -> String
+prettyIndices :: Gr a b -> String
 prettyIndices inGraph =
     if G.isEmpty inGraph then "Empty Graph"
     else
@@ -780,7 +780,7 @@ nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
         labelMaybeList = fmap (lab inGraph) fromNodeList
         
     in
-    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show (zip fromNodeList labelMaybeList))
+    if Nothing `elem` labelMaybeList then error ("Empty node label in nodesAndEdgesAfter" ++ show (filter ((== Nothing) .snd) $ zip fromNodeList labelMaybeList) ++ " " ++ (show fromNodeList) ++ "\n" ++ (prettyIndices inGraph))
     else 
         let labelList = fmap fromJust labelMaybeList
             fromLabNodeList = zip fromNodeList labelList
