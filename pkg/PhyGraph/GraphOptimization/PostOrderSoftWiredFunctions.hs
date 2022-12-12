@@ -68,7 +68,7 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 
@@ -563,7 +563,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired startVertex rootIndex inGraph = NEW.softWiredPostOrderTraceBack (fromJust startVertex) inGraph
+updateAndFinalizePostOrderSoftWired startVertex _ inGraph = NEW.softWiredPostOrderTraceBack (fromJust startVertex) inGraph
 
 {-
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,

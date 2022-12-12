@@ -799,8 +799,6 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
     --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
     LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
        
-
-
 -- | updateCanonicalNodes takes a pair of block node index and vector of labels and
 -- assigns data to canonical node of same index
 updateCanonicalNodes :: DecoratedGraph -> V.Vector (V.Vector VertexInfo) -> (LG.Node, Int) -> LG.LNode VertexInfo
@@ -810,6 +808,8 @@ updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex
        vertDataV = V.concatMap vertData blockNodeLabelV
        vertCostV = fmap vertexCost blockNodeLabelV
        subGraphCostV = fmap subGraphCost blockNodeLabelV
+
+       -- this more for Naive stuff, but so low cost doing it anyway
        canonicalBV = L.foldl1 (.|.) $ fmap bvLabel blockNodeLabelV
 
        -- update Info 
@@ -821,7 +821,24 @@ updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex
    -- trace ("UCN:" ++ (show (blockNodeIndex, fmap fst canonicalNodeV)) ++ "\n" ++ (show (blockNodeIndex, vectIndex, length canonicalNodeV, length blockNodeLabelVV, fmap length blockNodeLabelVV)))
    (blockNodeIndex, newLabel)
 
-
+-- | orderedNodeMinus takes two lists of pairs where first pair is Int and 
+-- pairs are orderd by first element and returns a list of nodes in first list 
+-- not in second 
+-- assumes lists are orderd (haven't thought if non-unique elements)
+-- should be O(n)
+orderedNodeMinus :: [(Int, a)] -> [(Int, b)] -> [(Int, a)] 
+orderedNodeMinus firstList secondList =
+   if null firstList then []
+   else if null secondList then firstList
+   else
+      let firstFirst@(af, _) = head firstList
+          (as, _) = head secondList
+      in
+      if af < as then firstFirst : orderedNodeMinus (tail firstList) secondList
+      else if af == as then orderedNodeMinus (tail firstList) (tail secondList)
+      else -- asf > as
+         orderedNodeMinus firstList (tail secondList)
+         
 {-Orig version-}
 {-
 -- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
@@ -869,20 +886,3 @@ extractTripleVectBlock inLabelVV nodeIndex =
     (fmap V.head vertDataV, vertCostV, subGraphCostV)
 -}
 
--- | orderedNodeMinus takes two lists of pairs where first pair is Int and 
--- pairs are orderd by first element and returns a list of nodes in first list 
--- not in second 
--- assumes lists are orderd (haven't thought if non-unique elements)
--- should be O(n)
-orderedNodeMinus :: [(Int, a)] -> [(Int, b)] -> [(Int, a)] 
-orderedNodeMinus firstList secondList =
-   if null firstList then []
-   else if null secondList then firstList
-   else
-      let firstFirst@(af, _) = head firstList
-          (as, _) = head secondList
-      in
-      if af < as then firstFirst : orderedNodeMinus (tail firstList) secondList
-      else if af == as then orderedNodeMinus (tail firstList) (tail secondList)
-      else -- asf > as
-         orderedNodeMinus firstList (tail secondList)
