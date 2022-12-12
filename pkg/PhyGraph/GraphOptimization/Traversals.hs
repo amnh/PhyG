@@ -105,13 +105,15 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
 
+            {-
             -- check fo unlabbeld nodes
             coninicalNodes =  LG.labNodes (thd6 fullyOptimizedGraph)
             nodeLabels = fmap (LG.lab (thd6 fullyOptimizedGraph)) (fmap fst coninicalNodes)
             unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
+            -}
         in
         --trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
-        trace ("MTFLS: " ++ (show $ fmap fst unlabelledNodes))
+        -- trace ("MTFLS: " ++ (show $ fmap fst unlabelledNodes))
         checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ POSW.updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum

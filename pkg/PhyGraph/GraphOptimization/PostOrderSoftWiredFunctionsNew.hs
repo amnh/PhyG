@@ -773,9 +773,9 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
 
 -- | -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph--very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
--- back poprt it based on indices of block characters that may have fewer nodes than canonical in a 
+-- back po\rt is based on indices of block characters that may have fewer nodes than canonical in a 
 -- split graph/ sub graph situation like in swap and fuse
--- hence not all canonical nodes may be updated--left unchanged
+-- hence not all canonical nodes may be updated--left unchanged, so need to add back those unchanged
 backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
 backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect = 
    let  canonicalNodes = LG.labNodes inCanonicalGraph
@@ -785,19 +785,22 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
         blockTreeNodeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
         blockTreeNodeIndicesV = V.fromList $ V.head $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
 
-        updatedCanonicalNodes = fmap (updateCanonicalNodes inCanonicalGraph (V.fromList canonicalNodes) blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(length blockTreeNodeIndicesV - 1)]))
+        updatedCanonicalNodes = V.toList $ fmap (updateCanonicalNodes inCanonicalGraph blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(length blockTreeNodeIndicesV - 1)]))
 
+        -- add in nodes not in characters trees--can happen during swap split trees
+        -- based on vertex index first field of node
+        unModifiedNodes = orderedNodeMinus canonicalNodes updatedCanonicalNodes
     in
-    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalEdges    
+    trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
+    LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
+       
 
 
 -- | updateCanonicalNodes takes a pair of block node index and vector of labels and
 -- assigns data to canonical node of same index
-updateCanonicalNodes :: DecoratedGraph -> V.Vector (LG.LNode VertexInfo) -> V.Vector (V.Vector VertexInfo) -> (LG.Node, Int) -> LG.LNode VertexInfo
-updateCanonicalNodes canonicalGraph canonicalNodeV blockNodeLabelVV (blockNodeIndex, vectIndex) = 
-   let -- canonicalNode = canonicalNodeV V.! vectIndex
-       -- canonicalLabel = snd canonicalNode
-       canonicalLabel = fromJust $ LG.lab canonicalGraph blockNodeIndex
+updateCanonicalNodes :: DecoratedGraph -> V.Vector (V.Vector VertexInfo) -> (LG.Node, Int) -> LG.LNode VertexInfo
+updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex) = 
+   let canonicalLabel = fromJust $ LG.lab canonicalGraph blockNodeIndex
        blockNodeLabelV = fmap (V.! vectIndex) blockNodeLabelVV
        vertDataV = V.concatMap vertData blockNodeLabelV
        vertCostV = fmap vertexCost blockNodeLabelV
@@ -813,7 +816,7 @@ updateCanonicalNodes canonicalGraph canonicalNodeV blockNodeLabelVV (blockNodeIn
    (blockNodeIndex, newLabel)
 
 
-
+{-
 -- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
 updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo
 updateNodesBlock (inIndex, inLabel) charDataVV vertexCostV subGraphCostV =
@@ -841,12 +844,10 @@ backPortBlockTreeNodesToCanonicalGraph' inCanonicalGraph blockTreeVect =
 
         -- update labels for canonical data nodes 
         updatedCanonicalNodes = V.zipWith4 updateNodesBlock (V.fromList canonicalDisplayNodes) vertDataVV vertCostVV subGraphCostVV
-
     in
     -- trace ("BPTCG: " ++ (show (length canonicalDisplayNodes, length blockTreeLabelsVV, fmap length blockTreeLabelsVV)) ++ "\n" ++ (show blockTreeIndicesVV) 
     --  ++ "\n" ++ (show $ fmap fst canonicalDisplayNodes))
-
-    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges
+    LG.mkGraph (V.toList updatedCanonicalNodes) canonicalDisplayEdges 
 
 -- | extractTripleVectBlock takes a vector of vector block tree labels and a node index and
 -- retuns a triple of data (vertData, VertCost, and subgraphCost) from a given node index in all labels
@@ -857,5 +858,24 @@ extractTripleVectBlock inLabelVV nodeIndex =
         vertCostV = fmap vertexCost nodeLabelV
         subGraphCostV = fmap subGraphCost nodeLabelV
     in
-    trace ("ETVB:" ++ (show (nodeIndex, fmap length inLabelVV)))
+    -- trace ("ETVB:" ++ (show (nodeIndex, fmap length inLabelVV)))
     (fmap V.head vertDataV, vertCostV, subGraphCostV)
+-}
+
+-- | orderedNodeMinus takes two lists of pairs where first pair is Int and 
+-- pairs are orderd by first element and returns a list of nodes in first list 
+-- not in second 
+-- assumes lists are orderd (haven't thought if non-unique elements)
+-- should be O(n)
+orderedNodeMinus :: [(Int, a)] -> [(Int, b)] -> [(Int, a)] 
+orderedNodeMinus firstList secondList =
+   if null firstList then []
+   else if null secondList then firstList
+   else
+      let firstFirst@(af, _) = head firstList
+          (as, _) = head secondList
+      in
+      if af < as then firstFirst : orderedNodeMinus (tail firstList) secondList
+      else if af == as then orderedNodeMinus (tail firstList) (tail secondList)
+      else -- asf > as
+         orderedNodeMinus firstList (tail secondList)

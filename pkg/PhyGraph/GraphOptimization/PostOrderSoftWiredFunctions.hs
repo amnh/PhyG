@@ -113,12 +113,14 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- create postorder Phylgenetic graph
         postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
+        {-
         coninicalNodes =  LG.labNodes newCononicalGraph
         nodeLabels = fmap (LG.lab newCononicalGraph) (fmap fst coninicalNodes)
         unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
+        -}
 
     in
-    trace ("NPOSW: " ++ (show $ fmap fst unlabelledNodes))
+    -- trace ("NPOSW: " ++ (show $ fmap fst unlabelledNodes))
     postOrderPhyloGraph
     
     
