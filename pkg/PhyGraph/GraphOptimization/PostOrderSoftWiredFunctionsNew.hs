@@ -60,6 +60,7 @@ import qualified Utilities.Utilities         as U
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import           Debug.Trace
+import qualified Data.List                   as L
 
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
 
@@ -166,7 +167,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
 
                 in
                 -- trace ("PDWS: " ++ (show $ fmap LG.toEdge [leftEdge, rightEdge]) ++ " has edges " ++ (show $ fmap (LG.hasEdge newSubTree) $ fmap LG.toEdge [leftEdge, rightEdge]) ++ " dupes: " ++ (show $ fmap LG.getDuplicateEdges $ V.head $ fst (extractDisplayTrees  (Just curNode) True resolutionBlockVL)) ++ " Resolutions " ++ (show $ fmap (fmap U.hasResolutionDuplicateEdges) resolutionBlockVL))
-    
+                -- trace ("PDSW-2:" ++ (show (bvLabel newVertexLabel, fmap (fmap displayBVLabel) resolutionBlockVL)))
                 (simpleGraph, lDisplayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
 
 -- | getOutDegree1VertexAndGraph makes parent node from single child for soft-wired resolutions
@@ -228,6 +229,7 @@ getOutDegree1VertexAndGraph curNode childLabel simpleGraph nodeChildren subTree 
     in
     --trace ("NV1: " ++ show newVertex)
     --trace ("GOD1VG: " ++ (show $ LG.toEdge newLEdge) ++ " has edges " ++ (show $ LG.hasEdge subTree $  LG.toEdge newLEdge) ++ "Resolutions " ++ (show $ fmap (fmap U.hasResolutionDuplicateEdges) curNodeResolutionData))
+    -- trace ("PDSW-1:" ++ (show $ bvLabel newVertex))
     (newGraph, nodeType newVertex == RootNode, newVertex, lDisplayCost, displayGraphVL)
     -- (newGraph, False, newVertex, 0.0, mempty)
     -- )
@@ -642,7 +644,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
          --trace ("SWTN: " ++ (show (leftChild, rightChild)) ++ "\nLeft: " ++ (show leftIndexList) ++ "\nRight: " ++ (show rightIndexList)) 
          -- trace ("SWTN: " ++ (show $ V.length traceBackDisplayTreeVLeft) ++ " " ++ (show $ V.length traceBackCharTreeVVLeft) ++ " " ++ (show $ V.length traceBackDisplayTreeV)
          --    ++ " " ++ (show $ fmap length traceBackCharTreeVV))
-         let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) traceBackDisplayTreeV
+         let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph traceBackDisplayTreeV
          in
          -- trace ("SPOT: " ++ (show rootIndex))
          (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
@@ -771,7 +773,7 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
       -- trace ("URCT: " ++ (show charData))
       newCharTree
 
--- | -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
+-- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node 
 -- labels to the cononical Graph--very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
 -- back po\rt is based on indices of block characters that may have fewer nodes than canonical in a 
 -- split graph/ sub graph situation like in swap and fuse
@@ -783,15 +785,18 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
 
         -- vector (characters) of vector (nodes) of labels
         blockTreeNodeLabelsVV = fmap V.fromList $ fmap (fmap snd) $ fmap LG.labNodes blockTreeVect
-        blockTreeNodeIndicesV = V.fromList $ V.head $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
+        -- blockTreeNodeIndicesV = V.fromList $ V.head $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
+        blockTreeNodeIndicesV = V.fromList $ fmap fst $ LG.labNodes $ V.head blockTreeVect
 
         updatedCanonicalNodes = V.toList $ fmap (updateCanonicalNodes inCanonicalGraph blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(length blockTreeNodeIndicesV - 1)]))
 
         -- add in nodes not in characters trees--can happen during swap split trees
         -- based on vertex index first field of node
         unModifiedNodes = orderedNodeMinus canonicalNodes updatedCanonicalNodes
+
+        -- update BV vector of unModified nodes?
     in
-    trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
+    --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
     LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
        
 
@@ -804,18 +809,20 @@ updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex
        blockNodeLabelV = fmap (V.! vectIndex) blockNodeLabelVV
        vertDataV = V.concatMap vertData blockNodeLabelV
        vertCostV = fmap vertexCost blockNodeLabelV
-       subGraphCostV = fmap subGraphCost blockNodeLabelV 
+       subGraphCostV = fmap subGraphCost blockNodeLabelV
+       canonicalBV = L.foldl1 (.|.) $ fmap bvLabel blockNodeLabelV
 
        -- update Info 
        newVertCost = V.sum vertCostV
        newSubGraphCost = V.sum subGraphCostV
-       newLabel = canonicalLabel {vertData = vertDataV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
+       newLabel = canonicalLabel {bvLabel = canonicalBV, vertData = vertDataV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
 
    in
    -- trace ("UCN:" ++ (show (blockNodeIndex, fmap fst canonicalNodeV)) ++ "\n" ++ (show (blockNodeIndex, vectIndex, length canonicalNodeV, length blockNodeLabelVV, fmap length blockNodeLabelVV)))
    (blockNodeIndex, newLabel)
 
 
+{-Orig version-}
 {-
 -- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
 updateNodesBlock ::LG.LNode VertexInfo -> V.Vector (V.Vector CharacterData) -> V.Vector VertexCost -> V.Vector VertexCost -> LG.LNode VertexInfo

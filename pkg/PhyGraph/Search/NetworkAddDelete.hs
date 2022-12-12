@@ -44,8 +44,8 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , getCharacterDelta
                                 , getBlockDelta
                                 , heuristicAddDelta'
-                                , isEdgePairPermissible'
-                                , getPermissibleEdgePairs'
+                                -- , isEdgePairPermissible'
+                                -- , getPermissibleEdgePairs'
                                 , deleteOneNetAddAll'
                                 -- these are not used but to quiet warnings
                                 , heuristicDeleteDelta
@@ -1261,26 +1261,11 @@ getPermissibleEdgePairs inGraph =
        pairList
        -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
 
-getPermissibleEdgePairs' :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
-getPermissibleEdgePairs' inGraph =
-   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
-   else
-       let edgeList = LG.labEdges inGraph
-           edgePairs = cartProd edgeList edgeList
-           contraintList = LG.getGraphCoevalConstraints inGraph
-           edgeTestList = PU.seqParMap rdeepseq  (isEdgePairPermissible' inGraph contraintList) edgePairs -- `using`  PU.myParListChunkRDS
-           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
-       in
-       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
-       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
-       pairList
-       -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
-
 -- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
 -- pair of edges can be linked by a new edge and satify three consitions:
 --    1) neither edge is a network edge
 --    2) one edge cannot be "before" while the other is "after" in any of the constraint pairs
---    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
+--    3) neither edge is an ancestor or descendent edge of the other (tested via bv of nodes)
 -- the result should apply to a new edge in either direction
 -- new edge to be creted is edge1 -> ege2
 isEdgePairPermissible :: DecoratedGraph -> [(LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
@@ -1300,6 +1285,36 @@ isEdgePairPermissible inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
        else True
    where removeNodeLabels (a,b,c,d,e,f) = (LG.toNode a, LG.toNode b, fmap LG.toNode c, fmap LG.toNode d, fmap LG.toNode e, fmap LG.toNode f)
 
+-- | isAncDescEdge takes a graph and two edges and examines whethe either edge is the ancestor or descendent of the other
+-- this is done via examination of teh bitvector fields of the node
+isAncDescEdge :: DecoratedGraph ->  LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo -> Bool
+isAncDescEdge inGraph (a,_,_) (b, _, _) =
+   if LG.isEmpty inGraph then error "Empty input graph in isAncDescEdge"
+   else
+      let aBV = bvLabel $ fromJust $ LG.lab inGraph a
+          bBV = bvLabel $ fromJust $ LG.lab inGraph b
+      in
+      -- trace ("IADE: " ++ (show (a, aBV, b, bBV, aBV .&. bBV))) (
+      if aBV .&. bBV == aBV then True
+      else if aBV .&. bBV == bBV then True
+      else False
+      --- )
+
+{- Previous versions
+getPermissibleEdgePairs' :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
+getPermissibleEdgePairs' inGraph =
+   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
+   else
+       let edgeList = LG.labEdges inGraph
+           edgePairs = cartProd edgeList edgeList
+           contraintList = LG.getGraphCoevalConstraints inGraph
+           edgeTestList = PU.seqParMap rdeepseq  (isEdgePairPermissible' inGraph contraintList) edgePairs -- `using`  PU.myParListChunkRDS
+           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
+       in
+       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
+       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+       pairList
+       -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
 
 -- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
 -- pair of edges can be linked by a new edge and satify three consitions:
@@ -1323,22 +1338,7 @@ isEdgePairPermissible' inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
        -- get children of u' to make sure no net children
        else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
        else True
-
-
-
--- | isAncDescEdge takes a graph and two edges and examines whethe either edge is the ancestor or descendent of the other
--- this is done via examination of teh bitvector fields of the node
-isAncDescEdge :: DecoratedGraph ->  LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo -> Bool
-isAncDescEdge inGraph (a,_,_) (b, _, _) =
-   if LG.isEmpty inGraph then error "Empty input graph in isAncDescEdge"
-   else
-      let aBV = bvLabel $ fromJust $ LG.lab inGraph a
-          bBV = bvLabel $ fromJust $ LG.lab inGraph b
-      in
-      if aBV .&. bBV == aBV then True
-      else if aBV .&. bBV == bBV then True
-      else False
-
+-}
 
 {- These heuristics do not seem tom work well at all-}
 
