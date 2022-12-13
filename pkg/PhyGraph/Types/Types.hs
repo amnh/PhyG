@@ -527,7 +527,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , outGroupName = T.pack "NoOutgroupSet"
                                      , optimalityCriterion = Parsimony
                                      , graphType = Tree
-                                     , compressResolutions = True
+                                     , compressResolutions = False
                                      , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost

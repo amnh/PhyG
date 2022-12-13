@@ -100,6 +100,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
             changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
             changeGraphFactor = any ((=="graphfactor").fst) lcArgList
+            changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -108,6 +109,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
+
+            changeCompressionBlock = filter ((=="compressresolutions").fst) lcArgList
+            compressionValue
+               | length changeCompressionBlock > 1 =
+                  errorWithoutStackTrace ("Multiple compressResolutions specifications in transform--can have only one: " ++ show inArgs)
+               | null changeCompressionBlock = Just $ fmap toLower $ show $ compressResolutions inGS 
+               | null (snd $ head changeCompressionBlock) = Just $ fmap toLower $ show $ compressResolutions inGS 
+               | otherwise = readMaybe (show $ snd $ head changeCompressionBlock) :: Maybe String
 
             changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
             epsilonValue
@@ -234,6 +243,20 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
                   ++ "\n\tReoptimizing graphs") 
                   (inGS, newOrigData, newData, newPhylogeneticGraphList)
+
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeCompressionResolutions then 
+               if isNothing compressionValue then errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeCompressionBlock)))
+               else 
+                  let newMethod = if fromJust compressionValue == "true" then True
+                                  else if fromJust compressionValue == "false" then False
+                                  else errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  compressResolutions inGS then
+                     trace ("Changing compressResolutions method to " ++ (show newMethod))
+                     (inGS {compressResolutions = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {compressResolutions = newMethod}, origData, inData, inGraphList)
 
             -- changes dynamicEpsilon error check factor
             else if changeEpsilon then

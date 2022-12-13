@@ -134,7 +134,7 @@ swapArgList = ["spr","tbr", "alternate", "keep", "steepest", "all", "nni", "ia",
 
 -- | transform arguments
 transformArgList :: [String]
-transformArgList = ["atrandom", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", "graphssteepest", "name", "outgroup", "staticapprox", "tohardwired", 
+transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", "graphssteepest", "name", "outgroup", "staticapprox", "tohardwired", 
                     "tosoftwired", "totree", "type", "weight", "softwiredmethod"]
 
 
