@@ -446,20 +446,20 @@ compressBlockResolution inResList =
    else 
       let -- group by bitvectors of subtree
          resLL = L.groupBy compareBVLabel inResList
-         minCostVV = concatMap getMinCostList resLL
+         minCostVV = fmap getMinCostList resLL
       in
       V.fromList minCostVV
 
    where compareBVLabel a b = (displayBVLabel a) == (displayBVLabel b)
 
--- | getMinCostList takes a list resolutions and returns lowest cost list
-getMinCostList :: [ResolutionData] -> [ResolutionData]
+-- | getMinCostList takes a list resolutions and returns first lowest cost resolution
+getMinCostList :: [ResolutionData] -> ResolutionData
 getMinCostList inList =
-   if null inList then inList
+   if null inList then error "Empty resolution list in getMinCostList"
    else 
       let minResCost = minimum $ fmap displayCost inList
       in
-      filter ((== minResCost) . displayCost) inList
+      head $ filter ((== minResCost) . displayCost) inList
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
 -- need to watch let/right (based on BV) for preorder stuff

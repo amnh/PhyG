@@ -871,7 +871,11 @@
 			\item[compressResolutions:True|False] %\hl{change to BOOL} 
 			Determines whether soft-wired graph 
 			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-			trees are equal.
+			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+			This option can significantly reduce the time to evaluate softwired graphs, but can
+			increase the optimality score of the graph.  Can be used in combination with
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Naive)} 
+			at a later stage to improve graph score.
 			
 			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
 			method. Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
@@ -1087,6 +1091,15 @@
 		\begin{description}
 			\item[atRandom] In concert with \texttt{displayTrees:n} specifies that displays trees are chosen 
 			uniformly at random for each input graph.
+			
+			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+			Determines whether soft-wired graph 
+			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
+			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+			This option can significantly reduce the time to evaluate softwired graphs, but can
+			increase the optimality score of the graph.  Can be used in combination with
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Naive)} 
+			at a later stage to improve graph score.
 			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
 			determined by the optional argument If the number of display trees is not 
