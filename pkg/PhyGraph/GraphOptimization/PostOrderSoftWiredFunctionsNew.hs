@@ -809,8 +809,10 @@ updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex
        vertCostV = fmap vertexCost blockNodeLabelV
        subGraphCostV = fmap subGraphCost blockNodeLabelV
 
-       -- this more for Naive stuff, but so low cost doing it anyway
-       canonicalBV = L.foldl1 (.|.) $ fmap bvLabel blockNodeLabelV
+       -- this for Naive softwired where there is no canonical bitvecotr labelling for nodes
+       -- and set to default [False]
+       canonicalBV = if bvLabel canonicalLabel /= BV.fromBits [False] then bvLabel canonicalLabel
+                     else L.foldl1 (.|.) $ fmap bvLabel blockNodeLabelV
 
        -- update Info 
        newVertCost = V.sum vertCostV
@@ -838,7 +840,7 @@ orderedNodeMinus firstList secondList =
       else if af == as then orderedNodeMinus (tail firstList) (tail secondList)
       else -- asf > as
          orderedNodeMinus firstList (tail secondList)
-         
+
 {-Orig version-}
 {-
 -- | updateNodesBlock takes vectors of labelled nodes and updates vertData, VerTCost, and subgraphCost fields
