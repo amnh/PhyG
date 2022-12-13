@@ -293,12 +293,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
                else 
                   let newMethod = if fromJust newSoftwiredMethod == "naive" then Naive
+                                  else if fromJust newSoftwiredMethod == "exhaustive" then Naive
                                   else if fromJust newSoftwiredMethod == "resolutioncache" then ResolutionCache
                                   else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
                       newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newMethodString = if newMethod == ResolutionCache then "ResolutionCache"
+                                        else "Exhaustive"
                   in
-                  if newMethod /=  softWiredMethod inGS then
-                     trace ("Changing softwired optimization method to " ++ (show newMethod))
+                  if newMethod /=  softWiredMethod inGS then 
+                     trace ("Changing softwired optimization method to " ++ newMethodString)
                      (inGS {softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
 

@@ -1040,10 +1040,9 @@
 		
 			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
 			
-			\item[softwiredMethod:Naive|ResolutionCache] Specifies that the algorithm for softwired graphs 
-			is set to the ``naive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
-			the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}. This is an experimental 
-			option that only operates on input graphs.
+			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for softwired graphs 
+			is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} or ``exhaustive'' 
+			method of diagnosing all display trees as in \cite{Wheeler2015}.
 		
 			\item[spr:[n]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If the optional 
 			argument $n$ is specified, readdition of pruned graphs will be within $2 * N$ edges of its original 
@@ -1098,7 +1097,7 @@
 			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
 			This option can significantly reduce the time to evaluate softwired graphs, but can
 			increase the optimality score of the graph.  Can be used in combination with
-			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Naive)} 
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
 			at a later stage to improve graph score.
 			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
@@ -1118,9 +1117,9 @@
 			
 			\item[outgroup:STRING]  Sets the outgroup to the taxon with the name STRING.
 			
-			 \item[softwiredMethod:Naive|ResolutionCache] Sets the algorithm for softwired graphs 
-			to the ``naive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
-			the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}.  
+			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for softwired graphs 
+			is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} or ``exhaustive'' 
+			method of diagnosing all display trees as in \cite{Wheeler2015}.
 			
 			\item[staticApprox] Converts non-aligned (``dynamic'') sequence characters to their Implied 
 			Alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
