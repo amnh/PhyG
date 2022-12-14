@@ -214,6 +214,7 @@ data  GlobalSettings
                                  -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
                                  -- run time of these procedurs by delaying finding "better" solutins to move to.
     , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
+    , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -548,6 +549,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , dynamicEpsilon = 1.00
                                      , graphsSteepest = 10
                                      , softWiredMethod = ResolutionCache
+                                     , multiTraverseCharacters = True
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

@@ -46,7 +46,7 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , heuristicAddDelta'
                                 -- , isEdgePairPermissible'
                                 -- , getPermissibleEdgePairs'
-                                , deleteOneNetAddAll'
+                                -- , deleteOneNetAddAll'
                                 -- these are not used but to quiet warnings
                                 , heuristicDeleteDelta
                                 , heuristicAddDelta
@@ -674,7 +674,7 @@ insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest d
                insertEachNetEdge inGS inData leafGraph (head $ randomIntList rSeed) maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost nextSAParams inPhyloGraph 
       ) -- )
 
--- | insertEachNetEdge' is a wrapper around insertEachNetEdge to allow for parmapping with m,ultiple parameters
+-- | insertEachNetEdge' is a wrapper around insertEachNetEdge to allow for parmapping with multiple parameters
 insertEachNetEdge'   :: GlobalSettings 
                      -> ProcessedData 
                      -> DecoratedGraph 
@@ -707,10 +707,12 @@ insertNetEdgeRecursive inGS inData leafGraph rSeedList maxNetEdges doSteepest do
    if null inEdgePairList then ([inPhyloGraph], inSimAnnealParams)
    else
       -- don't want to over saturate the parallel thread system
-      let saRounds = if isNothing inSimAnnealParams then 1
+      let {-saRounds = if isNothing inSimAnnealParams then 1
                      else rounds $ fromJust inSimAnnealParams
-
           (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
+          -}
+
+          numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
           -- firstEdgePair = head edgePairList
           edgePairList = take numGraphsToExamine inEdgePairList
 
@@ -1170,70 +1172,6 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
 
           ) -- )
 
--- | deleteOneNetAddAll' new version deletes net edges in turn and readds-based on original cost
--- but his cost in graph (really not correct) but allows logic of insert edge to function better
--- seems like after delete--or insert--the graphs are improper condition and returnin infinite cost due to that
--- seems likely true for deleteOneNetAddAll' as well
--- this has no SA in it
-deleteOneNetAddAll' :: GlobalSettings 
-                   -> ProcessedData 
-                   -> DecoratedGraph 
-                   -> Int 
-                   -> Int 
-                   -> Bool 
-                   -> Bool 
-                   -> PhylogeneticGraph 
-                   -> [LG.Edge] 
-                   -> Int 
-                   -> Maybe SAParams 
-                   -> [PhylogeneticGraph]
-deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList rSeed inSimAnnealParams =
-   if null edgeToDeleteList then 
-      -- trace ("\tGraph has no edges to move---skipping") 
-      [inPhyloGraph]
-   else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
-   else
-      -- trace ("DONAA-New: " ++ (show $ snd6 inPhyloGraph) ++ " Steepest:" ++ (show doSteepest)) (
-      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, current best cost: " ++ (show $ snd6 inPhyloGraph)) (
-      -- start with initial graph cost
-      let inGraphCost = snd6 inPhyloGraph
-
-          -- get deleted simple graphs and bool for changed
-          delGraphBoolPairList = PU.seqParMap rdeepseq  (deleteNetworkEdge (fst6 inPhyloGraph)) edgeToDeleteList
-          (simpleGraphsToInsert, _) = unzip $ filter ((== True ) . snd) delGraphBoolPairList
-
-          -- check for cycles -- already done
-          -- simpleGraphsToInsert' = filter ((== False) . LG.cyclic) simpleGraphsToInsert
-
-          -- optimize deleted graph and update cost with input cost
-          graphsToInsert = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert -- `using` PU.myParListChunkRDS
-
-          -- keep same cost and just keep better--check if better than original later
-          graphsToInsert' = PU.seqParMap rdeepseq (flip POSW.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
-
-          -- potentially randomize order of list
-          graphsToInsert'' = if not doRandomOrder then graphsToInsert'
-                             else permuteList rSeed graphsToInsert'
-
-
-          insertedGraphTripleList = PU.seqParMap rdeepseq (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert''
-
-          newMinimumCost = minimum $ fmap snd3 insertedGraphTripleList
-
-          newBestGraphs = filter ((== newMinimumCost) . snd6) $ concat $ fmap fst3 insertedGraphTripleList
-
-      in
-      -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
-      if null simpleGraphsToInsert then [emptyPhylogeneticGraph]
-
-      else if newMinimumCost < inGraphCost then
-         trace ("-> ")
-         newBestGraphs
-
-      else [inPhyloGraph]
-
-     ) -- )
-
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
 -- of edges that can be joined by a network edge and meet all necessary conditions
@@ -1300,45 +1238,6 @@ isAncDescEdge inGraph (a,_,_) (b, _, _) =
       else False
       --- )
 
-{- Previous versions
-getPermissibleEdgePairs' :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
-getPermissibleEdgePairs' inGraph =
-   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
-   else
-       let edgeList = LG.labEdges inGraph
-           edgePairs = cartProd edgeList edgeList
-           contraintList = LG.getGraphCoevalConstraints inGraph
-           edgeTestList = PU.seqParMap rdeepseq  (isEdgePairPermissible' inGraph contraintList) edgePairs -- `using`  PU.myParListChunkRDS
-           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
-       in
-       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
-       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
-       pairList
-       -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
-
--- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
--- pair of edges can be linked by a new edge and satify three consitions:
---    1) neither edge is a network edge
---    2) one edge cannot be "before" while the other is "after" in any of the constraint pairs
---    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
--- the result should apply to a new edge in either direction
--- new edge to be creted is edge1 -> ege2
-isEdgePairPermissible' :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeInfo])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
-isEdgePairPermissible' inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
-   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
-   else
-       if u == u' then False
-       else if v == v' then False
-       -- equality implied in above two
-       -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
-       else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
-       else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
-       else if not (LG.meetsAllCoevalConstraintsEdges constraintList edge1 edge2) then False
-       else if (isAncDescEdge inGraph edge1 edge2) then False
-       -- get children of u' to make sure no net children
-       else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
-       else True
--}
 
 {- These heuristics do not seem tom work well at all-}
 
@@ -1911,3 +1810,107 @@ insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepes
             insertEachNetEdgeRecursive inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder rSeed inSimAnnealParams  (tail inPhyloGraphList) 
 -}
 
+{- Previous versions
+
+-- | deleteOneNetAddAll' new version deletes net edges in turn and readds-based on original cost
+-- but his cost in graph (really not correct) but allows logic of insert edge to function better
+-- seems like after delete--or insert--the graphs are improper condition and returnin infinite cost due to that
+-- seems likely true for deleteOneNetAddAll' as well
+-- this has no SA in it
+deleteOneNetAddAll' :: GlobalSettings 
+                   -> ProcessedData 
+                   -> DecoratedGraph 
+                   -> Int 
+                   -> Int 
+                   -> Bool 
+                   -> Bool 
+                   -> PhylogeneticGraph 
+                   -> [LG.Edge] 
+                   -> Int 
+                   -> Maybe SAParams 
+                   -> [PhylogeneticGraph]
+deleteOneNetAddAll' inGS inData leafGraph maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList rSeed inSimAnnealParams =
+   if null edgeToDeleteList then 
+      -- trace ("\tGraph has no edges to move---skipping") 
+      [inPhyloGraph]
+   else if LG.isEmpty $ thd6 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
+   else
+      -- trace ("DONAA-New: " ++ (show $ snd6 inPhyloGraph) ++ " Steepest:" ++ (show doSteepest)) (
+      trace ("Moving " ++ (show $ length edgeToDeleteList) ++ " network edges, current best cost: " ++ (show $ snd6 inPhyloGraph)) (
+      -- start with initial graph cost
+      let inGraphCost = snd6 inPhyloGraph
+
+          -- get deleted simple graphs and bool for changed
+          delGraphBoolPairList = PU.seqParMap rdeepseq  (deleteNetworkEdge (fst6 inPhyloGraph)) edgeToDeleteList
+          (simpleGraphsToInsert, _) = unzip $ filter ((== True ) . snd) delGraphBoolPairList
+
+          -- check for cycles -- already done
+          -- simpleGraphsToInsert' = filter ((== False) . LG.cyclic) simpleGraphsToInsert
+
+          -- optimize deleted graph and update cost with input cost
+          graphsToInsert = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing) simpleGraphsToInsert -- `using` PU.myParListChunkRDS
+
+          -- keep same cost and just keep better--check if better than original later
+          graphsToInsert' = PU.seqParMap rdeepseq (flip POSW.updatePhylogeneticGraphCost inGraphCost) graphsToInsert
+
+          -- potentially randomize order of list
+          graphsToInsert'' = if not doRandomOrder then graphsToInsert'
+                             else permuteList rSeed graphsToInsert'
+
+
+          insertedGraphTripleList = PU.seqParMap rdeepseq (insertEachNetEdge inGS inData leafGraph rSeed maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams) graphsToInsert''
+
+          newMinimumCost = minimum $ fmap snd3 insertedGraphTripleList
+
+          newBestGraphs = filter ((== newMinimumCost) . snd6) $ concat $ fmap fst3 insertedGraphTripleList
+
+      in
+      -- trace ("DONAA-New: " ++ (show (inGraphCost, fmap snd6 graphsToInsert, fmap snd6 graphsToInsert', newMinimumCost))) (
+      if null simpleGraphsToInsert then [emptyPhylogeneticGraph]
+
+      else if newMinimumCost < inGraphCost then
+         trace ("-> ")
+         newBestGraphs
+
+      else [inPhyloGraph]
+
+     ) -- )
+
+getPermissibleEdgePairs' :: DecoratedGraph -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
+getPermissibleEdgePairs' inGraph =
+   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
+   else
+       let edgeList = LG.labEdges inGraph
+           edgePairs = cartProd edgeList edgeList
+           contraintList = LG.getGraphCoevalConstraints inGraph
+           edgeTestList = PU.seqParMap rdeepseq  (isEdgePairPermissible' inGraph contraintList) edgePairs -- `using`  PU.myParListChunkRDS
+           pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
+       in
+       -- trace ("Edge Pair list :" ++ (show $ fmap f pairList) ++ "\n"
+       --  ++ "GPEP\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+       pairList
+       -- where f (a, b) = (LG.toEdge a, LG.toEdge b)
+
+-- | isEdgePairPermissible takes a graph and two edges, coeval contraints, and tests whether a
+-- pair of edges can be linked by a new edge and satify three consitions:
+--    1) neither edge is a network edge
+--    2) one edge cannot be "before" while the other is "after" in any of the constraint pairs
+--    3) neither neither edge is an ancestor or descndent edge of the other (tested via bv of nodes)
+-- the result should apply to a new edge in either direction
+-- new edge to be creted is edge1 -> ege2
+isEdgePairPermissible' :: DecoratedGraph -> [([LG.LEdge EdgeInfo],[LG.LEdge EdgeInfo])] -> (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
+isEdgePairPermissible' inGraph constraintList (edge1@(u,v,_), edge2@(u',v',_)) =
+   if LG.isEmpty inGraph then error "Empty input graph in isEdgePairPermissible"
+   else
+       if u == u' then False
+       else if v == v' then False
+       -- equality implied in above two
+       -- else if LG.toEdge edge1 == LG.toEdge edge2 then False
+       else if (LG.isNetworkNode inGraph u) || (LG.isNetworkNode inGraph u') then False
+       else if (LG.isNetworkLabEdge inGraph edge1) || (LG.isNetworkLabEdge inGraph edge2) then False
+       else if not (LG.meetsAllCoevalConstraintsEdges constraintList edge1 edge2) then False
+       else if (isAncDescEdge inGraph edge1 edge2) then False
+       -- get children of u' to make sure no net children
+       else if (not . null) $ filter (== True) $ fmap (LG.isNetworkNode inGraph) $ LG.descendants inGraph u' then False
+       else True
+-}

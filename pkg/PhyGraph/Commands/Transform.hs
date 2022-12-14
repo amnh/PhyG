@@ -101,6 +101,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
             changeGraphFactor = any ((=="graphfactor").fst) lcArgList
             changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
+            changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -141,6 +142,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS 
                | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS 
                | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
+
+            changeMultiTraverseBlock = filter ((=="multitraverse").fst) lcArgList
+            multiTraverseValue
+               | length changeMultiTraverseBlock > 1 =
+                  errorWithoutStackTrace ("Multiple multiTraverse specifications in transform--can have only one: " ++ show inArgs)
+               | null changeMultiTraverseBlock = Just $ fmap toLower $ show $ multiTraverseCharacters inGS 
+               | null (snd $ head changeMultiTraverseBlock) = Just $ fmap toLower $ show $ multiTraverseCharacters inGS 
+               | otherwise = readMaybe (show $ snd $ head changeMultiTraverseBlock) :: Maybe String
 
             changeSoftwiredMethodBlock = filter ((=="softwiredmethod").fst) lcArgList
             newSoftwiredMethod
@@ -288,9 +297,23 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   trace ("Changing GraphsSteepest factor to " ++ (show $ fromJust newGraphsSteepest))
                   (inGS {graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
 
+            -- changes the multiTraverse behavior for all graphs
+            else if changeMultiTraverse then 
+               if isNothing multiTraverseValue then errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+               else 
+                  let newMethod = if fromJust multiTraverseValue == "true" then True
+                                  else if fromJust multiTraverseValue == "false" then False
+                                  else errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  multiTraverseCharacters inGS then
+                     trace ("Changing multiTraverse to " ++ (show newMethod))
+                     (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
+
             -- changes the softwired optimization algorithm--this really for experimental use 
             else if changeSoftwiredMethod then 
-               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Exhaustive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
                else 
                   let newMethod = if fromJust newSoftwiredMethod == "naive" then Naive
                                   else if fromJust newSoftwiredMethod == "exhaustive" then Naive

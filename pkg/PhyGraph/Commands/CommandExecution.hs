@@ -499,6 +499,7 @@ setCommand argList globalSettings processedData inSeedList =
             trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
             (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity, graphFactor = lGraphFactor}, processedData, inSeedList)
 
+        -- modify the behavior of resolutionCache softwired optimization
         else if head commandList == "compressresolutions"  then
             let localCriterion
                   | (head optionList == "true") = True
@@ -574,6 +575,16 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("Model Complexity set to " ++ head optionList)
                 (globalSettings {modelComplexity = (fromJust localValue)}, processedData, inSeedList)
         
+        -- modify the behavior of rerooting character trees for all graph types
+        else if head commandList == "multitraverse"  then
+            let localCriterion
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. MultiTraverse '" ++ (head optionList) ++ "' is not 'true' or 'false'")
+            in
+            trace ("MultiTraverse set to " ++ head optionList)
+            (globalSettings {multiTraverseCharacters = localCriterion}, processedData, inSeedList)
+
         else if head commandList == "outgroup"  then
             let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
                 outTaxonIndex = V.elemIndex outTaxonName leafNameVect
@@ -619,8 +630,9 @@ setCommand argList globalSettings processedData inSeedList =
          else if head commandList == "softwiredmethod"  then
             let localMethod
                   | (head optionList == "naive") = Naive
+                  | (head optionList == "exhaustive") = Naive
                   | (head optionList == "resolutioncache") = ResolutionCache
-                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. SoftwiredMethod  '" ++ (head optionList) ++ "' is not 'Naive' or 'ResolutionCache'")
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. SoftwiredMethod  '" ++ (head optionList) ++ "' is not 'Exhaustive' or 'ResolutionCache'")
             in
             trace ("SoftwiredMethod " ++ (show localMethod))
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)

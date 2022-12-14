@@ -900,6 +900,12 @@
 			
 			%\item[modelcomplexity] \hl{details}
 			
+			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
+			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
+			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
+			as in \citep{Wheeler1996, POY2, POY3}.  Option True (default) yields better (lower) optimality scores
+			at the cost of added execution time.
+			
 			\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 			This name must appear in quotes. 
 			
@@ -1114,6 +1120,12 @@
 			
 			\item[first] In concert with \texttt{displayTrees:n} specifies that the first $n$ displays tree 
 			resolutions are chosen for each input graph.
+			
+			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
+			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
+			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
+			as in \citep{Wheeler1996, POY2, POY3}.  Option True (default) yields better (lower) optimality scores
+			at the cost of added execution time.
 			
 			\item[outgroup:STRING]  Sets the outgroup to the taxon with the name STRING.
 			
