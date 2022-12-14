@@ -874,7 +874,7 @@
 			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
 			This option can significantly reduce the time to evaluate softwired graphs, but can
 			increase the optimality score of the graph.  Can be used in combination with
-			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Naive)} 
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
 			at a later stage to improve graph score.
 			
 			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
@@ -913,8 +913,8 @@
 			 \item[seed:INTEGER] Sets the seed for the random number generator using the integer
 			 value. If unspecified, \phyg uses the system time as the seed.
 			 
-			 \item[softwiredMethod:Naive|ResolutionCache] Sets the algorithm for softwired graphs 
-			 to the ``naive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
+			 \item[softwiredMethod:ResolutionCache|Exhaustive] Sets the algorithm for softwired graphs 
+			 to the ``Exhaustive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
 			 the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}.  
 			 
 		\end{description}
