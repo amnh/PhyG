@@ -34,6 +34,10 @@ Portability :  portable (I hope)
 
 -}
 
+{-
+These functions were used to directly reroot netowkrs and trees but were superseeded by later versions
+-}
+
 module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticGraph'
                                              , rerootPhylogeneticNetwork

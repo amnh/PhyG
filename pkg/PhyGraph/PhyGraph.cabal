@@ -90,6 +90,7 @@ Common static-build-flags
 --      -static
 
 --    ld-options:
+--        -pie --tryng for dlopen stuff
 
   -- Linux static compilation options
   Else
@@ -120,7 +121,8 @@ Common static-build-flags
 --      -optl-static-libgcc
 
     -- Options for: Linker
---    LD-Options:
+    LD-Options:
+--      -pie --tryng for dlopen stuff
 --      -pthread
 --      -static
 --      -static-libgcc
@@ -248,7 +250,7 @@ Executable phyg
     Commands.Verify
     Debug.Debug
     GraphOptimization.Medians
-    GraphOptimization.PostOrderFunctions
+    -- GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew
     GraphOptimization.PreOrderFunctions

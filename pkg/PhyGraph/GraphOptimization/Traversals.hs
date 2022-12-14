@@ -41,8 +41,6 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelHardWired
                                     , checkUnusedEdgesPruneInfty
                                     , generalizedGraphPostOrderTraversal
-                                    -- to silence warning
-                                    , minimalReRootPhyloGraph
                                     ) where
 
 
@@ -50,7 +48,6 @@ import qualified Data.List                            as L
 import           GeneralUtilities
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
-import qualified GraphOptimization.PostOrderFunctions as PO
 import qualified GraphOptimization.PreOrderFunctions  as PRE
 import qualified Graphs.GraphOperations               as GO
 import           Data.Maybe
@@ -291,29 +288,3 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
-
--- | minimalReRootPhyloGraph takes an inialtial post-order labelled phylogenetic graph
--- and "intelligently" reroots by traversing through adjacent edges, hopefully
--- reoptimizing the minimum number of vertices each time (2) but could be more depending
--- on graph topology
--- NB--only deals with post-order assignments
-minimalReRootPhyloGraph :: GlobalSettings -> PhylogeneticGraph -> Int -> [LG.Node] -> [PhylogeneticGraph]
-minimalReRootPhyloGraph inGS inGraph originalRoot nodesToRoot =
-    -- trace ("MRR: " ++ (show nodesToRoot) ++ " " ++ (show $ fmap (LG.descendants (thd6 inGraph)) nodesToRoot)) (
-    if null nodesToRoot then []
-    else
-        let firstRerootIndex = head nodesToRoot
-            nextReroots = LG.descendants (thd6 inGraph) firstRerootIndex ++ tail nodesToRoot
-            newGraph
-              | (graphType inGS)  == Tree = PO.rerootPhylogeneticGraph' inGS False False inGraph originalRoot firstRerootIndex
-              | (graphType inGS)  == SoftWired = PO.rerootPhylogeneticNetwork' inGS inGraph originalRoot firstRerootIndex
-              | (graphType inGS)  == HardWired = PO.rerootPhylogeneticNetwork' inGS inGraph originalRoot firstRerootIndex
-              | otherwise = errorWithoutStackTrace ("Graph type not implemented/recognized: " ++ show (graphType inGS))
-        in
-        -- trace ("NRR: " ++ " " ++ (show (LG.descendants (thd6 inGraph) firstRerootIndex)) ) ( -- ++ " -> " ++ (show nextReroots) ++ "\n" ++ (LG.prettify $ fst6 inGraph) ++ "\n" ++ (LG.prettify $ fst6 newGraph)) (
-        -- trace ("MRR: " ++ (show $ snd6 inGraph) ++ " -> " ++ (show $ snd6 newGraph)) (
-        if fst6 newGraph == LG.empty then minimalReRootPhyloGraph inGS inGraph originalRoot nextReroots
-        else newGraph : minimalReRootPhyloGraph inGS newGraph originalRoot nextReroots
-        -- ) )
-
-
