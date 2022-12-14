@@ -306,15 +306,20 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
             -- unclear if faster than than myParListChunkRDS
             (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap rdeepseq (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
 
-            updateBlockDisplayTree = if multiTraverseCharacters inGS == True then  
-                                        backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect)
-                                     else backPortCharTreeNodesToBlockTree blockDisplayTree charTreeVect
+            (updateBlockDisplayTree, updatedDisplayVect, blockCost) = if multiTraverseCharacters inGS == True then  
+                                                                        (backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect), V.fromList rerootedCharTreeVect, sum rerootedCostVect)
+                                                                      else 
+                                                                         let rootCharLabelNodes = fmap (LG.labelNodeFlip rootIndex) charTreeVect
+                                                                             existingCost = sum $ fmap (subGraphCost . snd) rootCharLabelNodes
+                                                                         in
+                                                                         (backPortCharTreeNodesToBlockTree blockDisplayTree charTreeVect, charTreeVect, existingCost)
         in
-        (updateBlockDisplayTree, V.fromList rerootedCharTreeVect, sum rerootedCostVect)
+        (updateBlockDisplayTree, updatedDisplayVect, blockCost)
 
 -- | getCharTreeBestRoot' is awrapper around getCharTreeBestRoot to use parMap
 getCharTreeBestRoot' :: LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot' rootIndex nodesToRoot (inCharacterGraph, charInfo) = getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo 
+getCharTreeBestRoot' rootIndex nodesToRoot (inCharacterGraph, charInfo) = 
+    getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo 
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments

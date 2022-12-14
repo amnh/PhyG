@@ -531,6 +531,10 @@ labelNode inGraph inNode =
         else
             (inNode, fromJust label)
 
+-- | labelNodeFlip uses lab but checks for Nothing and returns labelled node
+labelNodeFlip :: Node -> Gr a b -> LNode a
+labelNodeFlip = flip labelNode
+    
 
 -- | noComponents returns number of components
 noComponents :: Gr a b -> Int
