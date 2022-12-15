@@ -664,6 +664,12 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
         let rootIndex = if startVertex == Nothing then  fst $ head $ LG.getRoots inGraph
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
+
+            {-
+            -- Hardwired--Not sure whey these edges can occur--somethng about adding edges in after not deleting them when assuming so
+            inGraph' = if graphType inGS == Tree then inGraph
+                       else (LG.removeNonLeafOut0NodesAfterRoot . LG.removeDuplicateEdges) inGraph
+            -}
             newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
         in
         -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
@@ -793,9 +799,12 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                 if graphType inGS == Tree then (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
                 else 
                     let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph
+                        updatedDisplayVect = V.zipWith NEW.backPortBlockTreeNodesToCanonicalGraph (fmap head newDisplayVect) newCharTreeVV
+                        updatedCanonicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph newGraph updatedDisplayVect
                     in
                     -- trace ("PDT End: " ++ (show (subGraphCost newVertex, localCostSum)))
-                    (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+                    -- (LG.removeDuplicateEdges simpleGraph, localCostSum, LG.removeDuplicateEdges newGraph, fmap (fmap LG.removeDuplicateEdges) newDisplayVect, fmap (fmap LG.removeDuplicateEdges) newCharTreeVV, blockCharInfo)
+                    (simpleGraph, localCostSum, updatedCanonicalGraph, fmap (:[]) updatedDisplayVect, newCharTreeVV, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation

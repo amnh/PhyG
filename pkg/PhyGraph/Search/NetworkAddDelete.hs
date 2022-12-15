@@ -851,7 +851,7 @@ insertNetEdge inGS inData leafGraph inPhyloGraph _ ((u,v, _), (u',v', _)) =
          trace ("\tWarning: Chained network nodes in insertNetEdge skipping deletion") 
          emptyPhylogeneticGraph
        -}
-       else if (graphType inGS) == HardWired then newPhyloGraph
+       -- else if (graphType inGS) == HardWired then newPhyloGraph
 
        else 
          -- need heuristics in here
@@ -1658,7 +1658,8 @@ deleteNetEdge inGS inData leafGraph inPhyloGraph force edgeToDelete =
 
 
            -- full two-pass optimization--cycles checked in edge deletion function
-           newPhyloGraph = if (graphType inGS == SoftWired) then T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
+           newPhyloGraph = if (graphType inGS == SoftWired) then 
+                              T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
                            else if (graphType inGS == HardWired) then
                               T.multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex delSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
@@ -1666,7 +1667,8 @@ deleteNetEdge inGS inData leafGraph inPhyloGraph force edgeToDelete =
        --check if deletino modified graph
        if not wasModified then inPhyloGraph
 
-       else if force || (graphType inGS) == HardWired then 
+       -- else if force || (graphType inGS) == HardWired then 
+       else if force then 
          -- trace ("DNE forced") 
          newPhyloGraph
        else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph

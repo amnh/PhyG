@@ -190,8 +190,8 @@ hasAllNetChildren inGraph inNode =
     in
     length children == length childVertNodes
 
--- | removeTreeEdgeFromTreeNodeWithAllNetworkChildren takes a greaph and removes the first edge (head) 
--- from each tree node with all netowork children, tehn contracts those edges and nodes, 
+-- | removeTreeEdgeFromTreeNodeWithAllNetworkChildren takes a graph and removes the first edge (head) 
+-- from each tree node with all netowork children, then contracts those edges and nodes, 
 -- then reindexes -- but doesn not rename graph nodes
 removeTreeEdgeFromTreeNodeWithAllNetworkChildren :: Gr a b -> Gr a b
 removeTreeEdgeFromTreeNodeWithAllNetworkChildren inGraph = 

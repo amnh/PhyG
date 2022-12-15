@@ -736,9 +736,9 @@ CallStack (from -prof):
  	I htink this omes form running multiple parallel jobs oni my desktop--not a "program" errro perhaps
 
 
- 414) swap unions
+414) swap unions
 
- 415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
+415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
 
 416) Search terminate after so many zero imporvements? (or time)
 
@@ -747,9 +747,5 @@ CallStack (from -prof):
 418) graph number control in search/GA
 	swappinglarge numbers of graphs somtimes
 
-419) Add Naice and rsolkution cachec options to docs?  Or not and keep 
-	for experimental use
-	
-420) Check new moptimization and RTS flags
-
-421) delete parents and children from VertInfo ? rely on graph info for this
+422) CHase down origin of duplicate edges in HArd and softwired edges
+	prob in rearrangement in swap of networks
