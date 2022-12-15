@@ -394,7 +394,8 @@
 
 \section{Command Reference}
 	\input{PhyG_Allcommands.tex}
-	
+
+\chapter{Program Usage}
 \section{Example Script Files}
 	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), 
 	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
@@ -422,7 +423,25 @@
 			report("net-display.tre", displaytrees, newick, overwrite)
 		\end{verbatim}
 	
-\section*{Acknowledgments}
+\section{Faster and Slower}
+Multiple options affect both the quality of results (better ot worse optimality score) and
+the overall execution time.  In general, the more time consuming options also have larger
+memory footprints.
+
+\subsection{Evaluation of Graphs}
+	\texttt{Multitraverse}\\
+	\texttt{CompressResolutions}\\
+	\texttt{SoftwiredMethod}\\
+
+\subsection{Search Options}
+	\texttt{steepest}\\
+	\texttt{Limiting number of network edges}\\
+	\texttt{Limiting number of graphs}
+	
+\section{Parellel Evaluation}
+	\texttt{+RTS -NX}
+	
+\chapter*{Acknowledgments}
 	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the Robert J. Kleberg Jr. and Helen C. 
 	Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum 
 	of Natural History for financial support. 
@@ -430,6 +449,6 @@
 	%\newpage
 	%\bibliography{big-refs-3.bib}
 	%\bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
-	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	%\bibliography{/users/ward/Dropbox/work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/users/ward/Dropbox/work_stuff/manus/big-refs-3.bib}
  \end{document}
