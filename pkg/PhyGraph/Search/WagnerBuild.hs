@@ -111,7 +111,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
 
        wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
@@ -124,7 +124,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner ::V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
+recursiveAddEdgesWagner :: V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
 recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
@@ -152,7 +152,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           -- False flag for static IA--can't do when adding in new leaves
           calculateBranchLengths = False -- must be True for delata using existing edge
           newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
-                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
       in

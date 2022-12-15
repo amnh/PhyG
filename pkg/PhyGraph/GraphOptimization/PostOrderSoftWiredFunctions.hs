@@ -657,14 +657,14 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
 -- for a binary tree only
 -- depending on optimality criterion--will calculate root cost
 postOrderTreeTraversal :: GlobalSettings ->  ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
-postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex inGraph  =
+postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex inGraph  =
     if LG.isEmpty inGraph then emptyPhylogeneticGraph
     else
         -- Assumes root is Number of Leaves
         let rootIndex = if startVertex == Nothing then  fst $ head $ LG.getRoots inGraph
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
-            newTree = postDecorateTree staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+            newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
         in
         -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
         if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
@@ -679,9 +679,9 @@ postOrderTreeTraversal _ (_, _, blockDataVect) leafGraph staticIA startVertex in
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
-postDecorateTree :: Bool -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
-postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
-    -- if node in there (leaf) nothing to do and return
+postDecorateTree :: GlobalSettings ->  Bool -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
+postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+    -- if node in there (leaf) or Hardwired network nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
         in
@@ -698,11 +698,11 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren
-            leftChildTree = postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+            leftChildTree = postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+            rightLeftChildTree = if length nodeChildren == 2 then postDecorateTree inGS staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                                  else leftChildTree
             newSubTree = thd6 rightLeftChildTree
-            (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab newSubTree leftChild, fromJust $ LG.lab newSubTree rightChild)
+            ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
 
         in
 
@@ -756,7 +756,9 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
 
                 newCharData = if staticIA then createVertexDataOverBlocksStaticIA  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
                               else createVertexDataOverBlocks  (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
+
                 newCost =  V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
+
                 newVertex = VertexInfo {  index = curNode
                                         , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
@@ -766,6 +768,7 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
                                         , vertData = V.map (V.map fst) newCharData
                                         , vertexResolutionData = mempty
                                         , vertexCost = newCost
+                                        -- this cost is incorrrect for Harwired netwqork fix at root
                                         , subGraphCost = subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
                                         }
                 newEdgesLabel = EdgeInfo {    minLength = newCost / 2.0
@@ -781,8 +784,18 @@ postDecorateTree staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNod
 
             in
 
-            --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
-            if nodeType newVertex == RootNode || curNode == rootIndex then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+            -- Graph cost is calculated differently for Tree and Hardwired.  Sub trees can be counted multiple times
+            -- in hardwired for outdegree two nodes with one or more network nodes as descendents
+            -- this cannot be dealt with at the local node since there can be network all over the graph
+            -- so simple add up the local costs of all nodes
+                
+            if nodeType newVertex == RootNode || curNode == rootIndex then 
+                if graphType inGS == Tree then (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+                else 
+                    let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph
+                    in
+                    -- trace ("PDT End: " ++ (show (subGraphCost newVertex, localCostSum)))
+                    (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
