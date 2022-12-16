@@ -185,7 +185,7 @@ Executable phyg
   If flag(super-optimization)
     GHC-Options:
       -fexcess-precision
-      -fexpose-all-unfoldings
+--      -fexpose-all-unfoldings
       -flate-specialise
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do
@@ -193,7 +193,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
-      -fllvm
+--      -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
   Else
     GHC-Options:

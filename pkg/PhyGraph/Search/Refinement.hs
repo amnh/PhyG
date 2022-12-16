@@ -413,17 +413,19 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                              
 
                 (newGraphList', counterDelete) = if doNetDelete then
+                                                    {-
                                                     if graphType inGS == HardWired then 
                                                         trace ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
                                                         (newGraphList, 0)
-                                                    else 
-                                                        -- trace ("REFINE Delete") (
-                                                        let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
-                                                            (graphListList, counterList) = unzip graphPairList
-                                                        in 
-                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                        -- )
-                                                     else (newGraphList, 0)
+                                                    else
+                                                    -} 
+                                                  -- trace ("REFINE Delete") (
+                                                     let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
+                                                         (graphListList, counterList) = unzip graphPairList
+                                                     in 
+                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                  -- )
+                                                else (newGraphList, 0)
                 
 
                 (newGraphList'', counterMove) = if doMove then
