@@ -133,6 +133,11 @@ Flag super-optimization
    Default:     False
    Manual:      True
 
+flag super-optimization-osx
+  Description: Apply extremely agressive and extremely time consuming optimization passes with specific OSX options
+   Default:     False
+   Manual:      True
+
 -- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -182,7 +187,8 @@ Executable phyg
     GHC-Options:
      -- -fllvm
 
-  If flag(super-optimization)
+  -- this since can't get llvm going or ghc-9.4.3
+  if flag(super-optimization-osx)
     GHC-Options:
       -fexcess-precision
 --      -fexpose-all-unfoldings
@@ -195,7 +201,22 @@ Executable phyg
       -fstatic-argument-transformation
 --      -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
-  Else
+
+  elif flag(super-optimization)
+    GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+      -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+      
+  else
     GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
