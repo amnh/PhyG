@@ -1393,9 +1393,10 @@ deltaPenaltyAdjustment inGS inGraph modification =
       let graphCost = snd6 inGraph -- this includes any existing penalties--would be better not to include
           numBlocks = V.length $ fth6 inGraph
       in
-      if (graphType inGS) == HardWired then 0.0
+      -- if (graphType inGS) == HardWired then 0.0
       -- trace ("DPA Value: " ++ (show $ graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2)))) 
-      else graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))
+      -- else 
+      graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))
       -- )
 
    else if edgeCostModel == PMDLGraph then 

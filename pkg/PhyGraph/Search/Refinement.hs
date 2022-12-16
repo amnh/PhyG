@@ -206,6 +206,7 @@ fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [Phylogene
 fuseGraphs inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace ("Fusing--skipped: No graphs to fuse") []
    else if length inGraphList == 1 then trace ("Fusing--skipped: Need > 1 graphs to fuse") inGraphList
+   else if graphType inGS == HardWired then trace ("Fusing hardwired graphs is currenty not implemented") inGraphList
    else
      trace ("Fusing " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList)) (
 
@@ -398,23 +399,31 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             trace (bannerText) (
 
             let (newGraphList, counterAdd) = if doNetAdd then
-                                               -- trace ("REFINE Add") (
-                                               let graphPairList = PU.seqParMap rdeepseq  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList
-                                                in 
-                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                -- )
-                                             else (inGraphList, 0)
-                                             
-
-                (newGraphList', counterDelete) = if doNetDelete then
-                                                    -- trace ("REFINE Delete") (
-                                                    let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
+                                                if graphType inGS == HardWired then 
+                                                    trace ("Adding edges to hardwired graphs will always increase cost, skipping")
+                                                    (inGraphList, 0)
+                                                else 
+                                                    -- trace ("REFINE Add") (
+                                                    let graphPairList = PU.seqParMap rdeepseq  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in 
                                                     (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                     -- )
-                                                 else (newGraphList, 0)
+                                             else (inGraphList, 0)
+                                             
+
+                (newGraphList', counterDelete) = if doNetDelete then
+                                                    if graphType inGS == HardWired then 
+                                                        trace ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
+                                                        (newGraphList, 0)
+                                                    else 
+                                                        -- trace ("REFINE Delete") (
+                                                        let graphPairList = PU.seqParMap rdeepseq  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
+                                                            (graphListList, counterList) = unzip graphPairList
+                                                        in 
+                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                        -- )
+                                                     else (newGraphList, 0)
                 
 
                 (newGraphList'', counterMove) = if doMove then
@@ -429,11 +438,15 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                 else (newGraphList', 0)
 
                 (newGraphList''', counterAddDelete) = if doAddDelete then
-                                                        let graphPairList = PU.seqParMap rdeepseq  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
-                                                            (graphListList, counterList) = unzip graphPairList
-                                                        in 
-                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                
+                                                        if graphType inGS == HardWired then 
+                                                            trace ("Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping")
+                                                            (newGraphList'', 0)
+                                                        else 
+                                                            let graphPairList = PU.seqParMap rdeepseq  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
+                                                                (graphListList, counterList) = unzip graphPairList
+                                                            in 
+                                                            (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                    
                                                 else (newGraphList'', 0)
 
             in

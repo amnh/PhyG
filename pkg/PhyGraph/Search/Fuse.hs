@@ -97,11 +97,13 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then 
-                                 if (graphType inGS) == HardWired then 0.0
-                                 else POSW.getW15NetPenaltyFull Nothing inGS inData Nothing curBestGraph
+                                 --if (graphType inGS) == HardWired then 0.0
+                                 --else 
+                                 POSW.getW15NetPenaltyFull Nothing inGS inData Nothing curBestGraph
                              else if (graphFactor inGS) == Wheeler2023Network then 
-                                 if (graphType inGS) == HardWired then 0.0
-                                 else POSW.getW23NetPenalty curBestGraph
+                                 -- if (graphType inGS) == HardWired then 0.0
+                                 -- else 
+                                 POSW.getW23NetPenalty curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -415,7 +417,8 @@ getNetworkPentaltyFactor :: GlobalSettings -> ProcessedData -> VertexCost -> Phy
 getNetworkPentaltyFactor inGS inData graphCost inGraph =
    if LG.isEmpty $ thd6 inGraph then 0.0
    else
-        let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
+        let inGraphNetPenalty = if (graphType inGS == Tree) then 0.0 
+                                -- else if (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                                 else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing inGraph
                                 else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty inGraph

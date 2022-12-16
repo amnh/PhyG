@@ -199,7 +199,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
 
                              --it is its own penalty due to counting all changes in in2 out 1 nodes
-                             else if (graphType inGS == HardWired) then 0.0
+                             -- else if (graphType inGS == HardWired) then 0.0
 
                              -- softwired versions
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
@@ -220,7 +220,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     -- single sequence (prealigned, dynamic) only (ie no static)
     else if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0) then
         let penaltyFactorList  = if (graphType inGS == Tree) then replicate (length finalizedPostOrderGraphList) 0.0
-                                 else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
+                                 -- else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex) finalizedPostOrderGraphList
                                  else if (graphFactor inGS) == Wheeler2023Network then fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
@@ -237,7 +237,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     -- important to have outgroup rooted graph first for fold so don't use sorted recursive list
     else
         let penaltyFactor  = if (graphType inGS == Tree) then 0.0
-                             else if (graphType inGS == HardWired) then 0.0
+                             -- else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex graphWithBestAssignments
                              else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty graphWithBestAssignments

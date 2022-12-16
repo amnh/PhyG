@@ -133,6 +133,17 @@ prettyDot inGraph =
 
 -- these duplicate edge functions should be O(n log n) based on sort--rest linear
 
+
+-- hasDuplicateEdgesNub hasDuplicateEdge but based on nub
+hasDuplicateEdgesNub :: Gr a b -> Bool
+hasDuplicateEdgesNub inGraph =
+    if isEmpty inGraph then False
+    else 
+        let edgeList = fmap toEdge $ labEdges inGraph
+            uniqueEdgeList = L.nub edgeList
+        in
+        not (length edgeList == length uniqueEdgeList)
+
 -- hasDuplicateEdge checked for duplicate edges based on indices (not label)
 hasDuplicateEdge :: Gr a b -> Bool
 hasDuplicateEdge inGraph =
@@ -412,6 +423,24 @@ labParents inGraph inNode =
     in
     if hasNothing then error "Unlabeled nodes in labParents"
     else zip parentNodeList parentLabelList'
+
+-- | isPhylogeneticGraph checks various issues to see if 
+-- there is wierdness in graph
+isPhylogeneticGraph :: (Show a, Eq a, NFData a, Show b, Eq b) => Gr a b -> Bool
+isPhylogeneticGraph inGraph =
+    if isEmpty inGraph then False
+    else 
+        let nodeList = fmap fst $ labNodes inGraph
+            indegreeList = fmap (inn inGraph) nodeList
+            outdegreeList = fmap (out inGraph) nodeList
+        in    
+        if hasDuplicateEdgesNub inGraph then False
+        else if length (getRoots inGraph) /= 1 then False
+        else if (not . null) (getIsolatedNodes inGraph) then False
+        else if (not . null) (filter ((> 2) . length) indegreeList) then False
+        else if (not . null) (filter ((> 2) . length) outdegreeList) then False
+        else if not (isGraphTimeConsistent inGraph) then False
+        else True
 
 
 -- | descendants of unlabelled node
@@ -1355,7 +1384,7 @@ getEdgesToRemoveForTime inGraph inNodePairList =
 -- that split a graph increasing the number of components by 1
 -- this is quadratic
 -- should change to Tarjan's algorithm (linear)
--- everyhting else in there is O(n^2-3) so maybe doesn't matter
+-- everything else in there is O(n^2-3) so maybe doesn't matter
 -- filters out edges with parent nodes that are out degree 1 and root edges
 getEdgeSplitList :: (Show a, Show b, Eq b) => Gr a b -> [LEdge b]
 getEdgeSplitList inGraph =
@@ -1368,7 +1397,8 @@ getEdgeSplitList inGraph =
 
           -- filter out edges starting in an outdegree 1 node (network or in out 1) node
           -- this would promote an HTU to a leaf later.  Its a bridge, but not what need
-          bridgeList' = filter ((not . isRoot inGraph) .fst3 ) $ filter ((not. isNetworkNode inGraph) . snd3)  $ filter  ((not . isOutDeg1Node inGraph) . fst3) bridgeList
+          -- bridgeList' = filter ((not . isRoot inGraph) .fst3 ) $ filter ((not. isNetworkNode inGraph) . snd3)  $ filter  ((not . isOutDeg1Node inGraph) . fst3) bridgeList
+          bridgeList' = filter ((not . isRoot inGraph) .fst3 ) $ filter ((not . isNetworkEdge inGraph) . toEdge) $ filter  ((not . isOutDeg1Node inGraph) . fst3) bridgeList
       in
 
        -- trace ("BridgeList" ++ (show $ fmap toEdge bridgeList') ++ "\nGraph\n" ++ (prettyIndices inGraph))
@@ -1482,7 +1512,7 @@ getSisterSisterEdgeByNetVertex inGraph netNodeList =
       -- trace ("Found sister-sister")
       (toEdge $ head $ inn inGraph firstNode) : getSisterSisterEdgeByNetVertex inGraph (tail netNodeList)
 
--- | concurrentViolatePair takes a pair of nodes and sees if either is ancetral to the other--if so returns pair
+-- | concurrentViolatePair takes a pair of nodes and sees if either is ancestral to the other--if so returns pair
 -- as list otherwise null list
 concurrentViolatePair :: (Eq a, Show a, Eq b) => Gr a b  -> (LNode a, LNode a) -> [(LNode a, LNode a)]
 concurrentViolatePair inGraph (node1, node2) =

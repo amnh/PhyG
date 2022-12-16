@@ -747,5 +747,8 @@ CallStack (from -prof):
 418) graph number control in search/GA
 	swappinglarge numbers of graphs somtimes
 
-422) CHase down origin of duplicate edges in HArd and softwired edges
+422) Chase down origin of duplicate edges in HArd and softwired edges
 	prob in rearrangement in swap of networks
+
+423) Somthing terrible wierd in AHrdWired swap, leads to out degree 3 and time violations that are not in graphs, but are in output
+	node indexing issue?

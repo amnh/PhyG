@@ -83,7 +83,8 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
           charInfoVV = six6 inGraph
 
 
-          inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
+          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0 
+                             -- else if (graphType inGS == HardWired) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData  Nothing inGraph
                              else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty inGraph
@@ -98,7 +99,7 @@ swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doI
         -- Nothing for SimAnneal Params
          let (swappedGraphs, counter, _) = swapAll swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor inSimAnnealParams
          in
-         -- trace ("SWAPSPRTBR: " ++ (show $ fmap snd6 swappedGraphs)) (
+         -- trace ("SWAPSPRTBR: " ++ (show $ fmap LG.isPhylogeneticGraph $ fmap thd6 swappedGraphs)) (
          if null swappedGraphs then ([inGraph], counter)
          else (swappedGraphs, counter)
          -- )
@@ -286,6 +287,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
                        else infinity 
 
       in  
+      -- trace ("SA':"  ++ (show (LG.isPhylogeneticGraph (fst6 firstGraph), LG.isPhylogeneticGraph firstDecoratedGraph)) ++ "\n" ++ (LG.prettyIndices firstDecoratedGraph)) (
       -- trace ("Current min cost: "  ++ (show (newMinCost, curBestCost))) (
       -- traceNoLF ("\tBEF:" ++ (show breakEdgeFactor)) (
       -- logic for returning normal swap operations (better only)
@@ -296,7 +298,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
       -- simulated annealing/Drift post processing      
       else 
          postProcessAnnealDrift swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams newMinCost newBreakEdgeNumber newGraphListUnique
-      -- )
+      --)
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code 
 -- with "regular" optimal swapping
@@ -783,7 +785,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
        -- here when needed
        rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
       
-       -- Filter for bridge edges fir TBR when needed
+       -- Filter for bridge edges for TBR when needed
        edgesInPrunedGraph' = if (graphType inGS == Tree) || LG.isTree splitGraphSimple then edgesInPrunedGraph
                              else fmap fst $ filter ((== True) . snd) $ zip edgesInPrunedGraph (fmap (LG.isBridge splitGraphSimple) (fmap LG.toEdge edgesInPrunedGraph))
    in
@@ -798,6 +800,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
       if (swapType == "spr") || ((length edgesInPrunedGraph) < 4) then 
          if (sprReJoinCost + splitCost) <= curBestCost then 
             if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then ([], inSimAnnealParams)
+            -- not sure why this is needed for Harwired
+            else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then ([], inSimAnnealParams)
             else if snd6 rediagnosedSPRGraph <= curBestCost then ([rediagnosedSPRGraph], inSimAnnealParams)
             else ([], inSimAnnealParams)
          else ([], inSimAnnealParams)
@@ -807,6 +811,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
          -- do TBR stuff returning SPR results if heuristic better
          let sprResult = if (sprReJoinCost + splitCost) <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS)) then 
                            if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+                           -- not sure why this is needed for Harwired
+                           else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then []
                            else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
                            else []
                          else []
@@ -827,6 +833,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
       -- check if spr better always return if so
       let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then 
                         if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
+                        -- not sure why this is needed for Harwired
+                        else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then []
                         else if snd6 rediagnosedSPRGraph < curBestCost then [rediagnosedSPRGraph]
                         else []
                       else []
