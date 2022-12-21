@@ -218,10 +218,11 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if toHardWired then
                if (graphType inGS == HardWired) then (inGS, origData, inData, inGraphList)
                else 
-                  let newGS = inGS {graphType = HardWired}
+                  let newGS = inGS {graphType = HardWired, graphFactor = NoNetworkPenalty}
                       
                       newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
+                  trace ("Changing GraphFactor to NoNetworkPenalty for HardWired graphs")
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- roll back to dynamic data from static approx      

@@ -561,8 +561,11 @@ setCommand argList globalSettings processedData inSeedList =
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Graphtype '" ++ (head optionList) ++ "' is not 'tree', 'hardwired', or 'softwired'")
             in
             if localGraphType /= Tree then 
-                trace ("Graphtype set to " ++ (head optionList) ++ " and final assignment to DO")
-                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization}, processedData, inSeedList)
+                let netPenalty = if localGraphType == HardWired then NoNetworkPenalty
+                                 else graphFactor globalSettings
+                in
+                trace ("Graphtype set to " ++ (head optionList) ++ " with graph factor NoPenalty and final assignment to DO")
+                (globalSettings {graphType = localGraphType, finalAssignment = DirectOptimization, graphFactor = netPenalty}, processedData, inSeedList)
             else 
                 trace ("Graphtype set to " ++ head optionList)
                 (globalSettings {graphType = localGraphType}, processedData, inSeedList)
