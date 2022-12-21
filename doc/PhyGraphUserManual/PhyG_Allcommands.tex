@@ -1121,6 +1121,13 @@
 			\item[first] In concert with \texttt{displayTrees:n} specifies that the first $n$ displays tree 
 			resolutions are chosen for each input graph.
 			
+			\item[graphFactor] Changes the network penalty to ``NoPenalty'', ``W15'' for Wheeler (2015) penalty or
+			``W23'' for Wheeler (2023) penalty.  HardWired graphs are automatically set to ``NoPenalty''.
+			
+			\item[graphSteepest] Changes the number or graphs evaluated in parallel in a variety of procedures
+			(e.g. swap, netmove) from the default (the larger of the number of parallel threads and 10).  This 
+			option can be used to exploit or limit use of parallel thread numbers.  
+			
 			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
 			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
 			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
@@ -1136,7 +1143,7 @@
 			\item[staticApprox] Converts non-aligned (``dynamic'') sequence characters to their Implied 
 			Alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
 			
-			\item[toHardwired] Converts exiting graphs to hardwired network graphs.
+			\item[toHardwired] Converts exiting graphs to hardwired network graphs and graphfactor to ``NoNetPenalty''.
 			
 			\item[toSoftwired] Converts exiting graphs to softwired network graphs.
 			

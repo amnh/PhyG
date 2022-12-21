@@ -74,7 +74,7 @@ validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
 buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees", "distance", "dwag", "eun", "first", "graph", "none","nj", 
-                "otu", "rdwag", "replicates", "spr","tbr", "wpgma","return"]
+                "otu", "rdwag","return", "replicates", "spr","tbr", "wpgma"]
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
@@ -82,12 +82,12 @@ fuseArgList = ["all", "atrandom", "best", "keep", "once", "pairs", "none", "spr"
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
-geneticAlgorithmArgList = ["popsize", "generations", "elitist", "severity", "recombinations","geneticalgorithm", "ga", "maxnetedges", "stop"]
+geneticAlgorithmArgList = ["elitist", "ga", "generations", "geneticalgorithm", "maxnetedges", "popsize", "recombinations", "severity", "stop"]
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["keep", "steepest", "all", "netadd", "netdel", "netdelete", "netadddel", "netadddelete", "netmove", "annealing", "steps", 
-    "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges","steepest","atrandom", "maxnetedges", "rounds"]
+netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom", "drift", "keep", "maxchanges", "maxnetedges", "netadd", 
+    "netadddel", "netadddelete", "netdel", "netdelete", "netmove", "returnmutated", "rounds", "steepest", "steps"]
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
@@ -97,11 +97,11 @@ readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fast
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
 reconcileArgList :: [String]
-reconcileArgList = ["method", "compare", "threshold", "outformat", "connect", "edgelabel", "vertexlabel"] -- "outfile" 
+reconcileArgList = ["compare", "connect", "edgelabel", "method", "outformat", "threshold", "vertexlabel"] -- "outfile" 
 
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList :: [String]
-reconcileOptionsList = ["eun", "cun", "strict", "majority", "adams", "dot" ,"dotpdf", "fen", "newick", "true", "false", "combinable", "identity"]
+reconcileOptionsList = ["adams", "combinable", "cun", "dot" ,"dotpdf", "eun", "false", "fen", "identity", "majority", "newick", "strict", "true"]
 
 
 -- | refinement arguments
@@ -110,15 +110,18 @@ refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "data", "search", "graphs", "overwrite", "append", "dot", "dotpdf", "newick", "ascii", "crossrefs", "pairdist", "diagnosis","displaytrees", "reconcile", "support", "ia", "impliedalignment", "tnt", "includemissing", "concatenate", "htulabels", "branchlengths", "nohtulabels", "nobranchlengths", "collapse", "nocollapse"] ++ reconcileArgList
+reportArgList = ["all", "append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees", 
+    "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse", 
+    "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] ++ reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "hours", "minutes", "seconds", "instances", "thompson", "mfactor", "simple", "linear", "exponential", "maxnetedges", "stop"]
+searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "mfactor", "seconds", "simple", 
+    "stop", "thompson"]
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
-selectArgList = ["best", "all", "unique", "atrandom"]
+selectArgList = ["all", "atrandom", "best", "unique"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
@@ -130,12 +133,14 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["spr","tbr", "alternate", "keep", "steepest", "all", "nni", "ia", "annealing", "maxtemp", "mintemp", "steps", "returnmutated", "drift", "acceptequal", "acceptworse", "maxchanges"]
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges", "maxtemp", 
+    "mintemp", "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
 transformArgList :: [String]
-transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", "graphssteepest", "multitraverse", "name", "outgroup", "staticapprox", "tohardwired", 
-                    "tosoftwired", "totree", "type", "weight", "softwiredmethod"]
+transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", 
+    "graphssteepest", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired", 
+    "tosoftwired", "totree", "type", "weight"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands 
