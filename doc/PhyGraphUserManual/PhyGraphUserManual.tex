@@ -439,7 +439,14 @@ memory footprints.
 	\texttt{Limiting number of graphs}
 	
 \section{Parallel Evaluation}
-	\texttt{+RTS -NX}
+	\texttt{+RTS -NX -RTS}
+	
+\section{Memory Use}
+
+The amount of memory used during program execution can be reported by adding the runtime option ``-s'' as in
+\texttt{+RTS -s -RTS} to the command line (runtime options can be specified together as in \texttt{+RTS -NX -s -RTS}).  
+This will output several fields of data with the  ``in use'' field specifying the maximum amount of memory requested from the OS.  
+RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
 	
 \chapter*{Acknowledgments}
 	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the Robert J. Kleberg Jr. and Helen C. 
