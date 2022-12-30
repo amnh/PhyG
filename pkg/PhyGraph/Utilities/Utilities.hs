@@ -1,7 +1,7 @@
 {- |
 Module      :  Utilities.hs
 Description :  Module specifying utility functions for use with PhyGraph
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2021-2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -306,8 +306,8 @@ getNumberPrealignedCharacters blockDataVect =
         in
         sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
 
--- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequen ce) characters
--- ised to special case datasets with limited non-exact characters
+-- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequence) characters
+-- utilised to special case datasets with limited non-exact characters
 getNumberSequenceCharacters :: V.Vector BlockData -> Int
 getNumberSequenceCharacters blockDataVect =
     if V.null blockDataVect then 0
@@ -317,6 +317,46 @@ getNumberSequenceCharacters blockDataVect =
             sequenceChars = length $ V.filter (== True) $ V.map (`elem` sequenceCharacterTypes) characterTypes
         in
         sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
+
+-- | getLengthSequenceCharacters takes processed data and returns the total length (maximum) of non-exact (= sequence) characters
+-- utilised to get rough estimate of fraction of non-exact characters for 
+-- dynamic epsilon adjustment to data types
+-- maximum since that ius th eminimum length of optimized HTU sequences
+getLengthSequenceCharacters :: V.Vector BlockData -> Int
+getLengthSequenceCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else
+        let -- get character info 
+            firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+
+            -- get sequences in block
+            firstBlockCharacters = GU.snd3 $ V.head blockDataVect
+            (sequenceCharVect, _) = V.unzip $ V.filter ((== True) . snd) $ (V.zip firstBlockCharacters (V.map (`elem` sequenceCharacterTypes) characterTypes))
+
+            -- get max length sequence data
+            sequenceCharsLength = V.sum $ fmap V.maximum $ fmap (fmap getMaxCharLength) sequenceCharVect
+
+        in
+        -- trace ("GLSC: " ++ (show (sequenceCharsLength, V.length firstBlockCharacters, fmap V.length firstBlockCharacters)))
+        sequenceCharsLength + getLengthSequenceCharacters (V.tail blockDataVect)
+
+-- | getMaxCharLength takes characterData and returns the length of the longest character field from preliminary
+getMaxCharLength :: CharacterData -> Int
+getMaxCharLength inChardata = 
+    let nonAdd = (V.length . fst3) $ stateBVPrelim inChardata
+        add = (V.length . fst3) $ rangePrelim inChardata
+        matrix = V.length  $ matrixStatesPrelim inChardata
+        slim  = (SV.length . fst3) $ slimGapped inChardata
+        wide = (UV.length . fst3) $ wideGapped inChardata
+        huge = (V.length . fst3) $ hugeGapped inChardata
+        aSlim = (SV.length . fst3) $ alignedSlimPrelim inChardata
+        aWide = (UV.length . fst3) $ alignedWidePrelim inChardata
+        aHuge = (V.length . fst3) $ alignedHugePrelim inChardata
+    in 
+    -- trace ("GMCL: " ++ (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
+    maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]
+
 
 -- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
 -- ised to special case datasets with limited non-exact characters
@@ -329,6 +369,15 @@ getNumberExactCharacters blockDataVect =
             exactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
         in
         exactChars + getNumberExactCharacters (V.tail blockDataVect)
+
+
+-- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
+getFractionDynamic :: ProcessedData -> Double
+getFractionDynamic inData =
+    let numStaticCharacters = getNumberExactCharacters $ thd3 inData
+        lengthDynamicCharacters = getLengthSequenceCharacters $ thd3 inData
+    in
+    (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)
 
 -- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact (Add, NonAdd, Matrix) and sequence characters
 -- (= nonExact) using accumulators
@@ -367,7 +416,7 @@ safeVectorHead inVect =
     if V.null inVect then error "Empty vector in safeVectorHead"
     else V.head inVect
 
--- | get leftRightChilLabelBV takes a pair of vertex labels and returns left and right
+-- | get leftRightChildLabelBV takes a pair of vertex labels and returns left and right
 -- based on their bitvector representation.  This ensures left/right consistancey in
 -- pre and postoder passes, and with bitvectors of leaves determined by data hash,
 -- ensures label invariance with repect to leaves
@@ -456,7 +505,7 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- the candidate solution
 -- the basic method is
 --  1) accepts if current is better
---  2) Other wise prob accept = exp(-(e' -e)/T)
+--  2) Otherwise prob accept = exp(-(e' -e)/T)
 -- where T is a step from max to min
 -- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
 -- curStep == 0 random walk (always accept)
@@ -476,14 +525,21 @@ simAnnealAccept inParams curBestCost candCost  =
             curStep  = currentStep simAnealVals
             randIntList = randomIntegerList simAnealVals
 
-            stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-            tempFactor = curBestCost  * stepFactor
+            -- stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+            -- tempFactor = curBestCost  * stepFactor
 
             candCost' = if curBestCost == candCost then candCost + 1
                         else candCost
-                    -- flipped order - (e' -e)
+
+            -- factors here for tweaking
+            energyFactor = 10.0 * (100 * (curBestCost - candCost') / curBestCost)
+            tempFactor' = 10.0 * (fromIntegral $ numSteps - curStep) / (fromIntegral $ numSteps)
+
+            -- flipped order - (e' -e)
             -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-            probAcceptance = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+            -- probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+
+            probAcceptance =  exp (energyFactor / tempFactor')
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
@@ -495,22 +551,22 @@ simAnnealAccept inParams curBestCost candCost  =
             nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = tail randIntList}
         in
         -- lowest cost-- greedy
-        -- trace ("RA " ++ (show intAccept)) (
+        -- but increment this if using heuristic costs
         if candCost < curBestCost then
-                --trace ("SAB: " ++ (show curStep) ++ " True")
+                -- trace ("SAB: " ++ (show curStep) ++ " Better ")
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " ++ (show curStep) ++ " False")
+                -- trace ("SAEnd: " ++ (show curStep) ++ " Hit limit ")
                 (False, nextSAParams)
 
         -- test for non-lowest temp conditions
         else if intRandVal < intAccept then
-                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " True")
+                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) ++ " True")
                 (True, nextSAParams)
         else
-                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor, probAcceptance, intAccept, intRandVal)) ++ " False")
+                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) ++ " False")
                 (False, nextSAParams)
         -- )
 
@@ -549,13 +605,14 @@ generateUniqueRandList number inParams =
             -- simAnnealParamList = replicate number inParams
             newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList
         in
-        -- trace (show $ fmap (take 1) randIntListList)
+        -- trace ("New random list fist elements: " ++ (show $ fmap (take 1) randIntListList))
         newSimAnnealParamList
 
         where updateSAParams a b = a {randomIntegerList = b}
 
--- | driftAccept takes SAParams, currrent best cost, and cadidate cost
+-- | driftAccept takes SAParams, currrent best cost, and candidate cost
 -- and returns a Boolean and an incremented set of params
+-- this based on a percentage of diffference in graph cost
 driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 driftAccept simAnealVals curBestCost candCost  =
     if simAnealVals == Nothing then error "Nothing value in driftAccept"
@@ -566,7 +623,7 @@ driftAccept simAnealVals curBestCost candCost  =
             --- prob acceptance for better, same, and worse costs
             probAcceptance = if candCost < curBestCost then 1.0
                              else if candCost == curBestCost then driftAcceptEqual $ fromJust simAnealVals
-                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + candCost - curBestCost)
+                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + (100.0 * (candCost - curBestCost) / curBestCost))
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
@@ -580,17 +637,18 @@ driftAccept simAnealVals curBestCost candCost  =
             nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
 
         in
-        -- only increment nnumberof changes for True values
+        -- only increment numberof changes for True values
+        -- but increment this if using heuristic costs
         if candCost < curBestCost then
-            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
             (True, nextSAParams)
 
         else if intRandVal < intAccept then
-            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " True")
+            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")
             (True, nextSAParams)
 
         else
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) ++ " False")
+            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " False")
             (False, nextSAPAramsNoChange)
             -- )
 

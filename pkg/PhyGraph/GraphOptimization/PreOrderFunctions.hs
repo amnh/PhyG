@@ -34,12 +34,6 @@ Portability :  portable (I hope)
 
 -}
 
-{-
-ToDo:
-   Add parallel optimization overblocks and characters?
--}
-
-
 module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , preOrderTreeTraversal
                                             , getBlockCostPairsFinal
@@ -76,13 +70,13 @@ import qualified ParallelUtilities                    as PU
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
 -- and returns a full labels with 'final' assignments based on character decorated graphs
 -- created postorder (5th of 6 fields).
--- the preorder states are creted by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
--- these are by block and character,  Exact charcaters are vectors of standard characters and each seqeunce (non-exact)
--- has its own traversal graph. These should be treees here (could be forests later) and should all have same root (number taxa)
+-- the preorder states are created by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
+-- these are by block and character,  Exact characters are vectors of standard characters and each sequence (non-exact)
+-- has its own traversal graph. These should be trees here (could be forests later) and should all have same root (number taxa)
 -- but worth checking to make sure.
--- these were creted by "splitting" them after preorder
+-- these were created by "splitting" them after preorder, or by separate passes in softwired graphs
 
--- For sequence charcaters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
+-- For sequence characters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
 -- if DO--then does a  median between parent andchgaps wherre needed--then  doing a 3way state assignmeent filteringgaps out
 -- if IA--then a separate post and preorder pass are donne on the slim/wide/huge/AI fields to crete full IA assignments
 -- that are then filtered of gaps and assigned to th efinal fields
@@ -93,10 +87,10 @@ import qualified ParallelUtilities                    as PU
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap inPGraph@(inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
-    if LG.isEmpty (thd6 inPGraph) then error "Empty tree in preOrderTreeTraversal"
+    if LG.isEmpty inDecorated then error "Empty tree in preOrderTreeTraversal"
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
@@ -591,7 +585,7 @@ updateEdgeInfoSoftWired finalMethod inCharInfoVV blockTreePairVV rootIndex (uNod
         (uNode, vNode, newEdgeLabel)
 
 
--- | getEdgeBlockWeightSoftWired takes a block of charcter trees and maps character distances if edge exists in block tree
+-- | getEdgeBlockWeightSoftWired takes a block of character trees and maps character distances if edge exists in block tree
 getEdgeBlockWeightSoftWired :: AssignmentMethod
                             -> Int
                             -> Int
@@ -947,7 +941,7 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- to create pre-order assignments
    -- | setFinalHTU takes a single character and its parent and sets the final state to prelim based
 -- on character info.
--- non exact charcaters are vectors of characters of same type
+-- non exact characters are vectors of characters of same type
 -- this does the same things for sequence types, but also
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
@@ -1586,3 +1580,4 @@ setPrelimToFinalCharacterData inChar =
 
                            , packedNonAddPrelim = (packedNonAddFinal inChar, packedNonAddFinal inChar, packedNonAddFinal inChar)
             }
+

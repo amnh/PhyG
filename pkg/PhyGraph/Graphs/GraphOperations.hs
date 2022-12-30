@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 
 module Graphs.GraphOperations (  ladderizeGraph
                                , convertDecoratedToSimpleGraph
+                               , convertSimpleToDecoratedGraph
                                , convertToSimpleEdge
                                , graphCostFromNodes
                                , dichotomizeRoot
@@ -63,6 +64,9 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , isNovelGraph
                                , getNodeType
                                , getDisplayTreeCostList
+                               , phylogeneticGraphListMinus
+                               , makeLeafGraph
+                               , makeSimpleLeafGraph     
                                ) where
 
 import           Bio.DynamicCharacter
@@ -85,6 +89,23 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
 
+-- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
+-- if an element is multiple times in firt list each will be removed
+-- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
+-- does not take cost into account--or edge weight--only topology.
+-- result like (minuendList - subtrahendList)
+phylogeneticGraphListMinus :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+phylogeneticGraphListMinus minuendList subtrahendList =
+  if null minuendList then []
+  else if null subtrahendList then minuendList
+  else 
+      let minuendSimpleStringList = fmap (LG.prettyIndices . fst6) minuendList
+          subtrahendSinpleStringList = fmap (LG.prettyIndices . fst6) subtrahendList
+          inSubtrahendList = fmap (`elem` subtrahendSinpleStringList) minuendSimpleStringList
+          differenceList = fmap fst $ filter ((== False) . snd) $ zip minuendList inSubtrahendList
+      in
+      differenceList
+ 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
 makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
 makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
@@ -120,8 +141,11 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     let -- remove single "tail" edge from root with single child, replace child node with root
         noTailGraph = LG.contractRootOut1Edge inGraph
 
+        -- remove non-leaf nodes (index > root) with outdegree 0
+        nonNonLeafOut0 = LG.removeNonLeafOut0NodesAfterRoot noTailGraph
+
         -- remove indeg 1 out deg 1 edges
-        noIn1Out1Graph = contractIn1Out1EdgesRename noTailGraph
+        noIn1Out1Graph = contractIn1Out1EdgesRename nonNonLeafOut0 --noTailGraph
 
         -- transitive reduction
         -- only wanted to EUN and CUN--but they do it
@@ -134,7 +158,7 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
         timeConsistentGraph = makeGraphTimeConsistent failCorrect ladderGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
-        -- but that looks at all nods not just vertex
+        -- but that looks at all nodes not just vertex
         noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
@@ -152,8 +176,8 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
 
     -- this final need to ladderize or recontract?
-    else  noSisterSisterGraph
-
+    else noSisterSisterGraph
+    
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
 removeParentsInChain failCorrect inGraph =
@@ -304,6 +328,7 @@ ladderizeGraph' inGraph nodeList
   else
     let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
     in
+    -- trace ("resolving " ++ "node " ++ (show firstNode) ++ " " ++ (show inOutPairLength) )
     ladderizeGraph' newGraph (LG.nodes newGraph)
     -- )
 
@@ -317,16 +342,26 @@ resolveNode :: SimpleGraph -> LG.Node -> ([LG.LEdge Double], [LG.LEdge Double]) 
 resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) =
   if LG.isEmpty inGraph then LG.empty
   else
-    --trace ("Resolveing " ++ show (inNum, outNum)) (
+    -- trace ("Resolving " ++ show (inNum, outNum)) (
     let numNodes = length $ LG.nodes inGraph
     in
-    -- isolated node -- throw error
-    if inNum == 0 && outNum == 0 then error ("ResolveNode error: Isolated vertex " ++ show curNode ++ " in graph\n" ++ LG.prettify inGraph )
+    -- isolated node -- throw warning and delete
+    if inNum == 0 && outNum == 0 then 
+      trace ("Warning: ResolveNode deleting isolated vertex " ++ show curNode) ( --  ++ " in graph\n" ++ LG.prettify inGraph )
+      let newGraph = LG.delNode curNode inGraph
+      in
+      newGraph
+      )
 
-    -- indegree 1 outdegree 1 node to contract
-    else if inNum == 1 && outNum == 1 then
-      let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
-          newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
+     -- node with too many parents and too many children
+    -- converts to tree node--biased in that direction
+    else if (inNum > 2) && (outNum > 2) then
+      let first2Edges = take 2 inEdgeList
+          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+          newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
+          newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
+          newEdge3 = (numNodes, curNode, 0.0 :: Double)
+          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
       in
       newGraph
 
@@ -341,6 +376,13 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       in
       newGraph
 
+    -- indegree 1 outdegree 1 node to contract
+    else if inNum == 1 && outNum == 1 then
+      let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
+          newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
+      in
+      newGraph
+
     else if (inNum < 2 || outNum > 2) then
       let  first2Edges = take 2 outEdgeList
            newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
@@ -351,35 +393,56 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       in
       newGraph
 
-      -- node with too parents and too many children
-      -- converts to tree node--biased in that direction
-      else if (inNum > 2) && (outNum > 2) then
-        let first2Edges = take 2 inEdgeList
-            newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-            newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
-            newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
-            newEdge3 = (numNodes, curNode, 0.0 :: Double)
-            newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-        in
-        newGraph
-
-
         -- root or simple network indegree node
-      else if (inNum == 0 || outNum > 2) then
-          let first2Edges = take 2 outEdgeList
-              newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
-              newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
-              newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
-              newEdge3 = (curNode, numNodes, 0.0 :: Double)
-              newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
-            in
-            newGraph
+    else if (inNum == 0 || outNum > 2) then
+      let first2Edges = take 2 outEdgeList
+          newNode = (numNodes , T.pack $ ("HTU" ++ (show numNodes)))
+          newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
+          newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
+          newEdge3 = (curNode, numNodes, 0.0 :: Double)
+          newGraph = LG.insEdges [newEdge1, newEdge2, newEdge3] $ LG.delLEdges first2Edges $ LG.insNode newNode inGraph
+      in
+      newGraph
+
+    -- check if indegree 0 is a leaf (ie index < root)
+    else if outNum == 0 then
+      -- get root index 
+      let rootIndex = fst $ head $ LG.getRoots inGraph
+      in
+      if curNode < rootIndex then inGraph
+      else LG.delNode curNode inGraph
 
 
-      else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
+    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
     -- )
 
--- | convertDecoratedToSimpleGraph
+
+-- | convertSimpleToDecoratedGraph takes a sinple graph and creates a Decorated graph
+-- but with dummy info--basically just with the correct type and structures
+convertSimpleToDecoratedGraph :: SimpleGraph -> DecoratedGraph
+convertSimpleToDecoratedGraph inSimple =
+  if LG.isEmpty inSimple then LG.empty
+  else 
+    let simpleNodeList = LG.labNodes inSimple
+        simpleEdgeList = LG.labEdges inSimple
+        decNodeList = fmap simpleNodeToDecorated simpleNodeList
+        decEdgeList = fmap simpleEdgeToDecorated simpleEdgeList
+    in
+    LG.mkGraph decNodeList decEdgeList
+
+-- | simpleNodeToDecorated takes a simple node and cretes a decoraetd node with info available
+simpleNodeToDecorated :: LG.LNode T.Text -> LG.LNode VertexInfo
+simpleNodeToDecorated (indexNode, nameNode) = 
+  -- probbaly need to add other info--but cn;t get all of it (e..g. BV and costs)
+  (indexNode, emptyVertexInfo {index = indexNode
+            , vertName = nameNode}
+            )
+
+-- | simpleEdgeToDecorated takes a Double edge label and returns EdgInfo
+simpleEdgeToDecorated :: LG.LEdge Double -> LG.LEdge EdgeInfo
+simpleEdgeToDecorated (a,b, weightDouble) = (a,b, dummyEdge {minLength = weightDouble, maxLength = weightDouble, midRangeLength = weightDouble})
+
+-- | convertDecoratedToSimpleGraph takes a decorated graph and returns the simple graph equivalent
 convertDecoratedToSimpleGraph :: DecoratedGraph -> SimpleGraph
 convertDecoratedToSimpleGraph inDec =
   if LG.isEmpty inDec then LG.empty
@@ -387,14 +450,6 @@ convertDecoratedToSimpleGraph inDec =
     let decNodeList = LG.labNodes inDec
         newNodeLabels = fmap vertName $ fmap snd decNodeList
         simpleNodes = zip (fmap fst decNodeList) newNodeLabels
-
-        {-
-        decEdgeList = LG.labEdges inDec
-        sourceList = fmap fst3 decEdgeList
-        sinkList = fmap snd3 decEdgeList
-        newEdgeLables = replicate (length sourceList) 0.0  -- fmap midRangeLength $ fmap thd3 decEdgeList
-        simpleEdgeList = zip3 sourceList sinkList newEdgeLables
-        -}
         simpleEdgeList = fmap convertToSimpleEdge $ LG.labEdges inDec
     in
     LG.mkGraph simpleNodes simpleEdgeList
@@ -402,7 +457,7 @@ convertDecoratedToSimpleGraph inDec =
 
 -- | convertToSimpleEdge takes a lables edge and relabels with 0.0
 convertToSimpleEdge :: LG.LEdge EdgeInfo -> LG.LEdge Double
-convertToSimpleEdge (a, b, c) = (a, b, minLength c)
+convertToSimpleEdge (a, b, c) = (a, b, midRangeLength c)
 
 -- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
 --  of its nodes
@@ -776,7 +831,7 @@ nodeAncViolation inGraph inNode =
     in
     (not . null) isAncInNode
 
--- | selectGraphStochastic takes a list of graphs and retuns a list of graphs chosen at Random
+-- | selectGraphStochastic takes a list of graphs and returns a list of graphs chosen at Random
 -- using an exponential distribution based on graph cost difference divided by an input factor
 -- if factor is 0 then stringth graphs cost
 -- mprob acceptance = -exp [(cost - minCost)/ factor]
@@ -810,7 +865,7 @@ selectGraphStochastic rSeed number factor inGraphList =
 
 
     in
-    trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList))
+    -- trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList))
     -- so no more than specified
     take number $ returnGraphList ++ luckyList
 
@@ -845,4 +900,52 @@ getCharacterCost rootIndex inGraph =
     in
     if isNothing rootLabel then error ("Root index without label: " ++ (show rootIndex))
     else subGraphCost $ fromJust rootLabel
+
+-- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeLeafGraph :: ProcessedData -> DecoratedGraph
+makeLeafGraph (nameVect, bvNameVect, blocDataVect) =
+    if V.null nameVect then error "Empty ProcessedData in makeLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeLeafVertex nameVect bvNameVect blocDataVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+
+
+-- | makeSimpleLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
+-- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
+-- to avoid remaking of leaf vertices
+makeSimpleLeafGraph :: ProcessedData -> SimpleGraph
+makeSimpleLeafGraph (nameVect, _, _) =
+    if V.null nameVect then error "Empty ProcessedData in makeSimpleLeafGraph"
+    else
+        let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
+        in
+        LG.mkGraph leafVertexList []
+        where makeSimpleLeafVertex a b = (b, a V.! b)
+
+
+-- | makeLeafVertex makes a single unconnected vertex for a leaf
+makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
+makeLeafVertex nameVect bvNameVect inData localIndex =
+    -- trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    let centralData = V.map snd3 inData
+        thisData = V.map (V.! localIndex) centralData
+        newVertex = VertexInfo  { index = localIndex
+                                , bvLabel = bvNameVect V.! localIndex
+                                , parents = V.empty
+                                , children = V.empty
+                                , nodeType = LeafNode
+                                , vertName =  nameVect V.! localIndex
+                                , vertData = thisData
+                                , vertexResolutionData = mempty
+                                , vertexCost = 0.0
+                                , subGraphCost = 0.0
+                                }
+        in
+        -- trace (show (length thisData) ++ (show $ fmap length thisData))
+        (localIndex, newVertex)
+        -- )
+
 

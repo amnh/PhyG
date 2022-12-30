@@ -323,6 +323,16 @@
 		 	 
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}
+
+	\section{Adding New Commands}
+	In addition to their locations (functions) of operation, commands and their options are specified in Verify.hs, CommandExecution.hs,
+	CommandUtilities.hs, and ProcessCommands.hs.  The command options are entered in lists in Verify.hs so that command scripts 
+	can be checked for malformed options before runs begin to avoid command failures later during runs and all the concomitant wasted time.
+	CommandExecution.hs has the central function for processing commands and their arguments along with helper functions in CommandUtilities.hs.
+	ProcessCommands.hs contains functions to parse commands and has some error processing. 
+	
+	In  verify, all commands are in lower case--although can be any case for user.
+
 	\section{Execution in Parallel}
 	By default the program will execute multi-threaded based on the number processors available.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
 	\\
@@ -335,6 +345,6 @@
 	
 	\newpage
 	%\bibliography{big-refs-3.bib}
-	\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 \end{document}

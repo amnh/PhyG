@@ -75,7 +75,7 @@ epsilon = 0.0001
 infinity :: Double
 infinity = (read "Infinity") :: Double
 
--- |maxAddStatesToRecode maximum size of addditive charcater to recode into
+-- | maxAddStatesToRecode maximum size of addditive charcater to recode into
 --non-additive charcaters 65 can fit in 4 Word64 since nstates - 1 binaries
 -- prob could be bigger based on cost of optimizing additive versus but this 
 -- seems a reasonale number (prob should be timed to verify)
@@ -155,6 +155,9 @@ data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | 
 data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
     deriving stock (Show, Eq)
 
+data SoftWiredAlgorithm = Naive | ResolutionCache
+    deriving stock (Show, Eq)
+
 -- | Method for makeing final seqeujnce charcatert states assignment
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
@@ -176,7 +179,11 @@ data SearchData
     , commentString   :: String
     , duration        :: Int
     } deriving stock (Show, Eq)
-
+-- | maxSimultaneousGraphsSteepest is the maximum number of graphs that are evaluated
+-- at a step in "steepest" algorithms of swap and fuse. Set becasue can increase 
+-- run time of these procedurs by delaying finding "better" solutins to move to.
+maxSimultaneousGraphsSteepest :: Int
+maxSimultaneousGraphsSteepest = 10
 
 data  GlobalSettings
     = GlobalSettings
@@ -201,7 +208,13 @@ data  GlobalSettings
     , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
     , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
     , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
+    , fractionDynamic     :: Double -- estimated gfraction of charcater length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , dynamicEpsilon      :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , graphsSteepest      :: Int -- he maximum number of graphs that are evaluated
+                                 -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
+                                 -- run time of these procedurs by delaying finding "better" solutins to move to.
+    , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
+    , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -364,10 +377,8 @@ type ResolutionBlockData = V.Vector ResolutionData
 data ResolutionData = ResolutionData { displaySubGraph  :: ([LG.LNode VertexInfo], [LG.LEdge EdgeInfo]) -- holds the post-order display sub-tree for the block
                                      , displayBVLabel   :: NameBV -- For comparison of vertices subtrees, left/right, anmd root leaf inclusion
                                      , displayData      :: V.Vector CharacterData -- data for characters in block
-                                     -- list of left, right resolution indices to create current index, used in traceback to get prelminary states
-                                     -- and in compressing reolutions to keep only those that result in differnet preliminary states
-                                     -- but allowing traceback of resoliutions to get preliminary states
-                                     , childResolutions :: [(Maybe Int, Maybe Int)]
+                                     -- left and right indices of child resolution Data for traceback and preliminary state assignment
+                                     , childResolutionIndices :: (Maybe Int, Maybe Int)
                                      , resolutionCost   :: VertexCost -- cost of creating the resolution
                                      , displayCost      :: VertexCost -- cost of that display subtree
                                      } deriving stock (Show, Eq)
@@ -496,13 +507,28 @@ instance NFData SAParams where rnf x = seq x ()
 
 -- | empty structures for convenient use
 
+-- | emptySearchData for use in getting basic procesin input data
+emptySearchData :: SearchData
+emptySearchData  = SearchData
+        { instruction     = NotACommand 
+        , arguments       = []
+        , minGraphCostIn  = infinity
+        , maxGraphCostIn  = infinity
+        , numGraphsIn     = 0
+        , minGraphCostOut = infinity
+        , maxGraphCostOut = infinity
+        , numGraphsOut    = 0
+        , commentString   = []
+        , duration        = 0
+        } 
+
 -- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
 emptyGlobalSettings :: GlobalSettings
 emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , outGroupName = T.pack "NoOutgroupSet"
                                      , optimalityCriterion = Parsimony
                                      , graphType = Tree
-                                     , compressResolutions = True
+                                     , compressResolutions = False
                                      , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
@@ -519,7 +545,11 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , bc8 = (0.0,1.0)
                                      , bc64 = (0.0,1.0)
                                      , bcgt64 = (0.0,1.0)
-                                     , dynamicEpsilon = 1.02
+                                     , fractionDynamic = 1.0
+                                     , dynamicEpsilon = 1.00
+                                     , graphsSteepest = 10
+                                     , softWiredMethod = ResolutionCache
+                                     , multiTraverseCharacters = True
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

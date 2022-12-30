@@ -719,13 +719,36 @@ preOrderTreeTraversal
 
 408) add paralleize bitpacking-- with option to turn off for memory saving
 
-409) redo fuse
-
-410) redo parallel add/delete/move
-
 411) figure out issue with net move
 
 412) Internal setting of dynamic epsilon
 	(also only for dynmaic/sequence characters)
 
 
+413) wierd error
+	phyg-xc: Prelude.undefined
+CallStack (from HasCallStack):
+  error, called at libraries/base/GHC/Err.hs:74:14 in base:GHC.Err
+  undefined, called at src/Data/HashTable/ST/Basic.hs:214:22 in hashtables-1.3-2dc341e694bb376cf992d1fe3184eb881bab0fb1c5765dec83fdf1c152b82a46:Data.HashTable.ST.Basic
+CallStack (from -prof):
+  Data.HashTable.ST.Basic.CAF (<entire-module>)
+
+ 	I htink this omes form running multiple parallel jobs oni my desktop--not a "program" errro perhaps
+
+
+414) swap unions
+
+415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
+
+416) Search terminate after so many zero imporvements? (or time)
+
+417) Static approx costs when not 1:1 (add chars)
+
+418) graph number control in search/GA
+	swappinglarge numbers of graphs somtimes
+
+422) Chase down origin of duplicate edges in HArd and softwired edges
+	prob in rearrangement in swap of networks
+
+423) Somthing terrible wierd in AHrdWired swap, leads to out degree 3 and time violations that are not in graphs, but are in output
+	node indexing issue?

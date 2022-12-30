@@ -1,40 +1,37 @@
-Cabal-Version: 3.0
+Cabal-Version: 3.8 
 Name:          PhyGraph
 Version:       0.1.0
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
-  GHC == 9.2.2
+  GHC == 9.2.4
+  GHC == 9.4.2
+
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     (c) 2015-2022 Ward Wheeler
 License:       BSD-3-Clause
 License-File:  LICENSE
 
+
 Maintainer:    Ward Wheeler <wheeler@amnh.org>
 Homepage:      https://github.com/wardwheeler/PhyGraph#readme
 Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
 
 Extra-Doc-Files:
   CHANGELOG.md
   README.md
 
+
 Extra-Source-Files:
   ffi/external-direct-optimization/*.h
-  
-Source-Repository-Package head
-  type:     git
-  location: git@github.com:wardwheeler/PhyGraph.git
-  subdir:   pkg/PhyloLib
 
-Source-Repository-Package head
-  type:     git
-  location: git@github.com:recursion-ninja/bv-little.git
 
 -- Global deviations from Haskell98
-common ffi-build-info
+Common ffi-build-info
 
-  cc-options:
+  CC-Options:
     -rdynamic --std=c11
 
   -- Here we list all directories that contain C & C++ header files that the FFI
@@ -44,9 +41,9 @@ common ffi-build-info
   -- that the parent directory of the nessicary C & C++ header files must be
   -- specified. The preprocessor will not recursively look in subdirectories for
   -- header files!
-  include-dirs:
+  Include-Dirs:
     ffi/external-direct-optimization
-  
+
   -- Specify the header files as required source files here.
   -- Do not specify them in the c-sources or cxx-sources stanzas.
   -- This is required for sdist and install commands to work correctly.
@@ -61,7 +58,7 @@ common ffi-build-info
     ukkCheckPoint.h
     ukkCommon.h
 
-  c-sources:
+  C-Sources:
     ffi/external-direct-optimization/alignCharacters.c
     ffi/external-direct-optimization/alignmentMatrices.c
     ffi/external-direct-optimization/c_alignment_interface.c
@@ -73,12 +70,75 @@ common ffi-build-info
 
 
 -- Global deviations from Haskell98
-common language-specs
+Common language-specs
 
-  -- Always use MonadFail(fail), not Monad(fail)
-  other-extensions:
+  Default-Language:
+    GHC2021
+
+  Other-Extensions:
+    BangPatterns
     DerivingStrategies
 
+
+Common static-build-flags
+
+  -- MacOS static compilation options
+  If os(darwin)
+--    cc-options:
+
+    GHC-Options:
+--      -static
+
+--    ld-options:
+--        -pie --tryng for dlopen stuff
+
+  -- Linux static compilation options
+  Else
+    -- Options for: C Compiler
+--    CC-Options:
+--      -pthread
+--      -static
+
+    extra-bundled-libraries:
+      HSprocess,
+      HSunix,
+
+    Extra-Lib-Dirs:
+      /usr/lib/x86_64-linux-gnu
+
+    Extra-Lib-Dirs-Static:
+      /usr/lib/x86_64-linux-gnu
+
+    -- Options for: GHC
+    GHC-Options:
+      -static
+--      -staticlib
+--      -optc-pthread
+--      -optc-static
+--      -optl-static
+--      -optl-pthread
+--      -optl-lglibc
+--      -optl-static-libgcc
+
+    -- Options for: Linker
+    LD-Options:
+--      -pie --tryng for dlopen stuff
+--      -pthread
+--      -static
+--      -static-libgcc
+
+
+Flag super-optimization
+   Description: Apply extremely agressive and extremely time consuming optimization passes
+   Default:     False
+   Manual:      True
+
+flag super-optimization-osx
+  Description: Apply extremely agressive and extremely time consuming optimization passes with specific OSX options
+   Default:     False
+   Manual:      True
+
+-- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
@@ -96,150 +156,158 @@ common language-specs
 --   * Additional executables for non-public, diagnostic purposes
 --
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-                  
-            
+
+
 -- Phylogenetic Graphs
 --
 -- This is the main program of this package, supporting fully featured
 -- phylogenetic trees, networks, and forests.
-executable phyg
+Executable phyg
 
-  import:
+  Import:
     ffi-build-info,
-    language-specs
+    language-specs,
+    static-build-flags
 
-  main-is:
+  Main-Is:
     phygraph.hs
 
-  if !os(darwin) 
-    ghc-options:
-      -Wall
-      -Wincomplete-patterns
-      -threaded 
-      -feager-blackholing
-      -with-rtsopts=-N
-      -O2
-      -rtsopts
-      -static
-      -fllvm
-  else 
-    ghc-options:
-      -Wall
-      -Wincomplete-patterns
-      -threaded 
-      -feager-blackholing
-      -with-rtsopts=-N
-      -O2
-      -rtsopts
-      -static
+  GHC-Options:
+    -feager-blackholing
+    -O2
+    -rtsopts
+    -threaded
+    -Wall
+
+  If os(darwin)
+    GHC-Options:
       -- problems getting llvm to function in OSX (can't find opt)
       -- -fllvm
+  else
+    GHC-Options:
+     -- -fllvm
 
+  -- this since can't get llvm going or ghc-9.4.3
+  if flag(super-optimization-osx)
+    GHC-Options:
+      -fexcess-precision
+--      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+--      -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  if !os(darwin) 
-    cc-options: 
-      -static
-  else 
-    cc-options:
+  elif flag(super-optimization)
+    GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+      -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+      
+  else
+    GHC-Options:
+--    "-with-rtsopts=-N"
+--    rts -AL8 was rejected  should be >= A
+--    rts --nonmoving-gc causes large memory blow-ups
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  if !os(darwin) 
-    ld-options: 
-      -static -pthread
-  else 
-    ld-options: 
-
-
-  build-depends:  alphabet
-                , dynamic-character
-                , PhyloLib
-                , tcm
-                , base >=4.10
-                , containers >=0.6
-                , graphviz   >=2999.20
-                , fgl
-                , text
-                , parallel
-                , deepseq
-                , bv
-                -- , exceptions
-                , array
-                , split
-                , text-short
-                , random
-                , hashable
-                , time
-                , vector
-                , sort
-                -- , unboxing-vector
-                , MissingH >= 1.4.3
-                , bv-little
-                -- , bits
-                -- , hashmap
-                , bimap
-                , logfloat
-                , random-shuffle
-                
-               -- currently doesn't compile but could be useful
-               -- lots of good functions
-               -- , Graphalyze
-               , async
-               , process
-               
-               , directory
-               , inflist
-               
- 
-                
-  default-extensions: BangPatterns                
-
-  default-language: Haskell2010
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:dynamic-character,
+    PhyGraph:tcm,
+    PhyloLib,
+    array,
+    async,
+    base >=4.10,
+    bimap,
+    bv,
+    bv-little,
+    clock,
+    containers >=0.6,
+    cpuinfo,
+    deepseq,
+    directory,
+    fgl,
+    graphviz   >=2999.20,
+    hashable,
+    inflist,
+    logfloat,
+    MissingH >= 1.4.3,
+    parallel,
+    process,
+    random,
+    random-shuffle,
+    sort,
+    split,
+    text,
+    text-short,
+    time,
+    vector,
+    -- currently doesn't compile but could be useful
+    -- lots of good functions
+    -- Graphalyze,
 
   -- include the source files needed in src for github library
   -- this for local library files
-  hs-source-dirs: .
-  
-  other-modules:  Commands.ProcessCommands
-                  Commands.CommandExecution
-                  Commands.Verify
-                  Debug.Debug
-                  Graphs.GraphOperations
-                  GraphOptimization.Medians
-                  GraphOptimization.PostOrderFunctions
-                  GraphOptimization.PostOrderSoftWiredFunctions
-                  GraphOptimization.PreOrderFunctions
-                  GraphOptimization.Traversals
-                  Input.BitPack
-                  Input.DataTransformation
-                  Input.FastAC
-                  Input.ReadInputFiles
-                  Input.Reorganize
-                  Input.TNTUtilities
-                  Search.Build
-                  Search.DistanceMethods
-                  Search.DistanceWagner
-                  Search.Fuse
-                  Search.GeneticAlgorithm
-                  Search.NetworkAddDelete 
-                  Search.Refinement
-                  Search.Search
-                  Search.Swap
-                  Search.SwapMaster 
-                  Search.WagnerBuild
-                  Support.Support
-                  System.Timing
-                  Commands.Transform
-                  Types.DistanceTypes
-                  Types.Types
-                  Utilities.Distances
-                  Utilities.DistanceUtilities
-                  Utilities.LocalGraph
-                  Utilities.LocalSequence
-                  Utilities.TcmHash
-                  Utilities.ThreeWayFunctions
-                  Utilities.Utilities
-                  Reconciliation.Adams
-                  Reconciliation.Eun
-                  Reconciliation.ReconcileGraphs
+  HS-Source-Dirs: .
+
+  Other-Modules:
+    Commands.CommandExecution
+    Commands.CommandUtilities
+    Commands.ProcessCommands
+    Commands.Transform
+    Commands.Verify
+    Debug.Debug
+    GraphOptimization.Medians
+    -- GraphOptimization.PostOrderFunctions
+    GraphOptimization.PostOrderSoftWiredFunctions
+    GraphOptimization.PostOrderSoftWiredFunctionsNew
+    GraphOptimization.PreOrderFunctions
+    GraphOptimization.Traversals
+    Graphs.GraphOperations
+    Input.BitPack
+    Input.DataTransformation
+    Input.FastAC
+    Input.ReadInputFiles
+    Input.Reorganize
+    Input.TNTUtilities
+    Reconciliation.Adams
+    Reconciliation.Eun
+    Reconciliation.ReconcileGraphs
+    Search.Build
+    Search.DistanceMethods
+    Search.DistanceWagner
+    Search.Fuse
+    Search.GeneticAlgorithm
+    Search.NetworkAddDelete
+    Search.Refinement
+    Search.Search
+    Search.Swap
+    Search.SwapMaster
+    Search.WagnerBuild
+    Support.Support
+    System.Timing
+    Types.DistanceTypes
+    Types.Types
+    Utilities.Distances
+    Utilities.DistanceUtilities
+    Utilities.LocalGraph
+    Utilities.LocalSequence
+    Utilities.TcmHash
+    Utilities.ThreeWayFunctions
+    Utilities.Utilities
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -248,22 +316,18 @@ executable phyg
 -- (PCG/PhyG), and are also exposed for external consumption by other programs.
 --
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-                  
-            
+
+
 library alphabet
 
-  import:
+  Import:
     language-specs
 
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
+  HS-Source-Dirs:
     lib/alphabet/src
 
-  build-depends:
---    serialize,
-    utility,
+  Build-Depends:
+    PhyGraph:utility,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     binary                   >= 0.8       && < 1.0,
@@ -282,45 +346,43 @@ library alphabet
   -- I consider this a temporary hack to get things to compile with profiling.
   other-extensions: TemplateHaskell
 
-  exposed-modules:
+  Exposed-Modules:
     Data.Alphabet
     Data.Alphabet.Codec
     Data.Alphabet.IUPAC
     Data.Alphabet.Special
 
-  other-modules:
-    Data.Alphabet.Internal      
+  Other-Modules:
+    Data.Alphabet.Internal
 
 
 -- Library for performing string alignment on dynamic characters.
 
 -- Provides various metrics for scoring static characters and
 -- performing string alignment on dynamic characters.
+
 library dynamic-character
 
-  import:
+  Import:
     ffi-build-info,
     language-specs
 
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
+  HS-Source-Dirs:
     lib/dynamic-character/src
 
-  build-depends:
-    alphabet,
-    tcm,
-    utility,
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:tcm,
+    PhyGraph:utility,
     base                     >= 4.11      && < 5.0,
     bv-little,
     containers               >= 0.6.2     && < 1.0,
-    matrices                 >= 0.5       && < 1.0,            
+    matrices                 >= 0.5       && < 1.0,
     monad-loops              >= 0.4       && < 1.0,
     primitive                >= 0.7.1     && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
 
-  exposed-modules:
+  Exposed-Modules:
     Bio.DynamicCharacter
     Bio.DynamicCharacter.Measure
     Bio.DynamicCharacter.HandleGaps
@@ -330,7 +392,7 @@ library dynamic-character
     DirectOptimization.Pairwise.Ukkonen
     DirectOptimization.PreOrder
 
-  other-modules:
+  Other-Modules:
     DirectOptimization.Pairwise.Direction
     DirectOptimization.Pairwise.Huge
     DirectOptimization.Pairwise.Internal
@@ -348,18 +410,15 @@ library dynamic-character
 
 library tcm
 
-  import:
+  Import:
     ffi-build-info,
     language-specs
 
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
+  HS-Source-Dirs:
     lib/tcm/src
 
-  build-depends:
-    utility,
+  Build-Depends:
+    PhyGraph:utility,
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
@@ -372,14 +431,14 @@ library tcm
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2.5     && < 1.0,
 
-  exposed-modules:
+  Exposed-Modules:
     Data.Hashable.Memoize
     Data.MetricRepresentation
     Data.TCM
     Data.TCM.Dense
     Data.TCM.Overlap
 
-  other-modules:
+  Other-Modules:
     Data.TCM.Dense.FFI
     Data.TCM.Internal
 
@@ -390,7 +449,7 @@ library tcm
   --    costMatrixWrapper_3d.h
   --    costMatrixWrapper.h
   --    dynamicCharacterOperations.h
-  
+
   -- Include-Dirs: (Omitted)
   --    ffi/memoized-tcm
 
@@ -405,27 +464,27 @@ library tcm
 
 --library tcm-memo
 --
---  import:
+--  Import:
 --    ffi-buildinfo,
 ----    language-specs,
 --
 --  default-language:
 --    Haskell2010
 --
---  hs-source-dirs:
+--  HS-Source-Dirs:
 --    lib/tcm-memo/src
 --
 --  cc-options:       --std=c11
---  
+--
 --  cxx-options:      --std=c++14
 --
 --  -- This library is required for linking to the C++ standard template library.
---  if os(darwin)
+--  If os(darwin)
 --    extra-libraries:  c++
 --  else
 --    extra-libraries:  stdc++
 --
---  hs-source-dirs:   lib/tcm-memo/ffi
+--  HS-Source-Dirs:   lib/tcm-memo/ffi
 --
 --  c-sources:
 --    ffi/memoized-tcm/costMatrixWrapper.c
@@ -445,18 +504,18 @@ library tcm
 --  include-dirs:
 --    ffi/memoized-tcm
 --
---  build-depends:
+--  Build-Depends:
 --    exportable,
 --    base                     >= 4.11      && < 5.0,
 --    deepseq                  >= 1.4       && < 2.0,
 --    QuickCheck               >= 2.14      && < 3.0,
 --
---  exposed-modules:
+--  Exposed-Modules:
 --    Data.TCM.Memoized
 --    Data.TCM.Memoized.Types
 --    Data.TCM.Memoized.FFI
 --
---  other-modules:
+--  Other-Modules:
 --  --  Data.TCM.Memoized.FFI
 
 
@@ -467,21 +526,15 @@ library tcm
 
 library utility
 
-  import:
+  Import:
     language-specs
 
-  default-language:
-    Haskell2010
-
-  hs-source-dirs:
+  HS-Source-Dirs:
     lib/utility/src
 
-  build-depends:
+  Build-Depends:
     base                     >= 4.11      && < 5.0,
     binary                   >= 0.8       && < 1.0,
-    bv-little                >= 1.0.1     && < 2.0,
-    bv-little:instances      >= 1.0.1     && < 2.0,
-    bytestring               >= 0.10.10   && < 1.0,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     foldl                    >= 1.4       && < 2.0,
@@ -489,23 +542,19 @@ library utility
     keys                     >= 3.12      && < 4.0,
     lens                     >= 4.18      && < 6.0,
     matrix                   >= 0.3.6     && < 0.4,
-    mono-traversable         >= 1.0       && < 2.0,
-    parallel                 >= 3.2       && < 4.0,
     pointed                  >= 5.0       && < 6.0,
     QuickCheck               >= 2.14      && < 3.0,
     semigroupoids            >= 5.3       && < 5.4,
-    tasty-hunit              >= 0.10      && < 1.0,
-    text-short               >= 0.1.3     && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2       && < 1.0,
     vector-instances         >= 3.4       && < 3.5,
 
-  if impl(ghc < 9.0)          
-    build-depends:
+  If impl(ghc < 9.0)
+    Build-Depends:
       integer-gmp            >= 1.0.2     && < 2.0
-              
 
-  exposed-modules:
+
+  Exposed-Modules:
     Data.List.Utility
     Data.Matrix.NotStupid
     Data.Vector.NonEmpty
@@ -517,27 +566,25 @@ library utility
 --
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
+
 test-suite test-dynamic-character
 
-  import:
+  Import:
     language-specs
 
-  default-language:
-    Haskell2010
-
-  main-is:
+  Main-Is:
     TestSuite.hs
 
-  type:
+  Type:
     exitcode-stdio-1.0
 
-  hs-source-dirs:
+  HS-Source-Dirs:
     lib/dynamic-character/test
 
-  build-depends:
-    alphabet,
-    dynamic-character,
-    tcm,
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:dynamic-character,
+    PhyGraph:tcm,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,
@@ -546,12 +593,12 @@ test-suite test-dynamic-character
     tasty-quickcheck         >= 0.10      && < 1.0,
     vector                   >= 0.12.0.3  && < 0.13,
 
-  other-modules:
+  Other-Modules:
     DirectOptimization.Pairwise.Test
     Test.Aligners
     Test.QuickCheck.Instances.DynamicCharacter
 
-    
+
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
 -- Additional executables which exist for the one of a few select purposes:
@@ -567,32 +614,34 @@ test-suite test-dynamic-character
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
-executable inspect-dynamic-character
+--Executable inspect-dynamic-character
+--
+--  Import:
+--    language-specs,
+--    static-build-flags
+--
+--  Scope:
+--    private
+--
+--  Main-Is:
+--    Inspect.hs
+--
+--  HS-Source-Dirs:
+--    lib/dynamic-character/test
+--
+--  Build-Depends:
+--    PhyGraph:alphabet,
+--    PhyGraph:dynamic-character,
+--    PhyGraph:tcm,
+--    base                     >= 4.11      && < 5.0,
+--    bimap                    >= 0.3       && < 1.0,
+--    containers               >= 0.6.2     && < 1.0,
+--    QuickCheck               >= 2.14      && < 3.0,
+--    tasty                    >= 1.4       && < 2.0,
+--    tasty-quickcheck         >= 0.10      && < 1.0,
+--    vector                   >= 0.12.0.3  && < 0.13,
+--
+--  Other-Modules:
+--    Test.Aligners
+--    Test.QuickCheck.Instances.DynamicCharacter
 
-  import:
-    language-specs
-
-  default-language:
-    Haskell2010
-
-  main-is:
-    Inspect.hs
-
-  hs-source-dirs:
-    lib/dynamic-character/test
-
-  build-depends:
-    alphabet,
-    dynamic-character,
-    tcm,
-    base                     >= 4.11      && < 5.0,
-    bimap                    >= 0.3       && < 1.0,
-    containers               >= 0.6.2     && < 1.0,
-    QuickCheck               >= 2.14      && < 3.0,
-    tasty                    >= 1.4       && < 2.0,
-    tasty-quickcheck         >= 0.10      && < 1.0,
-    vector                   >= 0.12.0.3  && < 0.13,
-
-  other-modules:
-    Test.Aligners
-    Test.QuickCheck.Instances.DynamicCharacter

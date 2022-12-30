@@ -67,9 +67,6 @@ import qualified Commands.Verify             as VER
 import qualified Data.Text.Lazy              as TL
 import qualified Data.Char as C
 
-
-
-
 -- | transform changes aspects of data sande settings during execution
 -- as opposed to Set with all happens at begginign of program execution
 transform :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> Int -> [PhylogeneticGraph] -> (GlobalSettings, ProcessedData, ProcessedData, [PhylogeneticGraph])
@@ -85,7 +82,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
         let displayBlock = filter ((=="displaytrees").fst) lcArgList
             numDisplayTrees
                | length displayBlock > 1 =
-                  errorWithoutStackTrace ("Multiple displayTree number specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in transform--can have only one: " ++ show inArgs)
                | null displayBlock = Just 10
                | null (snd $ head displayBlock) = Just 10
                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -100,28 +97,72 @@ transform inArgs inGS origData inData rSeed inGraphList =
             reWeight =  any ((=="weight").fst) lcArgList
             changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
             reRoot = any ((=="outgroup").fst) lcArgList
+            changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
+            changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
+            changeGraphFactor = any ((=="graphfactor").fst) lcArgList
+            changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
+            changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
-                  errorWithoutStackTrace ("Multiple weight specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple weight specifications in transform--can have only one: " ++ show inArgs)
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
 
+            changeCompressionBlock = filter ((=="compressresolutions").fst) lcArgList
+            compressionValue
+               | length changeCompressionBlock > 1 =
+                  errorWithoutStackTrace ("Multiple compressResolutions specifications in transform--can have only one: " ++ show inArgs)
+               | null changeCompressionBlock = Just $ fmap toLower $ show $ compressResolutions inGS 
+               | null (snd $ head changeCompressionBlock) = Just $ fmap toLower $ show $ compressResolutions inGS 
+               | otherwise = readMaybe (show $ snd $ head changeCompressionBlock) :: Maybe String
 
             changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
             epsilonValue
                | length changeEpsilonBlock > 1 =
-                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in transform--can have only one: " ++ show inArgs)
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS 
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS 
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
 
+            changeGraphFactorBlock = filter ((=="graphfactor").fst) lcArgList
+            newGraphFactor
+               | length changeGraphFactorBlock > 1 =
+                  errorWithoutStackTrace ("Multiple graphFactor specifications in transform--can have only one: " ++ show inArgs)
+               | null changeGraphFactorBlock = Just $ fmap toLower $ show $ graphFactor inGS 
+               | null (snd $ head changeGraphFactorBlock) = Just $ fmap toLower $ show $ graphFactor inGS 
+               | otherwise = readMaybe (show $ snd $ head changeGraphFactorBlock) :: Maybe String
+
+            changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
+            newGraphsSteepest
+               | length changeGraphsSteepestBlock > 1 =
+                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in transform--can have only one: " ++ show inArgs)
+               | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS 
+               | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS 
+               | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
+
+            changeMultiTraverseBlock = filter ((=="multitraverse").fst) lcArgList
+            multiTraverseValue
+               | length changeMultiTraverseBlock > 1 =
+                  errorWithoutStackTrace ("Multiple multiTraverse specifications in transform--can have only one: " ++ show inArgs)
+               | null changeMultiTraverseBlock = Just $ fmap toLower $ show $ multiTraverseCharacters inGS 
+               | null (snd $ head changeMultiTraverseBlock) = Just $ fmap toLower $ show $ multiTraverseCharacters inGS 
+               | otherwise = readMaybe (show $ snd $ head changeMultiTraverseBlock) :: Maybe String
+
+            changeSoftwiredMethodBlock = filter ((=="softwiredmethod").fst) lcArgList
+            newSoftwiredMethod
+               | length changeSoftwiredMethodBlock > 1 =
+                  errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " ++ show inArgs)
+               | null changeSoftwiredMethodBlock = Just $ fmap toLower $ show $ softWiredMethod inGS 
+               | null (snd $ head changeSoftwiredMethodBlock) = Just $ fmap toLower $ show $ softWiredMethod inGS 
+               | otherwise = readMaybe (show $ snd $ head changeSoftwiredMethodBlock) :: Maybe String
+
             reRootBlock = filter ((=="outgroup").fst) lcArgList
             outgroupValue
                | length reRootBlock > 1 =
-                  errorWithoutStackTrace ("Multiple outgroup specifications in tansform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " ++ show inArgs)
                | null reRootBlock = Just $ outGroupName inGS 
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
@@ -152,7 +193,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newGS = inGS {graphType = Tree}
                   
                       -- generate and return display trees-- displayTreNUm / graph
-                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . LG.generateDisplayTrees) (fmap fst6 inGraphList)
+                      contractIn1Out1Nodes = True
+                      displayGraphList = if chooseFirst then fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst6 inGraphList)
                                          else fmap (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst6 inGraphList)
 
                       -- prob not required
@@ -176,10 +218,11 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if toHardWired then
                if (graphType inGS == HardWired) then (inGS, origData, inData, inGraphList)
                else 
-                  let newGS = inGS {graphType = HardWired}
+                  let newGS = inGS {graphType = HardWired, graphFactor = NoNetworkPenalty}
                       
                       newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
+                  trace ("Changing GraphFactor to NoNetworkPenalty for HardWired graphs")
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- roll back to dynamic data from static approx      
@@ -211,13 +254,82 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   ++ "\n\tReoptimizing graphs") 
                   (inGS, newOrigData, newData, newPhylogeneticGraphList)
 
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeCompressionResolutions then 
+               if isNothing compressionValue then errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeCompressionBlock)))
+               else 
+                  let newMethod = if fromJust compressionValue == "true" then True
+                                  else if fromJust compressionValue == "false" then False
+                                  else errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  compressResolutions inGS then
+                     trace ("Changing compressResolutions method to " ++ (show newMethod))
+                     (inGS {compressResolutions = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {compressResolutions = newMethod}, origData, inData, inGraphList)
+
             -- changes dynamicEpsilon error check factor
             else if changeEpsilon then
                if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " ++ (show (snd $ head changeEpsilonBlock)))
                else 
                   trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
-                  (inGS {dynamicEpsilon = fromJust epsilonValue}, origData, inData, inGraphList)
+                  (inGS {dynamicEpsilon = 1.0 + ((fromJust epsilonValue) * (fractionDynamic inGS))}, origData, inData, inGraphList)
 
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeGraphFactor then 
+               if isNothing newGraphFactor then errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+               else 
+                  let newMethod = if fromJust newGraphFactor == "nopenalty" then NoNetworkPenalty
+                                  else if fromJust newGraphFactor == "w15" then Wheeler2015Network
+                                  else if fromJust newGraphFactor == "w23" then Wheeler2023Network
+                                  else if fromJust newGraphFactor == "pmdl" then PMDLGraph
+                                  else errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  graphFactor inGS then
+                     trace ("Changing graphFactor method to " ++ (show newMethod))
+                     (inGS {graphFactor = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {graphFactor = newMethod}, origData, inData, inGraphList)
+
+            -- changes graphsSteepest -- maximum number of graphs evaluated in paralell at each "steepest" phse in swpa dn netadd/delete
+            else if changeGraphsSteepest then 
+               if isNothing newGraphsSteepest then errorWithoutStackTrace ("GraphsSteepest value is not specified correcty. Must be an Integer (e.g. 5): " ++ (show (snd $ head changeGraphsSteepestBlock)))
+               else 
+                  trace ("Changing GraphsSteepest factor to " ++ (show $ fromJust newGraphsSteepest))
+                  (inGS {graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
+
+            -- changes the multiTraverse behavior for all graphs
+            else if changeMultiTraverse then 
+               if isNothing multiTraverseValue then errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+               else 
+                  let newMethod = if fromJust multiTraverseValue == "true" then True
+                                  else if fromJust multiTraverseValue == "false" then False
+                                  else errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                  in
+                  if newMethod /=  multiTraverseCharacters inGS then
+                     trace ("Changing multiTraverse to " ++ (show newMethod))
+                     (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
+
+            -- changes the softwired optimization algorithm--this really for experimental use 
+            else if changeSoftwiredMethod then 
+               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Exhaustive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+               else 
+                  let newMethod = if fromJust newSoftwiredMethod == "naive" then Naive
+                                  else if fromJust newSoftwiredMethod == "exhaustive" then Naive
+                                  else if fromJust newSoftwiredMethod == "resolutioncache" then ResolutionCache
+                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                      newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newMethodString = if newMethod == ResolutionCache then "ResolutionCache"
+                                        else "Exhaustive"
+                  in
+                  if newMethod /=  softWiredMethod inGS then 
+                     trace ("Changing softwired optimization method to " ++ newMethodString)
+                     (inGS {softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
+                  else (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
+
+            -- changes outgroup
             else if reRoot then 
                if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))
                else 
@@ -229,7 +341,6 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   else 
                      trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
                      (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
-
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 
@@ -316,7 +427,7 @@ makeStaticApprox inGS inData inGraph =
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       newProcessedData'
 
-   else error ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS))
+   else trace ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS) ++ " skipping") inData
 
 
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 

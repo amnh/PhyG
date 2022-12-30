@@ -322,7 +322,7 @@
 	\href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}
 	{Dendroscope}). 	
 	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, creating a new node as parent to that leaf
-	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf. Example dot command line: 
+	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf. PDFs of dot files can be generated directly (option \texttt{report}) or manually.  Example dot command line: 
 	
 		\begin{verbatim}
 			dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
@@ -394,7 +394,8 @@
 
 \section{Command Reference}
 	\input{PhyG_Allcommands.tex}
-	
+
+\chapter{Program Usage}
 \section{Example Script Files}
 	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), 
 	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
@@ -422,7 +423,32 @@
 			report("net-display.tre", displaytrees, newick, overwrite)
 		\end{verbatim}
 	
-\section*{Acknowledgments}
+\section{Faster and Slower}
+Multiple options affect both the quality of results (better ot worse optimality score) and
+the overall execution time.  In general, the more time consuming options also have larger
+memory footprints.
+
+\subsection{Evaluation of Graphs}
+	\texttt{Multitraverse}\\
+	\texttt{CompressResolutions}\\
+	\texttt{SoftwiredMethod}\\
+
+\subsection{Search Options}
+	\texttt{steepest}\\
+	\texttt{Limiting number of network edges}\\
+	\texttt{Limiting number of graphs}
+	
+\section{Parallel Evaluation}
+	\texttt{+RTS -NX -RTS}
+	
+\section{Memory Use}
+
+The amount of memory used during program execution can be reported by adding the runtime option ``-s'' as in
+\texttt{+RTS -s -RTS} to the command line (runtime options can be specified together as in \texttt{+RTS -NX -s -RTS}).  
+This will output several fields of data with the  ``in use'' field specifying the maximum amount of memory requested from the OS.  
+RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
+	
+\chapter*{Acknowledgments}
 	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the Robert J. Kleberg Jr. and Helen C. 
 	Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum 
 	of Natural History for financial support. 

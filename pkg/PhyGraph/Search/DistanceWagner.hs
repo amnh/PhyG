@@ -168,7 +168,7 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   in
   --trace (show (percentAdded, decileNumber, decileRemainder)) (
   if decileRemainder == 0  && oddRemainder == 0 then
-      trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+      traceNoLF ("\t"++ (show $ 10 * decileNumber) ++ "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   --)

@@ -79,7 +79,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
        -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
    else
-       let buildBlock = filter ((=="block").fst) lcArgList
+       let -- block build options including number of display trees to return
+           buildBlock = filter ((=="block").fst) lcArgList
            displayBlock = filter ((=="displaytrees").fst) lcArgList
            numDisplayTrees
                 | length displayBlock > 1 =
@@ -87,6 +88,15 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                 | null displayBlock = Just 10
                 | null (snd $ head displayBlock) = Just 10
                 | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
+
+
+           returnList = filter ((=="return").fst) lcArgList
+           numReturnTrees
+                | length returnList > 1 =
+                  errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " ++ show inArgs)
+                | null returnList = Just (maxBound :: Int)
+                | null (snd $ head returnList) = Just (maxBound :: Int)
+                | otherwise = readMaybe (snd $ head returnList) :: Maybe Int
 
            doEUN' = any ((=="eun").fst) lcArgList
            doCUN' = any ((=="cun").fst) lcArgList
@@ -113,7 +123,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                                      else (True, False)
 
            -- initial build of trees from combined data--or by blocks
-           firstGraphs = if null buildBlock then
+           firstGraphs' = if null buildBlock then
                             let simpleTreeOnly = False
                             in
                             buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
@@ -133,28 +143,46 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             -- trace (concatMap LG.prettify returnGraphs)
                             PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
-           costString = if (not . null) firstGraphs then  ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
-                        else "\t\tBlock build returned 0 graphs"
-       in
-       if isNothing numDisplayTrees then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  ++ show (snd $ head displayBlock))
+           
+           -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
+           firstGraphs = if null buildBlock then
+                            take (fromJust numReturnTrees) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] firstGraphs'
+                         else firstGraphs'
 
-       -- trace ("BG:" ++ (show (graphType inGS, graphType treeGS)) ++ " bb " ++ (show buildBlock)) (
-       else if inputGraphType == Tree || (not . null) buildBlock then
-          -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
-          if null buildBlock then firstGraphs
-          else trace (costString) firstGraphs
-          -- )
-       else
-          trace ("\tRediagnosing as " ++ (show (graphType inGS)))
-          PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
-       -- )
+           -- reporting info
+           returnString = if (not . null) firstGraphs then  
+                            ("\tReturning " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
+                          else "\t\tReturning 0 graphs"
+                          
+           costString = if (not . null) firstGraphs then  
+                            ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
+                        else "\t\tBlock build returned 0 graphs"
+
+       in
+       if isNothing numDisplayTrees then 
+                                errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  ++ show (snd $ head displayBlock))
+       else if isNothing numReturnTrees then 
+                                errorWithoutStackTrace ("Return number specifications in build not an integer: " ++ show (snd $ head returnList))
+
+       else 
+            trace returnString (
+            if inputGraphType == Tree || (not . null) buildBlock then
+              -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
+              if null buildBlock then firstGraphs
+              else trace (costString) firstGraphs
+              -- )
+            else
+              trace ("\tRediagnosing as " ++ (show (graphType inGS)))
+              PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
+            )
+       
 
 -- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
 -- as per the arguments producing a set of displayTrees (ordered or resolved random), and/or the reconciled graph
 -- all outputs are re-optimzed and ready to go
 reconcileBlockTrees ::  Int -> [PhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> [SimpleGraph]
 reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN =
-    --trace ("Reconcile producing " ++ (show numDisplayTrees)) (
+      -- trace ("Reconcile producing " ++ (show numDisplayTrees)) (
       let -- numLeaves = V.length $ fst3 inData
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst6 blockTrees
@@ -167,16 +195,17 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
 
           -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
-          noChainedGraph = LG.removeChainedNetworkNodes reconciledGraph'
-          noTreeNdesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
-          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNdesWithAllNetChildern
+          noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
+          noTreeNodesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
+          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
 
-
-          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees reconciledGraph
+          contractIn1Out1Nodes = True
+          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
       in
+      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraphInitial) ++ "\n" ++ (LG.prettyIndices reconciledGraph')) (
       if returnGraph && not returnTrees then 
         if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
         else [reconciledGraph]
@@ -187,7 +216,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
             trace ("Reconciled Graph generated chained network nodes that cannot be resolved. ONly retunring display trees")
             displayGraphs
          else reconciledGraph : displayGraphs
-     -- )
+     -- ))
 
 
 -- | buildTree' wraps build tree and changes order of arguments for mapping

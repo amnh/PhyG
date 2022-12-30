@@ -35,36 +35,30 @@ Portability :  portable (I hope)
 -}
 
 {-
-ToDo:
-   Add parallel optimization overblocks and characters?
+These functions were used to directly reroot netowkrs and trees but were superseeded by later versions
 -}
-
 
 module GraphOptimization.PostOrderFunctions  ( rerootPhylogeneticGraph
                                              , rerootPhylogeneticGraph'
                                              , rerootPhylogeneticNetwork
                                              , rerootPhylogeneticNetwork'
-                                             , createVertexDataOverBlocks
-                                             , createVertexDataOverBlocksStaticIA
                                              , updateDisplayTreesAndCost
                                              ) where
 
 import           Data.Bits
-import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import           Data.Maybe
 import qualified Data.Text.Lazy              as T
 import qualified Data.Vector                 as V
 import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities           as PU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
 import           Debug.Trace
+
 
 -- | updateDisplayTreesAndCost takes a softwired graph and updates
 -- display trees and graph cost based on resolutions at root
@@ -74,7 +68,7 @@ updateDisplayTreesAndCost inGraph =
     else
         -- True for check popCount at root fort valid resolution (all leaves in graph)
         let (_, outgroupRootLabel) =  head $ LG.getRoots (thd6 inGraph)
-            (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees Nothing True (vertexResolutionData outgroupRootLabel)
+            (displayGraphVL, lDisplayCost) = NEW.extractDisplayTrees Nothing True (vertexResolutionData outgroupRootLabel)
         in
         --trace ("UDTC: " ++ show lDisplayCost)
         (fst6 inGraph, lDisplayCost, thd6 inGraph, displayGraphVL, fft6 inGraph, six6 inGraph)
@@ -119,7 +113,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
 
             -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
             (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab inGraph leftChild, fromJust $ LG.lab inGraph rightChild)
-            newVertexData = createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
+            newVertexData = POSW.createVertexDataOverBlocksNonExact (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
             -- newVertexData = createVertexDataOverBlocks  (vertData leftChildLabel) (vertData  rightChildLabel) charInfoVectVect []
         in
         {-
@@ -138,7 +132,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                                                         else bvLabel leftChildLabel .|. bvLabel rightChildLabel
                                             , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                             , children = V.fromList nodeChildren
-                                            , nodeType = nodeType curNodeLabel
+                                            , nodeType = GO.getNodeType inGraph curNodeIndex -- nodeType curNodeLabel
                                             , vertName = vertName curNodeLabel
                                             , vertexResolutionData = mempty
                                             , vertData = if length nodeChildren < 2 then vertData leftChildLabel
@@ -159,7 +153,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
             -- single child of node (can certinly happen with soft-wired networks
             if length nodeChildren == 1 then
                 --trace ("Out=1\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) (
-                let (_,_, newVertexLabel, _, _) = POSW.getOutDegree1VertexAndGraph curNodeIndex leftChildLabel inGraph nodeChildren inGraph
+                let (_,_, newVertexLabel, _, _) = NEW.getOutDegree1VertexAndGraph curNodeIndex leftChildLabel inGraph nodeChildren inGraph
 
                     -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
                     replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
@@ -176,9 +170,9 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                     ((leftChild', leftChildLabel'), (rightChild', rightChildLabel')) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab inGraph leftChild), (rightChild, fromJust $ LG.lab inGraph rightChild))
 
                     -- create resolution caches for blocks
-                    leftChildNodeType  = nodeType leftChildLabel'
-                    rightChildNodeType = nodeType rightChildLabel'
-                    resolutionBlockVL = V.zipWith3 (POSW.createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
+                    leftChildNodeType  = GO.getNodeType inGraph leftChild' -- nodeType leftChildLabel'
+                    rightChildNodeType = GO.getNodeType inGraph rightChild' -- nodeType rightChildLabel'
+                    resolutionBlockVL = V.zipWith3 (NEW.createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType (nodeType curNodeLabel)) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
 
                     -- create canonical Decorated Graph vertex
                     -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -186,7 +180,7 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
                                                 , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
                                                 , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                                 , children = V.fromList nodeChildren
-                                                , nodeType = nodeType curNodeLabel
+                                                , nodeType = GO.getNodeType inGraph curNodeIndex -- nodeType curNodeLabel
                                                 , vertName = T.pack $ "HTU" ++ show curNodeIndex
                                                 , vertData = mempty --empty because of resolution data
                                                 , vertexResolutionData = resolutionBlockVL
@@ -220,62 +214,6 @@ reOptimizeNodes inGS charInfoVectVect inGraph oldNodeList =
 
         else  errorWithoutStackTrace ("Graph type unrecognized/not yet implemented: " ++ show (graphType inGS))
         -- )
-
-
--- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
-createVertexDataOverBlocks :: VertexBlockData
-                           -> VertexBlockData
-                           -> V.Vector (V.Vector CharInfo)
-                           -> [V.Vector (CharacterData, VertexCost)]
-                           -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
-
--- | createVertexDataOverBlocksNonExact is a partial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
-createVertexDataOverBlocksNonExact :: VertexBlockData
-                                   -> VertexBlockData
-                                   -> V.Vector (V.Vector CharInfo)
-                                   -> [V.Vector (CharacterData, VertexCost)]
-                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
-
--- | createVertexDataOverBlocksStaticIA is an  application of generalCreateVertexDataOverBlocks with exact charcater median calculation
--- and IA claculation for dynmaic characters--not full optimizations
-createVertexDataOverBlocksStaticIA :: VertexBlockData
-                                   -> VertexBlockData
-                                   -> V.Vector (V.Vector CharInfo)
-                                   -> [V.Vector (CharacterData, VertexCost)]
-                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksStaticIA = generalCreateVertexDataOverBlocks M.median2StaticIA
-
-
--- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)
--- and only non-exact (basically sequence) characters based on the median function passed
--- The function takes data in blocks and block vector of char info and
--- extracts the triple for each block and creates new block data for parent node (usually)
--- not checking if vectors are equal in length
-generalCreateVertexDataOverBlocks :: (V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost))
-                                  -> VertexBlockData
-                                  -> VertexBlockData
-                                  -> V.Vector (V.Vector CharInfo)
-                                  -> [V.Vector (CharacterData, VertexCost)]
-                                  -> V.Vector (V.Vector (CharacterData, VertexCost))
-generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData then
-        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
-        V.fromList $ reverse curBlockData
-    else
-        let leftBlockLength = length $ V.head leftBlockData
-            rightBlockLength =  length $ V.head rightBlockData
-            -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-
-            -- missing data cases first or zip defaults to zero length
-            firstBlockMedian
-              | (leftBlockLength == 0) = V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
-              | (rightBlockLength == 0) = V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-              | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-        in
-        generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
 
 
 -- | rerootPhylogeneticNetwork take a vertex index and reroots phylogenetic network
@@ -391,7 +329,7 @@ rerootPhylogeneticGraph  inGS isNetworkNode originalRootIndex parentIsNetworkNod
           if ((graphType inGS) == Tree || (graphType inGS) == HardWired) then (newSimpleGraph, newGraphCost, newDecGraph', newblockGraphVV, (snd $ POSW.divideDecoratedGraphByBlockAndCharacterTree newDecGraph'), charInfoVectVect)
           else
             -- get root resolutions and cost
-            let (displayGraphVL, lDisplayCost) = POSW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
+            let (displayGraphVL, lDisplayCost) = NEW.extractDisplayTrees (Just originalRootIndex) True (vertexResolutionData $ fromJust $ LG.lab newDecGraph' originalRootIndex)
             in
             (newSimpleGraph, lDisplayCost, newDecGraph', displayGraphVL, mempty, charInfoVectVect)
             -- )

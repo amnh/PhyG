@@ -47,25 +47,13 @@ import qualified Data.Text.Lazy                       as TL
 import qualified Data.Vector                          as V
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Traversals         as T
 import qualified Graphs.GraphOperations               as GO
 import qualified ParallelUtilities                    as PU
 import qualified Search.Swap                          as S
 import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import qualified Data.InfList                as IL
-
-
-{-
-   For redo:
-
-   1) Key issue is reindexing exchanged components
-   2) move to new swap functions on rejoin
-      with reasonable defaults (steepest, spr)
-   3) check logic all through
-   4) randomized options to limit number of fuses
-
--}
+import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
@@ -78,9 +66,7 @@ fuseAllGraphs :: GlobalSettings
               -> Int
               -> Int
               -> Int
-              -> Bool
-              -> Bool
-              -> Bool
+              -> String
               -> Bool
               -> Bool
               -> Bool
@@ -88,10 +74,12 @@ fuseAllGraphs :: GlobalSettings
               -> Bool
               -> Maybe Int
               -> Bool
+              -> Bool
               -> [PhylogeneticGraph]
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs inGraphList =
+fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
    if null inGraphList then ([], 0)
+   else if length inGraphList == 1 then (inGraphList, 0)
    else
       let -- getting values to be passed for graph diagnosis later
          numLeaves = V.length $ fst3 inData
@@ -109,11 +97,13 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
          inGraphNetPenalty = if (graphType inGS == Tree) then 0.0
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then 
-                                 if (graphType inGS) == HardWired then 0.0
-                                 else T.getW15NetPenalty Nothing curBestGraph
+                                 --if (graphType inGS) == HardWired then 0.0
+                                 --else 
+                                 POSW.getW15NetPenaltyFull Nothing inGS inData Nothing curBestGraph
                              else if (graphFactor inGS) == Wheeler2023Network then 
-                                 if (graphType inGS) == HardWired then 0.0
-                                 else T.getW23NetPenalty Nothing curBestGraph
+                                 -- if (graphType inGS) == HardWired then 0.0
+                                 -- else 
+                                 POSW.getW23NetPenalty curBestGraph
                              else if (graphFactor inGS) == PMDLGraph then 
                                  let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 curBestGraph)
                                  in
@@ -131,22 +121,27 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
                          else if randomPairs then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
-
-         newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist doNNI doSPR doTBR) graphPairList) -- `using` PU.myParListChunkRDS)
+         -- ParMap created too large a memory footprint. Pafrallleism at lower levels
+         -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
+         newGraphList = fusePairRecursive inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
 
+         swapTypeString = if swapType == "none" then "out"
+                          else " " ++ swapType
+
       in
 
-      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs") (
+      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs with" ++ swapTypeString ++ " swapping") (
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then
          let uniqueList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inGraphList ++ newGraphList)
          in
          if fuseBest < curBest then
-               trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
-               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs uniqueList
+               -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
+               trace ("\n")
+               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
          else (uniqueList, counter + 1)
 
       else -- return best
@@ -163,13 +158,41 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter doNNI doSPR 
 
             -- found better
             else if fuseBest < curBest then
-               trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
-               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) doNNI doSPR doTBR doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs allBestList
+               -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
+               trace ("\n")
+               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
             -- equal cost just return--could keep finding equal
             else (allBestList, counter + 1)
       )
 
+-- | fusePairRecursive wraps around fusePair recursively traversing through fuse pairs as oppose
+-- to parMapping at once creating a large memory footprint
+fusePairRecursive :: GlobalSettings
+         -> ProcessedData
+         -> Int
+         -> V.Vector (V.Vector CharInfo)
+         -> VertexCost
+         -> Int
+         -> Int
+         -> VertexCost
+         -> String
+         -> Bool
+         -> [PhylogeneticGraph]
+         -> [(PhylogeneticGraph, PhylogeneticGraph)]
+         -> [PhylogeneticGraph]
+fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal resultList leftRightList =
+   if null leftRightList then resultList
+   else 
+      let fusePairResult = fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (head leftRightList)
+          
+          pairScore = if (not . null) fusePairResult then 
+                        minimum $ fmap snd6 fusePairResult
+                      else infinity
+
+          newCurBestScore = min curBestScore pairScore
+      in
+      fusePairResult ++ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist newCurBestScore swapType reciprocal resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
@@ -182,40 +205,40 @@ fusePair :: GlobalSettings
          -> VertexCost
          -> Int
          -> Int
-         -> Bool
-         -> Bool
+         -> VertexCost
+         -> String
          -> Bool
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doNNI doSPR doTBR (leftGraph, rightGraph) =
+fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
       -- split graphs at all bridge edges (all edges for Tree)
-      let -- left graph splits
+      let -- left graph splits on all edges
           leftDecoratedGraph = thd6 leftGraph
           (leftRootIndex, _) = head $ LG.getRoots leftDecoratedGraph
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
                               else filter ((/= leftRootIndex) . fst3) $ LG.getEdgeSplitList leftDecoratedGraph
-          leftSplitTupleList = PU.seqParMap rdeepseq  (LG.splitGraphOnEdge leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
-          (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList) = L.unzip4 leftSplitTupleList
+          leftSplitTupleList = PU.seqParMap rdeepseq  (LG.splitGraphOnEdge' leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
+          (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList, leftOriginalEdgeList, _) = L.unzip6 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
 
-          -- right graph splits
+          -- right graph splits on all edges
           rightDecoratedGraph = thd6 rightGraph
           (rightRootIndex, _) = head $ LG.getRoots rightDecoratedGraph
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
                               else filter ((/= rightRootIndex) . fst3) $ LG.getEdgeSplitList rightDecoratedGraph
-          rightSplitTupleList = PU.seqParMap rdeepseq (LG.splitGraphOnEdge rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
-          (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList) = L.unzip4 rightSplitTupleList
+          rightSplitTupleList = PU.seqParMap rdeepseq (LG.splitGraphOnEdge' rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
+          (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList, rightOriginalEdgeList, _) = L.unzip6 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
 
-          -- need to get all pairs of split graphs
-          (leftSplitTupleList', rightSplitTupleList') =  unzip $ cartProd leftSplitTupleList rightSplitTupleList
+          -- get all pairs of split graphs
+          (leftSplitTupleList', rightSplitTupleList') =  unzip $ cartProd (fmap first4of6 leftSplitTupleList) (fmap first4of6 rightSplitTupleList)
           (leftPrunedGraphBVList', rightPrunedGraphBVList') = unzip $ cartProd leftPrunedGraphBVList rightPrunedGraphBVList
           -- (leftBaseBVList, rightBaseBVList) = unzip $ cartProd leftBaseGraphBVList rightBaseGraphBVList
 
@@ -223,14 +246,14 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           -- get compatible split pairs via checking bv of root index of pruned subgraphs
           leftRightMatchList = zipWith (==) leftPrunedGraphBVList' rightPrunedGraphBVList'
 
-          -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nmothing (if identical)
-            -- oalso checks that prune and splits don't match between the grap[hs to be recombined]
+          -- only take compatible, non-identical pairs with > 2 terminal--otherwise basically SPR move or nothing (if identical)
+          -- also checks that prune and splits don't match between the graphs to be recombined--ie exchanging the same sub-graph
           recombinablePairList = L.zipWith (getCompatibleNonIdenticalSplits numLeaves) leftRightMatchList leftPrunedGraphBVList'
           (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((==True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
 
 
           -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
-          -- retuns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
+          -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
           (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
 
           (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
@@ -255,20 +278,23 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
           (_, rightLeftOptimizedSplitGraphCostList', _, rightLeftPrunedRootIndexList', rightLeftPrunedParentRootIndexList', rightLeftOriginalConnectionOfPrunedList') = L.unzip6 $ filter ((== True) . fst6) $ L.zip6 baseGraphDifferentList rightLeftOptimizedSplitGraphCostList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList rightLeftPrunedParentRootIndexList rightLeftOriginalConnectionOfPrunedList
 
           -- re-add pruned component to base component left-right and right-left
-          -- need cure best cost
+          -- need curent best cost
           curBetterCost = min (snd6 leftGraph) (snd6 rightGraph)
 
           -- get network penalty factors to pass on
-          networkCostFactor = min (getNetworkPentaltyFactor inGS (snd6 leftGraph) leftGraph) (getNetworkPentaltyFactor inGS (snd6 rightGraph) rightGraph) 
+          networkCostFactor = min (getNetworkPentaltyFactor inGS inData (snd6 leftGraph) leftGraph) (getNetworkPentaltyFactor inGS inData (snd6 rightGraph) rightGraph) 
 
 
-          -- left and right root indices shold be the same
-          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor
-          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBetterCost rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor
+          -- left and right root indices should be the same
+          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor leftOriginalEdgeList
+          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor rightOriginalEdgeList
 
 
           -- get "best" fused graphs from leftRight and rightLeft
-          bestFusedGraphs = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+          bestFusedGraphs = if reciprocal then
+                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+                            else 
+                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] leftRightFusedGraphList
 
           -- | get fuse graphs via swap function
       in
@@ -280,18 +306,19 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist doN
             ++ "\nrightLeft splitCost " ++ (show $ fmap snd rightLeftOptimizedSplitGraphCostList))
          -}
          bestFusedGraphs
+      where first4of6 (a, b, c, d, _, _) = (a, b, c, d)
 
 -- | recombineComponents takes readdition arguments (swap, steepest etc) and wraps the swap-stype rejoining of components
 -- ignores doSteepeast for now--doesn't seem to have meaning in rejoining since not then taking that graph for fusion and shortcircuiting
--- not doing original connection first (originalConnectionOfPrunedComponentList)-since so much work might as well do soem SPR at least
+-- original connection done first left/rightOriginalEdgeList--spo can do "none" in swap
+-- "curBetterCost" is of pain of inputs to make sure keep all better than their inputs, "overallBestScore" is for progress info
 recombineComponents :: GlobalSettings
                     -> ProcessedData
                     -> Int
                     -> Int
-                    -> Bool
-                    -> Bool
-                    -> Bool
+                    -> String
                     -> V.Vector (V.Vector CharInfo)
+                    -> VertexCost
                     -> VertexCost
                     -> [(DecoratedGraph, VertexCost)]
                     -> [Int]
@@ -299,32 +326,28 @@ recombineComponents :: GlobalSettings
                     -> [Int]
                     -> LG.Node
                     -> VertexCost
+                    -> [LG.LEdge EdgeInfo]
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor =
+recombineComponents inGS inData numToKeep inMaxMoveEdgeDist swapType charInfoVV curBetterCost overallBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
    else
       -- top line to cover SPR HarWired bug
-      let swapType = if doTBR then "tbr"
-                     else if doSPR then "spr"
-                     else if doNNI then "nni"
-                     else "spr" -- will be set with 2 as maxMoveEdgeDist
-
-          doIA = False --- since splits not created together, IA won't be consistent between components
+      let doIA = False --- since splits not created together, IA won't be consistent between components
           steepest = False -- should look at all better
 
           -- network costs--using an input value that is minimum of inputs
           netPenaltyFactorList = L.replicate (length splitGraphCostPairList) networkCostFactor
 
-          -- no simulated annealling functionality here
+          -- no simulated annealling functionality infuse
           inSimAnnealParams = Nothing
 
           -- get edges in pruned (to be exchanged) graphs
           edgesInPrunedList = fmap LG.getEdgeListAfter $ zip (fmap fst splitGraphCostPairList) prunedParentRootIndexList
 
-          -- get edges in base (not to be exchanged) graphs
-          rejoinEdgesList = fmap (getBaseGraphEdges graphRoot) $ zip (fmap fst splitGraphCostPairList) edgesInPrunedList
+          -- get edges in base (not to be exchanged) graphs and put original split edge first
+          rejoinEdgesList = fmap (getBaseGraphEdges graphRoot) $ zip3 (fmap fst splitGraphCostPairList) edgesInPrunedList originalSplitEdgeList
 
           --huge zip to fit arguments into revised join function
           graphDataList = zip9 (fmap fst splitGraphCostPairList) 
@@ -338,7 +361,8 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR ch
                                netPenaltyFactorList
 
           -- do "all additions" -
-          recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams) graphDataList
+          -- recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
+          recombinedGraphList = rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBetterCost overallBestCost doIA charInfoVV inSimAnnealParams graphDataList
                                                               
 
           -- this based on heuristic deltas
@@ -348,21 +372,56 @@ recombineComponents inGS inData numToKeep inMaxMoveEdgeDist doNNI doSPR doTBR ch
       in
       --trace ("Checking in fusing") (
       if null recombinedGraphList then []
-      else if bestFuseCost <= curBestCost then
+      else if bestFuseCost <= curBetterCost then
          take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] recombinedGraphList
       else []
       -- )
       -- )
 
+-- | rejoinGraphTupleRecursive is a wrapper for S.rejoinGraphTuple that recursively goes through list as opposd to parMapping
+-- this to save on memory footprint since there wold be many calls generated 
+-- the rejoin operation is parallelized itself
+-- recursive best cost so can keep all better than input but can have progress info 
+rejoinGraphTupleRecursive :: String
+                          -> GlobalSettings
+                          -> ProcessedData
+                          -> Int
+                          -> Int
+                          -> Bool
+                          -> VertexCost
+                          -> VertexCost
+                          -> Bool
+                          -> V.Vector (V.Vector CharInfo)
+                          -> Maybe SAParams
+                          -> [(DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)]
+                          -> [PhylogeneticGraph]
+rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost recursiveBestCost doIA charInfoVV inSimAnnealParams graphDataList =
+   if null graphDataList then []
+   else 
+      let firstGraphData = head graphDataList
+          firstRejoinResult = S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams firstGraphData
+          firstBestCost = if (not . null) firstRejoinResult then minimum $ fmap snd6 firstRejoinResult
+                          else infinity
+          
+          newRecursiveBestCost = min recursiveBestCost firstBestCost
+
+          progressString = if firstBestCost < recursiveBestCost then ("\t->" ++ (show newRecursiveBestCost)) else ""
+      in
+      traceNoLF progressString (
+      firstRejoinResult ++ rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost newRecursiveBestCost doIA charInfoVV inSimAnnealParams (tail graphDataList)
+      )
+
+
 -- | getNetworkPentaltyFactor get scale network penalty for graph
-getNetworkPentaltyFactor :: GlobalSettings -> VertexCost -> PhylogeneticGraph -> VertexCost 
-getNetworkPentaltyFactor inGS graphCost inGraph =
+getNetworkPentaltyFactor :: GlobalSettings -> ProcessedData -> VertexCost -> PhylogeneticGraph -> VertexCost 
+getNetworkPentaltyFactor inGS inData graphCost inGraph =
    if LG.isEmpty $ thd6 inGraph then 0.0
    else
-        let inGraphNetPenalty = if (graphType inGS == Tree) || (graphType inGS == HardWired) then 0.0
+        let inGraphNetPenalty = if (graphType inGS == Tree) then 0.0 
+                                -- else if (graphType inGS == HardWired) then 0.0
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
-                                else if (graphFactor inGS) == Wheeler2015Network then T.getW15NetPenalty Nothing inGraph
-                                else if (graphFactor inGS) == Wheeler2023Network then T.getW23NetPenalty Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing inGraph
+                                else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty inGraph
                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
         in
         inGraphNetPenalty / graphCost
@@ -372,11 +431,27 @@ getNetworkPentaltyFactor inGS graphCost inGraph =
 
 -- | getBaseGraphEdges gets teh edges in the base graph teh trhe exchanged sub graphs can be rejoined
 -- basically all edges except at root and those in the subgraph
-getBaseGraphEdges :: (Eq b) => LG.Node -> (LG.Gr a b, [LG.LEdge b]) -> [LG.LEdge b]
-getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph) =
+-- adds original edge connection edges (those with nodes in original edge) at front (for use in "none" swap later), removing if there to 
+-- prevent redundancy if swap not "none" 
+getBaseGraphEdges :: (Eq b) => LG.Node -> (LG.Gr a b, [LG.LEdge b], LG.LEdge b) -> [LG.LEdge b]
+getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge) =
    if LG.isEmpty inGraph then []
    else 
-      filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+      let baseGraphEdges = filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+          baseMatchList = filter (edgeMatch origSiteEdge) baseGraphEdges
+          
+          -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
+      in
+      -- trace ("GBGE: " ++ (show $ length baseMatchList))
+      -- trace ("GBGE sub: " ++ (show $ origEdge `elem` (fmap LG.toEdge edgesInSubGraph)) ++ " base: " ++ (show $ origEdge `elem` (fmap LG.toEdge baseGraphEdges)) ++ " total: " ++ (show $ origEdge `elem` (fmap LG.toEdge $ LG.labEdges inGraph)) ++ "\n" ++ (show origEdge) ++ " sub " ++ (show $ fmap LG.toEdge edgesInSubGraph) ++ " base " ++ (show $ fmap LG.toEdge baseGraphEdges) ++ "\nTotal " ++ (show $ fmap LG.toEdge $ LG.labEdges inGraph))
+
+      baseMatchList ++ (baseGraphEdges L.\\ baseMatchList)
+      
+      where edgeMatch (a, b, _) (e, v, _) = if e == a then True
+                                            else if e == b then True
+                                            else if v == a then True
+                                            else if v == b then True
+                                            else False
 
 -- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph,
 -- the bitVector equality list of pruned roots, the bitvector of the root of the pruned graph on left
@@ -517,66 +592,4 @@ getPairList numLeaves counter nodeList =
       in
       if firstIndex < numLeaves then (head nodeList, (firstIndex, firstIndex)) : getPairList numLeaves counter (tail nodeList)
       else ((counter + numLeaves, newLabel) , (firstIndex, (counter + numLeaves))) : getPairList numLeaves (counter + 1) (tail nodeList)
-
-{-
--- | recombineComponents' takes readdition arguments (swap, steepest etc) and wraps the swap-stype rejoining of components
--- ignores doSteepeast for now--doesn't seem to have meaning in rejoining since not then taking that graph for fusion and shortcircuiting
-recombineComponents' :: GlobalSettings
-                    -> ProcessedData
-                    -> Int
-                    -> Int
-                    -> Bool
-                    -> Bool
-                    -> Bool
-                    -> V.Vector (V.Vector CharInfo)
-                    -> VertexCost
-                    -> [(DecoratedGraph, VertexCost)]
-                    -> [Int]
-                    -> [Int]
-                    -> [Int]
-                    -> [PhylogeneticGraph]
-recombineComponents' inGS inData numToKeep inMaxMoveEdgeDist doNNI' doSPR' doTBR' charInfoVV curBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList =
-   -- check and see if any reconnecting to do
-   --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
-   if null splitGraphCostPairList then []
-   else
-      -- top line to cover SPR HarWired bug
-      let (doTBR, doSPR, doNNI, maxMoveEdgeDist, hardWiredSPR) = if (graphType inGS /= HardWired) then (doTBR', doSPR', doNNI', inMaxMoveEdgeDist, False)
-                                                                 else
-                                                                     if doNNI' then (True, False, False, 2, True)
-                                                                     else if doSPR' then (True, False, False, inMaxMoveEdgeDist, True)
-                                                                     else (doTBR', doSPR', doNNI', inMaxMoveEdgeDist, False)
-          swapType = if doTBR then "tbr"
-                     else if doSPR then "spr"
-                     else if doNNI then "nni"
-                     else "spr" -- will be set with 2 as maxMoveEdgeDist
-
-          doIA = False --- since splits not created together, IA won't be consistent between components
-
-          graphDataList = L.zip4 splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList originalConnectionOfPrunedComponentList
-
-          -- do "all additions" --steepest really doens't have meaning here since will not pop out to recombine on new graph
-          -- False for doSteepest
-          recombinedSimpleGraphCostPairList = concat (PU.seqParMap rdeepseq (S.rejoinGraphKeepBestTuple inGS swapType hardWiredSPR curBestCost  maxMoveEdgeDist doIA charInfoVV) graphDataList) -- `using` PU.myParListChunkRDS)
-
-          -- this based on heuristic deltas
-          bestFuseCost = minimum $ fmap snd recombinedSimpleGraphCostPairList
-
-          -- check harwired for cycles
-          bestFuseSimpleGraphs = if (graphType inGS == HardWired ) then fmap fst $ filter ((== bestFuseCost) . snd) $ filter ((== False) . (LG.cyclic . fst)) $ recombinedSimpleGraphCostPairList
-                                 else fmap fst $ filter ((== bestFuseCost) . snd) recombinedSimpleGraphCostPairList
-
-      in
-      --trace ("Checking in fusing") (
-      if null recombinedSimpleGraphCostPairList then []
-      else if (bestFuseCost / (dynamicEpsilon inGS)) <= curBestCost then
-         let rediagnodedGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) bestFuseSimpleGraphs -- `using` PU.myParListChunkRDS
-             bestRediagnosedGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rediagnodedGraphList
-         in
-         if (snd6 $ head bestRediagnosedGraphList) <= curBestCost then bestRediagnosedGraphList
-         else []
-      else []
-      -- )
-      -- )
--}
 

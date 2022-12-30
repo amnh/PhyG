@@ -55,6 +55,7 @@ import           Utilities.Utilities         as U
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace ("No graphs to swap") []
+   else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
    else
 
            let -- process args for swap
@@ -62,6 +63,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                doNNI = any ((=="nni").fst) lcArgList
                doSPR = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
+               doAlternate' = any ((=="alternate").fst) lcArgList
 
                -- randomized orders of split and join-- not implemented
                -- doRandomized = any ((=="randomized").fst) lcArgList
@@ -81,7 +83,8 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
                -- swap type if alternate will be "TBR"
-               doAlternate = if (doTBR || doSPR || doNNI) then False
+               doAlternate = if doAlternate' then True
+                             else if (doTBR || doSPR || doNNI) then False
                              else True
 
                -- simulated annealing parameters
@@ -95,12 +98,12 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                -- create simulated annealing random lists uniquely for each fmap
                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
 
-               progressString = if not doAnnealing then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
-                             else
-                                if (method $ fromJust simAnnealParams) == SimAnneal then
-                                    ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+               progressString = if (not doAnnealing && not doDrift) then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
                                 else
-                                    ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                                    if (method $ fromJust simAnnealParams) == SimAnneal then
+                                        ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
+                                    else
+                                        ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
 
            in
 
@@ -110,29 +113,34 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
-               (newGraphList', counterSPR')  = if (doSPR || doAlternate) then
+               (newGraphList', counterSPR)  = if doSPR then
                                                let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
-               (newGraphList'', counterTBR') = if (doTBR || doAlternate) then
+               (newGraphList'', counterTBR) = if doTBR then
                                                let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (newGraphList', 0)
+                                              else (newGraphList', 0)
+
+               (newGraphList''', counterAlternate) = if doAlternate then
+                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
+                                                           (graphListList, counterList) = unzip graphPairList
+                                                       in
+                                                       (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                                     else (newGraphList'', 0)
               in
-              let (counterSPR, counterTBR, counterAlternate) = if doAlternate then (0,0, counterSPR' + counterTBR')
-                                                               else (counterSPR', counterTBR', 0)
-                  finalGraphList = if null newGraphList'' then inGraphList
-                                   else newGraphList''
-                  endString = if not doAnnealing then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
+              let finalGraphList = if null newGraphList'' then inGraphList
+                                   else newGraphList'''
+                  endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
-                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else
-                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs")
+                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                   
               in
               trace (endString)
@@ -144,45 +152,45 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 getSimAnnealParams :: Bool -> Bool -> Maybe Int -> Maybe Int -> Maybe Int -> Maybe Double -> Maybe Double -> Maybe Int -> Int -> Maybe SAParams
 getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed =
     if (not doAnnealing && not doDrift) then Nothing
-                                 else
-                                    let steps = max 3 (fromJust steps')
-                                        annealingRounds = if annealingRounds' == Nothing then 1
-                                                          else if fromJust annealingRounds' < 1 then 1
-                                                          else fromJust annealingRounds'
+    else
+       let steps = max 3 (fromJust steps')
+           annealingRounds = if annealingRounds' == Nothing then 1
+                             else if fromJust annealingRounds' < 1 then 1
+                             else fromJust annealingRounds'
 
-                                        driftRounds = if driftRounds' == Nothing then 1
-                                                          else if fromJust driftRounds' < 1 then 1
-                                                          else fromJust driftRounds'
+           driftRounds = if driftRounds' == Nothing then 1
+                         else if fromJust driftRounds' < 1 then 1
+                         else fromJust driftRounds'
 
-                                        saMethod = if doDrift && doAnnealing then
-                                                    trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.")
-                                                    Drift
-                                                 else if doDrift then Drift
-                                                 else SimAnneal
+           saMethod = if doDrift && doAnnealing then
+                        trace ("\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.")
+                        Drift
+                      else if doDrift then Drift
+                      else SimAnneal
 
-                                        equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
-                                                    else if fromJust acceptEqualProb > 1.0 then 1.0
-                                                    else fromJust acceptEqualProb
+           equalProb = if fromJust acceptEqualProb < 0.0 then 0.0
+                       else if fromJust acceptEqualProb > 1.0 then 1.0
+                       else fromJust acceptEqualProb
 
 
-                                        worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
-                                                      else fromJust acceptWorseFactor
+           worseFactor = if fromJust acceptWorseFactor < 0.0 then 0.0
+                         else fromJust acceptWorseFactor
 
-                                        changes = if fromJust maxChanges < 0 then 15
-                                                  else fromJust maxChanges
+           changes = if fromJust maxChanges < 0 then 15
+                     else fromJust maxChanges
 
-                                        saValues = SAParams { method = saMethod
-                                                            , numberSteps = steps
-                                                            , currentStep = 0
-                                                            , randomIntegerList = randomIntList rSeed
-                                                            , rounds      = max annealingRounds driftRounds
-                                                            , driftAcceptEqual  = equalProb
-                                                            , driftAcceptWorse  = worseFactor
-                                                            , driftMaxChanges   = changes
-                                                            , driftChanges      = 0
-                                                            }
-                                    in
-                                    Just saValues
+           saValues = SAParams { method = saMethod
+                               , numberSteps = steps
+                               , currentStep = 0
+                               , randomIntegerList = randomIntList rSeed
+                               , rounds      = max annealingRounds driftRounds
+                               , driftAcceptEqual  = equalProb
+                               , driftAcceptWorse  = worseFactor
+                               , driftMaxChanges   = changes
+                               , driftChanges      = 0
+                               }
+       in
+       Just saValues
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
 getSwapParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, [(String, String)])
@@ -202,7 +210,7 @@ getSwapParams inArgs =
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
-             moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["spr", "tbr", "nni"]).fst) lcArgList
+             moveLimitList = filter (not . null) $ fmap snd $ filter ((`elem` ["alternate", "spr", "tbr", "nni"]).fst) lcArgList
              maxMoveEdgeDist'
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
@@ -225,7 +233,7 @@ getSwapParams inArgs =
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
              -- drift options
-             doDrift     = any ((=="drift").fst) lcArgList
+             doDrift   = any ((=="drift").fst) lcArgList
 
              driftList = filter ((=="drift").fst) lcArgList
              driftRounds'
@@ -245,7 +253,7 @@ getSwapParams inArgs =
              acceptWorseFactor
               | length acceptWorseList > 1 =
                 errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
-              | null acceptWorseList = Just 1.0
+              | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList
@@ -265,4 +273,5 @@ getSwapParams inArgs =
         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
 
         else
+            -- trace ("GSP: " ++ (show inArgs) ++ " " ++ (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
             (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList)

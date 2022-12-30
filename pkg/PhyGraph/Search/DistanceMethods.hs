@@ -51,6 +51,7 @@ import           Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
 import           Control.Parallel.Strategies
 import qualified Data.Vector                 as LS
+import           GeneralUtilities
 
 
 -- | wPGMA takes a list of leaves and a distance matrixx and returns
@@ -259,7 +260,7 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
         (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
     in
     if decileRemainder == 0 && oddRemainder == 0 then
-        trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+        traceNoLF ("\t"++ (show $ 10 * decileNumber) ++ "%")
         addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
@@ -294,7 +295,7 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
         (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
     in
     if decileRemainder == 0 && oddRemainder == 0 then
-        trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
+        traceNoLF ("\t"++ (show $ 10 * decileNumber) ++ "%")
         addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 

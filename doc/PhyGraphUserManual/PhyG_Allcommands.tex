@@ -38,6 +38,10 @@
 			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
 			which takes the ``first'' $n$ display trees resolved in arbitrary, but consistent, order.
 
+			\item[block] Performs independent builds for each ``block'' of data.  These builds are combined
+			into a single graph via \texttt{EUN} or \texttt{CUN} and returned as a graph (\texttt{graph}) and/or
+			resolved display trees (\texttt{displaytrees})
+			
 			\item[cun] Reconciles \textbf {block} trees into a Cluster-Union-Network \citep{Baroni2005} 
 			before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} 
 			options.
@@ -73,8 +77,9 @@
 		\begin{description}
 			\item[best:n] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
 			after 	\texttt{rdWag} builds, selecting the best trees in terms of distance cost. The 
-			options can be used to reduce the number of trees retained for refinement or returned 
-			for further analysis.
+			options can be used to reduce the number of trees retained.  
+			This number, $n$, of distance trees are rediagnosed as character trees
+			and returned (limited by \texttt{return:m} below) for further analysis.
 			
 			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the 
 			`best' taxon to 
@@ -93,6 +98,11 @@
 			\item[rdWag] Performs randoms addition sequence distance Wagner builds, 
 			yielding multiple trees determined by the argument \texttt{replicates:n}. This 
 			method has a time complexity of $O(m \times n^2)$.
+			
+			\item[return:n] Limits the number of Wagner trees returned for further analysis.  By default
+			all trees that are built (or limited by \texttt{best:m} in distance analysis) are returned.
+			Limiting the number of returned trees (as opposed to simply generating that number) can result in
+			a larger memory footprint.
 
 			\item[spr] Specifies that \texttt{spr} refinement \citep{Dayhoff1969} is performed 
 			after distance builds.
@@ -165,9 +175,13 @@
 	
 	\subsubsection{Arguments}
 	\begin{description}
-		%\item[all] \hl{details}
+		\item [all]  During branch swapping-type operations, all rearrangement are tried before choosing a new graph. 
 		
-		%\item[atRandom] \hl{details}
+		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
+		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
+		$n$ edges aware from their initial positions).
+		
+		\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is specified. 
 		
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
@@ -177,15 +191,22 @@
 		\item [nni] Causes the exchanged subgraphs to be tested at their initial positions as well as the 
 		two adjacent edges.
 		
+		\item [notReciprocal] Turns off \texttt{reciprocal}.
+		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
-		%\item[pairs[:n]] \hl{details}
+		\item [pairs[:n]] Limits the number of graphs to be fused to $n$ pairs (as oppose to $\binom{m}{2}$ for $m$ graphs).
+		
+		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the corresponding subgraph 
+		in the other.  Reciprocal causes exchange and evaluation or graphs in both directions--roughly doubling time and 
+		memory footprint.
 		
 		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
 		
-		%\item[steepest] \hl{details}
+		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping shifts greedily to
+		that graph. 
 		
 		\item [tbr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions) and with TBR-style rerooting of the exchanged 
@@ -284,6 +305,10 @@
 		\item [nucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
 		in fasta \citep{PearsonandLipman1988} format.
 			
+		\item [preaminoacid:] Specifies that the file contents are parsed as IUPAC coded amino 
+		acid data in  prealigned fasta \citep{PearsonandLipman1988} format, leaving 
+		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
+		
 		\item [prefasta:] Specifies that the sequences are prealigned in a fasta format, leaving 
 		gap characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
@@ -293,6 +318,10 @@
 		characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
 		Prealigned fastc files \textbf{must} be of the same length.			
+		
+		\item [prenucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
+		in fasta \citep{PearsonandLipman1988} format, leaving 
+		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
 		
 		\item [rename:] Replaces the name(s) of specified terminals in the file. This command allows 
 		for substituting taxon names and can help merge multiple datasets without modifying the 
@@ -559,6 +588,9 @@
 			\item[severity:[n]] Specifies the severity of selection against sub-optimal graph solutions 
 			events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. The 
 			default is $n=1.0$.
+			
+			\item[stop:n] Causes the \texttt{geneticAlgorithm} to terminate after $n$ generations without improvement 
+			in graph cost.  Default is to only terminate when the number generations has been completed.
 
 			\end{description}
 		
@@ -724,12 +756,14 @@
 		series of graph optimization methods including building, swapping, recombination (fusing), 
 		simulated annealing and drifting, network edge addition/deletion/moving, and Genetic 
 		Algorithm. The parameters and order for this search are randomized. The arguments 
-		specify the number of rounds of search (\texttt{instances}, default 1), and duration 
+		specify the number independent instances of search (\texttt{instances}, default 1), and duration 
 		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
-		default 30 seconds). Successive rounds of search (specified by \texttt{iterations}) gather 
+		default 30 seconds). Successive rounds of search gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
-		longer that the specified duration.
+		longer that the specified duration.  By default, search strategies are chosen uniformly at random, 
+		if \texttt{Thompson} is specified, Thompson sampling \cite{Thompson1933,WheelerThompson} is used to modify 
+		the probabilities of search strategies over the search duration.
 		
 		When performing a \texttt{search} it is important to set the amount of time, such that the 
 		program has a reasonable amount of time to perform a search. Therefore, it is important
@@ -744,27 +778,41 @@
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
-		%\item[instances:n] \hl{Performs $n$ successive rounds of  search? How does instances
-		%differ from iterations?}
+		\item[maxNetEdges:n] Limits maximum number of network edges to $n$.
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
 		\item[seconds:n] Adds $n$ seconds to search time.
 		
-		\item[iterations:n] Specifies number of (potentially parallel) search iterations.\\
+		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
+		
+		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without improving the best graph cost.
+		
+		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner Build, SPR, Genetic Algorithm) 
+		employs Thompson sampling.
+		
+		\item[mFactor:n] Species the memory factor $n$ for Thompson sampling.
+		
+		\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, $m$.  Updating of search type, 
+		$\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success
+		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
+		
+		\item[exponential] Specifies that the Thompson memory is an exponential function of \texttt{mFactor}, $m$.  Updating of search type, 
+		$\theta^k$, probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  Thompson success
+		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
 		
 		%\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
 		%FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 iteration of 30 seconds keeping up to 10 graph}.
+		\texttt{search()} Performs 1 instance of 30 seconds keeping up to 10 graph}.
 		
 	\begin{example}
-		\item{\texttt{search(hours:10, iterations:2)}\\ Performs 2 search iterations (in parallel if the 
+		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 search instance (in parallel if the 
 		program is executed in parallel) for 10 hours each.}
 				
-		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search iteration for 10 
+		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance for 10 
 		hours and 30 minutes.}
 	\end{example}
 	
@@ -823,7 +871,11 @@
 			\item[compressResolutions:True|False] %\hl{change to BOOL} 
 			Determines whether soft-wired graph 
 			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-			trees are equal.
+			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+			This option can significantly reduce the time to evaluate softwired graphs, but can
+			increase the optimality score of the graph.  Can be used in combination with
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
+			at a later stage to improve graph score.
 			
 			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
 			method. Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
@@ -834,19 +886,30 @@
 			DO has an additional factor of potentially $O(n^2)$ in sequence length compared 
 			to the constant factor for IA due to additional graph traversals.
 			
-			\item[graphFactor:nopenalty|W15|PMDL] Sets the network penalty for a soft-wired network\\ 
-			(\texttt{|W15}) or \texttt{PMDL} (for criterion = PMDL). W15 employs the
-			parsimony network penalty of \cite{Wheeler2015}.
+			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a soft-wired network\\ 
+			(\texttt{W15}),  (\texttt{W23}), or \texttt{PMDL} (for criterion = PMDL). W15 employs the
+			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
+			W15, but with the penalty applied to all blocks (more severe).
+			
+			\item[graphsSteepest:n] Sets the maximum number of graphs to be evaluated simultaneously during ``steepest'' descent 
+			in swapping and network add/delete operations. The number is the minimum of the number of parallel threads and $n$
+			(default 10).
 			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
 			%\item[modelcomplexity] \hl{details}
 			
+			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
+			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
+			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
+			as in \citep{Wheeler1996, POY2, POY3}.  Option True (default) yields better (lower) optimality scores
+			at the cost of added execution time.
+			
 			\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 			This name must appear in quotes. 
 			
-			\item[partitioncharacter] Sets the character that is used to partition data. %\hl{The separator can be something else}
+			\item[partitioncharacter:CHAR] Sets the character that is used to partition data. %\hl{The separator can be something else}
 			
 			\item[rootCost:noRootCost|W15|PMDL] Sets the root cost for a graph. W15 sets a 
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
@@ -855,6 +918,11 @@
 			 
 			 \item[seed:INTEGER] Sets the seed for the random number generator using the integer
 			 value. If unspecified, \phyg uses the system time as the seed.
+			 
+			 \item[softwiredMethod:ResolutionCache|Exhaustive] Sets the algorithm for softwired graphs 
+			 to the ``Exhaustive'' method of diagnosing all display trees as in \cite{Wheeler2015} or
+			 the ``Resolution Cache'' method of \cite{WheelerandWashburn2023}.  
+			 
 		\end{description}
 					
 	\subsubsection{Defaults} 
@@ -977,6 +1045,10 @@
 			\item[keep:n] Specifies that up to $n$ equally costly graphs are retained.
 		
 			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
+			
+			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for softwired graphs 
+			is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} or ``exhaustive'' 
+			method of diagnosing all display trees as in \cite{Wheeler2015}.
 		
 			\item[spr:[n]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If the optional 
 			argument $n$ is specified, readdition of pruned graphs will be within $2 * N$ edges of its original 
@@ -1025,6 +1097,15 @@
 			\item[atRandom] In concert with \texttt{displayTrees:n} specifies that displays trees are chosen 
 			uniformly at random for each input graph.
 			
+			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+			Determines whether soft-wired graph 
+			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
+			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+			This option can significantly reduce the time to evaluate softwired graphs, but can
+			increase the optimality score of the graph.  Can be used in combination with
+			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
+			at a later stage to improve graph score.
+			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
 			determined by the optional argument If the number of display trees is not 
 			specified, 10 are returned. Used in concert with \texttt{toTree}.
@@ -1034,13 +1115,35 @@
 			graph optimization proceeds in the default manner with sequence characters treated 
 			in their non-aligned (``dynamic'') condition.
 			
+			\item[dynamicEpsilon] Sets the level at which heuristic graph costs are verified by full (and time consuming) traversal.  
+			Candidate graphs with costs within dynamicEpsilon of the current best graph are verified.
+			
 			\item[first] In concert with \texttt{displayTrees:n} specifies that the first $n$ displays tree 
-			resolutions are chosen for each input graph..
+			resolutions are chosen for each input graph.
+			
+			\item[graphFactor] Changes the network penalty to ``NoPenalty'', ``W15'' for Wheeler (2015) penalty or
+			``W23'' for Wheeler (2023) penalty.  HardWired graphs are automatically set to ``NoPenalty''.
+			
+			\item[graphSteepest] Changes the number or graphs evaluated in parallel in a variety of procedures
+			(e.g. swap, netmove) from the default (the larger of the number of parallel threads and 10).  This 
+			option can be used to exploit or limit use of parallel thread numbers.  
+			
+			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
+			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
+			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
+			as in \citep{Wheeler1996, POY2, POY3}.  Option True (default) yields better (lower) optimality scores
+			at the cost of added execution time.
+			
+			\item[outgroup:STRING]  Sets the outgroup to the taxon with the name STRING.
+			
+			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for softwired graphs 
+			is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} or ``exhaustive'' 
+			method of diagnosing all display trees as in \cite{Wheeler2015}.
 			
 			\item[staticApprox] Converts non-aligned (``dynamic'') sequence characters to their Implied 
 			Alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
 			
-			\item[toHardwired] Converts exiting graphs to hardwired network graphs.
+			\item[toHardwired] Converts exiting graphs to hardwired network graphs and graphfactor to ``NoNetPenalty''.
 			
 			\item[toSoftwired] Converts exiting graphs to softwired network graphs.
 			
