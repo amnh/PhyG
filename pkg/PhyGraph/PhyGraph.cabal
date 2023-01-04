@@ -199,7 +199,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
---      -fllvm
+      -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   elif flag(super-optimization)
@@ -215,7 +215,7 @@ Executable phyg
       -fstatic-argument-transformation
       -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
-      
+
   else
     GHC-Options:
 --    "-with-rtsopts=-N"
