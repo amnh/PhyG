@@ -55,7 +55,7 @@ import           Utilities.Utilities         as U
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace ("No graphs to swap") []
-   else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
+   -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
    else
 
            let -- process args for swap

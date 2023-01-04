@@ -66,6 +66,7 @@ import           Debug.Trace
 import           Data.Maybe
 import           System.CPUTime
 import           Data.Time.Clock
+-- import           GHC.Stats
 
 -- | main driver
 main :: IO ()
@@ -296,7 +297,10 @@ main = do
     let cpuUsage = (fromIntegral timeCPUEnd) / (fromIntegral wallClockDuration) :: Double
     --hPutStrLn stderr ("CPU % " ++ (show cpuUsage))
 
+    -- memDetails <- getRTSStats
+
     hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) 
+        -- ++ "\n\tHeap use " ++ (show $ gc memDetails) 
         ++ "\n\tWall-Clock time " ++ (show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0)) ++ " second(s)"
         ++ "\n\tCPU time " ++ (show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0)) ++ " second(s)"
         ++ "\n\tCPU usage " ++ (show (floor (100.0 * cpuUsage) :: Integer)) ++ "%"
