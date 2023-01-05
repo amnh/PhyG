@@ -78,7 +78,7 @@ library
     -fspec-constr-keen
     -fspecialize-aggressively
     -fstatic-argument-transformation
---    -fllvm
+    -fllvm
 
   If os(darwin)
     GHC-Options:
