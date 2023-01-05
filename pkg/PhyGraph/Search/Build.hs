@@ -141,6 +141,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                 returnGraphs = reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
+                            -- trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
                             PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
            
@@ -197,25 +198,33 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
           noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
           noTreeNodesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
-          reconciledGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" $ GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
 
           contractIn1Out1Nodes = True
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
+
+          numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraphInitial) ++ "\n" ++ (LG.prettyIndices reconciledGraph')) (
       if returnGraph && not returnTrees then 
         if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
-        else [reconciledGraph]
+        else 
+            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+                -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
+            [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
          if isNothing noChainedGraph then 
-            trace ("Reconciled Graph generated chained network nodes that cannot be resolved. ONly retunring display trees")
+            trace ("Reconciled Graph generated chained network nodes that cannot be resolved. Only retunring display trees")
             displayGraphs
-         else reconciledGraph : displayGraphs
+         else 
+            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+                -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
+            reconciledGraph : displayGraphs
      -- ))
 
 
