@@ -712,7 +712,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     (displayInfoString ++ "\n" ++ blockStringList, outfileName, writeMode)
                 
 
-            else if "graph" `elem` commandList then
+            else if "graphs" `elem` commandList then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let 
                     graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)

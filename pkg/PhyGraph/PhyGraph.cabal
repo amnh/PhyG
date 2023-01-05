@@ -187,7 +187,7 @@ Executable phyg
     GHC-Options:
      -- -fllvm
 
-  -- this since can't get llvm going or ghc-9.4.3
+  -- this since can't going on ghc-9.4.3/4 
   if flag(super-optimization-osx)
     GHC-Options:
       -fexcess-precision
@@ -199,7 +199,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
---      -fllvm
+      -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   elif flag(super-optimization)
@@ -215,7 +215,7 @@ Executable phyg
       -fstatic-argument-transformation
       -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
-      
+
   else
     GHC-Options:
 --    "-with-rtsopts=-N"

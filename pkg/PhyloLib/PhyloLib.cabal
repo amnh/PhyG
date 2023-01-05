@@ -78,7 +78,7 @@ library
     -fspec-constr-keen
     -fspecialize-aggressively
     -fstatic-argument-transformation
---    -fllvm
+    -fllvm
 
   If os(darwin)
     GHC-Options:
@@ -86,4 +86,13 @@ library
       -- -fllvm
   else
     GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
       -fllvm
