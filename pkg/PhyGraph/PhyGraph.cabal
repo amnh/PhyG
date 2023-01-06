@@ -196,7 +196,7 @@ Executable phyg
   if flag(super-optimization-osx)
     GHC-Options:
       -fexcess-precision
-      -fexpose-all-unfoldings
+--      -fexpose-all-unfoldings
       -flate-specialise
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do

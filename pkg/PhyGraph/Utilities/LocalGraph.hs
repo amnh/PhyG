@@ -1000,10 +1000,11 @@ undir inGraph = B.undir inGraph
 bcc ::  Gr a b -> [Gr a b]
 bcc inGraph = BCC.bcc inGraph
 
--- | removeNonLeafOut0NodesAfterRoot removed nodes (and edges attached) that are ourtdegree = zero
+-- | removeNonLeafOut0NodesAfterRoot' removed nodes (and edges attached) that are ourtdegree = zero
 -- but have index > root
-removeNonLeafOut0NodesAfterRoot :: (Eq a) => Gr a b -> Gr a b
-removeNonLeafOut0NodesAfterRoot  inGraph =
+-- differnet way to do same as removeNonLeafOut0NodesAfterRoot
+removeNonLeafOut0NodesAfterRoot' :: (Eq a) => Gr a b -> Gr a b
+removeNonLeafOut0NodesAfterRoot'  inGraph =
     if isEmpty inGraph then empty
     else
         let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
@@ -1012,10 +1013,11 @@ removeNonLeafOut0NodesAfterRoot  inGraph =
         in
         removeNonLeafOut0Nodes leafList inGraph
 
--- | removeNonLeafOut0NodesAfterRoot' removed nodes (and edges attached) that are ourtdegree = zero
+-- | removeNonLeafOut0NodesAfterRoot removed nodes (and edges attached) that are ourtdegree = zero
 -- but have index > root
-removeNonLeafOut0NodesAfterRoot' :: (Eq a) => Gr a b -> Gr a b
-removeNonLeafOut0NodesAfterRoot'  inGraph =
+-- this should be faster than removeNonLeafOut0NodesAfterRoot' by a factor of n
+removeNonLeafOut0NodesAfterRoot :: (Eq a) => Gr a b -> Gr a b
+removeNonLeafOut0NodesAfterRoot  inGraph =
     if isEmpty inGraph then empty
     else
         let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
@@ -1024,13 +1026,13 @@ removeNonLeafOut0NodesAfterRoot'  inGraph =
             -- this should catch anything out = 0
             zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList 
         in
-        trace ("RNLOoN: " ++ (show (rootIndex, fmap fst zeroOutNodeList))) (
+        -- trace ("RNLOoN: " ++ (show (rootIndex, fmap fst zeroOutNodeList)) ) -- ++ "\n" ++ (prettyIndices inGraph)) (
         if null zeroOutNodeList then inGraph
         else
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
-            removeNonLeafOut0NodesAfterRoot' $ reindexGraph newGraph
-        )
+            removeNonLeafOut0NodesAfterRoot $ reindexGraph newGraph
+        -- )
         
 -- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
 -- but not in the leaf node list
