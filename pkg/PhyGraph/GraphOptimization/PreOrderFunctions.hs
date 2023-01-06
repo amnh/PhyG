@@ -953,7 +953,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
        isTree = (graphType inGS) == Tree
    in
    -- Three cases, Root, leaf, HTU
-   trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
+   -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
    if childType == RootNode then
 
       if localCharType == Add then
@@ -1272,11 +1272,11 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    else if isIn2Out1 then
         if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal")
         else 
-            trace ("SF: " ++ "makeing 3-way final")
+            -- trace ("SF: " ++ "makeing 3-way final")
             TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
-   )
+   -- )
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
 -- to get the final state.  This takes place in several steps
