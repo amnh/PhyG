@@ -212,7 +212,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
       if returnGraph && not returnTrees then 
         if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
         else 
-            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
             [reconciledGraph]
       else if not returnGraph && returnTrees then
@@ -222,7 +222,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
             trace ("Reconciled Graph generated chained network nodes that cannot be resolved. Only retunring display trees")
             displayGraphs
          else 
-            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
             reconciledGraph : displayGraphs
      -- ))
