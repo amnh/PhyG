@@ -138,6 +138,11 @@ flag super-optimization-osx
    Default:     False
    Manual:      True
 
+flag test-osx
+  Description: Apply extremely agressive and extremely time consuming optimization but no llvm
+   Default:     False
+   Manual:      True
+
 -- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -191,7 +196,7 @@ Executable phyg
   if flag(super-optimization-osx)
     GHC-Options:
       -fexcess-precision
---      -fexpose-all-unfoldings
+      -fexpose-all-unfoldings
       -flate-specialise
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do
@@ -200,6 +205,20 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+
+  elif flag(test-osx)
+    GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+--      -fllvm
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   elif flag(super-optimization)

@@ -53,6 +53,36 @@ library
     SymMatrix
     SymMatrixSeq
 
+flag test-osx
+  Description: Apply extremely agressive and extremely time consuming optimization but no llvm
+   Default:     False
+   Manual:      True
+
+if flag(test-osx)
+    GHC-Options:
+      -feager-blackholing
+      -O2
+      -Wall
+      -Wno-all-missed-specialisations
+      -Wno-implicit-prelude
+      -Wno-missing-import-lists
+      -Wno-missing-kind-signatures
+      -Wno-missing-safe-haskell-mode
+      -Wno-monomorphism-restriction
+      -Wno-type-defaults
+      -Wno-unsafe
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+      -- -fllvm
+
+else
   ghc-options:
     -- Sanity check warnings:
     --   1. Fail on a warning
@@ -61,6 +91,9 @@ library
     -- -Werror
     -Weverything
     -- Exclusions:
+    -feager-blackholing
+    -O2
+    -Wall
     -Wno-all-missed-specialisations
     -Wno-implicit-prelude
     -Wno-missing-import-lists
@@ -80,19 +113,4 @@ library
     -fstatic-argument-transformation
     -fllvm
 
-  If os(darwin)
-    GHC-Options:
-      -- problems getting llvm to function in OSX (can't find opt)
-      -- -fllvm
-  else
-    GHC-Options:
-      -fexcess-precision
-      -fexpose-all-unfoldings
-      -flate-specialise
-      -fmax-simplifier-iterations=16
-      -foptimal-applicative-do
-      -fspec-constr-count=8
-      -fspec-constr-keen
-      -fspecialize-aggressively
-      -fstatic-argument-transformation
-      -fllvm
+

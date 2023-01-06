@@ -202,8 +202,8 @@ hasAllNetChildren inGraph inNode =
     length children == length childVertNodes
 
 -- | removeTreeEdgeFromTreeNodeWithAllNetworkChildren takes a graph and removes the first edge (head) 
--- from each tree node with all netowork children, then contracts those edges and nodes, 
--- then reindexes -- but doesn not rename graph nodes
+-- from each tree node with all network children, then contracts those edges and nodes, 
+-- then reindexes -- but does not rename graph nodes
 removeTreeEdgeFromTreeNodeWithAllNetworkChildren :: Gr a b -> Gr a b
 removeTreeEdgeFromTreeNodeWithAllNetworkChildren inGraph = 
     let (toDo, nodesWithEdgesToDelete) = hasTreeNodeWithAllNetworkChildren inGraph
@@ -214,7 +214,6 @@ removeTreeEdgeFromTreeNodeWithAllNetworkChildren inGraph =
     if not toDo then inGraph
     else newGraph'
 
-        
 -- | hasChainedNetworkNodes checks if a graph has network nodes with at least one parent that is also a network node
 hasChainedNetworkNodes :: Gr a b -> Bool
 hasChainedNetworkNodes inGraph = 
@@ -235,10 +234,10 @@ hasNetParent inGraph inNode =
     in
     (not . null) parentNetList
 
--- | removeChainedNetworkNodes detectes and fixes (if possible) chained networtk edges
+-- | removeChainedNetworkNodes detectes and fixes (if possible) chained network edges
 -- if 1 parent of network edge is tree node can be fixed by delete and contracting that node/edge 
 -- else if both parent are netowrks--cannot be fixed and errors out
--- doens NOT rename nodes since need vertex info on that--but are reindexed
+-- does NOT rename nodes since need vertex info on that--but are reindexed
 removeChainedNetworkNodes :: (Show a, Show b) => Bool -> Gr a b -> Maybe (Gr a b)
 removeChainedNetworkNodes showWarning inGraph = 
     if isEmpty inGraph then Just inGraph
@@ -1009,15 +1008,16 @@ removeNonLeafOut0NodesAfterRoot  inGraph =
     else
         let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
             rootIndex = (fst . head)  rootNodeList
-            zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList
+            
+            -- this should catch anything out = 0
+            zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList 
         in
         if null zeroOutNodeList then inGraph
         else
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
             removeNonLeafOut0NodesAfterRoot $ reindexGraph newGraph
-
-
+        
 -- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
 -- but not in the leaf node list
 -- does not reindex graph
@@ -1035,6 +1035,7 @@ removeNonLeafOut0Nodes leafList inGraph =
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
             removeNonLeafOut0Nodes leafList newGraph
+        
 
 -- | reindexGraph takes a graph and reindexes nodes and edges such that nodes
 -- are sequential and the firt field matches their node index
