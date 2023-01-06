@@ -17,7 +17,7 @@ packages:
 ---------------------------------------------------------------------------------
 
 executable-static: False
-with-compiler: ghc-9.4.2
+with-compiler: ghc-9.4.4
 
 
 ---------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ package PhyGraph
     benchmarks:        False
     documentation:     False
     tests:             False
-    flags: +SingleThreaded
+    flags: +SingleThreaded +test-osx
     optimization: 2
 
 
