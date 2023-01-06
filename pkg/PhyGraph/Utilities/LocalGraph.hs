@@ -1008,6 +1008,18 @@ removeNonLeafOut0NodesAfterRoot  inGraph =
     else
         let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
             rootIndex = (fst . head)  rootNodeList
+            leafList = filter ((< rootIndex) . fst) putativeLeafNodeList
+        in
+        removeNonLeafOut0Nodes leafList inGraph
+
+-- | removeNonLeafOut0NodesAfterRoot' removed nodes (and edges attached) that are ourtdegree = zero
+-- but have index > root
+removeNonLeafOut0NodesAfterRoot' :: (Eq a) => Gr a b -> Gr a b
+removeNonLeafOut0NodesAfterRoot'  inGraph =
+    if isEmpty inGraph then empty
+    else
+        let (rootNodeList, putativeLeafNodeList, _, _) = splitVertexList inGraph
+            rootIndex = (fst . head)  rootNodeList
             
             -- this should catch anything out = 0
             zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList 
@@ -1017,7 +1029,7 @@ removeNonLeafOut0NodesAfterRoot  inGraph =
         else
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
-            removeNonLeafOut0NodesAfterRoot $ reindexGraph newGraph
+            removeNonLeafOut0NodesAfterRoot' $ reindexGraph newGraph
         )
         
 -- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
