@@ -1,15 +1,6 @@
- 1) add tnt fasta/c tcm stuff and -? to docs
-	Source docs
-	User docs
-
 2) Create MatrixApproxSmall, MatrixApproxLarge
 	Prealigned chars
 	Add to test.pg
-
-3) Reexamine "executeCommands" to make more stream like
-	passing various results back to itself till all done
-	THis allow builds, swaps, transformtion in order
-	E.g. search tree first then network, search non implied alignment
 
 4) Set graph complexity for hard-wired ans soft-wired graphs differnetly
 	Hard-wired--as in complexity code now--just edges and vertices
@@ -24,12 +15,7 @@
 6) Transform 
 	Matrix <-> ApproxMatrix
 
-7) Newick--count bits in bitvector of nodes to deermine laeft versus right
-  so output smaller group "top" left and "right" bottom.
-  If equal  "Lower" number value left (ie earlier in input list)
-  likley more basal groups earlier in matrix
-
-  parsing very slow
+7) Newick parsing very slow
 
 8) select command for taxa/chars/blocks
 	to only use a list of taxa
@@ -52,13 +38,6 @@
 	But basically--anyhting that returns a tree will have to return potentially updated
 	CharInfo wrt hashMap
 
-18) Check all commands before execution for valid syntax
-	so don't error out at very end after lots of effort
-
-21) Profile info +RTS -xc -RTS after cabal build --allow-newer --enable profiling
-	bin +RTS -p -RTS args....
-	creates prog.prof
-
 32) Add affine cost option
 	modify charInfo field for affine cost
 	first arg in generateDenseTransitionCostMatrix
@@ -78,11 +57,6 @@
 
 48) Hartigan 1973 preorder optimization
 
-49) additive to binary for small number states?  Bit packing
-
-50) Bit packing 
-	Ronquist 1998, Goloboff 1999, 2002, Moelannen 1999, White and Holland 2011.
-
 52) Node clusters--Goloboff 1996,1999
 
 53) Graph comparison hash, 
@@ -92,8 +66,6 @@
 
 58) reverse cross ref loci ?
 
-70) Add Alex binary tree rendering for ascii output
-
 71) latex structure and all that stuff on how it works + haddock functions
 
 72) stylish and hlint source code
@@ -101,13 +73,6 @@
 83) Parallelize data processing
 
 86) Fix alphabet outout in diagnose to be single column
-
-81) Check all command execution for correctness before execution.
-	except perhaps filenames
-		commands and options 
-	
-82) Need to add prealigned charcater/DO like
-	recode to matrix?  Approx matrix?
 
 84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
 	had to replace Alex code in report do to empty list issues
@@ -143,50 +108,6 @@
 
 97) Whidden eta l 2009 2010 for fast SPR tre distance FPT
 
-98) Tree rendering
-	Alex's code
-	https://hackage.haskell.org/package/tree-render-text-0.4.0.0/docs/Data-Tree-Render-Text.html
-		Based on Data.Tree
-		
-		import Data.Tree
-			import Data.Tree.Render.Text
-
-			tree :: Tree String
-			tree
-			  = Node "Add"
-			    [ Node "Add"
-			      [ Node "0" []
-			      , Node "Mul"
-			        [ Node "1" []
-			        , Node "2" []
-			        ]
-			      ]
-			    , Node "Neg"
-			      [ Node "Max"
-			        [ Node "3" []
-			        , Node "4" []
-			        , Node "5" []
-			        , Node "Var"
-			          [ Node "x" []
-			          ]
-			        , Node "6" []
-			        ]
-			      ]
-			    ]
-
-https://hackage.haskell.org/package/tree-view-0.5.1/docs/Data-Tree-View.html
-https://hackage.haskell.org/package/diagrams-contrib-0.1.0.0/docs/Diagrams-TwoD-Layout-Tree.html
-
-Write LGGraph -> Data.Tree and use 	https://hackage.haskell.org/package/tree-render-text-0.4.0.0/docs/Data-Tree-Render-Text.html
-to render--would have repeated subtrees after network vertex
-
-101) Dashes in tnt files--option?
-	Document
-
-104) label invariven data has-> bv label
-
-105) Only partition DNA/Amino Acid data
-
 107) Graphical profiling
 
 	profiteur phyg.prof (from +RTS -p after --enable-profiling)
@@ -201,8 +122,6 @@ to render--would have repeated subtrees after network vertex
 
 116) refactor command checking code at begining of commands 
 
-118) Clean up warnings
-
 121) Verify unique graph output for same length
 
 122) get branch lengths on preorder pass for collapsing later
@@ -212,10 +131,6 @@ to render--would have repeated subtrees after network vertex
 	Can be added later if needed for outpu display or lengths
 	or could use average of min and max as a placeholder for now
 
-124) Test tree length on small huge alphabet tree
-
-129) Prealigned to nonadd/matrix
-
 130) Return Bridge set 
 	GraphAlgorithmBook.pdf
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
@@ -223,21 +138,6 @@ to render--would have repeated subtrees after network vertex
 
 142) At some point keep equally costly traversals so
         add another vector dimension to  traversal trees in Phylogenetic graph
-
-142) For soft-wired
-        1) change block graph tuple to Vector of Vector of Decorated graphs to hold
-                        multiple (equally costly) display trees for a given block
-                        when have block sets can reduce by intersection of display trees
-                        for each block could reduce complexity of output a great deal
-
-
-        2) Add resolution set to vertex information
-                Only updated in softwired graph optimization
-                Trees and Hardwired can be empty
-                        [VertData] ?
-                        Child indices?
-                        keep trees on post order for diaply tree later
-
 
 143) Check optimization for input forest
 	issues with rootindex
@@ -250,11 +150,6 @@ to render--would have repeated subtrees after network vertex
 
 146) Bridge Tarjan
 	Popcount for size subtree
-
-154) reduce number of resolutions by checking if charctert assignments 
-	(Vector character data) and displayBV data are equal
-	could have different display trees--would loose that info, but could speed up alot.
-	Make an option in global settings?  Would have same leaf set (bvlabel) but different edges.
 
 155) Document compress resolutions
 
@@ -269,8 +164,6 @@ to render--would have repeated subtrees after network vertex
 161) Incremental pot-order traceback for soft-wired
 	during rerooting
 
-162) remove Maybe from resoltion child type
-
 166) make forest a final set deleting edges?
 
 173) rename reroot functions to make more sense
@@ -278,11 +171,7 @@ to render--would have repeated subtrees after network vertex
 174) Abstract rectify graph functions
 	Maybe a tuple with two kinds of graphs and branch WRT node update
 
-175) Move softwired traceback to preorder ?
-
 177) remove calls to getRoots  must be O(n)
-
-178) Add graph reconciliation functions and report 
 
 180) Check size of (number of) resolutions, that its not blowing up
 	-- put limit
@@ -299,8 +188,6 @@ to render--would have repeated subtrees after network vertex
 187) create incremental postorder pass for use in wagern and swapping
 	add damping if possible
 
-194) Alex Data.Alphabet usefule funciotns for coding and uncoding functions
-	
 195) Hadock
 
 196) prelim/fimal states rendered using alphabet library
@@ -310,18 +197,11 @@ to render--would have repeated subtrees after network vertex
 207) Incremental optimization with delta for cost at root--need to update other node costs
 	past convergance?  Prob yes
 
-209) refactor postorder to be separate functions
-
 210) preorder to deal with multiple roots
 
 211) Swap preorder on base graph, add back nodes from pruned on original, then preorder
 
-212) rerrot tree make morefficient--rewrite
-
 213) musl for static binaries
-
-214) Check median left right order for static charcaters--make sure same as dynamic
-	And for IA assignments as well
 
 216) static branch lengths wrong
 
@@ -335,23 +215,11 @@ to render--would have repeated subtrees after network vertex
 
 221) Outputs with char changes in positions apolist type
 
-222) abstract steepest and all functions to simplify code
-
 223) Is sorting edges oni length ofr steepest effective?
-
-225) option to not do branch lengths--don't need in SPR/TBR
-
-226) SPR root state -- should be union of two descendants
 
 231) change tree delta calcualtion--to edge calculation wag style--missing good graphs
 
-232) rediagnose preorder pass if chnage final assignment
-
 233) Check through <= delta in swap and wagner build
-
-234) create alternate spr-tbr for when find new in steepest
-
-235) check edges for splitting and readding--make sure not missing some edges--especially near root
 
 236) Check order or branche readdition confirm sequence in closest order
 
@@ -378,7 +246,7 @@ to render--would have repeated subtrees after network vertex
 
 250) ia for net swapping and final
 
-252) Check final assingment output for dispolay trees and networks due to "hack" at traversal traceback line 677
+252) Check final assingment output for display trees and networks due to "hack" at traversal traceback line 677
 
 256) For recombination
 	use split on edge as in swapping, check pruned graph root BV
@@ -390,32 +258,13 @@ to render--would have repeated subtrees after network vertex
 
 259) set versus transform options set all at beginning, transform change later
 
-260) In fuse--removed identity of components check
-	Should be tested in large data sets
-
 261) change fmap blah $ fmap beh to fmap (blah . bleh)
 
 262) turn off IA for non-Trees  is a tree thing anyway.
 	can generate IA if desired at end with display trees
 	perhaps change to grandparent not parent if paren in1out1
 
-263) postorder/preorder softwired
-
-generalizedGraphPostOrderTraversal ->
-postOrderSoftWiredTraversal
-	post decorate sofwired
-		getOutDegree1VertexAndGraph
-		createBlockResolutions
-	minimalReRootPhyloGraph
-	updateAndFinalizePostOrderSoftWired
-preOrderTreeTraversal
-
-
-264) resolutoin bloick data--change to unlablled edges--much cleaner, then change function to 
-	crete display trees
-
-266) make reroot for netowek on bridge edges only  vector set up
-	need linear algrithm for bridge edges
+266) Tarjan for bridghes no O(n^2)
 
 269) move generat graph functions
 	ie those qwith Gr a b interfaces to LocalGraphs
@@ -434,13 +283,6 @@ preOrderTreeTraversal
 273) for edges--don't use as split edge if "sister" edge incident on network node
 	-- or sister node is network node
 
-275) Harwired SPR issue--work around by using restricitve TBR
-
-277) Move all general graph functions to LG
-
-278) filter if two dwsxcndents are boith net nodes
-	espexially on blick build graph and input graph
-
 278) Check order of edges--make sure break/readd in reasonable order for SA
 
 279) Unions after split
@@ -457,21 +299,13 @@ preOrderTreeTraversal
 
 284) steepest edge add with randomization (perhaps same with move and delete)
 
-291) Swap steepest--add equal costs and remove default "all" after
-
 292) Add unions
 
 293) Check static only parallel swap (and optimizatiopn--ie no reroots)
 
-294)  For net build -> phylo graph
-	if naked HTUs (no children) just delete those nodes and contract 
-	edges etc
-
 295)  use splitGraphOnEdge' in swap--save looking for edges later all over
 
 296) output better graph if found in GB
-
-297) in swap etc--if "isTree" don't do all the checking or cyclic etrc as well a bridge edges
 
 298) transform
 	to tree, to hardwrired, to softwired all doable now
@@ -489,12 +323,7 @@ preOrderTreeTraversal
 303) Check traverse if mix static and dynamic--make sure all charcters ar optimized--the 0 cost thing 
 	for choosing best may be issue 
 
-304) Add inputs for prealigned slim/wide/huge sequences
-
 305) Check min max edge cost WRT reordering with gap first versus last
-
-307) Check input prealigned
-	slim/wide/huge
 
 308) Test union-like rejoin criterion in swap steepes/rejoin steepest
 
@@ -537,9 +366,6 @@ preOrderTreeTraversal
 325) efficiently parallleize bitpacking 
 
 
-330) BV nonadd diagnose screwed up including ambiguoius characters
-	Looks corret for bitpacked so must be a presentation issue not inherently incorrect
-
 331) Diagnosis Outputs:
 	HTU reconstructions--suitable for entry into file wrt ambiguies etc
 	Change list -- marked required/possibke
@@ -553,8 +379,6 @@ preOrderTreeTraversal
 
 336)  add gap, subs, ledgin gap options and make own tcm for fasta and fastc
 
-337) make sure steepst returns equal cost gaphs
-
 338) all--resolve graphs earlier to reduce memory footprint
 
 339) display trees as pecentages on reconiliation at and
@@ -564,26 +388,14 @@ preOrderTreeTraversal
 340) Note--if bit packing results in all max states---then check missing value calculation for bits
 	'missing' codes to determine states present has been evolving 
 
-341) make '-' state for non-0additive consistent and sensible (fromSymbols, fromSymbolsWOGap)
-
-342) tnt scopes allow scope first then type after? not sure of standard
-
-343) add stupidf graph cost over edges for hardwired cost
-
 344) Should probably make packedData unboxed
 
-
-345) reblock globbing with '*' at end didn't work but "??" did.
-	reblock("nonAddData", "*.tnt??") versus reblock("nonAddData", "*.tnt*")
-	maybe becasue * more than once and doesn't test?
 
 347) maybe have a size limit for parallel bitpacking--as in over 100k (tax * chars) or something
 
 348) More fuse progress info
 
 349) CHeck weights and tcms for prealigned/sequence for PMDL
-
-350)  Still transfrom add to nonadd--but keep weight (when non-integer)
 
 353) Output continuous from recoded non-add binary
 	convert back or something
@@ -594,8 +406,6 @@ preOrderTreeTraversal
 	combining and packing
 
 358) Make all "read" "readMaybe" and check to catch failures
-
-359) llvm for OSX
 
 360) add no changed field to bitpacked and non-add (maybe add too?, matrix?) chars
 
@@ -608,25 +418,13 @@ preOrderTreeTraversal
 363) verify local root cost and swap and fuse thing--perhaps not add if in there
 	can be subtracted if double counted (inGS etc)
 
-
 364) bit no bits stuff for ML versius PMDL
-
-365) Check heiristic versus postorder graph costs--heuristics too high for dynamic?
-	do to not rejiggering homologies?
-	could add emprical epsilon for dynamic characters to evaluate fully
-	but only needed for dynamic I ouwld think
-	this percentage could be basd on differnce between dynamic and static costs for those charctaers
-	get fraction length due to dynamic characters (costs random set pairwsie?) tjhat percent * percent reduction dynamic v static
-	only need for cases of heuristic cost estimation--swap, fuse with swap, net add delete?
-
 
 366) Move root cost and model cost to final output--otherwise confusing
 	to swap and fuse
 
 367) write collapse graph zero egde
 	use in unique graph/ nubGraph
-
-368) make sure swapSteepest' is not evaluating everyhting at any stage--do a rewrite
 
 369) integrate collapse for graph compare
 	add 7th field?
@@ -635,17 +433,14 @@ preOrderTreeTraversal
 
 370) select unique--collapse and save but return rseolved (optimizable) graphs
 
-
 371) Fix parsing errro newick single '
 	Uto-Aztecan
 
 372) Boostrap/Jackknife output--collapse < 50%
 
-373) Add fgraph cost comment to dot files
-
 374) Add select best (1) for block build
 
-375) Check wagner build character in prallel--seems low
+375) Check wagner build character in prallel--seems slow
 
 376) Sofwired/hardwired
 	1) only reroot on bridges
@@ -658,18 +453,14 @@ preOrderTreeTraversal
 377) Various parallel steepest--do the numbe ron parallel at once then check
 	for better use of parallel
 
-378) Go through and refactor treee/softwored/hardwired traversal post and preorder
-
 379) NOte for docs--for best tree analsyis use single block
 
 380) heursitic add/delete deltas need to be completely rethought--always negative
 	removed for now
 
 
-381) extractDisplayTrees seems to be caled multiple times in doftwired for given graph
+381) extractDisplayTrees seems to be caled multiple times in softwired for given graph
 
-382) for net add--randomize and limit
-	
 383) remove recursiveRerootList'
 
 384) rationalize paralle calls
@@ -678,7 +469,7 @@ preOrderTreeTraversal
 
 386) generalize new reroot code to trees as well
 
-388) Idenitify cause ofdu edges
+388) Idenitify cause of dup edges
 	-- bad edge insert?
 	-- error in resolution cache?
 	-- bad resolution of display graph
@@ -688,12 +479,8 @@ preOrderTreeTraversal
 391) Net "move" not doing enyhting--not sure if bad graph state yeielding infiniites (probabaly) or 
 	not finding anyhting better via that mechanism
 
-392) Clean up old reroot code--migrate hardwired?
-
 393) add conditions for available netowrk add stuff 
 	like check for phylogenetic graph
-
-394) Fix net move
 
 395) Remove cycle check from convertGeneralGraphToPhylogeneticGraph when ok
 
@@ -719,23 +506,6 @@ preOrderTreeTraversal
 
 408) add paralleize bitpacking-- with option to turn off for memory saving
 
-411) figure out issue with net move
-
-412) Internal setting of dynamic epsilon
-	(also only for dynmaic/sequence characters)
-
-
-413) wierd error
-	phyg-xc: Prelude.undefined
-CallStack (from HasCallStack):
-  error, called at libraries/base/GHC/Err.hs:74:14 in base:GHC.Err
-  undefined, called at src/Data/HashTable/ST/Basic.hs:214:22 in hashtables-1.3-2dc341e694bb376cf992d1fe3184eb881bab0fb1c5765dec83fdf1c152b82a46:Data.HashTable.ST.Basic
-CallStack (from -prof):
-  Data.HashTable.ST.Basic.CAF (<entire-module>)
-
- 	I htink this omes form running multiple parallel jobs oni my desktop--not a "program" errro perhaps
-
-
 414) swap unions
 
 415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
@@ -752,3 +522,5 @@ CallStack (from -prof):
 
 423) Somthing terrible wierd in AHrdWired swap, leads to out degree 3 and time violations that are not in graphs, but are in output
 	node indexing issue?
+
+424) Make surea affine works for slim

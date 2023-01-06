@@ -1012,11 +1012,13 @@ removeNonLeafOut0NodesAfterRoot  inGraph =
             -- this should catch anything out = 0
             zeroOutNodeList  = filter ((> rootIndex) . fst) putativeLeafNodeList 
         in
+        trace ("RNLOoN: " ++ (show (rootIndex, fmap fst zeroOutNodeList))) (
         if null zeroOutNodeList then inGraph
         else
             let newGraph = delNodes (fmap fst zeroOutNodeList) inGraph
             in
             removeNonLeafOut0NodesAfterRoot $ reindexGraph newGraph
+        )
         
 -- | removeNonLeafOut0Nodes removed nodes (and edges attached) that are ourtdegree = zero
 -- but not in the leaf node list

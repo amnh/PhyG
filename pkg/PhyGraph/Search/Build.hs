@@ -141,7 +141,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                 returnGraphs = reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
-                            -- trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
+                            trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
                             PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
            
@@ -203,12 +203,14 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           contractIn1Out1Nodes = True
           displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
+
+          -- need this to fix up some graphs after other stuff chnaged
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
 
           numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
-      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraphInitial) ++ "\n" ++ (LG.prettyIndices reconciledGraph')) (
+      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
       if returnGraph && not returnTrees then 
         if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
         else 

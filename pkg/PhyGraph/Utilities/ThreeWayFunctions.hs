@@ -73,6 +73,7 @@ import           Types.Types
 -- has (left child preliminary, node preliminary, right child preliminary)
 -- that information can be used if needed
 -- since assumes in 2 out 1 only the node preliminary field is used
+-- need to remove naked gaps from medians for dynamic characters --hence the extract medians call
 threeMedianFinal :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 threeMedianFinal charInfo parent1 parent2 curNode =
    let localCharType = charType charInfo
