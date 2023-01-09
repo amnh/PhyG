@@ -144,9 +144,9 @@ main = do
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
-    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++ show terminalsToInclude)
+    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++ (concatMap (++ " ") $ fmap Text.unpack terminalsToInclude))
     else hPutStrLn stderr ("")
-    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ show terminalsToExclude)
+    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ (concatMap (++ " ") $ fmap Text.unpack terminalsToExclude))
     else hPutStrLn stderr ("")
 
     -- Uses names form terminal list if non-null, and remove exckuded terminals
