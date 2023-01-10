@@ -33,6 +33,7 @@ import Data.Hashable
 --import qualified Data.HashTable as HT
 import Data.HashTable.IO
 --import Data.HashTable.ST.Basic
+--import qualified Data.HashTable as CHT
 import Data.IORef
 import Prelude           hiding (lookup)
 import System.IO.Unsafe
