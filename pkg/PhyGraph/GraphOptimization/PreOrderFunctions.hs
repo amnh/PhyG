@@ -400,7 +400,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
 
             -- booleans for further pass
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
-            isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- harwired can happen, need to pass both parents
+            isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- hardwired can happen, need to pass both parents
 
             
             -- this OK with one or two children
@@ -1271,7 +1271,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       --for Hardwired graphs
    else if isIn2Out1 then
         if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal")
-        else TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
+        else 
+            -- trace ("SF: " ++ "makeing 3-way final")
+            TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )

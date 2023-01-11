@@ -642,7 +642,7 @@ setCommand argList globalSettings processedData inSeedList =
 
         
 
-        else trace ("Warning--unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
+        else trace ("Warning: Unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)
 
 
 
@@ -733,7 +733,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                         concatSeqs = any (=="concatenate") commandList
                         iaContentList = zipWith (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData) curGraphs [0.. (length curGraphs - 1)]
                     in
-                    trace ("\tWarning--prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additve characters and will not appear in implied alignment output.")
+                    trace ("\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additve characters and will not appear in implied alignment output.")
                     (concat iaContentList, outfileName, writeMode)
 
             else if "pairdist" `elem` commandList then
@@ -789,7 +789,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                     (concat tntContentList, outfileName, writeMode)
            
             else 
-                trace ("\nWarning--unrecognized/missing report option in " ++ (show commandList) ++ " defaulting to 'graphs'") (
+                trace ("\nWarning: Unrecognized/missing report option in " ++ (show commandList) ++ " defaulting to 'graphs'") (
                 let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
                 in
                 if null curGraphs then 

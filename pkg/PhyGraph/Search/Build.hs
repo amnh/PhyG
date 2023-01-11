@@ -195,36 +195,48 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
 
           -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
+          {-
           reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
           noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
-          noTreeNodesWithAllNetChildern = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
-          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" $ GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildern
+          noTreeNodesWithAllNetChildren = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
+          contractedGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildren
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
+
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+
+          -- this for non-convertable graphs
+          reconciledGraph' = if reconciledGraph /= LG.empty then reconciledGraph
+                             else reconciledGraphInitial
+
 
           contractIn1Out1Nodes = True
-          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph
-                           else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph
+          displayGraphs' = if not returnRandomDisplayTrees then take numDisplayTrees $ LG.generateDisplayTrees contractIn1Out1Nodes reconciledGraph'
+                           else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
+
+          -- need this to fix up some graphs after other stuff chnaged
           displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
+
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
 
           numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
-      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraphInitial) ++ "\n" ++ (LG.prettyIndices reconciledGraph')) (
-      if returnGraph && not returnTrees then 
-        if isNothing noChainedGraph then error "Reconciled Graph generated chained network nodes that cannot be resolved. Perhaps try 'displayTrees' option"
-        else 
-            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+      if reconciledGraph == LG.empty && not returnTrees then
+        errorWithoutStackTrace ("\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees.")
+      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
+      else if returnGraph && not returnTrees then 
+        trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
-            [reconciledGraph]
+        [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         if isNothing noChainedGraph then 
-            trace ("Reconciled Graph generated chained network nodes that cannot be resolved. Only retunring display trees")
-            displayGraphs
-         else 
-            trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes") 
+         if reconciledGraph /= LG.empty then 
+            trace ("\n\tReconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
             reconciledGraph : displayGraphs
+         else
+            trace ("\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds.") 
+            displayGraphs
      -- ))
 
 

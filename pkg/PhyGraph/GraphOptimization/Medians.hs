@@ -86,7 +86,6 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import           Data.Maybe
-
 -- import           Debug.Trace
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
@@ -461,7 +460,7 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     if thisType `elem` [SlimSeq,   NucSeq]      then
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
         in
-        --trace ("pDO:" ++ (show (GV.length $ fst3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2)))
+        -- trace ("pDO:" ++ (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) ++ " " ++ (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
         (r, mempty, mempty, weight charInfo * fromIntegral cost)
 
     else if thisType `elem` [WideSeq, AminoSeq] then

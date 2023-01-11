@@ -46,6 +46,7 @@ module Utilities.ThreeWayFunctions  ( threeMedianFinal
                                     , threeWayGeneric
                                     ) where
 
+import           Bio.DynamicCharacter
 import           Data.Alphabet
 import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
@@ -72,6 +73,7 @@ import           Types.Types
 -- has (left child preliminary, node preliminary, right child preliminary)
 -- that information can be used if needed
 -- since assumes in 2 out 1 only the node preliminary field is used
+-- need to remove naked gaps from medians for dynamic characters --hence the extract medians call
 threeMedianFinal :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 threeMedianFinal charInfo parent1 parent2 curNode =
    let localCharType = charType charInfo
@@ -108,19 +110,19 @@ threeMedianFinal charInfo parent1 parent2 curNode =
    else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
       let threeFinal = threeWaySlim charInfo parent1 parent2 curNode
       in
-      curNode { slimFinal = threeFinal
+      curNode { slimFinal = extractMedians (threeFinal, threeFinal, threeFinal)
               }
 
    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
       let threeFinal = threeWayWide charInfo parent1 parent2 curNode
       in
-      curNode { wideFinal = threeFinal
+      curNode { wideFinal = extractMedians (threeFinal, threeFinal, threeFinal)
               }
 
    else if localCharType == HugeSeq then
       let threeFinal = threeWayHuge charInfo parent1 parent2 curNode
       in
-      curNode { hugeFinal = threeFinal
+      curNode { hugeFinal = extractMedians (threeFinal, threeFinal, threeFinal)
               }
 
    else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -235,6 +237,7 @@ getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianSta
 -- 4) choosing lowest cost median
 threeWaySlim ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> SV.Vector CUInt
 threeWaySlim charInfo parent1 parent2 curNode =
+   -- trace ("3WSlim: ") (
    let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
@@ -260,7 +263,7 @@ threeWaySlim charInfo parent1 parent2 curNode =
    if cost1 == minCost then median1
    else if cost2 == minCost then median2
    else median3
-
+   -- )
 
 
 -- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via
@@ -333,11 +336,13 @@ threeWayHuge charInfo parent1 parent2 curNode =
 -- importand node filed orders correct--has moved around
 addGapsToChildren :: (FiniteBits a, GV.Vector v a) => (v a, v a, v a) -> (v a, v a, v a) -> (v a, v a, v a)
 addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild, gappedNodePrelim, gappedRightChild) =
+   -- trace ("AG2C:") (
    let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
       ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
    else (reGappedParentFinal, reGappedLeft, reGappedRight)
+   -- )
 
 -- | slideRegap takes two version of same vectors (1st and snd) one with additional gaps and if the two aren't equal then adds gaps
 -- to the 3rd and 4th input vectors

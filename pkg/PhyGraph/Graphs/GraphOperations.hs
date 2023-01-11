@@ -157,15 +157,26 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
         -- time consistency (after those removed by transitrive reduction)
         timeConsistentGraph = makeGraphTimeConsistent failCorrect ladderGraph
 
+        -- removes parent child network edges
+        -- noChainedGraph = LG.removeChainedNetworkNodes False timeConsistentGraph
+
         -- removes ancestor descendent edges transitiveReduceGraph should do this
         -- but that looks at all nodes not just vertex
-        noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph
+        noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph -- $ fromJust noChainedGraph
+
+        -- deals tih nodes with all network children 
+        noTreeEdgeGraph = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noParentChainGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges failCorrect noParentChainGraph
+        noSisterSisterGraph = removeSisterSisterEdges failCorrect noTreeEdgeGraph
+
+        -- remove and new zero nodes 
+        finalGraph = LG.removeNonLeafOut0NodesAfterRoot noSisterSisterGraph
 
     in
     if LG.isEmpty timeConsistentGraph then LG.empty
+
+    -- else if isNothing noChainedGraph then LG.empty
 
     else if LG.isEmpty noParentChainGraph then LG.empty
 
@@ -176,7 +187,9 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
 
     -- this final need to ladderize or recontract?
-    else noSisterSisterGraph
+    else 
+      if finalGraph == inGraph then finalGraph
+      else convertGeneralGraphToPhylogeneticGraph failCorrect finalGraph
     
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
