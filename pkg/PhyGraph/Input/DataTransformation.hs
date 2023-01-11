@@ -94,7 +94,7 @@ removeAllMissingCharacters inData =
     else 
         if (not . null) lengthCheck then [inData]
         else 
-            trace ("Warning--Input file " ++ (T.unpack $ name $ head charData) ++ " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.")
+            trace ("Warning: Input file " ++ (T.unpack $ name $ head charData) ++ " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.")
             []
 
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
