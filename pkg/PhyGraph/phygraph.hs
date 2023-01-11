@@ -149,7 +149,7 @@ main = do
     if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ (concatMap (++ " ") $ fmap Text.unpack terminalsToExclude))
     else hPutStrLn stderr ("")
 
-    -- Uses names form terminal list if non-null, and remove exckuded terminals
+    -- Uses names from terminal list if non-null, and remove exckuded terminals
     let dataLeafNames' = if (not $ null terminalsToInclude) then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
@@ -159,8 +159,12 @@ main = do
     -- reduce memory footprint keeoing that stuff around.
     let crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dataLeafNames
 
+    -- add in missing terminals to raw data where required
+    let reconciledData' = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
 
-    let reconciledData = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
+    -- check for data file with all missing data--as in had no terminals with data in termainals list
+    let reconciledData = concatMap DT.removeAllMissingCharacters reconciledData'
+
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames) $ fmap (GFU.checkGraphsAndData dataLeafNames) renamedGraphs
 
     -- Check to see if there are taxa without any observations. Would become total wildcards

@@ -45,6 +45,7 @@ module Input.DataTransformation
   , partitionSequences
   , missingAligned
   , setMissingBits
+  , removeAllMissingCharacters
   ) where
 
 import           Data.Alphabet
@@ -79,7 +80,22 @@ import           Text.Read
 import qualified Utilities.Utilities         as U
 -- import           Debug.Trace
 
---Todo-- add stuff for proper input of prealign seeunces--need charactert types set before this
+-- | removeAllMissingCharacters removes charcaters from list in rawData if all taxa are missing
+-- this can happen when taxa are renamed or added in terminals file
+-- assumes a list lenght of 1 so can return empty of all missing and concated later
+-- also assumes its a single "character" dynamic or otherwise
+removeAllMissingCharacters :: RawData -> [RawData]
+removeAllMissingCharacters inData =
+    let termData = fst inData
+        charData = snd inData
+        lengthCheck = filter (>0) $ fmap length $ fmap snd termData
+    in
+    if length charData /= 1 then error ("removeAllMissingCharacters assumes a single character input and has " ++ (show $ length charData))
+    else 
+        if (not . null) lengthCheck then [inData]
+        else 
+            trace ("Warning--Input file " ++ (T.unpack $ name $ head charData) ++ " contains all missing data (prehaps due to renaming or adding/deleting terminals) and has been skipped.")
+            []
 
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
