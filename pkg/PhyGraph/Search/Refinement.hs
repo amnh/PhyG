@@ -273,7 +273,8 @@ getFuseGraphParams inArgs =
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
-             moveLimitList = filter (not . null) $ fmap snd $ filter ((/="keep").fst) lcArgList
+             -- this is awkward syntax but works to chejkc fpor multiple swapping limit commands
+             moveLimitList = filter (not . null) $ fmap snd $ filter ((`notElem` ["keep", "pairs"]).fst) lcArgList
              maxMoveEdgeDist
               | length moveLimitList > 1 =
                 errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " ++ show inArgs)
