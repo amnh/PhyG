@@ -224,8 +224,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
         errorWithoutStackTrace ("\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees.")
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
       else if returnGraph && not returnTrees then 
-        trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
-                -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
+        trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees for softwired network") 
         [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
