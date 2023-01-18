@@ -551,12 +551,12 @@ replaceVal target replacement inList curList =
         else replaceVal target replacement (tail inList) (firstVal : curList)
 
 
--- | cartProd takes two lists and retuns carteian product as list of pairs
+-- | cartProd takes two lists and retuns cartesian product as list of pairs
 cartProd :: [a] -> [b] -> [(a,b)]
 cartProd xs ys = [(x,y) | x <- xs, y <- ys] 
 
 
--- | cartProdPair takes a pair of lists and retuns carteian product as list of pairs
+-- | cartProdPair takes a pair of lists and retuns cartesian product as list of pairs
 cartProdPair :: ([a], [b]) -> [(a,b)]
 cartProdPair (xs, ys) = [(x,y) | x <- xs, y <- ys] 
 

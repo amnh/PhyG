@@ -351,6 +351,7 @@ addNodeEdgeToResolutionList newNode newEdge _ inResData resolutionIndex =
                                   , childResolutionIndices = (Just resolutionIndex, Just resolutionIndex)
                                   }
     in
+    -- trace ("ANETRL:" ++ (show $ Just resolutionIndex))
     newFirstData 
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
@@ -382,6 +383,7 @@ createBlockResolutions
   | null rightChild = leftChild
   | otherwise =
     -- trace ("CBR:" ++ (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) ++ (show $fmap BV.toBits $ fmap displayBVLabel leftChild) ++ " and " ++  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) (
+    --trace ("CNR: " ++ (show (length leftChild, length rightChild))) (
     let childResolutionPairs = cartProd (V.toList leftChild) (V.toList rightChild)
         -- need to keep these indices correct (hence reverse in checkLeafOverlap ) for traceback and compress
         childResolutionIndices = cartProd [0.. (length leftChild - 1)] [0.. (length rightChild - 1)]
@@ -431,12 +433,13 @@ createBlockResolutions
 
 
     in
+    -- trace ("CNR: " ++ (show (length leftChild, length rightChild))) ( --  ++ "\n" ++ (show childResolutionIndices) ++ "\n" ++ (show $ fmap snd validPairs)) (
     if compressResolutions then compressBlockResolution (newResolutionList ++ (V.toList addLeft) ++ (V.toList addRight))
     else V.fromList newResolutionList V.++ (addLeft V.++ addRight)
     -- )
     -- )
 
--- | compressBlockResolution 'compresses' resolutions of a block by taking only the first of resolutoins with the 
+-- | compressBlockResolution 'compresses' resolutions of a block by taking only the first of resolutions with the 
 -- same set of leaves (via bitvector) and lowest cost
 -- can speed up graph diagnosis, but at the cost of potentially loosing resolutions whihc would be better later
 -- (ie closer to root)
@@ -628,7 +631,7 @@ updateRootCost  newRootCost inGraph =
 -- from vertexResolutionData to preliminary data assignments in vertData.  
 -- Proceeds via typical pre-order pass over display tree for each block
 -- using the indices of left and right (if present) of resolutions
--- first gets root assignment form resolution data and then each block is traversed given its block display tree
+-- first gets root assignment from resolution data and then each block is traversed given its block display tree
 softWiredPostOrderTraceBack  :: Int -> PhylogeneticGraph -> PhylogeneticGraph
 softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph, _, _, f)  =
     if LG.isEmpty canonicalGraph then emptyPhylogeneticGraph
@@ -647,7 +650,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
 
           -- get preliminary character data for blocks
-          -- rootPreliminaryDataVV = fmap displayData firstOfEachRootRes
+          -- these should be ok wihtout left right check since were creted with that check on post order
           (leftIndexList, rightIndexList) = V.unzip $ fmap childResolutionIndices firstOfEachRootRes
 
           -- update root vertex info for display and character trees for each block
@@ -659,8 +662,12 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           -- later (after reroot pass) this will not be the case since each charcater may have a unique traversal root/edge
           leftChild = head $ LG.descendants canonicalGraph rootIndex
           rightChild = last $ LG.descendants canonicalGraph rootIndex
-          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph leftChild) (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
-          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph rightChild) (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+
+          -- get left right from BV as in postorder
+          ((leftChild', _), (rightChild', _)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab canonicalGraph leftChild), (rightChild, fromJust $ LG.lab canonicalGraph rightChild))
+
+          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       in
       if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " ++ (show $ LG.descendants canonicalGraph rootIndex))
@@ -676,12 +683,14 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
          (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
--- the block index specifies which resolution listy from the caninical tree at node nodeIndex
--- the resoliution index is teh resolution element that was used to create the parent's state
+-- the block index specifies which resolution list from the canonical tree at node nodeIndex
+-- the resoliution index is the resolution element that was used to create the parent's state
 -- need to account for out degree 2 and 1 in recursive calls
 traceBackBlock :: DecoratedGraph -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, Maybe Int, Int) -> (DecoratedGraph, V.Vector DecoratedGraph)
 traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex, blockIndex) =
-   -- trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show (resolutionIndex, LG.descendants displayTree nodeIndex))) ( 
+   -- trace ("TBB: " ++ "Node " ++ (show nodeIndex) ++ " Block " ++ (show blockIndex) ++ " Resolution " ++ (show (resolutionIndex, LG.descendants displayTree nodeIndex))
+    -- ++ " nrd: " ++ (show (length (vertexResolutionData (fromJust $ LG.lab canonicalGraph nodeIndex)), fmap length (vertexResolutionData (fromJust $ LG.lab canonicalGraph nodeIndex)))) ) ( 
+        -- ++ "\n" ++ (show (vertexResolutionData (fromJust $ LG.lab canonicalGraph nodeIndex)))) ( 
    if (LG.isEmpty displayTree) || V.null charTreeV then error "Null data in traceBackBlock"
    else 
       let -- get block resolution data from canonical graph
