@@ -516,7 +516,9 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired startVertex _ inGraph = NEW.softWiredPostOrderTraceBack (fromJust startVertex) inGraph
+updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph = 
+    if isNothing startVertexMaybe then NEW.softWiredPostOrderTraceBack startVertex inGraph
+    else NEW.softWiredPostOrderTraceBack (fromJust startVertexMaybe) inGraph
 
 -- | makeLeafGraphSoftWired takes input data and creates a 'graph' of leaves with Vertex information
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
