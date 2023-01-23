@@ -267,17 +267,6 @@ main = do
     -- Create lazy pairwise distances if needed later for build or report
     let pairDist = D.getPairwiseDistances optimizedData
 
-    {-  THis may not be needed thought it was a field issue--was a back porting to canonical graph issue
-    -- Add transformation to Resolution cache if other search options are specified
-    let transformString = if softWiredMethod initialGlobalSettings == ResolutionCache then []
-                          else 
-                            let refineCommands = filter ((`elem` [Build, Fuse, Refine, Swap, Search, Support]) .fst) commandsAfterInitialDiagnose
-                            in
-                            if (not . null) refineCommands then 
-                                [(Transform, [("softwiredmethod","ResolutionCache")])]
-                            else []
-    -}
-
     -- Execute Following Commands (searches, reports etc)
     (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
 
@@ -291,6 +280,10 @@ main = do
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'
     
+
+    -- final results reporting to stderr
+    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost))) 
+
     -- Final Stderr report
     timeCPUEnd <- getCPUTime
     timeCDEnd <- getCurrentTime
@@ -301,11 +294,7 @@ main = do
     let cpuUsage = (fromIntegral timeCPUEnd) / (fromIntegral wallClockDuration) :: Double
     --hPutStrLn stderr ("CPU % " ++ (show cpuUsage))
 
-    -- memDetails <- getRTSStats
-
-    hPutStrLn stderr ("Execution returned " ++ (show $ length finalGraphList') ++ " graph(s) at cost range " ++ (show (minCost, maxCost)) 
-        -- ++ "\n\tHeap use " ++ (show $ gc memDetails) 
-        ++ "\n\tWall-Clock time " ++ (show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0)) ++ " second(s)"
+    hPutStrLn stderr ("\n\tWall-Clock time " ++ (show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0)) ++ " second(s)"
         ++ "\n\tCPU time " ++ (show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0)) ++ " second(s)"
         ++ "\n\tCPU usage " ++ (show (floor (100.0 * cpuUsage) :: Integer)) ++ "%"
         )
