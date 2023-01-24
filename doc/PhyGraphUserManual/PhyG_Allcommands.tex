@@ -177,9 +177,9 @@
 	\begin{description}
 		\item [all]  During branch swapping-type operations, all rearrangement are tried before choosing a new graph. 
 		
-		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
-		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
-		$n$ edges aware from their initial positions).
+%		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
+%		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
+%		$n$ edges aware from their initial positions).
 		
 		\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is specified. 
 		
@@ -188,8 +188,7 @@
 		
 		\item [keep:n] Limits the number of returned graphs to $n$. 
 		
-		\item [nni] Causes the exchanged subgraphs to be tested at their initial positions as well as the 
-		two adjacent edges.
+		\item [none] \hl{add description}
 		
 		\item [noReciprocal] Turns off \texttt{reciprocal}.
 		
@@ -483,42 +482,6 @@
 	\end{example}
 
 %---------------------------------------------
-%rename
-%---------------------------------------------	
-\subsection{Rename}
-	\label{subsec:Rename}
-	\subsubsection{Syntax}
-		\texttt{rename("newName", "oldName1", "oldName2",...)}
-		
-	\begin{phygdescription}
-	{Replaces the name(s) of specified terminals. 
-	The command consists of a terminal identifier followed by a comma and then by either 
-	a string containing a pair (or pairs) of strings containing the names of items being renamed.
-	The first string (name) is assigned to taxa with the strings (names) that follow. This can be 
-	useful when combining data from different sources, such as GenBank, or in revising names 
-	to reflect taxonomic changes. Irrespective of where this command appears in the script file, 
-	\phyg will execute this command prior to importing the data files. Compare with the 
-	argument \texttt{rename} of the command \texttt{read} (Section \ref{subsec:Read}).
-	In the example below, the taxa ``b'' and ``c'' will be renamed to ``a''.
-
-	\begin{quote}
-	rename("a","b","c")
-	\end{quote}}
-	\end{phygdescription}
-	
-	\subsubsection{Arguments}
-		Taxon names to assign and be assigned.
-		
-	\subsubsection{Defaults}
-		None.
-		
-	\begin{example}
-	
-		\item{\texttt{rename("a","b","c")}\\ Renames ``b'' and ``c'' to ``a''. }
-				
-	\end{example}
-
-%---------------------------------------------
 %refine
 %---------------------------------------------		
 \subsection{Refine}
@@ -600,6 +563,43 @@
 		\end{description}
 	
 	%add defaults and examples	
+%---------------------------------------------
+%rename
+%---------------------------------------------	
+\subsection{Rename}
+	\label{subsec:Rename}
+	\subsubsection{Syntax}
+		\texttt{rename("newName", "oldName1", "oldName2",...)}
+		
+	\begin{phygdescription}
+	{Replaces the name(s) of specified terminals. 
+	The command consists of a terminal identifier followed by a comma and then by either 
+	a string containing a pair (or pairs) of strings containing the names of items being renamed.
+	The first string (name) is assigned to taxa with the strings (names) that follow. This can be 
+	useful when combining data from different sources, such as GenBank, or in revising names 
+	to reflect taxonomic changes. Irrespective of where this command appears in the script file, 
+	\phyg will execute this command prior to importing the data files. Compare with the 
+	argument \texttt{rename} of the command \texttt{read} (Section \ref{subsec:Read}).
+	In the example below, the taxa ``b'' and ``c'' will be renamed to ``a''.
+
+	\begin{quote}
+	rename("a","b","c")
+	\end{quote}}
+	\end{phygdescription}
+	
+	\subsubsection{Arguments}
+		Taxon names to assign and be assigned.
+		
+	\subsubsection{Defaults}
+		None.
+		
+	\begin{example}
+	
+		\item{\texttt{rename("a","b","c")}\\ Renames ``b'' and ``c'' to ``a''. }
+				
+	\end{example}
+
+
 %---------------------------------------------
 %report
 %---------------------------------------------				
