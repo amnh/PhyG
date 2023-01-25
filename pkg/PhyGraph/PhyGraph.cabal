@@ -1,4 +1,4 @@
-Cabal-Version: 3.8 
+Cabal-Version: 3.8
 Name:          PhyGraph
 Version:       0.1.0
 Stability:     Alpha
@@ -182,7 +182,7 @@ Executable phyg
     GHC-Options:
      -- -fllvm
 
-  -- this since can't going on ghc-9.4.3/4 
+  -- this since can't going on ghc-9.4.3/4
   if flag(super-optimization)
     GHC-Options:
       -fexcess-precision
@@ -240,7 +240,7 @@ Executable phyg
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
-    
+
   -- include the source files needed in src for github library
   -- this for local library files
   HS-Source-Dirs: .
@@ -410,6 +410,7 @@ library tcm
     QuickCheck               >= 2.14      && < 3.0,
     mono-traversable         >= 1.0       && < 2.0,
     semigroupoids            >= 5.3       && < 5.4,
+    stm                      >= 2.5       && < 3.0,
     vector                   >= 0.12.0.3  && < 0.13,
     vector-binary-instances  >= 0.2.5     && < 1.0,
 
@@ -626,4 +627,3 @@ test-suite test-dynamic-character
 --  Other-Modules:
 --    Test.Aligners
 --    Test.QuickCheck.Instances.DynamicCharacter
-

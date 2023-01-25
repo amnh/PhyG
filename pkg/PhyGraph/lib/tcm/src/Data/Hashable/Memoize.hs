@@ -14,7 +14,10 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+#define USING_TVAR 1
 
 module Data.Hashable.Memoize
   ( memoize
@@ -23,12 +26,12 @@ module Data.Hashable.Memoize
   ) where
 
 
---import Control.Concurrent.STM
---import Control.Concurrent.STM.TVar
+import Control.Concurrent.STM
+import Control.Concurrent.STM.TVar
 import Control.DeepSeq
---import Control.Monad          (join)
+import Control.Monad          (join)
 --import Control.Monad.ST
---import Data.Functor
+import Data.Functor (($>))
 import Data.Hashable
 --import qualified Data.HashTable as HT
 import Data.HashTable.IO
@@ -73,7 +76,17 @@ import System.IO.Unsafe
 --
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
-memoize f = unsafePerformIO $ do
+memoize =
+#if USING_TVAR == 1
+    memoize_TVar
+#else
+    memoize_IO
+#endif
+
+
+{-# NOINLINE memoize_IO #-}
+memoize_IO :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_IO f = unsafePerformIO $ do
 
 {-
     modifyIORef memoEntries succ
@@ -82,24 +95,9 @@ memoize f = unsafePerformIO $ do
 -}
     let initialSize = 2 ^ (16 :: Word)
 
-    -- Create a TVar which holds the ST state and the HashTable
---    !htRef <- newTVarIO (newSized initialSize :: IO (BasicHashTable a b))
     !htRef <- (newSized initialSize :: IO (BasicHashTable a b)) >>= newIORef
-    -- This is the returned closure of a memozized f
-    -- The closure captures the "mutable" reference to the hashtable above
-    -- through the TVar.
-    --
-    -- Once the mutable hashtable reference is escaped from the IO monad,
-    -- this creates a new memoized reference to f.
-    -- The technique should be safe for all pure functions, probably, I think.
     pure $ \k -> unsafePerformIO $ do
-        -- Read the TVar, we use IO since it is the outer monad
-        -- and the documentation says that this doesn't perform a complete transaction,
-        -- it just reads the current value from the TVar
---        ht <- join $ readTVarIO htRef
         ht <- readIORef htRef
-        -- We use the HashTable to try and lookup the memoized value
---        let result = runST $ (ht `lookup` k :: forall s. ST s (Maybe b))
         result <- ht `lookup` k
         -- Here we check if the memoized value exists
         case result of
@@ -116,36 +114,16 @@ memoize f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   pure v
-{-
-            in  atomically $
-                  -- Don't use writeTVar or use a reference to the HashTable from above.
-                  -- It may have been concurrently modified before reaching this point!
-                  -- We *atomically* insert the new key-value pair into the existing
-                  -- HashTable behind the TVar, modifying the results of the TVar.
-                  modifyTVar' htRef
-                    (\st -> st                 -- Get the ST state from the TVar
-                        >>= (\ht' ->           -- Bind the hashtable in the state to x
-                                insert ht' k v -- Insert the key-value pair into the HashTable
-                                $> ht'         -- Return the HashTable as the value in ST state
-                            )
-                    )
-                  -- After performing the update side effects,
-                  -- we return the value associated with the key
-                  $> v
--}
 
 
--- Old TVar based code
-{-
-{-# NOINLINE memoize' #-}
-memoize' :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
-memoize' f = unsafePerformIO $ do
+{-# NOINLINE memoize_TVar #-}
+memoize_TVar :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_TVar f = unsafePerformIO $ do
 
     let initialSize = 2 ^ (16 :: Word)
 
     -- Create a TVar which holds the ST state and the HashTable
---    !htRef <- newTVarIO (newSized initialSize :: IO (BasicHashTable a b))
-    !htRef <- (HT.newWithDefaults initialSize :: IO (HT.HashTable a b)) >>= newIORef
+    !htRef <- newTVarIO (newSized initialSize :: IO (BasicHashTable a b))
     -- This is the returned closure of a memozized f
     -- The closure captures the "mutable" reference to the hashtable above
     -- through the TVar.
@@ -157,11 +135,9 @@ memoize' f = unsafePerformIO $ do
         -- Read the TVar, we use IO since it is the outer monad
         -- and the documentation says that this doesn't perform a complete transaction,
         -- it just reads the current value from the TVar
---        ht <- join $ readTVarIO htRef
-        ht <- readIORef htRef
+        ht <- join $ readTVarIO htRef
         -- We use the HashTable to try and lookup the memoized value
---        let result = runST $ (ht `lookup` k :: forall s. ST s (Maybe b))
-        result <- ht `HT.lookup` k
+        result <- ht `lookup` k
         -- Here we check if the memoized value exists
         case result of
           -- If the value exists return it
@@ -172,12 +148,6 @@ memoize' f = unsafePerformIO $ do
             -- associated with the key, fully evaluated.
             let v = force $ f k
             -- we want to perform the following modification atomically.
-            in do void $ HT.add ht k v -- Insert the key-value pair into the HashTable
-                  writeIORef htRef ht  -- Place the updated hashtable back in the IO-Ref
-                  -- After performing the update side effects,
-                  -- we return the value associated with the key
-                  pure v
-{-
             in  atomically $
                   -- Don't use writeTVar or use a reference to the HashTable from above.
                   -- It may have been concurrently modified before reaching this point!
@@ -193,8 +163,6 @@ memoize' f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   $> v
--}
--}
 
 
 {-
