@@ -95,8 +95,7 @@ main = do
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
 
-      -- Process so one command per line?
-
+    -- Process run commands to create one list of things to do
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
     let thingsToDo' = PC.getCommandList  commandContents'
     --mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
