@@ -766,7 +766,7 @@
 		Algorithm. The parameters and order for this search are randomized. The arguments 
 		specify the number independent instances of search (\texttt{instances}, default 1), and duration 
 		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
-		default 30 seconds). Successive rounds of search gather 
+		\hl{default 30 seconds}). Successive rounds of search gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
 		longer that the specified duration.  By default, search strategies are chosen uniformly at random, 
@@ -775,7 +775,8 @@
 		
 		When performing a \texttt{search} it is important to set the amount of time, such that the 
 		program has a reasonable amount of time to perform a search. Therefore, it is important
-		to have some idea as to the length of time it would take to do a single round of searching.}
+		to have some idea as to the length of time it would take to do a single round of searching.
+		\hl{how reasonable is this expectation of the user?}}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -793,7 +794,7 @@
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
-		\item[seconds:n] Adds $n$ seconds to search time.
+		%\item[seconds:n] Adds $n$ seconds to search time.
 		
 		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without 
 		improving the best graph cost. Should this argument be used with a specific time strategy, 
@@ -822,7 +823,7 @@
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 instance of 30 seconds keeping up to 10 graph}.
+		\texttt{search()} Performs 1 instance of \hl{30 seconds} keeping up to 10 graph}.
 		
 	\begin{example}
 		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 search instance (in parallel if the 
@@ -1119,14 +1120,14 @@
 			\item[atRandom] In concert with \texttt{displayTrees:n} specifies that displays trees are chosen 
 			uniformly at random for each input graph.
 			
-			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-			Determines whether soft-wired graph 
-			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
-			This option can significantly reduce the time to evaluate softwired graphs, but can
-			increase the optimality score of the graph.  Can be used in combination with
-			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:\\
-			Exhaustive)} at a later stage to improve graph score.
+%			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+%			Determines whether soft-wired graph 
+%			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
+%			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+%			This option can significantly reduce the time to evaluate softwired graphs, but can
+%			increase the optimality score of the graph.  Can be used in combination with
+%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:\\
+%			Exhaustive)} at a later stage to improve graph score.
 			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
 			determined by the optional argument If the number of display trees is not 
