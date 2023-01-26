@@ -780,28 +780,31 @@
 			
 	\subsubsection{Arguments}
 	\begin{description}
-		\item[keep:n] Keeps up to $n$ graphs.
-		
 		\item[days:n] Adds $n$ 24 hour days to search time.
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
-		\item[maxNetEdges:n] Limits maximum number of network edges to $n$.
+		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
+		
+		\item[keep:n] Keeps up to $n$ graphs.
+		
+		\item[maxNetEdges:n] Limits maximum number of network edges to $n$. Only to be used if
+		soft-wired or hard-wired graphs.
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
 		\item[seconds:n] Adds $n$ seconds to search time.
 		
-		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
-		
 		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without 
-		improving the best graph cost.
+		improving the best graph cost. Should this argument be used with a specific time strategy, 
+		whichever comes first, the search will end.
 		
 		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner 
 		Build, SPR, Genetic Algorithm) 
 		employs Thompson sampling.
 		\begin{description}
-			\item[mFactor:n] Species the memory factor $n$ for Thompson sampling.
+				\item[mFactor:n] Specifies the memory factor $n$ for Thompson sampling. Parameter
+				for linear and exponential.
 		
 			\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, 
 			$m$.  Updating of search type, $\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} 
