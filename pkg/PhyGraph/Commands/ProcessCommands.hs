@@ -1,7 +1,7 @@
 {- |
 Module      :  ProcessCommands.hs
 Description :  Module tpo process command 
-Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2022-2023 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,13 @@ Portability :  portable (I hope)
 -}
 
 
-module Commands.ProcessCommands  where
+module Commands.ProcessCommands  
+    ( expandRunCommands
+    , getCommandList
+    , movePrealignedTCM
+    , preprocessOptimalityCriteriaScripts
+    )
+    where
 
 import           Data.Char
 import           Data.Foldable
@@ -58,6 +64,12 @@ import qualified Input.ReadInputFiles as RIF
 import           Types.Types
 import qualified Commands.Verify              as V
 --import           Debug.Trace
+
+-- | preprocessOptimalityCriteriaScripts takes a processed command list and 
+-- prtocesses for optimlity criteria that change tcms and such for
+-- PMDL, SI, and MAPA
+preprocessOptimalityCriteriaScripts :: [Command] -> [Command]
+preprocessOptimalityCriteriaScripts inCommandList = inCommandList
 
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
@@ -190,8 +202,8 @@ parseCommand inLine =
         (localInstruction, processedArg) : parseCommand restString
 
 
--- | getSubCommand takes a string ans extracts the first occurrence of the
--- structure bleh(...), and splits the string on that, th esub command can contain
+-- | getSubCommand takes a string and extracts the first occurrence of the
+-- structure bleh(...), and splits the string on that, the sub command can contain
 -- parens and commas
 getSubCommand :: String -> Bool -> (String, String)
 getSubCommand inString hasComma =
