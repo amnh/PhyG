@@ -364,16 +364,18 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
       else
          -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
          -- can be a cause of infinite running issues.
-         let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
+         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
              
-             graphsToDo  = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
+             graphsToDo  = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
 
-             newNovelGraphs = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ newGraphList `GO.phylogeneticGraphListMinus` (curSameBetterList ++ (tail inGraphList))
+             -- newNovelGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ newGraphList `GO.phylogeneticGraphListMinus` (curSameBetterList ++ (tail inGraphList))
 
+             -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
+             -- but have same cost
              graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
-                           else (tail inGraphList) ++ newNovelGraphs
-                           -- else graphsToDo
-               --graphsToDo' = (tail inGraphList)
+                           else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+                           else graphsToDo
+
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
          -- traceNoLF ("\tRemaining to " ++ swapType ++ " swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
@@ -381,11 +383,9 @@ postProcessSwap swapType inGS inData numToKeep maxMoveEdgeDist steepest alternat
          -- for alternate if equal return immediately
          if alternate then (newCurSameBetterList, counter, inSimAnnealParams)
 
-         else if null graphsToDo' then (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newCurSameBetterList, counter, inSimAnnealParams)
-
          -- regular swap--keep going with novel equal cost graphs
          else 
-            traceNoLF ("(" ++ (show (length graphsToDo',length newNovelGraphs, length ((tail inGraphList) ++ newGraphList), length $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList) ++ ")")) 
+            -- traceNoLF ("(" ++ (show (snd6 $ head newCurSameBetterList,  length newCurSameBetterList, length curSameBetterList, length graphsToDo',length newNovelGraphs, length ((tail inGraphList) ++ newGraphList), length $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList) ++ ")"))
             swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
          -- )
          
