@@ -885,13 +885,13 @@
 			
 	\subsubsection{Arguments}
 		\begin{description}
-			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-			Determines whether soft-wired graph resolutions are ``compressed'' if multiple 
-			vertex assignments in alternate display trees are equal in subtree leaf set, only 
-			the first lowest cost resolution is retained. This option can significantly reduce 
-			the time to evaluate softwired graphs, but can increase the optimality score of 
-			the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
-			or \texttt{transform(softwiredMethod:\\Exhaustive)} 
+%			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+%			Determines whether soft-wired graph resolutions are ``compressed'' if multiple 
+%			vertex assignments in alternate display trees are equal in subtree leaf set, only 
+%			the first lowest cost resolution is retained. This option can significantly reduce 
+%			the time to evaluate softwired graphs, but can increase the optimality score of 
+%			the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
+%			or \texttt{transform(softwiredMethod:\\Exhaustive)} 
 			at a later stage to improve graph score.
 			
 			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
@@ -1089,7 +1089,7 @@
 		\end{description}	
 		
 		\subsubsection{Defaults}
-			\texttt{swap(spr, keep:1, steepest)}
+			\texttt{swap(alternate, hl{keep:1, steepest})}
 		
 		\begin{example}
 			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single 
