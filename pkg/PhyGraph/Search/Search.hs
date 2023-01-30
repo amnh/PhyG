@@ -668,14 +668,14 @@ getSearchParams inArgs =
           minutes
             | length minutesList > 1 =
               errorWithoutStackTrace ("Multiple 'minutes' number specifications in search command--can have only one: " ++ show inArgs)
-            | null minutesList = Just 0
+            | null minutesList = Just 1
             | otherwise = readMaybe (snd $ head minutesList) :: Maybe Int
 
           secondsList = filter ((=="seconds").fst) lcArgList
           seconds
             | length secondsList > 1 =
               errorWithoutStackTrace ("Multiple 'seconds' number specifications in search command--can have only one: " ++ show inArgs)
-            | null secondsList = Just 30
+            | null secondsList = Just 0
             | otherwise = readMaybe (snd $ head secondsList) :: Maybe Int
 
           maxNetEdgesList = filter ((=="maxnetedges").fst) lcArgList

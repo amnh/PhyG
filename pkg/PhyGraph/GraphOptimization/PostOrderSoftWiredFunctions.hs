@@ -867,7 +867,7 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
 updateGraphCostsComplexities inGS inGraph = 
     if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS == Likelihood then
+    else if optimalityCriterion inGS `elem` [SI, MAPA] then
         -- trace ("\tFinalizing graph cost with root priors")
         updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
     else if optimalityCriterion inGS == PMDL then

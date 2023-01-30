@@ -524,3 +524,15 @@
 	node indexing issue?
 
 424) Make surea affine works for slim
+
+
+425) For PMDL/MAPA
+	add weight field to read (already there in TNT stuff) so can create integer tcm and weight for MAPA/PMDL
+	preprocess script file to create new tcm, weight and read for MAP/PMDL
+	set with options in parens ie gamma:(classes, alpha)
+	pass field to readInput files for homogeneous tcms to create new TCMs and weights
+		if tcm specified done ahead
+	will also allow for parsing PMDL files before reading data
+		in this case have alphabets
+
+

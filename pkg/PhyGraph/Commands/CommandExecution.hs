@@ -481,19 +481,21 @@ setCommand argList globalSettings processedData inSeedList =
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
                   | (head optionList == "pmdl") = PMDL
-                  | (head optionList == "ml") = Likelihood
+                  | (head optionList == "si") = SI
+                  | (head optionList == "mapa") = MAPA
+                  
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
 
                 -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                 lGraphComplexityList = if localCriterion == Parsimony then IL.repeat (0.0, 0.0)
-                                       else if localCriterion `elem` [PMDL, Likelihood] then U.calculateGraphComplexity processedData
+                                       else if localCriterion `elem` [PMDL, SI, MAPA] then U.calculateGraphComplexity processedData
                                        else errorWithoutStackTrace ("Optimality criterion not recognized: " ++ (show localCriterion))
 
                 lRootComplexity = if localCriterion == Parsimony then 0.0
-                                 else if localCriterion `elem`  [PMDL, Likelihood] then U.calculateW15RootCost processedData
+                                 else if localCriterion `elem`  [PMDL, SI, MAPA] then U.calculateW15RootCost processedData
                                  else error ("Optimality criterion not recognized: " ++ (show localCriterion))
 
-                lGraphFactor = if localCriterion `elem` [PMDL, Likelihood] then PMDLGraph
+                lGraphFactor = if localCriterion `elem` [PMDL, SI, MAPA] then PMDLGraph
                                else graphFactor globalSettings
             in
             trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
