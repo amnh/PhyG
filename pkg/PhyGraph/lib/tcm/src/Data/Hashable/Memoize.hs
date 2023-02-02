@@ -17,7 +17,9 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-#define USING_TVAR 1
+#define USING_TVAR 0
+#define USING_CONC 0
+#define SCREAM_ON_ACCESS 0
 
 module Data.Hashable.Memoize
   ( memoize
@@ -34,11 +36,16 @@ import Control.Monad          (join)
 import Data.Functor (($>))
 import Data.Hashable
 --import qualified Data.HashTable as HT
+#if USING_CONC == 1
+import Data.HashTable
+#else
 import Data.HashTable.IO
+#endif
 --import Data.HashTable.ST.Basic
 --import qualified Data.HashTable as CHT
 import Data.IORef
 import Prelude           hiding (lookup)
+import System.IO
 import System.IO.Unsafe
 
 
@@ -77,16 +84,19 @@ import System.IO.Unsafe
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize =
-#if USING_TVAR == 1
+#if USING_CONC == 1
+    memoize_Conc
+#elif USING_TVAR == 1
     memoize_TVar
 #else
     memoize_IO
 #endif
 
 
-{-# NOINLINE memoize_IO #-}
-memoize_IO :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
-memoize_IO f = unsafePerformIO $ do
+#if USING_CONC == 1
+{-# NOINLINE memoize_Conc #-}
+memoize_Conc :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Conc f = unsafePerformIO $ do
 
 {-
     modifyIORef memoEntries succ
@@ -95,8 +105,42 @@ memoize_IO f = unsafePerformIO $ do
 -}
     let initialSize = 2 ^ (16 :: Word)
 
+    !htRef <- (newWithDefaults initialSize :: IO (HashTable a b)) >>= newIORef
+    pure $ \k -> unsafeDupablePerformIO $ do
+        ht <- readIORef htRef
+        result <- ht `lookup` k
+        -- Here we check if the memoized value exists
+        case result of
+          -- If the value exists return it
+          Just v  -> pure v
+          -- If the value doesn't exist:
+          Nothing ->
+            -- Perform the expensive calculation to determine the value
+            -- associated with the key, fully evaluated.
+            let v = force $ f k
+            -- we want to perform the following modification atomically.
+            in do insert ht k v       -- Insert the key-value pair into the HashTable
+                  writeIORef htRef ht -- Place the updated hashtable back in the IO-Ref
+                  -- After performing the update side effects,
+                  -- we return the value associated with the key
+                  pure v
+#else
+
+
+{-# NOINLINE memoize_IO #-}
+memoize_IO :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_IO f = unsafePerformIO $ do
+
+    let initialSize = 2 ^ (16 :: Word)
+
     !htRef <- (newSized initialSize :: IO (BasicHashTable a b)) >>= newIORef
-    pure $ \k -> unsafePerformIO $ do
+    pure $ \k -> unsafeDupablePerformIO $ do
+#if SCREAM_ON_ACCESS == 1
+        -- Increment access counter
+        modifyIORef memoEntries succ
+        entries <- readIORef memoEntries
+        if entries `mod` 50 == 0 then hPutStrLn stderr (show entries) else pure ()
+#endif
         ht <- readIORef htRef
         result <- ht `lookup` k
         -- Here we check if the memoized value exists
@@ -163,13 +207,14 @@ memoize_TVar f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   $> v
+#endif
 
 
-{-
+#if SCREAM_ON_ACCESS == 1
 {-# NOINLINE memoEntries #-}
 memoEntries :: IORef Word
 memoEntries = unsafePerformIO $ newIORef 0
--}
+#endif
 
 
 -- |
