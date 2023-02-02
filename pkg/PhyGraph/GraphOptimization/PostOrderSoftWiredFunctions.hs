@@ -867,7 +867,7 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
 updateGraphCostsComplexities inGS inGraph = 
     if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS == Likelihood then
+    else if optimalityCriterion inGS `elem` [SI, MAPA] then
         -- trace ("\tFinalizing graph cost with root priors")
         updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
     else if optimalityCriterion inGS == PMDL then
@@ -979,13 +979,14 @@ getW23NetPenalty inGraph =
             numLeaves = length leafList
             numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
             numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
-            divisor = numTreeEdges - numExtraEdges
+            -- divisor = numTreeEdges - numExtraEdges
         in
        --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
-        if divisor == 0.0 then infinity
+        -- if divisor == 0.0 then infinity
         -- else (sum blockPenaltyList) / divisor
         -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
-        else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
+        --else 
+        (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
         -- )
 
 -- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual

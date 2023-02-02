@@ -95,11 +95,13 @@ main = do
     -- Process commands to get list of actions
     commandContents <- readFile $ head args
 
-      -- Process so one command per line?
-
+    -- Process run commands to create one list of things to do
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
-    let thingsToDo' = PC.getCommandList  commandContents'
+    let thingsToDo'' = PC.getCommandList  commandContents'
     --mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
+
+    -- preprocess commands for non-parsimony optimality criteria
+    let thingsToDo' = PC.preprocessOptimalityCriteriaScripts thingsToDo''
 
     -- Process Read commands (with prealigned and tcm flags first)
         --expand read commands for wildcards

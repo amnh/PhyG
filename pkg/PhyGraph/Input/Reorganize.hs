@@ -715,7 +715,7 @@ recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
     if (inCharType /= Add) then (V.singleton inCharData, V.singleton inCharInfo)
     
         -- the limit on recoded states is removed for PMDL/ML since otherwise bit costs will be incorrect
-    else if (numStates > maxStateToRecode) && ((optimalityCriterion inGS)  `notElem` [PMDL, Likelihood]) then (V.singleton inCharData, V.singleton inCharInfo)
+    else if (numStates > maxStateToRecode) && ((optimalityCriterion inGS)  `notElem` [PMDL, SI, MAPA]) then (V.singleton inCharData, V.singleton inCharInfo)
     else if numStates < 2 then (V.empty, V.empty)
     else 
         -- create numStates - 1 no-additve chaaracters (V.singleton inCharData, V.singleton inCharInfo)
