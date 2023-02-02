@@ -17,9 +17,10 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-#define USING_TVAR 0
-#define USING_CONC 0
 #define SCREAM_ON_ACCESS 0
+#define USING_CONC 0
+#define USING_TVAR 0
+#define USING_IO   1
 
 module Data.Hashable.Memoize
   ( memoize
@@ -33,6 +34,7 @@ import Control.Concurrent.STM.TVar
 import Control.DeepSeq
 import Control.Monad          (join)
 --import Control.Monad.ST
+import Data.Bits (Bits(popCount))
 import Data.Functor (($>))
 import Data.Hashable
 --import qualified Data.HashTable as HT
@@ -84,12 +86,14 @@ import System.IO.Unsafe
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize =
-#if USING_CONC == 1
+#if   USING_CONC == 1
     memoize_Conc
 #elif USING_TVAR == 1
     memoize_TVar
-#else
+#elif USING_IO   == 1
     memoize_IO
+#else
+    error "No memoization option specified"
 #endif
 
 
@@ -139,7 +143,7 @@ memoize_IO f = unsafePerformIO $ do
         -- Increment access counter
         modifyIORef memoEntries succ
         entries <- readIORef memoEntries
-        if entries `mod` 50 == 0 then hPutStrLn stderr (show entries) else pure ()
+        if popCount entries == 1 || popCount == 2 then hPutStrLn stderr (show entries) else pure ()
 #endif
         ht <- readIORef htRef
         result <- ht `lookup` k
