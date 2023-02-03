@@ -194,7 +194,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                          else if toSeconds elapsedSeconds == 0 then 0.1
                          else (fromIntegral $ toSeconds elapsedSeconds) / totalTime
             
-            durationTime = if toSeconds elapsedSeconds == 0 then 1
+            durationTime = if toSeconds elapsedSeconds <= 1 then 1
                            else toSeconds elapsedSeconds
 
             -- get bandit index and orignial theta value from pair list
@@ -218,6 +218,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             -- all thetas (second field) sum to one.
             -- if didn't do anything but increment everyone else with 1/(num bandits - 1), then renormalize
             -- dowenweights unsiucessful bandit
+            -- need to add more downweight if search long
             let previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
                 benefit = if searchDelta <= 0.0 then 0.0
@@ -245,12 +246,11 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             (zip (fmap fst inPairList) newThetaList, newStopCount)
             -- )
 
-        -- more complex options
-        -- need to bag out for incorrect ["linear","exponential"]
-        -- testng for now
+        -- more complex 'recency' options
         else if mFunction `elem` ["linear","exponential"] then
             let -- weight factors for previous theta (wN-1)
-                mFactor' = fromIntegral mFactor :: Double
+                -- maxed ot counter so averaging not wierd for early iterations
+                mFactor' = min (fromIntegral counter :: Double) (fromIntegral mFactor :: Double)
                 (wN_1, wN) = if mFunction == "linear" then
                                     (mFactor' / (mFactor' + 1), 1.0 / (mFactor' + 1))
                              else if mFunction == "exponential" then 
@@ -263,7 +263,10 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 
                 previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
-                -- average of new if m=1, no memory if m=0, longer memory with larger m
+                -- average of new am]nd previous if m=1, no memory if m=0, longer memory with larger m
+                -- m should be limited to counter
+                -- linear ((m * previous value) + new value) / m+1 
+                -- exponential ((2^(-m)  * previous value) + new value) / (2^(-m) + 1)
                 newBanditVal = if searchBenefit > inThetaBandit then 
                                     (wN * searchBenefit) + (wN_1 * inThetaBandit)
                                else 
@@ -274,7 +277,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                                          else 0.0
                 updatedSuccessList = fmap (+ incrementNonBanditVals) previousSuccessList
 
-                -- uopdate the bandit from list by splitting and rejoining
+                -- uopdate the bandit from list by splitting and rejoining, then normalizing to 1.0
                 firstBanditPart = take indexBandit updatedSuccessList
                 thirdBanditPart = drop (indexBandit + 1) updatedSuccessList
                 newSuccessList = firstBanditPart ++ (newBanditVal : thirdBanditPart)
