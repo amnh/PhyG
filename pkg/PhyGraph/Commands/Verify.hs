@@ -69,7 +69,7 @@ allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "r
 
 -- list of valid instructions
 validInstructionList :: [Instruction]
-validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Select, Set, Swap, Search, Support, Transform]
+validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Search, Select, Set, Support, Swap, Transform]
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
@@ -133,8 +133,8 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges", "maxtemp", 
-    "mintemp", "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges",
+    "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
 transformArgList :: [String]
