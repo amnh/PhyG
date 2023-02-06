@@ -248,7 +248,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 
         -- more complex 'recency' options
         else if mFunction `elem` ["linear","exponential"] then
-            let -- weight factors for previous theta (wN-1)
+            let -- weight factors for previous theta (wN-1)* \theta
                 -- maxed ot counter so averaging not wierd for early iterations
                 mFactor' = min (fromIntegral counter :: Double) (fromIntegral mFactor :: Double)
                 (wN_1, wN) = if mFunction == "linear" then
@@ -257,9 +257,9 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                                     (1.0 - (1.0 / (2.0 ** mFactor')), (1.0 / (2.0 ** mFactor')))
                              else error ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
 
-                -- simple "success-based" benefit, scaled to averge time of search iteration
+                -- simple "success-based" benefit, scaled to average time of search iteration
                 searchBenefit = if searchDelta <= 0.0 then 0.0
-                                else 1.0 / timeFactor
+                                else searchDelta / timeFactor
 
                 previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
