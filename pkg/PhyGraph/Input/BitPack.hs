@@ -1411,7 +1411,11 @@ packNonAdd inGS inCharDataV charInfo =
     else
         -- recode non-additive characters
         let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
-            numNonAdd = (length . head) leafNonAddV
+
+              -- there is a problem with this index--they should all be the same but there are two classes in soem cases
+              -- I believe due to missing data
+            -- numNonAdd = (length . head) leafNonAddV
+            numNonAdd = minimum $ fmap length leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
             stateNumDataPairList = PU.seqParMap rdeepseq  (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
@@ -1425,6 +1429,7 @@ packNonAdd inGS inCharDataV charInfo =
 
 
         in
+        -- trace ("PNA:" ++ (show $ fmap length leafNonAddV))
         -- trace ("PNA out weights : " ++ (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
         (newStateCharListList, concat newCharInfoList)
         -- )

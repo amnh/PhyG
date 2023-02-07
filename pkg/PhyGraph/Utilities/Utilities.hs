@@ -207,10 +207,62 @@ bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol
       | bitValue `testBit` i = (vec V.! i) : polled
       | otherwise         = polled
 
+bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
+bitVectToCharState' localAlphabet bitValue = 
+  let stringVal' = foldr pollSymbol mempty indices
+      stringVal = concat stringVal'
+  in  
+  if length stringVal' == 1 then L.intercalate "," $ stringVal'
+  else 
+    -- AA IUPAC
+    if stringVal == "DN" then "B"
+    else if stringVal == "EQ" then "Z"
+    else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X"
+    else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?"
 
--- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState' :: (Bits b) => [String] -> b -> String
-bitVectToCharState' localAlphabet bitValue
+    -- Nucl IUPAC
+    else if stringVal == "AG" then "R"
+    else if stringVal == "CT" then "Y"
+    else if stringVal == "CG" then "S"
+    else if stringVal == "AT" then "W"
+    else if stringVal == "GT" then "K"
+    else if stringVal == "AC" then "M"
+    else if stringVal == "CGT" then "B"
+    else if stringVal == "AGT" then "D"
+    else if stringVal == "ACT" then "H"
+    else if stringVal == "ACG" then "V"
+    else if stringVal == "ACGT" then "N"
+    else if stringVal == "-ACGT" then "?"
+
+    -- ours for gap chars and nuc
+    else if stringVal == "-A" then "a"
+    else if stringVal == "-C" then "c"
+    else if stringVal == "-G" then "g"
+    else if stringVal == "-T" then "t"
+    else if stringVal == "-AG" then "r"
+    else if stringVal == "-CT" then "y"
+    else if stringVal == "-CG" then "s"
+    else if stringVal == "-AT" then "w"
+    else if stringVal == "-GT" then "k"
+    else if stringVal == "-AC" then "m"
+    else if stringVal == "-CGT" then "b"
+    else if stringVal == "-AGT" then "d"
+    else if stringVal == "-ACT" then "h"
+    else if stringVal == "-ACG" then "v"
+
+    else error ("No characvter sytring found for " ++ (show bitValue) ++ " in alphabet " ++ (show localAlphabet))
+  where
+    indices = [ 0 .. len - 1 ]
+    len = length vec
+    vec = alphabetSymbols localAlphabet
+    pollSymbol i polled
+      | bitValue `testBit` i = (vec V.! i) : polled
+      | otherwise         = polled
+
+
+-- bitVectToCharState''  takes a bit vector representation and returns a list states as integers
+bitVectToCharState'' :: (Bits b) => [String] -> b -> String
+bitVectToCharState'' localAlphabet bitValue
   | isAlphabetDna       hereAlphabet = fold $ iupacToDna       BM.!> observedSymbols
   | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
   | otherwise = L.intercalate "," $ toList observedSymbols
