@@ -269,7 +269,7 @@ swapAll' swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate count
           -- to move to end
           -- this to reduces the revisiting of stable edges (by moving them to the end of the list)
           -- yet still insures that all edges will be visited in final (or ay time needed) split.
-          -- used in POY v 1-3
+          -- used in POY v 1-3, Came from Steve Farris pers. com.
           breakEdgeFactor = snd $ divMod breakEdgeNumber (length breakEdgeList'')
           breakEdgeList =  (drop breakEdgeFactor breakEdgeList'') ++ (take breakEdgeFactor breakEdgeList'')
 

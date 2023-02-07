@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Cabal-Version: 3.8 
 Name:          PhyGraph
 Version:       0.1.0
@@ -15,8 +16,8 @@ License-File:  LICENSE
 
 
 Maintainer:    Ward Wheeler <wheeler@amnh.org>
-Homepage:      https://github.com/wardwheeler/PhyGraph#readme
-Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+Homepage:      https:ithub.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https:ithub.com/wardwheeler/PhyGraph/issues
 
 
 Extra-Doc-Files:
