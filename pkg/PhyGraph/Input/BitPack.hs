@@ -1658,9 +1658,9 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
 -- So take OR of all on bits--may be non-sequential--ie 0 2 7 so need to watch that.
 -- returns pair of stateNUmber class (2,4,5,8,64, >64 as 128) and list of states
 -- for efficient glueing back together later
-
+-- checks for min length vchars to make those missing-- can happen with implied alignment recoding
 getStateNumber :: [V.Vector BV.BitVector] -> Int -> (Int, [BV.BitVector])
-getStateNumber  characterDataVV characterIndex =
+getStateNumber  characterDataVV characterIndex  =
     -- trace ("GSN:" ++ (show characterIndex) ++ " " ++ (show $ fmap V.length characterDataVV) ++ "\n\t" ++ (show $ fmap (V.! characterIndex) characterDataVV)) (
     if null characterDataVV then (0, [])
     else
