@@ -745,8 +745,10 @@ getCharacterString inCharData inCharInfo =
                       x | x `elem` [AlignedWide]       -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedWidePrelim inCharData
                       x | x `elem` [AlignedHuge]       ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
+        allMissing = null $ filter (/= '-') charString
     in
-    charString
+    if not allMissing then charString
+    else replicate (length charString) '?'
         
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  Bits b => Alphabet String -> b -> String
@@ -917,7 +919,10 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                                x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
                                _                                -> error ("Un-implemented data type " ++ show inCharType)
 
-            sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString
+            sequenceString' = if null $ filter (/= '-') sequenceString then
+                                replicate (length sequenceString) '?'
+                              else sequenceString
+            sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString'
 
         in 
         if (not includeMissing) && (isAllGaps sequenceString) then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)

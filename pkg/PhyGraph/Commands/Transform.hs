@@ -61,11 +61,13 @@ import qualified Data.Vector.Generic         as GV
 import           Data.Word
 import           Data.Bits
 import qualified Input.Reorganize            as R
-import qualified Input.DataTransformation    as TRANS
+-- import qualified Input.DataTransformation    as TRANS
 import qualified Input.BitPack               as BP
 import qualified Commands.Verify             as VER
 import qualified Data.Text.Lazy              as TL
 import qualified Data.Char as C
+import qualified Data.Bits as B
+
 
 -- | transform changes aspects of data sande settings during execution
 -- as opposed to Set with all happens at begginign of program execution
@@ -489,7 +491,7 @@ transformCharacter inCharData inCharInfo charLength =
          let gapChar = setBit (0 :: CUInt) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else 
-                                  let missingElement = SV.replicate charLength $ TRANS.setMissingBits (0 :: CUInt) 0 alphSize
+                                  let missingElement = SV.replicate charLength $ B.complement (0 :: CUInt) -- TRANS.setMissingBits (0 :: CUInt) 0 alphSize
                                   in 
                                   (missingElement, missingElement, missingElement)
 
@@ -512,7 +514,7 @@ transformCharacter inCharData inCharInfo charLength =
          let gapChar = setBit (0 :: Word64) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else 
-                                  let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
+                                  let missingElement = UV.replicate charLength $ B.complement (0 :: Word64) -- TRANS.setMissingBits (0 :: Word64) 0 alphSize
                                   in (missingElement, missingElement, missingElement)
 
              newPrelimBV = R.convert2BV 64 impliedAlignChar

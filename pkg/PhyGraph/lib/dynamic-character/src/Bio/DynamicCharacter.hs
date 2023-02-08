@@ -193,7 +193,6 @@ isGap (_,mc,_) i = i < GV.length mc &&
 isMissing :: Vector v e => OpenDynamicCharacter v e -> Bool
 isMissing (x,y,z) = GV.length x == 0 && GV.length y == 0 && GV.length z == 0
 
-
 {-# INLINEABLE setFrom #-}
 {-# SPECIALISE setFrom :: SlimDynamicCharacter -> TempSlimDynamicCharacter (ST s) -> Int -> Int -> ST s () #-}
 {-# SPECIALISE setFrom :: WideDynamicCharacter -> TempWideDynamicCharacter (ST s) -> Int -> Int -> ST s () #-}

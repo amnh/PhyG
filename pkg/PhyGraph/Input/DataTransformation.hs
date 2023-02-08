@@ -582,11 +582,13 @@ missingAligned inChar charLength =
 setMissingBits :: (Show a, FiniteBits a) => a -> Int -> Int -> a
 setMissingBits inVal curIndex alphSize =
     if curIndex == alphSize then
-        -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
+        --trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
         inVal
     else
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
         setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
+    
+    
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])
